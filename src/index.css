@@ -2,95 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* AskMukthiGuru Design System - Ethereal Glassmorphism
+   Sacred Energy Colors: Ojas Gold, Tejas White, Prana Blue
+   All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Sacred Energy Colors */
+    --ojas-gold: 43 96% 56%;
+    --ojas-gold-light: 45 100% 70%;
+    --ojas-gold-dark: 40 90% 45%;
+    
+    --tejas-white: 0 0% 98%;
+    --tejas-glow: 45 50% 95%;
+    
+    --prana-blue: 215 80% 60%;
+    --prana-blue-light: 210 85% 75%;
+    --prana-blue-dark: 220 75% 45%;
+    
+    /* Spiritual Backgrounds */
+    --spiritual-gradient-start: 220 60% 15%;
+    --spiritual-gradient-mid: 230 50% 20%;
+    --spiritual-gradient-end: 260 40% 25%;
+    
+    /* Core Design Tokens */
+    --background: 220 50% 8%;
+    --foreground: 45 30% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 40% 12%;
+    --card-foreground: 45 30% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 45% 10%;
+    --popover-foreground: 45 30% 95%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 43 96% 56%;
+    --primary-foreground: 220 50% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 215 80% 60%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 30% 18%;
+    --muted-foreground: 220 15% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 45 100% 70%;
+    --accent-foreground: 220 50% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 30% 25%;
+    --input: 220 30% 20%;
+    --ring: 43 96% 56%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Glassmorphism Effects */
+    --glass-bg: 220 40% 12% / 0.6;
+    --glass-border: 220 30% 40% / 0.3;
+    --glass-blur: 16px;
+    
+    /* Glow Effects */
+    --glow-gold: 0 0 40px hsl(43 96% 56% / 0.4);
+    --glow-blue: 0 0 40px hsl(215 80% 60% / 0.4);
+    --glow-white: 0 0 30px hsl(45 50% 95% / 0.3);
+    
+    /* Gradients */
+    --gradient-spiritual: linear-gradient(135deg, hsl(220 60% 15%), hsl(230 50% 20%), hsl(260 40% 25%));
+    --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(45 100% 70%));
+    --gradient-celestial: linear-gradient(180deg, hsl(220 60% 12%), hsl(230 50% 18%), hsl(215 80% 60% / 0.1));
   }
 }
 
@@ -100,6 +80,195 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Glassmorphism Card */
+  .glass-card {
+    @apply relative overflow-hidden rounded-2xl;
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+  }
+  
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+  
+  .glass-card-hover:hover {
+    border-color: hsl(var(--ojas-gold) / 0.4);
+    box-shadow: var(--glow-gold);
+  }
+  
+  /* Spiritual Glow Effects */
+  .glow-gold {
+    box-shadow: var(--glow-gold);
+  }
+  
+  .glow-blue {
+    box-shadow: var(--glow-blue);
+  }
+  
+  .glow-white {
+    box-shadow: var(--glow-white);
+  }
+  
+  /* Animated Gradient Background */
+  .bg-spiritual-gradient {
+    background: var(--gradient-spiritual);
+  }
+  
+  .bg-celestial-gradient {
+    background: var(--gradient-celestial);
+  }
+  
+  /* Text Gradients */
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-gold);
+  }
+  
+  /* Floating Animation */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-float-slow {
+    animation: float 8s ease-in-out infinite;
+  }
+  
+  .animate-float-delayed {
+    animation: float 6s ease-in-out infinite 2s;
+  }
+  
+  /* Pulse Glow Animation */
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  
+  /* Particle Animation */
+  .animate-particle {
+    animation: particle-rise 10s ease-in-out infinite;
+  }
+  
+  /* Breathing Animation */
+  .animate-breathe-in {
+    animation: breathe-in 4s ease-in-out forwards;
+  }
+  
+  .animate-breathe-out {
+    animation: breathe-out 6s ease-in-out forwards;
+  }
+  
+  /* Flame Flicker */
+  .animate-flame {
+    animation: flame-flicker 2s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar for chat */
+  .scrollbar-spiritual::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-spiritual::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.3);
+    border-radius: 3px;
+  }
+  
+  .scrollbar-spiritual::-webkit-scrollbar-thumb {
+    background: hsl(var(--ojas-gold) / 0.5);
+    border-radius: 3px;
+  }
+  
+  .scrollbar-spiritual::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--ojas-gold) / 0.7);
+  }
+}
+
+/* Keyframe Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes particle-rise {
+  0% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes breathe-in {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes breathe-out {
+  0% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+}
+
+@keyframes flame-flicker {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg);
+    opacity: 0.9;
+  }
+  25% {
+    transform: scale(1.02) rotate(1deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.98) rotate(-0.5deg);
+    opacity: 0.85;
+  }
+  75% {
+    transform: scale(1.01) rotate(0.5deg);
+    opacity: 0.95;
   }
 }
