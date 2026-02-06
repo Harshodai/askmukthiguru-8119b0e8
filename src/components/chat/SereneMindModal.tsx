@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Pause, RotateCcw } from 'lucide-react';
+import { 
+  startMeditationSession, 
+  completeMeditationSession,
+  MeditationSession 
+} from '@/lib/meditationStorage';
 
 interface SereneMindModalProps {
   isOpen: boolean;
@@ -12,7 +17,6 @@ type BreathPhase = 'idle' | 'inhale' | 'hold' | 'exhale' | 'complete';
 const INHALE_DURATION = 4;
 const HOLD_DURATION = 2;
 const EXHALE_DURATION = 6;
-const TOTAL_CYCLES = 3;
 const MIN_DURATION = 180; // 3 minutes in seconds
 
 export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
@@ -21,6 +25,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
   const [cycleCount, setCycleCount] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [totalTime, setTotalTime] = useState(MIN_DURATION);
+  const sessionRef = useRef<MeditationSession | null>(null);
 
   const resetMeditation = useCallback(() => {
     setIsPlaying(false);
@@ -28,7 +33,25 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
     setCycleCount(0);
     setCountdown(0);
     setTotalTime(MIN_DURATION);
+    sessionRef.current = null;
   }, []);
+
+  // Start tracking when meditation begins
+  const handleStart = useCallback(() => {
+    if (!sessionRef.current) {
+      sessionRef.current = startMeditationSession();
+    }
+    setIsPlaying(true);
+  }, []);
+
+  // Complete session tracking
+  const handleComplete = useCallback(() => {
+    if (sessionRef.current) {
+      const duration = MIN_DURATION - totalTime;
+      completeMeditationSession(sessionRef.current.id, duration, cycleCount);
+    }
+    setPhase('complete');
+  }, [totalTime, cycleCount]);
 
   // Handle meditation phases
   useEffect(() => {
@@ -60,20 +83,25 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
       setCycleCount(newCycleCount);
 
       if (totalTime <= 0) {
-        setPhase('complete');
+        handleComplete();
       } else {
         setPhase('inhale');
         setCountdown(INHALE_DURATION);
       }
     }
-  }, [isPlaying, phase, countdown, cycleCount, totalTime]);
+  }, [isPlaying, phase, countdown, cycleCount, totalTime, handleComplete]);
 
   // Reset when modal closes
   useEffect(() => {
     if (!isOpen) {
+      // Save partial session if exists
+      if (sessionRef.current && phase !== 'idle' && phase !== 'complete') {
+        const duration = MIN_DURATION - totalTime;
+        completeMeditationSession(sessionRef.current.id, duration, cycleCount);
+      }
       resetMeditation();
     }
-  }, [isOpen, resetMeditation]);
+  }, [isOpen, resetMeditation, phase, totalTime, cycleCount]);
 
   const getPhaseInstruction = () => {
     switch (phase) {
@@ -224,20 +252,29 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
 
               {/* Countdown & Instruction */}
               <div className="mb-8">
-                {isPlaying && phase !== 'idle' && phase !== 'complete' && (
-                  <motion.div
-                    key={countdown}
-                    initial={{ opacity: 0, scale: 1.2 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-5xl font-bold text-ojas mb-2"
-                  >
-                    {countdown}
-                  </motion.div>
-                )}
-                <p className="text-lg text-tejas">{getPhaseInstruction()}</p>
+                <AnimatePresence mode="wait">
+                  {isPlaying && phase !== 'idle' && phase !== 'complete' && (
+                    <motion.div
+                      key={countdown}
+                      initial={{ opacity: 0, scale: 1.2 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="text-5xl font-bold text-ojas mb-2"
+                    >
+                      {countdown}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <motion.p 
+                  className="text-lg text-tejas"
+                  animate={{ opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  {getPhaseInstruction()}
+                </motion.p>
                 {isPlaying && phase !== 'complete' && (
                   <p className="text-sm text-muted-foreground mt-2">
-                    Remaining: {formatTime(totalTime)}
+                    Remaining: {formatTime(totalTime)} • Cycles: {cycleCount}
                   </p>
                 )}
               </div>
@@ -245,27 +282,35 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
               {/* Controls */}
               <div className="flex justify-center gap-4">
                 {phase === 'complete' ? (
-                  <button
+                  <motion.button
                     onClick={onClose}
-                    className="px-6 py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 hover:scale-105"
+                    className="px-6 py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     Return to Chat
-                  </button>
+                  </motion.button>
                 ) : (
                   <>
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className="p-4 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 hover:scale-105"
+                    <motion.button
+                      onClick={() => isPlaying ? setIsPlaying(false) : handleStart()}
+                      className="p-4 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                     >
                       {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                    </button>
+                    </motion.button>
                     {(isPlaying || phase !== 'idle') && (
-                      <button
+                      <motion.button
                         onClick={resetMeditation}
                         className="p-4 rounded-full bg-muted hover:bg-muted/80 transition-all duration-300"
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                       >
                         <RotateCcw className="w-6 h-6 text-muted-foreground" />
-                      </button>
+                      </motion.button>
                     )}
                   </>
                 )}

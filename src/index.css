@@ -192,6 +192,20 @@
   .scrollbar-spiritual::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--ojas-gold) / 0.7);
   }
+
+  /* Safe area utilities for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .h-safe-area-inset-bottom {
+    height: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Touch action utilities */
+  .touch-action-pan-y {
+    touch-action: pan-y;
+  }
 }
 
 /* Keyframe Animations */

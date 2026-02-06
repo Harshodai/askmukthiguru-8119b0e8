@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { Heart, Sparkles, Sun } from 'lucide-react';
+import { Heart, Sparkles } from 'lucide-react';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 export const MeetTheGurusSection = () => {
   return (
@@ -36,15 +37,25 @@ export const MeetTheGurusSection = () => {
         >
           <div className="glass-card-hover p-8 md:p-12">
             <div className="flex flex-col md:flex-row gap-8 items-center">
-              {/* Avatar/Icon */}
-              <div className="relative">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-ojas/20 to-prana/20 flex items-center justify-center glow-gold">
-                  <Sun className="w-16 h-16 text-ojas animate-pulse-glow" />
+              {/* Guru Photo */}
+              <motion.div 
+                className="relative"
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden ring-4 ring-ojas/30 glow-gold relative">
+                  <img
+                    src={gurusPhoto}
+                    alt="Sri Preethaji & Sri Krishnaji"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent" />
                 </div>
-                <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-br from-ojas to-ojas-light flex items-center justify-center">
+                <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-br from-ojas to-ojas-light flex items-center justify-center animate-pulse-glow">
                   <Heart className="w-5 h-5 text-primary-foreground" />
                 </div>
-              </div>
+              </motion.div>
 
               {/* Content */}
               <div className="flex-1 text-center md:text-left">
