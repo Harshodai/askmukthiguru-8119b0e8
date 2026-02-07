@@ -39,24 +39,24 @@ export const SafetyDisclaimer = () => {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative z-10 w-full max-w-md"
           >
-            <div className="glass-card p-6 md:p-8">
+            <div className="glass-card p-6 md:p-8 shadow-xl">
               {/* Close button (subtle) */}
               <button
                 onClick={handleAccept}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted/50 transition-colors opacity-50 hover:opacity-100"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors opacity-50 hover:opacity-100"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
 
               {/* Icon */}
               <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-ojas/20 to-prana/20 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-ojas/20 border border-ojas/30 flex items-center justify-center shadow-md">
                   <Heart className="w-8 h-8 text-ojas" />
                 </div>
               </div>
 
               {/* Title */}
-              <h2 className="text-2xl font-bold text-center text-tejas mb-4">
+              <h2 className="text-2xl font-bold text-center text-foreground mb-4">
                 Welcome, Dear Seeker
               </h2>
 
@@ -68,7 +68,7 @@ export const SafetyDisclaimer = () => {
               </p>
 
               {/* Warning Box */}
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-6">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
@@ -83,15 +83,15 @@ export const SafetyDisclaimer = () => {
               </div>
 
               {/* Crisis Resources (India focused for AIKosh) */}
-              <div className="text-xs text-muted-foreground/70 text-center mb-6">
-                <p className="mb-1">Crisis Support (India):</p>
+              <div className="text-xs text-muted-foreground text-center mb-6 bg-muted/30 rounded-lg p-3">
+                <p className="font-medium mb-1">Crisis Support (India):</p>
                 <p>iCall: 9152987821 | Vandrevala Foundation: 1860-2662-345</p>
               </div>
 
               {/* Accept Button */}
               <button
                 onClick={handleAccept}
-                className="w-full py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 hover:scale-[1.02]"
+                className="w-full py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 hover:scale-[1.02] shadow-md"
               >
                 I Understand — Begin My Journey
               </button>

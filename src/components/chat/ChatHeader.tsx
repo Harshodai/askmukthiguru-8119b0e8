@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Trash2, Menu, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, Trash2, Menu, Wifi, WifiOff } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
@@ -28,30 +28,30 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
   }, []);
 
   return (
-    <header className="relative z-20 glass-card mx-4 mt-4 px-4 py-3">
+    <header className="relative z-20 glass-card mx-4 mt-4 px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Back button - hidden on mobile when menu is available */}
           <Link 
             to="/" 
-            className="p-2 rounded-full hover:bg-muted/50 transition-colors hidden sm:flex"
+            className="p-2 rounded-full hover:bg-muted transition-colors hidden sm:flex"
           >
-            <ArrowLeft className="w-5 h-5 text-tejas" />
+            <ArrowLeft className="w-5 h-5 text-foreground" />
           </Link>
           
           {/* Mobile menu button */}
           {onOpenMobileMenu && (
             <button
               onClick={onOpenMobileMenu}
-              className="p-2 rounded-full hover:bg-muted/50 transition-colors sm:hidden"
+              className="p-2 rounded-full hover:bg-muted transition-colors sm:hidden"
             >
-              <Menu className="w-5 h-5 text-tejas" />
+              <Menu className="w-5 h-5 text-foreground" />
             </button>
           )}
 
           {/* Guru Avatar and Info */}
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-ojas/30">
+            <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-ojas/30 shadow-md">
               <img
                 src={gurusPhoto}
                 alt="Sri Preethaji & Sri Krishnaji"
@@ -59,12 +59,12 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
               />
             </div>
             <div>
-              <h1 className="font-semibold text-tejas text-sm sm:text-base">
+              <h1 className="font-semibold text-foreground text-sm sm:text-base">
                 Sri Preethaji & Sri Krishnaji
               </h1>
               <div className="flex items-center gap-1.5">
-              {connectionStatus.connected ? (
-                  <Wifi className="w-3 h-3 text-accent" />
+                {connectionStatus.connected ? (
+                  <Wifi className="w-3 h-3 text-prana" />
                 ) : (
                   <WifiOff className="w-3 h-3 text-muted-foreground" />
                 )}
@@ -78,8 +78,8 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
         <div className="flex items-center gap-2">
           <button
             onClick={onClearChat}
-            className="p-2 rounded-full hover:bg-destructive/20 transition-colors group"
-            title="Clear chat history"
+            className="p-2 rounded-full hover:bg-destructive/10 transition-colors group"
+            title="Start new conversation"
           >
             <Trash2 className="w-5 h-5 text-muted-foreground group-hover:text-destructive transition-colors" />
           </button>

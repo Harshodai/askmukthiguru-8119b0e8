@@ -20,7 +20,7 @@ export const Navbar = () => {
       className="fixed top-0 left-0 right-0 z-50"
     >
       <div className="mx-4 mt-4">
-        <div className="glass-card px-6 py-4">
+        <div className="glass-card px-6 py-4 shadow-md">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
@@ -34,14 +34,14 @@ export const Navbar = () => {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-sm text-tejas/80 hover:text-ojas transition-colors duration-200"
+                  className="text-sm text-foreground hover:text-ojas transition-colors duration-200 font-medium"
                 >
                   {link.label}
                 </a>
               ))}
               <Link
                 to="/chat"
-                className="px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-sm transition-all duration-300 hover:scale-105"
+                className="px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-sm transition-all duration-300 hover:scale-105 shadow-md"
               >
                 Start Chat
               </Link>
@@ -50,7 +50,7 @@ export const Navbar = () => {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 text-tejas hover:text-ojas transition-colors"
+              className="md:hidden p-2 text-foreground hover:text-ojas transition-colors"
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -62,7 +62,7 @@ export const Navbar = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden mt-4 pt-4 border-t border-border/30"
+              className="md:hidden mt-4 pt-4 border-t border-border"
             >
               <div className="flex flex-col gap-4">
                 {navLinks.map((link) => (
@@ -70,7 +70,7 @@ export const Navbar = () => {
                     key={link.href}
                     href={link.href}
                     onClick={() => setIsOpen(false)}
-                    className="text-tejas/80 hover:text-ojas transition-colors"
+                    className="text-foreground hover:text-ojas transition-colors font-medium"
                   >
                     {link.label}
                   </a>
@@ -78,7 +78,7 @@ export const Navbar = () => {
                 <Link
                   to="/chat"
                   onClick={() => setIsOpen(false)}
-                  className="px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-center transition-all duration-300"
+                  className="px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-center transition-all duration-300 shadow-md"
                 >
                   Start Chat
                 </Link>

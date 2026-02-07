@@ -26,10 +26,10 @@ export const AboutMeditationSection = () => {
               transition={{ duration: 0.7 }}
             >
               <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                <span className="text-tejas">The</span>{' '}
+                <span className="text-foreground">The</span>{' '}
                 <span className="text-gradient-gold">Serene Mind</span>
                 <br />
-                <span className="text-tejas">Meditation</span>
+                <span className="text-foreground">Meditation</span>
               </h2>
               
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
@@ -55,19 +55,19 @@ export const AboutMeditationSection = () => {
                     transition={{ delay: index * 0.1 }}
                     className="flex items-center gap-3"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-ojas/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-ojas/10 flex items-center justify-center border border-ojas/20">
                       <benefit.icon className="w-5 h-5 text-ojas" />
                     </div>
-                    <span className="text-sm text-tejas/90">{benefit.text}</span>
+                    <span className="text-sm text-foreground font-medium">{benefit.text}</span>
                   </motion.div>
                 ))}
               </div>
 
               <Link
                 to="/chat"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-prana hover:bg-prana-light text-secondary-foreground font-medium rounded-full transition-all duration-300 hover:scale-105"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-ojas/20 hover:bg-ojas/30 text-foreground font-medium rounded-full transition-all duration-300 hover:scale-105 border border-ojas/30 shadow-md"
               >
-                <Flame className="w-5 h-5" />
+                <Flame className="w-5 h-5 text-ojas" />
                 Try Serene Mind
               </Link>
             </motion.div>
@@ -80,24 +80,24 @@ export const AboutMeditationSection = () => {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="relative"
             >
-              <div className="glass-card p-8 md:p-12">
+              <div className="glass-card p-8 md:p-12 shadow-lg">
                 {/* Meditation Preview */}
                 <div className="aspect-square max-w-sm mx-auto relative flex items-center justify-center">
                   {/* Outer glow rings */}
                   <motion.div
                     animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
                     transition={{ duration: 4, repeat: Infinity }}
-                    className="absolute inset-0 rounded-full border-2 border-ojas/20"
+                    className="absolute inset-0 rounded-full border-2 border-ojas/30"
                   />
                   <motion.div
                     animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.15, 0.4] }}
                     transition={{ duration: 4, repeat: Infinity, delay: 0.5 }}
-                    className="absolute inset-8 rounded-full border-2 border-ojas/30"
+                    className="absolute inset-8 rounded-full border-2 border-ojas/40"
                   />
                   <motion.div
                     animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.2, 0.5] }}
                     transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-                    className="absolute inset-16 rounded-full border-2 border-ojas/40"
+                    className="absolute inset-16 rounded-full border-2 border-ojas/50"
                   />
 
                   {/* Central Flame */}

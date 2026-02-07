@@ -30,7 +30,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
         {/* Guru Avatar */}
         {isGuru && (
           <motion.div 
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-ojas/30 to-prana/30 flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 rounded-full bg-ojas/20 border border-ojas/30 flex items-center justify-center flex-shrink-0 shadow-sm"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ 
@@ -49,13 +49,13 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
           className={`max-w-[80%] ${
             isGuru
               ? 'glass-card rounded-2xl rounded-tl-sm'
-              : 'bg-gradient-to-r from-ojas to-ojas-dark text-primary-foreground rounded-2xl rounded-tr-sm'
+              : 'bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-sm shadow-md'
           } px-4 py-3`}
           whileHover={{ scale: 1.01 }}
           transition={{ duration: 0.2 }}
         >
           <motion.p 
-            className={`text-sm leading-relaxed ${isGuru ? 'text-tejas/90' : ''}`}
+            className={`text-sm leading-relaxed ${isGuru ? 'text-foreground' : ''}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: index * 0.05 + 0.15 }}
@@ -63,7 +63,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
             {message.content}
           </motion.p>
           <motion.p 
-            className={`text-xs mt-2 ${isGuru ? 'text-muted-foreground/50' : 'text-primary-foreground/60'}`}
+            className={`text-xs mt-2 ${isGuru ? 'text-muted-foreground' : 'text-primary-foreground/70'}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: index * 0.05 + 0.2 }}
@@ -75,7 +75,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
         {/* User Avatar */}
         {!isGuru && (
           <motion.div 
-            className="w-8 h-8 rounded-full bg-gradient-to-br from-prana to-prana-dark flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 rounded-full bg-prana/20 border border-prana/30 flex items-center justify-center flex-shrink-0 shadow-sm"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ 
@@ -85,7 +85,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
               damping: 15
             }}
           >
-            <span className="text-xs font-medium text-secondary-foreground">You</span>
+            <span className="text-xs font-medium text-prana-dark">You</span>
           </motion.div>
         )}
       </motion.div>

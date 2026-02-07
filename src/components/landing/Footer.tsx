@@ -4,9 +4,7 @@ import { Link } from 'react-router-dom';
 
 export const Footer = () => {
   return (
-    <footer className="py-12 relative overflow-hidden border-t border-border/30">
-      <div className="absolute inset-0 bg-background" />
-      
+    <footer className="py-12 relative overflow-hidden border-t border-border bg-muted/30">
       <div className="relative z-10 container mx-auto px-6">
         <div className="flex flex-col items-center text-center">
           {/* Logo */}
@@ -39,7 +37,7 @@ export const Footer = () => {
           </div>
 
           {/* Disclaimer */}
-          <div className="text-xs text-muted-foreground/60 max-w-lg mb-6">
+          <div className="text-xs text-muted-foreground max-w-lg mb-6 bg-muted/50 rounded-lg p-3">
             <p>
               This is an AI companion trained on spiritual teachings. It is not a replacement 
               for medical or clinical therapy. If you are experiencing a mental health crisis, 
@@ -48,7 +46,7 @@ export const Footer = () => {
           </div>
 
           {/* Copyright */}
-          <div className="flex items-center gap-1 text-sm text-muted-foreground/50">
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <span>Made with</span>
             <Heart className="w-4 h-4 text-ojas fill-ojas" />
             <span>for seekers everywhere</span>
