@@ -148,7 +148,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center"
         >
-          {/* Backdrop */}
+          {/* Backdrop - Warm light overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -165,11 +165,11 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative z-10 w-full max-w-lg mx-4"
           >
-            <div className="glass-card p-8 text-center">
+            <div className="glass-card p-8 text-center shadow-xl">
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted/50 transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
               >
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -189,7 +189,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
                     opacity: isPlaying ? [0.2, 0.4] : 0.2,
                   }}
                   transition={{ duration: phase === 'inhale' ? INHALE_DURATION : EXHALE_DURATION }}
-                  className="absolute inset-0 rounded-full border-2 border-ojas/30"
+                  className="absolute inset-0 rounded-full border-2 border-ojas/40"
                 />
                 <motion.div
                   animate={{
@@ -197,7 +197,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
                     opacity: isPlaying ? [0.3, 0.5] : 0.3,
                   }}
                   transition={{ duration: phase === 'inhale' ? INHALE_DURATION : EXHALE_DURATION, delay: 0.1 }}
-                  className="absolute inset-4 rounded-full border-2 border-ojas/40"
+                  className="absolute inset-4 rounded-full border-2 border-ojas/50"
                 />
 
                 {/* Central Flame */}
@@ -232,7 +232,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
                           <linearGradient id="flameGradientModal" x1="0%" y1="100%" x2="0%" y2="0%">
                             <stop offset="0%" stopColor="hsl(30, 100%, 50%)" />
                             <stop offset="50%" stopColor="hsl(43, 96%, 56%)" />
-                            <stop offset="100%" stopColor="hsl(45, 100%, 90%)" />
+                            <stop offset="100%" stopColor="hsl(45, 100%, 85%)" />
                           </linearGradient>
                         </defs>
                         <path
@@ -266,7 +266,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
                   )}
                 </AnimatePresence>
                 <motion.p 
-                  className="text-lg text-tejas"
+                  className="text-lg text-foreground font-medium"
                   animate={{ opacity: [0.7, 1, 0.7] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
@@ -284,7 +284,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
                 {phase === 'complete' ? (
                   <motion.button
                     onClick={onClose}
-                    className="px-6 py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300"
+                    className="px-6 py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 shadow-md"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -294,7 +294,7 @@ export const SereneMindModal = ({ isOpen, onClose }: SereneMindModalProps) => {
                   <>
                     <motion.button
                       onClick={() => isPlaying ? setIsPlaying(false) : handleStart()}
-                      className="p-4 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300"
+                      className="p-4 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 shadow-md"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >

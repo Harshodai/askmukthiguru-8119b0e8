@@ -7,15 +7,15 @@ import { FloatingParticles } from './FloatingParticles';
 export const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image with Overlay */}
+      {/* Background Image with Light Overlay */}
       <div className="absolute inset-0">
         <img
           src={heroImage}
           alt="Spiritual lotus flowers with golden light"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/40 via-transparent to-background/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/30 via-transparent to-background/30" />
       </div>
 
       {/* Floating Particles */}
@@ -34,10 +34,10 @@ export const HeroSection = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8 shadow-md"
           >
             <Sparkles className="w-4 h-4 text-ojas" />
-            <span className="text-sm text-tejas">Guided by Ancient Wisdom, Powered by AI</span>
+            <span className="text-sm text-foreground font-medium">Guided by Ancient Wisdom, Powered by AI</span>
           </motion.div>
 
           {/* Main Headline */}
@@ -47,7 +47,7 @@ export const HeroSection = () => {
             transition={{ delay: 0.3, duration: 0.7 }}
             className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
           >
-            <span className="text-tejas">Discover Your</span>
+            <span className="text-foreground">Discover Your</span>
             <br />
             <span className="text-gradient-gold">Beautiful State</span>
           </motion.h1>
@@ -71,7 +71,7 @@ export const HeroSection = () => {
           >
             <Link
               to="/chat"
-              className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-105 glow-gold"
+              className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-105 shadow-lg glow-gold"
             >
               <span>Begin Your Journey</span>
               <motion.span
@@ -88,7 +88,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 0.5 }}
-            className="mt-8 text-sm text-muted-foreground/70"
+            className="mt-8 text-sm text-muted-foreground"
           >
             This is an AI companion trained on spiritual teachings. Not a replacement for professional guidance.
           </motion.p>
@@ -105,7 +105,7 @@ export const HeroSection = () => {
         <motion.div
           animate={{ y: [0, 10, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="w-6 h-10 border-2 border-tejas/30 rounded-full flex justify-center pt-2"
+          className="w-6 h-10 border-2 border-ojas/40 rounded-full flex justify-center pt-2"
         >
           <motion.div className="w-1.5 h-1.5 bg-ojas rounded-full" />
         </motion.div>

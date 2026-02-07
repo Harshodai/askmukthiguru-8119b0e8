@@ -1,12 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Flame } from 'lucide-react';
 import { 
   Message, 
+  Conversation,
   generateId, 
-  saveChatHistory, 
-  loadChatHistory, 
-  clearChatHistory,
+  saveConversation,
+  loadConversation,
+  loadConversations,
+  createNewConversation,
+  getConversationPreview,
+  getCurrentConversationId,
+  setCurrentConversationId,
 } from '@/lib/chatStorage';
 import { sendMessage, MessagePayload } from '@/lib/aiService';
 import { ChatMessage } from './ChatMessage';
@@ -16,7 +21,10 @@ import { MobileConversationSheet } from './MobileConversationSheet';
 import { LanguageSelector } from './LanguageSelector';
 import { FloatingParticles } from '../landing/FloatingParticles';
 
+const WELCOME_MESSAGE = 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
+
 export const ChatInterface = () => {
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -27,29 +35,61 @@ export const ChatInterface = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load chat history on mount
+  // Initialize or load conversation on mount
   useEffect(() => {
-    const history = loadChatHistory();
-    if (history.length > 0) {
-      setMessages(history);
+    const currentId = getCurrentConversationId();
+    let conversation: Conversation | null = null;
+
+    if (currentId) {
+      conversation = loadConversation(currentId);
+    }
+
+    if (!conversation) {
+      // Check if there are any existing conversations
+      const existingConversations = loadConversations();
+      if (existingConversations.length > 0) {
+        conversation = existingConversations[0];
+      } else {
+        conversation = createNewConversation();
+      }
+    }
+
+    setCurrentConversation(conversation);
+    
+    if (conversation.messages.length > 0) {
+      setMessages(conversation.messages);
     } else {
       // Add welcome message
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
-        content: 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.',
+        content: WELCOME_MESSAGE,
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
     }
+
+    setCurrentConversationId(conversation.id);
   }, []);
 
-  // Save messages to localStorage whenever they change
-  useEffect(() => {
-    if (messages.length > 0) {
-      saveChatHistory(messages);
+  // Save conversation whenever messages change
+  const saveCurrentConversation = useCallback(() => {
+    if (currentConversation && messages.length > 0) {
+      const updatedConversation: Conversation = {
+        ...currentConversation,
+        messages,
+        messageCount: messages.length,
+        preview: getConversationPreview(messages),
+        updatedAt: new Date(),
+      };
+      saveConversation(updatedConversation);
+      setCurrentConversation(updatedConversation);
     }
-  }, [messages]);
+  }, [currentConversation, messages]);
+
+  useEffect(() => {
+    saveCurrentConversation();
+  }, [messages, saveCurrentConversation]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -94,8 +134,11 @@ export const ChatInterface = () => {
     }
   };
 
-  const handleClearChat = () => {
-    clearChatHistory();
+  const handleNewConversation = () => {
+    const newConversation = createNewConversation();
+    setCurrentConversation(newConversation);
+    setCurrentConversationId(newConversation.id);
+    
     const welcomeMessage: Message = {
       id: generateId(),
       role: 'guru',
@@ -103,6 +146,12 @@ export const ChatInterface = () => {
       timestamp: new Date(),
     };
     setMessages([welcomeMessage]);
+  };
+
+  const handleSelectConversation = (conversation: Conversation) => {
+    setCurrentConversation(conversation);
+    setCurrentConversationId(conversation.id);
+    setMessages(conversation.messages);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -120,7 +169,7 @@ export const ChatInterface = () => {
 
       {/* Header */}
       <ChatHeader 
-        onClearChat={handleClearChat}
+        onClearChat={handleNewConversation}
         onOpenMobileMenu={() => setShowMobileSheet(true)}
       />
 
@@ -147,7 +196,7 @@ export const ChatInterface = () => {
                 className="flex items-start gap-3"
               >
                 <motion.div 
-                  className="w-8 h-8 rounded-full bg-gradient-to-br from-ojas/30 to-prana/30 flex items-center justify-center flex-shrink-0"
+                  className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30"
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
@@ -192,10 +241,10 @@ export const ChatInterface = () => {
           >
             <button
               onClick={() => setShowSereneMind(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 hover:bg-prana/30 border border-prana/30 transition-all duration-300 hover:scale-105 group"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/10 hover:bg-ojas/20 border border-ojas/20 hover:border-ojas/30 transition-all duration-300 hover:scale-105 group"
             >
               <Flame className="w-4 h-4 text-ojas group-hover:animate-pulse" />
-              <span className="text-sm text-tejas">Feeling stressed? Try Serene Mind</span>
+              <span className="text-sm text-foreground font-medium">Feeling stressed? Try Serene Mind</span>
             </button>
           </motion.div>
 
@@ -203,7 +252,7 @@ export const ChatInterface = () => {
           <motion.form 
             onSubmit={handleSubmit} 
             className={`glass-card p-3 transition-all duration-300 ${
-              inputFocused ? 'ring-2 ring-ojas/50 glow-gold' : ''
+              inputFocused ? 'ring-2 ring-ojas/40 shadow-lg' : ''
             }`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -219,13 +268,13 @@ export const ChatInterface = () => {
                 onBlur={() => setInputFocused(false)}
                 placeholder="Share what's on your heart..."
                 rows={1}
-                className="flex-1 bg-transparent border-none outline-none resize-none text-tejas placeholder:text-muted-foreground/50 py-2 px-2 max-h-32 scrollbar-spiritual"
+                className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-2 px-2 max-h-32 scrollbar-spiritual"
                 style={{ minHeight: '44px' }}
               />
               <motion.button
                 type="submit"
                 disabled={!inputValue.trim() || isTyping}
-                className="p-3 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-3 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 animate={inputValue.trim() ? { scale: [1, 1.05, 1] } : {}}
@@ -236,18 +285,18 @@ export const ChatInterface = () => {
             </div>
 
             {/* Language & Voice Controls */}
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <LanguageSelector 
                 voiceEnabled={voiceEnabled}
                 onVoiceToggle={() => setVoiceEnabled(!voiceEnabled)}
               />
-              <p className="text-xs text-muted-foreground/50 hidden sm:block">
+              <p className="text-xs text-muted-foreground hidden sm:block">
                 AI companion • Not a replacement for professional guidance
               </p>
             </div>
           </motion.form>
 
-          <p className="text-center text-xs text-muted-foreground/50 mt-2 sm:hidden">
+          <p className="text-center text-xs text-muted-foreground mt-2 sm:hidden">
             AI companion • Not a replacement for professional guidance
           </p>
         </div>
@@ -257,8 +306,10 @@ export const ChatInterface = () => {
       <MobileConversationSheet
         isOpen={showMobileSheet}
         onClose={() => setShowMobileSheet(false)}
-        onNewConversation={handleClearChat}
+        onNewConversation={handleNewConversation}
         onOpenSereneMind={() => setShowSereneMind(true)}
+        onSelectConversation={handleSelectConversation}
+        currentConversationId={currentConversation?.id}
       />
 
       {/* Serene Mind Modal */}

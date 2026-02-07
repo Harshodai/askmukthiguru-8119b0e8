@@ -26,7 +26,7 @@ const steps = [
 
 export const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="py-24 relative overflow-hidden bg-spiritual-gradient">
+    <section id="how-it-works" className="py-24 relative overflow-hidden bg-muted/30">
       {/* Decorative elements */}
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-ojas/30 to-transparent" />
       <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-prana/30 to-transparent" />
@@ -41,7 +41,7 @@ export const HowItWorksSection = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="text-tejas">How It</span>{' '}
+            <span className="text-foreground">How It</span>{' '}
             <span className="text-gradient-gold">Works</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -59,22 +59,22 @@ export const HowItWorksSection = () => {
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.5, delay: index * 0.15 }}
             >
-              <div className="glass-card-hover p-6 h-full text-center group">
+              <div className="glass-card-hover p-6 h-full text-center group shadow-md">
                 {/* Step Number */}
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-ojas/20 text-ojas text-sm font-bold mb-4">
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-ojas/20 text-ojas text-sm font-bold mb-4 border border-ojas/30">
                   {index + 1}
                 </div>
 
                 {/* Icon */}
                 <div className="relative w-16 h-16 mx-auto mb-4">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-ojas/20 to-prana/20 group-hover:scale-110 transition-transform duration-300" />
+                  <div className="absolute inset-0 rounded-full bg-ojas/10 group-hover:bg-ojas/20 group-hover:scale-110 transition-all duration-300 border border-ojas/20" />
                   <div className="relative w-full h-full flex items-center justify-center">
-                    <step.icon className="w-8 h-8 text-ojas group-hover:text-ojas-light transition-colors duration-300" />
+                    <step.icon className="w-8 h-8 text-ojas group-hover:text-ojas-dark transition-colors duration-300" />
                   </div>
                 </div>
 
                 {/* Content */}
-                <h3 className="text-lg font-semibold text-tejas mb-2">{step.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{step.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
               </div>
             </motion.div>
@@ -82,7 +82,7 @@ export const HowItWorksSection = () => {
         </div>
 
         {/* Connection Line (Desktop) */}
-        <div className="hidden lg:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-ojas/20 to-transparent pointer-events-none" />
+        <div className="hidden lg:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-ojas/30 to-transparent pointer-events-none" />
       </div>
     </section>
   );

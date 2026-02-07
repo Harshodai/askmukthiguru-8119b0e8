@@ -2,75 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AskMukthiGuru Design System - Ethereal Glassmorphism
-   Sacred Energy Colors: Ojas Gold, Tejas White, Prana Blue
+/* AskMukthiGuru Design System - Beautiful State Theme
+   Sacred Energy Colors: Ojas Gold, Tejas Warm, Prana Soft Blue
+   Warm light palette evoking peace, sanctuary, and the "Beautiful State"
    All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    /* Sacred Energy Colors */
+    /* Sacred Energy Colors - Warm & Inviting */
     --ojas-gold: 43 96% 56%;
     --ojas-gold-light: 45 100% 70%;
     --ojas-gold-dark: 40 90% 45%;
     
-    --tejas-white: 0 0% 98%;
-    --tejas-glow: 45 50% 95%;
+    --tejas-white: 35 30% 25%;
+    --tejas-glow: 40 40% 35%;
     
-    --prana-blue: 215 80% 60%;
-    --prana-blue-light: 210 85% 75%;
-    --prana-blue-dark: 220 75% 45%;
+    --prana-blue: 200 60% 55%;
+    --prana-blue-light: 195 65% 70%;
+    --prana-blue-dark: 205 55% 45%;
     
-    /* Spiritual Backgrounds */
-    --spiritual-gradient-start: 220 60% 15%;
-    --spiritual-gradient-mid: 230 50% 20%;
-    --spiritual-gradient-end: 260 40% 25%;
+    /* Warm Light Backgrounds - Golden Hour Palette */
+    --spiritual-gradient-start: 40 40% 97%;
+    --spiritual-gradient-mid: 45 50% 95%;
+    --spiritual-gradient-end: 35 60% 93%;
     
-    /* Core Design Tokens */
-    --background: 220 50% 8%;
-    --foreground: 45 30% 95%;
+    /* Core Design Tokens - Light Sanctuary Theme */
+    --background: 40 30% 96%;
+    --foreground: 25 25% 20%;
 
-    --card: 220 40% 12%;
-    --card-foreground: 45 30% 95%;
+    --card: 40 40% 98%;
+    --card-foreground: 25 25% 20%;
 
-    --popover: 220 45% 10%;
-    --popover-foreground: 45 30% 95%;
+    --popover: 40 45% 99%;
+    --popover-foreground: 25 25% 20%;
 
     --primary: 43 96% 56%;
-    --primary-foreground: 220 50% 8%;
+    --primary-foreground: 40 30% 10%;
 
-    --secondary: 215 80% 60%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 200 60% 55%;
+    --secondary-foreground: 200 80% 15%;
 
-    --muted: 220 30% 18%;
-    --muted-foreground: 220 15% 60%;
+    --muted: 35 20% 90%;
+    --muted-foreground: 25 15% 45%;
 
     --accent: 45 100% 70%;
-    --accent-foreground: 220 50% 8%;
+    --accent-foreground: 40 30% 10%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 30% 25%;
-    --input: 220 30% 20%;
+    --border: 40 20% 85%;
+    --input: 40 25% 92%;
     --ring: 43 96% 56%;
 
     --radius: 1rem;
 
-    /* Glassmorphism Effects */
-    --glass-bg: 220 40% 12% / 0.6;
-    --glass-border: 220 30% 40% / 0.3;
+    /* Glassmorphism Effects - Warm Frosted Glass */
+    --glass-bg: 40 40% 100% / 0.7;
+    --glass-border: 40 30% 70% / 0.4;
     --glass-blur: 16px;
     
-    /* Glow Effects */
-    --glow-gold: 0 0 40px hsl(43 96% 56% / 0.4);
-    --glow-blue: 0 0 40px hsl(215 80% 60% / 0.4);
-    --glow-white: 0 0 30px hsl(45 50% 95% / 0.3);
+    /* Glow Effects - Softer for Light Theme */
+    --glow-gold: 0 4px 30px hsl(43 96% 56% / 0.25);
+    --glow-blue: 0 4px 30px hsl(200 60% 55% / 0.2);
+    --glow-white: 0 4px 20px hsl(40 30% 50% / 0.15);
     
-    /* Gradients */
-    --gradient-spiritual: linear-gradient(135deg, hsl(220 60% 15%), hsl(230 50% 20%), hsl(260 40% 25%));
+    /* Gradients - Warm & Uplifting */
+    --gradient-spiritual: linear-gradient(135deg, hsl(40 40% 97%), hsl(45 50% 95%), hsl(35 60% 93%));
     --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(45 100% 70%));
-    --gradient-celestial: linear-gradient(180deg, hsl(220 60% 12%), hsl(230 50% 18%), hsl(215 80% 60% / 0.1));
+    --gradient-celestial: linear-gradient(180deg, hsl(40 100% 98%), hsl(45 60% 94%), hsl(43 96% 56% / 0.1));
   }
 }
 
@@ -90,12 +91,13 @@
 }
 
 @layer components {
-  /* Glassmorphism Card */
+  /* Glassmorphism Card - Light Theme */
   .glass-card {
     @apply relative overflow-hidden rounded-2xl;
     background: hsl(var(--glass-bg));
     backdrop-filter: blur(var(--glass-blur));
     border: 1px solid hsl(var(--glass-border));
+    box-shadow: 0 4px 24px hsl(40 30% 50% / 0.08);
   }
   
   .glass-card-hover {
@@ -103,7 +105,7 @@
   }
   
   .glass-card-hover:hover {
-    border-color: hsl(var(--ojas-gold) / 0.4);
+    border-color: hsl(var(--ojas-gold) / 0.5);
     box-shadow: var(--glow-gold);
   }
   
@@ -174,23 +176,23 @@
 }
 
 @layer utilities {
-  /* Custom scrollbar for chat */
+  /* Custom scrollbar for chat - warm theme */
   .scrollbar-spiritual::-webkit-scrollbar {
     width: 6px;
   }
   
   .scrollbar-spiritual::-webkit-scrollbar-track {
-    background: hsl(var(--muted) / 0.3);
+    background: hsl(40 20% 90%);
     border-radius: 3px;
   }
   
   .scrollbar-spiritual::-webkit-scrollbar-thumb {
-    background: hsl(var(--ojas-gold) / 0.5);
+    background: hsl(var(--ojas-gold) / 0.4);
     border-radius: 3px;
   }
   
   .scrollbar-spiritual::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--ojas-gold) / 0.7);
+    background: hsl(var(--ojas-gold) / 0.6);
   }
 
   /* Safe area utilities for mobile */
@@ -235,10 +237,10 @@
     opacity: 0;
   }
   10% {
-    opacity: 1;
+    opacity: 0.8;
   }
   90% {
-    opacity: 1;
+    opacity: 0.8;
   }
   100% {
     transform: translateY(-100vh) scale(1);
