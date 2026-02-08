@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.jpg';
 import { FloatingParticles } from './FloatingParticles';
+import { LotusFlower3D } from './LotusFlower3D';
 
 export const HeroSection = () => {
   return (
@@ -20,6 +21,26 @@ export const HeroSection = () => {
 
       {/* Floating Particles */}
       <FloatingParticles />
+
+      {/* 3D Lotus - Positioned decoratively */}
+      <motion.div
+        className="absolute bottom-20 right-10 md:bottom-32 md:right-20 opacity-80"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 0.8, scale: 1 }}
+        transition={{ delay: 1.5, duration: 1 }}
+      >
+        <LotusFlower3D size="lg" />
+      </motion.div>
+
+      {/* Secondary smaller lotus on left side for larger screens */}
+      <motion.div
+        className="absolute top-40 left-10 opacity-60 hidden lg:block"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 0.6, scale: 1 }}
+        transition={{ delay: 2, duration: 1 }}
+      >
+        <LotusFlower3D size="sm" />
+      </motion.div>
 
       {/* Content */}
       <div className="relative z-10 container mx-auto px-6 text-center">

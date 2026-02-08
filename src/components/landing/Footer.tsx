@@ -1,10 +1,11 @@
+import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export const Footer = () => {
+export const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
-    <footer className="py-12 relative overflow-hidden border-t border-border bg-muted/30">
+    <footer ref={ref} className="py-12 relative overflow-hidden border-t border-border bg-muted/30">
       <div className="relative z-10 container mx-auto px-6">
         <div className="flex flex-col items-center text-center">
           {/* Logo */}
@@ -55,4 +56,6 @@ export const Footer = () => {
       </div>
     </footer>
   );
-};
+});
+
+Footer.displayName = 'Footer';

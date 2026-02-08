@@ -97,6 +97,19 @@ export default {
           "0%": { transform: "translateX(20px)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },
         },
+        "lotus-bloom": {
+          "0%": { transform: "rotateX(60deg) scale(0.8)", opacity: "0" },
+          "50%": { transform: "rotateX(20deg) scale(1.05)" },
+          "100%": { transform: "rotateX(0deg) scale(1)", opacity: "1" },
+        },
+        "petal-sway": {
+          "0%, 100%": { transform: "rotateY(-3deg) rotateX(2deg)" },
+          "50%": { transform: "rotateY(3deg) rotateX(-2deg)" },
+        },
+        "voice-pulse": {
+          "0%, 100%": { transform: "scale(1)", opacity: "0.5" },
+          "50%": { transform: "scale(1.3)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -105,6 +118,9 @@ export default {
         "fade-in-up": "fade-in-up 0.7s ease-out forwards",
         "scale-in": "scale-in 0.3s ease-out forwards",
         "slide-in-right": "slide-in-right 0.4s ease-out forwards",
+        "lotus-bloom": "lotus-bloom 1.5s ease-out forwards",
+        "petal-sway": "petal-sway 4s ease-in-out infinite",
+        "voice-pulse": "voice-pulse 1.5s ease-in-out infinite",
       },
     },
   },
