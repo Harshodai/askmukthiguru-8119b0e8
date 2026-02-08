@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame } from 'lucide-react';
+import { Send, Flame, AlertCircle } from 'lucide-react';
 import { 
   Message, 
   Conversation,
@@ -20,6 +20,8 @@ import { SereneMindModal } from './SereneMindModal';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { LanguageSelector } from './LanguageSelector';
 import { FloatingParticles } from '../landing/FloatingParticles';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useToast } from '@/hooks/use-toast';
 
 const WELCOME_MESSAGE = 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
 
@@ -32,8 +34,10 @@ export const ChatInterface = () => {
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState('en');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
   // Initialize or load conversation on mount
   useEffect(() => {
@@ -71,6 +75,63 @@ export const ChatInterface = () => {
 
     setCurrentConversationId(conversation.id);
   }, []);
+
+  // Voice recognition hook
+  const {
+    transcript,
+    interimTranscript,
+    isListening,
+    isSupported: voiceSupported,
+    error: voiceError,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition({
+    lang: currentLanguage,
+    onTranscript: (text, isFinal) => {
+      if (isFinal) {
+        setInputValue(prev => prev + text + ' ');
+        resetTranscript();
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Voice Error',
+        description: error,
+        variant: 'destructive',
+      });
+      setVoiceEnabled(false);
+    },
+  });
+
+  // Handle voice mode toggle
+  const handleVoiceToggle = useCallback(() => {
+    if (!voiceSupported) {
+      toast({
+        title: 'Voice Not Supported',
+        description: 'Your browser does not support voice recognition.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (voiceEnabled) {
+      stopListening();
+      setVoiceEnabled(false);
+    } else {
+      startListening();
+      setVoiceEnabled(true);
+    }
+  }, [voiceEnabled, voiceSupported, startListening, stopListening, toast]);
+
+  // Handle language change
+  const handleLanguageChange = useCallback((code: string) => {
+    setCurrentLanguage(code);
+    if (isListening) {
+      stopListening();
+      setTimeout(() => startListening(), 100);
+    }
+  }, [isListening, stopListening, startListening]);
 
   // Save conversation whenever messages change
   const saveCurrentConversation = useCallback(() => {
@@ -248,12 +309,55 @@ export const ChatInterface = () => {
             </button>
           </motion.div>
 
+          {/* Voice Recording Indicator */}
+          <AnimatePresence>
+            {isListening && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center justify-center gap-2 mb-3"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30">
+                  <motion.div
+                    className="w-2 h-2 rounded-full bg-ojas"
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity }}
+                  />
+                  <span className="text-sm text-ojas font-medium">Listening...</span>
+                  {interimTranscript && (
+                    <span className="text-xs text-muted-foreground max-w-[200px] truncate">
+                      {interimTranscript}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Voice Error Alert */}
+          <AnimatePresence>
+            {voiceError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center justify-center gap-2 mb-3"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                  <span className="text-sm text-destructive">{voiceError}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Input Form */}
           <motion.form 
             onSubmit={handleSubmit} 
             className={`glass-card p-3 transition-all duration-300 ${
               inputFocused ? 'ring-2 ring-ojas/40 shadow-lg' : ''
-            }`}
+            } ${isListening ? 'ring-2 ring-ojas/60 shadow-ojas/20' : ''}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -266,7 +370,7 @@ export const ChatInterface = () => {
                 onKeyDown={handleKeyDown}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
-                placeholder="Share what's on your heart..."
+                placeholder={isListening ? "Speak now..." : "Share what's on your heart..."}
                 rows={1}
                 className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-2 px-2 max-h-32 scrollbar-spiritual"
                 style={{ minHeight: '44px' }}
@@ -288,7 +392,9 @@ export const ChatInterface = () => {
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <LanguageSelector 
                 voiceEnabled={voiceEnabled}
-                onVoiceToggle={() => setVoiceEnabled(!voiceEnabled)}
+                isListening={isListening}
+                onVoiceToggle={handleVoiceToggle}
+                onLanguageChange={handleLanguageChange}
               />
               <p className="text-xs text-muted-foreground hidden sm:block">
                 AI companion • Not a replacement for professional guidance
