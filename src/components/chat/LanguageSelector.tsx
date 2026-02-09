@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Globe, Mic, MicOff } from 'lucide-react';
+import { Globe, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setLanguage } from '@/lib/aiService';
 import { useToast } from '@/hooks/use-toast';
 
 const languages = [
-  { code: 'en', name: 'English', native: 'English' },
-  { code: 'hi', name: 'Hindi', native: 'हिंदी' },
-  { code: 'te', name: 'Telugu', native: 'తెలుగు' },
-  { code: 'ml', name: 'Malayalam', native: 'മലയാളം' },
+  { code: 'en', name: 'English', native: 'English', flag: '🇮🇳' },
+  { code: 'hi', name: 'Hindi', native: 'हिंदी', flag: '🇮🇳' },
+  { code: 'te', name: 'Telugu', native: 'తెలుగు', flag: '🇮🇳' },
+  { code: 'ml', name: 'Malayalam', native: 'മലയാളം', flag: '🇮🇳' },
 ];
 
 interface LanguageSelectorProps {
@@ -16,13 +16,19 @@ interface LanguageSelectorProps {
   voiceEnabled?: boolean;
   isListening?: boolean;
   onLanguageChange?: (code: string) => void;
+  ttsEnabled?: boolean;
+  onTtsToggle?: () => void;
+  isSpeaking?: boolean;
 }
 
 export const LanguageSelector = ({ 
   onVoiceToggle, 
   voiceEnabled, 
   isListening,
-  onLanguageChange 
+  onLanguageChange,
+  ttsEnabled,
+  onTtsToggle,
+  isSpeaking,
 }: LanguageSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
@@ -47,16 +53,16 @@ export const LanguageSelector = ({
     setIsOpen(false);
     
     toast({
-      title: 'Language Changed',
-      description: `Switched to ${lang?.name || code}`,
-      duration: 2000,
+      title: '🌐 Language Changed',
+      description: `Now using ${lang?.name} (${lang?.native})`,
+      duration: 2500,
     });
   };
 
   const currentLang = languages.find((l) => l.code === selectedLanguage);
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       {/* Language Dropdown */}
       <div className="relative">
         <motion.button
@@ -64,12 +70,13 @@ export const LanguageSelector = ({
             e.stopPropagation();
             setIsOpen(!isOpen);
           }}
-          className="flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
+          className="flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
           <Globe className="w-4 h-4 text-ojas" />
-          <span className="text-foreground font-medium">{currentLang?.native || 'English'}</span>
+          <span className="text-foreground font-medium hidden sm:inline">{currentLang?.native || 'English'}</span>
+          <span className="text-foreground font-medium sm:hidden">{currentLang?.flag}</span>
         </motion.button>
 
         <AnimatePresence>
@@ -87,26 +94,40 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute top-full left-0 mt-2 w-52 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
+                className="absolute top-full left-0 mt-2 w-56 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
               >
-                <div className="py-2">
+                <div className="py-1">
                   {languages.map((lang) => (
                     <button
                       key={lang.code}
                       onClick={() => handleLanguageChange(lang.code)}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center justify-between ${
-                        selectedLanguage === lang.code ? 'bg-ojas/15 text-ojas' : 'text-foreground'
+                      className={`w-full px-4 py-3 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
+                        selectedLanguage === lang.code ? 'bg-ojas/15' : ''
                       }`}
                     >
-                      <span className="font-medium">{lang.native}</span>
-                      <span className="text-muted-foreground text-xs">{lang.name}</span>
+                      <span className="text-lg">{lang.flag}</span>
+                      <div className="flex-1">
+                        <span className={`font-medium ${selectedLanguage === lang.code ? 'text-ojas' : 'text-foreground'}`}>
+                          {lang.native}
+                        </span>
+                        <span className="text-muted-foreground text-xs ml-2">{lang.name}</span>
+                      </div>
+                      {selectedLanguage === lang.code && (
+                        <motion.div
+                          layoutId="selected-lang"
+                          className="w-2 h-2 rounded-full bg-ojas"
+                        />
+                      )}
                     </button>
                   ))}
                 </div>
                 <div className="px-4 py-3 text-xs text-muted-foreground border-t border-border bg-muted/30">
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-prana animate-pulse" />
-                    Bhashini (Coming Soon)
+                    <span>Bhashini Integration</span>
+                    <span className="ml-auto px-1.5 py-0.5 rounded bg-ojas/20 text-ojas text-[10px] font-medium">
+                      Coming Soon
+                    </span>
                   </span>
                 </div>
               </motion.div>
@@ -115,10 +136,47 @@ export const LanguageSelector = ({
         </AnimatePresence>
       </div>
 
+      {/* TTS Toggle Button */}
+      {onTtsToggle && (
+        <motion.button
+          onClick={onTtsToggle}
+          className={`relative p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
+            ttsEnabled
+              ? 'bg-prana/20 border-prana/40 text-prana shadow-md'
+              : 'bg-card border-border text-muted-foreground hover:bg-muted hover:border-prana/30 shadow-sm'
+          }`}
+          title={ttsEnabled ? 'Disable voice output' : 'Enable voice output'}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {/* Speaking animation */}
+          {isSpeaking && (
+            <motion.span
+              className="absolute inset-0 rounded-full bg-prana/30"
+              animate={{
+                scale: [1, 1.3, 1],
+                opacity: [0.5, 0, 0.5],
+              }}
+              transition={{
+                duration: 1,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+          )}
+          
+          {ttsEnabled ? (
+            <Volume2 className="w-5 h-5 relative z-10" />
+          ) : (
+            <VolumeX className="w-5 h-5 relative z-10" />
+          )}
+        </motion.button>
+      )}
+
       {/* Voice Mode Toggle */}
       <motion.button
         onClick={onVoiceToggle}
-        className={`relative p-3 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
+        className={`relative p-2.5 min-h-[44px] min-w-[44px] rounded-full transition-all border ${
           voiceEnabled
             ? 'bg-ojas/20 border-ojas/40 text-ojas shadow-md'
             : 'bg-card border-border text-muted-foreground hover:bg-muted hover:border-ojas/30 shadow-sm'
