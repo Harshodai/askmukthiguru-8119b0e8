@@ -58,7 +58,7 @@ export const DesktopSidebar = ({
       initial={false}
       animate={{ width: isCollapsed ? 64 : 280 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
-      className="hidden lg:flex flex-col h-full bg-card/80 backdrop-blur-md border-r border-border relative z-20"
+      className="hidden sm:flex flex-col h-full bg-card/80 backdrop-blur-md border-r border-border relative z-20"
     >
       {/* Collapse Toggle */}
       <button

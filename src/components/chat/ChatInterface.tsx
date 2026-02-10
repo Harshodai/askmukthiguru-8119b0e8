@@ -301,6 +301,7 @@ export const ChatInterface = () => {
         <ChatHeader 
           onClearChat={handleNewConversation}
           onOpenMobileMenu={() => setShowMobileSheet(true)}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 
         {/* Messages Area */}

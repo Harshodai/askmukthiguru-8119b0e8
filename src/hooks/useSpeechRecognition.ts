@@ -89,6 +89,12 @@ export const useSpeechRecognition = (
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const isListeningRef = useRef(false);
   const langRef = useRef(lang);
+  const onTranscriptRef = useRef(onTranscript);
+  const onErrorRef = useRef(onError);
+
+  // Keep callback refs up to date
+  useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   // Update language ref when prop changes
   useEffect(() => {
@@ -138,12 +144,12 @@ export const useSpeechRecognition = (
 
       if (final) {
         setTranscript((prev) => prev + final);
-        onTranscript?.(final, true);
+        onTranscriptRef.current?.(final, true);
       }
 
       setInterimTranscript(interim);
       if (interim) {
-        onTranscript?.(interim, false);
+        onTranscriptRef.current?.(interim, false);
       }
     };
 
@@ -159,7 +165,7 @@ export const useSpeechRecognition = (
 
       const errorMessage = errorMessages[event.error] || `Speech recognition error: ${event.error}`;
       setError(errorMessage);
-      onError?.(errorMessage);
+      onErrorRef.current?.(errorMessage);
       setIsListening(false);
       isListeningRef.current = false;
     };
@@ -184,7 +190,7 @@ export const useSpeechRecognition = (
         recognitionRef.current.abort();
       }
     };
-  }, [continuous, onTranscript, onError]);
+  }, [continuous]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current || !isSupported) {

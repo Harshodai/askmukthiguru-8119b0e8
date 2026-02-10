@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, Menu, Wifi, WifiOff } from 'lucide-react';
+import { Trash2, Menu, Wifi, WifiOff } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
   onOpenMobileMenu?: () => void;
+  onToggleSidebar?: () => void;
 }
 
-export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) => {
+export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: ChatHeaderProps) => {
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
@@ -31,19 +31,22 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
     <header className="relative z-20 glass-card mx-4 mt-4 px-4 py-3 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Back button - hidden on mobile when menu is available */}
-          <Link 
-            to="/" 
-            className="p-2 rounded-full hover:bg-muted transition-colors hidden sm:flex"
-          >
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </Link>
-          
           {/* Mobile menu button */}
           {onOpenMobileMenu && (
             <button
               onClick={onOpenMobileMenu}
               className="p-2 rounded-full hover:bg-muted transition-colors sm:hidden"
+            >
+              <Menu className="w-5 h-5 text-foreground" />
+            </button>
+          )}
+
+          {/* Desktop sidebar toggle */}
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="p-2 rounded-full hover:bg-muted transition-colors hidden sm:flex"
+              title="Toggle chat history"
             >
               <Menu className="w-5 h-5 text-foreground" />
             </button>

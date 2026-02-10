@@ -12,13 +12,13 @@ interface Particle {
 
 export const FloatingParticles = () => {
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: 25 }, (_, i) => ({
+    return Array.from({ length: 35 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
-      delay: Math.random() * 10,
-      duration: 12 + Math.random() * 10,
-      size: 3 + Math.random() * 5,
-      opacity: 0.4 + Math.random() * 0.4,
+      delay: Math.random() * 12,
+      duration: 10 + Math.random() * 12,
+      size: 4 + Math.random() * 6,
+      opacity: 0.5 + Math.random() * 0.4,
     }));
   }, []);
 
@@ -33,8 +33,8 @@ export const FloatingParticles = () => {
             bottom: '-20px',
             width: particle.size,
             height: particle.size,
-            background: `radial-gradient(circle, hsl(43 96% 56% / ${particle.opacity}), hsl(45 100% 70% / ${particle.opacity * 0.5}))`,
-            boxShadow: `0 0 ${particle.size * 3}px hsl(43 96% 56% / ${particle.opacity * 0.4})`,
+            background: `radial-gradient(circle, hsl(43 96% 56% / ${particle.opacity}), hsl(45 100% 70% / ${particle.opacity * 0.6}))`,
+            boxShadow: `0 0 ${particle.size * 4}px hsl(43 96% 56% / ${particle.opacity * 0.6}), 0 0 ${particle.size * 8}px hsl(43 96% 56% / ${particle.opacity * 0.2})`,
           }}
           animate={{
             y: [0, -window.innerHeight - 100],
