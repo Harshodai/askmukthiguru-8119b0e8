@@ -1,88 +1,111 @@
-# AskMukthiGuru - Implementation Complete ✅
 
-## Summary
 
-All planned features have been implemented successfully:
+# Fix Plan: Landing Page, Chat History, Voice Input & Security
 
-### ✅ Phase 1: Critical Bugs Fixed
+## Issues to Fix
 
-1. **Text-to-Speech (TTS) for AI Responses**
-   - Created `src/hooks/useTextToSpeech.ts` using Web Speech Synthesis API
-   - Supports English, Hindi, Telugu, and Malayalam
-   - Auto-speaks guru responses when TTS is enabled
-   - Toggle button with visual speaking indicator
+### 1. Remove 3D Lotus Component & Restore Gold Balls
+The `LotusFlower3D` component on the landing page doesn't look good. It will be removed from `HeroSection.tsx`. The `FloatingParticles` component (gold balls rising from bottom to top) is already present and will remain as the primary visual effect.
 
-2. **AboutMeditationSection forwardRef Warning**
-   - Fixed by wrapping component with `React.forwardRef`
+**Files to modify:**
+- `src/components/landing/HeroSection.tsx` -- Remove both `LotusFlower3D` imports and instances (lines 6, 26-43)
 
-3. **3D Lotus Visual Issues**
-   - Simplified petal positioning using center origin
-   - Reduced layers to 2 (outer + inner) for cleaner look
-   - Used seeded random for consistent sparkle positions
-   - Smoother animations and gentler glow effects
+### 2. Fix Desktop Chat History Button (Critical)
+The `ChatHeader` currently shows a back-to-home arrow on desktop (`hidden sm:flex`) and a hamburger menu only on mobile (`sm:hidden`). The `DesktopSidebar` exists but is only visible on `lg:` screens, and there's no way to toggle it on medium-sized desktops. The header needs a menu button visible on desktop to toggle the sidebar.
 
-### ✅ Phase 2: Desktop Chat History Sidebar
+**Files to modify:**
+- `src/components/chat/ChatHeader.tsx` -- Add a sidebar toggle button that shows on `sm:` and above screens alongside the back button. Accept a new `onToggleSidebar` prop.
+- `src/components/chat/ChatInterface.tsx` -- Pass the `onToggleSidebar` handler to `ChatHeader`. Show `DesktopSidebar` on `sm:` screens instead of only `lg:`.
+- `src/components/chat/DesktopSidebar.tsx` -- Change `hidden lg:flex` to `hidden sm:flex` so the sidebar appears on tablet and desktop.
 
-1. **Created DesktopSidebar Component**
-   - `src/components/chat/DesktopSidebar.tsx`
-   - Collapsible sidebar (280px expanded, 64px collapsed)
-   - Shows conversation history grouped by time
-   - New conversation and Serene Mind buttons
-   - Meditation stats display
-   - Back to home navigation
+### 3. Fix Voice Recognition (Microphone Not Writing to Input)
+The `useSpeechRecognition` hook has a critical bug: `onTranscript` and `onError` callbacks are in the `useEffect` dependency array (line 187). Since these are inline functions passed from `ChatInterface`, the recognition instance is destroyed and recreated on every render, killing any active listening session.
 
-2. **Updated ChatInterface Layout**
-   - Flexbox layout with sidebar on left (desktop only)
-   - Mobile sheet still works for smaller screens
+**Fix:** Use `useRef` to store the callbacks so the recognition instance is created once and callback refs are always up to date.
 
-### ✅ Phase 3: Enhanced UI/UX
+**Files to modify:**
+- `src/hooks/useSpeechRecognition.ts` -- Store `onTranscript` and `onError` in refs. Remove them from the `useEffect` dependency array. This ensures the `SpeechRecognition` instance persists across renders.
 
-1. **Language Selector Improvements**
-   - Added language flags (🇮🇳) for all languages
-   - Improved dropdown with better visual feedback
-   - "Coming Soon" badge for Bhashini integration
-   - TTS toggle button next to voice input
+### 4. Enhance FloatingParticles (Gold Balls)
+The existing `FloatingParticles` component works but can be slightly improved with more visible particles and warmer glow.
 
-2. **Voice Mode Visual Enhancements**
-   - Recording indicator with pulse animation
-   - Speaking indicator with waveform bars
-   - Stop button during TTS playback
+**Files to modify:**
+- `src/components/landing/FloatingParticles.tsx` -- Increase particle count slightly and enhance glow effect.
 
-### ✅ Phase 4: Comprehensive Testing
+### 5. Security Fixes
+- Ensure no `console.log` of sensitive data exists
+- Validate that `dangerouslySetInnerHTML` is not used with user content
+- Review AI service input sanitization
 
-Created test files:
-- `src/test/useTextToSpeech.test.ts`
-- `src/test/LanguageSelector.test.tsx`
-- `src/test/DesktopSidebar.test.tsx`
-- Updated `src/test/useSpeechRecognition.test.ts`
+### 6. Test Cases
+Update/create tests for the fixed components to prevent regressions.
 
-## Files Created/Modified
+**Files to modify/create:**
+- `src/test/useSpeechRecognition.test.ts` -- Fix mock to match new ref-based pattern
+- `src/test/LotusFlower3D.test.tsx` -- Remove (component is being deleted)
 
-### New Files
-| File | Purpose |
-|------|---------|
-| `src/hooks/useTextToSpeech.ts` | TTS hook for reading responses |
-| `src/components/chat/DesktopSidebar.tsx` | Desktop conversation sidebar |
-| `src/test/useTextToSpeech.test.ts` | TTS hook tests |
-| `src/test/LanguageSelector.test.tsx` | Language selector tests |
-| `src/test/DesktopSidebar.test.tsx` | Sidebar tests |
+---
 
-### Modified Files
-| File | Changes |
-|------|---------|
-| `src/components/landing/AboutMeditationSection.tsx` | Added forwardRef |
-| `src/components/landing/LotusFlower3D.tsx` | Fixed visual glitches, seeded random |
-| `src/components/chat/ChatInterface.tsx` | Added TTS, desktop sidebar layout |
-| `src/components/chat/LanguageSelector.tsx` | Added TTS toggle, UI polish |
+## Technical Details
 
-## Features Working
+### Voice Recognition Fix (Root Cause)
 
-1. ✅ Desktop sidebar shows conversation history
-2. ✅ Language selector shows all 4 languages (EN, HI, TE, ML)
-3. ✅ TTS toggle enables voice output for guru responses
-4. ✅ Voice recording with pulse animations
-5. ✅ 3D lotus renders cleanly without glitches
-6. ✅ No React console warnings
-7. ✅ Toast notifications for language/TTS changes
-8. ✅ Responsive design (mobile sheet + desktop sidebar)
+Current broken code (line 187):
+```text
+}, [continuous, onTranscript, onError]);
+```
+
+Every render creates new `onTranscript`/`onError` inline functions, causing the effect to re-run, which calls `recognition.abort()` in cleanup and creates a new instance -- killing any active session.
+
+Fix: Use `useRef` for callbacks:
+```text
+const onTranscriptRef = useRef(onTranscript);
+const onErrorRef = useRef(onError);
+
+useEffect(() => {
+  onTranscriptRef.current = onTranscript;
+}, [onTranscript]);
+
+useEffect(() => {
+  onErrorRef.current = onError;
+}, [onError]);
+
+// In the main useEffect, use onTranscriptRef.current and onErrorRef.current
+// Dependency array becomes: [continuous]
+```
+
+### Desktop Chat Header Fix
+
+Current: Back button shows on `sm:`, hamburger only on mobile (`sm:hidden`)
+Fix: Add a `Menu` button visible on `sm:` screens that toggles the sidebar, keeping the back button as well.
+
+```text
+ChatHeader props additions:
+  onToggleSidebar?: () => void;
+
+New button (visible sm: and above):
+  <button onClick={onToggleSidebar} className="hidden sm:flex ...">
+    <Menu />
+  </button>
+```
+
+### DesktopSidebar Visibility Change
+
+Change from `hidden lg:flex` to `hidden sm:flex` so the sidebar is available on all non-mobile screens.
+
+---
+
+## Files Summary
+
+| File | Action | Change |
+|------|--------|--------|
+| `src/components/landing/HeroSection.tsx` | Modify | Remove LotusFlower3D imports and usage |
+| `src/components/landing/FloatingParticles.tsx` | Modify | Enhance particle visibility |
+| `src/hooks/useSpeechRecognition.ts` | Modify | Fix callback ref bug |
+| `src/components/chat/ChatHeader.tsx` | Modify | Add sidebar toggle button for desktop |
+| `src/components/chat/ChatInterface.tsx` | Modify | Pass sidebar toggle to header |
+| `src/components/chat/DesktopSidebar.tsx` | Modify | Show on sm: screens |
+| `src/test/useSpeechRecognition.test.ts` | Modify | Update tests |
+| `src/test/LotusFlower3D.test.tsx` | Delete | Component removed |
+| `src/components/landing/LotusFlower3D.tsx` | Delete | Component removed |
 
