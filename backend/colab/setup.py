@@ -155,12 +155,13 @@ def start_backend():
     Runs in the background so the Colab cell completes.
     The server is accessible at http://localhost:8000.
     """
-    print("🚀 Starting FastAPI backend...")
+    print("🚀 Starting FastAPI backend (logs -> backend.log)...")
+    log_file = open("backend.log", "w")
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app",
          "--host", "0.0.0.0", "--port", "8000"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
     )
 
     # Wait for the server to start, polling health endpoint
