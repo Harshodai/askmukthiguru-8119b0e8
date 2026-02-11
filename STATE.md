@@ -39,6 +39,7 @@ python -m uvicorn app.main:app --reload
 
 ## To Run on Colab
 ```bash
-# Docker-based setup: installs Docker, starts Ollama natively (GPU), runs stack
+# Native setup: installs deps via pip, Ollama natively (GPU),
+# Qdrant in embedded mode, backend via direct uvicorn
 python colab/setup.py
 ```

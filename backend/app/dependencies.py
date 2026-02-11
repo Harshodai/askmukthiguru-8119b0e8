@@ -11,6 +11,7 @@ service instances are created. All other modules depend on abstractions.
 """
 
 import logging
+import asyncio
 import threading
 from typing import Optional
 
@@ -38,6 +39,10 @@ class ServiceContainer:
     def __init__(self) -> None:
         """Initialize all services in dependency order."""
         logger.info("Initializing service container...")
+        
+        # State: Active ingestion progress
+        # Format: {url: {status, message, progress, updated_at}}
+        self.ingest_status = {}
 
         # Layer 1: Core services (no dependencies)
         self.qdrant = QdrantService()
@@ -69,14 +74,33 @@ class ServiceContainer:
         logger.info("All services initialized")
 
     async def health_status(self) -> dict:
-        """Check health of all services."""
+        """Check health of all services (non-blocking)."""
+        loop = asyncio.get_running_loop()
+        
+        # Run blocking Qdrant check in thread pool
+        try:
+            qdrant_ok = await loop.run_in_executor(None, self.qdrant.health_check)
+        except Exception:
+            qdrant_ok = False
+            
         return {
-            "qdrant": self.qdrant.health_check(),
-            "ollama": await self.ollama.health_check(),
+            "qdrant": qdrant_ok,
+            "ollama": await self.ollama.health_check(),  # Already async
             "ocr": self.ocr.health_check(),
             "guardrails": self.guardrails.is_available,
-            "embedding": True,  # If init succeeded, it's healthy
+            "embedding": True,
             "qdrant_count": self.qdrant.count(),
+        }
+
+    def update_progress(self, url: str, message: str, percent: float) -> None:
+        """Update progress for a specific ingestion URL."""
+        import time
+        self.ingest_status[url] = {
+            "url": url,
+            "message": message,
+            "progress": percent,
+            "updated_at": time.time(),
+            "status": "processing" if percent < 1.0 else "success"
         }
 
     def close(self) -> None:

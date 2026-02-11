@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -17,7 +18,7 @@ WORKDIR /app
 # --- Stage 1: Install Python dependencies ---
 FROM base AS deps
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -29,7 +30,10 @@ COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.
 COPY --from=deps /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY . .
+# Copy application code
+COPY backend/ .
+# Copy Ingestion UI static files
+COPY ingest-ui/ /app/ingest-ui/
 
 # Create non-root user
 RUN useradd -m -r appuser && chown -R appuser:appuser /app

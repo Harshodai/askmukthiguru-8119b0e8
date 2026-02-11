@@ -77,6 +77,7 @@ class IngestionPipeline:
     async def ingest_url(
         self,
         url: str,
+        max_accuracy: bool = False,
         on_progress: Optional[Callable[[str, float], None]] = None,
     ) -> dict:
         """
@@ -98,8 +99,8 @@ class IngestionPipeline:
             return await self._ingest_playlist(url, on_progress)
         elif is_image_url(url):
             return await self._ingest_image(url, on_progress)
-        elif extract_video_id(url):
-            return await self._ingest_video(url, on_progress)
+        if extract_video_id(url):
+            return await self._ingest_video(url, max_accuracy, on_progress)
         else:
             return {
                 "status": "error",
@@ -111,6 +112,7 @@ class IngestionPipeline:
     async def _ingest_video(
         self,
         url: str,
+        max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
     ) -> dict:
         """Ingest a single YouTube video."""
@@ -120,7 +122,7 @@ class IngestionPipeline:
 
         # Step 1: Fetch transcript
         self._notify(on_progress, "Fetching transcript...", 0.1)
-        result = fetch_transcript_hybrid(video_id, title="")
+        result = fetch_transcript_hybrid(video_id, title="", max_accuracy=max_accuracy)
         
         if not result.get("text"):
             return {

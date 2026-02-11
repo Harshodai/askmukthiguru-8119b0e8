@@ -22,6 +22,8 @@ from typing import Optional
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from pydantic import BaseModel, Field
 
 # Fix import paths — run from backend/ directory
@@ -70,7 +72,31 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_headers=["*"],
 )
+
+
+# === Mount Ingestion UI ===
+
+# Try to find the directory (Docker vs Local/Colab)
+# Priority: 1. Docker/Copied local, 2. Colab/Dev sibling
+ui_possible_paths = [
+    Path("/app/ingest-ui"),      # Docker (absolute)
+    Path("ingest-ui"),           # Local (relative to CWD)
+    Path("../ingest-ui"),        # Colab/Dev (relative to CWD backend/)
+]
+
+ui_path = None
+for p in ui_possible_paths:
+    if p.exists():
+        ui_path = p
+        break
+
+if ui_path:
+    app.mount("/ingest", StaticFiles(directory=str(ui_path), html=True), name="ingest")
+    logger.info(f"✅ Ingestion UI mounted at /ingest (from {ui_path})")
+else:
+    logger.warning("⚠️ Ingestion UI directory not found. UI will not be available.")
 
 
 # === Request/Response DTOs ===
@@ -101,6 +127,7 @@ class ChatResponse(BaseModel):
 class IngestRequest(BaseModel):
     """Ingestion API request body."""
     url: str = Field(..., description="YouTube video/playlist URL or image URL")
+    max_accuracy: bool = Field(default=False, description="If True, skip auto-generated captions (T3) and rely on Manual (T1) or Whisper (T2)")
 
 
 class IngestResponse(BaseModel):
@@ -205,13 +232,30 @@ async def ingest_endpoint(
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
 
-    # Run ingestion in background for large content
+    # Run ingestion in the background for large content
+    # Run ingestion in the background for large content
     async def _run_ingestion():
+        def progress_callback(msg: str, pct: float):
+            container.update_progress(url, msg, pct)
+
         try:
-            result = await container.ingestion.ingest_url(url)
+            # Init tracker
+            container.update_progress(url, "Starting...", 0.0)
+            
+            result = await container.ingestion.ingest_url(
+                url, 
+                max_accuracy=request.max_accuracy,
+                on_progress=progress_callback
+            )
             logger.info(f"Ingestion complete: {result}")
+            container.update_progress(url, "Complete!", 1.0)
+            
         except Exception as e:
             logger.error(f"Ingestion failed for {url}: {e}", exc_info=True)
+            # Mark as error
+            if url in container.ingest_status:
+                container.ingest_status[url]["status"] = "error"
+                container.ingest_status[url]["message"] = str(e)
 
     background_tasks.add_task(_run_ingestion)
 
@@ -241,6 +285,16 @@ async def health_endpoint() -> HealthResponse:
         services={k: v for k, v in health.items() if k != "qdrant_count"},
         total_chunks=health.get("qdrant_count", 0),
     )
+
+
+@app.get("/api/ingest/status")
+async def ingest_status_endpoint() -> dict:
+    """
+    Get the status of active/recent ingestion jobs.
+    Returns: {url: {status, message, progress, updated_at}}
+    """
+    container = get_container()
+    return container.ingest_status
 
 
 # === Entry Point ===

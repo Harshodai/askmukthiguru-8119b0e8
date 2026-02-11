@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mukthi Guru — Content Ingestion</title>
+  <meta name="description"
+    content="Ingest spiritual teachings from YouTube videos, playlists, and images into the Mukthi Guru knowledge base.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Background particles -->
+  <div class="bg-particles" id="particles"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-glow"></div>
+      <div class="logo">
+        <span class="logo-icon">🙏</span>
+        <div>
+          <h1 class="logo-title">Mukthi Guru</h1>
+          <p class="logo-subtitle">Content Ingestion Portal</p>
+        </div>
+      </div>
+      <div class="health-badge" id="healthBadge">
+        <span class="health-dot" id="healthDot"></span>
+        <span id="healthText">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Ingest Form Card -->
+      <section class="card ingest-card">
+        <h2 class="card-title">
+          <span class="card-icon">📥</span>
+          Ingest Content
+        </h2>
+        <p class="card-desc">Add spiritual teachings from YouTube videos, playlists, or images to the knowledge base.
+        </p>
+
+        <form id="ingestForm" class="ingest-form">
+          <div class="input-group">
+            <label for="urlInput" class="input-label">Content URL</label>
+            <div class="input-wrapper">
+              <input type="url" id="urlInput" class="url-input" placeholder="https://youtu.be/... or image URL" required
+                autocomplete="off">
+              <button type="submit" class="submit-btn" id="submitBtn">
+                <span class="btn-text">Ingest</span>
+                <span class="btn-loader" id="btnLoader"></span>
+              </button>
+            </div>
+            <p class="input-hint">Supports: YouTube videos, playlists, and image URLs (JPG, PNG)</p>
+          </div>
+
+          <div class="options-group">
+            <label class="toggle-switch">
+              <input type="checkbox" id="maxAccuracyInput">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">
+                Max Accuracy
+                <span class="tooltip-icon"
+                  title="Force use of Manual Captions or Whisper transcription. Skips low-quality auto-generated captions.">ⓘ</span>
+              </span>
+            </label>
+          </div>
+        </form>
+
+        <!-- Status Banner -->
+        <div class="status-banner hidden" id="statusBanner">
+          <div class="status-icon" id="statusIcon"></div>
+          <div class="status-content">
+            <p class="status-message" id="statusMessage"></p>
+            <p class="status-detail" id="statusDetail"></p>
+            <div class="progress-container" id="progressContainer" style="display: none;">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stats Section -->
+      <section class="card stats-card">
+        <h2 class="card-title">
+          <span class="card-icon">📊</span>
+          Knowledge Base
+        </h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-value" id="totalChunks">—</span>
+            <span class="stat-label">Total Chunks</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="serviceCount">—</span>
+            <span class="stat-label">Services</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="systemStatus">—</span>
+            <span class="stat-label">Status</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ingestion History -->
+      <section class="card history-card">
+        <h2 class="card-title">
+          <span class="card-icon">📜</span>
+          Ingestion History
+          <span class="history-count" id="historyCount">0</span>
+        </h2>
+        <div class="history-list" id="historyList">
+          <p class="history-empty" id="historyEmpty">No ingestions yet. Submit a URL above to get started.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Mukthi Guru — Sri Preethaji & Sri Krishnaji's Teachings</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

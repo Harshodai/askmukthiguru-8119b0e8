@@ -86,7 +86,7 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
     return videos
 
 
-def fetch_transcript_hybrid(video_id: str, title: str = "") -> dict:
+def fetch_transcript_hybrid(video_id: str, title: str = "", max_accuracy: bool = False) -> dict:
     """
     3-tier fallback transcript fetcher.
     
@@ -98,6 +98,7 @@ def fetch_transcript_hybrid(video_id: str, title: str = "") -> dict:
     Args:
         video_id: YouTube video ID
         title: Video title for metadata
+        max_accuracy: If True, disable Tier 3 (Auto-generated) to ensure quality.
         
     Returns:
         Dict with 'text', 'source_url', 'title', 'method', 'content_type'
@@ -143,6 +144,17 @@ def fetch_transcript_hybrid(video_id: str, title: str = "") -> dict:
         logger.debug(f"[{video_id}] Tier 2 failed: {e}")
 
     # === Tier 3: Auto-generated captions ===
+    if max_accuracy:
+        logger.warning(f"[{video_id}] Skipping Tier 3 (Auto-captions) due to max_accuracy=True")
+        return {
+            "text": "",
+            "source_url": source_url,
+            "title": title,
+            "method": "failed",
+            "content_type": "video",
+            "error": "Manual/Whisper failed and Auto-captions disabled (max_accuracy)",
+        }
+
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         auto = transcript_list.find_generated_transcript(['en'])
