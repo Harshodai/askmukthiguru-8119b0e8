@@ -324,13 +324,10 @@ if __name__ == "__main__":
     setup_ollama("ajindal/llama3.1-storm:8b")
     configure_environment()
     backend_proc = start_backend()
-
+    
+    # Auto-expose per user request
+    # WARNING: This exposes the token in the source code.
     print("\n" + "=" * 60)
-    print("  ✅ Setup complete!")
+    print("  🌍 Exposing to Internet (Auto)")
     print("=" * 60)
-    print("   Health: curl http://localhost:8000/api/health")
-    print("   Chat:   POST http://localhost:8000/api/chat")
-    print("   Ingest: http://localhost:8000/ingest/")
-    print("\n   To expose publicly:")
-    print("     from colab.setup import expose_with_ngrok")
-    print("     expose_with_ngrok('YOUR_NGROK_TOKEN')")
+    expose_with_ngrok("39XAE9lDWUpvbwIsVEKYJA2CJmx_5osAm3dxGuc84znJxshYN")
