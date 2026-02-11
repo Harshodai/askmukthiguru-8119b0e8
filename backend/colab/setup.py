@@ -198,22 +198,79 @@ def start_backend():
 # ============================================================
 
 def expose_with_ngrok(auth_token: str = ""):
-    """Expose the backend via ngrok tunnel."""
+    """
+    Expose the backend via ngrok tunnel and auto-open UI in Colab.
+    """
     if not auth_token:
         print("⚠️  No ngrok token provided. Backend available at http://localhost:8000")
         return
 
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q", "pyngrok==7.2.2"],
-        check=True,
-    )
+    try:
+        from pyngrok import ngrok, conf
+        from IPython.display import display, Javascript, HTML
+    except ImportError:
+        # Install if missing (just in case)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", "pyngrok==7.2.2"],
+            check=True,
+        )
+        from pyngrok import ngrok, conf
+        try:
+            from IPython.display import display, Javascript, HTML
+        except ImportError:
+            display = print # Fallback
 
-    from pyngrok import ngrok, conf
+    print("🔌 Starting Ngrok tunnel...")
+    
+    # 1. Kill old tunnels to avoid "too many sessions" error on free tier
+    ngrok.kill()
+    
+    # 2. Connect
     conf.get_default().auth_token = auth_token
     tunnel = ngrok.connect(8000)
-    print(f"\n🌐 Public URL: {tunnel.public_url}")
-    print(f"🖥️  Ingest UI: {tunnel.public_url}/ingest/")
-    print(f"📋 Set in frontend: {tunnel.public_url}/api/chat")
+    public_url = tunnel.public_url
+    ingest_url = f"{public_url}/ingest/"
+    docs_url = f"{public_url}/docs"
+
+    # 3. Text Output
+    print(f"\n✨ Ngrok Tunnel Established! ✨")
+    print(f"👉 INGEST UI: {ingest_url}")
+    print(f"📄 API DOCS:  {docs_url}")
+
+    # 4. Colab Rich Output (Clickable Button + Auto Open)
+    if 'google.colab' in sys.modules:
+        html_content = f"""
+        <div style="
+            border: 2px solid #4CAF50; 
+            padding: 20px; 
+            border-radius: 10px; 
+            background: #1e1e1e; 
+            color: white; 
+            font-family: sans-serif;
+            margin-top: 10px;">
+            <h2 style="margin-top:0; color: #4CAF50;">🚀 Mukthi Guru is Live!</h2>
+            <p>Click below to open the Ingestion Portal:</p>
+            <a href="{ingest_url}" target="_blank" style="
+                background-color: #4CAF50;
+                color: white;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 16px;
+                display: inline-block;
+                transition: background 0.3s;">
+                Open Ingestion UI ↗️
+            </a>
+            <p style="margin-top:15px; font-size: 12px; color: #aaa;">
+                Backend URL: {public_url}<br>
+                API Docs: <a href="{docs_url}" target="_blank" style="color: #64B5F6;">{docs_url}</a>
+            </p>
+        </div>
+        """
+        display(HTML(html_content))
+        # Attempt auto-open
+        display(Javascript(f'window.open("{ingest_url}", "_blank");'))
 
 
 # ============================================================
