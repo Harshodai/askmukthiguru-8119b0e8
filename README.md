@@ -44,7 +44,7 @@ npm run dev
 
 ## 🚀 How to Run (Docker)
 
-The recommended way to run Mukthi Guru is via Docker Compose. This starts the Vector DB, Backend per, and Ingestion UI.
+The recommended way to run Mukthi Guru is via Docker Compose. This starts the Vector DB, Backend API, and Ingestion UI.
 
 ### Prerequisites
 1. **Ollama**: Must be installed and running on your host machine.
@@ -66,7 +66,7 @@ docker compose up -d --build
 - **Qdrant Dashboard**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 
 ### 3. Ingest Content
-1. Open the **Ingestion Portal** at [http://localhost:3001](http://localhost:3001).
+1. Open the **Ingestion Portal** at [http://localhost:8000/ingest/](http://localhost:8000/ingest/).
 2. Paste a YouTube video URL (e.g., `https://youtu.be/CvDkoctU5a4`).
 3. (Optional) Check **Max Accuracy** to force high-quality transcription (Whisper) and skip auto-captions.
 4. Click **Ingest**. The process runs in the background.
@@ -110,7 +110,8 @@ If you have limited local compute, you can run the full stack on Google Colab (F
    !python colab/transfer.py backup --models
    
    # Restore from Drive (on next run)
-   !python colab/transfer.py restore /content/drive/MyDrive/MukthiGuru_Backups/mukthiguru_backup_2024...zip
+   !python colab/transfer.py restore /content/drive/MyDrive/MukthiGuru_Backups/mukthiguru_backup_2024-08-01.zip
+   # (Replace with your actual backup filename)
    ```
 
 
@@ -123,8 +124,7 @@ If you have limited local compute, you can run the full stack on Google Colab (F
 ## 🐳 Services
 | Service | URL | Description |
 |---------|-----|-------------|
-| **ingest-ui** | `:3001` | User interface for content ingestion |
-| **backend** | `:8000` | Core API for Chat and Ingestion |
+| **backend** | `:8000` | Core API + Ingestion UI (at `/ingest/`) |
 | **qdrant** | `:6333` | Vector Database |
 | **ollama** | `:11434` | LLM Inference (Host) |
 

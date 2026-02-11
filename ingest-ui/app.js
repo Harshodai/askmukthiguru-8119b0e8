@@ -46,6 +46,9 @@ const elements = {
 async function checkHealth() {
   try {
     const res = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     const data = await res.json();
 
     const isHealthy = data.status === 'healthy';
@@ -225,7 +228,15 @@ async function handleSubmit(e) {
       body: JSON.stringify({ url, max_accuracy: maxAccuracy }),
     });
 
-    const data = await res.json();
+    let data;
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      data = await res.json();
+    } else {
+      // Fallback for non-JSON errors (e.g. 502/504 HTML)
+      const text = await res.text();
+      throw new Error(`Request failed (HTTP ${res.status})`);
+    }
 
     if (!res.ok) {
       throw new Error(data.detail || `HTTP ${res.status}`);

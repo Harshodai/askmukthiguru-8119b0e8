@@ -77,19 +77,23 @@ class ServiceContainer:
         """Check health of all services (non-blocking)."""
         loop = asyncio.get_running_loop()
         
-        # Run blocking Qdrant check in thread pool
+        # Run blocking checks in thread pool
         try:
             qdrant_ok = await loop.run_in_executor(None, self.qdrant.health_check)
+            qdrant_count = await loop.run_in_executor(None, self.qdrant.count)
+            ocr_ok = await loop.run_in_executor(None, self.ocr.health_check)
         except Exception:
             qdrant_ok = False
+            qdrant_count = 0
+            ocr_ok = False
             
         return {
             "qdrant": qdrant_ok,
             "ollama": await self.ollama.health_check(),  # Already async
-            "ocr": self.ocr.health_check(),
+            "ocr": ocr_ok,
             "guardrails": self.guardrails.is_available,
             "embedding": True,
-            "qdrant_count": self.qdrant.count(),
+            "qdrant_count": qdrant_count,
         }
 
     def update_progress(self, url: str, message: str, percent: float) -> None:

@@ -60,7 +60,9 @@ services:
       # Server
       - HOST=0.0.0.0
       - PORT=8000
-      - CORS_ORIGINS=*
+      - PORT=8000
+      # Development only. In production, set this to allowed origins (e.g. https://myapp.com)
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     depends_on:
       qdrant:
         condition: service_healthy

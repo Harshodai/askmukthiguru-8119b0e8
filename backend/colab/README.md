@@ -18,9 +18,9 @@ This guide explains how to run the full **Mukthi Guru** stack (Backend + AI + In
 3. Select **T4 GPU**.
 
 ### 2. Clone the Repository
-Run this in the first cell:
+Run this in the first cell (replace `<YourUsername>`):
 ```python
-!git clone https://github.com/YourUsername/askmukthiguru.git
+!git clone https://github.com/<YourUsername>/askmukthiguru.git
 %cd askmukthiguru/backend
 ```
 

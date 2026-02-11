@@ -115,7 +115,7 @@ def configure_environment():
 
 # Ollama (running natively on this VM)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2:latest
+OLLAMA_MODEL=ajindal/llama3.1-storm:8b
 
 # Qdrant — embedded/local mode (no server needed)
 # Data persists to this directory on disk

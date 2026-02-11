@@ -72,7 +72,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_headers=["*"],
 )
 
 
@@ -232,7 +231,6 @@ async def ingest_endpoint(
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
 
-    # Run ingestion in the background for large content
     # Run ingestion in the background for large content
     async def _run_ingestion():
         def progress_callback(msg: str, pct: float):

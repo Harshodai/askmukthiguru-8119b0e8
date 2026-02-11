@@ -19,7 +19,7 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.git
+
 .mypy_cache
 .pytest_cache
 .hydra
