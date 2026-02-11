@@ -320,7 +320,8 @@ if __name__ == "__main__":
     print("=" * 60)
 
     install_dependencies()
-    setup_ollama()
+    # Use the same model as in .env
+    setup_ollama("ajindal/llama3.1-storm:8b")
     configure_environment()
     backend_proc = start_backend()
 
