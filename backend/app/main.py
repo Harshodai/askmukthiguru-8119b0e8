@@ -21,6 +21,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -296,6 +297,11 @@ async def ingest_status_endpoint() -> dict:
 
 
 # === Entry Point ===
+
+@app.get("/")
+async def root():
+    """Redirect root to Ingestion UI."""
+    return RedirectResponse(url="/ingest/")
 
 if __name__ == "__main__":
     import uvicorn
