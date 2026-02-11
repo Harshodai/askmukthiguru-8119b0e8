@@ -22,3 +22,33 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+venv/
+.venv/
+.env
+
+# Qdrant data
+qdrant_data/
+
+# Audio files
+*.mp3
+*.wav
+
+# Model files (directory-scoped, not global)
+*.gguf
+models/**/*.bin
+data/**/*.bin
+
+# OS
+Thumbs.db
+
+# Planning artifacts (GSD/Ralph)
+.planning/
+progress.txt
+prd.json

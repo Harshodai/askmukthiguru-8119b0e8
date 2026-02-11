@@ -1,0 +1,79 @@
+# ============================================================
+# Mukthi Guru — Full Stack Docker Compose
+#
+# Services:
+#   1. qdrant     — Vector database (persistent storage)
+#   2. backend    — FastAPI app (the RAG pipeline)
+#
+# Ollama runs on the HOST machine (not in Docker) because:
+#   - Windows Docker doesn't support GPU passthrough easily
+#   - Ollama Desktop is already installed and running
+#   - The backend connects to Ollama via host.docker.internal
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose logs -f        # Watch logs
+#   docker compose down           # Stop all services
+# ============================================================
+
+services:
+  # --- Vector Database ---
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    container_name: mukthiguru-qdrant
+    ports:
+      - "6333:6333" # REST API
+      - "6334:6334" # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # --- FastAPI Backend ---
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mukthiguru-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Ollama runs on the HOST, not in Docker
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.2:latest
+      # Qdrant runs as a sibling container
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=spiritual_wisdom
+      - QDRANT_LOCAL_PATH=
+      # Embedding models (downloaded on first run)
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - EMBEDDING_DIMENSION=384
+      - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+      # Server
+      - HOST=0.0.0.0
+      - PORT=8000
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:8080,http://localhost:3000
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    # Allow access to host's Ollama
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  qdrant_data:
+    driver: local

@@ -1,0 +1,22 @@
+define flow check topic
+  """Block off-topic requests: crypto, politics, medical prescriptions, explicit."""
+  user ask about cryptocurrency
+    bot refuse topic "I'm focused on spiritual guidance. I'm not able to help with cryptocurrency or financial topics."
+  user ask about politics
+    bot refuse topic "I'm here to guide you on your spiritual journey. Political discussions are outside my area of guidance."
+  user ask about medical prescription
+    bot refuse topic "I care about your wellbeing, but medical advice should come from a qualified healthcare professional."
+  user ask about explicit content
+    bot refuse topic "Let's keep our conversation centered on spiritual growth and inner peace."
+
+define flow check safety
+  """Detect self-harm/suicide and redirect to helpline."""
+  user express self harm intent
+    bot provide crisis resources "I'm deeply concerned about what you've shared. Please reach out to a crisis helpline immediately:\n🆘 National Suicide Prevention Lifeline: 988 (US)\n🆘 iCall: 9152987821 (India)\n🆘 Crisis Text Line: Text HOME to 741741\n\nYou are not alone. Please talk to someone who can help right now. 💛"
+
+define flow check output moderation
+  """Ensure the bot response doesn't contain harmful content."""
+  bot response contains medical advice
+    bot refuse output "I should clarify that I'm a spiritual guide, not a medical professional. Please consult a healthcare provider for medical concerns."
+  bot response contains financial advice
+    bot refuse output "I want to be transparent — financial guidance isn't my area of expertise. I'm here for spiritual matters."

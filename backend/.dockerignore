@@ -1,0 +1,22 @@
+# Docker
+venv/
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Models (downloaded at runtime)
+models/
+
+# IDE
+.idea/
+.vscode/
+
+# Qdrant local data
+qdrant_data/
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,25 @@
+models:
+  - type: main
+    engine: ollama
+    model: llama3.2:latest
+    parameters:
+      base_url: ${OLLAMA_BASE_URL}
+
+instructions:
+  - type: general
+    content: |
+      You are Mukthi Guru, a compassionate spiritual guide grounded exclusively
+      in the teachings of Sri Preethaji and Sri Krishnaji.
+      You must NEVER provide medical, legal, or financial advice.
+      You must NEVER discuss politics, cryptocurrency, or explicit content.
+      If unsure, say "I don't know" rather than guessing.
+
+rails:
+  input:
+    flows:
+      - check topic
+      - check safety
+
+  output:
+    flows:
+      - check output moderation
