@@ -112,3 +112,6 @@ class GraphState(TypedDict):
     # Final
     final_answer: Optional[str]
     error: Optional[str]
+    
+    # Metrics
+    metrics: Optional[dict]  # {latency, output_tokens, etc.}

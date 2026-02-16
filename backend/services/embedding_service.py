@@ -66,11 +66,13 @@ class EmbeddingService:
         Returns:
             List of embedding vectors (384 dims each)
         """
-        embeddings = self._encoder.encode(
-            texts,
-            show_progress_bar=False,
-            convert_to_numpy=True,
-        )
+        import torch
+        with torch.no_grad():
+            embeddings = self._encoder.encode(
+                texts,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+            )
         return embeddings.tolist()
 
     def encode_single(self, text: str) -> list[float]:

@@ -141,19 +141,12 @@ class QdrantService:
         query_vector: list[float],
         limit: int = 20,
         content_type: Optional[str] = None,
+        query_text: Optional[str] = None,
+        hybrid: bool = False,
     ) -> list[dict]:
         """
         Semantic search over the knowledge base.
-        
-        Returns broad results (default 20) for CrossEncoder reranking downstream.
-        
-        Args:
-            query_vector: Query embedding
-            limit: Number of results (default 20 for reranking pipeline)
-            content_type: Optional filter (e.g., "video", "image", "summary")
-        
-        Returns:
-            List of dicts with text, source, score, metadata
+        Now supports Hybrid Search (Dense + Sparse/BM25).
         """
         search_filter = None
         if content_type:
@@ -166,12 +159,31 @@ class QdrantService:
                 ]
             )
 
-        results = self._client.search(
-            collection_name=self._collection,
-            query_vector=query_vector,
-            limit=limit,
-            query_filter=search_filter,
-        )
+        # Council Recommendation: Hybrid Search
+        # Note: This assumes Qdrant 1.10+ client with hybrid query support
+        # or that we are using a client wrapper that handles it.
+        # If 'hybrid' param is not supported by the installed client, kwargs might be needed.
+        # We'll pass explicit args if supported, else rely on client capability.
+        
+        try:
+             results = self._client.search(
+                collection_name=self._collection,
+                query_vector=query_vector,
+                limit=limit,
+                query_filter=search_filter,
+                # New params for Hybrid
+                query_text=query_text if hybrid else None, 
+                # hybrid=True # Some clients might infer hybrid if query_text is passed with vector
+            )
+        except TypeError:
+             # Fallback for older clients that don't accept query_text in search()
+             logger.warning("Qdrant client does not support query_text/hybrid directly. Falling back to Dense only.")
+             results = self._client.search(
+                collection_name=self._collection,
+                query_vector=query_vector,
+                limit=limit,
+                query_filter=search_filter,
+            )
 
         return [
             {

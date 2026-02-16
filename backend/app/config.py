@@ -40,10 +40,16 @@ class Settings(BaseSettings):
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # --- Whisper ---
-    whisper_model: str = "tiny"
+    # The whisper_model setting has been moved to the Ingestion section below.
 
     # --- OCR ---
     ocr_languages: str = "en,hi,te"
+
+    # Ingestion
+    whisper_model: str = "large-v3"  # Upgraded per Council Recommendation
+
+    # --- Data Quality ---
+    data_audit_enabled: bool = True  # Enable LLM-based quality checks
 
     # --- Server ---
     host: str = "0.0.0.0"

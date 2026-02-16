@@ -33,11 +33,14 @@ from services.ocr_service import OCRService
 logger = logging.getLogger(__name__)
 
 
+from ingest.auditor import DataAuditor
+from ingest.corrector import TranscriptCorrector
+
 class IngestionPipeline:
     """
     Orchestrates the full content ingestion workflow.
     
-    URL → Detect Type → Load Content → Clean → Chunk → Embed → Index → RAPTOR
+    URL → Detect Type → Load Content → Audit → Clean → Chunk → Embed → Index → RAPTOR
     
     Supports:
     - Single YouTube video URLs
@@ -60,6 +63,9 @@ class IngestionPipeline:
         self._embedder = embedding_service
         self._llm = ollama_service
         self._ocr = ocr_service or OCRService()
+        self._ocr = ocr_service or OCRService()
+        self._auditor = DataAuditor(ollama_service)
+        self._corrector = TranscriptCorrector(ollama_service)
 
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
@@ -133,9 +139,32 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
+        raw_text = result["text"]
+
+        # Step 1.2: Correct Transcript (Council Recommendation)
+        # We correct BEFORE auditing to ensure the auditor sees high-quality text.
+        self._notify(on_progress, "Correcting transcript (LLM)...", 0.15)
+        
+        # Security: Sanitize input to prevent injection
+        sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
+        raw_text = await self._corrector.correct_transcript(sanitized_text, url)
+
+        # Step 1.5: Audit Content Quality
+        self._notify(on_progress, "Auditing content quality...", 0.2)
+        is_valid = await self._auditor.audit_transcript(raw_text, url)
+        
+        if not is_valid:
+            return {
+                "status": "rejected",
+                "message": "Content rejected by Data Auditor (low quality or irrelevant)",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
+
         # Step 2: Clean
         self._notify(on_progress, "Cleaning text...", 0.3)
-        clean_text = clean_transcript(result["text"])
+        clean_text = clean_transcript(raw_text)
 
         # Step 3: Chunk (single split, reused for both index and RAPTOR)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
@@ -200,7 +229,7 @@ class IngestionPipeline:
             )
 
             try:
-                result = await self._ingest_video(video["url"], None)
+                result = await self.ingest_url(video["url"], max_accuracy, None)  # Recursive call
                 total_chunks += result.get("chunks_indexed", 0)
                 total_summaries += result.get("summaries_created", 0)
                 processed += 1

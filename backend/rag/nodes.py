@@ -83,10 +83,39 @@ def init_services(
     _qdrant = qdrant
 
 
+import time
+import functools
+
+def log_metrics(func):
+    """Decorator to log execution time of nodes."""
+    @functools.wraps(func)
+    async def wrapper(state: GraphState, *args, **kwargs):
+        start = time.time()
+        result = await func(state, *args, **kwargs)
+        duration = time.time() - start
+        
+        node_name = func.__name__
+        logger.info(f"Node '{node_name}' finished in {duration:.4f}s")
+        
+        # Merge metrics into state
+        metrics = state.get("metrics") or {}
+        metrics[node_name] = duration
+        
+        # If result merges into state, ensure we preserve/update metrics
+        if isinstance(result, dict):
+            existing_metrics = result.get("metrics", {})
+            existing_metrics.update(metrics)
+            result["metrics"] = existing_metrics
+            
+        return result
+    return wrapper
+
+
 # ===================================================================
 # Layer 2: Intent Router
 # ===================================================================
 
+@log_metrics
 async def intent_router(state: GraphState) -> dict:
     """
     Classify user message → DISTRESS / QUERY / CASUAL.
@@ -116,6 +145,7 @@ async def intent_router(state: GraphState) -> dict:
 # Layer 3: Query Decomposition
 # ===================================================================
 
+@log_metrics
 async def decompose_query(state: GraphState) -> dict:
     """
     Split complex queries into atomic sub-queries.
@@ -139,6 +169,7 @@ async def decompose_query(state: GraphState) -> dict:
 # Layer 4: Retrieve Documents
 # ===================================================================
 
+@log_metrics
 async def retrieve_documents(state: GraphState) -> dict:
     """
     Broad retrieval from Qdrant (top-20 by default).
@@ -153,13 +184,29 @@ async def retrieve_documents(state: GraphState) -> dict:
     seen_texts = set()
 
     for query in sub_queries:
-        # Embed the query
-        query_vector = _embedder.encode_single(query)
         
-        # Search Qdrant
+        # HyDE (Hypothetical Document Embeddings)
+        # If enabled, we embed the *hypothetical answer* instead of the question.
+        # This brings the query vector closer to the document vectors in the semantic space.
+        query_for_embedding = query
+        if getattr(settings, "rag_use_hyde", False):
+            logger.info("HyDE: Generating hypothetical answer...")
+            try:
+                hypothetical = await _ollama.generate_hypothetical_answer(query)
+                query_for_embedding = hypothetical
+                logger.debug(f"HyDE: {hypothetical[:50]}...")
+            except Exception as e:
+                logger.warning(f"HyDE generation failed: {e}. Using original query.")
+
+        # Embed the query (or hypothetical answer)
+        query_vector = _embedder.encode_single(query_for_embedding)
+        
+        # Search Qdrant (Hybrid)
         results = _qdrant.search(
             query_vector=query_vector,
             limit=settings.rag_top_k_retrieval,
+            query_text=query,     # Pass text for BM25/Sparse
+            hybrid=True,          # Enable hybrid search
         )
 
         # De-duplicate across sub-queries
@@ -177,6 +224,7 @@ async def retrieve_documents(state: GraphState) -> dict:
 # Layer 5: Rerank Documents (CrossEncoder)
 # ===================================================================
 
+@log_metrics
 async def rerank_documents(state: GraphState) -> dict:
     """
     CrossEncoder reranking: top-20 → top-3.
@@ -199,6 +247,7 @@ async def rerank_documents(state: GraphState) -> dict:
 # Layer 6: Grade Documents (CRAG)
 # ===================================================================
 
+@log_metrics
 async def grade_documents(state: GraphState) -> dict:
     """
     CRAG: Binary relevance grading of each reranked document.
@@ -226,6 +275,7 @@ async def grade_documents(state: GraphState) -> dict:
 # Layer 7: Rewrite Query (CRAG Loop)
 # ===================================================================
 
+@log_metrics
 async def rewrite_query(state: GraphState) -> dict:
     """
     CRAG: Self-correcting query rewrite.
@@ -251,6 +301,7 @@ async def rewrite_query(state: GraphState) -> dict:
 # Layer 8: Extract Hints (Stimulus RAG)
 # ===================================================================
 
+@log_metrics
 async def extract_hints(state: GraphState) -> dict:
     """
     Stimulus RAG: Extract key evidence phrases from relevant documents.
@@ -273,6 +324,7 @@ async def extract_hints(state: GraphState) -> dict:
 # Layer 9: Generate Answer
 # ===================================================================
 
+@log_metrics
 async def generate_answer(state: GraphState) -> dict:
     """
     Generate the final answer using Stimulus RAG prompt template.
@@ -320,6 +372,7 @@ async def generate_answer(state: GraphState) -> dict:
 # Layer 10: Check Faithfulness (Self-RAG)
 # ===================================================================
 
+@log_metrics
 async def check_faithfulness(state: GraphState) -> dict:
     """
     Self-RAG: Verify generated answer is faithful to the context.
@@ -342,6 +395,7 @@ async def check_faithfulness(state: GraphState) -> dict:
 # Layer 11: Verify Answer (CoVe)
 # ===================================================================
 
+@log_metrics
 async def verify_answer(state: GraphState) -> dict:
     """
     Chain of Verification: Generate sub-questions and verify claims.

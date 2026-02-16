@@ -52,6 +52,7 @@ class OllamaService:
         system_prompt: str,
         user_prompt: str,
         context: str = "",
+        **kwargs,
     ) -> str:
         """
         Core generation method. All other methods build on top of this.
@@ -60,9 +61,7 @@ class OllamaService:
             system_prompt: Role and constraints for the LLM
             user_prompt: User's input with any injected context
             context: Retrieved documents (inserted into the prompt)
-            
-        Returns:
-            LLM response text
+            **kwargs: Additional model parameters (temperature, top_k, etc.)
         """
         messages = [SystemMessage(content=system_prompt)]
 
@@ -74,7 +73,9 @@ class OllamaService:
         messages.append(HumanMessage(content=full_prompt))
 
         try:
-            response = await self._llm.ainvoke(messages)
+            # Bind runtime args like temperature
+            chain = self._llm.bind(**kwargs) if kwargs else self._llm
+            response = await chain.ainvoke(messages)
             return response.content.strip()
         except Exception as e:
             logger.error(f"Ollama generation failed: {e}")
@@ -319,6 +320,23 @@ class OllamaService:
                 sub_queries.append(line[2:].strip())
         
         return sub_queries if sub_queries else [query]
+
+    async def generate_hypothetical_answer(self, query: str) -> str:
+        """
+        HyDE (Hypothetical Document Embeddings): Generate a fake answer.
+        
+        The embedding of this hypothetical answer is often closer to the 
+        embedding of the real answer than the question itself.
+        """
+        system = (
+            "You are Sri Preethaji. "
+            "Write a brief, hypothetical answer to the user's question "
+            "based on your spiritual teachings. "
+            "Do not hallucinate facts, just capture the style and vocabulary. "
+            "Keep it under 3 sentences."
+        )
+        
+        return await self.generate(system, query)
 
     async def is_complex_query(self, query: str) -> bool:
         """

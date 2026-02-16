@@ -33,6 +33,11 @@ sys.path.insert(0, ".")
 from app.config import settings
 from app.dependencies import get_container, startup, shutdown
 from rag.graph import create_initial_state
+from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
+from services.depression_detector import DepressionDetector
+
+# Global instance
+depression_detector = DepressionDetector()
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +56,8 @@ async def lifespan(app: FastAPI):
     """Application lifecycle: init services on start, cleanup on stop."""
     logger.info("🚀 Mukthi Guru starting up...")
     startup()
+    # Load heavy models
+    depression_detector.load()
     logger.info("🙏 Mukthi Guru is ready")
     yield
     logger.info("Shutting down...")
@@ -75,6 +82,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/metrics")
+async def get_metrics():
+    """Prometheus metrics endpoint."""
+    from fastapi.responses import Response
+    data, content_type = metrics_endpoint()
+    return Response(content=data, media_type=content_type)
+
 
 # === Mount Ingestion UI ===
 
@@ -97,6 +111,16 @@ if ui_path:
     logger.info(f"✅ Ingestion UI mounted at /ingest (from {ui_path})")
 else:
     logger.warning("⚠️ Ingestion UI directory not found. UI will not be available.")
+
+# === Mount Gradio UI (Council Recommendation) ===
+try:
+    from app.gradio_ui import create_demo
+    import gradio as gr
+    # Reset standard logging to avoid conflict
+    gradio_app = gr.mount_gradio_app(app, create_demo(), path="/ui")
+    logger.info("✅ Gradio Chat UI mounted at /ui")
+except Exception as e:
+    logger.warning(f"Failed to mount Gradio UI: {e}")
 
 
 # === Request/Response DTOs ===
@@ -164,7 +188,9 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
     # === Layer 1: NeMo Input Rail ===
-    input_check = await container.guardrails.check_input(user_msg)
+    with REQUEST_LATENCY.labels(stage="guardrails").time():
+        input_check = await container.guardrails.check_input(user_msg)
+        
     if input_check["blocked"]:
         logger.info(f"Input blocked: {input_check['reason']}")
         return ChatResponse(
@@ -173,16 +199,28 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             block_reason=input_check["reason"],
         )
 
-    # === Layers 2-11: LangGraph RAG Pipeline ===
-    try:
-        initial_state = create_initial_state(
-            question=user_msg,
-            chat_history=[m.model_dump() for m in request.messages],
-            meditation_step=request.meditation_step,
+    # === Depression Detection (Council Recommendation) ===
+    # Check directly here before RAG to fail-fast into meditation
+    if await depression_detector.detect(user_msg):
+        from rag.meditation import get_distress_response
+        return ChatResponse(
+            response=get_distress_response(),
+            intent="DISTRESS",
+            meditation_step=1,
         )
 
-        # Invoke the compiled LangGraph
-        result = await container.rag_graph.ainvoke(initial_state)
+    # === Layers 2-11: LangGraph RAG Pipeline ===
+    try:
+        with REQUEST_LATENCY.labels(stage="rag_pipeline").time():
+            initial_state = create_initial_state(
+                question=user_msg,
+                chat_history=[m.model_dump() for m in request.messages],
+                meditation_step=request.meditation_step,
+            )
+            REQUEST_COUNT.labels(status="success").inc()
+
+            # Invoke the compiled LangGraph
+            result = await container.rag_graph.ainvoke(initial_state)
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
         intent = result.get("intent", "CASUAL")
