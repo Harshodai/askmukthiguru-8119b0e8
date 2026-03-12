@@ -33,9 +33,7 @@ from rag.nodes import (
     rerank_documents,
     grade_documents,
     rewrite_query,
-    extract_hints,
     generate_answer,
-    check_faithfulness,
     verify_answer,
     format_final_answer,
     handle_casual,
@@ -45,7 +43,6 @@ from rag.nodes import (
     # Routing functions
     route_by_intent,
     route_after_grading,
-    route_after_faithfulness,
 )
 from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
@@ -61,27 +58,26 @@ def build_rag_graph(
 ) -> CompiledStateGraph:
     """
     Build and compile the complete RAG pipeline as a LangGraph.
-    
+
     The full pipeline has 12 layers:
       - Layer 1 (NeMo input rail) and Layer 12 (NeMo output rail) are handled
         externally by the FastAPI route handler.
       - Layers 2-11 are implemented as graph nodes here.
-    
-    Architecture:
-    
+
+    Architecture (optimized — 5-6 LLM calls instead of 11-13):
+
     START → intent_router
       ├─ DISTRESS → handle_distress → END
-      ├─ MEDITATION_CONTINUE → handle_meditation → END  
+      ├─ MEDITATION_CONTINUE → handle_meditation → END
       ├─ CASUAL → handle_casual → END
       └─ QUERY → decompose_query → retrieve_documents → rerank_documents
                 → grade_documents
-                    ├─ relevant → extract_hints → generate_answer
-                    │             → check_faithfulness
-                    │                 ├─ faithful → verify_answer → format_final_answer → END
-                    │                 └─ not_faithful → handle_fallback → END
+                    ├─ relevant → generate_answer (with inline hints)
+                    │             → verify_answer (combined Self-RAG + CoVe)
+                    │             → format_final_answer → END
                     ├─ rewrite (< 3x) → rewrite_query → retrieve_documents (loop)
                     └─ fallback (≥ 3x) → handle_fallback → END
-    
+
     Returns:
         Compiled LangGraph (CompiledStateGraph) ready for invocation
     """
@@ -98,9 +94,7 @@ def build_rag_graph(
     graph.add_node("rerank_documents", rerank_documents)
     graph.add_node("grade_documents", grade_documents)
     graph.add_node("rewrite_query", rewrite_query)
-    graph.add_node("extract_hints", extract_hints)
     graph.add_node("generate_answer", generate_answer)
-    graph.add_node("check_faithfulness", check_faithfulness)
     graph.add_node("verify_answer", verify_answer)
     graph.add_node("format_final_answer", format_final_answer)
     graph.add_node("handle_casual", handle_casual)
@@ -135,7 +129,7 @@ def build_rag_graph(
         "grade_documents",
         route_after_grading,
         {
-            "relevant": "extract_hints",
+            "relevant": "generate_answer",
             "rewrite": "rewrite_query",
             "fallback": "handle_fallback",
         },
@@ -144,21 +138,10 @@ def build_rag_graph(
     # Rewrite loop → back to retrieve
     graph.add_edge("rewrite_query", "retrieve_documents")
 
-    # Stimulus RAG → Generate → Faithfulness check
-    graph.add_edge("extract_hints", "generate_answer")
-    graph.add_edge("generate_answer", "check_faithfulness")
+    # Generate (with inline hints) → Combined verification → Format
+    graph.add_edge("generate_answer", "verify_answer")
 
-    # After faithfulness → decide: proceed / fallback
-    graph.add_conditional_edges(
-        "check_faithfulness",
-        route_after_faithfulness,
-        {
-            "faithful": "verify_answer",
-            "not_faithful": "handle_fallback",
-        },
-    )
-
-    # CoVe verification → format final answer
+    # Verification → format final answer
     graph.add_edge("verify_answer", "format_final_answer")
 
     # === Terminal edges → END ===

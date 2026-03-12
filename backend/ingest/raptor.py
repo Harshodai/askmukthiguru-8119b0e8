@@ -62,10 +62,10 @@ class RaptorIndexer:
     async def build_tree(self, chunks: list[dict]) -> int:
         """
         Build the RAPTOR summary tree from leaf chunks.
-        
+
         Args:
-            chunks: List of dicts with 'text' and metadata keys
-            
+            chunks: List of dicts with 'text', 'source_url', and 'title' keys
+
         Returns:
             Number of summary nodes created
         """
@@ -76,7 +76,7 @@ class RaptorIndexer:
             logger.info(f"RAPTOR: too few chunks ({len(chunks)}), skipping tree build")
             return 0
 
-        # Step 1: Embed all chunks
+        # Step 1: Embed all chunks (dense only — sufficient for clustering)
         texts = [c["text"] for c in chunks]
         embeddings = self._embedder.encode(texts)
         embeddings_array = np.array(embeddings)
@@ -90,31 +90,40 @@ class RaptorIndexer:
         n_clusters = min(n_clusters, len(texts))
         clusters = self._cluster_texts(reduced, n_clusters)
 
-        # Step 4: Summarize each cluster
-        summaries = await self._summarize_clusters(texts, clusters)
+        # Step 4: Summarize each cluster (with source provenance)
+        summaries = await self._summarize_clusters(chunks, clusters)
 
-        # Step 5: Index summaries as level-1 nodes
+        # Step 5: Index summaries as level-1 nodes (with sparse vectors for hybrid search)
         summary_texts = [s["text"] for s in summaries]
-        summary_vectors = self._embedder.encode(summary_texts)
+        summary_embeddings = self._embedder.encode_with_sparse(summary_texts)
         summary_metas = [
             {
                 "content_type": "summary",
                 "raptor_level": 1,
                 "cluster_id": s["cluster_id"],
                 "source_chunks": s["source_count"],
+                "source_urls": s.get("source_urls", []),
+                "titles": s.get("titles", []),
+                "source_url": s.get("source_urls", [""])[0],  # Primary source for dedup ID
+                "chunk_index": s["cluster_id"],  # Use cluster_id as chunk_index for dedup
             }
             for s in summaries
         ]
 
-        count = self._qdrant.upsert_chunks(summary_texts, summary_vectors, summary_metas)
+        count = self._qdrant.upsert_chunks(
+            summary_texts,
+            summary_embeddings['dense'],
+            summary_metas,
+            sparse_vectors=summary_embeddings['sparse'],
+        )
         logger.info(f"RAPTOR: created {count} level-1 summary nodes from {len(texts)} chunks")
         return count
 
     def _reduce_dimensions(self, embeddings: np.ndarray, n_components: int = 10) -> np.ndarray:
         """
         Reduce embedding dimensions for better clustering.
-        
-        Uses UMAP to reduce 384-dim vectors to 10-dim while preserving
+
+        Uses UMAP to reduce 1024-dim vectors to 10-dim while preserving
         semantic neighborhoods. Falls back to truncation if UMAP fails.
         """
         try:
@@ -157,31 +166,50 @@ class RaptorIndexer:
         logger.info(f"RAPTOR: {n_clusters} clusters, sizes: {[len(v) for v in clusters.values()]}")
         return clusters
 
-    async def _summarize_clusters(self, texts: list[str], clusters: dict) -> list[dict]:
+    async def _summarize_clusters(self, chunks: list[dict], clusters: dict) -> list[dict]:
         """
-        Generate LLM summaries for each cluster.
-        
-        Each summary captures the thematic essence of its cluster members.
-        """
-        summaries = []
-        for cluster_id, indices in clusters.items():
-            cluster_texts = [texts[i] for i in indices]
-            
-            try:
-                summary_text = await self._llm.summarize(cluster_texts)
-                summaries.append({
-                    "text": summary_text,
-                    "cluster_id": cluster_id,
-                    "source_count": len(cluster_texts),
-                })
-            except Exception as e:
-                logger.error(f"RAPTOR: Failed to summarize cluster {cluster_id}: {e}")
-                # Fallback: concatenate first and last chunk
-                fallback = f"{cluster_texts[0][:200]} ... {cluster_texts[-1][:200]}"
-                summaries.append({
-                    "text": fallback,
-                    "cluster_id": cluster_id,
-                    "source_count": len(cluster_texts),
-                })
+        Generate LLM summaries for each cluster with source provenance.
 
-        return summaries
+        Each summary captures the thematic essence of its cluster members
+        and preserves source_url/title from the originating chunks.
+        Uses asyncio.gather() to parallelize cluster summarizations (max 4 concurrent).
+        """
+        semaphore = asyncio.Semaphore(4)
+
+        async def _summarize_one(cluster_id: int, indices: list[int]) -> dict:
+            cluster_chunks = [chunks[i] for i in indices]
+            cluster_texts = [c["text"] for c in cluster_chunks]
+
+            source_urls = sorted(set(
+                c.get("source_url", "") for c in cluster_chunks if c.get("source_url")
+            ))
+            titles = sorted(set(
+                c.get("title", "") for c in cluster_chunks if c.get("title")
+            ))
+
+            async with semaphore:
+                try:
+                    summary_text = await self._llm.summarize(cluster_texts)
+                    return {
+                        "text": summary_text,
+                        "cluster_id": cluster_id,
+                        "source_count": len(cluster_texts),
+                        "source_urls": source_urls,
+                        "titles": titles,
+                    }
+                except Exception as e:
+                    logger.error(f"RAPTOR: Failed to summarize cluster {cluster_id}: {e}")
+                    fallback = f"{cluster_texts[0][:200]} ... {cluster_texts[-1][:200]}"
+                    return {
+                        "text": fallback,
+                        "cluster_id": cluster_id,
+                        "source_count": len(cluster_texts),
+                        "source_urls": source_urls,
+                        "titles": titles,
+                    }
+
+        summaries = await asyncio.gather(
+            *[_summarize_one(cid, idxs) for cid, idxs in clusters.items()]
+        )
+
+        return list(summaries)

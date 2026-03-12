@@ -18,6 +18,20 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import settings
+from rag.prompts import (
+    INTENT_CLASSIFICATION_PROMPT,
+    GRADE_RELEVANCE_PROMPT,
+    FAITHFULNESS_CHECK_PROMPT,
+    HINT_EXTRACTION_PROMPT,
+    QUERY_REWRITE_PROMPT,
+    VERIFICATION_PROMPT,
+    SUMMARIZE_PROMPT,
+    DECOMPOSE_QUERY_PROMPT,
+    HYDE_PROMPT,
+    IS_COMPLEX_QUERY_PROMPT,
+    BATCH_GRADE_PROMPT,
+    COMBINED_VERIFICATION_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +57,7 @@ class OllamaService:
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
             temperature=0.1,  # Low temp for factual accuracy
-            num_predict=512,  # Limit output length
+            num_predict=1024,  # Max output tokens (increased for richer spiritual explanations)
         )
         logger.info(f"Ollama service ready: {settings.ollama_model}")
 
@@ -92,19 +106,7 @@ class OllamaService:
         - QUERY → enters the 11-layer RAG pipeline
         - CASUAL → warm, brief conversational reply
         """
-        system = (
-            "You are an intent classifier for a spiritual guidance app. "
-            "Classify the user's message into exactly one category:\n\n"
-            "DISTRESS - The user is expressing emotional pain, stress, anxiety, "
-            "sadness, anger, fear, loneliness, hopelessness, or seeks comfort. "
-            "Examples: 'I'm so stressed', 'Life feels meaningless', 'I can't sleep'\n\n"
-            "QUERY - The user is asking a question about spiritual teachings, "
-            "meditation, consciousness, or seeking knowledge. "
-            "Examples: 'What is the Beautiful State?', 'How do I meditate?'\n\n"
-            "CASUAL - The user is making small talk, greeting, or a general comment. "
-            "Examples: 'Hello', 'Thank you', 'How are you?'\n\n"
-            "Respond with ONLY the category name: DISTRESS, QUERY, or CASUAL"
-        )
+        system = INTENT_CLASSIFICATION_PROMPT
 
         result = await self.generate(system, message)
         
@@ -126,18 +128,49 @@ class OllamaService:
         This is layer 6 in the anti-hallucination pipeline.
         If no documents pass this gate, the query gets rewritten (up to 3x).
         """
-        system = (
-            "You are a relevance grader for a spiritual guidance system. "
-            "Given a user question and a retrieved document, determine if the "
-            "document contains information relevant to answering the question.\n\n"
-            "Respond with ONLY 'yes' or 'no'."
-        )
+        system = GRADE_RELEVANCE_PROMPT
         prompt = f"Question: {query}\n\nDocument: {document}"
         
         result = await self.generate(system, prompt)
         return "yes" in result.lower()
 
-    async def check_faithfulness(self, answer: str, context: str) -> bool:
+    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[bool]:
+        """
+        CRAG: Batch relevance grading of multiple documents in one LLM call.
+
+        Instead of N separate calls (one per document), grades all documents
+        at once with a structured prompt. Reduces LLM calls from N to 1.
+
+        Returns: List of booleans, one per document (True = relevant).
+        """
+        if not documents:
+            return []
+
+        # Build numbered document list
+        numbered_docs = "\n\n".join(
+            f"Document {i+1}:\n{doc[:800]}"  # Truncate individual docs to fit context
+            for i, doc in enumerate(documents)
+        )
+
+        system = BATCH_GRADE_PROMPT
+        prompt = f"Question: {query}\n\n{numbered_docs}"
+
+        result = await self.generate(system, prompt)
+
+        # Parse "1: yes\n2: no\n3: yes" format
+        relevance = [False] * len(documents)
+        for line in result.strip().splitlines():
+            line = line.strip()
+            if ":" in line:
+                parts = line.split(":", 1)
+                try:
+                    idx = int(parts[0].strip()) - 1  # 1-indexed → 0-indexed
+                    if 0 <= idx < len(documents):
+                        relevance[idx] = "yes" in parts[1].lower()
+                except (ValueError, IndexError):
+                    continue
+
+        return relevance
         """
         Self-RAG: Check if the generated answer is faithful to the context.
         
@@ -147,15 +180,7 @@ class OllamaService:
         This is layer 10 — the post-generation safety net.
         If this fails, the entire answer is discarded.
         """
-        system = (
-            "You are a faithfulness checker for a spiritual guidance system. "
-            "Your job is to verify that EVERY claim in the Answer is directly "
-            "supported by the Context. \n\n"
-            "If ANY sentence in the Answer contains information NOT found in "
-            "the Context, respond 'hallucinated'.\n"
-            "If ALL sentences are fully supported by the Context, respond 'faithful'.\n\n"
-            "Respond with ONLY 'faithful' or 'hallucinated'."
-        )
+        system = FAITHFULNESS_CHECK_PROMPT
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
         
         result = await self.generate(system, prompt)
@@ -172,14 +197,7 @@ class OllamaService:
         Returns: List of 3-5 key hint phrases
         """
         combined_docs = "\n---\n".join(documents)
-        system = (
-            "You are a hint extractor for a spiritual guidance system. "
-            "Given a question and retrieved teaching documents, extract "
-            "the 3-5 most relevant key phrases, sentences, or concepts "
-            "that directly answer the question.\n\n"
-            "Format: Return each hint on a new line, prefixed with '- '.\n"
-            "Be precise. Use exact quotes from the documents when possible."
-        )
+        system = HINT_EXTRACTION_PROMPT
         prompt = f"Question: {query}\n\nDocuments:\n{combined_docs}"
         
         result = await self.generate(system, prompt)
@@ -207,15 +225,7 @@ class OllamaService:
         
         Part of the self-correcting retrieval loop (max 3 attempts).
         """
-        system = (
-            "You are a query rewriter for a spiritual teachings search system. "
-            "The original query didn't retrieve good results. Rewrite it to:\n"
-            "1. Add synonyms for spiritual terms (e.g., 'suffering' → 'dukkha, pain, anguish')\n"
-            "2. Expand abbreviations or shorthand\n"
-            "3. Rephrase for clarity\n"
-            "4. Add related concepts from Sri Krishnaji and Sri Preethaji's teachings\n\n"
-            "Return ONLY the rewritten query, nothing else."
-        )
+        system = QUERY_REWRITE_PROMPT
         
         return await self.generate(system, f"Original query: {original_query}")
 
@@ -231,18 +241,7 @@ class OllamaService:
         If ANY verification question cannot be answered from context,
         the answer is rejected.
         """
-        system = (
-            "You are a fact-checker for a spiritual guidance system. "
-            "Given an answer and its source context, do the following:\n\n"
-            "1. Generate 2-3 specific verification questions based on claims in the Answer\n"
-            "2. Check if the Context can answer each question\n"
-            "3. Respond in this exact format:\n"
-            "Q1: [question]\n"
-            "A1: [VERIFIED or UNVERIFIED] - [brief reason]\n"
-            "Q2: [question]\n"
-            "A2: [VERIFIED or UNVERIFIED] - [brief reason]\n"
-            "VERDICT: [PASS or FAIL]"
-        )
+        system = VERIFICATION_PROMPT
         prompt = f"Answer:\n{answer}\n\nContext:\n{context}"
         
         result = await self.generate(system, prompt)
@@ -274,7 +273,53 @@ class OllamaService:
             "details": result,
         }
 
-    async def summarize(self, texts: list[str]) -> str:
+    async def combined_verify(self, answer: str, context: str) -> dict:
+        """
+        Combined Self-RAG + CoVe verification in a single LLM call.
+
+        Merges faithfulness checking (layer 10) and claim verification (layer 11)
+        into one structured prompt, reducing 2 LLM calls to 1.
+
+        Returns:
+            Dict with 'is_faithful' (bool), 'passed' (bool), 'details' (str)
+        """
+        system = COMBINED_VERIFICATION_PROMPT
+        prompt = f"Answer:\n{answer}\n\nContext:\n{context}"
+
+        result = await self.generate(system, prompt, temperature=0.0)
+
+        result_upper = result.upper().strip()
+        lines = result_upper.splitlines()
+
+        # Parse FAITHFULNESS line
+        is_faithful = False
+        for line in lines:
+            if "FAITHFULNESS" in line:
+                after = line.split("FAITHFULNESS", 1)[-1]
+                is_faithful = "FAITHFUL" in after and "HALLUCINATED" not in after
+                break
+
+        # Parse VERDICT line
+        passed = False
+        for line in reversed(lines):
+            if "VERDICT" in line:
+                after = line.split("VERDICT", 1)[-1]
+                passed = "PASS" in after and "FAIL" not in after
+                break
+
+        # Both must pass
+        final_passed = is_faithful and passed
+
+        if not final_passed:
+            logger.info(
+                f"Combined verify: faithful={is_faithful}, verdict_pass={passed}"
+            )
+
+        return {
+            "is_faithful": is_faithful,
+            "passed": final_passed,
+            "details": result,
+        }
         """
         Summarize a cluster of text chunks (used by RAPTOR).
         
@@ -282,13 +327,7 @@ class OllamaService:
         between individual chunks.
         """
         combined = "\n\n".join(texts)
-        system = (
-            "You are a spiritual teachings summarizer. "
-            "Summarize the following related text passages into a single, "
-            "cohesive paragraph that captures the key teachings, concepts, "
-            "and wisdom. Preserve important spiritual terminology. "
-            "Keep the summary under 200 words."
-        )
+        system = SUMMARIZE_PROMPT
         
         return await self.generate(system, combined)
 
@@ -301,13 +340,7 @@ class OllamaService:
         
         Returns: List of 2-3 simpler sub-queries
         """
-        system = (
-            "You are a query decomposer for a spiritual teachings search. "
-            "The user asked a complex question. Break it into 2-3 simpler, "
-            "independent sub-questions that together answer the original.\n\n"
-            "Format: Return each sub-question on a new line, prefixed with '- '.\n"
-            "If the question is already simple, return it unchanged as a single item."
-        )
+        system = DECOMPOSE_QUERY_PROMPT
         
         result = await self.generate(system, query)
         
@@ -328,13 +361,7 @@ class OllamaService:
         The embedding of this hypothetical answer is often closer to the 
         embedding of the real answer than the question itself.
         """
-        system = (
-            "You are Sri Preethaji. "
-            "Write a brief, hypothetical answer to the user's question "
-            "based on your spiritual teachings. "
-            "Do not hallucinate facts, just capture the style and vocabulary. "
-            "Keep it under 3 sentences."
-        )
+        system = HYDE_PROMPT
         
         return await self.generate(system, query)
 
@@ -345,14 +372,7 @@ class OllamaService:
         Returns True for queries that contain comparisons, multiple concepts,
         or multi-part questions.
         """
-        system = (
-            "Determine if this question is complex (needs to be broken into parts) "
-            "or simple (can be answered directly). A question is complex if it:\n"
-            "- Compares two or more concepts\n"
-            "- Asks about multiple unrelated things\n"
-            "- Contains 'and', 'vs', 'compare', 'difference between'\n\n"
-            "Respond with ONLY 'complex' or 'simple'."
-        )
+        system = IS_COMPLEX_QUERY_PROMPT
         
         result = await self.generate(system, query)
         return "complex" in result.lower()

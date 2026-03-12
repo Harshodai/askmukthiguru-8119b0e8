@@ -3,6 +3,12 @@ Mukthi Guru — Application Configuration
 
 Uses Pydantic Settings for type-safe, validated configuration from .env files.
 Implements the Singleton pattern via module-level instance for zero-cost DI.
+
+Includes configs for:
+  - Sarvam 30B (Indian multilingual LLM via Ollama)
+  - faster-whisper (4x faster Whisper transcription)
+  - Multi-language transcript extraction (10 Indian languages)
+  - Concurrent playlist ingestion workers
 """
 
 from functools import lru_cache
@@ -25,9 +31,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Ollama ---
+    # --- Ollama / Sarvam 30B ---
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2:latest"
+    ollama_model: str = "sarvam-30b:latest"
+    sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
@@ -35,18 +42,22 @@ class Settings(BaseSettings):
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
     # --- Embeddings ---
-    embedding_model: str = "all-MiniLM-L6-v2"
-    embedding_dimension: int = 384
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_dimension: int = 1024
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
-    # --- Whisper ---
-    # The whisper_model setting has been moved to the Ingestion section below.
+    # --- Whisper / Transcription ---
+    whisper_model: str = "large-v3"           # Whisper model size
+    whisper_backend: str = "faster-whisper"    # Backend: 'faster-whisper' (4x faster) or 'openai-whisper'
+    whisper_compute_type: str = "float16"      # GPU: float16, CPU: int8 or float32
+
+    # --- Transcript Extraction ---
+    transcript_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa"  # 10 Indian languages
+    transcript_max_retries: int = 3            # Retry per tier before falling to next
+    transcript_concurrent_workers: int = 4     # Concurrent workers for playlist ingestion
 
     # --- OCR ---
     ocr_languages: str = "en,hi,te"
-
-    # Ingestion
-    whisper_model: str = "large-v3"  # Upgraded per Council Recommendation
 
     # --- Data Quality ---
     data_audit_enabled: bool = True  # Enable LLM-based quality checks
@@ -58,14 +69,15 @@ class Settings(BaseSettings):
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8
-    raptor_summary_model: str = "llama3.2:latest"
+    raptor_summary_model: str = "sarvam-30b:latest"
 
     # --- RAG ---
     rag_top_k_retrieval: int = 20
-    rag_top_k_rerank: int = 3
+    rag_top_k_rerank: int = 5
     rag_max_rewrites: int = 3
-    rag_chunk_size: int = 500
-    rag_chunk_overlap: int = 50
+    rag_chunk_size: int = 1500
+    rag_chunk_overlap: int = 200
+    rag_use_hyde: bool = True
 
     @property
     def cors_origins_list(self) -> list[str]:
@@ -80,6 +92,13 @@ class Settings(BaseSettings):
         if not self.ocr_languages or not self.ocr_languages.strip():
             return []
         return [l.strip() for l in self.ocr_languages.split(",") if l.strip()]
+
+    @property
+    def transcript_languages_list(self) -> list[str]:
+        """Parse comma-separated transcript languages into a list."""
+        if not self.transcript_languages or not self.transcript_languages.strip():
+            return []
+        return [l.strip() for l in self.transcript_languages.split(",") if l.strip()]
 
 
 @lru_cache()

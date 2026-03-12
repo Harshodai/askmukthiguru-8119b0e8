@@ -126,10 +126,10 @@ class GuardrailsService:
     async def check_output(self, answer: str) -> dict:
         """
         Output rail: Check if the generated answer should be moderated.
-        
-        Uses NeMo's output moderation by sending the answer as context
-        for the output rail to evaluate.
-        
+
+        Sends the answer as a bot turn in the conversation so NeMo's
+        output flows (check output moderation) can evaluate it correctly.
+
         Returns:
             Dict with 'blocked' (bool), 'reason' (str), 'moderated_response' (str if blocked)
         """
@@ -137,11 +137,11 @@ class GuardrailsService:
             return {"blocked": False, "reason": None, "moderated_response": None}
 
         try:
-            # For output moderation, pass the answer through the output rail
+            # Send the answer as a bot turn so NeMo's output rail evaluates it
             result = await self._rails.generate_async(
                 messages=[
-                    {"role": "context", "content": {"output": answer}},
-                    {"role": "user", "content": "Moderate this response for safety."},
+                    {"role": "user", "content": "Tell me about this topic."},
+                    {"role": "assistant", "content": answer},
                 ]
             )
 

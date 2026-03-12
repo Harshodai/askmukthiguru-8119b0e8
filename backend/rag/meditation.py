@@ -78,13 +78,23 @@ def is_meditation_complete(step: int) -> bool:
 def should_start_meditation(message: str) -> bool:
     """
     Check if the user's message indicates they want to start meditation.
-    
+
     Used after the distress acknowledgment to detect acceptance.
+    Checks for negation first to avoid false positives like "no, please don't".
     """
+    negative_signals = [
+        "no", "don't", "dont", "not now", "nah", "nope",
+        "stop", "cancel", "never", "skip", "later",
+    ]
     positive_signals = [
         "yes", "sure", "ok", "okay", "please", "let's", "lets",
         "guide me", "meditat", "help me", "start", "i'd like",
         "begin", "ready",
     ]
     message_lower = message.lower().strip()
+
+    # Check negation first — "no, please don't" should NOT trigger meditation
+    if any(neg in message_lower for neg in negative_signals):
+        return False
+
     return any(signal in message_lower for signal in positive_signals)

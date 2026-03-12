@@ -7,6 +7,8 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY index.html /usr/share/nginx/html/
 COPY style.css  /usr/share/nginx/html/
 COPY app.js     /usr/share/nginx/html/
+COPY chat.html  /usr/share/nginx/html/
+COPY chat.js    /usr/share/nginx/html/
 
 # Custom nginx config for SPA + CORS
 COPY nginx.conf /etc/nginx/conf.d/default.conf

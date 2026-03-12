@@ -19,6 +19,11 @@ export interface MessagePayload {
 export interface AIResponse {
   content: string;
   error?: string;
+  intent?: string;
+  citations?: string[];
+  meditationStep?: number;
+  blocked?: boolean;
+  blockReason?: string;
 }
 
 // Default configuration
@@ -65,7 +70,8 @@ const getPlaceholderResponse = (): string => {
  */
 export const sendMessage = async (
   messages: MessagePayload[],
-  userMessage: string
+  userMessage: string,
+  meditationStep: number = 0
 ): Promise<AIResponse> => {
   const { provider, endpoint, apiKey, systemPrompt, model } = currentConfig;
 
@@ -79,6 +85,8 @@ export const sendMessage = async (
   // Custom endpoint mode
   if (provider === 'custom' && endpoint) {
     try {
+      // Trim history to last 10 messages to avoid unbounded payload
+      const trimmedMessages = messages.slice(-10);
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -88,11 +96,10 @@ export const sendMessage = async (
         body: JSON.stringify({
           messages: [
             { role: 'system', content: systemPrompt },
-            ...messages,
-            { role: 'user', content: userMessage },
+            ...trimmedMessages,
           ],
-          model: model || 'default',
-          language: currentConfig.language,
+          user_message: userMessage,
+          meditation_step: meditationStep,
         }),
       });
 
@@ -101,7 +108,14 @@ export const sendMessage = async (
       }
 
       const data = await response.json();
-      return { content: data.choices?.[0]?.message?.content || data.content || data.response };
+      return {
+        content: data.response || data.choices?.[0]?.message?.content || data.content,
+        intent: data.intent,
+        citations: data.citations || [],
+        meditationStep: data.meditation_step || 0,
+        blocked: data.blocked || false,
+        blockReason: data.block_reason,
+      };
     } catch (error) {
       console.error('AI Service Error:', error);
       // Fallback to placeholder on error
@@ -162,7 +176,9 @@ export const checkConnection = async (): Promise<{ connected: boolean; mode: str
 
   if (provider === 'custom' && endpoint) {
     try {
-      const response = await fetch(endpoint, { method: 'HEAD' });
+      // Use the health endpoint (GET) instead of HEAD on the POST-only chat endpoint
+      const healthUrl = new URL('/api/health', endpoint).href;
+      const response = await fetch(healthUrl);
       return { connected: response.ok, mode: 'Connected to Guru' };
     } catch {
       return { connected: false, mode: 'Connecting...' };

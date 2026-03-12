@@ -52,3 +52,6 @@ Thumbs.db
 .planning/
 progress.txt
 prd.json
+
+video_frames_v2/
+video_frames/

@@ -325,9 +325,13 @@ if __name__ == "__main__":
     configure_environment()
     backend_proc = start_backend()
     
-    # Auto-expose per user request
-    # WARNING: This exposes the token in the source code.
-    print("\n" + "=" * 60)
-    print("  🌍 Exposing to Internet (Auto)")
-    print("=" * 60)
-    expose_with_ngrok("39XAE9lDWUpvbwIsVEKYJA2CJmx_5osAm3dxGuc84znJxshYN")
+    # Auto-expose if NGROK_AUTH_TOKEN is set in environment
+    ngrok_token = os.environ.get("NGROK_AUTH_TOKEN", "")
+    if ngrok_token:
+        print("\n" + "=" * 60)
+        print("  🌍 Exposing to Internet (Auto)")
+        print("=" * 60)
+        expose_with_ngrok(ngrok_token)
+    else:
+        print("\n⚠️  Set NGROK_AUTH_TOKEN env var to auto-expose via ngrok.")
+        print("   Backend available locally at http://localhost:8000")

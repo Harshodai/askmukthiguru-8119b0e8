@@ -40,6 +40,7 @@ export const ChatInterface = () => {
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [meditationStep, setMeditationStep] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastGuruMessageRef = useRef<string>('');
@@ -232,15 +233,48 @@ export const ChatInterface = () => {
     }));
 
     try {
-      const response = await sendMessage(messageHistory, userMessage.content);
-      
-      const guruMessage: Message = {
-        id: generateId(),
-        role: 'guru',
-        content: response.content,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, guruMessage]);
+      const response = await sendMessage(messageHistory, userMessage.content, meditationStep);
+
+      // Handle blocked messages
+      if (response.blocked && response.blockReason) {
+        const blockedMessage: Message = {
+          id: generateId(),
+          role: 'guru',
+          content: response.content || `Message blocked: ${response.blockReason}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, blockedMessage]);
+      } else {
+        // Build response content with citations
+        let content = response.content;
+        if (response.citations && response.citations.length > 0) {
+          const citationLinks = response.citations
+            .slice(0, 3)
+            .map((url: string) => `[${url}](${url})`)
+            .join('\n');
+          if (!content.includes(response.citations[0])) {
+            content += `\n\n*Sources:*\n${citationLinks}`;
+          }
+        }
+
+        const guruMessage: Message = {
+          id: generateId(),
+          role: 'guru',
+          content,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, guruMessage]);
+
+        // Track meditation step from backend
+        if (response.meditationStep !== undefined) {
+          setMeditationStep(response.meditationStep);
+        }
+
+        // Auto-open Serene Mind when distress detected
+        if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
+          setShowSereneMind(true);
+        }
+      }
     } catch (error) {
       console.error('Error getting response:', error);
     } finally {

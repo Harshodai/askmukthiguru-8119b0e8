@@ -11,30 +11,30 @@ Each node function:
   2. Performs ONE operation (SRP)
   3. Returns a partial dict that LangGraph merges into state
 
-The 12-Layer Anti-Hallucination Pipeline:
+The 12-Layer Anti-Hallucination Pipeline (optimized — 5-6 LLM calls):
   Layer 1:  NeMo Input Rail (handled externally in main.py)
   Layer 2:  intent_router — classify DISTRESS/QUERY/CASUAL
-  Layer 3:  decompose_query — split complex queries
-  Layer 4:  retrieve_documents — Qdrant + RAPTOR (broad top-20)
-  Layer 5:  rerank_documents — CrossEncoder (precise top-3)
-  Layer 6:  grade_documents — CRAG relevance binary check
+  Layer 3:  decompose_query — always decompose (eliminates is_complex_query call)
+  Layer 4:  retrieve_documents — Qdrant + RAPTOR (parallel sub-query retrieval)
+  Layer 5:  rerank_documents — CrossEncoder (precise top-5)
+  Layer 6:  grade_documents — CRAG batch relevance check (single LLM call)
   Layer 7:  rewrite_query — CRAG self-correcting loop (3x)
-  Layer 8:  extract_hints — Stimulus RAG key phrases
-  Layer 9:  generate_answer — Context-only generation with citations
-  Layer 10: check_faithfulness — Self-RAG grounding check
-  Layer 11: verify_answer — CoVe sub-question verification
+  Layer 8+9: generate_answer — Inline hint extraction + context-only generation
+  Layer 10+11: verify_answer — Combined Self-RAG + CoVe verification
   Layer 12: NeMo Output Rail (handled externally in main.py)
 """
 
 import logging
+import asyncio
 from typing import Any
 
 from rag.states import GraphState
 from rag.prompts import (
     GURU_SYSTEM_PROMPT,
     CASUAL_SYSTEM_PROMPT,
-    STIMULUS_RAG_PROMPT,
+    GENERATE_WITH_HINTS_PROMPT,
     FALLBACK_RESPONSE,
+    MULTI_TURN_PROMPT,
 )
 from rag.meditation import (
     get_distress_response,
@@ -148,21 +148,18 @@ async def intent_router(state: GraphState) -> dict:
 @log_metrics
 async def decompose_query(state: GraphState) -> dict:
     """
-    Split complex queries into atomic sub-queries.
-    
-    Only activated for complex queries (comparisons, multi-part).
-    Simple queries pass through unchanged.
+    Always decompose queries into sub-queries.
+
+    Eliminates the separate is_complex_query LLM call (saves 1 call).
+    The decomposition prompt returns the original query unchanged
+    if it's already simple, so no quality loss.
     """
     question = state.get("rewritten_query") or state["question"]
-    
-    is_complex = await _ollama.is_complex_query(question)
-    
-    if is_complex:
-        sub_queries = await _ollama.decompose_query(question)
-        logger.info(f"Decomposed into {len(sub_queries)} sub-queries")
-        return {"sub_queries": sub_queries, "is_complex": True}
-    
-    return {"sub_queries": [question], "is_complex": False}
+
+    sub_queries = await _ollama.decompose_query(question)
+    is_complex = len(sub_queries) > 1
+    logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
+    return {"sub_queries": sub_queries, "is_complex": is_complex}
 
 
 # ===================================================================
@@ -172,24 +169,33 @@ async def decompose_query(state: GraphState) -> dict:
 @log_metrics
 async def retrieve_documents(state: GraphState) -> dict:
     """
-    Broad retrieval from Qdrant (top-20 by default).
-    
-    Searches BOTH leaf chunks (level-0) and RAPTOR summaries (level-1)
-    simultaneously. The broad result set feeds the CrossEncoder reranker.
-    
-    If query was decomposed, retrieves for each sub-query and merges.
+    Two-phase hybrid retrieval from Qdrant.
+
+    Phase 1: Search RAPTOR level-1 summaries (thematic overview, top 2)
+    Phase 2: Search level-0 leaf chunks (specific details, top 15)
+    Merge, deduplicate, and return the combined result set for reranking.
+
+    Uses bge-m3 dense + sparse vectors with RRF fusion for hybrid search.
+    If query was decomposed, retrieves for all sub-queries in parallel.
     """
     sub_queries = state.get("sub_queries", [state["question"]])
-    all_docs = []
-    seen_texts = set()
+    chat_history = state.get("chat_history", [])
 
-    for query in sub_queries:
-        
+    async def _retrieve_for_query(query: str) -> list[dict]:
+        """Retrieve documents for a single sub-query."""
+        # Augment query with last user message from history for follow-up context
+        augmented_query = query
+        if chat_history:
+            last_user_msgs = [
+                m["content"] for m in chat_history[-4:]
+                if m.get("role") == "user"
+            ]
+            if last_user_msgs:
+                augmented_query = f"{last_user_msgs[-1]} {query}"
+
         # HyDE (Hypothetical Document Embeddings)
-        # If enabled, we embed the *hypothetical answer* instead of the question.
-        # This brings the query vector closer to the document vectors in the semantic space.
-        query_for_embedding = query
-        if getattr(settings, "rag_use_hyde", False):
+        query_for_embedding = augmented_query
+        if settings.rag_use_hyde:
             logger.info("HyDE: Generating hypothetical answer...")
             try:
                 hypothetical = await _ollama.generate_hypothetical_answer(query)
@@ -198,25 +204,43 @@ async def retrieve_documents(state: GraphState) -> dict:
             except Exception as e:
                 logger.warning(f"HyDE generation failed: {e}. Using original query.")
 
-        # Embed the query (or hypothetical answer)
-        query_vector = _embedder.encode_single(query_for_embedding)
-        
-        # Search Qdrant (Hybrid)
-        results = _qdrant.search(
-            query_vector=query_vector,
-            limit=settings.rag_top_k_retrieval,
-            query_text=query,     # Pass text for BM25/Sparse
-            hybrid=True,          # Enable hybrid search
+        # Encode query with both dense and sparse for hybrid search
+        query_embedding = _embedder.encode_single_full(query_for_embedding)
+
+        # Phase 1: Search RAPTOR level-1 summaries (thematic overview)
+        summary_results = _qdrant.search(
+            query_vector=query_embedding['dense'],
+            limit=2,
+            sparse_vector=query_embedding['sparse'],
+            raptor_level=1,
         )
 
-        # De-duplicate across sub-queries
+        # Phase 2: Search level-0 leaf chunks (specific details)
+        chunk_results = _qdrant.search(
+            query_vector=query_embedding['dense'],
+            limit=settings.rag_top_k_retrieval,
+            sparse_vector=query_embedding['sparse'],
+            raptor_level=0,
+        )
+
+        return summary_results + chunk_results
+
+    # Run all sub-query retrievals in parallel
+    all_results = await asyncio.gather(
+        *[_retrieve_for_query(q) for q in sub_queries]
+    )
+
+    # Merge and deduplicate across all sub-query results
+    all_docs = []
+    seen_texts = set()
+    for results in all_results:
         for doc in results:
             text_hash = hash(doc["text"][:100])
             if text_hash not in seen_texts:
                 seen_texts.add(text_hash)
                 all_docs.append(doc)
 
-    logger.info(f"Retrieved {len(all_docs)} unique documents")
+    logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {"documents": all_docs}
 
 
@@ -250,24 +274,26 @@ async def rerank_documents(state: GraphState) -> dict:
 @log_metrics
 async def grade_documents(state: GraphState) -> dict:
     """
-    CRAG: Binary relevance grading of each reranked document.
-    
-    Each document is independently checked for relevance.
-    Documents that fail this gate are discarded.
+    CRAG: Batch relevance grading of all reranked documents in one LLM call.
+
+    Instead of N separate LLM calls (one per doc), uses a single batch
+    grading prompt. Reduces LLM calls from N to 1.
     If ALL documents fail, triggers query rewriting.
     """
     question = state.get("rewritten_query") or state["question"]
     reranked_docs = state["reranked_docs"]
 
-    relevant = []
-    for doc in reranked_docs:
-        is_relevant = await _ollama.grade_relevance(question, doc["text"])
-        if is_relevant:
-            relevant.append(doc)
-        else:
-            logger.debug(f"Doc rejected: {doc['text'][:60]}...")
+    if not reranked_docs:
+        return {"relevant_docs": []}
 
-    logger.info(f"CRAG: {len(relevant)}/{len(reranked_docs)} docs passed relevance check")
+    doc_texts = [doc["text"] for doc in reranked_docs]
+    relevance_flags = await _ollama.batch_grade_relevance(question, doc_texts)
+
+    relevant = [
+        doc for doc, is_rel in zip(reranked_docs, relevance_flags) if is_rel
+    ]
+
+    logger.info(f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check")
     return {"relevant_docs": relevant}
 
 
@@ -298,45 +324,27 @@ async def rewrite_query(state: GraphState) -> dict:
 
 
 # ===================================================================
-# Layer 8: Extract Hints (Stimulus RAG)
-# ===================================================================
-
-@log_metrics
-async def extract_hints(state: GraphState) -> dict:
-    """
-    Stimulus RAG: Extract key evidence phrases from relevant documents.
-    
-    Instead of dumping raw documents into the generation prompt,
-    we first extract 3-5 focused hint phrases. This dramatically
-    improves the LLM's accuracy on rare spiritual terminology.
-    """
-    question = state.get("rewritten_query") or state["question"]
-    relevant_docs = state["relevant_docs"]
-
-    doc_texts = [doc["text"] for doc in relevant_docs]
-    hints = await _ollama.extract_hints(question, doc_texts)
-
-    logger.info(f"Stimulus RAG: extracted {len(hints)} hints")
-    return {"hints": hints}
-
-
-# ===================================================================
-# Layer 9: Generate Answer
+# Layer 8+9: Generate Answer (with inline hint extraction)
+# Merged: extract_hints + generate_answer into one LLM call
 # ===================================================================
 
 @log_metrics
 async def generate_answer(state: GraphState) -> dict:
     """
-    Generate the final answer using Stimulus RAG prompt template.
-    
+    Generate the final answer with inline hint extraction.
+
+    Merges the old extract_hints (layer 8) and generate_answer (layer 9)
+    into a single LLM call using GENERATE_WITH_HINTS_PROMPT, which
+    instructs the LLM to self-identify key evidence before answering.
+
     Uses:
     - Context from relevant documents
-    - Hints from Stimulus RAG
+    - Last 3 turns of chat history for multi-turn context
     - Strict system prompt with citation requirements
     """
     question = state.get("rewritten_query") or state["question"]
     relevant_docs = state["relevant_docs"]
-    hints = state.get("hints", [])
+    chat_history = state.get("chat_history", [])
 
     # Build context string
     context = "\n\n---\n\n".join(
@@ -344,23 +352,36 @@ async def generate_answer(state: GraphState) -> dict:
         for doc in relevant_docs
     )
 
-    # Build hints string
-    hints_str = "\n".join(f"- {h}" for h in hints) if hints else "No specific hints extracted."
-
     # Build citations list (deterministic ordering for reproducibility)
     citations = sorted(set(
         doc.get("source_url", "") for doc in relevant_docs if doc.get("source_url")
     ))
 
-    # Generate with Stimulus RAG template
-    prompt = STIMULUS_RAG_PROMPT.format(
+    # Build chat history context (last 3 turns for multi-turn awareness)
+    history_str = ""
+    if chat_history:
+        recent = chat_history[-6:]  # last 3 turns = 6 messages (user+assistant)
+        history_lines = []
+        for msg in recent:
+            role = msg.get("role", "user").capitalize()
+            content = msg.get("content", "")[:200]  # truncate long messages
+            history_lines.append(f"{role}: {content}")
+        if history_lines:
+            history_str = MULTI_TURN_PROMPT.format(
+                history="\n".join(history_lines)
+            )
+
+    # Generate with inline hints prompt (merges hint extraction + generation)
+    prompt = GENERATE_WITH_HINTS_PROMPT.format(
         context=context,
-        hints=hints_str,
         question=question,
     )
 
+    if history_str:
+        prompt = f"{history_str}\n\n{prompt}"
+
     answer = await _ollama.generate(
-        system_prompt="",  # System prompt is embedded in the Stimulus RAG template
+        system_prompt="",  # System prompt is embedded in the template
         user_prompt=prompt,
     )
 
@@ -369,50 +390,39 @@ async def generate_answer(state: GraphState) -> dict:
 
 
 # ===================================================================
-# Layer 10: Check Faithfulness (Self-RAG)
-# ===================================================================
-
-@log_metrics
-async def check_faithfulness(state: GraphState) -> dict:
-    """
-    Self-RAG: Verify generated answer is faithful to the context.
-    
-    Every claim in the answer must be directly supported by the
-    retrieved documents. If ANY unsupported claim is detected,
-    the answer is rejected and replaced with the fallback.
-    """
-    answer = state["answer"]
-    relevant_docs = state["relevant_docs"]
-
-    context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    is_faithful = await _ollama.check_faithfulness(answer, context)
-
-    logger.info(f"Self-RAG: {'FAITHFUL ✅' if is_faithful else 'HALLUCINATED ❌'}")
-    return {"is_faithful": is_faithful}
-
-
-# ===================================================================
-# Layer 11: Verify Answer (CoVe)
+# Layer 10+11: Combined Verification (Self-RAG + CoVe merged)
 # ===================================================================
 
 @log_metrics
 async def verify_answer(state: GraphState) -> dict:
     """
-    Chain of Verification: Generate sub-questions and verify claims.
-    
-    Final safety net. Creates 2-3 verification questions from the answer,
-    checks if the context can answer them.
-    
-    If ANY verification fails → reject the answer.
+    Combined Self-RAG + CoVe verification in one LLM call.
+
+    Merges the old check_faithfulness (layer 10) and verify_answer (layer 11)
+    into a single structured prompt. Reduces 2 LLM calls to 1.
+
+    Checks:
+    1. Faithfulness — every claim must be grounded in context
+    2. Verification — generates sub-questions and verifies them
+    Both must pass for the answer to be accepted.
     """
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
-    
-    context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    verification = await _ollama.verify_claims(answer, context)
 
-    logger.info(f"CoVe: {'PASS ✅' if verification['passed'] else 'FAIL ❌'}")
-    return {"verification": verification}
+    context = "\n\n".join(doc["text"] for doc in relevant_docs)
+    result = await _ollama.combined_verify(answer, context)
+
+    is_faithful = result["is_faithful"]
+    passed = result["passed"]
+
+    logger.info(
+        f"Combined verify: faithful={'YES' if is_faithful else 'NO'}, "
+        f"verdict={'PASS' if passed else 'FAIL'}"
+    )
+    return {
+        "is_faithful": is_faithful,
+        "verification": {"passed": passed, "details": result["details"]},
+    }
 
 
 # ===================================================================
@@ -516,10 +526,3 @@ def route_after_grading(state: GraphState) -> str:
         return "rewrite"
     else:
         return "fallback"
-
-
-def route_after_faithfulness(state: GraphState) -> str:
-    """Route after Self-RAG check."""
-    if state.get("is_faithful", False):
-        return "faithful"
-    return "not_faithful"

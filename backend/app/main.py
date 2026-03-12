@@ -35,9 +35,11 @@ from app.dependencies import get_container, startup, shutdown
 from rag.graph import create_initial_state
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
 from services.depression_detector import DepressionDetector
+from services.cache_service import ResponseCache
 
-# Global instance
+# Global instances
 depression_detector = DepressionDetector()
+response_cache = ResponseCache()
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +195,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         
     if input_check["blocked"]:
         logger.info(f"Input blocked: {input_check['reason']}")
+        REQUEST_COUNT.labels(status="blocked").inc()
         return ChatResponse(
             response=input_check["response"],
             blocked=True,
@@ -209,6 +212,17 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             meditation_step=1,
         )
 
+    # === Response Cache Check ===
+    cached = response_cache.get(user_msg)
+    if cached is not None:
+        REQUEST_COUNT.labels(status="cache_hit").inc()
+        return ChatResponse(
+            response=cached["response"],
+            intent=cached.get("intent"),
+            meditation_step=cached.get("meditation_step", 0),
+            citations=cached.get("citations", []),
+        )
+
     # === Layers 2-11: LangGraph RAG Pipeline ===
     try:
         with REQUEST_LATENCY.labels(stage="rag_pipeline").time():
@@ -217,7 +231,6 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
                 chat_history=[m.model_dump() for m in request.messages],
                 meditation_step=request.meditation_step,
             )
-            REQUEST_COUNT.labels(status="success").inc()
 
             # Invoke the compiled LangGraph
             result = await container.rag_graph.ainvoke(initial_state)
@@ -226,9 +239,15 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         intent = result.get("intent", "CASUAL")
         med_step = result.get("meditation_step", 0)
         citations = result.get("citations", [])
+        REQUEST_COUNT.labels(status="success").inc()
+
+        # Populate cache for QUERY intents (not casual/distress/meditation)
+        if intent == "QUERY":
+            response_cache.put(user_msg, final_answer, intent, citations, med_step)
 
     except Exception as e:
         logger.error(f"RAG pipeline error: {e}", exc_info=True)
+        REQUEST_COUNT.labels(status="error").inc()
         final_answer = (
             "I apologize, I'm experiencing a moment of stillness. 🙏 "
             "Please try asking your question again."
@@ -280,12 +299,14 @@ async def ingest_endpoint(
             container.update_progress(url, "Starting...", 0.0)
             
             result = await container.ingestion.ingest_url(
-                url, 
+                url,
                 max_accuracy=request.max_accuracy,
                 on_progress=progress_callback
             )
             logger.info(f"Ingestion complete: {result}")
             container.update_progress(url, "Complete!", 1.0)
+            # Invalidate response cache after new content ingestion
+            response_cache.invalidate_all()
             
         except Exception as e:
             logger.error(f"Ingestion failed for {url}: {e}", exc_info=True)

@@ -19,8 +19,10 @@ from app.config import settings
 from ingest.youtube_loader import (
     extract_video_id,
     is_playlist_url,
+    is_channel_url,
     get_playlist_video_urls,
     fetch_transcript_hybrid,
+    fetch_transcripts_concurrent,
 )
 from ingest.image_loader import is_image_url, process_image_url
 from ingest.cleaner import clean_transcript
@@ -63,7 +65,6 @@ class IngestionPipeline:
         self._embedder = embedding_service
         self._llm = ollama_service
         self._ocr = ocr_service or OCRService()
-        self._ocr = ocr_service or OCRService()
         self._auditor = DataAuditor(ollama_service)
         self._corrector = TranscriptCorrector(ollama_service)
 
@@ -101,7 +102,7 @@ class IngestionPipeline:
         self._notify(on_progress, "Detecting content type...", 0.05)
 
         # === Route to correct loader ===
-        if is_playlist_url(url):
+        if is_playlist_url(url) or is_channel_url(url):
             return await self._ingest_playlist(url, on_progress)
         elif is_image_url(url):
             return await self._ingest_image(url, on_progress)
@@ -188,9 +189,12 @@ class IngestionPipeline:
             content_type="video",
         )
 
-        # Step 5: RAPTOR tree (reuses the same chunks)
+        # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
         self._notify(on_progress, "Building RAPTOR tree...", 0.8)
-        chunk_dicts = [{"text": c, "source_url": url} for c in chunks]
+        chunk_dicts = [
+            {"text": c, "source_url": url, "title": video_title}
+            for c in chunks
+        ]
         summaries_count = await self._raptor.build_tree(chunk_dicts)
 
         self._notify(on_progress, "Complete!", 1.0)
@@ -208,39 +212,90 @@ class IngestionPipeline:
         url: str,
         on_progress: Optional[Callable] = None,
     ) -> dict:
-        """Ingest all videos in a YouTube playlist."""
-        self._notify(on_progress, "Fetching playlist...", 0.05)
+        """Ingest all videos in a YouTube playlist/channel using concurrent extraction."""
+        self._notify(on_progress, "Fetching playlist/channel videos...", 0.05)
         videos = get_playlist_video_urls(url)
         
         if not videos:
-            return {"status": "error", "message": "No videos found in playlist"}
+            return {"status": "error", "message": "No videos found in playlist/channel"}
 
+        # Phase 1: Concurrent transcript extraction (spawns multiple workers)
+        self._notify(
+            on_progress,
+            f"Extracting transcripts for {len(videos)} videos concurrently...",
+            0.1,
+        )
+        
+        transcript_results = await fetch_transcripts_concurrent(
+            videos,
+            on_progress=lambda idx, total, res: self._notify(
+                on_progress,
+                f"Transcript {idx+1}/{total}: {videos[idx].get('title', '')[:40]}... [{res.get('method', '?')}]",
+                0.1 + (idx / total) * 0.4,
+            ),
+        )
+
+        # Phase 2: Process transcripts (clean, chunk, embed, index)
         total_chunks = 0
         total_summaries = 0
         processed = 0
         errors = []
 
-        for i, video in enumerate(videos):
-            progress = (i + 1) / len(videos)
+        for i, (video, transcript) in enumerate(zip(videos, transcript_results)):
+            progress = 0.5 + (i / len(videos)) * 0.4
             self._notify(
                 on_progress,
-                f"Processing video {i+1}/{len(videos)}: {video.get('title', 'Unknown')[:50]}...",
-                progress * 0.9,
+                f"Indexing {i+1}/{len(videos)}: {video.get('title', 'Unknown')[:50]}...",
+                progress,
             )
 
+            if not transcript.get("text"):
+                errors.append({"url": video["url"], "error": transcript.get("error", "No transcript")})
+                continue
+
             try:
-                result = await self.ingest_url(video["url"], max_accuracy, None)  # Recursive call
-                total_chunks += result.get("chunks_indexed", 0)
-                total_summaries += result.get("summaries_created", 0)
+                raw_text = transcript["text"]
+
+                # Correct + audit
+                sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
+                raw_text = await self._corrector.correct_transcript(sanitized_text, video["url"])
+                is_valid = await self._auditor.audit_transcript(raw_text, video["url"])
+                if not is_valid:
+                    errors.append({"url": video["url"], "error": "Rejected by auditor"})
+                    continue
+
+                # Clean, chunk, embed, index
+                clean_text = clean_transcript(raw_text)
+                chunks = self._split_text(clean_text)
+                if not chunks:
+                    continue
+
+                chunks_count = self._embed_and_index(
+                    chunks,
+                    source_url=video["url"],
+                    title=video.get("title", ""),
+                    content_type="video",
+                )
+                total_chunks += chunks_count
+
+                # RAPTOR
+                chunk_dicts = [
+                    {"text": c, "source_url": video["url"], "title": video.get("title", "")}
+                    for c in chunks
+                ]
+                summaries_count = await self._raptor.build_tree(chunk_dicts)
+                total_summaries += summaries_count
                 processed += 1
+
             except Exception as e:
                 errors.append({"url": video["url"], "error": str(e)})
-                logger.error(f"Failed to ingest {video['url']}: {e}")
+                logger.error(f"Failed to process {video['url']}: {e}")
 
         self._notify(on_progress, "Complete!", 1.0)
         return {
             "status": "success",
             "source_url": url,
+            "videos_total": len(videos),
             "videos_processed": processed,
             "videos_failed": len(errors),
             "chunks_indexed": total_chunks,
@@ -295,15 +350,21 @@ class IngestionPipeline:
         content_type: str,
     ) -> int:
         """
-        Embed pre-split chunks and upsert to Qdrant.
-        
-        Accepts already-split chunks to avoid double-splitting.
+        Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
+
+        Uses encode_with_sparse() to generate both dense and sparse vectors
+        in a single pass for hybrid search support.
         """
         if not chunks:
             return 0
 
-        # Generate embeddings
-        vectors = self._embedder.encode(chunks)
+        # Check for existing content and delete for clean re-ingestion
+        if self._qdrant.check_source_exists(source_url):
+            logger.info(f"Source already indexed, overwriting: {source_url}")
+            self._qdrant.delete_by_source(source_url)
+
+        # Generate both dense and sparse embeddings in one pass
+        embeddings = self._embedder.encode_with_sparse(chunks)
 
         # Build metadata for each chunk
         metadatas = [
@@ -317,8 +378,13 @@ class IngestionPipeline:
             for i in range(len(chunks))
         ]
 
-        # Upsert to Qdrant
-        return self._qdrant.upsert_chunks(chunks, vectors, metadatas)
+        # Upsert to Qdrant with both dense and sparse vectors
+        return self._qdrant.upsert_chunks(
+            chunks,
+            embeddings['dense'],
+            metadatas,
+            sparse_vectors=embeddings['sparse'],
+        )
 
     def _chunk_embed_index(
         self,

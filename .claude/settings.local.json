@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f workflow_part2.py workflow_reconstructed.py workflow_reconstructed_v2.py && ls workflow_*.py 2>&1 || echo \"All workflow files removed\")",
+      "WebSearch",
+      "Bash(cd \"C:\\\\Users\\\\khars\\\\PycharmProjects\\\\askmukthiguru-8119b0e8\" && python -c \"import ast; ast.parse\\(open\\('backend/services/ollama_service.py'\\).read\\(\\)\\); print\\('ollama_service.py: OK'\\)\" && python -c \"import ast; ast.parse\\(open\\('backend/rag/prompts.py'\\).read\\(\\)\\); print\\('prompts.py: OK'\\)\" && python -c \"import ast; ast.parse\\(open\\('backend/app/config.py'\\).read\\(\\)\\); print\\('config.py: OK'\\)\" && python -c \"import ast; ast.parse\\(open\\('backend/app/main.py'\\).read\\(\\)\\); print\\('main.py: OK'\\)\" && python -c \"import ast; ast.parse\\(open\\('backend/rag/meditation.py'\\).read\\(\\)\\); print\\('meditation.py: OK'\\)\")",
+      "Bash(cd \"C:\\\\Users\\\\khars\\\\PycharmProjects\\\\askmukthiguru-8119b0e8\" && py -c \"import ast; ast.parse\\(open\\('backend/rag/prompts.py', encoding='utf-8'\\).read\\(\\)\\); print\\('prompts.py: OK'\\)\" && py -c \"import ast; ast.parse\\(open\\('backend/app/config.py', encoding='utf-8'\\).read\\(\\)\\); print\\('config.py: OK'\\)\" && py -c \"import ast; ast.parse\\(open\\('backend/app/main.py', encoding='utf-8'\\).read\\(\\)\\); print\\('main.py: OK'\\)\" && py -c \"import ast; ast.parse\\(open\\('backend/rag/meditation.py', encoding='utf-8'\\).read\\(\\)\\); print\\('meditation.py: OK'\\)\")",
+      "Bash(cd \"C:\\\\Users\\\\khars\\\\PycharmProjects\\\\askmukthiguru-8119b0e8\" && npx --yes typescript -- --noEmit src/lib/aiService.ts 2>&1 || ./node_modules/.bin/tsc --noEmit src/lib/aiService.ts 2>&1 | head -20)",
+      "Bash(cd \"C:\\\\Users\\\\khars\\\\PycharmProjects\\\\askmukthiguru-8119b0e8\" && npx tsc --noEmit --pretty 2>&1 | head -30)",
+      "Bash(cd \"C:\\\\Users\\\\khars\\\\PycharmProjects\\\\askmukthiguru-8119b0e8\" && for f in backend/services/embedding_service.py backend/services/qdrant_service.py backend/ingest/pipeline.py backend/ingest/raptor.py backend/rag/nodes.py backend/rag/prompts.py backend/guardrails/rails.py backend/app/config.py; do py -c \"import ast; ast.parse\\(open\\('$f', encoding='utf-8'\\).read\\(\\)\\); print\\('$f: OK'\\)\" 2>&1; done)",
+      "Bash(cd \"C:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/backend\" && py -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) for f in ['rag/prompts.py', 'rag/nodes.py', 'rag/graph.py', 'services/ollama_service.py', 'services/cache_service.py', 'ingest/corrector.py', 'ingest/raptor.py', 'app/main.py']]; print\\('All Python files parsed OK'\\)\")"
+    ]
+  }
+}
