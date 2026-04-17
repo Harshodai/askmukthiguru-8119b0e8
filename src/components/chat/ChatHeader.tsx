@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, Menu, Wifi, WifiOff } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
+import { UserMenu } from '@/components/common/UserMenu';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -86,6 +87,7 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: C
           >
             <Trash2 className="w-5 h-5 text-muted-foreground group-hover:text-destructive transition-colors" />
           </button>
+          <UserMenu />
         </div>
       </div>
     </header>
