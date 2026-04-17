@@ -187,7 +187,7 @@ export const ChatInterface = () => {
 
   // Handle language change
   const handleLanguageChange = useCallback((code: string) => {
-    setCurrentLanguage(code);
+    setCurrentLanguage(code as typeof profile.preferredLanguage);
     if (isListening) {
       stopListening();
       setTimeout(() => startListening(), 100);
