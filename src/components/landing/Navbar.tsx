@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Sparkles, Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { UserMenu } from '@/components/common/UserMenu';
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +46,7 @@ export const Navbar = () => {
               >
                 Start Chat
               </Link>
+              <UserMenu />
             </div>
 
             {/* Mobile Menu Button */}
