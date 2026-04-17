@@ -23,6 +23,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
+import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 
 const WELCOME_MESSAGE = 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
@@ -35,9 +36,10 @@ export const ChatInterface = () => {
   const [showSereneMind, setShowSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const { profile } = useProfile();
+  const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
-  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [meditationStep, setMeditationStep] = useState(0);
@@ -46,10 +48,16 @@ export const ChatInterface = () => {
   const lastGuruMessageRef = useRef<string>('');
   const { toast } = useToast();
 
+  // Sync profile changes into local chat state
+  useEffect(() => {
+    setCurrentLanguage(profile.preferredLanguage);
+    setTtsEnabled(profile.ttsEnabled);
+  }, [profile.preferredLanguage, profile.ttsEnabled]);
+
   // Text-to-Speech hook
   const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTextToSpeech({
     lang: currentLanguage,
-    rate: 0.9,
+    rate: profile.ttsRate,
   });
 
   // Initialize or load conversation on mount
