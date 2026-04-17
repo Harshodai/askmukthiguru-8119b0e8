@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   loadProfile,
   saveProfile,
@@ -76,6 +76,3 @@ describe('profileStorage', () => {
     });
   });
 });
-
-// vi global
-import { vi } from 'vitest';
