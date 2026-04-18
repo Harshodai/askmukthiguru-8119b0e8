@@ -6,9 +6,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AnimatedLayout } from "./components/layout/AnimatedLayout";
 import { SafetyDisclaimer } from "./components/common/SafetyDisclaimer";
 import { ThemeProvider } from "./components/common/ThemeProvider";
+import { ReminderProvider } from "./components/common/ReminderProvider";
 import Index from "./pages/Index";
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
+import PracticesPage from "./pages/PracticesPage";
+import PracticeDetailPage from "./pages/PracticeDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,16 +23,20 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <ThemeProvider>
-          <SafetyDisclaimer />
-          <AnimatedLayout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/chat" element={<ChatPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AnimatedLayout>
+          <ReminderProvider>
+            <SafetyDisclaimer />
+            <AnimatedLayout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/practices" element={<PracticesPage />} />
+                <Route path="/practices/:slug" element={<PracticeDetailPage />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AnimatedLayout>
+          </ReminderProvider>
         </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
