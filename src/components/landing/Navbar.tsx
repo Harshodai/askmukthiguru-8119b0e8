@@ -10,6 +10,7 @@ export const Navbar = () => {
   const navLinks = [
     { href: '#gurus', label: 'Meet the Gurus' },
     { href: '#how-it-works', label: 'How It Works' },
+    { href: '#practices', label: 'Practices' },
     { href: '#meditation', label: 'Meditation' },
   ];
 
