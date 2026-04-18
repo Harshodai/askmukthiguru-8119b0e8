@@ -12,6 +12,9 @@ import {
   Wind,
   AlertTriangle,
   Sparkles,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +71,12 @@ const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'poetic', label: 'Poetic', hint: 'Lyrical, metaphor-rich' },
 ];
 
+const themes: { value: 'light' | 'dark' | 'system'; label: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+];
+
 const formatTime = (mins: number): string => {
   const h = Math.floor(mins / 60).toString().padStart(2, '0');
   const m = (mins % 60).toString().padStart(2, '0');
@@ -105,10 +114,11 @@ const ProfilePage = () => {
 
   const handleSave = () => {
     update({
-      displayName: form.displayName.trim() || 'Seeker',
+      displayName: form.displayName.trim().slice(0, 40) || 'Seeker',
       bio: form.bio.slice(0, 280),
       preferredLanguage: form.preferredLanguage,
       guruTone: form.guruTone,
+      theme: form.theme,
       ttsEnabled: form.ttsEnabled,
       ttsRate: form.ttsRate,
       meditationReminders: form.meditationReminders,
