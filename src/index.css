@@ -139,9 +139,33 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
-  
+
   html {
     scroll-behavior: smooth;
+  }
+
+  /* Smooth theme switch — color/background/border only, never transform/opacity */
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition:
+      background-color 220ms ease,
+      border-color 220ms ease,
+      color 220ms ease,
+      fill 220ms ease,
+      stroke 220ms ease,
+      box-shadow 220ms ease !important;
+    transition-delay: 0 !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-transition,
+    html.theme-transition *,
+    html.theme-transition *::before,
+    html.theme-transition *::after {
+      transition: none !important;
+    }
   }
 }
 

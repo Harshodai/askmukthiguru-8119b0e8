@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import type { ThemePreference } from '@/lib/profileStorage';
 
-const applyTheme = (pref: ThemePreference) => {
+const applyTheme = (pref: ThemePreference, animate = true) => {
   const root = document.documentElement;
   const resolved =
     pref === 'system'
@@ -10,13 +10,19 @@ const applyTheme = (pref: ThemePreference) => {
         ? 'dark'
         : 'light'
       : pref;
+
+  if (animate) {
+    root.classList.add('theme-transition');
+    window.setTimeout(() => root.classList.remove('theme-transition'), 260);
+  }
+
   root.classList.toggle('dark', resolved === 'dark');
   root.style.colorScheme = resolved;
 };
 
 /**
  * Reactively keeps the html.dark class synced with the user's profile preference.
- * Also listens to OS-level color scheme changes when set to "system".
+ * Adds a brief `theme-transition` class so colors fade instead of snap.
  */
 export const useTheme = () => {
   const { profile, update } = useProfile();
