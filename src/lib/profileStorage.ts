@@ -4,6 +4,7 @@
  */
 
 export type GuruTone = 'gentle' | 'direct' | 'poetic';
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface UserProfile {
   id: string;
@@ -12,6 +13,7 @@ export interface UserProfile {
   bio: string;
   preferredLanguage: 'en' | 'hi' | 'te' | 'ml';
   guruTone: GuruTone;
+  theme: ThemePreference;
   ttsEnabled: boolean;
   ttsRate: number; // 0.5–1.5
   meditationReminders: boolean;
@@ -35,6 +37,7 @@ export const createDefaultProfile = (): UserProfile => {
     bio: '',
     preferredLanguage: 'en',
     guruTone: 'gentle',
+    theme: 'system',
     ttsEnabled: false,
     ttsRate: 0.9,
     meditationReminders: false,
