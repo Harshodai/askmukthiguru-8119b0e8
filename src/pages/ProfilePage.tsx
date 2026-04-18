@@ -15,7 +15,10 @@ import {
   Sun,
   Moon,
   Monitor,
+  Bell,
+  BellRing,
 } from 'lucide-react';
+import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -374,18 +377,68 @@ const ProfilePage = () => {
                   />
                 </div>
                 {form.meditationReminders && (
-                  <div className="space-y-2">
-                    <Label htmlFor="reminderTime">Time</Label>
-                    <Input
-                      id="reminderTime"
-                      type="time"
-                      value={formatTime(form.reminderTimeMinutes)}
-                      onChange={(e) => {
-                        const [h, m] = e.target.value.split(':').map(Number);
-                        patch('reminderTimeMinutes', (h || 0) * 60 + (m || 0));
-                      }}
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="reminderTime">Time</Label>
+                      <Input
+                        id="reminderTime"
+                        type="time"
+                        value={formatTime(form.reminderTimeMinutes)}
+                        onChange={(e) => {
+                          const [h, m] = e.target.value.split(':').map(Number);
+                          patch('reminderTimeMinutes', (h || 0) * 60 + (m || 0));
+                        }}
+                      />
+                    </div>
+
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <Bell className="w-4 h-4 mt-0.5 text-ojas shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Browser notifications</p>
+                          <p className="text-xs text-muted-foreground">
+                            Allow desktop notifications so the reminder reaches you even
+                            when this tab is in the background.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const result = await requestNotificationPermission();
+                            toast({
+                              title:
+                                result === 'granted'
+                                  ? 'Notifications enabled'
+                                  : result === 'denied'
+                                  ? 'Notifications blocked'
+                                  : 'Permission unchanged',
+                              description:
+                                result === 'denied'
+                                  ? 'You can re-enable them from your browser settings.'
+                                  : undefined,
+                              variant: result === 'denied' ? 'destructive' : undefined,
+                            });
+                          }}
+                        >
+                          <Bell className="w-3.5 h-3.5 mr-1.5" />
+                          Enable browser alerts
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => fireTestReminder(toast)}
+                        >
+                          <BellRing className="w-3.5 h-3.5 mr-1.5" />
+                          Test reminder
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
