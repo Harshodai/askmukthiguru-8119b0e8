@@ -6,6 +6,7 @@ import {
   Flame,
   Sparkles,
   Search,
+  Compass,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -40,6 +41,7 @@ interface AppShellProps {
 const navItems = [
   { to: '/', label: 'Home', icon: Home, end: true },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
+  { to: '/practices', label: 'Practices', icon: Compass },
   { to: '/profile', label: 'Profile', icon: User },
 ];
 
