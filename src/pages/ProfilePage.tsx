@@ -389,6 +389,39 @@ const ProfilePage = () => {
                 )}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Appearance</CardTitle>
+                <CardDescription>Choose how the sanctuary looks.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-2">
+                  {themes.map((t) => {
+                    const active = form.theme === t.value;
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => patch('theme', t.value)}
+                        className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border transition-all ${
+                          active
+                            ? 'border-ojas/50 bg-ojas/10 shadow-sm'
+                            : 'border-border hover:border-ojas/30'
+                        }`}
+                        aria-pressed={active}
+                      >
+                        <t.icon className={`w-5 h-5 ${active ? 'text-ojas' : 'text-muted-foreground'}`} />
+                        <span className="text-sm font-medium">{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  System matches your device's appearance.
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* STATS TAB */}
