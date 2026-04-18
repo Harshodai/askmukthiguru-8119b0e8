@@ -12,6 +12,9 @@ import {
   Wind,
   AlertTriangle,
   Sparkles,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +71,12 @@ const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'poetic', label: 'Poetic', hint: 'Lyrical, metaphor-rich' },
 ];
 
+const themes: { value: 'light' | 'dark' | 'system'; label: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+];
+
 const formatTime = (mins: number): string => {
   const h = Math.floor(mins / 60).toString().padStart(2, '0');
   const m = (mins % 60).toString().padStart(2, '0');
@@ -105,10 +114,11 @@ const ProfilePage = () => {
 
   const handleSave = () => {
     update({
-      displayName: form.displayName.trim() || 'Seeker',
+      displayName: form.displayName.trim().slice(0, 40) || 'Seeker',
       bio: form.bio.slice(0, 280),
       preferredLanguage: form.preferredLanguage,
       guruTone: form.guruTone,
+      theme: form.theme,
       ttsEnabled: form.ttsEnabled,
       ttsRate: form.ttsRate,
       meditationReminders: form.meditationReminders,
@@ -377,6 +387,39 @@ const ProfilePage = () => {
                     />
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Appearance</CardTitle>
+                <CardDescription>Choose how the sanctuary looks.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-2">
+                  {themes.map((t) => {
+                    const active = form.theme === t.value;
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => patch('theme', t.value)}
+                        className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-lg border transition-all ${
+                          active
+                            ? 'border-ojas/50 bg-ojas/10 shadow-sm'
+                            : 'border-border hover:border-ojas/30'
+                        }`}
+                        aria-pressed={active}
+                      >
+                        <t.icon className={`w-5 h-5 ${active ? 'text-ojas' : 'text-muted-foreground'}`} />
+                        <span className="text-sm font-medium">{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  System matches your device's appearance.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>

@@ -73,6 +73,61 @@
     --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(45 100% 70%));
     --gradient-celestial: linear-gradient(180deg, hsl(40 100% 98%), hsl(45 60% 94%), hsl(43 96% 56% / 0.1));
   }
+
+  /* Dark Sanctuary Theme — deep night with warm gold accents */
+  .dark {
+    --spiritual-gradient-start: 25 20% 8%;
+    --spiritual-gradient-mid: 30 25% 10%;
+    --spiritual-gradient-end: 35 30% 12%;
+
+    --background: 25 18% 8%;
+    --foreground: 40 30% 92%;
+
+    --card: 25 20% 11%;
+    --card-foreground: 40 30% 92%;
+
+    --popover: 25 22% 10%;
+    --popover-foreground: 40 30% 92%;
+
+    --primary: 43 96% 60%;
+    --primary-foreground: 25 30% 8%;
+
+    --secondary: 200 50% 45%;
+    --secondary-foreground: 40 30% 95%;
+
+    --muted: 25 15% 16%;
+    --muted-foreground: 40 15% 65%;
+
+    --accent: 45 90% 55%;
+    --accent-foreground: 25 30% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 25 15% 20%;
+    --input: 25 15% 18%;
+    --ring: 43 96% 60%;
+
+    --glass-bg: 25 20% 14% / 0.7;
+    --glass-border: 40 30% 40% / 0.3;
+
+    --glow-gold: 0 4px 30px hsl(43 96% 56% / 0.35);
+    --glow-blue: 0 4px 30px hsl(200 60% 55% / 0.3);
+    --glow-white: 0 4px 20px hsl(40 30% 90% / 0.1);
+
+    --gradient-spiritual: linear-gradient(135deg, hsl(25 20% 8%), hsl(30 25% 10%), hsl(35 30% 12%));
+    --gradient-celestial: linear-gradient(180deg, hsl(25 25% 10%), hsl(30 30% 12%), hsl(43 96% 56% / 0.08));
+
+    /* Sidebar dark tokens */
+    --sidebar-background: 25 22% 9%;
+    --sidebar-foreground: 40 30% 90%;
+    --sidebar-primary: 43 96% 60%;
+    --sidebar-primary-foreground: 25 30% 8%;
+    --sidebar-accent: 25 18% 14%;
+    --sidebar-accent-foreground: 40 30% 92%;
+    --sidebar-border: 25 15% 18%;
+    --sidebar-ring: 43 96% 60%;
+  }
 }
 
 @layer base {

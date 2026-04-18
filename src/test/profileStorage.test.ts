@@ -20,7 +20,15 @@ describe('profileStorage', () => {
     expect(profile.displayName).toBe('Seeker');
     expect(profile.preferredLanguage).toBe('en');
     expect(profile.guruTone).toBe('gentle');
+    expect(profile.theme).toBe('system');
     expect(profile.avatarDataUrl).toBeNull();
+  });
+
+  it('persists theme preference', () => {
+    updateProfile({ theme: 'dark' });
+    expect(loadProfile().theme).toBe('dark');
+    updateProfile({ theme: 'light' });
+    expect(loadProfile().theme).toBe('light');
   });
 
   it('persists and reloads profile updates', () => {
