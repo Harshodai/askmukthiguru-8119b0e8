@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star } from 'lucide-react';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getPracticeBySlug } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
+import { recordRecentPractice } from '@/lib/favoritesStorage';
 import { cn } from '@/lib/utils';
 
 const PracticeDetailPage = () => {
@@ -15,6 +17,11 @@ const PracticeDetailPage = () => {
   const practice = getPracticeBySlug(slug);
   const { isFavorited, toggle } = useFavorites();
   const fav = practice ? isFavorited(practice.slug) : false;
+
+  // Track this as the most recently opened practice for the landing "Continue" card.
+  useEffect(() => {
+    if (practice) recordRecentPractice(practice.slug);
+  }, [practice]);
 
   if (!practice) {
     return (

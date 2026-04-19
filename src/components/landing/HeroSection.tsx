@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.jpg';
 import { FloatingParticles } from './FloatingParticles';
+import { ContinuePracticeCard } from './ContinuePracticeCard';
 
 export const HeroSection = () => {
   return (
@@ -82,6 +83,9 @@ export const HeroSection = () => {
               </motion.span>
             </Link>
           </motion.div>
+
+          {/* Continue your practice (only if user has favorites) */}
+          <ContinuePracticeCard />
 
           {/* AI Disclosure */}
           <motion.p
