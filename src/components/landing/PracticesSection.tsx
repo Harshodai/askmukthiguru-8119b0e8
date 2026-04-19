@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock, Flame, Heart, Moon, Sparkles } from 'lucide-react';
+import { ArrowRight, Clock, Flame, Heart, Moon, Sparkles, Star } from 'lucide-react';
 import { practices, type Practice } from '@/lib/practicesContent';
+import { useFavorites } from '@/hooks/useFavorites';
+import { cn } from '@/lib/utils';
 
 const iconFor: Record<Practice['slug'], typeof Flame> = {
   'soul-sync': Sparkles,
@@ -11,6 +13,11 @@ const iconFor: Record<Practice['slug'], typeof Flame> = {
 };
 
 export const PracticesSection = () => {
+  const { favorites, toggle, isFavorited } = useFavorites();
+  const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
+  const otherPractices = practices.filter((p) => !favorites.includes(p.slug));
+  const ordered = [...favoritePractices, ...otherPractices];
+
   return (
     <section id="practices" className="py-24 relative overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">
@@ -26,13 +33,14 @@ export const PracticesSection = () => {
           </h2>
           <p className="text-muted-foreground">
             Guided meditations rooted in the teachings of Sri Preethaji & Sri Krishnaji.
-            Pick the one that meets you today.
+            Pick the one that meets you today — star your favorites to pin them here.
           </p>
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
-          {practices.map((p, i) => {
+          {ordered.map((p, i) => {
             const Icon = iconFor[p.slug as Practice['slug']] ?? Sparkles;
+            const fav = isFavorited(p.slug);
             return (
               <motion.div
                 key={p.slug}
@@ -40,7 +48,26 @@ export const PracticesSection = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="relative"
               >
+                <button
+                  type="button"
+                  aria-label={fav ? `Unstar ${p.title}` : `Star ${p.title}`}
+                  aria-pressed={fav}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggle(p.slug);
+                  }}
+                  className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-background/70 backdrop-blur-sm hover:bg-background transition-colors"
+                >
+                  <Star
+                    className={cn(
+                      'w-3.5 h-3.5 transition-colors',
+                      fav ? 'fill-ojas text-ojas' : 'text-muted-foreground',
+                    )}
+                  />
+                </button>
                 <Link
                   to={`/practices/${p.slug}`}
                   className="glass-card-hover p-5 h-full flex flex-col group"
@@ -48,7 +75,7 @@ export const PracticesSection = () => {
                   <div className="w-11 h-11 rounded-xl bg-ojas/15 flex items-center justify-center mb-3">
                     <Icon className="w-5 h-5 text-ojas" />
                   </div>
-                  <h3 className="font-semibold text-foreground">{p.title}</h3>
+                  <h3 className="font-semibold text-foreground pr-6">{p.title}</h3>
                   <p className="text-xs text-muted-foreground mt-1 flex-1">{p.tagline}</p>
                   <div className="flex items-center justify-between mt-4 text-[11px] text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
