@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Menu, Wifi, WifiOff } from 'lucide-react';
+import { Plus, PanelLeft, Wifi, WifiOff } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { UserMenu } from '@/components/common/UserMenu';
+import { Button } from '@/components/ui/button';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -21,49 +22,51 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: C
       const status = await checkConnection();
       setConnectionStatus(status);
     };
-    
+
     checkStatus();
-    // Check connection every 30 seconds
     const interval = setInterval(checkStatus, 30000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <header className="relative z-20 glass-card mx-4 mt-4 px-4 py-3 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Mobile menu button */}
+    <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/70 border-b border-border/60">
+      <div className="flex items-center justify-between px-3 sm:px-5 py-2.5">
+        <div className="flex items-center gap-2 min-w-0">
           {onOpenMobileMenu && (
-            <button
+            <Button
+              size="icon"
+              variant="ghost"
               onClick={onOpenMobileMenu}
-              className="p-2 rounded-full hover:bg-muted transition-colors sm:hidden"
+              className="sm:hidden h-9 w-9"
+              aria-label="Open conversations"
             >
-              <Menu className="w-5 h-5 text-foreground" />
-            </button>
+              <PanelLeft className="w-4 h-4" />
+            </Button>
           )}
 
-          {/* Desktop sidebar toggle */}
           {onToggleSidebar && (
-            <button
+            <Button
+              size="icon"
+              variant="ghost"
               onClick={onToggleSidebar}
-              className="p-2 rounded-full hover:bg-muted transition-colors hidden sm:flex"
-              title="Toggle chat history"
+              className="hidden sm:flex h-9 w-9"
+              aria-label="Toggle sidebar"
+              title="Toggle sidebar"
             >
-              <Menu className="w-5 h-5 text-foreground" />
-            </button>
+              <PanelLeft className="w-4 h-4" />
+            </Button>
           )}
 
-          {/* Guru Avatar and Info */}
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-ojas/30 shadow-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-ojas/30 shadow-sm shrink-0">
               <img
                 src={gurusPhoto}
                 alt="Sri Preethaji & Sri Krishnaji"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div>
-              <h1 className="font-semibold text-foreground text-sm sm:text-base">
+            <div className="min-w-0">
+              <h1 className="font-medium text-foreground text-sm truncate leading-tight">
                 Sri Preethaji & Sri Krishnaji
               </h1>
               <div className="flex items-center gap-1.5">
@@ -72,21 +75,25 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: C
                 ) : (
                   <WifiOff className="w-3 h-3 text-muted-foreground" />
                 )}
-                <p className="text-xs text-muted-foreground">{connectionStatus.mode}</p>
+                <p className="text-[11px] text-muted-foreground leading-none">
+                  {connectionStatus.mode}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <button
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
             onClick={onClearChat}
-            className="p-2 rounded-full hover:bg-destructive/10 transition-colors group"
+            className="gap-1.5 h-9"
             title="Start new conversation"
           >
-            <Trash2 className="w-5 h-5 text-muted-foreground group-hover:text-destructive transition-colors" />
-          </button>
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline text-xs">New chat</span>
+          </Button>
           <UserMenu />
         </div>
       </div>
