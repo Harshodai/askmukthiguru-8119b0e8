@@ -347,8 +347,8 @@ export const ChatInterface = () => {
         />
 
         {/* Messages Area */}
-        <main className="relative z-10 flex-1 overflow-y-auto px-4 py-6 scrollbar-spiritual">
-          <div className="max-w-3xl mx-auto space-y-4">
+        <main className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual">
+          <div className="max-w-3xl mx-auto space-y-3">
             <AnimatePresence mode="popLayout">
               {messages.map((message, index) => (
                 <ChatMessage 
@@ -403,23 +403,18 @@ export const ChatInterface = () => {
         </main>
 
         {/* Input Area */}
-        <footer className="relative z-20 px-4 pb-4 pb-safe">
+        <footer className="relative z-20 px-3 sm:px-4 pb-3 pt-2 pb-safe">
           <div className="max-w-3xl mx-auto">
-            {/* Serene Mind Button */}
-            <motion.div 
-              className="flex justify-center mb-3"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
+            {/* Subtle Serene Mind chip */}
+            <div className="flex justify-center mb-2">
               <button
                 onClick={() => setShowSereneMind(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/10 hover:bg-ojas/20 border border-ojas/20 hover:border-ojas/30 transition-all duration-300 hover:scale-105 group"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
               >
-                <Flame className="w-4 h-4 text-ojas group-hover:animate-pulse" />
-                <span className="text-sm text-foreground font-medium">Feeling stressed? Try Serene Mind</span>
+                <Flame className="w-3 h-3" />
+                <span>Feeling stressed? Try Serene Mind</span>
               </button>
-            </motion.div>
+            </div>
 
             {/* Voice Recording Indicator */}
             <AnimatePresence>

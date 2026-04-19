@@ -1,16 +1,20 @@
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getPracticeBySlug } from '@/lib/practicesContent';
+import { useFavorites } from '@/hooks/useFavorites';
+import { cn } from '@/lib/utils';
 
 const PracticeDetailPage = () => {
   const { slug = '' } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const practice = getPracticeBySlug(slug);
+  const { isFavorited, toggle } = useFavorites();
+  const fav = practice ? isFavorited(practice.slug) : false;
 
   if (!practice) {
     return (
@@ -62,9 +66,21 @@ const PracticeDetailPage = () => {
               </Badge>
             ))}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
-            {practice.title}
-          </h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
+              {practice.title}
+            </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toggle(practice.slug)}
+              aria-pressed={fav}
+              className="gap-1.5 shrink-0"
+            >
+              <Star className={cn('w-4 h-4', fav ? 'fill-ojas text-ojas' : 'text-muted-foreground')} />
+              <span className="hidden sm:inline">{fav ? 'Favorited' : 'Add to favorites'}</span>
+            </Button>
+          </div>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
             {practice.tagline}
           </p>
