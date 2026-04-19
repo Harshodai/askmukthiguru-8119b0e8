@@ -500,16 +500,16 @@ export const ChatInterface = () => {
             </AnimatePresence>
 
             {/* Input Form */}
-            <motion.form 
-              onSubmit={handleSubmit} 
-              className={`glass-card p-3 transition-all duration-300 ${
-                inputFocused ? 'ring-2 ring-ojas/40 shadow-lg' : ''
-              } ${isListening ? 'ring-2 ring-ojas/60 shadow-ojas/20' : ''}`}
-              initial={{ opacity: 0, y: 20 }}
+            <motion.form
+              onSubmit={handleSubmit}
+              className={`rounded-3xl border bg-card/80 backdrop-blur-md transition-all duration-300 ${
+                inputFocused ? 'border-ojas/50 shadow-lg shadow-ojas/10' : 'border-border/60'
+              } ${isListening ? 'border-ojas/60 shadow-ojas/20' : ''}`}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.15 }}
             >
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-2 px-3 pt-2.5 pb-1.5">
                 <textarea
                   ref={inputRef}
                   value={inputValue}
@@ -517,27 +517,26 @@ export const ChatInterface = () => {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setInputFocused(true)}
                   onBlur={() => setInputFocused(false)}
-                  placeholder={isListening ? "Speak now..." : "Share what's on your heart..."}
+                  placeholder={isListening ? 'Speak now…' : "Share what's on your heart…"}
                   rows={1}
-                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-2 px-2 max-h-32 scrollbar-spiritual"
-                  style={{ minHeight: '44px' }}
+                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed"
+                  style={{ minHeight: '36px' }}
                 />
                 <motion.button
                   type="submit"
                   disabled={!inputValue.trim() || isTyping}
-                  className="p-3 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                  whileHover={{ scale: 1.05 }}
+                  className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                  whileHover={{ scale: inputValue.trim() ? 1.05 : 1 }}
                   whileTap={{ scale: 0.95 }}
-                  animate={inputValue.trim() ? { scale: [1, 1.05, 1] } : {}}
-                  transition={{ duration: 0.3 }}
+                  aria-label="Send message"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4" />
                 </motion.button>
               </div>
 
-              {/* Language & Voice Controls */}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                <LanguageSelector 
+              {/* Secondary controls row */}
+              <div className="flex items-center justify-between px-3 pb-2 pt-1">
+                <LanguageSelector
                   voiceEnabled={voiceEnabled}
                   isListening={isListening}
                   onVoiceToggle={handleVoiceToggle}
@@ -546,14 +545,14 @@ export const ChatInterface = () => {
                   onTtsToggle={handleTtsToggle}
                   isSpeaking={isSpeaking}
                 />
-                <p className="text-xs text-muted-foreground hidden sm:block">
-                  AI companion • Not a replacement for professional guidance
+                <p className="text-[10px] text-muted-foreground hidden sm:block">
+                  AI companion • Not a substitute for professional care
                 </p>
               </div>
             </motion.form>
 
-            <p className="text-center text-xs text-muted-foreground mt-2 sm:hidden">
-              AI companion • Not a replacement for professional guidance
+            <p className="text-center text-[10px] text-muted-foreground mt-1.5 sm:hidden">
+              AI companion • Not a substitute for professional care
             </p>
           </div>
         </footer>

@@ -2,18 +2,23 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   FAVORITES_EVENT,
   loadFavorites,
+  loadRecentPractice,
   toggleFavorite as persistToggle,
 } from '@/lib/favoritesStorage';
 
 /**
- * Reactive hook for favorited practice slugs.
+ * Reactive hook for favorited practice slugs and the most recent practice.
  * Listens to cross-component updates via `favorites:updated`.
  */
 export const useFavorites = () => {
   const [favorites, setFavorites] = useState<string[]>(() => loadFavorites());
+  const [recent, setRecent] = useState<string | null>(() => loadRecentPractice());
 
   useEffect(() => {
-    const handler = () => setFavorites(loadFavorites());
+    const handler = () => {
+      setFavorites(loadFavorites());
+      setRecent(loadRecentPractice());
+    };
     window.addEventListener(FAVORITES_EVENT, handler);
     window.addEventListener('storage', handler);
     return () => {
@@ -33,5 +38,5 @@ export const useFavorites = () => {
     [favorites],
   );
 
-  return { favorites, toggle, isFavorited };
+  return { favorites, recent, toggle, isFavorited };
 };

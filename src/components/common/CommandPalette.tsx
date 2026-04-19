@@ -7,8 +7,9 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, Moon } from 'lucide-react';
+import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, Moon, Star } from 'lucide-react';
 import { practices } from '@/lib/practicesContent';
+import { useFavorites } from '@/hooks/useFavorites';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -28,6 +29,8 @@ export const CommandPalette = ({
   onOpenChange,
   onNavigate,
 }: CommandPaletteProps) => {
+  const { favorites, isFavorited } = useFavorites();
+  const favCount = favorites.length;
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput placeholder="Where do you want to go?" />
@@ -41,7 +44,13 @@ export const CommandPalette = ({
             <MessageCircle className="w-4 h-4 mr-2" /> Chat with the Gurus
           </CommandItem>
           <CommandItem onSelect={() => onNavigate('/practices')}>
-            <Compass className="w-4 h-4 mr-2" /> Browse practices
+            <Compass className="w-4 h-4 mr-2" />
+            <span>Browse practices</span>
+            {favCount > 0 && (
+              <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-ojas font-semibold">
+                <Star className="w-3 h-3 fill-ojas" /> {favCount}
+              </span>
+            )}
           </CommandItem>
           <CommandItem onSelect={() => onNavigate('/profile')}>
             <User className="w-4 h-4 mr-2" /> My Profile
@@ -51,9 +60,12 @@ export const CommandPalette = ({
         <CommandGroup heading="Practices">
           {practices.map((p) => {
             const Icon = practiceIcon[p.slug] ?? Sparkles;
+            const fav = isFavorited(p.slug);
             return (
               <CommandItem key={p.slug} onSelect={() => onNavigate(`/practices/${p.slug}`)}>
-                <Icon className="w-4 h-4 mr-2" /> {p.title}
+                <Icon className="w-4 h-4 mr-2" />
+                <span>{p.title}</span>
+                {fav && <Star className="w-3 h-3 ml-auto fill-ojas text-ojas" />}
               </CommandItem>
             );
           })}

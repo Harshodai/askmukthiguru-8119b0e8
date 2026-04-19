@@ -30,6 +30,7 @@ import { CommandPalette } from '@/components/common/CommandPalette';
 import { FloatingParticles } from '@/components/landing/FloatingParticles';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
+import { useFavorites } from '@/hooks/useFavorites';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/profileStorage';
 
@@ -73,6 +74,8 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { profile } = useProfile();
+  const { favorites } = useFavorites();
+  const favCount = favorites.length;
 
   return (
     <Sidebar collapsible="icon">
@@ -90,6 +93,7 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                   item.end
                     ? location.pathname === item.to
                     : location.pathname.startsWith(item.to);
+                const showBadge = item.to === '/practices' && favCount > 0;
                 return (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
@@ -101,6 +105,11 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                       >
                         <item.icon className="w-4 h-4" />
                         <span>{item.label}</span>
+                        {showBadge && !collapsed && (
+                          <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-ojas/20 text-ojas text-[10px] font-semibold">
+                            {favCount}
+                          </span>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
