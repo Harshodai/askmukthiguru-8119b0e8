@@ -34,8 +34,7 @@ export const practices: Practice[] = [
       'When the mind drifts, lovingly bring attention back to the breath.',
       'Rest in the awareness that watches both breath and thought.',
     ],
-    videoId: 'inpok4MKVLM',
-    audioId: 'ZToicYcHIOU',
+    videoId: '69IrsSXeBTg',
     accent: 'ojas',
   },
   {
@@ -52,7 +51,7 @@ export const practices: Practice[] = [
       'Watch the flame in your mind softly steady itself.',
       'Continue for 9 cycles, then sit in the silence that follows.',
     ],
-    videoId: 'ZToicYcHIOU',
+    videoId: 'igSp4H0OWLE',
     accent: 'tejas',
     inApp: { label: 'Open in chat', path: '/chat' },
   },
@@ -70,8 +69,7 @@ export const practices: Practice[] = [
       'Wish well-being for yourself, then for others, then for all life.',
       'Carry the warmth into the next activity of your day.',
     ],
-    videoId: '86m4RC_ADEY',
-    audioId: 'inpok4MKVLM',
+    videoId: 'TqxxCYnAxo8',
     accent: 'lotus',
   },
   {
