@@ -7,8 +7,9 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, Moon } from 'lucide-react';
+import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, Moon, Star } from 'lucide-react';
 import { practices } from '@/lib/practicesContent';
+import { useFavorites } from '@/hooks/useFavorites';
 
 interface CommandPaletteProps {
   open: boolean;
