@@ -17,8 +17,9 @@ set -e
 # --- Configuration ---
 MODEL_NAME="sarvam-30b"
 QUANTIZATION="Q4_K_M"
-HF_REPO="sarvamai/sarvam-30b"
-GGUF_FILENAME="sarvam-30b-${QUANTIZATION}.gguf"
+# Community GGUF repo (official sarvamai/sarvam-30b only has safetensors)
+HF_REPO="Sumitc13/sarvam-30b-GGUF"
+GGUF_FILENAME="sarvam-30B-${QUANTIZATION}.gguf"
 MODELS_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "🕉️ Mukthi Guru — Sarvam 30B Setup"
@@ -53,7 +54,9 @@ fi
 # --- Step 3: Download GGUF model ---
 echo ""
 echo "📋 Step 3: Downloading Sarvam 30B GGUF (${QUANTIZATION})..."
-echo "   This may take a while depending on your connection (~18GB)."
+echo "   Source: ${HF_REPO}"
+echo "   File: ${GGUF_FILENAME}"
+echo "   This may take a while depending on your connection (~19GB)."
 echo ""
 
 cd "${MODELS_DIR}"
@@ -62,38 +65,28 @@ if [ -f "${GGUF_FILENAME}" ]; then
     echo "   ✅ GGUF file already exists: ${GGUF_FILENAME}"
 else
     echo "   📥 Downloading from HuggingFace: ${HF_REPO}"
-    # Try to download the GGUF file
-    # First check if GGUF exists in the repo, if not we convert
     huggingface-cli download "${HF_REPO}" \
-        --include "*.gguf" \
+        "${GGUF_FILENAME}" \
         --local-dir "${MODELS_DIR}" \
-        --local-dir-use-symlinks False \
-        2>/dev/null || {
+        --local-dir-use-symlinks False || {
         echo ""
-        echo "   ⚠️  No GGUF files found in ${HF_REPO}."
-        echo "   📦 Downloading safetensors and converting to GGUF..."
-        echo "   This requires llama.cpp's convert tool."
+        echo "   ❌ Download failed!"
         echo ""
-        
-        # Install llama-cpp-python for conversion
-        pip install -q llama-cpp-python
-
-        # Download the full model
-        huggingface-cli download "${HF_REPO}" \
-            --local-dir "${MODELS_DIR}/sarvam-30b-full" \
-            --local-dir-use-symlinks False
-
-        # Try conversion with llama.cpp
-        if command -v python3 &> /dev/null; then
-            pip install -q gguf sentencepiece
-            echo "   🔄 Converting to GGUF format..."
-            python3 -c "
-from llama_cpp import Llama
-print('   Note: For full conversion, use llama.cpp convert scripts.')
-print('   Alternatively, import directly via Ollama from safetensors.')
-" 2>/dev/null || echo "   Note: Manual conversion may be needed."
-        fi
+        echo "   Possible causes:"
+        echo "   1. File '${GGUF_FILENAME}' may not exist in the repo."
+        echo "   2. Network issue or HuggingFace rate limit."
+        echo ""
+        echo "   Available quantizations at ${HF_REPO}:"
+        echo "     - sarvam-30B-Q4_K_M.gguf  (~19 GB, recommended)"
+        echo "     - sarvam-30B-Q6_K.gguf    (~26 GB, higher quality)"
+        echo "     - sarvam-30B-Q8_0.gguf    (~34 GB, highest quality)"
+        echo "     - sarvam-30B-full-BF16.gguf (~64 GB, full precision)"
+        echo ""
+        echo "   Try downloading manually:"
+        echo "   huggingface-cli download ${HF_REPO} <filename> --local-dir ${MODELS_DIR}"
+        exit 1
     }
+    echo "   ✅ Download complete: ${GGUF_FILENAME}"
 fi
 
 # --- Step 4: Create Ollama model ---
@@ -115,9 +108,19 @@ else
     echo "   ✅ Model '${MODEL_NAME}' created in Ollama."
 fi
 
-# --- Step 5: Verify ---
+# --- Step 5: Pull classification model ---
 echo ""
-echo "📋 Step 5: Verification..."
+echo "📋 Step 5: Pulling classification model (llama3.2:3b)..."
+if ollama list 2>/dev/null | grep -q "llama3.2:3b"; then
+    echo "   ✅ llama3.2:3b already pulled."
+else
+    ollama pull llama3.2:3b
+    echo "   ✅ llama3.2:3b pulled."
+fi
+
+# --- Step 6: Verify ---
+echo ""
+echo "📋 Step 6: Verification..."
 echo ""
 ollama list 2>/dev/null | head -10
 echo ""
@@ -130,6 +133,6 @@ echo "What is the meaning of Mukthi?" | ollama run "${MODEL_NAME}" --nowordwrap 
 
 echo ""
 echo "🕉️ Setup Complete!"
-echo "   Model: ${MODEL_NAME}"
-echo "   Backend: Ollama"
-echo "   Use in config: OLLAMA_MODEL=sarvam-30b:latest"
+echo "   Generation model: ${MODEL_NAME}:latest"
+echo "   Classification model: llama3.2:3b"
+echo "   Config: Set MODEL_PRESET=sarvam in your .env"

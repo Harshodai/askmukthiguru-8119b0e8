@@ -29,6 +29,8 @@ from rag.nodes import (
     # Node functions
     intent_router,
     decompose_query,
+    navigate_knowledge_tree,
+    check_context_sufficiency,
     retrieve_documents,
     rerank_documents,
     grade_documents,
@@ -47,6 +49,7 @@ from rag.nodes import (
 from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
+from services.lightrag_service import LightRAGService
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +58,7 @@ def build_rag_graph(
     ollama_service: OllamaService,
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
+    lightrag_service: LightRAGService,
 ) -> CompiledStateGraph:
     """
     Build and compile the complete RAG pipeline as a LangGraph.
@@ -82,7 +86,7 @@ def build_rag_graph(
         Compiled LangGraph (CompiledStateGraph) ready for invocation
     """
     # Inject services into nodes module
-    init_services(ollama_service, embedding_service, qdrant_service)
+    init_services(ollama_service, embedding_service, qdrant_service, lightrag_service)
 
     # Create the state graph
     graph = StateGraph(GraphState)
@@ -90,9 +94,11 @@ def build_rag_graph(
     # === Add all nodes ===
     graph.add_node("intent_router", intent_router)
     graph.add_node("decompose_query", decompose_query)
+    graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
     graph.add_node("retrieve_documents", retrieve_documents)
     graph.add_node("rerank_documents", rerank_documents)
     graph.add_node("grade_documents", grade_documents)
+    graph.add_node("check_context_sufficiency", check_context_sufficiency)
     graph.add_node("rewrite_query", rewrite_query)
     graph.add_node("generate_answer", generate_answer)
     graph.add_node("verify_answer", verify_answer)
@@ -120,13 +126,16 @@ def build_rag_graph(
     )
 
     # === Linear edges for the RAG pipeline ===
-    graph.add_edge("decompose_query", "retrieve_documents")
+    # PageIndex-inspired: navigate tree → retrieve (scoped) → rerank → grade → sufficiency
+    graph.add_edge("decompose_query", "navigate_knowledge_tree")
+    graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
     graph.add_edge("retrieve_documents", "rerank_documents")
     graph.add_edge("rerank_documents", "grade_documents")
+    graph.add_edge("grade_documents", "check_context_sufficiency")
 
-    # After grading → decide: proceed / rewrite / fallback
+    # After sufficiency check + grading → decide: proceed / rewrite / fallback
     graph.add_conditional_edges(
-        "grade_documents",
+        "check_context_sufficiency",
         route_after_grading,
         {
             "relevant": "generate_answer",
@@ -184,6 +193,8 @@ def create_initial_state(
         # Decomposition
         sub_queries=[],
         is_complex=False,
+        # Tree Navigation (PageIndex-inspired)
+        selected_clusters=[],
         # Stimulus RAG
         hints=[],
         # Generation
@@ -193,6 +204,7 @@ def create_initial_state(
         is_faithful=None,
         # CoVe
         verification=None,
+        confidence_score=None,
         # Guardrails
         input_blocked=False,
         output_blocked=False,

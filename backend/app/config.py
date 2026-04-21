@@ -31,15 +31,28 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Ollama / Sarvam 30B ---
+    # --- Model Preset ---
+    # Set MODEL_PRESET to switch between model configurations:
+    #   "qwen"    → Qwen3-30B-A3B (generation) + Qwen3-14B (classification)  [DEFAULT — works out of box]
+    #   "sarvam"  → Sarvam 30B (generation) + llama3.2:3b (classification)   [Requires custom GGUF import]
+    #   "custom"  → Use OLLAMA_MODEL and OLLAMA_CLASSIFY_MODEL directly
+    model_preset: str = "qwen"
+
+    # --- Ollama ---
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "sarvam-30b:latest"
+    ollama_model: str = ""           # Auto-set by preset, or override with MODEL_PRESET=custom
+    ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom"
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
+
+    # --- Neo4j ---
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = "password123"
 
     # --- Embeddings ---
     embedding_model: str = "BAAI/bge-m3"
@@ -69,7 +82,7 @@ class Settings(BaseSettings):
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8
-    raptor_summary_model: str = "sarvam-30b:latest"
+    raptor_summary_model: str = ""  # Auto-set from model_preset
 
     # --- RAG ---
     rag_top_k_retrieval: int = 20
@@ -99,6 +112,42 @@ class Settings(BaseSettings):
         if not self.transcript_languages or not self.transcript_languages.strip():
             return []
         return [l.strip() for l in self.transcript_languages.split(",") if l.strip()]
+
+    # --- Model Preset Resolution ---
+    # These define the preset configurations for each model family.
+    _PRESETS = {
+        "sarvam": {
+            "generation": "sarvam-30b:latest",
+            "classification": "llama3.2:3b",
+        },
+        "qwen": {
+            "generation": "qwen3:30b-a3b",
+            "classification": "qwen3:14b",
+        },
+    }
+
+    @property
+    def model_for_generation(self) -> str:
+        """Resolve the main generation model from preset or custom config."""
+        if self.ollama_model:  # Explicit override
+            return self.ollama_model
+        preset = self._PRESETS.get(self.model_preset.lower(), {})
+        return preset.get("generation", "sarvam-30b:latest")
+
+    @property
+    def model_for_classification(self) -> str:
+        """Resolve the fast classification model from preset or custom config."""
+        if self.ollama_classify_model:  # Explicit override
+            return self.ollama_classify_model
+        preset = self._PRESETS.get(self.model_preset.lower(), {})
+        return preset.get("classification", "llama3.2:3b")
+
+    @property
+    def model_for_raptor(self) -> str:
+        """Resolve the RAPTOR summary model from preset or custom config."""
+        if self.raptor_summary_model:  # Explicit override
+            return self.raptor_summary_model
+        return self.model_for_generation  # Default to generation model
 
 
 @lru_cache()

@@ -13,8 +13,9 @@ $ErrorActionPreference = "Stop"
 # --- Configuration ---
 $MODEL_NAME = "sarvam-30b"
 $QUANTIZATION = "Q4_K_M"
-$HF_REPO = "sarvamai/sarvam-30b"
-$GGUF_FILENAME = "sarvam-30b-${QUANTIZATION}.gguf"
+# Community GGUF repo (official sarvamai/sarvam-30b only has safetensors)
+$HF_REPO = "Sumitc13/sarvam-30b-GGUF"
+$GGUF_FILENAME = "sarvam-30B-${QUANTIZATION}.gguf"
 $MODELS_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host "`n🕉️ Mukthi Guru — Sarvam 30B Setup" -ForegroundColor Cyan
@@ -43,7 +44,9 @@ Write-Host "   ✅ HuggingFace CLI ready." -ForegroundColor Green
 
 # --- Step 3: Download GGUF ---
 Write-Host "`n📋 Step 3: Downloading Sarvam 30B GGUF (${QUANTIZATION})..." -ForegroundColor Yellow
-Write-Host "   This may take a while (~18GB)." -ForegroundColor DarkGray
+Write-Host "   Source: $HF_REPO" -ForegroundColor DarkGray
+Write-Host "   File: $GGUF_FILENAME" -ForegroundColor DarkGray
+Write-Host "   This may take a while (~19GB)." -ForegroundColor DarkGray
 
 Set-Location $MODELS_DIR
 
@@ -52,10 +55,20 @@ if (Test-Path $GGUF_FILENAME) {
 } else {
     Write-Host "   📥 Downloading from HuggingFace: $HF_REPO" -ForegroundColor Cyan
     try {
-        huggingface-cli download $HF_REPO --include "*.gguf" --local-dir $MODELS_DIR --local-dir-use-symlinks False
+        huggingface-cli download $HF_REPO $GGUF_FILENAME --local-dir $MODELS_DIR --local-dir-use-symlinks False
+        Write-Host "   ✅ Download complete: $GGUF_FILENAME" -ForegroundColor Green
     } catch {
-        Write-Host "   ⚠️ No GGUF files found. You may need to convert from safetensors." -ForegroundColor Yellow
-        Write-Host "   See: https://github.com/ggerganov/llama.cpp" -ForegroundColor DarkGray
+        Write-Host "   ❌ Download failed!" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "   Available quantizations at ${HF_REPO}:" -ForegroundColor Yellow
+        Write-Host "     - sarvam-30B-Q4_K_M.gguf  (~19 GB, recommended)" -ForegroundColor DarkGray
+        Write-Host "     - sarvam-30B-Q6_K.gguf    (~26 GB, higher quality)" -ForegroundColor DarkGray
+        Write-Host "     - sarvam-30B-Q8_0.gguf    (~34 GB, highest quality)" -ForegroundColor DarkGray
+        Write-Host "     - sarvam-30B-full-BF16.gguf (~64 GB, full precision)" -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "   Try downloading manually:" -ForegroundColor Yellow
+        Write-Host "   huggingface-cli download $HF_REPO <filename> --local-dir $MODELS_DIR" -ForegroundColor DarkGray
+        exit 1
     }
 }
 
@@ -75,8 +88,18 @@ if ($existing) {
     Write-Host "   ✅ Model '$MODEL_NAME' created in Ollama." -ForegroundColor Green
 }
 
-# --- Step 5: Verify ---
-Write-Host "`n📋 Step 5: Verification..." -ForegroundColor Yellow
+# --- Step 5: Pull classification model ---
+Write-Host "`n📋 Step 5: Pulling classification model (llama3.2:3b)..." -ForegroundColor Yellow
+$classifyExists = ollama list 2>&1 | Select-String "llama3.2:3b"
+if ($classifyExists) {
+    Write-Host "   ✅ llama3.2:3b already pulled." -ForegroundColor Green
+} else {
+    ollama pull llama3.2:3b
+    Write-Host "   ✅ llama3.2:3b pulled." -ForegroundColor Green
+}
+
+# --- Step 6: Verify ---
+Write-Host "`n📋 Step 6: Verification..." -ForegroundColor Yellow
 ollama list | Select-Object -First 10
 
 Write-Host "`n🧪 Quick test..." -ForegroundColor Cyan
@@ -87,5 +110,6 @@ try {
 }
 
 Write-Host "`n🕉️ Setup Complete!" -ForegroundColor Green
-Write-Host "   Model: $MODEL_NAME" -ForegroundColor Cyan
-Write-Host "   Use in config: OLLAMA_MODEL=sarvam-30b:latest" -ForegroundColor Cyan
+Write-Host "   Generation model: ${MODEL_NAME}:latest" -ForegroundColor Cyan
+Write-Host "   Classification model: llama3.2:3b" -ForegroundColor Cyan
+Write-Host "   Config: Set MODEL_PRESET=sarvam in your .env" -ForegroundColor Cyan

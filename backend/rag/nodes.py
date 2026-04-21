@@ -45,6 +45,9 @@ from rag.meditation import (
 from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
+from services.lightrag_service import LightRAGService
+from rag.compressor import compress_documents
+from rag.tree_navigator import navigate_tree, check_sufficiency
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -53,12 +56,14 @@ logger = logging.getLogger(__name__)
 _ollama: OllamaService = None
 _embedder: EmbeddingService = None
 _qdrant: QdrantService = None
+_lightrag: LightRAGService = None
 
 
 def init_services(
     ollama: OllamaService,
     embedder: EmbeddingService,
     qdrant: QdrantService,
+    lightrag: LightRAGService = None,
 ) -> None:
     """
     Inject service dependencies into the nodes module.
@@ -77,10 +82,11 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
     
-    global _ollama, _embedder, _qdrant
+    global _ollama, _embedder, _qdrant, _lightrag
     _ollama = ollama
     _embedder = embedder
     _qdrant = qdrant
+    _lightrag = lightrag
 
 
 import time
@@ -163,6 +169,61 @@ async def decompose_query(state: GraphState) -> dict:
 
 
 # ===================================================================
+# Layer 3.5: Reasoning-Based Tree Navigation (PageIndex-inspired)
+# ===================================================================
+
+@log_metrics
+async def navigate_knowledge_tree(state: GraphState) -> dict:
+    """
+    PageIndex-inspired reasoning-based pre-retrieval.
+
+    Instead of blindly searching all chunks, the LLM reads the RAPTOR
+    level-1 summary nodes (like a Table of Contents) and REASONS about
+    which topic clusters are most relevant to the query.
+
+    This narrows the search space before vector retrieval, improving precision.
+    """
+    question = state["question"]
+
+    # Fetch RAPTOR level-1 summaries from Qdrant
+    summary_nodes = _qdrant.get_summary_nodes()
+
+    if not summary_nodes:
+        logger.info("Tree navigation: No summary nodes in DB, skipping")
+        return {"selected_clusters": []}
+
+    selected = await navigate_tree(question, summary_nodes, _ollama, max_clusters=3)
+    return {"selected_clusters": selected}
+
+
+@log_metrics
+async def check_context_sufficiency(state: GraphState) -> dict:
+    """
+    PageIndex-inspired iterative sufficiency check.
+
+    After grading, asks the LLM: "Do you have enough context to answer
+    this question well?" If not, we clear the cluster filter so the
+    next CRAG iteration searches the full knowledge base.
+    """
+    question = state["question"]
+    relevant_docs = state.get("relevant_docs", [])
+
+    if not relevant_docs:
+        # No relevant docs — sufficiency check is moot
+        return {}
+
+    context = "\n\n".join(doc["text"] for doc in relevant_docs)
+    result = await check_sufficiency(question, context, _ollama)
+
+    if not result["sufficient"]:
+        logger.info("Sufficiency check: INSUFFICIENT — widening search scope")
+        # Clear cluster filter so next CRAG rewrite searches everything
+        return {"selected_clusters": []}
+
+    return {}
+
+
+# ===================================================================
 # Layer 4: Retrieve Documents
 # ===================================================================
 
@@ -180,6 +241,7 @@ async def retrieve_documents(state: GraphState) -> dict:
     """
     sub_queries = state.get("sub_queries", [state["question"]])
     chat_history = state.get("chat_history", [])
+    selected_clusters = state.get("selected_clusters", [])
 
     async def _retrieve_for_query(query: str) -> list[dict]:
         """Retrieve documents for a single sub-query."""
@@ -216,14 +278,34 @@ async def retrieve_documents(state: GraphState) -> dict:
         )
 
         # Phase 2: Search level-0 leaf chunks (specific details)
+        # Scope to selected clusters if tree navigation was performed
         chunk_results = _qdrant.search(
             query_vector=query_embedding['dense'],
             limit=settings.rag_top_k_retrieval,
             sparse_vector=query_embedding['sparse'],
             raptor_level=0,
+            cluster_ids=selected_clusters if selected_clusters else None,
         )
 
-        return summary_results + chunk_results
+        # Phase 3: Search LightRAG graph
+        lightrag_results = []
+        if _lightrag:
+            try:
+                graph_answer = await _lightrag.aquery(query, mode="hybrid")
+                if graph_answer:
+                    lightrag_results.append({
+                        "text": graph_answer,
+                        "title": "Knowledge Graph (LightRAG)",
+                        "source_url": "knowledge_graph",
+                        "content_type": "graph_summary",
+                        "chunk_index": 0,
+                        "raptor_level": 0,
+                        "score": 1.0,
+                    })
+            except Exception as e:
+                logger.error(f"LightRAG query failed in retrieve_documents: {e}")
+
+        return summary_results + chunk_results + lightrag_results
 
     # Run all sub-query retrievals in parallel
     all_results = await asyncio.gather(
@@ -292,6 +374,14 @@ async def grade_documents(state: GraphState) -> dict:
     relevant = [
         doc for doc, is_rel in zip(reranked_docs, relevance_flags) if is_rel
     ]
+
+    # Contextual compression: extract only the most relevant sentences
+    if relevant:
+        relevant = compress_documents(
+            question, relevant, _embedder._reranker,
+            threshold=0.3,
+            min_sentences=2,
+        )
 
     logger.info(f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check")
     return {"relevant_docs": relevant}
@@ -400,11 +490,12 @@ async def verify_answer(state: GraphState) -> dict:
 
     Merges the old check_faithfulness (layer 10) and verify_answer (layer 11)
     into a single structured prompt. Reduces 2 LLM calls to 1.
+    Also extracts a confidence score (1-10) for graduated response gating.
 
     Checks:
     1. Faithfulness — every claim must be grounded in context
     2. Verification — generates sub-questions and verifies them
-    Both must pass for the answer to be accepted.
+    3. Confidence — 1-10 score for graduated responses
     """
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
@@ -414,14 +505,16 @@ async def verify_answer(state: GraphState) -> dict:
 
     is_faithful = result["is_faithful"]
     passed = result["passed"]
+    confidence = result.get("confidence", 5.0)
 
     logger.info(
         f"Combined verify: faithful={'YES' if is_faithful else 'NO'}, "
-        f"verdict={'PASS' if passed else 'FAIL'}"
+        f"verdict={'PASS' if passed else 'FAIL'}, confidence={confidence}"
     )
     return {
         "is_faithful": is_faithful,
         "verification": {"passed": passed, "details": result["details"]},
+        "confidence_score": confidence,
     }
 
 
@@ -433,10 +526,11 @@ async def format_final_answer(state: GraphState) -> dict:
     """
     Format the final response based on pipeline results.
     
-    Handles all terminal states:
-    - Faithful + verified → return answer
+    Uses confidence-based graduated responses:
     - Not faithful or not verified → return fallback
-    - No relevant docs after 3 rewrites → return fallback
+    - Confidence < 3 → fallback ("I don't have enough information…")
+    - Confidence 3-6 → answer with caveat
+    - Confidence 7-10 → confident answer with citations
     """
     # Check if faithfulness passed
     if not state.get("is_faithful", False):
@@ -449,9 +543,24 @@ async def format_final_answer(state: GraphState) -> dict:
         logger.warning("Final: Answer rejected by CoVe (verification failed)")
         return {"final_answer": FALLBACK_RESPONSE}
 
-    # All checks passed — return the answer
     answer = state["answer"]
     citations = state.get("citations", [])
+    confidence = state.get("confidence_score", 5.0)
+
+    # Confidence-based graduated responses
+    if confidence < 3:
+        logger.warning(f"Final: Low confidence ({confidence}), returning fallback")
+        return {"final_answer": FALLBACK_RESPONSE}
+
+    if confidence < 7:
+        # Moderate confidence — add a caveat
+        caveat = (
+            "\n\n*Note: Based on what I found in the teachings, though I recommend "
+            "exploring Sri Preethaji and Sri Krishnaji's wisdom directly for deeper understanding.* 🙏"
+        )
+        if caveat not in answer:
+            answer += caveat
+        logger.info(f"Final: Moderate confidence ({confidence}), adding caveat")
 
     # Append citation URLs if not already in the answer
     if citations:

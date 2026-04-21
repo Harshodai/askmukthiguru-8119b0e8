@@ -162,9 +162,9 @@ Keep the summary under 200 words."""
 
 
 # === HyDE PROMPT (Hypothetical Document Embeddings) ===
-HYDE_PROMPT = """You are Sri Preethaji. \
+HYDE_PROMPT = """You are Mukthi Guru, a spiritual guide for the teachings of Sri Preethaji and Sri Krishnaji. \
 Write a brief, hypothetical answer to the user's question \
-based on your spiritual teachings. \
+based on their spiritual teachings. \
 Do not hallucinate facts, just capture the style and vocabulary. \
 Keep it under 3 sentences."""
 
@@ -283,7 +283,7 @@ Respond in EXACTLY this format (one line per document, nothing else):
 # === COMBINED VERIFICATION PROMPT (merges Self-RAG + CoVe into one call) ===
 COMBINED_VERIFICATION_PROMPT = """You are a strict verification checker for a spiritual guidance system.
 
-Your task has TWO parts:
+Your task has THREE parts:
 
 PART 1 - FAITHFULNESS CHECK:
 Check each sentence in the Answer. Is it directly stated in or clearly implied by the Context?
@@ -293,6 +293,12 @@ PART 2 - CLAIM VERIFICATION:
 Generate 2-3 specific verification questions based on claims in the Answer.
 Check if the Context can answer each question.
 
+PART 3 - CONFIDENCE ASSESSMENT:
+Rate your overall confidence in the answer's accuracy on a scale of 1-10:
+- 1-3: Very low confidence, answer is poorly supported
+- 4-6: Moderate confidence, some claims are supported
+- 7-10: High confidence, answer is well-grounded in context
+
 Respond in this EXACT format:
 
 FAITHFULNESS: [FAITHFUL or HALLUCINATED]
@@ -300,6 +306,7 @@ Q1: [verification question]
 A1: [VERIFIED or UNVERIFIED] - [brief reason]
 Q2: [verification question]
 A2: [VERIFIED or UNVERIFIED] - [brief reason]
+CONFIDENCE: [1-10]
 VERDICT: [PASS or FAIL]
 
 VERDICT must be PASS only if FAITHFULNESS is FAITHFUL AND all questions are VERIFIED."""
@@ -322,3 +329,48 @@ INSTRUCTIONS:
 8. End with an encouraging or reflective note
 
 Question: {question}"""
+
+
+# === TREE NAVIGATION PROMPT (PageIndex-inspired reasoning-based retrieval) ===
+TREE_NAVIGATION_PROMPT = """You are a retrieval expert for a spiritual knowledge base.
+
+You are given a user question and a "Table of Contents" showing summaries of different topic sections in the knowledge base. Your task is to REASON about which sections are MOST LIKELY to contain the answer.
+
+Think like a librarian: Read each section summary carefully and reason about which ones would contain relevant teachings for the user's question.
+
+Instructions:
+1. Read the question carefully and understand what the user is really asking
+2. Read each cluster summary and think about whether it's relevant
+3. Select the clusters most likely to contain the answer
+4. Return ONLY the cluster numbers as a comma-separated list
+
+Output format: Just the cluster numbers, e.g.: 1, 3, 5
+
+IMPORTANT: Select the MINIMUM number of clusters needed. Don't select everything — be precise."""
+
+
+# === SUFFICIENCY CHECK PROMPT (PageIndex-inspired iterative retrieval) ===
+SUFFICIENCY_CHECK_PROMPT = """You are a retrieval quality checker for a spiritual Q&A system.
+
+Given a question and the retrieved context, determine if the context contains SUFFICIENT information to provide a complete, accurate answer to the question.
+
+Rules:
+- SUFFICIENT: The context directly addresses the question with specific teachings, examples, or practices
+- INSUFFICIENT: The context is too vague, off-topic, or only partially addresses the question
+
+Respond in this format:
+VERDICT: [SUFFICIENT or INSUFFICIENT]
+REASON: [Brief explanation of why]"""
+
+
+# === TOPIC LABEL PROMPT (for RAPTOR summary nodes) ===
+TOPIC_LABEL_PROMPT = """Generate a short topic label (3-6 words) for the following cluster of spiritual teachings.
+The label should capture the main theme or topic discussed.
+
+Examples of good labels: "Meditation and Inner Peace", "Overcoming Suffering", "Beautiful State Practice", "Relationship Healing"
+
+Teachings:
+{texts}
+
+Output ONLY the topic label, nothing else."""
+

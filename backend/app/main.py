@@ -35,7 +35,7 @@ from app.dependencies import get_container, startup, shutdown
 from rag.graph import create_initial_state
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
 from services.depression_detector import DepressionDetector
-from services.cache_service import ResponseCache
+from services.cache_service import ResponseCache, init_llm_cache
 
 # Global instances
 depression_detector = DepressionDetector()
@@ -57,7 +57,12 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     """Application lifecycle: init services on start, cleanup on stop."""
     logger.info("🚀 Mukthi Guru starting up...")
+    # Initialize GPTCache to intercept identical LLM calls
+    init_llm_cache()
+    
     startup()
+    container = get_container()
+    await container.lightrag.initialize()
     # Load heavy models
     depression_detector.load()
     logger.info("🙏 Mukthi Guru is ready")
@@ -269,6 +274,119 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         citations=citations,
         blocked=output_check.get("blocked", False),
         block_reason=output_check.get("reason"),
+    )
+
+
+@app.post("/api/chat/stream")
+async def chat_stream_endpoint(request: ChatRequest):
+    """
+    Streaming chat endpoint using Server-Sent Events (SSE).
+    
+    Emits events:
+      - {"event": "status", "data": "..."} during pipeline stages
+      - {"event": "token", "data": "..."} for each answer token
+      - {"event": "done", "data": {...}} final metadata (intent, citations, etc.)
+      - {"event": "error", "data": "..."} on failure
+    """
+    import json
+    from fastapi.responses import StreamingResponse
+
+    container = get_container()
+    user_msg = request.user_message.strip()
+
+    if not user_msg:
+        async def error_stream():
+            yield f"event: error\ndata: Message cannot be empty\n\n"
+        return StreamingResponse(error_stream(), media_type="text/event-stream")
+
+    async def generate_sse():
+        """SSE generator that runs the pipeline and streams results."""
+        try:
+            # === Layer 1: Input rail ===
+            yield f"event: status\ndata: Checking message safety...\n\n"
+            input_check = await container.guardrails.check_input(user_msg)
+
+            if input_check["blocked"]:
+                yield f"event: token\ndata: {input_check['response']}\n\n"
+                meta = json.dumps({"blocked": True, "block_reason": input_check["reason"]})
+                yield f"event: done\ndata: {meta}\n\n"
+                return
+
+            # === Depression check ===
+            if await depression_detector.detect(user_msg):
+                from rag.meditation import get_distress_response
+                resp = get_distress_response()
+                yield f"event: token\ndata: {resp}\n\n"
+                meta = json.dumps({"intent": "DISTRESS", "meditation_step": 1})
+                yield f"event: done\ndata: {meta}\n\n"
+                return
+
+            # === Cache check ===
+            cached = response_cache.get(user_msg)
+            if cached is not None:
+                yield f"event: token\ndata: {cached['response']}\n\n"
+                meta = json.dumps({
+                    "intent": cached.get("intent"),
+                    "citations": cached.get("citations", []),
+                    "meditation_step": cached.get("meditation_step", 0),
+                })
+                yield f"event: done\ndata: {meta}\n\n"
+                return
+
+            # === RAG Pipeline ===
+            yield f"event: status\ndata: Understanding your question...\n\n"
+            initial_state = create_initial_state(
+                question=user_msg,
+                chat_history=[m.model_dump() for m in request.messages],
+                meditation_step=request.meditation_step,
+            )
+
+            yield f"event: status\ndata: Searching knowledge base...\n\n"
+            result = await container.rag_graph.ainvoke(initial_state)
+
+            final_answer = result.get("final_answer", "I apologize, something went wrong.")
+            intent = result.get("intent", "CASUAL")
+            med_step = result.get("meditation_step", 0)
+            citations = result.get("citations", [])
+
+            # Stream the answer token by token (simulate chunked delivery)
+            yield f"event: status\ndata: Composing response...\n\n"
+
+            # Split answer into small chunks for streaming effect
+            chunk_size = 20  # chars per chunk
+            for i in range(0, len(final_answer), chunk_size):
+                chunk = final_answer[i:i + chunk_size]
+                # Escape newlines for SSE format
+                escaped = chunk.replace("\n", "\\n")
+                yield f"event: token\ndata: {escaped}\n\n"
+
+            # Cache QUERY results
+            if intent == "QUERY":
+                response_cache.put(user_msg, final_answer, intent, citations, med_step)
+
+            REQUEST_COUNT.labels(status="success").inc()
+
+            # Final metadata
+            meta = json.dumps({
+                "intent": intent,
+                "citations": citations,
+                "meditation_step": med_step,
+            })
+            yield f"event: done\ndata: {meta}\n\n"
+
+        except Exception as e:
+            logger.error(f"SSE streaming error: {e}", exc_info=True)
+            REQUEST_COUNT.labels(status="error").inc()
+            yield f"event: error\ndata: An error occurred. Please try again.\n\n"
+
+    return StreamingResponse(
+        generate_sse(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

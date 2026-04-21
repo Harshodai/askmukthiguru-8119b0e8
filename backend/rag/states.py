@@ -87,6 +87,9 @@ class GraphState(TypedDict):
     sub_queries: list[str]
     is_complex: bool
 
+    # Tree Navigation (PageIndex-inspired)
+    selected_clusters: list[int]
+
     # Stimulus RAG
     hints: list[str]
 
@@ -99,6 +102,7 @@ class GraphState(TypedDict):
 
     # CoVe
     verification: Optional[dict]
+    confidence_score: Optional[float]  # 1-10 confidence from combined verification
 
     # Guardrails
     input_blocked: bool

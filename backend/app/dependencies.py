@@ -22,6 +22,8 @@ from services.ocr_service import OCRService
 from guardrails.rails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
+from services.lightrag_service import lightrag_service, LightRAGService
+from services.cache_service import init_llm_cache
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +46,13 @@ class ServiceContainer:
         # Format: {url: {status, message, progress, updated_at}}
         self.ingest_status = {}
 
+        # Initialize LLM caching (GPTCache)
+        init_llm_cache()
+
         # Layer 1: Core services (no dependencies)
         self.qdrant = QdrantService()
         self.qdrant.init_collection()
+        self.lightrag = lightrag_service
 
         # Layer 2: Model services (depend on config only)
         self.embedding = EmbeddingService()
@@ -69,6 +75,7 @@ class ServiceContainer:
             ollama_service=self.ollama,
             embedding_service=self.embedding,
             qdrant_service=self.qdrant,
+            lightrag_service=self.lightrag,
         )
 
         logger.info("All services initialized")

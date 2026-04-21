@@ -190,12 +190,29 @@ class RaptorIndexer:
             async with semaphore:
                 try:
                     summary_text = await self._llm.summarize(cluster_texts)
+
+                    # Generate a short topic label for tree navigation (PageIndex-inspired)
+                    topic_label = ""
+                    try:
+                        from rag.prompts import TOPIC_LABEL_PROMPT
+                        topic_prompt = TOPIC_LABEL_PROMPT.format(
+                            texts="\n".join(t[:150] for t in cluster_texts[:5])
+                        )
+                        topic_label = await self._llm._generate_fast(
+                            "Generate a short topic label (3-6 words).",
+                            topic_prompt,
+                        )
+                        topic_label = topic_label.strip().strip('"').strip("'")
+                    except Exception as te:
+                        logger.debug(f"Topic label generation failed: {te}")
+
                     return {
                         "text": summary_text,
                         "cluster_id": cluster_id,
                         "source_count": len(cluster_texts),
                         "source_urls": source_urls,
                         "titles": titles,
+                        "topic_label": topic_label,
                     }
                 except Exception as e:
                     logger.error(f"RAPTOR: Failed to summarize cluster {cluster_id}: {e}")
@@ -206,6 +223,7 @@ class RaptorIndexer:
                         "source_count": len(cluster_texts),
                         "source_urls": source_urls,
                         "titles": titles,
+                        "topic_label": "",
                     }
 
         summaries = await asyncio.gather(

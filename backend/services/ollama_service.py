@@ -6,13 +6,14 @@ Design Patterns:
   - Template Method: Each LLM task (classify, grade, generate) has its own
     method with tailored prompts and parsing
   - Single Responsibility: Each method does ONE thing with the LLM
+  - Dual-Model Strategy: Uses fast 3B model for classification, full 30B for generation
 
 All LLM calls funnel through this service. No other module talks to Ollama directly.
 This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 """
 
 import logging
-from typing import Optional
+from typing import Optional, AsyncIterator
 
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -40,26 +41,36 @@ class OllamaService:
     """
     Gateway to all LLM operations.
     
-    Every method is a specific "capability" of the LLM:
-    - generate(): Free-form generation with context
-    - classify_intent(): DISTRESS / QUERY / CASUAL routing
-    - grade_relevance(): Binary doc relevance check (CRAG)
-    - check_faithfulness(): Is the answer grounded? (Self-RAG)
-    - extract_hints(): Pull key phrases from docs (Stimulus RAG)
-    - rewrite_query(): Expand/rephrase for better retrieval
-    - verify_claims(): Generate verification sub-questions (CoVe)
-    - summarize(): Condensed summary for RAPTOR tree nodes
+    Uses a dual-model strategy:
+    - _llm (Sarvam 30B): Full generation, verification, summarization
+    - _llm_fast (llama3.2:3b): Intent classification, grading, complexity checks
+    
+    Classification tasks use the fast model for ~10x speed improvement
+    while generation tasks use the full model for quality.
     """
 
     def __init__(self) -> None:
-        """Initialize the Ollama LLM client."""
+        """Initialize the Ollama LLM clients (main + fast classifier)."""
+        gen_model = settings.model_for_generation
+        cls_model = settings.model_for_classification
+
+        # Main model — for generation and verification
         self._llm = ChatOllama(
             base_url=settings.ollama_base_url,
-            model=settings.ollama_model,
+            model=gen_model,
             temperature=0.1,  # Low temp for factual accuracy
             num_predict=1024,  # Max output tokens (increased for richer spiritual explanations)
         )
-        logger.info(f"Ollama service ready: {settings.ollama_model}")
+        logger.info(f"Ollama main model ready: {gen_model} (preset: {settings.model_preset})")
+
+        # Fast model — for classification tasks
+        self._llm_fast = ChatOllama(
+            base_url=settings.ollama_base_url,
+            model=cls_model,
+            temperature=0.0,  # Zero temp for deterministic classification
+            num_predict=256,  # Classification outputs are short
+        )
+        logger.info(f"Ollama fast model ready: {cls_model}")
 
     async def generate(
         self,
@@ -69,7 +80,7 @@ class OllamaService:
         **kwargs,
     ) -> str:
         """
-        Core generation method. All other methods build on top of this.
+        Core generation method using the main (Sarvam 30B) model.
         
         Args:
             system_prompt: Role and constraints for the LLM
@@ -95,20 +106,71 @@ class OllamaService:
             logger.error(f"Ollama generation failed: {e}")
             raise
 
+    async def _generate_fast(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        **kwargs,
+    ) -> str:
+        """
+        Fast classification using the lightweight model (llama3.2:3b).
+        
+        Used for binary/ternary classification tasks where the full 30B
+        model is overkill. ~10x faster for intent, grading, complexity checks.
+        """
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+
+        try:
+            chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
+            response = await chain.ainvoke(messages)
+            return response.content.strip()
+        except Exception as e:
+            # Fall back to main model if fast model fails
+            logger.warning(f"Fast model failed, falling back to main: {e}")
+            return await self.generate(system_prompt, user_prompt, **kwargs)
+
+    async def generate_stream(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        **kwargs,
+    ) -> AsyncIterator[str]:
+        """
+        Streaming generation using the main model.
+        
+        Yields tokens as they are generated for SSE streaming.
+        """
+        messages = [SystemMessage(content=system_prompt)]
+
+        if context:
+            full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}"
+        else:
+            full_prompt = user_prompt
+
+        messages.append(HumanMessage(content=full_prompt))
+
+        try:
+            chain = self._llm.bind(**kwargs) if kwargs else self._llm
+            async for chunk in chain.astream(messages):
+                if chunk.content:
+                    yield chunk.content
+        except Exception as e:
+            logger.error(f"Ollama streaming failed: {e}")
+            raise
+
     async def classify_intent(self, message: str) -> str:
         """
         Classify user message into one of three intents.
         
         Returns: 'DISTRESS' | 'QUERY' | 'CASUAL'
         
-        This is the first decision point in the pipeline:
-        - DISTRESS → triggers Serene Mind meditation
-        - QUERY → enters the 11-layer RAG pipeline
-        - CASUAL → warm, brief conversational reply
+        Uses the fast model for ~10x speed improvement.
         """
-        system = INTENT_CLASSIFICATION_PROMPT
-
-        result = await self.generate(system, message)
+        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message)
         
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
@@ -124,14 +186,10 @@ class OllamaService:
         CRAG: Binary relevance grading of a retrieved document.
         
         Returns True if the document is relevant to the query.
-        
-        This is layer 6 in the anti-hallucination pipeline.
-        If no documents pass this gate, the query gets rewritten (up to 3x).
+        Uses the fast model for speed.
         """
-        system = GRADE_RELEVANCE_PROMPT
         prompt = f"Question: {query}\n\nDocument: {document}"
-        
-        result = await self.generate(system, prompt)
+        result = await self._generate_fast(GRADE_RELEVANCE_PROMPT, prompt)
         return "yes" in result.lower()
 
     async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[bool]:
@@ -140,6 +198,7 @@ class OllamaService:
 
         Instead of N separate calls (one per document), grades all documents
         at once with a structured prompt. Reduces LLM calls from N to 1.
+        Uses the fast model for speed.
 
         Returns: List of booleans, one per document (True = relevant).
         """
@@ -152,10 +211,8 @@ class OllamaService:
             for i, doc in enumerate(documents)
         )
 
-        system = BATCH_GRADE_PROMPT
         prompt = f"Question: {query}\n\n{numbered_docs}"
-
-        result = await self.generate(system, prompt)
+        result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
 
         # Parse "1: yes\n2: no\n3: yes" format
         relevance = [False] * len(documents)
@@ -171,19 +228,18 @@ class OllamaService:
                     continue
 
         return relevance
+
+    async def check_faithfulness(self, answer: str, context: str) -> bool:
         """
         Self-RAG: Check if the generated answer is faithful to the context.
         
         Returns True if EVERY claim in the answer is supported by the context.
         Returns False if ANY unsupported claim is detected.
         
-        This is layer 10 — the post-generation safety net.
-        If this fails, the entire answer is discarded.
+        Uses the fast model for speed.
         """
-        system = FAITHFULNESS_CHECK_PROMPT
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
-        
-        result = await self.generate(system, prompt)
+        result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt)
         return "faithful" in result.lower()
 
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
@@ -217,34 +273,18 @@ class OllamaService:
         """
         CRAG: Rewrite a query to improve retrieval quality.
         
-        When retrieved documents aren't relevant (CRAG grading fails),
-        this rewrites the query with:
-        - Expanded spiritual terminology
-        - Synonym injection
-        - Rephrased structure
-        
-        Part of the self-correcting retrieval loop (max 3 attempts).
+        Uses the main model for better query expansion with spiritual terminology.
         """
-        system = QUERY_REWRITE_PROMPT
-        
-        return await self.generate(system, f"Original query: {original_query}")
+        return await self.generate(QUERY_REWRITE_PROMPT, f"Original query: {original_query}")
 
     async def verify_claims(self, answer: str, context: str) -> dict:
         """
         Chain of Verification (CoVe): Generate verification questions and check.
         
-        This is the FINAL safety net (layer 11). It:
-        1. Generates 2-3 verification questions from the answer
-        2. Checks if the context can answer them
-        3. Returns pass/fail with details
-        
-        If ANY verification question cannot be answered from context,
-        the answer is rejected.
+        This is the FINAL safety net (layer 11). Uses the main model.
         """
-        system = VERIFICATION_PROMPT
         prompt = f"Answer:\n{answer}\n\nContext:\n{context}"
-        
-        result = await self.generate(system, prompt)
+        result = await self.generate(VERIFICATION_PROMPT, prompt)
         
         # Parse the VERDICT line robustly
         lines = result.upper().strip().splitlines()
@@ -255,13 +295,9 @@ class OllamaService:
                 break
         
         if verdict_line:
-            # Check the text AFTER "VERDICT" on that line
             after_verdict = verdict_line.split("VERDICT", 1)[-1]
             passed = "PASS" in after_verdict and "FAIL" not in after_verdict
         else:
-            # No VERDICT line found — treat as verification failure.
-            # Absence of a clear safe verdict must be treated as rejection
-            # to prevent unverified answers from reaching the user.
             logger.warning(
                 "CoVe: No VERDICT line found in verification output. "
                 f"Raw result (first 200 chars): {result[:200]!r}"
@@ -279,9 +315,11 @@ class OllamaService:
 
         Merges faithfulness checking (layer 10) and claim verification (layer 11)
         into one structured prompt, reducing 2 LLM calls to 1.
+        Also extracts a confidence score (1-10) for graduated response gating.
 
         Returns:
-            Dict with 'is_faithful' (bool), 'passed' (bool), 'details' (str)
+            Dict with 'is_faithful' (bool), 'passed' (bool),
+            'confidence' (float), 'details' (str)
         """
         system = COMBINED_VERIFICATION_PROMPT
         prompt = f"Answer:\n{answer}\n\nContext:\n{context}"
@@ -307,42 +345,55 @@ class OllamaService:
                 passed = "PASS" in after and "FAIL" not in after
                 break
 
+        # Parse CONFIDENCE line (1-10)
+        confidence = 5.0  # Default mid-range
+        for line in lines:
+            if "CONFIDENCE" in line:
+                after = line.split("CONFIDENCE", 1)[-1]
+                # Extract first number from the line
+                import re
+                nums = re.findall(r'\d+', after)
+                if nums:
+                    try:
+                        confidence = float(min(int(nums[0]), 10))
+                    except (ValueError, IndexError):
+                        pass
+                break
+
         # Both must pass
         final_passed = is_faithful and passed
 
         if not final_passed:
             logger.info(
-                f"Combined verify: faithful={is_faithful}, verdict_pass={passed}"
+                f"Combined verify: faithful={is_faithful}, verdict_pass={passed}, "
+                f"confidence={confidence}"
             )
 
         return {
             "is_faithful": is_faithful,
             "passed": final_passed,
+            "confidence": confidence,
             "details": result,
         }
+
+    async def summarize(self, texts: list[str]) -> str:
         """
         Summarize a cluster of text chunks (used by RAPTOR).
         
         Creates mid-level tree nodes that capture thematic relationships
-        between individual chunks.
+        between individual chunks. Uses the main model for quality.
         """
         combined = "\n\n".join(texts)
-        system = SUMMARIZE_PROMPT
-        
-        return await self.generate(system, combined)
+        return await self.generate(SUMMARIZE_PROMPT, combined)
 
     async def decompose_query(self, query: str) -> list[str]:
         """
         Query Decomposition: Split complex questions into atomic sub-queries.
         
-        Only triggered for complex queries (e.g., "Compare X and Y",
-        "What are the differences between...").
-        
-        Returns: List of 2-3 simpler sub-queries
+        Returns: List of 2-3 simpler sub-queries.
+        Uses the fast model since this is a classification/parsing task.
         """
-        system = DECOMPOSE_QUERY_PROMPT
-        
-        result = await self.generate(system, query)
+        result = await self._generate_fast(DECOMPOSE_QUERY_PROMPT, query)
         
         sub_queries = []
         for line in result.split("\n"):
@@ -358,23 +409,17 @@ class OllamaService:
         """
         HyDE (Hypothetical Document Embeddings): Generate a fake answer.
         
-        The embedding of this hypothetical answer is often closer to the 
-        embedding of the real answer than the question itself.
+        Uses the main model for quality hypothetical generation.
         """
-        system = HYDE_PROMPT
-        
-        return await self.generate(system, query)
+        return await self.generate(HYDE_PROMPT, query)
 
     async def is_complex_query(self, query: str) -> bool:
         """
         Determine if a query needs decomposition.
         
-        Returns True for queries that contain comparisons, multiple concepts,
-        or multi-part questions.
+        Uses the fast model since this is a binary classification.
         """
-        system = IS_COMPLEX_QUERY_PROMPT
-        
-        result = await self.generate(system, query)
+        result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query)
         return "complex" in result.lower()
 
     async def health_check(self) -> bool:

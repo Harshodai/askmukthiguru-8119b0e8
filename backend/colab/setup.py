@@ -46,15 +46,16 @@ def install_dependencies():
 # Step 2: Install & Start Ollama (native, for GPU access)
 # ============================================================
 
-def setup_ollama(model: str = "llama3.2:latest"):
+def setup_ollama(preset: str = "qwen"):
     """
-    Install Ollama natively on the Colab VM.
+    Install Ollama natively on the Colab VM and pull models based on preset.
 
     Runs directly on the VM to access Colab's T4 GPU.
     The backend connects to it via localhost:11434.
 
-    Security: Downloads the install script to a temp file first,
-    then verifies the download succeeded before executing.
+    Presets:
+      - "qwen":  qwen3:30b-a3b (gen) + qwen3:14b (classify)
+      - "sarvam": sarvam-30b via GGUF import + llama3.2:3b (classify)
     """
     import tempfile
 
@@ -91,31 +92,103 @@ def setup_ollama(model: str = "llama3.2:latest"):
     )
     time.sleep(5)
 
-    print(f"📥 Pulling model: {model}")
-    subprocess.run(["ollama", "pull", model], check=True)
-    print(f"✅ Ollama ready with {model}")
+    # Model presets
+    PRESETS = {
+        "qwen": {
+            "generation": "qwen3:30b-a3b",
+            "classification": "qwen3:14b",
+        },
+        "sarvam": {
+            "generation": "sarvam-30b:latest",  # Imported via GGUF below
+            "classification": "llama3.2:3b",
+        },
+    }
+
+    preset_config = PRESETS.get(preset.lower(), PRESETS["qwen"])
+    gen_model = preset_config["generation"]
+    cls_model = preset_config["classification"]
+
+    if preset.lower() == "sarvam":
+        # Sarvam requires GGUF download + Modelfile import
+        print("📥 Setting up Sarvam 30B (GGUF import)...")
+        _setup_sarvam_gguf()
+    else:
+        # Qwen models are on the Ollama registry
+        print(f"📥 Pulling generation model: {gen_model}")
+        subprocess.run(["ollama", "pull", gen_model], check=True)
+
+    print(f"📥 Pulling classification model: {cls_model}")
+    subprocess.run(["ollama", "pull", cls_model], check=True)
+
+    print(f"✅ Ollama ready (preset: {preset})")
+    print(f"   Generation: {gen_model}")
+    print(f"   Classification: {cls_model}")
+    return gen_model, cls_model
+
+
+def _setup_sarvam_gguf():
+    """
+    Download Sarvam 30B GGUF from HuggingFace and import into Ollama.
+    Used when MODEL_PRESET=sarvam.
+    """
+    HF_REPO = "Sumitc13/sarvam-30b-GGUF"
+    GGUF_FILENAME = "sarvam-30B-Q4_K_M.gguf"
+    MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+
+    # Install huggingface-cli if needed
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q", "huggingface_hub[cli]"],
+        check=True,
+    )
+
+    gguf_path = os.path.join(MODELS_DIR, GGUF_FILENAME)
+    if os.path.exists(gguf_path):
+        print(f"   ✅ GGUF already exists: {GGUF_FILENAME}")
+    else:
+        print(f"   📥 Downloading GGUF from {HF_REPO} (~19GB)...")
+        subprocess.run(
+            ["huggingface-cli", "download", HF_REPO, GGUF_FILENAME,
+             "--local-dir", MODELS_DIR, "--local-dir-use-symlinks", "False"],
+            check=True,
+        )
+
+    # Import via Modelfile
+    modelfile_path = os.path.join(MODELS_DIR, "Modelfile.sarvam30b")
+    if os.path.exists(modelfile_path):
+        print("   🔧 Importing into Ollama via Modelfile...")
+        subprocess.run(
+            ["ollama", "create", "sarvam-30b", "-f", modelfile_path],
+            check=True,
+        )
+        print("   ✅ Sarvam 30B imported into Ollama")
+    else:
+        print(f"   ❌ Modelfile not found at {modelfile_path}")
+        raise FileNotFoundError(f"Missing: {modelfile_path}")
 
 
 # ============================================================
 # Step 3: Configure Environment for Native Mode
 # ============================================================
 
-def configure_environment():
+def configure_environment(preset: str = "qwen"):
     """
     Write a .env file configured for native (non-Docker) mode.
 
     Key differences from Docker mode:
     - Qdrant uses local/embedded mode (no server) via QDRANT_LOCAL_PATH
     - Ollama is on localhost (not host.docker.internal)
+    - Model preset is set from the argument
     """
     env_path = os.path.join(os.getcwd(), ".env")
 
-    env_content = """\
+    env_content = f"""\
 # === Mukthi Guru — Colab Native Mode ===
+
+# Model Preset: "qwen" or "sarvam"
+MODEL_PRESET={preset}
 
 # Ollama (running natively on this VM)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=ajindal/llama3.1-storm:8b
 
 # Qdrant — embedded/local mode (no server needed)
 # Data persists to this directory on disk
@@ -124,8 +197,8 @@ QDRANT_COLLECTION=spiritual_wisdom
 # QDRANT_URL is ignored when QDRANT_LOCAL_PATH is set
 
 # Embeddings
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-EMBEDDING_DIMENSION=384
+EMBEDDING_MODEL=BAAI/bge-m3
+EMBEDDING_DIMENSION=1024
 RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
 
 # Server
@@ -137,6 +210,7 @@ CORS_ORIGINS=*
         f.write(env_content)
 
     print(f"✅ Environment configured: {env_path}")
+    print(f"   Model preset: {preset}")
     print("   Qdrant mode: embedded (./qdrant_data)")
     print("   Ollama: localhost:11434")
 
@@ -319,10 +393,14 @@ if __name__ == "__main__":
     print("  🙏 Mukthi Guru — Native Colab Setup")
     print("=" * 60)
 
+    # Read preset from env or default to qwen
+    preset = os.environ.get("MODEL_PRESET", "qwen").lower()
+    print(f"   Model preset: {preset}")
+    print("")
+
     install_dependencies()
-    # Use the same model as in .env
-    setup_ollama("ajindal/llama3.1-storm:8b")
-    configure_environment()
+    setup_ollama(preset)
+    configure_environment(preset)
     backend_proc = start_backend()
     
     # Auto-expose if NGROK_AUTH_TOKEN is set in environment
