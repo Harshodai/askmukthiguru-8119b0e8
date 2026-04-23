@@ -322,6 +322,21 @@ async def retrieve_documents(state: GraphState) -> dict:
                 seen_texts.add(text_hash)
                 all_docs.append(doc)
 
+    # Phase 6: Maximal Marginal Relevance (MMR) Diversity Re-ranking (BE-7)
+    if len(all_docs) > settings.rag_top_k_retrieval:
+        question = state.get("rewritten_query") or state["question"]
+        doc_texts = [doc["text"] for doc in all_docs]
+        doc_embeddings = _embedder.encode_batch(doc_texts)['dense']
+        query_emb = _embedder.encode_single_full(question)['dense']
+        
+        all_docs = _qdrant.mmr_select(
+            query_embedding=query_emb,
+            documents=all_docs,
+            doc_embeddings=doc_embeddings,
+            top_k=settings.rag_top_k_retrieval,
+            lambda_param=0.7
+        )
+
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {"documents": all_docs}
 

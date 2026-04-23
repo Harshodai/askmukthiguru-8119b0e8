@@ -23,17 +23,14 @@ logger = logging.getLogger(__name__)
 _CACHE_MAX_SIZE = 200  # Max cached responses
 _CACHE_TTL = 3600  # 1 hour in seconds
 
+from domain.ports.cache_port import ICacheRepository
 
-class ResponseCache:
+class InMemoryCacheAdapter(ICacheRepository):
     """
     In-memory response cache with TTL expiration.
 
     Cache key: SHA-256 hash of normalized (lowercased, stripped) query.
     Cache value: dict with 'response', 'intent', 'citations', 'cached_at'.
-
-    Invalidation:
-    - Automatic TTL expiry (1 hour)
-    - Manual invalidation via invalidate_all() after new content ingestion
     """
 
     def __init__(self, max_size: int = _CACHE_MAX_SIZE, ttl: int = _CACHE_TTL) -> None:
@@ -95,6 +92,60 @@ class ResponseCache:
                 else "N/A"
             ),
         }
+
+import json
+
+class RedisCacheAdapter(ICacheRepository):
+    """
+    Redis-based semantic response cache (BE-6).
+    """
+
+    def __init__(self, redis_url: str, ttl: int = _CACHE_TTL) -> None:
+        import redis
+        self._redis = redis.from_url(redis_url, decode_responses=True)
+        self._ttl = ttl
+        self._hits = 0
+        self._misses = 0
+
+    def _make_key(self, query: str) -> str:
+        """Normalize query and generate cache key."""
+        normalized = query.strip().lower()
+        key_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        return f"mukthiguru:cache:{key_hash}"
+
+    def get(self, query: str) -> Optional[dict]:
+        """Look up a cached response for the given query."""
+        key = self._make_key(query)
+        result = self._redis.get(key)
+
+        if result is not None:
+            self._hits += 1
+            logger.info(f"Redis Cache HIT (hits={self._hits}, misses={self._misses})")
+            return json.loads(result)
+
+        self._misses += 1
+        return None
+
+    def put(self, query: str, response: str, intent: str, citations: list[str],
+            meditation_step: int = 0) -> None:
+        """Store a response in the cache with TTL."""
+        key = self._make_key(query)
+        payload = {
+            "response": response,
+            "intent": intent,
+            "citations": citations,
+            "meditation_step": meditation_step,
+            "cached_at": time.time(),
+        }
+        self._redis.setex(key, self._ttl, json.dumps(payload))
+
+    def invalidate_all(self) -> None:
+        """Clear the entire cache via namespace deletion."""
+        keys = self._redis.keys("mukthiguru:cache:*")
+        if keys:
+            self._redis.delete(*keys)
+            logger.info(f"Redis Cache invalidated ({len(keys)} entries cleared)")
+
 
 def init_llm_cache():
     """

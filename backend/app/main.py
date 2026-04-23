@@ -35,11 +35,28 @@ from app.dependencies import get_container, startup, shutdown
 from rag.graph import create_initial_state
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
 from services.depression_detector import DepressionDetector
-from services.cache_service import ResponseCache, init_llm_cache
+from services.cache_service import RedisCacheAdapter, InMemoryCacheAdapter, init_llm_cache
+
+# Rate limiting and Auth
+from fastapi import Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from app.api.endpoints.auth import router as auth_router
+from services.auth_service import current_active_user
+from models.user import User as AuthUser
+from fastapi import Depends
+from app.core.database import init_db
+
+limiter = Limiter(key_func=get_remote_address)
 
 # Global instances
 depression_detector = DepressionDetector()
-response_cache = ResponseCache()
+try:
+    response_cache = RedisCacheAdapter(redis_url=settings.redis_url)
+except Exception as e:
+    logger.warning(f"Redis initialization failed ({e}). Falling back to InMemoryCacheAdapter.")
+    response_cache = InMemoryCacheAdapter()
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +72,37 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifecycle: init services on start, cleanup on stop."""
-    logger.info("🚀 Mukthi Guru starting up...")
+    # Startup
+    logger.info("=== Starting Mukthi Guru Backend ===")
+    
+    # 1. Initialize DB and Create tables if needed
+    await init_db()
+    
+    # 2. Dependency injection container setup
+    container = get_container()
+    await container.initialize()
+    
+    # 3. Observability tracing (Arize Phoenix / OpenInference) (BE-8)
+    try:
+        import phoenix as px
+        from openinference.instrumentation.langchain import LangChainInstrumentor
+        px.launch_app()  # Starts Phoenix server locally
+        LangChainInstrumentor().instrument()
+        logger.info("Arize Phoenix and OpenInference tracing successfully initialized.")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Arize Phoenix tracing: {e}")
+
+    # 4. Schedule recurring jobs (BE-5)
+    try:
+        from infrastructure.scheduler import start_scheduler, shutdown_scheduler
+        start_scheduler()
+    except Exception as e:
+        logger.warning(f"Failed to initialize APScheduler: {e}")
+        shutdown_scheduler = lambda: None
+
     # Initialize GPTCache to intercept identical LLM calls
     init_llm_cache()
+    
     
     startup()
     container = get_container()
@@ -88,6 +132,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.include_router(auth_router, prefix="/api/auth")
 
 @app.get("/metrics")
 async def get_metrics():
@@ -180,16 +229,15 @@ class HealthResponse(BaseModel):
 # === Route Handlers ===
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest) -> ChatResponse:
+@limiter.limit("20/minute")
+async def chat_endpoint(request: Request, chat_body: ChatRequest, user: AuthUser = Depends(current_active_user)) -> ChatResponse:
     """
     Main conversational endpoint.
     
     Full pipeline: NeMo Input Rail → LangGraph (11 layers) → NeMo Output Rail
-    
-    This is the thin controller — all intelligence lives in the graph.
     """
     container = get_container()
-    user_msg = request.user_message.strip()
+    user_msg = chat_body.user_message.strip()
 
     if not user_msg:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -233,8 +281,8 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         with REQUEST_LATENCY.labels(stage="rag_pipeline").time():
             initial_state = create_initial_state(
                 question=user_msg,
-                chat_history=[m.model_dump() for m in request.messages],
-                meditation_step=request.meditation_step,
+                chat_history=[m.model_dump() for m in chat_body.messages],
+                meditation_step=chat_body.meditation_step,
             )
 
             # Invoke the compiled LangGraph
@@ -278,9 +326,11 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
 
 @app.post("/api/chat/stream")
-async def chat_stream_endpoint(request: ChatRequest):
+@limiter.limit("20/minute")
+async def chat_stream_endpoint(request: Request, chat_body: ChatRequest, user: AuthUser = Depends(current_active_user)):
     """
     Streaming chat endpoint using Server-Sent Events (SSE).
+
     
     Emits events:
       - {"event": "status", "data": "..."} during pipeline stages
@@ -292,7 +342,7 @@ async def chat_stream_endpoint(request: ChatRequest):
     from fastapi.responses import StreamingResponse
 
     container = get_container()
-    user_msg = request.user_message.strip()
+    user_msg = chat_body.user_message.strip()
 
     if not user_msg:
         async def error_stream():
@@ -391,9 +441,12 @@ async def chat_stream_endpoint(request: ChatRequest):
 
 
 @app.post("/api/ingest", response_model=IngestResponse)
+@limiter.limit("5/minute")
 async def ingest_endpoint(
-    request: IngestRequest,
+    request: Request,
+    ingest_body: IngestRequest,
     background_tasks: BackgroundTasks,
+    user: AuthUser = Depends(current_active_user)
 ) -> IngestResponse:
     """
     Content ingestion endpoint.
@@ -402,7 +455,7 @@ async def ingest_endpoint(
     Runs ingestion in the background so the API responds immediately.
     """
     container = get_container()
-    url = request.url.strip()
+    url = ingest_body.url.strip()
 
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
@@ -418,7 +471,7 @@ async def ingest_endpoint(
             
             result = await container.ingestion.ingest_url(
                 url,
-                max_accuracy=request.max_accuracy,
+                max_accuracy=ingest_body.max_accuracy,
                 on_progress=progress_callback
             )
             logger.info(f"Ingestion complete: {result}")

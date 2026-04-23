@@ -31,6 +31,16 @@ services:
     volumes:
       - neo4j_data:/data
     restart: unless-stopped
+  
+  # --- Redis Cache ---
+  redis:
+    image: redis:7-alpine
+    container_name: mukthiguru-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
   # --- Vector Database ---
   qdrant:
     image: qdrant/qdrant:v1.13.2
@@ -104,4 +114,6 @@ volumes:
   qdrant_data:
     driver: local
   neo4j_data:
+    driver: local
+  redis_data:
     driver: local

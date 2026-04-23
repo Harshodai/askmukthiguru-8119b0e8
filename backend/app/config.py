@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     # --- Data Quality ---
     data_audit_enabled: bool = True  # Enable LLM-based quality checks
 
+    # --- Redis ---
+    redis_url: str = "redis://host.docker.internal:6379/0"
+
     # --- Server ---
     host: str = "0.0.0.0"
     port: int = 8000
