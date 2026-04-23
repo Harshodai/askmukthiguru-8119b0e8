@@ -1,77 +1,44 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
-describe('LanguageSelector Component', () => {
-  it('should have correct language options with flags', () => {
-    const languages = [
-      { code: 'en', name: 'English', native: 'English', flag: '🇮🇳' },
-      { code: 'hi', name: 'Hindi', native: 'हिंदी', flag: '🇮🇳' },
-      { code: 'te', name: 'Telugu', native: 'తెలుగు', flag: '🇮🇳' },
-      { code: 'ml', name: 'Malayalam', native: 'മലയാളം', flag: '🇮🇳' },
-    ];
-
-    expect(languages).toHaveLength(4);
-    expect(languages[0].code).toBe('en');
-    expect(languages[0].flag).toBe('🇮🇳');
-    expect(languages[1].native).toBe('हिंदी');
-    expect(languages[2].native).toBe('తెలుగు');
-    expect(languages[3].native).toBe('മലയാളം');
+describe('LanguageSelector — language list', () => {
+  it('exposes all 22 scheduled Indian languages plus English (23 total)', () => {
+    expect(LANGUAGES.length).toBe(23);
   });
 
-  it('should map language codes correctly', () => {
-    const languageCodeMap: Record<string, string> = {
-      en: 'English',
-      hi: 'Hindi',
-      te: 'Telugu',
-      ml: 'Malayalam',
-    };
-
-    expect(languageCodeMap.en).toBe('English');
-    expect(languageCodeMap.hi).toBe('Hindi');
-    expect(languageCodeMap.te).toBe('Telugu');
-    expect(languageCodeMap.ml).toBe('Malayalam');
+  it('has English first as the default', () => {
+    expect(LANGUAGES[0].code).toBe('en');
   });
 
-  it('should have correct props interface', () => {
-    interface LanguageSelectorProps {
-      onVoiceToggle?: () => void;
-      voiceEnabled?: boolean;
-      isListening?: boolean;
-      onLanguageChange?: (code: string) => void;
-      ttsEnabled?: boolean;
-      onTtsToggle?: () => void;
-      isSpeaking?: boolean;
-    }
-
-    const mockProps: LanguageSelectorProps = {
-      onVoiceToggle: vi.fn(),
-      voiceEnabled: false,
-      isListening: false,
-      onLanguageChange: vi.fn(),
-      ttsEnabled: false,
-      onTtsToggle: vi.fn(),
-      isSpeaking: false,
-    };
-
-    expect(mockProps.voiceEnabled).toBe(false);
-    expect(mockProps.ttsEnabled).toBe(false);
-    expect(mockProps.isListening).toBe(false);
-    expect(mockProps.isSpeaking).toBe(false);
+  it('includes the four originally supported languages', () => {
+    const codes = LANGUAGES.map((l) => l.code);
+    expect(codes).toContain('en');
+    expect(codes).toContain('hi');
+    expect(codes).toContain('te');
+    expect(codes).toContain('ml');
   });
 
-  it('should support both voice input and TTS output toggles', () => {
-    const voiceToggle = vi.fn();
-    const ttsToggle = vi.fn();
-
-    // Simulate toggle calls
-    voiceToggle();
-    ttsToggle();
-
-    expect(voiceToggle).toHaveBeenCalledTimes(1);
-    expect(ttsToggle).toHaveBeenCalledTimes(1);
+  it('includes the major scheduled Indian languages', () => {
+    const codes = LANGUAGES.map((l) => l.code);
+    ['bn', 'mr', 'ta', 'ur', 'gu', 'kn', 'or', 'pa', 'as', 'sa'].forEach((c) => {
+      expect(codes).toContain(c);
+    });
   });
 
-  it('should include Bhashini coming soon notice', () => {
-    const bhashiniStatus = 'Coming Soon';
-    expect(bhashiniStatus).toBe('Coming Soon');
+  it('every language has a BCP-47 tag', () => {
+    LANGUAGES.forEach((lang) => {
+      expect(lang.bcp47).toMatch(/^[a-z]{2,3}-[A-Z]{2}$/);
+    });
+  });
+
+  it('every language has a native script name', () => {
+    LANGUAGES.forEach((lang) => {
+      expect(lang.native.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('codes are unique', () => {
+    const codes = LANGUAGES.map((l) => l.code);
+    expect(new Set(codes).size).toBe(codes.length);
   });
 });

@@ -10,6 +10,7 @@ import {
 import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, Moon, Star } from 'lucide-react';
 import { practices } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useSereneMind } from '@/components/common/SereneMindProvider';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -30,12 +31,29 @@ export const CommandPalette = ({
   onNavigate,
 }: CommandPaletteProps) => {
   const { favorites, isFavorited } = useFavorites();
+  const { open: openSereneMind } = useSereneMind();
   const favCount = favorites.length;
+
+  const handleSereneMind = () => {
+    onOpenChange(false);
+    openSereneMind();
+  };
+
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput placeholder="Where do you want to go?" />
       <CommandList>
         <CommandEmpty>Nothing matches that search.</CommandEmpty>
+        <CommandGroup heading="Quick actions">
+          <CommandItem onSelect={handleSereneMind}>
+            <Flame className="w-4 h-4 mr-2 text-ojas" />
+            <span>Start Serene Mind meditation</span>
+            <kbd className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              Anywhere
+            </kbd>
+          </CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
         <CommandGroup heading="Navigate">
           <CommandItem onSelect={() => onNavigate('/')}>
             <Home className="w-4 h-4 mr-2" /> Home

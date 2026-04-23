@@ -16,7 +16,6 @@ import {
 import { sendMessage, MessagePayload } from '@/lib/aiService';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
-import { SereneMindModal } from './SereneMindModal';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
@@ -25,6 +24,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
+import { useSereneMind } from '@/components/common/SereneMindProvider';
 
 const WELCOME_MESSAGE = 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
 
@@ -33,7 +33,7 @@ export const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [showSereneMind, setShowSereneMind] = useState(false);
+  const { open: openSereneMind } = useSereneMind();
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const { profile } = useProfile();
@@ -253,34 +253,42 @@ export const ChatInterface = () => {
         };
         setMessages((prev) => [...prev, blockedMessage]);
       } else {
-        // Build response content with citations
-        let content = response.content;
-        if (response.citations && response.citations.length > 0) {
-          const citationLinks = response.citations
-            .slice(0, 3)
-            .map((url: string) => `[${url}](${url})`)
-            .join('\n');
-          if (!content.includes(response.citations[0])) {
-            content += `\n\n*Sources:*\n${citationLinks}`;
-          }
+        // Surface auth/rate-limit errors to the user
+        if (response.errorCode === 'rate_limited') {
+          toast({
+            title: 'Slow down, dear seeker',
+            description: "You're sending messages quickly. Please wait a moment.",
+            variant: 'destructive',
+          });
+        } else if (response.errorCode === 'unauthorized') {
+          toast({
+            title: 'Session expired',
+            description: 'Please sign in again to continue your conversation.',
+            variant: 'destructive',
+          });
+        } else if (response.errorCode === 'server_error') {
+          toast({
+            title: 'The Guru is meditating',
+            description: 'Our service is briefly unavailable. Showing offline guidance.',
+          });
         }
 
         const guruMessage: Message = {
           id: generateId(),
           role: 'guru',
-          content,
+          content: response.content,
           timestamp: new Date(),
+          citations: response.citations && response.citations.length > 0 ? response.citations.slice(0, 3) : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
 
-        // Track meditation step from backend
         if (response.meditationStep !== undefined) {
           setMeditationStep(response.meditationStep);
         }
 
-        // Auto-open Serene Mind when distress detected
+        // Auto-open Serene Mind to Audio tab when distress detected
         if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
-          setShowSereneMind(true);
+          openSereneMind('audio');
         }
       }
     } catch (error) {
@@ -331,7 +339,7 @@ export const ChatInterface = () => {
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         onNewConversation={handleNewConversation}
-        onOpenSereneMind={() => setShowSereneMind(true)}
+        onOpenSereneMind={() => openSereneMind()}
         onSelectConversation={handleSelectConversation}
         currentConversationId={currentConversation?.id}
         refreshTrigger={refreshTrigger}
@@ -408,7 +416,7 @@ export const ChatInterface = () => {
             {/* Subtle Serene Mind chip */}
             <div className="flex justify-center mb-2">
               <button
-                onClick={() => setShowSereneMind(true)}
+                onClick={() => openSereneMind()}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
               >
                 <Flame className="w-3 h-3" />
@@ -563,13 +571,10 @@ export const ChatInterface = () => {
         isOpen={showMobileSheet}
         onClose={() => setShowMobileSheet(false)}
         onNewConversation={handleNewConversation}
-        onOpenSereneMind={() => setShowSereneMind(true)}
+        onOpenSereneMind={() => openSereneMind()}
         onSelectConversation={handleSelectConversation}
         currentConversationId={currentConversation?.id}
       />
-
-      {/* Serene Mind Modal */}
-      <SereneMindModal isOpen={showSereneMind} onClose={() => setShowSereneMind(false)} />
     </div>
   );
 };
