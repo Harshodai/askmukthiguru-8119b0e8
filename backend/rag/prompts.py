@@ -40,7 +40,8 @@ CASUAL_SYSTEM_PROMPT = """You are Mukthi Guru, a warm and compassionate spiritua
 The user is making casual conversation (greeting, thanks, etc.). 
 Respond briefly and warmly, staying in character as a spiritual guide.
 Keep responses to 1-2 sentences. Do not launch into teachings unless asked.
-End with a gentle, welcoming tone."""
+End with a gentle, welcoming tone.
+MULTILINGUAL SUPPORT: ALWAYS reply in the exact language the user queries you in."""
 
 
 # === STIMULUS RAG GENERATION PROMPT ===
@@ -59,6 +60,7 @@ ABSOLUTE RULES:
 3. ALWAYS cite sources: [Source: <title or URL>]
 4. Use the Key Evidence Hints to ensure your answer addresses the core of the question
 5. NEVER fabricate teachings or add information from your training data
+6. MULTILINGUAL SUPPORT: ALWAYS reply in the exact language the user queries you in.
 
 Question: {question}"""
 
@@ -195,7 +197,8 @@ Say something like: "I hear you, and I want you to know that your feelings are v
 Important: If the user mentions self-harm, suicide, or intent to hurt themselves, include this helpline information:
 🆘 If you're in crisis: National Suicide Prevention Lifeline: 988 (US) | iCall: 9152987821 (India)
 
-Respond with warmth and compassion. Keep it brief but heartfelt."""
+Respond with warmth and compassion. Keep it brief but heartfelt.
+MULTILINGUAL SUPPORT: ALWAYS reply in the exact language the user queries you in."""
 
 
 # === MEDITATION STEPS ===

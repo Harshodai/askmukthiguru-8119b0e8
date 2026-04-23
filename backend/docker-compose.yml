@@ -38,8 +38,14 @@ services:
     container_name: mukthiguru-redis
     ports:
       - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-mukthiguru_redis_secret_123}
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mukthiguru_redis_secret_123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
   # --- Vector Database ---
   qdrant:
@@ -91,6 +97,8 @@ services:
       - WHISPER_COMPUTE_TYPE=float16
       - TRANSCRIPT_LANGUAGES=en,hi,te,ta,kn,ml,bn,gu,mr,pa
       - TRANSCRIPT_CONCURRENT_WORKERS=4
+      # Redis cache
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-mukthiguru_redis_secret_123}@redis:6379/0
       # Server
       - HOST=0.0.0.0
       - PORT=8000
@@ -98,6 +106,8 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
     depends_on:
       qdrant:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]

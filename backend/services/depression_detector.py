@@ -6,6 +6,10 @@ from domain.ports.llm_port import ILLMService
 
 logger = logging.getLogger(__name__)
 
+class DistressDetectionUnavailableError(Exception):
+    """Raised when the LLM service is unavailable to perform distress detection."""
+    pass
+
 class DepressionDetector:
     """
     Multilingual Distress Classifier (BE-3).
@@ -43,10 +47,11 @@ class DepressionDetector:
             intent = await self._llm_service.classify_intent(text[:512])
             logger.debug(f"LLM Multilingual Distress Check Intent: {intent}")
             
-            if "DISTRESS" in intent.upper():
+            if intent.strip().upper() == "DISTRESS":
                 return True
                 
         except Exception as e:
             logger.error(f"Multilingual depression detection failed: {e}")
+            raise DistressDetectionUnavailableError(f"Detection failed: {e}") from e
             
         return False

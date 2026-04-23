@@ -76,12 +76,15 @@ class Settings(BaseSettings):
     data_audit_enabled: bool = True  # Enable LLM-based quality checks
 
     # --- Redis ---
-    redis_url: str = "redis://host.docker.internal:6379/0"
+    # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
+    redis_url: str = "redis://redis:6379/0"
 
     # --- Server ---
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"
+    jwt_secret: Optional[str] = None  # MUST be overridden in production via .env
+
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8

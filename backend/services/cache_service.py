@@ -140,11 +140,18 @@ class RedisCacheAdapter(ICacheRepository):
         self._redis.setex(key, self._ttl, json.dumps(payload))
 
     def invalidate_all(self) -> None:
-        """Clear the entire cache via namespace deletion."""
-        keys = self._redis.keys("mukthiguru:cache:*")
-        if keys:
-            self._redis.delete(*keys)
-            logger.info(f"Redis Cache invalidated ({len(keys)} entries cleared)")
+        """Clear the entire cache via namespace deletion using non-blocking SCAN batched pipeline."""
+        pipe = self._redis.pipeline()
+        count = 0
+        for key in self._redis.scan_iter(match="mukthiguru:cache:*"):
+            pipe.delete(key)
+            count += 1
+            # Execute in batches of 1000 to prevent large memory spikes or blocking
+            if count % 1000 == 0:
+                pipe.execute()
+                pipe = self._redis.pipeline()
+        pipe.execute()
+        logger.info(f"Redis Cache invalidated ({count} entries cleared)")
 
 
 def init_llm_cache():

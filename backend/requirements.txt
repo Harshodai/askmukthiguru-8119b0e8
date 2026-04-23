@@ -71,5 +71,5 @@ passlib[bcrypt]>=1.7.4
 redis>=5.2.0
 apscheduler>=3.10.0
 arize-phoenix>=4.38.0
-openinference-instrumentation-langchain
+openinference-instrumentation-langchain>=0.1.33,<1.0
 ragas>=0.2.1

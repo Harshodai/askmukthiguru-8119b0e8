@@ -326,8 +326,13 @@ async def retrieve_documents(state: GraphState) -> dict:
     if len(all_docs) > settings.rag_top_k_retrieval:
         question = state.get("rewritten_query") or state["question"]
         doc_texts = [doc["text"] for doc in all_docs]
-        doc_embeddings = _embedder.encode_batch(doc_texts)['dense']
-        query_emb = _embedder.encode_single_full(question)['dense']
+        
+        # Prevent blocking the event loop with heavy embedding models
+        batch_enc = await asyncio.to_thread(_embedder.encode_batch, doc_texts)
+        doc_embeddings = batch_enc['dense']
+        
+        query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
+        query_emb = query_enc['dense']
         
         all_docs = _qdrant.mmr_select(
             query_embedding=query_emb,

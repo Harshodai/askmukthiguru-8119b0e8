@@ -50,6 +50,8 @@ from app.core.database import init_db
 
 limiter = Limiter(key_func=get_remote_address)
 
+logger = logging.getLogger(__name__)
+
 # Global instances
 depression_detector = DepressionDetector()
 try:
@@ -57,8 +59,6 @@ try:
 except Exception as e:
     logger.warning(f"Redis initialization failed ({e}). Falling back to InMemoryCacheAdapter.")
     response_cache = InMemoryCacheAdapter()
-
-logger = logging.getLogger(__name__)
 
 # Configure logging
 logging.basicConfig(
@@ -109,9 +109,13 @@ async def lifespan(app: FastAPI):
     await container.lightrag.initialize()
     # Load heavy models
     depression_detector.load()
-    logger.info("🙏 Mukthi Guru is ready")
     yield
     logger.info("Shutting down...")
+    try:
+        if callable(shutdown_scheduler):
+            shutdown_scheduler()
+    except Exception as e:
+        logger.warning(f"Scheduler shutdown error: {e}")
     shutdown()
 
 
