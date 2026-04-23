@@ -7,6 +7,7 @@ import { AnimatedLayout } from "./components/layout/AnimatedLayout";
 import { SafetyDisclaimer } from "./components/common/SafetyDisclaimer";
 import { ThemeProvider } from "./components/common/ThemeProvider";
 import { ReminderProvider } from "./components/common/ReminderProvider";
+import { SereneMindProvider } from "./components/common/SereneMindProvider";
 import Index from "./pages/Index";
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -24,18 +25,20 @@ const App = () => (
       <BrowserRouter>
         <ThemeProvider>
           <ReminderProvider>
-            <SafetyDisclaimer />
-            <AnimatedLayout>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/chat" element={<ChatPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/practices" element={<PracticesPage />} />
-                <Route path="/practices/:slug" element={<PracticeDetailPage />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AnimatedLayout>
+            <SereneMindProvider>
+              <SafetyDisclaimer />
+              <AnimatedLayout>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/chat" element={<ChatPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/practices" element={<PracticesPage />} />
+                  <Route path="/practices/:slug" element={<PracticeDetailPage />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AnimatedLayout>
+            </SereneMindProvider>
           </ReminderProvider>
         </ThemeProvider>
       </BrowserRouter>

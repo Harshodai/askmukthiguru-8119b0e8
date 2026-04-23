@@ -33,6 +33,8 @@ import { useProfile } from '@/hooks/useProfile';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/profileStorage';
+import { useSereneMind } from '@/components/common/SereneMindProvider';
+import { checkConnection } from '@/lib/aiService';
 
 interface AppShellProps {
   children: ReactNode;
@@ -75,6 +77,7 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
   const collapsed = state === 'collapsed';
   const { profile } = useProfile();
   const { favorites } = useFavorites();
+  const { open: openSereneMind } = useSereneMind();
   const favCount = favorites.length;
 
   return (
@@ -135,11 +138,9 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Serene Mind">
-                  <NavLink to="/chat" className="flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-ojas" />
-                    <span>Serene Mind</span>
-                  </NavLink>
+                <SidebarMenuButton onClick={() => openSereneMind()} tooltip="Serene Mind">
+                  <Flame className="w-4 h-4 text-ojas" />
+                  <span>Serene Mind</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -176,11 +177,64 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
   );
 };
 
+const ConnectionPill = () => {
+  const [mode, setMode] = useState<string>('Offline Mode');
+  const [connected, setConnected] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      const result = await checkConnection();
+      if (!cancelled) {
+        setMode(result.mode);
+        setConnected(result.connected);
+      }
+    };
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  const dotColor = connected
+    ? mode === 'Connected to Guru'
+      ? 'bg-prana'
+      : 'bg-muted-foreground'
+    : 'bg-destructive';
+
+  return (
+    <div
+      className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card/60 text-[11px] text-muted-foreground"
+      title={`AI service: ${mode}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${!connected ? 'animate-pulse' : ''}`} />
+      <span>{mode}</span>
+    </div>
+  );
+};
+
+const HeaderSereneButton = () => {
+  const { open } = useSereneMind();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => open()}
+      className="gap-1.5 text-ojas hover:bg-ojas/10 hover:text-ojas"
+      title="Start Serene Mind meditation"
+    >
+      <Flame className="w-4 h-4" />
+      <span className="hidden sm:inline text-xs font-medium">Serene Mind</span>
+    </Button>
+  );
+};
+
 export const AppShell = ({ children, title }: AppShellProps) => {
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // ⌘K / Ctrl+K shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -201,7 +255,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
         <AppSidebar onOpenSearch={() => setPaletteOpen(true)} />
 
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
-          <header className="h-14 flex items-center gap-3 border-b border-border/60 backdrop-blur-md bg-card/60 px-3 sm:px-4 sticky top-0 z-30">
+          <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 backdrop-blur-md bg-card/60 px-3 sm:px-4 sticky top-0 z-30">
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
               {title && (
@@ -210,6 +264,8 @@ export const AppShell = ({ children, title }: AppShellProps) => {
                 </h1>
               )}
             </div>
+            <ConnectionPill />
+            <HeaderSereneButton />
             <Button
               variant="ghost"
               size="sm"
