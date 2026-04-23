@@ -3,6 +3,7 @@ export interface Message {
   role: 'user' | 'guru';
   content: string;
   timestamp: Date;
+  citations?: string[];
 }
 
 export interface Conversation {
