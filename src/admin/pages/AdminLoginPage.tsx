@@ -28,8 +28,11 @@ export default function AdminLoginPage() {
     setError(null);
     const res = await loginAdmin(email, password);
     setLoading(false);
-    if (res.ok) nav(redirectTo, { replace: true });
-    else setError(res.error);
+    if (res.ok) {
+      nav(redirectTo, { replace: true });
+    } else {
+      setError(res.error);
+    }
   }
 
   return (
