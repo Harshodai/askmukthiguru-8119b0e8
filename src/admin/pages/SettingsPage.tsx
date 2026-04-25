@@ -20,7 +20,8 @@ import {
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
+function downloadCsv(filename: string, rows: Array<Record<string, unknown>> | unknown[]) {
+  rows = rows as Array<Record<string, unknown>>;
   if (!rows.length) {
     toast.error("Nothing to export");
     return;
