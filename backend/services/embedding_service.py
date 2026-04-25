@@ -38,7 +38,8 @@ class EmbeddingService:
         logger.info(f"Loading encoder: {settings.embedding_model}")
         self._encoder = BGEM3FlagModel(
             settings.embedding_model,
-            use_fp16=True,
+            use_fp16=False,   # FP16 requires CUDA; use False for CPU/Mac Docker
+            device="cpu",
         )
 
         logger.info(f"Loading reranker: {settings.reranker_model}")

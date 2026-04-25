@@ -78,38 +78,50 @@ async def lifespan(app: FastAPI):
     # 1. Initialize DB and Create tables if needed
     await init_db()
     
-    # 2. Dependency injection container setup
+    # 2. Dependency injection container setup (loads all services)
+    startup()
     container = get_container()
-    await container.initialize()
-    
-    # 3. Observability tracing (Arize Phoenix / OpenInference) (BE-8)
+
+    # 3. Async services initialization (LightRAG)
+    try:
+        await container.lightrag.initialize()
+    except Exception as e:
+        logger.warning(f"LightRAG initialization failed (GraphRAG unavailable): {e}")
+
+    # 4. Load depression detection model
+    try:
+        depression_detector.load()
+    except Exception as e:
+        logger.warning(f"Depression detector failed to load: {e}")
+
+    # 5. Observability tracing (Arize Phoenix / OpenInference) (BE-8)
     try:
         import phoenix as px
         from openinference.instrumentation.langchain import LangChainInstrumentor
         px.launch_app()  # Starts Phoenix server locally
         LangChainInstrumentor().instrument()
         logger.info("Arize Phoenix and OpenInference tracing successfully initialized.")
+    except ImportError:
+        logger.info("Arize Phoenix not installed — skipping observability tracing")
     except Exception as e:
         logger.warning(f"Failed to initialize Arize Phoenix tracing: {e}")
 
-    # 4. Schedule recurring jobs (BE-5)
+    # 6. Schedule recurring jobs (BE-5)
+    shutdown_scheduler = lambda: None
     try:
-        from infrastructure.scheduler import start_scheduler, shutdown_scheduler
+        from infrastructure.scheduler import start_scheduler, shutdown_scheduler as _sd
         start_scheduler()
+        shutdown_scheduler = _sd
     except Exception as e:
         logger.warning(f"Failed to initialize APScheduler: {e}")
-        shutdown_scheduler = lambda: None
 
-    # Initialize GPTCache to intercept identical LLM calls
+    # 7. Initialize GPTCache to intercept identical LLM calls
     init_llm_cache()
     
-    
-    startup()
-    container = get_container()
-    await container.lightrag.initialize()
-    # Load heavy models
-    depression_detector.load()
+    logger.info("=== Mukthi Guru Backend Ready ===")
     yield
+    
+    # Shutdown
     logger.info("Shutting down...")
     try:
         if callable(shutdown_scheduler):

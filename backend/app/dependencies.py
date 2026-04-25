@@ -15,9 +15,9 @@ import asyncio
 import threading
 from typing import Optional
 
+from app.config import settings
 from services.qdrant_service import QdrantService
 from services.embedding_service import EmbeddingService
-from services.ollama_service import OllamaService
 from services.ocr_service import OCRService
 from guardrails.rails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
@@ -26,6 +26,22 @@ from services.lightrag_service import lightrag_service, LightRAGService
 from services.cache_service import init_llm_cache
 
 logger = logging.getLogger(__name__)
+
+
+def _create_llm_service():
+    """
+    Factory: Create the appropriate LLM service based on LLM_PROVIDER config.
+    
+    Returns either SarvamCloudService or OllamaService — both share the same interface.
+    """
+    if settings.is_sarvam_cloud:
+        from services.sarvam_service import SarvamCloudService
+        logger.info("Using Sarvam Cloud API as LLM provider")
+        return SarvamCloudService()
+    else:
+        from services.ollama_service import OllamaService
+        logger.info("Using Ollama (local) as LLM provider")
+        return OllamaService()
 
 
 class ServiceContainer:
@@ -56,7 +72,7 @@ class ServiceContainer:
 
         # Layer 2: Model services (depend on config only)
         self.embedding = EmbeddingService()
-        self.ollama = OllamaService()
+        self.ollama = _create_llm_service()  # SarvamCloudService OR OllamaService
         self.ocr = OCRService()
 
         # Layer 3: Guardrails (depends on config)

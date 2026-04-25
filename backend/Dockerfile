@@ -5,12 +5,13 @@
 
 FROM python:3.12-slim AS base
 
-# System deps for sentence-transformers, scikit-learn, umap
+# System deps for sentence-transformers, scikit-learn, umap, lightrag
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     curl \
     ffmpeg \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

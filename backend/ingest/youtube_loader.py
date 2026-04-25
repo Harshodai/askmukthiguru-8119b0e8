@@ -1,16 +1,21 @@
 """
-Mukthi Guru — YouTube Content Loader (Multi-Strategy)
+Mukthi Guru — YouTube Content Loader (Multi-Strategy + Transcript Council)
 
 Design Patterns:
-  - Chain of Responsibility: 4-tier transcript fallback
-    1. Manual captions via youtube-transcript-api (fastest, most accurate)
-    2. faster-whisper local transcription (high accuracy, GPU-accelerated)
-    3. yt-dlp subtitle download + VTT parsing (cloud-generated captions)
-    4. yt-dlp auto-generated captions as raw text (last resort)
-  - Adapter Pattern: Wraps youtube-transcript-api, faster-whisper, and yt-dlp
-  - Concurrent Strategy: asyncio.to_thread for parallel playlist ingestion
+  - Chain of Responsibility: 3-tier transcript fallback (v1.x API)
+    1. Manual captions via youtube-transcript-api v1.x
+    2. Auto-generated captions via youtube-transcript-api v1.x
+    3. yt-dlp subtitle download + VTT parsing (fallback when API rate-limited)
+  - Council Pattern: Sarvam Saaras v3 STT runs in parallel for quality comparison
+  - Adapter Pattern: Wraps youtube-transcript-api v1.x, Sarvam STT, and yt-dlp
 
-Supports both single videos and playlists with concurrent extraction.
+Transcript Council (per video, when enable_transcript_council=True):
+  - Fetches captions via Tier 1/2 above
+  - ALSO downloads audio and runs Sarvam Batch STT
+  - Scores both results on quality heuristics
+  - Ingests the best result (or merges both if both are long and close in quality)
+
+Supports both single videos and playlists with sequential extraction (rate-limit safe).
 """
 
 import asyncio
@@ -18,14 +23,7 @@ import logging
 import re
 import tempfile
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
-
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import (
-    TranscriptsDisabled,
-    NoTranscriptFound,
-)
 
 from app.config import settings
 
@@ -74,7 +72,7 @@ def is_channel_url(url: str) -> bool:
 def get_playlist_video_urls(playlist_url: str) -> list[dict]:
     """
     Extract all video URLs from a YouTube playlist or channel using yt-dlp.
-    
+
     Returns list of dicts with 'url', 'title', 'video_id'.
     Uses flat extraction (no download) for speed.
     """
@@ -93,7 +91,7 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
         except Exception as e:
             logger.error(f"Failed to extract playlist/channel info: {e}")
             return []
-        
+
         if result and 'entries' in result:
             for entry in result['entries']:
                 if entry:
@@ -111,252 +109,73 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
 
 
 # ============================================================
-# 4-Tier Transcript Extraction
+# Tier 1 & 2: YouTube Transcript API v1.x
 # ============================================================
 
-def fetch_transcript_hybrid(
-    video_id: str,
-    title: str = "",
-    max_accuracy: bool = False,
-) -> dict:
+def _fetch_youtube_captions(video_id: str, languages: list[str], allow_auto: bool = True) -> Optional[str]:
     """
-    Robust 4-tier transcript fetcher.
-    
-    Tier 1: Manual captions via youtube-transcript-api (10 Indian languages)
-    Tier 2: faster-whisper local transcription (large-v3, GPU-accelerated)
-    Tier 3: yt-dlp subtitle download + VTT/SRT parsing
-    Tier 4: yt-dlp auto-generated captions as raw text
-    
-    Each tier is tried in order. Logs the method used for debugging.
-    
-    Args:
-        video_id: YouTube video ID
-        title: Video title for metadata
-        max_accuracy: If True, skip auto-captions and prefer Whisper
-        
-    Returns:
-        Dict with 'text', 'source_url', 'method', optionally 'error'
-    """
-    source_url = f"https://www.youtube.com/watch?v={video_id}"
-    languages = settings.transcript_languages_list
-    
-    # ── Tier 1: Manual Captions (youtube-transcript-api) ──
-    logger.info(f"[{video_id}] Tier 1: Trying manual captions...")
-    text = _tier1_manual_captions(video_id, languages)
-    if text:
-        logger.info(f"[{video_id}] ✅ Tier 1 success: manual captions ({len(text)} chars)")
-        return {"text": text, "source_url": source_url, "title": title, "method": "manual_captions"}
-    
-    # ── Tier 1b: Auto-generated captions (if not max_accuracy) ──
-    if not max_accuracy:
-        logger.info(f"[{video_id}] Tier 1b: Trying auto-generated captions...")
-        text = _tier1b_auto_captions(video_id, languages)
-        if text:
-            logger.info(f"[{video_id}] ✅ Tier 1b success: auto captions ({len(text)} chars)")
-            return {"text": text, "source_url": source_url, "title": title, "method": "auto_captions"}
-    
-    # ── Tier 2: faster-whisper Transcription ──
-    logger.info(f"[{video_id}] Tier 2: Trying faster-whisper transcription...")
-    text = _tier2_faster_whisper(video_id)
-    if text:
-        logger.info(f"[{video_id}] ✅ Tier 2 success: faster-whisper ({len(text)} chars)")
-        return {"text": text, "source_url": source_url, "title": title, "method": "faster_whisper"}
-    
-    # ── Tier 3: yt-dlp Subtitle Download + VTT Parsing ──
-    logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download...")
-    text = _tier3_ytdlp_subtitles(video_id, languages)
-    if text:
-        logger.info(f"[{video_id}] ✅ Tier 3 success: yt-dlp subtitles ({len(text)} chars)")
-        return {"text": text, "source_url": source_url, "title": title, "method": "ytdlp_subtitles"}
-    
-    # ── All tiers failed ──
-    logger.error(f"[{video_id}] ❌ All 3 tiers failed for transcript extraction.")
-    return {
-        "text": "",
-        "source_url": source_url,
-        "title": title,
-        "method": "failed",
-        "error": "All transcript extraction methods failed",
-    }
+    Fetch captions using youtube-transcript-api v1.x instance-based API.
 
-
-# ============================================================
-# Tier 1: Manual Captions (youtube-transcript-api)
-# ============================================================
-
-def _tier1_manual_captions(video_id: str, languages: list[str]) -> Optional[str]:
-    """
-    Fastest and most accurate: fetch manually-created captions.
-    Supports 10 Indian languages from config.
+    Tries manual captions first, then auto-generated.
+    The v1.x API uses instance methods (not static), which fixes the
+    XML parsing bug present in v0.6.3.
     """
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        
-        # Try manually created transcripts first
-        try:
-            manual = transcript_list.find_manually_created_transcript(languages)
-            text = " ".join([t['text'] for t in manual.fetch()])
-            return text.strip() if text.strip() else None
-        except Exception:
-            pass
-            
-    except (TranscriptsDisabled, NoTranscriptFound) as e:
-        logger.debug(f"[{video_id}] Tier 1: {type(e).__name__}")
-    except Exception as e:
-        logger.warning(f"[{video_id}] Tier 1 error: {e}")
-    
-    return None
-
-
-def _tier1b_auto_captions(video_id: str, languages: list[str]) -> Optional[str]:
-    """
-    Auto-generated YouTube captions. Lower quality but widely available.
-    """
-    try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        
-        try:
-            auto = transcript_list.find_generated_transcript(languages)
-            text = " ".join([t['text'] for t in auto.fetch()])
-            return text.strip() if text.strip() else None
-        except Exception:
-            pass
-            
-    except (TranscriptsDisabled, NoTranscriptFound):
-        pass
-    except Exception as e:
-        logger.warning(f"[{video_id}] Tier 1b error: {e}")
-    
-    return None
-
-
-# ============================================================
-# Tier 2: faster-whisper Local Transcription
-# ============================================================
-
-# Module-level Whisper model cache
-_whisper_model = None
-_whisper_model_name = None
-
-
-def _get_faster_whisper_model():
-    """Get or load the faster-whisper model (cached)."""
-    global _whisper_model, _whisper_model_name
-    target_model = settings.whisper_model
-    
-    if _whisper_model is None or _whisper_model_name != target_model:
-        try:
-            from faster_whisper import WhisperModel
-            
-            # Determine compute type based on available hardware
-            import torch
-            if torch.cuda.is_available():
-                device = "cuda"
-                compute_type = settings.whisper_compute_type
-            else:
-                device = "cpu"
-                compute_type = "int8"  # Use int8 on CPU for speed
-            
-            logger.info(f"Loading faster-whisper model: {target_model} (device={device}, compute={compute_type})")
-            _whisper_model = WhisperModel(
-                target_model,
-                device=device,
-                compute_type=compute_type,
-            )
-            _whisper_model_name = target_model
-        except ImportError:
-            logger.warning("faster-whisper not installed. Falling back to openai-whisper.")
-            return _get_openai_whisper_model()
-        except Exception as e:
-            logger.error(f"Failed to load faster-whisper: {e}")
-            return None
-    
-    return _whisper_model
-
-
-def _get_openai_whisper_model():
-    """Fallback: load openai-whisper model if faster-whisper fails."""
-    global _whisper_model, _whisper_model_name
-    target_model = settings.whisper_model
-    
-    if _whisper_model is None or _whisper_model_name != target_model:
-        try:
-            import whisper
-            logger.info(f"Loading openai-whisper model: {target_model}")
-            _whisper_model = whisper.load_model(target_model)
-            _whisper_model_name = target_model
-        except ImportError:
-            logger.error("Neither faster-whisper nor openai-whisper is installed!")
-            return None
-        except Exception as e:
-            logger.error(f"Failed to load openai-whisper: {e}")
-            return None
-    
-    return _whisper_model
-
-
-def _tier2_faster_whisper(video_id: str) -> Optional[str]:
-    """
-    Download audio and transcribe with faster-whisper (or openai-whisper fallback).
-    
-    Uses yt-dlp to download audio, then runs Whisper locally.
-    faster-whisper is 4x faster than openai-whisper with same accuracy.
-    """
-    import yt_dlp
-    
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    model = _get_faster_whisper_model()
-    if model is None:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        from youtube_transcript_api._errors import (
+            TranscriptsDisabled,
+            NoTranscriptFound,
+        )
+    except ImportError:
+        logger.error("youtube-transcript-api not installed")
         return None
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        output_path = f"{tmp_dir}/audio"
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': output_path,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-            }],
-            'quiet': True,
-            'no_warnings': True,
-        }
+    api = YouTubeTranscriptApi()
+    max_retries = 3
 
+    for attempt in range(max_retries):
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-        except Exception as e:
-            logger.error(f"[{video_id}] Audio download failed: {e}")
+            transcript_list = api.list(video_id)
+
+            # Try manual captions first (highest quality)
+            try:
+                manual = transcript_list.find_manually_created_transcript(languages)
+                fetched = manual.fetch()
+                text = " ".join([s.text for s in fetched])
+                if text.strip():
+                    logger.info(f"[{video_id}] ✅ Manual captions: {len(text)} chars")
+                    return text.strip()
+            except Exception:
+                pass
+
+            # Try auto-generated captions
+            if allow_auto:
+                try:
+                    auto = transcript_list.find_generated_transcript(languages)
+                    fetched = auto.fetch()
+                    text = " ".join([s.text for s in fetched])
+                    if text.strip():
+                        logger.info(f"[{video_id}] ✅ Auto captions: {len(text)} chars")
+                        return text.strip()
+                except Exception:
+                    pass
+
+            # No transcripts found for requested languages
+            logger.debug(f"[{video_id}] No captions for languages: {languages}")
             return None
 
-        # Find the downloaded file
-        import glob
-        audio_files = glob.glob(f"{tmp_dir}/audio*")
-        if not audio_files:
-            logger.error(f"[{video_id}] No audio file found after download")
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "Too Many Requests" in err_str:
+                wait = 2 ** (attempt + 1)  # 2s, 4s, 8s
+                logger.warning(f"[{video_id}] Rate limited. Retry {attempt+1}/{max_retries} in {wait}s")
+                time.sleep(wait)
+                continue
+            # TranscriptsDisabled, NoTranscriptFound, or other permanent errors
+            logger.debug(f"[{video_id}] YouTube captions unavailable: {type(e).__name__}")
             return None
 
-        # Transcribe based on backend
-        try:
-            if settings.whisper_backend == "faster-whisper":
-                # faster-whisper returns segments iterator
-                segments, info = model.transcribe(
-                    audio_files[0],
-                    beam_size=5,
-                    language=None,  # Auto-detect language
-                    vad_filter=True,  # Voice Activity Detection for cleaner output
-                )
-                text = " ".join([segment.text for segment in segments])
-            else:
-                # openai-whisper returns dict
-                result = model.transcribe(audio_files[0])
-                text = result.get("text", "")
-            
-            return text.strip() if text.strip() else None
-            
-        except Exception as e:
-            logger.error(f"[{video_id}] Whisper transcription failed: {e}")
-            return None
+    return None
 
 
 # ============================================================
@@ -366,14 +185,15 @@ def _tier2_faster_whisper(video_id: str) -> Optional[str]:
 def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]:
     """
     Download subtitles via yt-dlp and parse VTT/SRT format.
-    
-    This catches cases where youtube-transcript-api fails but
-    yt-dlp can still access the subtitle files directly.
+
+    Used as fallback when youtube-transcript-api is rate-limited.
+    yt-dlp uses a different HTTP path and is less likely to 429.
     """
     import yt_dlp
-    
+    import glob
+
     url = f"https://www.youtube.com/watch?v={video_id}"
-    
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         ydl_opts = {
             'skip_download': True,
@@ -385,72 +205,172 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
             'quiet': True,
             'no_warnings': True,
         }
-        
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
         except Exception as e:
             logger.warning(f"[{video_id}] Tier 3 yt-dlp download failed: {e}")
             return None
-        
-        # Find subtitle files
-        import glob
+
         sub_files = glob.glob(f"{tmp_dir}/subs*.vtt") + glob.glob(f"{tmp_dir}/subs*.srt")
-        
+
         if not sub_files:
             logger.debug(f"[{video_id}] Tier 3: No subtitle files downloaded")
             return None
-        
-        # Parse the first available subtitle file
+
         text = _parse_subtitle_file(sub_files[0])
-        return text.strip() if text and text.strip() else None
+        if text and text.strip():
+            logger.info(f"[{video_id}] ✅ Tier 3 yt-dlp subtitles: {len(text)} chars")
+            return text.strip()
+        return None
 
 
 def _parse_subtitle_file(filepath: str) -> Optional[str]:
-    """
-    Parse VTT or SRT subtitle file into plain text.
-    Removes timestamps, formatting tags, and duplicate lines.
-    """
+    """Parse VTT or SRT subtitle file into plain text. Removes timestamps and duplicates."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
     except Exception as e:
         logger.error(f"Failed to read subtitle file: {e}")
         return None
-    
+
     lines = []
     seen = set()
-    
+
     for line in content.split('\n'):
-        line = line.strip()
-        
-        # Skip VTT header
-        if line.startswith('WEBVTT') or line.startswith('Kind:') or line.startswith('Language:'):
+        # Skip VTT header, timestamps, and empty lines
+        if line.startswith('WEBVTT') or line.startswith('NOTE'):
             continue
-        
-        # Skip timestamp lines (both VTT and SRT formats)
-        if re.match(r'^\d{2}:\d{2}', line) or re.match(r'^\d+$', line):
+        if re.match(r'^\d+$', line.strip()):  # SRT sequence number
             continue
-        
-        # Skip empty lines
-        if not line:
+        if '-->' in line:  # Timestamp line
             continue
-        
-        # Remove HTML/VTT formatting tags
-        clean = re.sub(r'<[^>]+>', '', line)
-        clean = re.sub(r'\{[^}]+\}', '', clean)  # Remove SRT formatting
+        if not line.strip():
+            continue
+
+        clean = re.sub(r'<[^>]+>', '', line)      # Remove HTML tags
+        clean = re.sub(r'\{[^}]+\}', '', clean)   # Remove SRT formatting
         clean = clean.strip()
-        
-        # Deduplicate (YouTube auto-subs often repeat lines)
+
         if clean and clean not in seen:
             seen.add(clean)
             lines.append(clean)
-    
+
     return " ".join(lines)
 
 
 # ============================================================
-# Concurrent Playlist/Channel Extraction
+# Main Transcript Fetcher + Council Logic
+# ============================================================
+
+def fetch_transcript_hybrid(
+    video_id: str,
+    title: str = "",
+    max_accuracy: bool = False,
+) -> dict:
+    """
+    Robust transcript fetcher with optional Transcript Council.
+
+    Without council (enable_transcript_council=False):
+      Tier 1: Manual captions (youtube-transcript-api v1.x)
+      Tier 2: Auto-generated captions (youtube-transcript-api v1.x)
+      Tier 3: yt-dlp subtitle download + VTT parsing (fallback)
+
+    With council (enable_transcript_council=True, default):
+      - Runs Tier 1/2 for YouTube captions
+      - ALSO downloads audio and runs Sarvam Saaras v3 Batch STT
+      - Scores both, picks winner (or merges if both are long/comparable)
+
+    Args:
+        video_id: YouTube video ID
+        title: Video title for logging
+        max_accuracy: If True, skip auto-captions (manual only before council)
+
+    Returns:
+        Dict with 'text', 'source_url', 'title', 'method', optionally 'error'
+        and 'council' info (youtube_score, sarvam_score, winner)
+    """
+    source_url = f"https://www.youtube.com/watch?v={video_id}"
+    languages = settings.transcript_languages_list
+
+    # ── Step 1: YouTube Captions (Tier 1 + Tier 2) ──
+    youtube_text = None
+
+    logger.info(f"[{video_id}] Fetching YouTube captions...")
+    youtube_text = _fetch_youtube_captions(
+        video_id, languages,
+        allow_auto=(not max_accuracy)
+    )
+
+    # Tier 3 fallback: yt-dlp if YouTube API failed
+    if not youtube_text:
+        logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download...")
+        youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
+
+    # ── Step 2: Council — Sarvam STT ──
+    if settings.enable_transcript_council:
+        logger.info(f"[{video_id}] Council: Running Sarvam Saaras v3 STT...")
+        sarvam_text = _run_sarvam_stt(video_id)
+
+        from services.sarvam_stt_service import council_pick_best
+        council_result = council_pick_best(youtube_text, sarvam_text, video_id)
+
+        chosen_text = council_result["text"]
+        method = f"council_{council_result['method']}"
+        council_info = {
+            "youtube_score": council_result["youtube_score"],
+            "sarvam_score": council_result["sarvam_score"],
+            "winner": council_result["winner"],
+        }
+
+        if not chosen_text:
+            logger.error(f"[{video_id}] ❌ Council: Both sources failed.")
+            return {
+                "text": "", "source_url": source_url, "title": title,
+                "method": "failed", "error": "All transcript extraction methods failed",
+                "council": council_info,
+            }
+
+        logger.info(
+            f"[{video_id}] ✅ Council complete: {method} "
+            f"(YT={council_result['youtube_score']:.2f}, SV={council_result['sarvam_score']:.2f})"
+        )
+        return {
+            "text": chosen_text, "source_url": source_url, "title": title,
+            "method": method, "council": council_info,
+        }
+
+    # ── No council: use YouTube only ──
+    if youtube_text:
+        return {"text": youtube_text, "source_url": source_url, "title": title, "method": "youtube_captions"}
+
+    logger.error(f"[{video_id}] ❌ All transcript extraction methods failed.")
+    return {
+        "text": "", "source_url": source_url, "title": title,
+        "method": "failed", "error": "All transcript extraction methods failed",
+    }
+
+
+def _run_sarvam_stt(video_id: str) -> Optional[str]:
+    """Download audio and transcribe via Sarvam STT. Returns text or None."""
+    try:
+        from services.sarvam_stt_service import download_audio, transcribe_with_sarvam
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            audio_path = download_audio(video_id, tmp_dir)
+            if not audio_path:
+                logger.warning(f"[{video_id}] Sarvam STT: audio download failed")
+                return None
+
+            return transcribe_with_sarvam(video_id, audio_path)
+    except Exception as e:
+        logger.error(f"[{video_id}] Sarvam STT error: {e}")
+        return None
+
+
+# ============================================================
+# Concurrent Playlist Extraction (Sequential, Rate-Limit Safe)
 # ============================================================
 
 async def fetch_transcripts_concurrent(
@@ -459,86 +379,63 @@ async def fetch_transcripts_concurrent(
     on_progress: Optional[callable] = None,
 ) -> list[dict]:
     """
-    Concurrently fetch transcripts for multiple videos using asyncio.to_thread.
-    
-    Spawns multiple workers to process videos in parallel. Each worker
-    uses the 4-tier transcript fallback strategy.
-    
+    Fetch transcripts for multiple videos sequentially to avoid YouTube 429 rate limits.
+
+    Despite the name (kept for API compatibility), this processes one video at a time
+    with a 2-second delay between requests. The Transcript Council adds Sarvam STT
+    per video, which runs after each YouTube caption fetch.
+
     Args:
         video_list: List of dicts with 'video_id', 'title', 'url'
-        max_workers: Max concurrent workers (default from config)
+        max_workers: Ignored — kept for API compat. Always sequential.
         on_progress: Optional callback(video_index, total, result)
-        
+
     Returns:
         List of transcript result dicts
     """
-    if max_workers is None:
-        max_workers = settings.transcript_concurrent_workers
-    
-    semaphore = asyncio.Semaphore(max_workers)
     results = []
     total = len(video_list)
-    
-    async def _process_video(index: int, video: dict):
-        async with semaphore:
-            video_id = video.get('video_id', extract_video_id(video.get('url', '')))
-            title = video.get('title', 'Unknown')
-            
-            if not video_id:
-                result = {"text": "", "method": "failed", "error": "No video ID"}
-            else:
-                # Run blocking transcript extraction in a thread
-                result = await asyncio.to_thread(
-                    fetch_transcript_hybrid,
-                    video_id,
-                    title,
-                    False,
-                )
-            
-            if on_progress:
-                try:
-                    on_progress(index, total, result)
-                except Exception:
-                    pass
-            
-            return result
-    
-    # Launch all tasks concurrently (bounded by semaphore)
-    tasks = [_process_video(i, v) for i, v in enumerate(video_list)]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # Handle any exceptions in results
-    final_results = []
-    for i, r in enumerate(results):
-        if isinstance(r, Exception):
-            logger.error(f"Video {i} failed with exception: {r}")
-            final_results.append({
-                "text": "",
-                "method": "failed",
-                "error": str(r),
-            })
+
+    for i, video in enumerate(video_list):
+        video_id = video.get('video_id', extract_video_id(video.get('url', '')))
+        title = video.get('title', 'Unknown')
+
+        if not video_id:
+            result = {"text": "", "method": "failed", "error": "No video ID"}
         else:
-            final_results.append(r)
-    
-    # Log summary
-    success = sum(1 for r in final_results if r.get("method") != "failed")
-    logger.info(f"Concurrent extraction: {success}/{total} videos successful")
-    
-    return final_results
+            result = await asyncio.to_thread(
+                fetch_transcript_hybrid,
+                video_id,
+                title,
+                False,  # allow auto-captions
+            )
+
+        results.append(result)
+
+        if on_progress:
+            try:
+                on_progress(i, total, result)
+            except Exception:
+                pass
+
+        # Rate-limit delay between videos
+        if i < total - 1:
+            await asyncio.sleep(2)
+
+    success = sum(1 for r in results if r.get("method") != "failed")
+    logger.info(f"Extraction complete: {success}/{total} videos successful")
+
+    return results
 
 
 async def extract_channel_transcripts(channel_url: str) -> list[dict]:
-    """
-    Extract transcripts from all videos in a YouTube channel.
-    
-    Uses yt-dlp to get all video IDs, then processes concurrently.
-    """
+    """Extract transcripts from all videos in a YouTube channel."""
     logger.info(f"Extracting videos from channel: {channel_url}")
     videos = get_playlist_video_urls(channel_url)
-    
+
     if not videos:
         logger.warning(f"No videos found for channel: {channel_url}")
         return []
-    
-    logger.info(f"Found {len(videos)} videos. Starting concurrent extraction...")
+
+    logger.info(f"Found {len(videos)} videos. Starting extraction...")
     return await fetch_transcripts_concurrent(videos)

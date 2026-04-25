@@ -31,14 +31,25 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Model Preset ---
-    # Set MODEL_PRESET to switch between model configurations:
-    #   "qwen"    → Qwen3-30B-A3B (generation) + Qwen3-14B (classification)  [DEFAULT — works out of box]
+    # --- LLM Provider ---
+    # Set LLM_PROVIDER to switch between backends:
+    #   "sarvam_cloud" → Sarvam Cloud API (recommended, free tier)  [DEFAULT]
+    #   "ollama"       → Local Ollama (requires model downloads)
+    llm_provider: str = "sarvam_cloud"
+
+    # --- Model Preset (for Ollama mode only) ---
+    # Set MODEL_PRESET to switch between Ollama model configurations:
+    #   "qwen"    → Qwen3-30B-A3B (generation) + Qwen3-14B (classification)
     #   "sarvam"  → Sarvam 30B (generation) + llama3.2:3b (classification)   [Requires custom GGUF import]
-    #   "custom"  → Use OLLAMA_MODEL and OLLAMA_CLASSIFY_MODEL directly
+    #   "custom"  → Use OLLAMA_MODEL + OLLAMA_CLASSIFY_MODEL below
     model_preset: str = "qwen"
 
-    # --- Ollama ---
+    # --- Sarvam Cloud API ---
+    sarvam_api_key: str = ""                          # API subscription key from dashboard.sarvam.ai
+    sarvam_cloud_model: str = "sarvam-30b"             # Main generation model (sarvam-30b or sarvam-105b)
+    sarvam_cloud_classify_model: str = "sarvam-30b"    # Classification model
+
+    # --- Ollama (local mode) ---
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = ""           # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
@@ -67,7 +78,16 @@ class Settings(BaseSettings):
     # --- Transcript Extraction ---
     transcript_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa"  # 10 Indian languages
     transcript_max_retries: int = 3            # Retry per tier before falling to next
-    transcript_concurrent_workers: int = 4     # Concurrent workers for playlist ingestion
+    transcript_concurrent_workers: int = 1     # Kept at 1 to avoid YouTube 429 rate limits
+
+    # --- Transcript Council (Dual-STT Quality Check) ---
+    # When enabled: fetches captions AND runs Sarvam STT on audio, then picks best result.
+    enable_transcript_council: bool = True      # Run both YouTube captions + Sarvam STT per video
+    sarvam_stt_model: str = "saaras:v3"         # Sarvam Batch STT model
+    sarvam_stt_mode: str = "transcribe"         # Options: transcribe, codemix, translate
+    sarvam_stt_language: str = "en-IN"          # Language hint (en-IN for English w/ Indian accent)
+    stt_chunk_minutes: int = 55                 # Chunk long audio into N-minute pieces (Batch API max 1hr)
+    stt_max_audio_mb: int = 200                 # Skip STT if audio file exceeds this size (MB)
 
     # --- OCR ---
     ocr_languages: str = "en,hi,te"
@@ -133,8 +153,15 @@ class Settings(BaseSettings):
     }
 
     @property
+    def is_sarvam_cloud(self) -> bool:
+        """Check if using Sarvam Cloud API."""
+        return self.llm_provider.lower() == "sarvam_cloud"
+
+    @property
     def model_for_generation(self) -> str:
         """Resolve the main generation model from preset or custom config."""
+        if self.is_sarvam_cloud:
+            return self.sarvam_cloud_model
         if self.ollama_model:  # Explicit override
             return self.ollama_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})
@@ -143,6 +170,8 @@ class Settings(BaseSettings):
     @property
     def model_for_classification(self) -> str:
         """Resolve the fast classification model from preset or custom config."""
+        if self.is_sarvam_cloud:
+            return self.sarvam_cloud_classify_model
         if self.ollama_classify_model:  # Explicit override
             return self.ollama_classify_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})

@@ -75,6 +75,14 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # === LLM Provider ===
+      # "sarvam_cloud" (default) or "ollama" (requires Ollama on host)
+      - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
+      # --- Sarvam Cloud API ---
+      - SARVAM_API_KEY=${SARVAM_API_KEY:-}
+      - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
+      - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
+      # --- Ollama (only used when LLM_PROVIDER=ollama) ---
       # Model Preset: "qwen" (default) or "sarvam" (requires custom GGUF import)
       - MODEL_PRESET=${MODEL_PRESET:-qwen}
       # Ollama runs on the HOST, not in Docker
@@ -91,6 +99,10 @@ services:
       - EMBEDDING_MODEL=BAAI/bge-m3
       - EMBEDDING_DIMENSION=1024
       - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+      # HuggingFace cache (so models survive container rebuilds)
+      - HF_HOME=/app/.cache/huggingface
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
       # Whisper / Transcription
       - WHISPER_MODEL=large-v3
       - WHISPER_BACKEND=faster-whisper
@@ -102,6 +114,8 @@ services:
       # Server
       - HOST=0.0.0.0
       - PORT=8000
+      # Auth
+      - JWT_SECRET=${JWT_SECRET:-mukthiguru_dev_jwt_secret_change_in_production_2026}
       # Development only. In production, set this to allowed origins (e.g. https://myapp.com)
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
     depends_on:
@@ -114,9 +128,12 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
     restart: unless-stopped
-    # Allow access to host's Ollama
+    volumes:
+      # Cache HuggingFace models across rebuilds (prevents re-download on every docker build)
+      - hf_model_cache:/app/.cache
+    # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -126,4 +143,6 @@ volumes:
   neo4j_data:
     driver: local
   redis_data:
+    driver: local
+  hf_model_cache:
     driver: local

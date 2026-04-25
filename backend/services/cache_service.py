@@ -159,32 +159,35 @@ def init_llm_cache():
     Initializes the global LangChain cache using GPTCache.
     This intercepts redundant LLM calls (particularly during LightRAG extraction)
     to drastically cut down latency and repetition.
+    
+    Gracefully skips if gptcache is not installed.
     """
-    import os
-    from gptcache import Cache
-    from gptcache.manager.factory import manager_factory
-    from gptcache.processor.pre import get_prompt
-    from langchain.globals import set_llm_cache
-    from langchain_community.cache import GPTCache
-    
-    os.makedirs("data/gptcache", exist_ok=True)
-    
-    def init_gptcache(cache_obj: Cache, llm: str):
-        data_manager = manager_factory(
-            "sqlite", 
-            data_dir="data/gptcache",
-            max_size=5000,
-            eviction="LRU"
-        )
-        cache_obj.init(
-            pre_embedding_func=get_prompt,
-            data_manager=data_manager,
-        )
-
-    # Note: we catch potential missing dependencies gracefully if GPTCache is missing
     try:
+        import os
+        from gptcache import Cache
+        from gptcache.manager.factory import manager_factory
+        from gptcache.processor.pre import get_prompt
+        from langchain.globals import set_llm_cache
+        from langchain_community.cache import GPTCache
+        
+        os.makedirs("data/gptcache", exist_ok=True)
+        
+        def init_gptcache(cache_obj: Cache, llm: str):
+            data_manager = manager_factory(
+                "sqlite", 
+                data_dir="data/gptcache",
+                max_size=5000,
+                eviction="LRU"
+            )
+            cache_obj.init(
+                pre_embedding_func=get_prompt,
+                data_manager=data_manager,
+            )
+
         set_llm_cache(GPTCache(init_gptcache))
         logger.info("GPTCache successfully attached to LangChain global cache.")
+    except ImportError:
+        logger.info("GPTCache not installed — skipping LLM call caching. Install with: pip install gptcache")
     except Exception as e:
         logger.error(f"Failed to initialize GPTCache: {e}")
 
