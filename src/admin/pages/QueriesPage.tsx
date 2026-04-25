@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -26,11 +27,25 @@ import { EmptyState } from "@/admin/components/EmptyState";
 import { Search, X } from "lucide-react";
 
 export default function QueriesPage() {
-  const [search, setSearch] = useState("");
-  const [promptVersionId, setPromptVersionId] = useState<string | undefined>();
-  const [model, setModel] = useState<string | undefined>();
-  const [minScore, setMinScore] = useState(0);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const [search, setSearch] = useState(params.get("search") ?? "");
+  const [promptVersionId, setPromptVersionId] = useState<string | undefined>(
+    params.get("prompt") ?? undefined,
+  );
+  const [model, setModel] = useState<string | undefined>(params.get("model") ?? undefined);
+  const [minScore, setMinScore] = useState(Number(params.get("min") ?? 0));
+  const [openId, setOpenId] = useState<string | null>(params.get("trace"));
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (search) next.set("search", search);
+    if (promptVersionId) next.set("prompt", promptVersionId);
+    if (model) next.set("model", model);
+    if (minScore) next.set("min", String(minScore));
+    if (openId) next.set("trace", openId);
+    setParams(next, { replace: true });
+  }, [search, promptVersionId, model, minScore, openId, setParams]);
+
 
   const { data: prompts } = usePromptVersions();
   const { data: models } = useModels();

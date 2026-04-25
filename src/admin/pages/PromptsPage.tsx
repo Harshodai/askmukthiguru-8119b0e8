@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { usePromptVersions } from "@/admin/hooks/useAdminData";
+import { usePromptVersions, usePromptMetrics } from "@/admin/hooks/useAdminData";
 import { activatePromptVersion } from "@/admin/lib/mockData";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,9 +14,21 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fmtDate } from "@/admin/lib/formatters";
+import { PromptDiff } from "@/admin/components/PromptDiff";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+} from "recharts";
 
 export default function PromptsPage() {
   const { data: prompts } = usePromptVersions();
+  const { data: metrics } = usePromptMetrics();
   const qc = useQueryClient();
   const [a, setA] = useState<string | null>(null);
   const [b, setB] = useState<string | null>(null);
@@ -29,14 +41,12 @@ export default function PromptsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Prompts</h1>
         <p className="text-sm text-muted-foreground">
-          Versioned prompt registry with activation and side-by-side diff.
+          Versioned prompt registry with activation, side-by-side diff, and metric comparison.
         </p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Versions</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Versions</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {prompts?.map((p) => (
             <div
@@ -57,6 +67,7 @@ export default function PromptsPage() {
                 onClick={async () => {
                   await activatePromptVersion(p.id);
                   qc.invalidateQueries({ queryKey: ["admin", "prompts"] });
+                  qc.invalidateQueries({ queryKey: ["admin", "prompt-metrics"] });
                   toast.success(`${p.name} v${p.version} activated`);
                 }}
               >
@@ -68,46 +79,52 @@ export default function PromptsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Side-by-side compare</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Per-version metrics</CardTitle></CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={metrics ?? []}>
+              <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} domain={[0, 1]} />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="faithfulness" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="answer_relevancy" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="hallucination_rate" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Side-by-side diff</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Select value={a ?? ""} onValueChange={setA}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select version A" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select version A" /></SelectTrigger>
               <SelectContent>
                 {prompts?.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} v{p.version}
-                  </SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{p.name} v{p.version}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={b ?? ""} onValueChange={setB}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select version B" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select version B" /></SelectTrigger>
               <SelectContent>
                 {prompts?.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} v{p.version}
-                  </SelectItem>
+                  <SelectItem key={p.id} value={p.id}>{p.name} v{p.version}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          {pa && pb && (
-            <div className="grid grid-cols-2 gap-3">
-              <pre className="text-xs bg-muted p-3 rounded-md whitespace-pre-wrap">
-                {pa.content}
-              </pre>
-              <pre className="text-xs bg-muted p-3 rounded-md whitespace-pre-wrap">
-                {pb.content}
-              </pre>
-            </div>
-          )}
+          {pa && pb && <PromptDiff a={pa.content} b={pb.content} />}
         </CardContent>
       </Card>
     </div>

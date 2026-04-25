@@ -127,3 +127,74 @@ export function useAdmins() {
 export function useModelPricing() {
   return useQuery({ queryKey: ["admin", "model-pricing"], queryFn: api.listModelPricing });
 }
+
+export function useTopFailures(limit = 8) {
+  const { filters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "top-failures", limit, ...key],
+    queryFn: () => api.getTopFailures({ from: filters.from, to: filters.to }, limit),
+  });
+}
+
+export function useRagasHeatmap(buckets = 8) {
+  const { filters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "ragas-heat", buckets, ...key],
+    queryFn: () => api.getRagasHeatmap({ from: filters.from, to: filters.to }, buckets),
+  });
+}
+
+export function useTriggerTrend(buckets = 14) {
+  const { filters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "trigger-trend", buckets, ...key],
+    queryFn: () => api.getTriggerTrend({ from: filters.from, to: filters.to }, buckets),
+  });
+}
+
+export function useSimilarityTrend(buckets = 14) {
+  const { filters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "sim-trend", buckets, ...key],
+    queryFn: () => api.getSimilarityTrend({ from: filters.from, to: filters.to }, buckets),
+  });
+}
+
+export function useDeadDocs() {
+  const { filters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "dead-docs", ...key],
+    queryFn: () => api.getDeadDocs({ from: filters.from, to: filters.to }),
+  });
+}
+
+export function useEmptyRetrievals(limit = 20) {
+  const { filters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "empty-retr", limit, ...key],
+    queryFn: () => api.getEmptyRetrievals({ from: filters.from, to: filters.to }, limit),
+  });
+}
+
+export function useIngestionHealth() {
+  return useQuery({ queryKey: ["admin", "ingest-health"], queryFn: api.getIngestionHealth });
+}
+
+export function usePromptMetrics() {
+  return useQuery({ queryKey: ["admin", "prompt-metrics"], queryFn: api.getPromptMetricsByVersion });
+}
+
+export function useLiveFeed(enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "live-feed"],
+    queryFn: api.pollLiveFeed,
+    refetchInterval: enabled ? 3000 : false,
+    enabled,
+  });
+}
