@@ -431,6 +431,313 @@ export async function upsertModelPricing(p: ModelPricing): Promise<void> {
 }
 
 // ============================================================================
+// Extended analytics for deeper page features
+// ============================================================================
+
+export interface TopFailure {
+  query_id: string;
+  query_text: string;
+  reason: string;
+  faithfulness: number;
+  created_at: string;
+}
+
+export async function getTopFailures(
+  range: { from?: Date; to?: Date },
+  limit = 8,
+): Promise<TopFailure[]> {
+  await delay(40);
+  const s = getSeed();
+  const queries = s.queries.filter((q) => inRange(q.created_at, range.from, range.to));
+  const qIds = new Set(queries.map((q) => q.id));
+  const failed = s.responses
+    .filter((r) => qIds.has(r.query_id) && (r.hallucination_flag || r.faithfulness < 0.6))
+    .sort((a, b) => a.faithfulness - b.faithfulness)
+    .slice(0, limit);
+  return failed.map((r) => {
+    const q = queries.find((qq) => qq.id === r.query_id)!;
+    return {
+      query_id: q.id,
+      query_text: q.query_text,
+      reason: r.judge_reasoning,
+      faithfulness: r.faithfulness,
+      created_at: q.created_at,
+    };
+  });
+}
+
+export interface RagasHeatCell {
+  bucket: string;
+  metric: "faithfulness" | "answer_relevancy" | "context_precision" | "context_recall";
+  value: number;
+}
+
+export async function getRagasHeatmap(
+  range: { from?: Date; to?: Date },
+  buckets = 8,
+): Promise<RagasHeatCell[]> {
+  await delay(40);
+  const s = getSeed();
+  const fromT = range.from?.getTime() ?? Date.now() - 7 * DAY;
+  const toT = range.to?.getTime() ?? Date.now();
+  const step = (toT - fromT) / buckets;
+  const respByQuery = new Map(s.responses.map((r) => [r.query_id, r]));
+  const cells: RagasHeatCell[] = [];
+  const metrics: RagasHeatCell["metric"][] = [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall",
+  ];
+  for (let i = 0; i < buckets; i++) {
+    const bStart = fromT + i * step;
+    const bEnd = bStart + step;
+    const inB = s.queries.filter((q) => {
+      const t = +new Date(q.created_at);
+      return t >= bStart && t < bEnd;
+    });
+    const resps = inB.map((q) => respByQuery.get(q.id)).filter(Boolean) as typeof s.responses;
+    metrics.forEach((m) => {
+      const v = resps.length ? resps.reduce((a, r) => a + r[m], 0) / resps.length : 0;
+      cells.push({ bucket: new Date(bStart).toISOString(), metric: m, value: +v.toFixed(3) });
+    });
+  }
+  return cells;
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+
+export interface TriggerTrendPoint {
+  bucket: string;
+  serene_mind: number;
+  fallback: number;
+  safety: number;
+  meditation: number;
+  youtube_link: number;
+  guru_handoff: number;
+}
+
+export async function getTriggerTrend(
+  range: { from?: Date; to?: Date },
+  buckets = 14,
+): Promise<TriggerTrendPoint[]> {
+  await delay(30);
+  const s = getSeed();
+  const fromT = range.from?.getTime() ?? Date.now() - 14 * DAY;
+  const toT = range.to?.getTime() ?? Date.now();
+  const step = (toT - fromT) / buckets;
+  const out: TriggerTrendPoint[] = [];
+  for (let i = 0; i < buckets; i++) {
+    const bStart = fromT + i * step;
+    const bEnd = bStart + step;
+    const slice = s.triggers.filter((t) => {
+      const x = +new Date(t.created_at);
+      return x >= bStart && x < bEnd;
+    });
+    out.push({
+      bucket: new Date(bStart).toISOString(),
+      serene_mind: slice.filter((t) => t.trigger_name === "serene_mind").length,
+      fallback: slice.filter((t) => t.trigger_name === "fallback").length,
+      safety: slice.filter((t) => t.trigger_name === "safety").length,
+      meditation: slice.filter((t) => t.trigger_name === "meditation").length,
+      youtube_link: slice.filter((t) => t.trigger_name === "youtube_link").length,
+      guru_handoff: slice.filter((t) => t.trigger_name === "guru_handoff").length,
+    });
+  }
+  return out;
+}
+
+export interface SimilarityTrendPoint {
+  bucket: string;
+  avg_top_score: number;
+  hit_rate: number;
+}
+
+export async function getSimilarityTrend(
+  range: { from?: Date; to?: Date },
+  buckets = 14,
+): Promise<SimilarityTrendPoint[]> {
+  await delay(30);
+  const s = getSeed();
+  const fromT = range.from?.getTime() ?? Date.now() - 14 * DAY;
+  const toT = range.to?.getTime() ?? Date.now();
+  const step = (toT - fromT) / buckets;
+  const qById = new Map(s.queries.map((q) => [q.id, q]));
+  const out: SimilarityTrendPoint[] = [];
+  for (let i = 0; i < buckets; i++) {
+    const bStart = fromT + i * step;
+    const bEnd = bStart + step;
+    const rs = s.retrievals.filter((r) => {
+      const q = qById.get(r.query_id);
+      if (!q) return false;
+      const x = +new Date(q.created_at);
+      return x >= bStart && x < bEnd;
+    });
+    const avg = rs.length ? rs.reduce((a, r) => a + (r.scores[0] ?? 0), 0) / rs.length : 0;
+    const hit = rs.length ? rs.filter((r) => r.retrieval_hit).length / rs.length : 0;
+    out.push({
+      bucket: new Date(bStart).toISOString(),
+      avg_top_score: +avg.toFixed(3),
+      hit_rate: +hit.toFixed(3),
+    });
+  }
+  return out;
+}
+
+export interface DeadDoc {
+  source: string;
+  last_seen: string | null;
+}
+
+export async function getDeadDocs(range: { from?: Date; to?: Date }): Promise<DeadDoc[]> {
+  await delay(30);
+  const s = getSeed();
+  const queries = s.queries.filter((q) => inRange(q.created_at, range.from, range.to));
+  const qIds = new Set(queries.map((q) => q.id));
+  const used = new Set<string>();
+  s.retrievals
+    .filter((r) => qIds.has(r.query_id))
+    .forEach((r) => r.source_docs.forEach((d) => used.add(d)));
+  const allSources = new Set<string>();
+  s.retrievals.forEach((r) => r.source_docs.forEach((d) => allSources.add(d)));
+  return Array.from(allSources)
+    .filter((src) => !used.has(src))
+    .map((source) => ({ source, last_seen: null }));
+}
+
+export interface EmptyRetrievalRow {
+  query_id: string;
+  query_text: string;
+  top_score: number;
+  created_at: string;
+}
+
+export async function getEmptyRetrievals(
+  range: { from?: Date; to?: Date },
+  limit = 20,
+): Promise<EmptyRetrievalRow[]> {
+  await delay(30);
+  const s = getSeed();
+  const queries = s.queries.filter((q) => inRange(q.created_at, range.from, range.to));
+  const qById = new Map(queries.map((q) => [q.id, q]));
+  return s.retrievals
+    .filter((r) => !r.retrieval_hit && qById.has(r.query_id))
+    .slice(0, limit)
+    .map((r) => {
+      const q = qById.get(r.query_id)!;
+      return {
+        query_id: r.query_id,
+        query_text: q.query_text,
+        top_score: r.scores[0] ?? 0,
+        created_at: q.created_at,
+      };
+    });
+}
+
+export interface IngestionHealth {
+  total_runs: number;
+  ok: number;
+  partial: number;
+  failed: number;
+  total_chunks: number;
+}
+
+export async function getIngestionHealth(): Promise<IngestionHealth> {
+  await delay(20);
+  const runs = getSeed().ingestion_runs;
+  return {
+    total_runs: runs.length,
+    ok: runs.filter((r) => r.status === "ok").length,
+    partial: runs.filter((r) => r.status === "partial").length,
+    failed: runs.filter((r) => r.status === "failed").length,
+    total_chunks: runs.reduce((a, r) => a + r.chunks_added, 0),
+  };
+}
+
+export async function triggerReingest(source: string): Promise<{ runId: string }> {
+  await delay(150);
+  const s = getSeed();
+  const run: IngestionRun = {
+    id: `ing_${Date.now()}`,
+    source,
+    chunks_added: Math.floor(Math.random() * 50) + 10,
+    embedding_model: "all-MiniLM-L6-v2",
+    duration_ms: Math.floor(Math.random() * 5000) + 1500,
+    status: "ok",
+    error_log: null,
+    created_at: new Date().toISOString(),
+  };
+  s.ingestion_runs.unshift(run);
+  return { runId: run.id };
+}
+
+export interface PromptMetricsPoint {
+  promptVersionId: string;
+  label: string;
+  faithfulness: number;
+  answer_relevancy: number;
+  hallucination_rate: number;
+  count: number;
+}
+
+export async function getPromptMetricsByVersion(): Promise<PromptMetricsPoint[]> {
+  await delay(30);
+  const s = getSeed();
+  const respByQuery = new Map(s.responses.map((r) => [r.query_id, r]));
+  const grouped = new Map<string, typeof s.responses>();
+  s.queries.forEach((q) => {
+    const r = respByQuery.get(q.id);
+    if (!r) return;
+    const arr = grouped.get(q.prompt_version_id) ?? [];
+    arr.push(r);
+    grouped.set(q.prompt_version_id, arr);
+  });
+  return Array.from(grouped.entries()).map(([pvId, rs]) => {
+    const pv = s.prompt_versions.find((p) => p.id === pvId);
+    const avg = (key: keyof (typeof rs)[number]) =>
+      rs.length ? +(rs.reduce((a, r) => a + (r as any)[key], 0) / rs.length).toFixed(3) : 0;
+    return {
+      promptVersionId: pvId,
+      label: pv ? `${pv.name} v${pv.version}` : pvId.slice(0, 6),
+      faithfulness: avg("faithfulness"),
+      answer_relevancy: avg("answer_relevancy"),
+      hallucination_rate: rs.length
+        ? +(rs.filter((r) => r.hallucination_flag).length / rs.length).toFixed(3)
+        : 0,
+      count: rs.length,
+    };
+  });
+}
+
+export interface LiveQueryEvent {
+  id: string;
+  query_text: string;
+  model: string;
+  latency_ms: number;
+  hallucination: boolean;
+  created_at: string;
+}
+
+let liveCursor = 0;
+export async function pollLiveFeed(): Promise<LiveQueryEvent[]> {
+  await delay(30);
+  const s = getSeed();
+  const sorted = [...s.queries].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  liveCursor = (liveCursor + 1) % Math.max(1, sorted.length - 8);
+  return sorted.slice(liveCursor, liveCursor + 8).map((q) => {
+    const r = s.responses.find((x) => x.query_id === q.id);
+    return {
+      id: q.id,
+      query_text: q.query_text,
+      model: q.model,
+      latency_ms: q.latency_ms,
+      hallucination: !!r?.hallucination_flag,
+      created_at: q.created_at,
+    };
+  });
+}
+
+// ============================================================================
 // AskData — small canned-question stub
 // ============================================================================
 
