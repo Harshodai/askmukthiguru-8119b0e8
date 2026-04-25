@@ -96,10 +96,14 @@ export default function TopicsPage() {
           </ResponsiveContainer>
           <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
             {data?.map((c) => (
-              <div key={c.cluster_id} className="border border-border rounded p-2">
+              <a
+                key={c.cluster_id}
+                href={`/admin/queries?search=${encodeURIComponent(c.centroid_query.split(" ").slice(0, 2).join(" "))}`}
+                className="border border-border rounded p-2 hover:bg-muted/50 transition-colors block"
+              >
                 <div className="font-medium">{c.cluster_label}</div>
-                <div className="text-muted-foreground">{c.size} queries</div>
-              </div>
+                <div className="text-muted-foreground">{c.size} queries · {(c.avg_faithfulness * 100).toFixed(0)}%</div>
+              </a>
             ))}
           </div>
         </CardContent>

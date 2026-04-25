@@ -13,6 +13,7 @@ import {
 import { fmtDateTime } from "@/admin/lib/formatters";
 import { upsertAlertRule } from "@/admin/lib/mockData";
 import { useQueryClient } from "@tanstack/react-query";
+import { AlertRuleBuilder } from "@/admin/components/AlertRuleBuilder";
 
 export default function AlertsPage() {
   const { data: rules } = useAlertRules();
@@ -29,8 +30,9 @@ export default function AlertsPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Rules</CardTitle>
+          <AlertRuleBuilder />
         </CardHeader>
         <CardContent className="space-y-2">
           {rules?.map((r) => (
@@ -58,9 +60,7 @@ export default function AlertsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recently fired</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Recently fired</CardTitle></CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
