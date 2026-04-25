@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTriggers } from "@/admin/hooks/useAdminData";
+import { useTriggers, useTriggerTrend } from "@/admin/hooks/useAdminData";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,18 +10,35 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  AreaChart,
+  Area,
+  Legend,
 } from "recharts";
 import { useMemo } from "react";
 import { fmtInt } from "@/admin/lib/formatters";
+import { Link } from "react-router-dom";
+import { format } from "date-fns";
+
+const TRIGGER_COLORS: Record<string, string> = {
+  serene_mind: "hsl(var(--primary))",
+  fallback: "hsl(var(--muted-foreground))",
+  safety: "hsl(var(--destructive))",
+  meditation: "hsl(var(--secondary))",
+  youtube_link: "hsl(var(--accent))",
+  guru_handoff: "hsl(var(--prana-blue))",
+};
 
 export default function TriggersPage() {
   const { data: triggers } = useTriggers();
+  const { data: trend } = useTriggerTrend(14);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
     triggers?.forEach((t) => map.set(t.trigger_name, (map.get(t.trigger_name) ?? 0) + 1));
     return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
   }, [triggers]);
+
+  const trendData = trend?.map((p) => ({ ...p, label: format(new Date(p.bucket), "MMM d") })) ?? [];
 
   return (
     <div className="space-y-4">
@@ -31,18 +49,54 @@ export default function TriggersPage() {
         </p>
       </div>
 
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-base">By type (window)</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={counts}>
+                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Serene Mind highlight</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Badge className="text-lg px-3 py-1">
+                {fmtInt(triggers?.filter((t) => t.trigger_name === "serene_mind").length ?? 0)}
+              </Badge>
+              <div className="text-sm text-muted-foreground flex-1">
+                Times the Serene Mind meditation was offered in the selected window.
+              </div>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/admin/queries?search=anxious">View related queries →</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">By type</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">14-day stacked trend</CardTitle></CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={counts}>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={trendData}>
               <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-              />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
               <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
               <Tooltip
                 contentStyle={{
@@ -52,25 +106,20 @@ export default function TriggersPage() {
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-            </BarChart>
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {Object.keys(TRIGGER_COLORS).map((k) => (
+                <Area
+                  key={k}
+                  type="monotone"
+                  dataKey={k}
+                  stackId="1"
+                  stroke={TRIGGER_COLORS[k]}
+                  fill={TRIGGER_COLORS[k]}
+                  fillOpacity={0.55}
+                />
+              ))}
+            </AreaChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Serene Mind highlight</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <Badge className="text-lg px-3 py-1">
-              {fmtInt(triggers?.filter((t) => t.trigger_name === "serene_mind").length ?? 0)}
-            </Badge>
-            <div className="text-sm text-muted-foreground">
-              Times the Serene Mind meditation was offered in the selected window.
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
