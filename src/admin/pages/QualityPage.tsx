@@ -8,6 +8,7 @@ import {
 } from "@/admin/hooks/useAdminData";
 import { fmtDateTime, fmtPct, truncate } from "@/admin/lib/formatters";
 import { EmptyState } from "@/admin/components/EmptyState";
+import { RagasHeatmap } from "@/admin/components/RagasHeatmap";
 
 export default function QualityPage() {
   const { data: quality } = useQuality();
@@ -23,6 +24,13 @@ export default function QualityPage() {
         </p>
       </div>
 
+      <Card>
+        <CardHeader><CardTitle className="text-base">RAGAS heatmap</CardTitle></CardHeader>
+        <CardContent>
+          <RagasHeatmap buckets={8} />
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="disagreement">
         <TabsList>
           <TabsTrigger value="disagreement">Disagreement queue</TabsTrigger>
@@ -34,9 +42,7 @@ export default function QualityPage() {
         <TabsContent value="disagreement">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">
-                Where the judge and the user disagree
-              </CardTitle>
+              <CardTitle className="text-base">Where the judge and the user disagree</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {!quality?.disagreements.length ? (
@@ -49,9 +55,7 @@ export default function QualityPage() {
                   >
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={
-                          d.kind === "judge_good_user_bad" ? "destructive" : "secondary"
-                        }
+                        variant={d.kind === "judge_good_user_bad" ? "destructive" : "secondary"}
                       >
                         {d.kind === "judge_good_user_bad"
                           ? "judge OK · user 👎"
@@ -73,9 +77,7 @@ export default function QualityPage() {
 
         <TabsContent value="lowconf">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Low-confidence responses</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base">Low-confidence responses</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {!quality?.low_confidence.length ? (
                 <EmptyState title="No low-confidence responses" />
@@ -99,9 +101,7 @@ export default function QualityPage() {
 
         <TabsContent value="safety">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Safety events</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base">Safety events</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {!safety?.length ? (
                 <EmptyState title="No safety events in this window" />
@@ -136,9 +136,7 @@ export default function QualityPage() {
 
         <TabsContent value="anno">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Reviewer annotations</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base">Reviewer annotations</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {!annos?.length ? (
                 <EmptyState title="No annotations yet" />
