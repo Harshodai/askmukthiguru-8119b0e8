@@ -27,34 +27,31 @@ import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 
-const WELCOME_MESSAGE = 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
+const WELCOME_MESSAGE =
+  'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
 
-const buildPersonalisedWelcome = (
-  log: ReturnType<typeof loadProfileLog>,
-): string => {
+type PrePracticeLog = NonNullable<
+  ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog']
+>;
+
+const buildPersonalisedWelcome = (log: PrePracticeLog | undefined): string => {
+  if (!log) return WELCOME_MESSAGE;
   const insights = derivePrePracticeInsights(log);
-  const last = log?.lastAnswer;
-  if (last === 'soul_sync') {
-    return `Namaste. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
+  switch (log.lastAnswer) {
+    case 'soul_sync':
+      return `Namaste. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
+    case 'serene_mind':
+      return `Namaste. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
+    case 'both':
+      return `Namaste. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
+    case 'none':
+      return `Namaste, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
+    default:
+      return WELCOME_MESSAGE;
   }
-  if (last === 'serene_mind') {
-    return `Namaste. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
-  }
-  if (last === 'both') {
-    return `Namaste. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
-  }
-  if (last === 'none') {
-    return `Namaste, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
-  }
-  return WELCOME_MESSAGE;
 };
 
-// Local helper to read the log without re-importing loadProfile in two places.
-const loadProfileLog = () => {
-  // Lazy import avoids a circular concern; we only need the log shape.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return undefined as ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog'] | undefined;
-};
+export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
