@@ -107,11 +107,11 @@ export const ChatInterface = () => {
     if (conversation.messages.length > 0) {
       setMessages(conversation.messages);
     } else {
-      // Add welcome message
+      // Add personalised welcome message based on the seeker's pre-practice answer.
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
-        content: WELCOME_MESSAGE,
+        content: buildPersonalisedWelcome(profile.prePracticeLog),
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
