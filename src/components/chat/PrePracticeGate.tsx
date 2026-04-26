@@ -74,7 +74,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
     if (answer === 'none') {
       // Gentle invitation rather than a force — open Serene Mind as a soft nudge.
       // The chat still loads beneath; user can dismiss the modal.
-      setTimeout(() => openSereneMind('breath'), 250);
+      setTimeout(() => openSereneMind('breathing'), 250);
     }
   };
 
