@@ -55,3 +55,10 @@ prd.json
 
 video_frames_v2/
 video_frames/
+.gemini/
+.claude/
+__pyrefly_virtual__/
+hf_model_cache/
+rag_storage/
+knowledge/
+.agent/

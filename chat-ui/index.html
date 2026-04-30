@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mukthi Guru Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="logo">
+                <span class="logo-emoji">🙏</span>
+                <h1 class="title">Mukthi Guru</h1>
+            </div>
+            <div class="status-indicator">
+                <span id="status-dot" class="dot"></span>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </header>
+
+        <main class="chat-window" id="chat-window">
+            <div class="message system">
+                <div class="content">
+                    Greetings. I am the Mukthi Guru, here to share the spiritual teachings of Sri Preethaji and Sri Krishnaji. How may I assist you on your path today?
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <form id="chat-form" class="chat-form">
+                <input type="text" id="user-input" placeholder="Ask a question..." autocomplete="off">
+                <button type="submit" id="send-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

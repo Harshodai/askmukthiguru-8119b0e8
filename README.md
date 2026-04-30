@@ -1,159 +1,126 @@
-# Welcome to your Lovable project
+# AskMukthiGuru — AI Spiritual Guide
 
-## Project info
+An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a multi-layer RAG pipeline, real-time guardrails, and beautiful conversational UI.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Architecture
 
-## How can I edit this code?
+| Component | Technology | Port |
+|---|---|---|
+| **Frontend** (Nginx) | Vite React 18 + TailwindCSS + shadcn/ui | `80` |
+| **Backend** (FastAPI) | 12-layer RAG pipeline, Sarvam 30B Cloud API | `8000` |
+| **Qdrant** | Vector database | `6333` |
+| **Redis** | Response caching | `6379` |
+| **Neo4j** | Knowledge graph (LightRAG) | `7474` / `7687` |
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-## 🚀 How to Run (Docker)
-
-The recommended way to run Mukthi Guru is via Docker Compose. This starts the Vector DB, Backend API, and Ingestion UI.
+## Deploy with Docker (Recommended)
 
 ### Prerequisites
-1. **Ollama**: Must be installed and running on your host machine.
-   ```bash
-   ollama serve
-   ollama pull llama3.2:latest
-   ```
-2. **Docker Desktop**: Must be running.
+- **Docker** and **Docker Compose** installed
 
-### 1. Start the Stack
+### One-command deploy
+
 ```bash
 cd backend
-docker compose up -d --build
+docker compose up -d
 ```
 
-### 2. Access the UIs
-- **Ingestion Portal**: [http://localhost:8000/ingest/](http://localhost:8000/ingest/)
-- **Backend API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Qdrant Dashboard**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
+This builds and starts **all 5 services**:
+- **Frontend** on port **80** — serves the React app, Chat widget, and Ingest UI via Nginx
+- **Backend** on port **8000** — FastAPI RAG pipeline
+- **Qdrant** on port **6333** — vector database
+- **Redis** on port **6379** — response caching
+- **Neo4j** on port **7474** — knowledge graph
 
-### 3. Ingest Content
-1. Open the **Ingestion Portal** at [http://localhost:8000/ingest/](http://localhost:8000/ingest/).
-2. Paste a YouTube video URL (e.g., `https://youtu.be/CvDkoctU5a4`).
-3. (Optional) Check **Max Accuracy** to force high-quality transcription (Whisper) and skip auto-captions.
-4. Click **Ingest**. The process runs in the background.
+### Access the app
 
-## ☁️ How to Run (Google Colab)
+| URL | Description |
+|---|---|
+| http://localhost | Main app (landing, chat, practices, profile) |
+| http://localhost/admin | Admin dashboard (login: `admin` / `admin`) |
+| http://localhost/chat | Lightweight chat widget |
+| http://localhost/ingest | Content ingestion portal |
+| http://localhost:8000/api/health | Backend health check |
 
-If you have limited local compute, you can run the full stack on Google Colab (Free Tier T4 GPU is supported).
+### Useful commands
 
-1. **Open a new Colab Notebook**
-2. **Clone the Repository**:
-   ```python
-   !git clone https://github.com/YourUsername/askmukthiguru.git
-   %cd askmukthiguru/backend
-   ```
-3. **Run the Setup Script**:
-   ```python
-   !python colab/setup.py
-   ```
-   This script will:
-   - Install dependencies (including `ffmpeg` and `ollama`)
-   - Start Ollama and pull the model
-   - Start the Backend (`localhost:8000`)
-   - Serve Ingestion UI at `localhost:8000/ingest/`
+```bash
+# View logs
+docker compose logs -f
 
-4. **Accessing UIs (One Tunnel)**:
-   Since Colab is remote, use **ngrok** to expose the backend port (8000):
-   ```python
-   from colab.setup import expose_with_ngrok
-   expose_with_ngrok("YOUR_NGROK_AUTHTOKEN")
-   ```
-   - **Ingestion UI**: `https://<ngrok-url>/ingest/`
-   - **API**: `https://<ngrok-url>/docs`
-   
-   *No extra 3001 port tunnel needed!*
-   Or use the Colab "Port Forwarding" feature (VS Code style) if available in your interface.
+# Rebuild after code changes
+docker compose up -d --build
 
-5. **Backup & Restore (Persistence)**:
-   To save your RAG data (vector DB) and models to Google Drive so you don't lose progress:
-   ```python
-   # Mount Drive and Backup
-   !python colab/transfer.py backup --models
-   
-   # Restore from Drive (on next run)
-   !python colab/transfer.py restore /content/drive/MyDrive/MukthiGuru_Backups/mukthiguru_backup_2024-08-01.zip
-   # (Replace with your actual backup filename)
-   ```
+# Stop all services
+docker compose down
 
+# Stop and remove volumes (reset data)
+docker compose down -v
+```
 
+## Local Development (Without Docker)
 
-## 🛠 Directory Structure
-- `backend/` — FastAPI application (RAG pipeline, LangGraph, Qdrant)
-- `ingest-ui/` — Standalone Ingestion Frontend (HTML/JS)
-- `src/` — Main React Application (Chat UI)
+For development with hot-reload:
 
-## 🐳 Services
-| Service | URL | Description |
-|---------|-----|-------------|
-| **backend** | `:8000` | Core API + Ingestion UI (at `/ingest/`) |
-| **qdrant** | `:6333` | Vector Database |
-| **ollama** | `:11434` | LLM Inference (Host) |
+```bash
+# 1. Start infrastructure only
+cd backend && docker compose up -d qdrant redis neo4j
 
-**Use GitHub Codespaces**
+# 2. Start backend (in one terminal)
+cd backend && pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# 3. Start frontend (in another terminal)
+npm install && npm run dev
+```
 
-## What technologies are used for this project?
+Frontend dev server runs on http://localhost:8080.
 
-This project is built with:
+## LLM Configuration
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Set `LLM_PROVIDER` in `backend/.env`:
 
-## How can I deploy this project?
+| Provider | Config | Description |
+|---|---|---|
+| `sarvam_cloud` (default) | Set `SARVAM_API_KEY` | Sarvam Cloud API — fast, reliable |
+| `ollama` | Set `OLLAMA_BASE_URL` | Local Ollama with Qwen/Sarvam models |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## RAG Pipeline (12 Layers)
 
-## Can I connect a custom domain to my Lovable project?
+1. NeMo Input Rail (guardrails)
+2. Intent Classification
+3. Query Decomposition
+4. Knowledge Tree Navigation (RAPTOR)
+5. Hybrid Retrieval (Qdrant + LightRAG)
+6. Cross-encoder Reranking
+7. CRAG Document Grading
+8. Stimulus RAG (Hint Extraction)
+9. Context-aware Generation
+10. Self-RAG Faithfulness Check
+11. Chain of Verification (CoVe)
+12. NeMo Output Rail
 
-Yes, you can!
+## Project Structure
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
+├── backend/              # FastAPI backend
+│   ├── app/              # Main app, config, dependencies
+│   ├── rag/              # LangGraph pipeline, prompts, nodes
+│   ├── services/         # LLM, embedding, Qdrant, OCR services
+│   ├── guardrails/       # NeMo guardrails
+│   ├── ingest/           # Content ingestion pipeline
+│   ├── Dockerfile        # Backend Docker image
+│   └── docker-compose.yml
+├── src/                  # React frontend (Vite)
+│   ├── components/       # UI components
+│   ├── pages/            # Route pages
+│   └── admin/            # Admin dashboard
+├── chat-ui/              # Static chat widget
+├── ingest-ui/            # Static ingestion UI
+├── frontend.Dockerfile   # Frontend Docker image (multi-stage Vite build + Nginx)
+├── nginx.conf            # Nginx config for frontend proxy
+└── index.html            # Frontend entry point
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## License
+
+Private — All rights reserved.

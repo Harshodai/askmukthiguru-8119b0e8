@@ -2,14 +2,14 @@
 
 Step-by-step. Each step is independent and reversible.
 
-## 1. Enable Lovable Cloud
-Click "Connect Cloud" in the Lovable UI. This provisions Postgres + auth + storage + edge functions.
+## 1. Enable Cloud Database
+Provision Postgres + auth + storage + edge functions via your cloud provider (e.g. Supabase, Neon).
 
 ## 2. Apply the schema
 Run `docs/admin/schema.sql` as a single migration. It is idempotent for the optional upgrades (pgvector, realtime publication).
 
 ## 3. Seed the first admin
-Get your `auth.users.id` from the Cloud dashboard, then:
+Get your `auth.users.id` from the cloud dashboard, then:
 ```sql
 insert into user_roles (user_id, role)
 values ('<your-uuid>', 'admin');

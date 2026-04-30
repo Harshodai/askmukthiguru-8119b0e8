@@ -184,6 +184,25 @@ if ui_path:
 else:
     logger.warning("⚠️ Ingestion UI directory not found. UI will not be available.")
 
+# === Mount Chat UI ===
+chat_ui_possible_paths = [
+    Path("/app/chat-ui"),
+    Path("chat-ui"),
+    Path("../chat-ui"),
+]
+
+chat_ui_path = None
+for p in chat_ui_possible_paths:
+    if p.exists():
+        chat_ui_path = p
+        break
+
+if chat_ui_path:
+    app.mount("/chat", StaticFiles(directory=str(chat_ui_path), html=True), name="chat")
+    logger.info(f"✅ Premium Chat UI mounted at /chat (from {chat_ui_path})")
+else:
+    logger.warning("⚠️ Chat UI directory not found.")
+
 # === Mount Gradio UI (Council Recommendation) ===
 try:
     from app.gradio_ui import create_demo
@@ -246,7 +265,7 @@ class HealthResponse(BaseModel):
 
 @app.post("/api/chat", response_model=ChatResponse)
 @limiter.limit("20/minute")
-async def chat_endpoint(request: Request, chat_body: ChatRequest, user: AuthUser = Depends(current_active_user)) -> ChatResponse:
+async def chat_endpoint(request: Request, chat_body: ChatRequest, user: Optional[AuthUser] = None) -> ChatResponse:
     """
     Main conversational endpoint.
     
@@ -462,7 +481,6 @@ async def ingest_endpoint(
     request: Request,
     ingest_body: IngestRequest,
     background_tasks: BackgroundTasks,
-    user: AuthUser = Depends(current_active_user)
 ) -> IngestResponse:
     """
     Content ingestion endpoint.

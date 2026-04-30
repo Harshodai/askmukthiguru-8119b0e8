@@ -1,6 +1,6 @@
 // Types mirror the eventual Postgres schema 1:1.
-// When Lovable Cloud is enabled, these stay; only the data-fetching bodies in
-// src/admin/lib/mockData.ts swap from in-memory to supabase.from(...).
+// When backend auth is enabled, these stay; only the data-fetching bodies in
+// src/admin/lib/mockData.ts swap from in-memory to real database queries.
 
 export type ISODate = string;
 

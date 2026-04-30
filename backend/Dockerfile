@@ -35,6 +35,8 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 COPY backend/ .
 # Copy Ingestion UI static files
 COPY ingest-ui/ /app/ingest-ui/
+# Copy Chat UI static files
+COPY chat-ui/ /app/chat-ui/
 
 # Create non-root user
 RUN useradd -m -r appuser && chown -R appuser:appuser /app

@@ -40,7 +40,7 @@ def create_demo():
         gr.Markdown("# 🕉️ Mukthi Guru")
         gr.Markdown("Conversational AI based on the teachings of Sri Preethaji & Sri Krishnaji.")
         
-        chatbot = gr.Chatbot(elem_id="chatbot", type="messages")
+        chatbot = gr.Chatbot(elem_id="chatbot")
         msg = gr.Textbox(placeholder="Ask a spiritual question...", show_label=False)
         clear = gr.ClearButton([msg, chatbot])
 

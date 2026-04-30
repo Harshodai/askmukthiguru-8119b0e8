@@ -133,9 +133,25 @@ services:
     volumes:
       # Cache HuggingFace models across rebuilds (prevents re-download on every docker build)
       - hf_model_cache:/app/.cache
+      # Mount UIs for development
+      - ../ingest-ui:/app/ingest-ui
+      - ../chat-ui:/app/chat-ui
     # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  # --- Frontend (Nginx Proxy) ---
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend.Dockerfile
+    container_name: mukthiguru-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   qdrant_data:

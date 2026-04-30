@@ -13,7 +13,7 @@
 - 🟥 **Critical** — blocks production launch
 - 🟧 **High** — meaningful UX, cost, or quality impact
 - 🟨 **Medium** — nice-to-have, do after launch
-- 🟦 **FE** — implementable in this Lovable React repo
+- 🟦 **FE** — implementable in this React repo
 - 🟫 **BE** — requires changes in `backend/` (Python FastAPI)
 
 Effort estimates are rough developer-days for an experienced engineer.

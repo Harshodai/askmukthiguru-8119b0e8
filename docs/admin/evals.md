@@ -24,7 +24,7 @@ Triggers:
 
 ## Scheduling
 
-Until `pg_cron` is confirmed available on Lovable Cloud, use an external
+Until `pg_cron` is confirmed available on the cloud database, use an external
 scheduler (cron-job.org, GitHub Actions, EasyCron) hitting:
 
 ```

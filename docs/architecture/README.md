@@ -22,7 +22,7 @@ wins**. Known examples:
 - ❌ ~~`@EkamOfficial` YouTube channel~~ → ✅ only `@PreetiKrishna` is verified
 - ❌ ~~A100 80GB at ₹55K–2.5L~~ → ✅ ₹220/hr on-demand or ₹65/hr via IndiaAI subsidy
 
-## Scope of this Lovable repo
+## Scope of this repo
 
 This repository contains **only the React frontend**. The vast majority of the
 recommendations in these reports concern the Python FastAPI backend (in the

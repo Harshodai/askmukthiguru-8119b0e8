@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
             </div>
             <CardDescription>
               Use <code className="text-xs">admin / admin</code>. Real Supabase auth wires
-              in when Lovable Cloud is enabled.
+              in when backend auth is enabled.
             </CardDescription>
           </CardHeader>
           <CardContent>

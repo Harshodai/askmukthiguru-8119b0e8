@@ -46,7 +46,7 @@ Use these names so the waterfall renders consistently:
 
 ## Judge — single AI call returning all 4 RAGAS scores + safety
 
-Run inside an edge function so `LOVABLE_API_KEY` stays server-side.
+Run inside a server-side function so the API key stays server-side.
 
 ```ts
 const evalTool = {
@@ -79,10 +79,10 @@ const evalTool = {
   },
 };
 
-await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+await fetch("https://api.openai.com/v1/chat/completions", {
   method: "POST",
   headers: {
-    Authorization: `Bearer ${Deno.env.get("LOVABLE_API_KEY")}`,
+    Authorization: `Bearer ${process.env.LLM_API_KEY}`,
     "Content-Type": "application/json",
   },
   body: JSON.stringify({

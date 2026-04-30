@@ -7,7 +7,7 @@ End-user chat (askmukthiguru, brought in later)
  telemetry write API  ──►  Postgres (RLS-locked, service role only)
         │                        ▲
         ▼                        │ admin SELECT
- async judge (Lovable AI)  ──────┘   (via has_role)
+ async judge (LLM API)  ──────┘   (via has_role)
 
 Admin browser
         │
