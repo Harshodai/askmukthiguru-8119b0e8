@@ -13,6 +13,7 @@ import {
   getCurrentConversationId,
   setCurrentConversationId,
 } from '@/lib/chatStorage';
+import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, MessagePayload } from '@/lib/aiService';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -26,7 +27,29 @@ import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 
-const WELCOME_MESSAGE = 'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
+const WELCOME_MESSAGE =
+  'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
+
+type PrePracticeLog = NonNullable<
+  ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog']
+>;
+
+const buildPersonalisedWelcome = (log: PrePracticeLog | undefined): string => {
+  if (!log) return WELCOME_MESSAGE;
+  const insights = derivePrePracticeInsights(log);
+  switch (log.lastAnswer) {
+    case 'soul_sync':
+      return `Namaste. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
+    case 'serene_mind':
+      return `Namaste. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
+    case 'both':
+      return `Namaste. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
+    case 'none':
+      return `Namaste, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
+    default:
+      return WELCOME_MESSAGE;
+  }
+};
 
 export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
@@ -84,11 +107,11 @@ export const ChatInterface = () => {
     if (conversation.messages.length > 0) {
       setMessages(conversation.messages);
     } else {
-      // Add welcome message
+      // Add personalised welcome message based on the seeker's pre-practice answer.
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
-        content: WELCOME_MESSAGE,
+        content: buildPersonalisedWelcome(profile.prePracticeLog),
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
