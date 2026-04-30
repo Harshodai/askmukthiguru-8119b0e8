@@ -6,8 +6,16 @@ from app.config import get_settings
 
 settings = get_settings()
 
+import os
+
 # For Phase 1 Auth we use a local SQLite database for users
-SQLITE_URL = "sqlite+aiosqlite:///./mukthi_users.db"
+# In Docker, we must use the writable /app/data directory.
+if os.path.exists("/app/data"):
+    db_path = "/app/data/mukthi_users.db"
+else:
+    db_path = os.environ.get("AUTH_DB_PATH", "./mukthi_users.db")
+    
+SQLITE_URL = f"sqlite+aiosqlite:///{db_path}"
 
 engine = create_async_engine(SQLITE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)

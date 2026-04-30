@@ -34,9 +34,10 @@ export interface AIResponse {
   blockReason?: string;
 }
 
-// Default configuration
+// Default configuration pointing to our FastAPI backend
 let currentConfig: AIConfig = {
-  provider: 'placeholder',
+  provider: 'custom',
+  endpoint: '/api/chat',
   language: 'en',
   systemPrompt: `You are a spiritual AI companion embodying the wisdom of Sri Preethaji & Sri Krishnaji. 
 Your purpose is to guide seekers toward their "beautiful state" - a state of consciousness free from suffering.

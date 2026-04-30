@@ -1,0 +1,29 @@
+# .pre-commit-config.yaml
+# Modern pre-commit configuration for AskMukthiGuru
+# To install hooks: `pip install pre-commit && pre-commit install`
+
+repos:
+  # --- Standard File Checks ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=5000'] # 5MB limit
+      - id: detect-private-key
+
+  # --- Python Linting & Formatting (Ruff) ---
+  # Ruff replaces black, isort, flake8, and pyupgrade in one ultra-fast tool.
+  # Configuration is read from backend/pyproject.toml
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format

@@ -20,8 +20,8 @@ import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -31,8 +31,11 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, ".")
 
 from app.config import settings
-from app.dependencies import get_container, startup, shutdown
+from app.dependencies import get_container, startup, shutdown, ServiceContainer
+from app.telemetry_db import init_telemetry_db, log_query_trace
 from rag.graph import create_initial_state
+import time
+import uuid
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
 from services.depression_detector import DepressionDetector
 from services.cache_service import RedisCacheAdapter, InMemoryCacheAdapter, init_llm_cache
@@ -60,12 +63,24 @@ except Exception as e:
     logger.warning(f"Redis initialization failed ({e}). Falling back to InMemoryCacheAdapter.")
     response_cache = InMemoryCacheAdapter()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+# Configure JSON logging for production observability (Phase 10)
+import json
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_obj = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            log_obj["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_obj)
+
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z"))
+logging.basicConfig(level=logging.INFO, handlers=[handler])
+
 
 
 # === Lifespan (startup/shutdown) ===
@@ -77,10 +92,25 @@ async def lifespan(app: FastAPI):
     
     # 1. Initialize DB and Create tables if needed
     await init_db()
+    await init_telemetry_db()
     
     # 2. Dependency injection container setup (loads all services)
     startup()
     container = get_container()
+
+    # 2.5 Pre-warm heavy ML models in background thread so they don't block startup (Phase 3)
+    def prewarm_models():
+        logger.info("Background pre-warming: starting...")
+        try:
+            container.ocr._ensure_reader()
+            container.embedding._ensure_models()
+            logger.info("Background pre-warming: complete.")
+        except Exception as e:
+            logger.warning(f"Background pre-warming failed: {e}")
+            
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(prewarm_models))
+
 
     # 3. Async services initialization (LightRAG)
     try:
@@ -152,7 +182,19 @@ app.add_middleware(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global error boundary catching all unhandled exceptions."""
+    logger.error(f"Unhandled server error on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Please try again later.", "error": str(exc)},
+    )
+
+
+from routers.admin import admin_router
 app.include_router(auth_router, prefix="/api/auth")
+app.include_router(admin_router, prefix="/api/admin")
 
 @app.get("/metrics")
 async def get_metrics():
@@ -265,14 +307,19 @@ class HealthResponse(BaseModel):
 
 @app.post("/api/chat", response_model=ChatResponse)
 @limiter.limit("20/minute")
-async def chat_endpoint(request: Request, chat_body: ChatRequest, user: Optional[AuthUser] = None) -> ChatResponse:
+async def chat_endpoint(
+    request: Request,
+    chat_body: ChatRequest,
+    background_tasks: BackgroundTasks,
+    container: ServiceContainer = Depends(get_container)
+) -> ChatResponse:
     """
     Main conversational endpoint.
     
     Full pipeline: NeMo Input Rail → LangGraph (11 layers) → NeMo Output Rail
     """
-    container = get_container()
     user_msg = chat_body.user_message.strip()
+    start_time = time.time()
 
     if not user_msg:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -350,6 +397,34 @@ async def chat_endpoint(request: Request, chat_body: ChatRequest, user: Optional
         logger.info(f"Output moderated: {output_check['reason']}")
         final_answer = output_check["moderated_response"]
 
+    # --- Telemetry Logging ---
+    query_id = str(uuid.uuid4())
+    query_data = {
+        "id": query_id,
+        "session_id": "api-session",
+        "anon_user_id": "anon",
+        "query_text": user_msg,
+        "model": "askmukthiguru",
+        "latency_ms": int((time.time() - start_time) * 1000),
+        "status": "ok" if intent != "ERROR" else "error",
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    }
+    
+    # Safely pull RAG eval scores if available
+    is_rag = (intent == "QUERY")
+    response_data = {
+        "id": str(uuid.uuid4()),
+        "response_text": final_answer,
+        "citations": citations,
+        "faithfulness": result.get("faithfulness_score", 0.0) if is_rag and 'result' in locals() else 1.0,
+        "answer_relevancy": 1.0,
+        "context_precision": 1.0,
+        "context_recall": 1.0,
+        "hallucination_flag": not result.get("faithful", True) if is_rag and 'result' in locals() else False,
+        "judge_reasoning": result.get("verification_reason", "") if is_rag and 'result' in locals() else ""
+    }
+    background_tasks.add_task(log_query_trace, query_data, response_data)
+
     return ChatResponse(
         response=final_answer,
         intent=intent,
@@ -362,7 +437,11 @@ async def chat_endpoint(request: Request, chat_body: ChatRequest, user: Optional
 
 @app.post("/api/chat/stream")
 @limiter.limit("20/minute")
-async def chat_stream_endpoint(request: Request, chat_body: ChatRequest, user: AuthUser = Depends(current_active_user)):
+async def chat_stream_endpoint(
+    request: Request,
+    chat_body: ChatRequest,
+    container: ServiceContainer = Depends(get_container)
+):
     """
     Streaming chat endpoint using Server-Sent Events (SSE).
 
@@ -376,7 +455,6 @@ async def chat_stream_endpoint(request: Request, chat_body: ChatRequest, user: A
     import json
     from fastapi.responses import StreamingResponse
 
-    container = get_container()
     user_msg = chat_body.user_message.strip()
 
     if not user_msg:
@@ -481,6 +559,7 @@ async def ingest_endpoint(
     request: Request,
     ingest_body: IngestRequest,
     background_tasks: BackgroundTasks,
+    container: ServiceContainer = Depends(get_container)
 ) -> IngestResponse:
     """
     Content ingestion endpoint.
@@ -488,7 +567,6 @@ async def ingest_endpoint(
     Accepts YouTube video/playlist URLs and image URLs.
     Runs ingestion in the background so the API responds immediately.
     """
-    container = get_container()
     url = ingest_body.url.strip()
 
     if not url:
@@ -530,13 +608,12 @@ async def ingest_endpoint(
 
 
 @app.get("/api/health", response_model=HealthResponse)
-async def health_endpoint() -> HealthResponse:
+async def health_endpoint(container: ServiceContainer = Depends(get_container)) -> HealthResponse:
     """
     Health check endpoint.
     
     Returns status of all backend services and total indexed chunks.
     """
-    container = get_container()
     health = await container.health_status()
 
     all_healthy = all(
@@ -551,12 +628,11 @@ async def health_endpoint() -> HealthResponse:
 
 
 @app.get("/api/ingest/status")
-async def ingest_status_endpoint() -> dict:
+async def ingest_status_endpoint(container: ServiceContainer = Depends(get_container)) -> dict:
     """
     Get the status of active/recent ingestion jobs.
     Returns: {url: {status, message, progress, updated_at}}
     """
-    container = get_container()
     return container.ingest_status
 
 

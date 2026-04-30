@@ -1,0 +1,24 @@
+{
+  "project_patterns": [
+    {
+      "pattern_name": "dependency_injection",
+      "description": "FastAPI routes MUST use explicit Depends(get_container) for ServiceContainer rather than implicit imports to ensure isolated testing and pure architecture.",
+      "implemented_in": ["backend/app/main.py", "backend/app/dependencies.py"]
+    },
+    {
+      "pattern_name": "lazy_loading_ml_models",
+      "description": "Heavy ML models (Whisper, BGEM3FlagModel, CrossEncoder) MUST NOT be loaded during initialization. Use _ensure_models() double-checked locking inside the methods to prevent cold-start timeouts in Docker.",
+      "implemented_in": ["backend/services/embedding_service.py", "backend/services/ocr_service.py"]
+    },
+    {
+      "pattern_name": "asynchronous_io_concurrency",
+      "description": "Never use requests.get in the async event loop. Use httpx.AsyncClient. For ML model inference, always wrap the blocking code in asyncio.to_thread to maintain event loop non-blocking behavior.",
+      "implemented_in": ["backend/services/ocr_service.py", "backend/ingest/image_loader.py", "backend/ingest/pipeline.py"]
+    },
+    {
+      "pattern_name": "telemetry_logging_lifecyle",
+      "description": "Use BackgroundTasks in FastAPI endpoints (like /api/chat) to log query traces to the Telemetry SQLite database asynchronously without blocking the user response.",
+      "implemented_in": ["backend/app/telemetry_db.py", "backend/app/main.py"]
+    }
+  ]
+}

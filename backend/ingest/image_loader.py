@@ -29,7 +29,7 @@ def is_image_url(url: str) -> bool:
     return bool(IMAGE_EXTENSIONS.search(url))
 
 
-def process_image_url(url: str, ocr_service: Optional[OCRService] = None) -> dict:
+async def process_image_url(url: str, ocr_service: Optional[OCRService] = None) -> dict:
     """
     Download an image URL and extract text via OCR.
     
@@ -43,7 +43,7 @@ def process_image_url(url: str, ocr_service: Optional[OCRService] = None) -> dic
     if ocr_service is None:
         ocr_service = OCRService()
 
-    result = ocr_service.extract_text_from_url(url)
+    result = await ocr_service.extract_text_from_url(url)
 
     if result.get("error"):
         logger.warning(f"Image OCR failed for {url}: {result['error']}")

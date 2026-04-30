@@ -310,7 +310,7 @@ class IngestionPipeline:
     ) -> dict:
         """Ingest text from an image via OCR."""
         self._notify(on_progress, "Extracting text from image...", 0.3)
-        result = process_image_url(url, self._ocr)
+        result = await process_image_url(url, self._ocr)
 
         if not result.get("text"):
             return {

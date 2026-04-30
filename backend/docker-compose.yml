@@ -133,6 +133,8 @@ services:
     volumes:
       # Cache HuggingFace models across rebuilds (prevents re-download on every docker build)
       - hf_model_cache:/app/.cache
+      # Persist SQLite telemetry database
+      - telemetry_data:/app/data
       # Mount UIs for development
       - ../ingest-ui:/app/ingest-ui
       - ../chat-ui:/app/chat-ui
@@ -161,4 +163,6 @@ volumes:
   redis_data:
     driver: local
   hf_model_cache:
+    driver: local
+  telemetry_data:
     driver: local

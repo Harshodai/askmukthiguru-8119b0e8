@@ -1,0 +1,91 @@
+[project]
+name = "askmukthiguru-backend"
+version = "0.1.0"
+description = "FastAPI backend for AskMukthiGuru AI Spiritual Guide"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Private" }
+
+dependencies = [
+    # Core
+    "fastapi>=0.115.0,<1.0",
+    "uvicorn[standard]>=0.34.0,<1.0",
+    "pydantic>=2.10.0,<3.0",
+    "pydantic-settings>=2.7.0,<3.0",
+    "python-dotenv>=1.0.0,<2.0",
+    
+    # LLM & RAG
+    "langchain>=0.3.15,<1.0",
+    "langchain-core>=0.3.31,<1.0",
+    "langchain-community>=0.3.15,<1.0",
+    "langchain-ollama>=0.3.0,<1.0",
+    "langgraph>=0.2.60,<1.0",
+    "langchain-sarvam>=0.1.0",
+    "sarvamai>=0.1.0",
+    "qdrant-client>=1.13.0,<2.0",
+    "sentence-transformers>=3.4.0,<4.0",
+    "FlagEmbedding>=1.2.10",
+    "umap-learn>=0.5.7",
+    "scikit-learn>=1.6.0,<2.0",
+    "lightrag-hku>=1.0.0",
+    "neo4j>=5.17.0",
+    
+    # Ingestion & Media
+    "youtube-transcript-api>=1.0.0",
+    "yt-dlp>=2025.1.0",
+    "requests>=2.32.0,<3.0",
+    "Pillow>=11.0.0,<12.0",
+    "webvtt-py>=0.5.0",
+    
+    # Infrastructure
+    "cachetools>=5.3.0,<6.0",
+    "prometheus_client>=0.21.0",
+    "redis>=5.2.0",
+    "apscheduler>=3.10.0",
+    
+    # Auth & Security
+    "fastapi-users[sqlalchemy]>=13.0.0",
+    "slowapi>=0.1.9",
+    "aiosqlite>=0.20.0",
+    "passlib[bcrypt]>=1.7.4",
+    
+    # UI
+    "gradio>=4.0.0"
+]
+
+[project.optional-dependencies]
+heavy = [
+    "faster-whisper>=1.1.0",
+    "arize-phoenix>=4.38.0",
+    "openinference-instrumentation-langchain>=0.1.33",
+    "ragas>=0.2.1",
+    "gptcache>=0.1.43",
+    "easyocr>=1.7.2",
+    "nemoguardrails>=0.11.0"
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0,<9.0",
+    "pytest-asyncio>=0.25.0,<1.0",
+    "httpx>=0.28.0,<1.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"] # Line length handled by formatter
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true

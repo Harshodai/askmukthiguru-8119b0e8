@@ -16,9 +16,11 @@ import os
 import tempfile
 import threading
 from pathlib import Path
+import asyncio
+from pathlib import Path
 from typing import Optional
 
-import requests
+import httpx
 from PIL import Image
 
 from app.config import settings
@@ -63,7 +65,7 @@ class OCRService:
                 )
                 logger.info("EasyOCR reader loaded")
 
-    def extract_text_from_url(self, image_url: str) -> dict:
+    async def extract_text_from_url(self, image_url: str) -> dict:
         """
         Download an image from URL and extract text via OCR.
         
@@ -77,23 +79,25 @@ class OCRService:
         tmp_path = None
 
         try:
-            response = requests.get(image_url, timeout=30, stream=True)
-            response.raise_for_status()
+            async with httpx.AsyncClient() as client:
+                response = await client.get(image_url, timeout=30.0)
+                response.raise_for_status()
 
-            # Validate content type
-            content_type = response.headers.get("content-type", "")
-            if not any(t in content_type for t in ["image/", "application/octet-stream"]):
-                raise ValueError(f"URL does not point to an image: {content_type}")
+                # Validate content type
+                content_type = response.headers.get("content-type", "")
+                if not any(t in content_type for t in ["image/", "application/octet-stream"]):
+                    raise ValueError(f"URL does not point to an image: {content_type}")
 
-            # Save to temp file for EasyOCR
-            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                for chunk in response.iter_content(chunk_size=8192):
-                    tmp.write(chunk)
-                tmp_path = tmp.name
+                # Save to temp file for EasyOCR
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                    async for chunk in response.aiter_bytes(chunk_size=8192):
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
 
-            return self._extract_from_file(tmp_path, source_url=image_url)
+            # Run ML inference in a separate thread so we don't block the asyncio event loop
+            return await asyncio.to_thread(self._extract_from_file, tmp_path, image_url)
 
-        except (requests.RequestException, ValueError) as e:
+        except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as e:
             logger.error(f"Failed to download/validate image: {e}")
             return {
                 "text": "",
@@ -110,7 +114,7 @@ class OCRService:
                 except OSError:
                     pass
 
-    def extract_text_from_file(self, file_path: str) -> dict:
+    async def extract_text_from_file(self, file_path: str) -> dict:
         """
         Extract text from a local image file.
         
@@ -120,7 +124,8 @@ class OCRService:
         Returns:
             Dict with 'text', 'source_url', 'content_type', 'confidence'
         """
-        return self._extract_from_file(file_path, source_url=f"file://{file_path}")
+        # Run ML inference in a separate thread
+        return await asyncio.to_thread(self._extract_from_file, file_path, f"file://{file_path}")
 
     def _extract_from_file(self, file_path: str, source_url: str = "") -> dict:
         """

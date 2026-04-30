@@ -32,24 +32,35 @@ class EmbeddingService:
     """
 
     def __init__(self) -> None:
-        """Load bge-m3 and reranker models."""
-        from FlagEmbedding import BGEM3FlagModel
+        """Initialize with None models — will be loaded on first use."""
+        import threading
+        self._encoder = None
+        self._reranker = None
+        self._lock = threading.Lock()
+        logger.info("Embedding service initialized (lazy load)")
 
-        logger.info(f"Loading encoder: {settings.embedding_model}")
-        self._encoder = BGEM3FlagModel(
-            settings.embedding_model,
-            use_fp16=False,   # FP16 requires CUDA; use False for CPU/Mac Docker
-            device="cpu",
-        )
+    def _ensure_models(self) -> None:
+        """Lazy-load the heavy embedding and reranking models."""
+        if self._encoder is not None and self._reranker is not None:
+            return
+        with self._lock:
+            if self._encoder is None:
+                from FlagEmbedding import BGEM3FlagModel
+                logger.info(f"Loading encoder: {settings.embedding_model}")
+                self._encoder = BGEM3FlagModel(
+                    settings.embedding_model,
+                    use_fp16=False,   # FP16 requires CUDA; use False for CPU/Mac Docker
+                    device="cpu",
+                )
+            if self._reranker is None:
+                from sentence_transformers import CrossEncoder
+                logger.info(f"Loading reranker: {settings.reranker_model}")
+                self._reranker = CrossEncoder(
+                    settings.reranker_model,
+                    device="cpu",
+                )
+                logger.info("Embedding service models fully loaded")
 
-        logger.info(f"Loading reranker: {settings.reranker_model}")
-        from sentence_transformers import CrossEncoder
-        self._reranker = CrossEncoder(
-            settings.reranker_model,
-            device="cpu",
-        )
-
-        logger.info("Embedding service ready (bge-m3 multilingual)")
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         """
@@ -61,6 +72,7 @@ class EmbeddingService:
         Returns:
             List of dense embedding vectors (1024 dims each)
         """
+        self._ensure_models()
         output = self._encoder.encode(
             texts,
             return_dense=True,
@@ -84,6 +96,7 @@ class EmbeddingService:
               - 'dense': list of dense vectors (1024d each)
               - 'sparse': list of sparse dicts {token_id: weight}
         """
+        self._ensure_models()
         output = self._encoder.encode(
             texts,
             return_dense=True,
@@ -127,6 +140,7 @@ class EmbeddingService:
         if not documents:
             return []
 
+        self._ensure_models()
         pairs = [(query, doc["text"]) for doc in documents]
         scores = self._reranker.predict(pairs)
 

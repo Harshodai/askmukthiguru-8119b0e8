@@ -15,13 +15,21 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 ## Deploy with Docker (Recommended)
 
 ### Prerequisites
-- **Docker** and **Docker Compose** installed
+- **Docker Desktop** installed and running on your Mac.
 
-### One-command deploy
+### One-Command Deploy (Run this in your terminal)
+
+Since you are on a Mac, you may need to ensure Docker is in your PATH. Open your native macOS Terminal (or your IDE's terminal) and run these exact commands:
 
 ```bash
-cd backend
-docker compose up -d
+# 1. Navigate to the backend directory
+cd /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+
+# 2. Add Docker to your PATH (fixes "command not found" errors on Mac)
+export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+
+# 3. Build and start all services in detached mode
+docker compose up -d --build
 ```
 
 This builds and starts **all 5 services**:
@@ -41,19 +49,19 @@ This builds and starts **all 5 services**:
 | http://localhost/ingest | Content ingestion portal |
 | http://localhost:8000/api/health | Backend health check |
 
-### Useful commands
+### Useful commands (Run these in the backend folder)
 
 ```bash
-# View logs
+# View live logs for all services
 docker compose logs -f
 
-# Rebuild after code changes
+# Rebuild after making code changes
 docker compose up -d --build
 
 # Stop all services
 docker compose down
 
-# Stop and remove volumes (reset data)
+# Stop and completely reset the database volumes
 docker compose down -v
 ```
 

@@ -10,12 +10,12 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm install
 
 # Copy source code and build
 COPY index.html vite.config.ts tsconfig*.json tailwind.config.ts postcss.config.js components.json ./
 COPY src/ ./src/
-COPY public/ ./public/ 2>/dev/null || true
+COPY public/ ./public/
 
 # Build for production
 RUN npm run build

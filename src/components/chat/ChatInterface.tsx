@@ -26,6 +26,20 @@ import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
+import React from 'react';
+
+const MessageList = React.memo(({ messages }: { messages: Message[] }) => (
+  <AnimatePresence mode="popLayout">
+    {messages.map((message, index) => (
+      <ChatMessage 
+        key={message.id} 
+        message={message} 
+        index={index}
+      />
+    ))}
+  </AnimatePresence>
+));
+MessageList.displayName = 'MessageList';
 
 const WELCOME_MESSAGE =
   'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
@@ -380,15 +394,7 @@ export const ChatInterface = () => {
         {/* Messages Area */}
         <main className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual">
           <div className="max-w-3xl mx-auto space-y-3">
-            <AnimatePresence mode="popLayout">
-              {messages.map((message, index) => (
-                <ChatMessage 
-                  key={message.id} 
-                  message={message} 
-                  index={index}
-                />
-              ))}
-            </AnimatePresence>
+            <MessageList messages={messages} />
 
             {/* Typing Indicator */}
             <AnimatePresence>
@@ -550,6 +556,7 @@ export const ChatInterface = () => {
                   onBlur={() => setInputFocused(false)}
                   placeholder={isListening ? 'Speak now…' : "Share what's on your heart…"}
                   rows={1}
+                  aria-label="Your message"
                   className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed"
                   style={{ minHeight: '36px' }}
                 />

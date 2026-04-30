@@ -10,13 +10,19 @@ let conversationHistory = [];
 async function checkHealth() {
     try {
         const response = await fetch('/api/health');
-        const data = await response.json();
-        if (data.status === 'ok' || data.status === 'degraded') {
-            statusDot.className = 'dot online';
-            statusText.innerText = 'Mukthi Guru Online';
+        
+        const contentType = response.headers.get("content-type");
+        if (response.ok && contentType && contentType.includes("application/json")) {
+            const data = await response.json();
+            if (data.status === 'healthy') {
+                statusDot.className = 'dot online';
+                statusText.innerText = 'Mukthi Guru Online';
+            } else {
+                statusDot.className = 'dot busy';
+                statusText.innerText = 'System Degraded';
+            }
         } else {
-            statusDot.className = 'dot busy';
-            statusText.innerText = 'System Busy';
+            throw new Error("Invalid response format");
         }
     } catch (e) {
         statusDot.className = 'dot';
@@ -79,7 +85,24 @@ async function sendMessage(text) {
             })
         });
 
-        if (!response.ok) throw new Error('Guru is silent right now...');
+        if (!response.ok) {
+            let errorMessage = 'System Unavailable. Please try again later.';
+            try {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    const errorData = await response.json();
+                    errorMessage = errorData.detail || errorData.error || errorMessage;
+                }
+            } catch (e) {
+                // Ignore parsing errors for non-JSON 502/504 responses
+            }
+            throw new Error(errorMessage);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+             throw new Error("Received unexpected response format from server.");
+        }
 
         const data = await response.json();
         
@@ -98,7 +121,8 @@ async function sendMessage(text) {
 
     } catch (error) {
         typingIndicator.remove();
-        appendMessage('system', `Error: ${error.message}`);
+        appendMessage('guru', `🙏 <i>${error.message || 'I am currently unable to answer. Please try again later.'}</i>`);
+        console.error(error);
     }
 }
 

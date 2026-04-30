@@ -46,8 +46,9 @@ const elements = {
 async function checkHealth() {
   try {
     const res = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+    const contentType = res.headers.get("content-type");
+    if (!res.ok || !contentType || !contentType.includes("application/json")) {
+      throw new Error(`Invalid response or HTTP ${res.status}`);
     }
     const data = await res.json();
 
@@ -82,12 +83,23 @@ async function checkHealth() {
 async function pollProgress() {
   try {
     const res = await fetch(`${API_BASE}/api/ingest/status`);
-    if (!res.ok) return;
+    const contentType = res.headers.get("content-type");
+    if (!res.ok || !contentType || !contentType.includes("application/json")) return;
     const data = await res.json();
 
     // Find active job (most recent processing)
     const jobs = Object.values(data);
     const processing = jobs.filter(j => j.status === 'processing').sort((a, b) => b.updated_at - a.updated_at)[0];
+
+    // Sync real data to history array
+    history = jobs.map(j => ({
+      url: j.url || 'Unknown URL',
+      status: j.status,
+      detail: j.message,
+      time: new Date(j.updated_at * 1000)
+    })).sort((a, b) => b.time - a.time);
+    renderHistory();
+
 
     if (processing) {
       // Update UI
