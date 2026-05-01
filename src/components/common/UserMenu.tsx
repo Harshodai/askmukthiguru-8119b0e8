@@ -9,6 +9,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Heart,
 } from 'lucide-react';
 import {
   DropdownMenu,
