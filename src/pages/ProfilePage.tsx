@@ -60,6 +60,8 @@ import {
   readAvatarFile,
   getInitials,
   resetProfile,
+  derivePrePracticeInsights,
+  type PrePracticeAnswer,
 } from '@/lib/profileStorage';
 import { getMeditationStats } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
