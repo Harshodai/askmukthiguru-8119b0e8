@@ -17,6 +17,10 @@ import {
   Monitor,
   Bell,
   BellRing,
+  Heart,
+  TrendingUp,
+  Target,
+  ArrowRight,
 } from 'lucide-react';
 import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
