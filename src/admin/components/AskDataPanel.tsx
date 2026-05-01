@@ -13,7 +13,7 @@ export function AskDataPanel() {
   async function ask(question: string) {
     setLoading(true);
     const r = await askData(question);
-    setResult(r);
+    setResult({ summary: r, rows: [] });
     setLoading(false);
   }
 

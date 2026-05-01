@@ -77,10 +77,10 @@ export default function IngestionPage() {
                       size="sm"
                       variant="ghost"
                       onClick={async () => {
-                        const { runId } = await triggerReingest(r.source);
+                        await triggerReingest(r.source);
                         qc.invalidateQueries({ queryKey: ["admin", "ingestion"] });
                         qc.invalidateQueries({ queryKey: ["admin", "ingest-health"] });
-                        toast.success(`Re-ingest queued (${runId.slice(0, 8)})`);
+                        toast.success(`Re-ingest queued`);
                       }}
                     >
                       <RefreshCw className="h-3 w-3" /> Re-ingest
