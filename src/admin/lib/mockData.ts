@@ -134,7 +134,7 @@ export async function listPromptVersions(): Promise<PromptVersion[]> {
 export async function listAlertEvents(): Promise<AlertEvent[]> { return []; }
 export async function listAlertRules(): Promise<AlertRule[]> { return []; }
 export async function listAnnotations(): Promise<Annotation[]> { return []; }
-export async function listLogs(): Promise<AppLog[]> { return []; }
+export async function listLogs(_filters?: { level?: string; search?: string; from?: Date; to?: Date }): Promise<AppLog[]> { return []; }
 export async function listEvalResults(): Promise<EvalResult[]> { return []; }
 export async function listEvalRuns(): Promise<EvalRun[]> { return []; }
 export async function listGoldenQuestions(): Promise<GoldenQuestion[]> { return []; }
