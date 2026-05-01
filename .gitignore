@@ -62,3 +62,8 @@ hf_model_cache/
 rag_storage/
 knowledge/
 .agent/
+
+# Scratch and temporary files
+*scratch_test.py
+scratch-llmfit/
+supabase_status.json

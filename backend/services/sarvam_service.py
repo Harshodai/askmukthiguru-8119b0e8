@@ -45,6 +45,11 @@ from rag.prompts import (
 logger = logging.getLogger(__name__)
 
 
+class QuotaExceededError(Exception):
+    """Raised when the Sarvam Cloud API has exceeded its quota/credits."""
+    pass
+
+
 class SarvamCloudService:
     """
     Gateway to all LLM operations via Sarvam Cloud API.
@@ -115,12 +120,17 @@ class SarvamCloudService:
         messages.append(HumanMessage(content=full_prompt))
 
         try:
-            # Bind runtime args like temperature
-            chain = self._llm.bind(**kwargs) if kwargs else self._llm
+            # Bind runtime args like temperature. Explicitly pass model to bypass langchain-sarvam async bug
+            kwargs["model"] = settings.sarvam_cloud_model
+            chain = self._llm.bind(**kwargs)
             response = await chain.ainvoke(messages)
             return response.content.strip()
         except Exception as e:
             logger.error(f"Sarvam Cloud generation failed: {e}")
+            # Raise QuotaExceededError for immediate top-level bailout
+            if "credits" in str(e).lower() or "429" in str(e).lower():
+                logger.warning("Quota exceeded for Sarvam Cloud API. Raising QuotaExceededError.")
+                raise QuotaExceededError(str(e))
             raise
 
     async def _generate_fast(
@@ -141,10 +151,15 @@ class SarvamCloudService:
         ]
 
         try:
-            chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
+            kwargs["model"] = settings.sarvam_cloud_classify_model
+            chain = self._llm_fast.bind(**kwargs)
             response = await chain.ainvoke(messages)
             return response.content.strip()
         except Exception as e:
+            # Raise QuotaExceededError for immediate top-level bailout
+            if "credits" in str(e).lower() or "429" in str(e).lower():
+                logger.warning("Quota exceeded for Sarvam Cloud API in classification. Raising QuotaExceededError.")
+                raise QuotaExceededError(str(e))
             # Fall back to main model if fast model fails
             logger.warning(f"Fast model failed, falling back to main: {e}")
             return await self.generate(system_prompt, user_prompt, **kwargs)
@@ -171,12 +186,18 @@ class SarvamCloudService:
         messages.append(HumanMessage(content=full_prompt))
 
         try:
-            chain = self._llm.bind(**kwargs) if kwargs else self._llm
+            kwargs["model"] = settings.sarvam_cloud_model
+            chain = self._llm.bind(**kwargs)
             async for chunk in chain.astream(messages):
                 if chunk.content:
                     yield chunk.content
         except Exception as e:
             logger.error(f"Sarvam Cloud streaming failed: {e}")
+            # Graceful Fallback for Quota Exceeded (Error Handling Patterns)
+            if "credits" in str(e).lower() or "429" in str(e).lower():
+                logger.warning("Quota exceeded for Sarvam Cloud API in streaming. Yielding graceful fallback response.")
+                yield "The essence of spiritual practice is compassion and mindfulness. Even in stillness, your presence is heard."
+                return
             raise
 
     async def classify_intent(self, message: str) -> str:

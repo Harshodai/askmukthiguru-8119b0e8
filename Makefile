@@ -61,3 +61,7 @@ logs: ## Tail the logs of all Docker services
 
 shell: ## Open a shell inside the running backend container
 	@cd backend && docker compose exec backend /bin/bash || docker compose exec backend /bin/sh
+
+deploy: ## Build production images and prepare for remote deployment
+	@chmod +x deploy.sh
+	@./deploy.sh

@@ -34,7 +34,7 @@ class DepressionDetector:
             # Fallback to container injected service
             try:
                 from app.dependencies import get_container
-                self._llm_service = get_container().llm_service
+                self._llm_service = get_container().ollama
             except Exception as e:
                 logger.error(f"Failed to fetch llm_service from container for distress detection: {e}")
                 return False

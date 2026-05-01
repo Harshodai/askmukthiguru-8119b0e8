@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom"
+
+    # --- Supabase (Docker Local) ---
+    supabase_url: str = "http://host.docker.internal:54321"
+    supabase_key: str = ""  # SERVICE_ROLE_KEY for backend write access
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
     # --- Neo4j ---

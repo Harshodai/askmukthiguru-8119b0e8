@@ -381,15 +381,51 @@ async def chat_endpoint(
             response_cache.put(user_msg, final_answer, intent, citations, med_step)
 
     except Exception as e:
-        logger.error(f"RAG pipeline error: {e}", exc_info=True)
-        REQUEST_COUNT.labels(status="error").inc()
-        final_answer = (
-            "I apologize, I'm experiencing a moment of stillness. 🙏 "
-            "Please try asking your question again."
-        )
-        intent = "ERROR"
-        med_step = 0
         citations = []
+        from services.sarvam_service import QuotaExceededError
+        if isinstance(e, QuotaExceededError) or "credits" in str(e).lower() or "429" in str(e).lower():
+            logger.warning(f"Sarvam API quota error intercepted: {e}")
+            fallback_answer = "I apologize, our upstream provider is currently out of credits. Here is the relevant wisdom directly retrieved from our sacred knowledge base:\n\n"
+            try:
+                from app.dependencies import get_container
+                container = get_container()
+                query_enc = container.embedding.encode_single_full(user_msg)
+                docs = container.qdrant.search(
+                    query_vector=query_enc['dense'],
+                    limit=3,
+                    sparse_vector=query_enc['sparse']
+                )
+                if docs:
+                    for i, doc in enumerate(docs, 1):
+                        text_snippet = doc["text"].strip()
+                        if len(text_snippet) > 350:
+                            text_snippet = text_snippet[:350] + "..."
+                        fallback_answer += f"✦ **Teaching {i}:** {text_snippet}\n\n"
+                    final_answer = fallback_answer
+                    citations = [d.get("source_url") for d in docs if d.get("source_url") and d.get("source_url") != "None"]
+                else:
+                    final_answer = (
+                        "The essence of spiritual practice is compassion and mindfulness. "
+                        "Even in stillness, your presence is heard."
+                    )
+            except Exception as inner_e:
+                logger.error(f"Fallback context synthesis failed: {inner_e}")
+                final_answer = (
+                    "The essence of spiritual practice is compassion and mindfulness. "
+                    "Even in stillness, your presence is heard."
+                )
+            intent = "QUERY"
+            med_step = 0
+        else:
+            logger.error(f"RAG pipeline error: {e}", exc_info=True)
+            REQUEST_COUNT.labels(status="error").inc()
+            final_answer = (
+                "I apologize, I'm experiencing a moment of stillness. 🙏 "
+                "Please try asking your question again. DEBUG ERROR: " + str(e)
+            )
+            intent = "ERROR"
+            med_step = 0
+            citations = []
 
     # === Layer 12: NeMo Output Rail ===
     output_check = await container.guardrails.check_output(final_answer)
@@ -398,11 +434,17 @@ async def chat_endpoint(
         final_answer = output_check["moderated_response"]
 
     # --- Telemetry Logging ---
+    import uuid
+    try:
+        session_uuid = str(uuid.UUID(chat_body.session_id)) if chat_body.session_id else str(uuid.uuid4())
+    except (ValueError, TypeError, AttributeError):
+        session_uuid = str(uuid.uuid4())
+
     query_id = str(uuid.uuid4())
     query_data = {
         "id": query_id,
-        "session_id": "api-session",
-        "anon_user_id": "anon",
+        "session_id": session_uuid,
+        "anon_user_id": str(uuid.uuid4()),
         "query_text": user_msg,
         "model": "askmukthiguru",
         "latency_ms": int((time.time() - start_time) * 1000),

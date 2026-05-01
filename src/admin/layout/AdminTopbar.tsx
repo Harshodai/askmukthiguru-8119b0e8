@@ -26,12 +26,12 @@ export function AdminTopbar() {
   return (
     <div className="h-14 px-6 border-b border-border flex items-center justify-between gap-3 bg-card/40 backdrop-blur">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Badge variant="secondary" className="gap-1.5">
-          <FlaskConical className="h-3 w-3" />
-          UI PREVIEW · mock data
+        <Badge variant="outline" className="gap-1.5 border-green-500/50 text-green-500 bg-green-500/5">
+          <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+          Real-time via Supabase
         </Badge>
-        <span className="hidden md:inline">
-          Cloud not connected — see <code className="text-xs">docs/admin/migration-plan.md</code>
+        <span className="hidden md:inline text-xs opacity-70">
+          Connected to local Docker cluster
         </span>
       </div>
 

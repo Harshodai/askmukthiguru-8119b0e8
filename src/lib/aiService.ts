@@ -179,10 +179,15 @@ export const checkConnection = async (): Promise<{ connected: boolean; mode: str
 
   if (provider === 'custom' && endpoint) {
     try {
-      const healthUrl = new URL('/api/health', endpoint).href;
+      // Handle both relative and absolute endpoints safely
+      const healthUrl = endpoint.startsWith('http') 
+        ? new URL('/api/health', new URL(endpoint).origin).href 
+        : '/api/health';
+        
       const response = await fetch(healthUrl);
       return { connected: response.ok, mode: response.ok ? 'Connected to Guru' : 'Reconnecting…' };
-    } catch {
+    } catch (e) {
+      console.error("Health check failed:", e);
       return { connected: false, mode: 'Reconnecting…' };
     }
   }

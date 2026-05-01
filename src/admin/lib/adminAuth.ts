@@ -1,7 +1,4 @@
-// UI-only mock auth. When backend auth is enabled later, this entire file is
-// the only thing that changes — function signatures stay identical.
-// The real impl will use Supabase auth + a `user_roles` table + `has_role()`
-// security-definer RPC. Never store roles on `profiles` — see docs/admin/architecture.md.
+import { supabase } from './supabaseClient';
 
 const STORAGE_KEY = "admin_session";
 
@@ -10,26 +7,39 @@ export interface AdminSession {
   loggedInAt: string;
 }
 
-const DEV_USER = "admin";
-const DEV_PASS = "admin";
-
 export async function loginAdmin(
   email: string,
   password: string,
 ): Promise<{ ok: true; session: AdminSession } | { ok: false; error: string }> {
-  await new Promise((r) => setTimeout(r, 250)); // tiny delay for UX
-  if (email.trim() !== DEV_USER || password !== DEV_PASS) {
-    return { ok: false, error: "Invalid credentials. (Dev mode: admin / admin)" };
+  
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  
+  if (error) {
+    return { ok: false, error: error.message };
   }
+  
+  // Verify admin role
+  const { data: roleOk } = await supabase.rpc("has_role", {
+    _user_id: data.user.id, 
+    _role: "admin",
+  });
+  
+  if (!roleOk) {
+    await supabase.auth.signOut();
+    return { ok: false, error: "Not an admin. Access denied." };
+  }
+  
   const session: AdminSession = {
     email,
     loggedInAt: new Date().toISOString(),
   };
+  
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   return { ok: true, session };
 }
 
-export function logoutAdmin(): void {
+export async function logoutAdmin(): Promise<void> {
+  await supabase.auth.signOut();
   localStorage.removeItem(STORAGE_KEY);
 }
 

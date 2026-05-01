@@ -90,8 +90,8 @@ export function AdminShell() {
               variant="ghost"
               size="sm"
               className="w-full justify-start"
-              onClick={() => {
-                logoutAdmin();
+              onClick={async () => {
+                await logoutAdmin();
                 nav("/admin/login", { replace: true });
               }}
             >

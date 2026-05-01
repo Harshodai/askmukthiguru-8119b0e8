@@ -1,114 +1,117 @@
 """
-Mukthi Guru — Admin Telemetry Database
+Mukthi Guru — Admin Telemetry Database (Supabase Version)
 
-Provides a persistent SQLite database to store query traces,
-evaluations, and user feedback. Replaces the frontend mockData.ts.
+Provides a persistent cloud-backed database to store query traces,
+evaluations, and user feedback via Supabase.
 """
 
 import os
 import json
 import logging
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
-import aiosqlite
+from supabase import create_client, Client
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
-DB_PATH = os.environ.get("TELEMETRY_DB_PATH", "/app/data/telemetry.db")
+def _get_client() -> Client:
+    """Initialize Supabase client."""
+    if not settings.supabase_key:
+        logger.warning("SUPABASE_KEY is not set. Telemetry will be disabled.")
+        return None
+    return create_client(settings.supabase_url, settings.supabase_key)
 
 async def init_telemetry_db():
-    """Initialize the SQLite schema."""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS chat_queries (
-                id TEXT PRIMARY KEY,
-                session_id TEXT,
-                anon_user_id TEXT,
-                query_text TEXT,
-                model TEXT,
-                latency_ms INTEGER,
-                status TEXT,
-                created_at TEXT
-            )
-        ''')
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS chat_responses (
-                id TEXT PRIMARY KEY,
-                query_id TEXT,
-                response_text TEXT,
-                citations TEXT,
-                faithfulness REAL,
-                answer_relevancy REAL,
-                context_precision REAL,
-                context_recall REAL,
-                hallucination_flag INTEGER,
-                judge_reasoning TEXT,
-                FOREIGN KEY(query_id) REFERENCES chat_queries(id)
-            )
-        ''')
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS user_feedbacks (
-                id TEXT PRIMARY KEY,
-                query_id TEXT,
-                rating INTEGER,
-                feedback_text TEXT,
-                created_at TEXT,
-                FOREIGN KEY(query_id) REFERENCES chat_queries(id)
-            )
-        ''')
-        await db.commit()
-        logger.info(f"Telemetry SQLite DB initialized at {DB_PATH}")
+    """
+    Supabase initialization. 
+    In this version, schema is managed by Supabase Migrations.
+    """
+    logger.info(f"Telemetry initialized using Supabase at {settings.supabase_url}")
 
 async def log_query_trace(query_data: dict, response_data: dict) -> None:
-    """Log a complete query and response trace."""
+    """Log a complete query and response trace to Supabase."""
+    client = _get_client()
+    if not client:
+        return
+
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "INSERT INTO chat_queries (id, session_id, anon_user_id, query_text, model, latency_ms, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    query_data['id'],
-                    query_data.get('session_id', 'unknown'),
-                    query_data.get('anon_user_id', 'unknown'),
-                    query_data['query_text'],
-                    query_data.get('model', 'ollama'),
-                    query_data.get('latency_ms', 0),
-                    query_data.get('status', 'ok'),
-                    query_data['created_at']
-                )
-            )
-            
-            await db.execute(
-                "INSERT INTO chat_responses (id, query_id, response_text, citations, faithfulness, answer_relevancy, context_precision, context_recall, hallucination_flag, judge_reasoning) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    response_data['id'],
-                    query_data['id'],
-                    response_data['response_text'],
-                    json.dumps(response_data.get('citations', [])),
-                    response_data.get('faithfulness', 0.0),
-                    response_data.get('answer_relevancy', 0.0),
-                    response_data.get('context_precision', 0.0),
-                    response_data.get('context_recall', 0.0),
-                    1 if response_data.get('hallucination_flag') else 0,
-                    response_data.get('judge_reasoning', '')
-                )
-            )
-            await db.commit()
+        # 1. Insert into chat_queries
+        # Map SQLite field names to Supabase schema names if necessary
+        # Supabase schema (schema.sql) matches most names
+        query_payload = {
+            "id": query_data['id'],
+            "session_id": query_data.get('session_id'),
+            "anon_user_id": query_data.get('anon_user_id'),
+            "query_text": query_data['query_text'],
+            "model": query_data.get('model'),
+            "latency_ms": query_data.get('latency_ms', 0),
+            "status": query_data.get('status', 'ok'),
+            "created_at": query_data['created_at']
+        }
+        
+        # Filter out None values to let Postgres defaults kick in
+        query_payload = {k: v for k, v in query_payload.items() if v is not None}
+        
+        # 0. Ensure session exists in chat_sessions
+        try:
+            session_payload = {
+                "id": query_payload["session_id"],
+                "anon_user_id": query_payload.get("anon_user_id"),
+                "started_at": query_payload["created_at"]
+            }
+            session_payload = {k: v for k, v in session_payload.items() if v is not None}
+            client.table("chat_sessions").upsert(session_payload).execute()
+        except Exception as e:
+            logger.warning(f"Upserting session failed: {e}")
+
+        client.table("chat_queries").insert(query_payload).execute()
+        
+        # 2. Insert into chat_responses
+        response_payload = {
+            "id": response_data['id'],
+            "query_id": query_data['id'],
+            "response_text": response_data['response_text'],
+            "citations": response_data.get('citations', []),
+            "faithfulness": response_data.get('faithfulness', 0.0),
+            "answer_relevancy": response_data.get('answer_relevancy', 0.0),
+            "context_precision": response_data.get('context_precision', 0.0),
+            "context_recall": response_data.get('context_recall', 0.0),
+            "hallucination_flag": bool(response_data.get('hallucination_flag')),
+            "judge_reasoning": response_data.get('judge_reasoning', ''),
+            "created_at": response_data.get('created_at', query_data['created_at'])
+        }
+        
+        response_payload = {k: v for k, v in response_payload.items() if v is not None}
+        
+        client.table("chat_responses").insert(response_payload).execute()
+        
+        logger.debug(f"Successfully logged trace {query_data['id']} to Supabase")
+        
     except Exception as e:
-        logger.error(f"Failed to log telemetry trace: {e}")
+        logger.error(f"Failed to log telemetry trace to Supabase: {e}")
 
 async def get_recent_traces(limit: int = 50) -> List[Dict[str, Any]]:
-    """Fetch recent traces for Admin UI."""
-    traces = []
+    """Fetch recent traces for Admin UI from Supabase."""
+    client = _get_client()
+    if not client:
+        return []
+
     try:
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT q.*, r.response_text, r.citations, r.faithfulness, r.hallucination_flag FROM chat_queries q LEFT JOIN chat_responses r ON q.id = r.query_id ORDER BY q.created_at DESC LIMIT ?", (limit,)) as cursor:
-                async for row in cursor:
-                    trace = dict(row)
-                    trace['citations'] = json.loads(trace['citations']) if trace.get('citations') else []
-                    trace['hallucination_flag'] = bool(trace['hallucination_flag'])
-                    traces.append(trace)
+        # Join chat_queries with chat_responses
+        response = client.table("chat_queries").select(
+            "*, chat_responses(*)"
+        ).order("created_at", desc=True).limit(limit).execute()
+        
+        traces = []
+        for row in response.data:
+            # Flatten response data for UI compatibility
+            res_data = row.pop("chat_responses", [])
+            if res_data and len(res_data) > 0:
+                row.update(res_data[0])
+            traces.append(row)
+            
+        return traces
     except Exception as e:
-        logger.error(f"Failed to fetch traces: {e}")
-    return traces
+        logger.error(f"Failed to fetch traces from Supabase: {e}")
+        return []
