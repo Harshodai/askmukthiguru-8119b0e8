@@ -141,6 +141,7 @@ export async function* sendMessageStreaming(
 }
 
 
+export const sendMessage = async (
   messages: MessagePayload[],
   userMessage: string,
   meditationStep: number = 0
