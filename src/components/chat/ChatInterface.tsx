@@ -14,9 +14,11 @@ import {
   setCurrentConversationId,
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, MessagePayload } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload } from '@/lib/aiService';
+import { hashMessages, getCachedResponse, setCachedResponse } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
+import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
@@ -28,17 +30,68 @@ import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import React from 'react';
 
-const MessageList = React.memo(({ messages }: { messages: Message[] }) => (
-  <AnimatePresence mode="popLayout">
-    {messages.map((message, index) => (
-      <ChatMessage 
-        key={message.id} 
-        message={message} 
-        index={index}
-      />
-    ))}
-  </AnimatePresence>
-));
+// ── Date separator helpers ──────────────────────────────────────────
+const isSameDay = (a: Date, b: Date): boolean =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const formatDateLabel = (date: Date): string => {
+  const now = new Date();
+  if (isSameDay(date, now)) return 'Today';
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(date, yesterday)) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+// ── Suggested starter chips ─────────────────────────────────────────
+const STARTER_SUGGESTIONS = [
+  'What is the Beautiful State?',
+  'Guide me through a meditation',
+  "I'm feeling overwhelmed",
+];
+
+// ── MessageList with date separators ────────────────────────────────
+const MessageList = React.memo(({ messages }: { messages: Message[] }) => {
+  const groups: { label: string; messages: Message[] }[] = [];
+  let currentLabel = '';
+
+  messages.forEach((msg) => {
+    const ts = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
+    const label = formatDateLabel(ts);
+    if (label !== currentLabel) {
+      currentLabel = label;
+      groups.push({ label, messages: [msg] });
+    } else {
+      groups[groups.length - 1].messages.push(msg);
+    }
+  });
+
+  return (
+    <AnimatePresence mode="popLayout">
+      {groups.map((group) => (
+        <React.Fragment key={group.label}>
+          {/* Date separator */}
+          <div className="flex items-center gap-3 py-3">
+            <div className="flex-1 h-px bg-border/40" />
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 select-none">
+              {group.label}
+            </span>
+            <div className="flex-1 h-px bg-border/40" />
+          </div>
+          {group.messages.map((message, index) => (
+            <ChatMessage 
+              key={message.id} 
+              message={message} 
+              index={index}
+            />
+          ))}
+        </React.Fragment>
+      ))}
+    </AnimatePresence>
+  );
+});
 MessageList.displayName = 'MessageList';
 
 const WELCOME_MESSAGE =
@@ -70,6 +123,7 @@ export const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const { open: openSereneMind } = useSereneMind();
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -80,10 +134,38 @@ export const ChatInterface = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [meditationStep, setMeditationStep] = useState(0);
+  const [showScrollFab, setShowScrollFab] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastGuruMessageRef = useRef<string>('');
+  const isNearBottomRef = useRef(true);
   const { toast } = useToast();
+
+  // ── Scroll tracking ──────────────────────────────────────────────
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 400;
+    isNearBottomRef.current = nearBottom;
+    setShowScrollFab(!nearBottom);
+    if (nearBottom) setUnreadCount(0);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setShowScrollFab(false);
+    setUnreadCount(0);
+  }, []);
+
+  // ── Textarea auto-resize ─────────────────────────────────────────
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
+    const ta = e.target;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
+  }, []);
 
   // Sync profile changes into local chat state
   useEffect(() => {
@@ -107,7 +189,6 @@ export const ChatInterface = () => {
     }
 
     if (!conversation) {
-      // Check if there are any existing conversations
       const existingConversations = loadConversations();
       if (existingConversations.length > 0) {
         conversation = existingConversations[0];
@@ -121,7 +202,6 @@ export const ChatInterface = () => {
     if (conversation.messages.length > 0) {
       setMessages(conversation.messages);
     } else {
-      // Add personalised welcome message based on the seeker's pre-practice answer.
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
@@ -251,9 +331,13 @@ export const ChatInterface = () => {
     saveCurrentConversation();
   }, [messages, saveCurrentConversation]);
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom when new messages arrive (only if near bottom)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else if (messages.length > 0 && messages[messages.length - 1].role === 'guru') {
+      setUnreadCount(prev => prev + 1);
+    }
   }, [messages, isTyping]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -269,6 +353,12 @@ export const ChatInterface = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
+    
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
+
     setIsTyping(true);
 
     // Convert messages to API format
@@ -277,10 +367,70 @@ export const ChatInterface = () => {
       content: m.content,
     }));
 
+    // Check cache first
+    const allMsgs = [...messageHistory, { role: 'user' as const, content: userMessage.content }];
+    const cacheKey = hashMessages(allMsgs);
+    const cached = getCachedResponse(cacheKey);
+
+    if (cached) {
+      const guruMessage: Message = {
+        id: generateId(),
+        role: 'guru',
+        content: cached.content,
+        timestamp: new Date(),
+        citations: cached.citations,
+      };
+      setMessages((prev) => [...prev, guruMessage]);
+      setIsTyping(false);
+      return;
+    }
+
+    // Try streaming first
+    const streamingGuruId = generateId();
+    let streamingWorked = false;
+
+    try {
+      const stream = sendMessageStreaming(messageHistory, userMessage.content, meditationStep);
+      
+      // Add an empty guru message that we'll fill progressively
+      const emptyGuru: Message = {
+        id: streamingGuruId,
+        role: 'guru',
+        content: '',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, emptyGuru]);
+      setIsStreaming(true);
+      setIsTyping(false);
+
+      let fullContent = '';
+      for await (const chunk of stream) {
+        fullContent += chunk;
+        const captured = fullContent;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamingGuruId ? { ...m, content: captured } : m))
+        );
+      }
+
+      if (fullContent) {
+        streamingWorked = true;
+        setCachedResponse(cacheKey, fullContent);
+      }
+    } catch {
+      // Streaming not available — fall back to regular fetch
+    } finally {
+      setIsStreaming(false);
+    }
+
+    if (streamingWorked) return;
+
+    // Remove the empty streaming bubble if it was added
+    setMessages((prev) => prev.filter((m) => m.id !== streamingGuruId || m.content !== ''));
+    setIsTyping(true);
+
     try {
       const response = await sendMessage(messageHistory, userMessage.content, meditationStep);
 
-      // Handle blocked messages
       if (response.blocked && response.blockReason) {
         const blockedMessage: Message = {
           id: generateId(),
@@ -290,7 +440,6 @@ export const ChatInterface = () => {
         };
         setMessages((prev) => [...prev, blockedMessage]);
       } else {
-        // Surface auth/rate-limit errors to the user
         if (response.errorCode === 'rate_limited') {
           toast({
             title: 'Slow down, dear seeker',
@@ -318,12 +467,12 @@ export const ChatInterface = () => {
           citations: response.citations && response.citations.length > 0 ? response.citations.slice(0, 3) : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
+        setCachedResponse(cacheKey, response.content, guruMessage.citations);
 
         if (response.meditationStep !== undefined) {
           setMeditationStep(response.meditationStep);
         }
 
-        // Auto-open Serene Mind to Audio tab when distress detected
         if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
         }
@@ -333,6 +482,16 @@ export const ChatInterface = () => {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    setInputValue(text);
+    // Auto-submit after a brief tick so the user sees it
+    setTimeout(() => {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      setInputValue(text);
+      // We'll just set the value; user can press Send
+    }, 50);
   };
 
   const handleNewConversation = () => {
@@ -365,9 +524,11 @@ export const ChatInterface = () => {
     }
   };
 
+  const showStarters = messages.length <= 1 && messages[0]?.role === 'guru';
+
   return (
     <div className="min-h-screen flex bg-background relative overflow-hidden">
-      {/* Background - spans full width */}
+      {/* Background */}
       <div className="fixed inset-0 bg-spiritual-gradient" />
       <FloatingParticles />
 
@@ -383,7 +544,7 @@ export const ChatInterface = () => {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Header */}
         <ChatHeader 
           onClearChat={handleNewConversation}
@@ -392,9 +553,54 @@ export const ChatInterface = () => {
         />
 
         {/* Messages Area */}
-        <main className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual">
+        <main
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual"
+        >
           <div className="max-w-3xl mx-auto space-y-3">
             <MessageList messages={messages} />
+
+            {/* Suggested starters */}
+            {showStarters && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex flex-wrap justify-center gap-2 pt-4"
+              >
+                {STARTER_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="px-4 py-2 rounded-full text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+
+            {/* Streaming skeleton */}
+            <AnimatePresence>
+              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-start gap-3"
+                >
+                  <div className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30">
+                    <div className="w-4 h-4 rounded-full bg-ojas/50" />
+                  </div>
+                  <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-sm space-y-2 w-48">
+                    <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse" />
+                    <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-3/4" />
+                    <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-1/2" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Typing Indicator */}
             <AnimatePresence>
@@ -438,6 +644,13 @@ export const ChatInterface = () => {
             <div ref={messagesEndRef} />
           </div>
         </main>
+
+        {/* Scroll-to-bottom FAB */}
+        <ScrollToBottomFab
+          visible={showScrollFab}
+          unreadCount={unreadCount}
+          onClick={scrollToBottom}
+        />
 
         {/* Input Area */}
         <footer className="relative z-20 px-3 sm:px-4 pb-3 pt-2 pb-safe">
@@ -550,7 +763,7 @@ export const ChatInterface = () => {
                 <textarea
                   ref={inputRef}
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onFocus={() => setInputFocused(true)}
                   onBlur={() => setInputFocused(false)}
@@ -562,7 +775,7 @@ export const ChatInterface = () => {
                 />
                 <motion.button
                   type="submit"
-                  disabled={!inputValue.trim() || isTyping}
+                  disabled={!inputValue.trim() || isTyping || isStreaming}
                   className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                   whileHover={{ scale: inputValue.trim() ? 1.05 : 1 }}
                   whileTap={{ scale: 0.95 }}
