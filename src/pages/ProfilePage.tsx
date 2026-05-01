@@ -250,10 +250,11 @@ const ProfilePage = () => {
         </motion.div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-4 w-full sm:w-auto">
+          <TabsList className="grid grid-cols-5 w-full sm:w-auto">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            <TabsTrigger value="preferences">Prefs</TabsTrigger>
             <TabsTrigger value="stats">Stats</TabsTrigger>
+            <TabsTrigger value="journey">Journey</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
           </TabsList>
 
