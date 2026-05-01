@@ -528,6 +528,95 @@ const ProfilePage = () => {
             </Card>
           </TabsContent>
 
+          {/* SOUL JOURNEY TAB */}
+          <TabsContent value="journey" className="space-y-4">
+            {(() => {
+              const insights = derivePrePracticeInsights(profile.prePracticeLog);
+              const history = (profile.prePracticeLog?.history ?? []).slice(-20).reverse();
+              const answerIcon = (a: PrePracticeAnswer) => {
+                if (a === 'soul_sync') return <Sparkles className="w-4 h-4 text-ojas" />;
+                if (a === 'serene_mind') return <Flame className="w-4 h-4 text-ojas" />;
+                if (a === 'both') return <Heart className="w-4 h-4 text-ojas" />;
+                return <ArrowRight className="w-4 h-4 text-muted-foreground" />;
+              };
+              const answerLabel = (a: PrePracticeAnswer) =>
+                a === 'soul_sync' ? 'Soul Sync' : a === 'serene_mind' ? 'Serene Mind' : a === 'both' ? 'Both' : 'Skipped';
+              return (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Card><CardContent className="pt-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-ojas/10 flex items-center justify-center mx-auto mb-2"><Target className="w-5 h-5 text-ojas" /></div>
+                      <p className="text-2xl font-semibold text-foreground">{insights.totalPrepared}</p>
+                      <p className="text-xs text-muted-foreground">Prepared</p>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-prana/10 flex items-center justify-center mx-auto mb-2"><TrendingUp className="w-5 h-5 text-prana" /></div>
+                      <p className="text-2xl font-semibold text-foreground">{Math.round(insights.preparedRate * 100)}%</p>
+                      <p className="text-xs text-muted-foreground">Prepared rate</p>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-ojas/10 flex items-center justify-center mx-auto mb-2"><Heart className="w-5 h-5 text-ojas" /></div>
+                      <p className="text-lg font-semibold text-foreground">{insights.favourite === 'soul_sync' ? 'Soul Sync' : insights.favourite === 'serene_mind' ? 'Serene Mind' : '—'}</p>
+                      <p className="text-xs text-muted-foreground">Favourite</p>
+                    </CardContent></Card>
+                    <Card><CardContent className="pt-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-ojas-dark/10 flex items-center justify-center mx-auto mb-2"><Flame className="w-5 h-5 text-ojas-dark" /></div>
+                      <p className="text-2xl font-semibold text-foreground">{insights.streakPrepared}</p>
+                      <p className="text-xs text-muted-foreground">Streak</p>
+                    </CardContent></Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-ojas" /> Encouragement</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground italic">{insights.encouragement}</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Practice Timeline</CardTitle>
+                      <CardDescription>Your recent pre-chat practice log.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {history.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Flame className="w-10 h-10 text-ojas/30 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground">Your journey begins with your first practice.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-0">
+                          {history.map((entry, i) => {
+                            const isPrepared = entry.answer !== 'none';
+                            return (
+                              <div key={i} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isPrepared ? 'bg-ojas/10' : 'bg-muted'}`}>
+                                  {answerIcon(entry.answer)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium ${isPrepared ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                    {answerLabel(entry.answer)}
+                                  </p>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                  {new Date(entry.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                  {' '}
+                                  {new Date(entry.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
+          </TabsContent>
+
           {/* ACCOUNT TAB */}
           <TabsContent value="account" className="space-y-4">
             <Card>
