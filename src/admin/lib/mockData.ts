@@ -140,12 +140,12 @@ export async function listEvalRuns(): Promise<EvalRun[]> { return []; }
 export async function listGoldenQuestions(): Promise<GoldenQuestion[]> { return []; }
 export async function listIngestionRuns(): Promise<IngestionRun[]> { return []; }
 export async function listModelPricing(): Promise<ModelPricing[]> { return []; }
-export async function listSafetyEvents(): Promise<SafetyEvent[]> { return []; }
+export async function listSafetyEvents(_range?: { from?: Date; to?: Date }): Promise<SafetyEvent[]> { return []; }
 export async function listTriggerEvents(): Promise<TriggerEvent[]> { return []; }
 export async function listTopicClusters(): Promise<QueryCluster[]> { return []; }
 export async function listAdmins(): Promise<AdminUser[]> { return []; }
-export async function getRetrievalHealth(): Promise<any> { return null; }
-export async function getQualityData(): Promise<any> { return null; }
+export async function getRetrievalHealth(_range?: { from?: Date; to?: Date }): Promise<any> { return null; }
+export async function getQualityData(_range?: { from?: Date; to?: Date }): Promise<any> { return null; }
 export async function upsertAlertRule(rule: Partial<AlertRule>): Promise<void> {}
 export async function upsertGoldenQuestion(q: Partial<GoldenQuestion>): Promise<void> {}
 export async function deleteGoldenQuestion(id: string): Promise<void> {}
@@ -156,17 +156,17 @@ export async function askData(query: string): Promise<string> { return "AskData 
 
 // Missing UI-required placeholders
 export async function listModels(): Promise<string[]> { return ["gpt-4o", "sarvam-30b"]; }
-export async function listTriggers(): Promise<string[]> { return ["serene_mind", "safety"]; }
-export async function getTopFailures(): Promise<any[]> { return []; }
-export async function getRagasHeatmap(): Promise<any[]> { return []; }
-export async function getTriggerTrend(): Promise<any[]> { return []; }
-export async function getSimilarityTrend(): Promise<any[]> { return []; }
-export async function getDeadDocs(): Promise<any[]> { return []; }
-export async function getEmptyRetrievals(): Promise<any[]> { return []; }
+export async function listTriggers(_range?: { from?: Date; to?: Date }): Promise<TriggerEvent[]> { return []; }
+export async function getTopFailures(_range?: { from?: Date; to?: Date }, _limit?: number): Promise<any[]> { return []; }
+export async function getRagasHeatmap(_range?: { from?: Date; to?: Date }, _buckets?: number): Promise<any[]> { return []; }
+export async function getTriggerTrend(_range?: { from?: Date; to?: Date }, _buckets?: number): Promise<any[]> { return []; }
+export async function getSimilarityTrend(_range?: { from?: Date; to?: Date }, _buckets?: number): Promise<any[]> { return []; }
+export async function getDeadDocs(_range?: { from?: Date; to?: Date }): Promise<any[]> { return []; }
+export async function getEmptyRetrievals(_range?: { from?: Date; to?: Date }, _limit?: number): Promise<any[]> { return []; }
 export async function getIngestionHealth(): Promise<any> { return null; }
-export async function getPromptMetricsByVersion(id: string): Promise<any> { return null; }
-export async function pollLiveFeed(callback: (q: ChatQuery) => void): Promise<() => void> { 
-  return () => {}; 
+export async function getPromptMetricsByVersion(): Promise<any> { return null; }
+export async function pollLiveFeed(): Promise<ChatQuery[]> { 
+  return []; 
 }
 export async function activatePromptVersion(id: string): Promise<void> {
   await supabase.from("prompt_versions").update({ active: false }).neq("id", id);
