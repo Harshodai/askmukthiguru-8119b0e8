@@ -9,6 +9,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Heart,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -97,6 +98,9 @@ export const UserMenu = () => {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')}>
           <Flame className="w-4 h-4 mr-2" /> Meditation stats
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/profile?tab=journey')}>
+          <Heart className="w-4 h-4 mr-2" /> Soul Journey
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>

@@ -28,7 +28,7 @@ export function LiveFeed() {
             key={e.id + e.created_at}
             className="text-xs flex items-center gap-2 border-b border-border/50 pb-1.5 last:border-0"
           >
-            {e.hallucination ? (
+            {e.status === 'error' ? (
               <Badge variant="destructive" className="h-4 text-[10px]">⚠</Badge>
             ) : (
               <Badge variant="secondary" className="h-4 text-[10px]">ok</Badge>

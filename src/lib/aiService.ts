@@ -69,6 +69,78 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
   return 'unknown';
 };
 
+/**
+ * Streaming variant of sendMessage. Yields content chunks as they arrive
+ * from an SSE/chunked endpoint. Falls back by throwing if streaming is
+ * unavailable (caller should catch and use sendMessage instead).
+ */
+export async function* sendMessageStreaming(
+  messages: MessagePayload[],
+  userMessage: string,
+  meditationStep: number = 0,
+): AsyncGenerator<string> {
+  const { provider, endpoint, apiKey, systemPrompt } = currentConfig;
+
+  // Streaming only works for the custom backend with SSE support
+  if (provider !== 'custom' || !endpoint) {
+    throw new Error('Streaming not available for this provider');
+  }
+
+  const streamEndpoint = endpoint.replace(/\/?$/, '/stream');
+  const trimmedMessages = messages.slice(-10);
+
+  const response = await fetch(streamEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+    },
+    body: JSON.stringify({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...trimmedMessages,
+      ],
+      user_message: userMessage,
+      meditation_step: meditationStep,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Streaming failed: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = decoder.decode(value, { stream: true });
+      // Parse SSE lines: "data: {...}\n\n"
+      const lines = text.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') return;
+        try {
+          const parsed = JSON.parse(payload);
+          const chunk = parsed.choices?.[0]?.delta?.content ?? parsed.token ?? parsed.content ?? '';
+          if (chunk) yield chunk;
+        } catch {
+          // Non-JSON SSE line — yield raw text
+          if (payload) yield payload;
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+
 export const sendMessage = async (
   messages: MessagePayload[],
   userMessage: string,
