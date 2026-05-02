@@ -661,14 +661,21 @@ export const ChatInterface = () => {
         {/* Input Area */}
         <footer className="relative z-20 px-3 sm:px-4 pb-3 pt-2 pb-safe">
           <div className="max-w-3xl mx-auto">
-            {/* Subtle Serene Mind chip */}
-            <div className="flex justify-center mb-2">
+            {/* Subtle practice chips */}
+            <div className="flex justify-center gap-2 mb-2">
               <button
                 onClick={() => openSereneMind()}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
               >
                 <Flame className="w-3 h-3" />
-                <span>Feeling stressed? Try Serene Mind</span>
+                <span>Serene Mind</span>
+              </button>
+              <button
+                onClick={() => setShowGuidedMeditation(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>Guided Meditation</span>
               </button>
             </div>
 
