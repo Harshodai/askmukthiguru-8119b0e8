@@ -78,10 +78,22 @@ services:
       # === LLM Provider ===
       # "sarvam_cloud" (default) or "ollama" (requires Ollama on host)
       - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
-      # --- Sarvam Cloud API ---
+      # --- Sarvam Cloud API (config-driven — any model name works) ---
       - SARVAM_API_KEY=${SARVAM_API_KEY:-}
       - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
       - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
+      - SARVAM_BASE_URL=${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+      - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
+      - SERENE_MIND_ENABLED=${SERENE_MIND_ENABLED:-true}
+      # --- Guardrails ---
+      - GUARDRAILS_PROVIDER=${GUARDRAILS_PROVIDER:-nemo}
+      # --- Retrieval Quality ---
+      - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.3}
+      - SEMANTIC_CACHE_ENABLED=${SEMANTIC_CACHE_ENABLED:-true}
+      - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.92}
+      # --- Observability ---
+      - ENABLE_CORRELATION_IDS=${ENABLE_CORRELATION_IDS:-true}
       # --- Ollama (only used when LLM_PROVIDER=ollama) ---
       # Model Preset: "qwen" (default) or "sarvam" (requires custom GGUF import)
       - MODEL_PRESET=${MODEL_PRESET:-qwen}

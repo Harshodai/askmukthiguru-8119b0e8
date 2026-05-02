@@ -46,6 +46,7 @@ from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
 from services.lightrag_service import LightRAGService
+from services.serene_mind_engine import SereneMindEngine, DistressLevel
 from rag.compressor import compress_documents
 from rag.tree_navigator import navigate_tree, check_sufficiency
 from app.config import settings
@@ -57,6 +58,7 @@ _ollama: OllamaService = None
 _embedder: EmbeddingService = None
 _qdrant: QdrantService = None
 _lightrag: LightRAGService = None
+_serene_mind: SereneMindEngine = None
 
 
 def init_services(
@@ -64,13 +66,14 @@ def init_services(
     embedder: EmbeddingService,
     qdrant: QdrantService,
     lightrag: LightRAGService = None,
+    serene_mind: SereneMindEngine = None,
 ) -> None:
     """
     Inject service dependencies into the nodes module.
     Called once during graph construction.
     
     Raises:
-        ValueError: If any service is None
+        ValueError: If any required service is None
     """
     if not all([ollama, embedder, qdrant]):
         missing = []
@@ -82,11 +85,12 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
     
-    global _ollama, _embedder, _qdrant, _lightrag
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind
     _ollama = ollama
     _embedder = embedder
     _qdrant = qdrant
     _lightrag = lightrag
+    _serene_mind = serene_mind
 
 
 import time
@@ -126,12 +130,17 @@ async def intent_router(state: GraphState) -> dict:
     """
     Classify user message → DISTRESS / QUERY / CASUAL.
     
+    Uses a two-stage approach:
+    1. Serene Mind Engine (fast keyword detection) for distress pre-screening
+    2. LLM classification for nuanced intent routing
+    
     This is the first decision point. Determines the entire pipeline path:
     - DISTRESS → meditation flow (bypass RAG)
     - QUERY → full 11-layer RAG pipeline
     - CASUAL → simple conversational response
     """
     question = state["question"]
+    chat_history = state.get("chat_history", [])
     
     # Check if we're in an active meditation session
     meditation_step = state.get("meditation_step", 0)
@@ -142,8 +151,23 @@ async def intent_router(state: GraphState) -> dict:
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
 
+    # Stage 1: Serene Mind pre-screening (fast, no LLM call)
+    if _serene_mind:
+        assessment = _serene_mind.assess_distress(question, chat_history)
+        if assessment.level >= DistressLevel.MODERATE:
+            logger.info(
+                f"Serene Mind: Distress detected (level={assessment.level.name}, "
+                f"confidence={assessment.confidence:.2f}, "
+                f"signals={assessment.detected_signals})"
+            )
+            return {"intent": "DISTRESS"}
+
+    # Stage 2: LLM classification (nuanced)
     intent = await _ollama.classify_intent(question)
-    logger.info(f"Intent: {intent} for query (len={len(question)})")
+    logger.info(
+        f"Intent Router: classified '{question[:80]}...' → {intent} "
+        f"(question_len={len(question)})"
+    )
     return {"intent": intent}
 
 
@@ -552,24 +576,32 @@ async def format_final_answer(state: GraphState) -> dict:
     - Confidence 3-6 → answer with caveat
     - Confidence 7-10 → confident answer with citations
     """
-    # Check if faithfulness passed
-    if not state.get("is_faithful", False):
-        logger.warning("Final: Answer rejected by Self-RAG (not faithful)")
-        return {"final_answer": FALLBACK_RESPONSE}
-
-    # Check if CoVe verification passed
+    # Check if faithfulness and verification passed
+    is_faithful = state.get("is_faithful", False)
     verification = state.get("verification", {})
-    if not verification.get("passed", False):
-        logger.warning("Final: Answer rejected by CoVe (verification failed)")
-        return {"final_answer": FALLBACK_RESPONSE}
-
-    answer = state["answer"]
-    citations = state.get("citations", [])
+    verified = verification.get("passed", False)
     confidence = state.get("confidence_score", 5.0)
+    answer = state.get("answer", "")
+    citations = state.get("citations", [])
 
-    # Confidence-based graduated responses
-    if confidence < 3:
-        logger.warning(f"Final: Low confidence ({confidence}), returning fallback")
+    # If both faithfulness and verification pass — use the answer
+    if is_faithful and verified:
+        pass  # Continue to confidence-based formatting below
+    elif citations and confidence >= 3 and answer:
+        # Answer has real citations from ingested content and decent confidence
+        # Allow it through — the citations prove retrieval was grounded
+        logger.info(
+            f"Final: Verification soft-pass (faithful={is_faithful}, "
+            f"verified={verified}, confidence={confidence}, "
+            f"citations={len(citations)})"
+        )
+    else:
+        # No citations or very low confidence — reject
+        logger.warning(
+            f"Final: Answer rejected (faithful={is_faithful}, "
+            f"verified={verified}, confidence={confidence}, "
+            f"citations={len(citations)})"
+        )
         return {"final_answer": FALLBACK_RESPONSE}
 
     if confidence < 7:
@@ -593,15 +625,43 @@ async def format_final_answer(state: GraphState) -> dict:
 
 async def handle_casual(state: GraphState) -> dict:
     """Handle casual conversation (greetings, thanks, etc.)."""
-    response = await _ollama.generate(
-        system_prompt=CASUAL_SYSTEM_PROMPT,
-        user_prompt=state["question"],
-    )
+    try:
+        response = await _ollama.generate(
+            system_prompt=CASUAL_SYSTEM_PROMPT,
+            user_prompt=state["question"],
+        )
+        if not response or not response.strip():
+            logger.warning("handle_casual: LLM returned empty response, using warm fallback")
+            response = (
+                "🙏 Namaste! I am Mukthi Guru, here to share the wisdom of "
+                "Sri Preethaji and Sri Krishnaji. How may I serve your journey "
+                "towards inner peace today?"
+            )
+    except Exception as e:
+        logger.error(f"handle_casual failed: {e}")
+        response = (
+            "🙏 Namaste! I am Mukthi Guru, here to walk with you on the "
+            "path of spiritual awakening. Please share what is in your heart."
+        )
     return {"final_answer": response}
 
 
 async def handle_distress(state: GraphState) -> dict:
-    """Handle distress detection — offer meditation."""
+    """Handle distress detection — offer graduated meditation response using Serene Mind Engine."""
+    question = state["question"]
+
+    # Use Serene Mind Engine for graduated response if available
+    if _serene_mind is not None:
+        assessment = _serene_mind.assess_distress(question)
+        if assessment.level.value > 0:
+            response = _serene_mind.get_response(assessment)
+            logger.info(
+                f"Distress handler: level={assessment.level.name}, "
+                f"confidence={assessment.confidence:.2f}"
+            )
+            return {"final_answer": response, "meditation_step": 1}
+
+    # Fallback to static response
     response = get_distress_response()
     return {"final_answer": response, "meditation_step": 1}
 

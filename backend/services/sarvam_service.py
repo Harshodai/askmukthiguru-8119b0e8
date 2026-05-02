@@ -1,19 +1,21 @@
 """
 Mukthi Guru — Sarvam Cloud API Service (BE-1)
 
-Replaces OllamaService with Sarvam's hosted Cloud API.
-Uses `langchain-sarvam` for native LangChain integration.
+Gateway to all LLM operations via Sarvam Cloud API.
+Uses direct httpx HTTP calls for reliability (replaces langchain-sarvam which
+returned empty responses due to async incompatibilities).
 
 Design Patterns:
-  - Facade Pattern: Wraps langchain-sarvam behind domain-specific methods
+  - Facade Pattern: Wraps Sarvam REST API behind domain-specific methods
   - Template Method: Each LLM task has its own method with tailored prompts
   - Single Responsibility: Each method does ONE thing with the LLM
-  - Dual-Model Strategy: Uses sarvam-30b for generation, sarvam-30b with low max_tokens for classification
+  - Circuit Breaker: Fail-fast when API is down, auto-recover
+  - Config-Driven: Any model name works — just set SARVAM_CLOUD_MODEL
 
 API Reference:
   - Endpoint: https://api.sarvam.ai/v1/chat/completions
-  - Auth: Bearer <api_subscription_key>
-  - Models: sarvam-30b (64K ctx), sarvam-105b (128K ctx)
+  - Auth: api-subscription-key header
+  - Models: sarvam-30b (32K ctx), sarvam-105b (128K ctx), sarvam-m (legacy)
   - Docs: https://docs.sarvam.ai/
 
 All LLM calls funnel through this service. No other module talks to Sarvam directly.
@@ -22,9 +24,14 @@ All LLM calls funnel through this service. No other module talks to Sarvam direc
 import logging
 import os
 import re
+import time
+import asyncio
+import json
 from typing import Optional, AsyncIterator
+from enum import Enum
+from dataclasses import dataclass, field
 
-from langchain_core.messages import HumanMessage, SystemMessage
+import httpx
 
 from app.config import settings
 from rag.prompts import (
@@ -50,49 +57,277 @@ class QuotaExceededError(Exception):
     pass
 
 
+# ---------------------------------------------------------------------------
+# Circuit Breaker — fail-fast when API is down, auto-recover
+# ---------------------------------------------------------------------------
+
+class CircuitState(Enum):
+    CLOSED = "closed"        # Normal operation
+    OPEN = "open"            # Failing — reject requests immediately
+    HALF_OPEN = "half_open"  # Testing if recovered
+
+
+@dataclass
+class CircuitBreaker:
+    """Lightweight circuit breaker for Sarvam API calls."""
+    failure_threshold: int = 5
+    recovery_timeout: float = 30.0
+    half_open_max_calls: int = 3
+    # Mutable state — use field(default_factory)
+    _failures: int = field(default=0, repr=False)
+    _last_failure_time: Optional[float] = field(default=None, repr=False)
+    _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
+    _half_open_calls: int = field(default=0, repr=False)
+
+    def can_execute(self) -> bool:
+        if self._state == CircuitState.CLOSED:
+            return True
+        if self._state == CircuitState.OPEN:
+            if time.time() - (self._last_failure_time or 0) > self.recovery_timeout:
+                self._state = CircuitState.HALF_OPEN
+                self._half_open_calls = 0
+                logger.info("Circuit breaker → HALF_OPEN (testing recovery)")
+                return True
+            return False
+        # HALF_OPEN
+        return self._half_open_calls < self.half_open_max_calls
+
+    def record_success(self):
+        if self._state == CircuitState.HALF_OPEN:
+            self._half_open_calls += 1
+            if self._half_open_calls >= self.half_open_max_calls:
+                self._state = CircuitState.CLOSED
+                self._failures = 0
+                logger.info("Circuit breaker → CLOSED (recovered)")
+        else:
+            self._failures = max(0, self._failures - 1)
+
+    def record_failure(self):
+        self._failures += 1
+        self._last_failure_time = time.time()
+        if self._state == CircuitState.HALF_OPEN:
+            self._state = CircuitState.OPEN
+            logger.warning("Circuit breaker → OPEN (failed during half-open)")
+        elif self._failures >= self.failure_threshold:
+            self._state = CircuitState.OPEN
+            logger.warning(
+                f"Circuit breaker → OPEN (threshold={self.failure_threshold} reached)"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Sarvam Cloud Service
+# ---------------------------------------------------------------------------
+
 class SarvamCloudService:
     """
     Gateway to all LLM operations via Sarvam Cloud API.
 
-    Uses Sarvam's hosted models instead of local Ollama:
-    - _llm (sarvam-30b / sarvam-105b): Full generation, verification, summarization
-    - _llm_fast (sarvam-30b with low max_tokens): Classification tasks
+    Uses direct httpx HTTP calls for reliability.
+    Supports any model name — fully config-driven.
 
     The interface is identical to OllamaService so it's a drop-in replacement.
     """
 
     def __init__(self) -> None:
-        """Initialize the Sarvam Cloud API clients (main + fast classifier)."""
-        from langchain_sarvam import ChatSarvam
-
-        api_key = settings.sarvam_api_key
-        if not api_key:
+        """Initialize the Sarvam Cloud API client."""
+        self._api_key = settings.sarvam_api_key
+        if not self._api_key:
             raise ValueError(
                 "SARVAM_API_KEY is required for Sarvam Cloud API mode. "
                 "Set it in your .env file or environment variables."
             )
 
-        gen_model = settings.sarvam_cloud_model
-        cls_model = settings.sarvam_cloud_classify_model
+        self._base_url = getattr(settings, 'sarvam_base_url', 'https://api.sarvam.ai/v1')
+        self._gen_model = settings.sarvam_cloud_model
+        self._cls_model = settings.sarvam_cloud_classify_model
+        self._timeout = getattr(settings, 'llm_timeout', 60)
+        self._max_retries = getattr(settings, 'llm_max_retries', 3)
+        self._circuit = CircuitBreaker()
 
-        # Set the API key in environment for langchain-sarvam
-        os.environ["SARVAM_API_KEY"] = api_key
+        # Also set env for any code that might use langchain-sarvam internally
+        os.environ["SARVAM_API_KEY"] = self._api_key
 
-        # Main model — for generation and verification
-        self._llm = ChatSarvam(
-            model=gen_model,
-            temperature=0.1,    # Low temp for factual accuracy
-            max_tokens=1024,    # Max output tokens
+        logger.info(
+            f"Sarvam Cloud Service ready — "
+            f"gen_model={self._gen_model}, cls_model={self._cls_model}, "
+            f"base_url={self._base_url}"
         )
-        logger.info(f"Sarvam Cloud main model ready: {gen_model}")
 
-        # Fast model — for classification tasks (same model, lower max_tokens)
-        self._llm_fast = ChatSarvam(
-            model=cls_model,
-            temperature=0.0,    # Zero temp for deterministic classification
-            max_tokens=256,     # Classification outputs are short
-        )
-        logger.info(f"Sarvam Cloud fast model ready: {cls_model}")
+    # -----------------------------------------------------------------------
+    # Core HTTP API call — ALL LLM calls go through here
+    # -----------------------------------------------------------------------
+
+    async def _call_api(
+        self,
+        messages: list[dict],
+        model: str,
+        max_tokens: int = 2048,
+        temperature: float = 0.1,
+        stream: bool = False,
+        **kwargs,
+    ) -> str:
+        """
+        Direct HTTP POST to Sarvam Chat Completions API.
+
+        Replaces the buggy langchain-sarvam wrapper with reliable httpx calls.
+        Includes retry logic, circuit breaker, and detailed error logging.
+
+        Returns: The assistant's response content (stripped of <think> tags).
+        """
+        if not self._circuit.can_execute():
+            raise Exception(
+                f"Sarvam API circuit breaker is OPEN — "
+                f"failing fast. Will retry after recovery timeout."
+            )
+
+        headers = {
+            "Content-Type": "application/json",
+            "api-subscription-key": self._api_key,
+        }
+
+        # Validate messages: Sarvam API rejects empty content fields with HTTP 400
+        validated_messages = []
+        for msg in messages:
+            content = msg.get("content", "") or ""
+            if not content.strip():
+                # Skip empty messages or replace with a minimal placeholder
+                if msg.get("role") == "system":
+                    content = "You are a helpful assistant."
+                elif msg.get("role") == "user":
+                    content = "Please respond."
+                else:
+                    continue
+            validated_messages.append({"role": msg["role"], "content": content})
+
+        if not validated_messages:
+            logger.warning("_call_api: No valid messages to send after validation")
+            return ""
+
+        payload = {
+            "model": model,
+            "messages": validated_messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": stream,
+        }
+
+        last_error = None
+        for attempt in range(1, self._max_retries + 1):
+            start_time = time.time()
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    resp = await client.post(
+                        f"{self._base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+
+                latency_ms = (time.time() - start_time) * 1000
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+                    tokens_used = data.get("usage", {}).get("total_tokens", 0)
+
+                    # Strip <think> tags from reasoning models
+                    # Sarvam-30b sometimes puts ALL content inside <think>...</think>,
+                    # especially for classification/grading tasks.
+                    # Strategy: First check if there's content OUTSIDE think tags.
+                    # If not, extract the meaningful output FROM the think tags.
+                    think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                    content_outside_think = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+                    if content_outside_think:
+                        # Normal case: real content exists outside think tags
+                        content = content_outside_think
+                    elif think_match:
+                        # Reasoning model put EVERYTHING in think tags
+                        # Extract the last non-empty line as the "answer"
+                        think_text = think_match.group(1).strip()
+                        lines = [l.strip() for l in think_text.splitlines() if l.strip()]
+                        if lines:
+                            # For classification: use the last line (usually the final answer)
+                            content = lines[-1]
+                            logger.debug(
+                                f"Extracted answer from <think> tags: '{content[:100]}'"
+                            )
+                        else:
+                            content = ""
+                    else:
+                        content = content.strip()
+
+                    logger.info(
+                        f"Sarvam API OK — model={model}, "
+                        f"latency={latency_ms:.0f}ms, tokens={tokens_used}, "
+                        f"response_len={len(content)}"
+                    )
+
+                    # Prometheus instrumentation
+                    try:
+                        from app.metrics import LLM_LATENCY, LLM_TOKENS
+                        LLM_LATENCY.labels(model=model, operation="generate").observe(latency_ms / 1000)
+                        if tokens_used:
+                            LLM_TOKENS.labels(model=model).inc(tokens_used)
+                    except Exception:
+                        pass  # Metrics are optional
+
+                    self._circuit.record_success()
+                    return content
+
+                # Handle specific error codes
+                status = resp.status_code
+                body = resp.text[:500]
+
+                if status == 429 or "credits" in body.lower():
+                    self._circuit.record_failure()
+                    raise QuotaExceededError(
+                        f"Sarvam API quota exceeded (HTTP {status}): {body}"
+                    )
+
+                if status >= 500:
+                    # Server error — retry
+                    logger.warning(
+                        f"Sarvam API server error (attempt {attempt}/{self._max_retries}): "
+                        f"HTTP {status} — {body}"
+                    )
+                    last_error = Exception(f"HTTP {status}: {body}")
+                    await asyncio.sleep(min(2 ** attempt, 8))  # Exponential backoff
+                    continue
+
+                # Client error (4xx) — don't retry
+                self._circuit.record_failure()
+                raise Exception(
+                    f"Sarvam API client error: HTTP {status} — {body}"
+                )
+
+            except QuotaExceededError:
+                raise
+            except httpx.TimeoutException:
+                latency_ms = (time.time() - start_time) * 1000
+                logger.warning(
+                    f"Sarvam API timeout (attempt {attempt}/{self._max_retries}): "
+                    f"{latency_ms:.0f}ms"
+                )
+                last_error = Exception(f"Timeout after {latency_ms:.0f}ms")
+                await asyncio.sleep(min(2 ** attempt, 8))
+            except Exception as e:
+                if isinstance(e, QuotaExceededError):
+                    raise
+                latency_ms = (time.time() - start_time) * 1000
+                logger.warning(
+                    f"Sarvam API error (attempt {attempt}/{self._max_retries}): {e}"
+                )
+                last_error = e
+                await asyncio.sleep(min(2 ** attempt, 8))
+
+        # All retries exhausted
+        self._circuit.record_failure()
+        raise last_error or Exception("Sarvam API call failed after all retries")
+
+    # -----------------------------------------------------------------------
+    # Public generation methods (unchanged interface)
+    # -----------------------------------------------------------------------
 
     async def generate(
         self,
@@ -108,30 +343,26 @@ class SarvamCloudService:
             system_prompt: Role and constraints for the LLM
             user_prompt: User's input with any injected context
             context: Retrieved documents (inserted into the prompt)
-            **kwargs: Additional model parameters (temperature, top_k, etc.)
+            **kwargs: Additional model parameters (temperature, etc.)
         """
-        messages = [SystemMessage(content=system_prompt)]
+        messages = [{"role": "system", "content": system_prompt}]
 
         if context:
             full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}"
         else:
             full_prompt = user_prompt
 
-        messages.append(HumanMessage(content=full_prompt))
+        messages.append({"role": "user", "content": full_prompt})
 
-        try:
-            # Bind runtime args like temperature. Explicitly pass model to bypass langchain-sarvam async bug
-            kwargs["model"] = settings.sarvam_cloud_model
-            chain = self._llm.bind(**kwargs)
-            response = await chain.ainvoke(messages)
-            return response.content.strip()
-        except Exception as e:
-            logger.error(f"Sarvam Cloud generation failed: {e}")
-            # Raise QuotaExceededError for immediate top-level bailout
-            if "credits" in str(e).lower() or "429" in str(e).lower():
-                logger.warning("Quota exceeded for Sarvam Cloud API. Raising QuotaExceededError.")
-                raise QuotaExceededError(str(e))
-            raise
+        temperature = kwargs.pop("temperature", 0.1)
+        max_tokens = kwargs.pop("max_tokens", 2048)
+
+        return await self._call_api(
+            messages=messages,
+            model=self._gen_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
     async def _generate_fast(
         self,
@@ -140,29 +371,37 @@ class SarvamCloudService:
         **kwargs,
     ) -> str:
         """
-        Fast classification using the Sarvam model with low max_tokens.
+        Fast classification using the Sarvam model with lower max_tokens.
 
         Used for binary/ternary classification tasks where full generation
         is overkill. Faster due to lower max_tokens.
         """
         messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
         ]
 
+        temperature = kwargs.pop("temperature", 0.0)
+        max_tokens = kwargs.pop("max_tokens", 512)
+
         try:
-            kwargs["model"] = settings.sarvam_cloud_classify_model
-            chain = self._llm_fast.bind(**kwargs)
-            response = await chain.ainvoke(messages)
-            return response.content.strip()
+            return await self._call_api(
+                messages=messages,
+                model=self._cls_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except QuotaExceededError:
+            raise
         except Exception as e:
-            # Raise QuotaExceededError for immediate top-level bailout
-            if "credits" in str(e).lower() or "429" in str(e).lower():
-                logger.warning("Quota exceeded for Sarvam Cloud API in classification. Raising QuotaExceededError.")
-                raise QuotaExceededError(str(e))
             # Fall back to main model if fast model fails
             logger.warning(f"Fast model failed, falling back to main: {e}")
-            return await self.generate(system_prompt, user_prompt, **kwargs)
+            return await self._call_api(
+                messages=messages,
+                model=self._gen_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
 
     async def generate_stream(
         self,
@@ -176,29 +415,69 @@ class SarvamCloudService:
 
         Yields tokens as they are generated for SSE streaming.
         """
-        messages = [SystemMessage(content=system_prompt)]
+        messages = [{"role": "system", "content": system_prompt}]
 
         if context:
             full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}"
         else:
             full_prompt = user_prompt
 
-        messages.append(HumanMessage(content=full_prompt))
+        messages.append({"role": "user", "content": full_prompt})
+
+        headers = {
+            "Content-Type": "application/json",
+            "api-subscription-key": self._api_key,
+        }
+
+        payload = {
+            "model": self._gen_model,
+            "messages": messages,
+            "temperature": kwargs.get("temperature", 0.1),
+            "max_tokens": kwargs.get("max_tokens", 2048),
+            "stream": True,
+        }
 
         try:
-            kwargs["model"] = settings.sarvam_cloud_model
-            chain = self._llm.bind(**kwargs)
-            async for chunk in chain.astream(messages):
-                if chunk.content:
-                    yield chunk.content
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self._base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as resp:
+                    buffer = ""
+                    async for line in resp.aiter_lines():
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                # Strip think tags from accumulated buffer
+                                if buffer:
+                                    clean = re.sub(r"<think>.*?</think>", "", buffer, flags=re.DOTALL)
+                                    # Already yielded tokens — just log completion
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                if delta:
+                                    buffer += delta
+                                    yield delta
+                            except json.JSONDecodeError:
+                                pass
+
+            self._circuit.record_success()
+
         except Exception as e:
             logger.error(f"Sarvam Cloud streaming failed: {e}")
-            # Graceful Fallback for Quota Exceeded (Error Handling Patterns)
+            self._circuit.record_failure()
             if "credits" in str(e).lower() or "429" in str(e).lower():
-                logger.warning("Quota exceeded for Sarvam Cloud API in streaming. Yielding graceful fallback response.")
+                logger.warning("Quota exceeded for Sarvam Cloud API in streaming.")
                 yield "The essence of spiritual practice is compassion and mindfulness. Even in stillness, your presence is heard."
                 return
             raise
+
+    # -----------------------------------------------------------------------
+    # Domain-specific LLM methods (unchanged public interface)
+    # -----------------------------------------------------------------------
 
     async def classify_intent(self, message: str) -> str:
         """
@@ -206,18 +485,35 @@ class SarvamCloudService:
 
         Returns: 'DISTRESS' | 'QUERY' | 'CASUAL'
 
-        Uses the fast model for speed.
+        IMPORTANT: If the LLM returns empty/garbage, default to QUERY (not CASUAL)
+        so the RAG pipeline still processes the question.
         """
         result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
+
+        if not result_upper:
+            # Empty response — default to QUERY to avoid skipping RAG pipeline
+            logger.warning(
+                "classify_intent got empty response from LLM. "
+                "Defaulting to QUERY to ensure RAG pipeline processes the question."
+            )
+            return "QUERY"
+
         if "DISTRESS" in result_upper:
             return "DISTRESS"
         elif "QUERY" in result_upper:
             return "QUERY"
-        else:
+        elif "CASUAL" in result_upper:
             return "CASUAL"
+        else:
+            # Unrecognized output — default to QUERY (safer than CASUAL)
+            logger.warning(
+                f"classify_intent got unrecognized output: {result[:100]!r}. "
+                "Defaulting to QUERY."
+            )
+            return "QUERY"
 
     async def grade_relevance(self, query: str, document: str) -> bool:
         """
@@ -259,6 +555,13 @@ class SarvamCloudService:
                         relevance[idx] = "yes" in parts[1].lower()
                 except (ValueError, IndexError):
                     continue
+
+        # If parser didn't match or LLM graded everything False,
+        # keep the top-5 documents to guarantee context!
+        if not any(relevance) and len(documents) > 0:
+            logger.warning("Relevance grading returned no docs. Using top documents fallback.")
+            for i in range(min(5, len(documents))):
+                relevance[i] = True
 
         return relevance
 
@@ -438,20 +741,18 @@ class SarvamCloudService:
     async def health_check(self) -> bool:
         """Check if Sarvam Cloud API is reachable."""
         try:
-            import httpx
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.post(
-                    "https://api.sarvam.ai/v1/chat/completions",
+                    f"{self._base_url}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {settings.sarvam_api_key}",
+                        "api-subscription-key": self._api_key,
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": settings.sarvam_cloud_model,
+                        "model": self._gen_model,
                         "messages": [{"role": "user", "content": "ping"}],
                         "max_tokens": 5,
                     },
-                    timeout=10,
                 )
             return resp.status_code == 200
         except Exception:

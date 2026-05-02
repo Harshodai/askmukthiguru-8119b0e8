@@ -1,9 +1,10 @@
 models:
   - type: main
-    engine: ollama
-    model: sarvam-30b:latest
+    engine: openai
+    model: sarvam-30b
     parameters:
-      base_url: ${OLLAMA_BASE_URL}
+      api_base: ${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
+      api_key: ${SARVAM_API_KEY}
 
 instructions:
   - type: general

@@ -24,6 +24,8 @@ from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
 from services.lightrag_service import lightrag_service, LightRAGService
 from services.cache_service import init_llm_cache
+from services.serene_mind_engine import SereneMindEngine
+from services.semantic_cache import SemanticCacheService
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +77,23 @@ class ServiceContainer:
         self.ollama = _create_llm_service()  # SarvamCloudService OR OllamaService
         self.ocr = OCRService()
 
-        # Layer 3: Guardrails (depends on config)
+        # Layer 3: Emotional Intelligence (depends on embedding, config-gated)
+        if settings.serene_mind_enabled:
+            self.serene_mind = SereneMindEngine(embedding_service=self.embedding)
+        else:
+            self.serene_mind = None
+            logger.info("Serene Mind Engine disabled via config (SERENE_MIND_ENABLED=false)")
+
+        # Layer 4: Guardrails (depends on config)
         self.guardrails = GuardrailsService()
 
-        # Layer 4: Ingestion pipeline (depends on all services)
+        # Layer 4b: Semantic Cache (depends on embedding + redis)
+        self.semantic_cache = SemanticCacheService(
+            redis_url=settings.redis_url,
+            embedding_service=self.embedding,
+        )
+
+        # Layer 5: Ingestion pipeline (depends on all services)
         self.ingestion = IngestionPipeline(
             qdrant_service=self.qdrant,
             embedding_service=self.embedding,
@@ -86,15 +101,21 @@ class ServiceContainer:
             ocr_service=self.ocr,
         )
 
-        # Layer 5: RAG graph (depends on core services)
+        # Layer 6: RAG graph (depends on core services + serene mind)
         self.rag_graph = build_rag_graph(
             ollama_service=self.ollama,
             embedding_service=self.embedding,
             qdrant_service=self.qdrant,
             lightrag_service=self.lightrag,
+            serene_mind_engine=self.serene_mind,
         )
 
-        logger.info("All services initialized")
+        logger.info(
+            f"All services initialized "
+            f"(Serene Mind: {'enabled' if self.serene_mind else 'disabled'}, "
+            f"Guardrails: {self.guardrails.provider_name}, "
+            f"Semantic Cache: {'enabled' if self.semantic_cache.is_available else 'disabled'})"
+        )
 
     async def health_status(self) -> dict:
         """Check health of all services (non-blocking)."""
@@ -115,6 +136,8 @@ class ServiceContainer:
             "ollama": await self.ollama.health_check(),  # Already async
             "ocr": ocr_ok,
             "guardrails": self.guardrails.is_available,
+            "guardrails_provider": self.guardrails.provider_name,
+            "semantic_cache": self.semantic_cache.is_available,
             "embedding": True,
             "qdrant_count": qdrant_count,
         }

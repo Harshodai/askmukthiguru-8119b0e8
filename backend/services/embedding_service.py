@@ -132,6 +132,7 @@ class EmbeddingService:
 
         Pipeline: Qdrant returns 20 docs (from hybrid search)
                   -> CrossEncoder deeply scores each (query, doc) pair
+                  -> Filter by minimum score threshold (rerank_min_score)
                   -> Return only the top-k most semantically relevant
         """
         if top_k is None:
@@ -147,12 +148,42 @@ class EmbeddingService:
         for doc, score in zip(documents, scores):
             doc["rerank_score"] = float(score)
 
-        ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
-        top_docs = ranked[:top_k]
+        # Score distribution logging for debugging
+        if scores is not None and len(scores) > 0:
+            import numpy as np
+            score_arr = np.array([float(s) for s in scores])
+            logger.info(
+                f"Reranker scores: min={score_arr.min():.4f}, "
+                f"max={score_arr.max():.4f}, mean={score_arr.mean():.4f}, "
+                f"median={float(np.median(score_arr)):.4f}"
+            )
 
-        logger.debug(
-            f"Reranked {len(documents)} -> {len(top_docs)} docs. "
-            f"Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "No docs"
+        ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
+
+        # Apply minimum score threshold
+        min_score = settings.rerank_min_score
+        above_threshold = [d for d in ranked if d["rerank_score"] >= min_score]
+
+        if not above_threshold and ranked:
+            # If ALL docs are below threshold, keep the top 1 as minimum
+            above_threshold = ranked[:1]
+            logger.warning(
+                f"All {len(ranked)} docs scored below threshold {min_score}. "
+                f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
+            )
+
+        filtered_count = len(ranked) - len(above_threshold)
+        if filtered_count > 0:
+            logger.info(
+                f"Reranker threshold {min_score}: filtered {filtered_count} docs below threshold"
+            )
+
+        top_docs = above_threshold[:top_k]
+
+        logger.info(
+            f"Reranked {len(documents)} → {len(top_docs)} docs"
+            + (f". Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "")
         )
 
         return top_docs
+

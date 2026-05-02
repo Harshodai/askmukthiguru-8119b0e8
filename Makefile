@@ -41,15 +41,19 @@ test: ## Run backend unit tests
 
 docker-up: ## Build and start the full Docker stack in detached mode
 	@echo "${GREEN}Starting full Docker stack...${NC}"
-	@cd backend && docker compose up -d --build
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --build
+
+docker-rebuild: ## Rebuild without cache and restart Docker (keeps persisted volumes)
+	@echo "${GREEN}Rebuilding full Docker stack without cache...${NC}"
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose build --no-cache && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --force-recreate
 
 docker-down: ## Stop and remove all Docker containers
 	@echo "${GREEN}Stopping Docker stack...${NC}"
-	@cd backend && docker compose down
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose down
 
 clean: ## Stop Docker, remove volumes, and clean local caches
 	@echo "${YELLOW}Cleaning up volumes and caches...${NC}"
-	@cd backend && docker compose down -v
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose down -v
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	@find . -type d -name ".ruff_cache" -exec rm -rf {} +
@@ -57,10 +61,10 @@ clean: ## Stop Docker, remove volumes, and clean local caches
 	@echo "${GREEN}Clean complete.${NC}"
 
 logs: ## Tail the logs of all Docker services
-	@cd backend && docker compose logs -f
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose logs -f
 
 shell: ## Open a shell inside the running backend container
-	@cd backend && docker compose exec backend /bin/bash || docker compose exec backend /bin/sh
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose exec backend /bin/bash || PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose exec backend /bin/sh
 
 deploy: ## Build production images and prepare for remote deployment
 	@chmod +x deploy.sh

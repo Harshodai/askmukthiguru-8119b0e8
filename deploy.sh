@@ -1,40 +1,30 @@
 #!/usr/bin/env bash
 # ============================================================
-# Mukthi Guru — Deployment Script
+# Mukthi Guru — Local Deployment and Portal Dashboard
 # ============================================================
-# Builds and pushes Docker images to a container registry,
-# then provides instructions for deploying to the remote server.
 
 set -e
 
-# Configuration
-REGISTRY="ghcr.io/your-username"
-VERSION=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
-BACKEND_IMAGE="${REGISTRY}/askmukthiguru-backend:${VERSION}"
-FRONTEND_IMAGE="${REGISTRY}/askmukthiguru-frontend:${VERSION}"
+# Colors for terminal output
+CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
+GREEN='\033[1;32m'
+NC='\033[0m'
 
-echo "============================================================"
-echo "🚀 Starting AskMukthiGuru Deployment Prep"
-echo "============================================================"
+printf "${CYAN}============================================================${NC}\n"
+printf "🚀 Starting AskMukthiGuru Deployment Dashboard\n"
+printf "${CYAN}============================================================${NC}\n"
 
-# 1. Build Backend
-echo "📦 Building Backend Image: $BACKEND_IMAGE"
-docker build -t "$BACKEND_IMAGE" -f backend/Dockerfile .
-docker tag "$BACKEND_IMAGE" "${REGISTRY}/askmukthiguru-backend:latest"
+# Run make docker-up to start everything
+make docker-up
 
-# 2. Build Frontend
-echo "📦 Building Frontend Image: $FRONTEND_IMAGE"
-docker build -t "$FRONTEND_IMAGE" -f frontend.Dockerfile .
-docker tag "$FRONTEND_IMAGE" "${REGISTRY}/askmukthiguru-frontend:latest"
-
-# 3. Push Images (Commented out by default to prevent accidental pushes)
-echo "============================================================"
-echo "✅ Images built successfully!"
-echo ""
-echo "To push these images to your registry, run:"
-echo "  docker push ${REGISTRY}/askmukthiguru-backend:latest"
-echo "  docker push ${REGISTRY}/askmukthiguru-frontend:latest"
-echo ""
-echo "To deploy to your VPS, copy 'docker-compose.prod.yml' and run:"
-echo "  docker compose -f docker-compose.prod.yml up -d"
-echo "============================================================"
+printf "\n"
+printf "${GREEN}✅ Full deployment successful! Here are your clickable local URLs:${NC}\n"
+printf "${CYAN}============================================================${NC}\n"
+printf "  🌐 ${YELLOW}Supabase API/Auth:${NC}       http://localhost:54321\n"
+printf "  📊 ${YELLOW}Supabase Studio Dashboard:${NC} http://localhost:54323\n"
+printf "  🎨 ${YELLOW}Main App (Vite):${NC}           http://localhost:80\n"
+printf "  💬 ${YELLOW}Premium Chat Portal:${NC}       http://localhost/chat\n"
+printf "  📥 ${YELLOW}Admin Ingestion Portal:${NC}    http://localhost/ingest\n"
+printf "  📜 ${YELLOW}Backend API / Swagger UI:${NC}  http://localhost:8000/docs\n"
+printf "${CYAN}============================================================${NC}\n"

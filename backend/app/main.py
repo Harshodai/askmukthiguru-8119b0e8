@@ -36,8 +36,12 @@ from app.telemetry_db import init_telemetry_db, log_query_trace
 from rag.graph import create_initial_state
 import time
 import uuid
+import contextvars
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
 from services.depression_detector import DepressionDetector
+
+# Correlation ID context variable — accessible from anywhere in the async call chain
+correlation_id_var = contextvars.ContextVar('correlation_id', default='-')
 from services.cache_service import RedisCacheAdapter, InMemoryCacheAdapter, init_llm_cache
 
 # Rate limiting and Auth
@@ -73,6 +77,13 @@ class JSONFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
+        # Include correlation ID if available
+        try:
+            cid = correlation_id_var.get()
+            if cid != '-':
+                log_obj["correlation_id"] = cid
+        except Exception:
+            pass
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_obj)
@@ -118,9 +129,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"LightRAG initialization failed (GraphRAG unavailable): {e}")
 
-    # 4. Load depression detection model
+    # 4. Load depression detection model + wire Serene Mind
     try:
         depression_detector.load()
+        # Wire Serene Mind Engine for fast keyword-based detection (no LLM call)
+        if settings.serene_mind_enabled and hasattr(container, 'serene_mind'):
+            depression_detector.set_serene_mind(container.serene_mind)
+            logger.info("Depression detector linked to Serene Mind Engine (fast path)")
     except Exception as e:
         logger.warning(f"Depression detector failed to load: {e}")
 
@@ -179,6 +194,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Correlation ID middleware — generates UUID per request
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        cid = request.headers.get("X-Correlation-ID", str(uuid.uuid4())[:8])
+        correlation_id_var.set(cid)
+        response = await call_next(request)
+        response.headers["X-Correlation-ID"] = cid
+        return response
+
+if settings.enable_correlation_ids:
+    app.add_middleware(CorrelationIDMiddleware)
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -195,6 +224,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 from routers.admin import admin_router
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(admin_router, prefix="/api/admin")
+
+# Mount trace dashboard routes
+from app.trace_dashboard import router as trace_router
+app.include_router(trace_router)
 
 @app.get("/metrics")
 async def get_metrics():
@@ -339,13 +372,19 @@ async def chat_endpoint(
 
     # === Depression Detection (Council Recommendation) ===
     # Check directly here before RAG to fail-fast into meditation
-    if await depression_detector.detect(user_msg):
-        from rag.meditation import get_distress_response
-        return ChatResponse(
-            response=get_distress_response(),
-            intent="DISTRESS",
-            meditation_step=1,
-        )
+    # Wrapped in try/except so detection failures don't crash the request
+    try:
+        if await depression_detector.detect(user_msg):
+            from rag.meditation import get_distress_response
+            return ChatResponse(
+                response=get_distress_response(),
+                intent="DISTRESS",
+                meditation_step=1,
+            )
+    except Exception as e:
+        # Don't crash the request if depression detection fails
+        # The Serene Mind Engine in intent_router provides a fallback
+        logger.warning(f"Depression detection failed (non-fatal): {e}")
 
     # === Response Cache Check ===
     cached = response_cache.get(user_msg)
@@ -517,14 +556,17 @@ async def chat_stream_endpoint(
                 yield f"event: done\ndata: {meta}\n\n"
                 return
 
-            # === Depression check ===
-            if await depression_detector.detect(user_msg):
-                from rag.meditation import get_distress_response
-                resp = get_distress_response()
-                yield f"event: token\ndata: {resp}\n\n"
-                meta = json.dumps({"intent": "DISTRESS", "meditation_step": 1})
-                yield f"event: done\ndata: {meta}\n\n"
-                return
+            # === Depression check (non-fatal if detection fails) ===
+            try:
+                if await depression_detector.detect(user_msg):
+                    from rag.meditation import get_distress_response
+                    resp = get_distress_response()
+                    yield f"event: token\ndata: {resp}\n\n"
+                    meta = json.dumps({"intent": "DISTRESS", "meditation_step": 1})
+                    yield f"event: done\ndata: {meta}\n\n"
+                    return
+            except Exception as e:
+                logger.warning(f"Depression detection failed in stream (non-fatal): {e}")
 
             # === Cache check ===
             cached = response_cache.get(user_msg)
@@ -658,8 +700,12 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     """
     health = await container.health_status()
 
+    # Only core services determine healthy/degraded status
+    # Optional services (OCR, guardrails) don't affect overall health
+    core_services = {"qdrant", "ollama", "embedding"}
     all_healthy = all(
-        v for k, v in health.items() if k != "qdrant_count"
+        v for k, v in health.items()
+        if k in core_services
     )
 
     return HealthResponse(
@@ -667,6 +713,38 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         services={k: v for k, v in health.items() if k != "qdrant_count"},
         total_chunks=health.get("qdrant_count", 0),
     )
+
+
+@app.get("/api/ready")
+async def readiness_endpoint(container: ServiceContainer = Depends(get_container)) -> dict:
+    """
+    Kubernetes readiness probe endpoint.
+    
+    Unlike /api/health (liveness), this checks that critical services
+    (Qdrant vector DB, LLM provider) are ready to serve requests.
+    Returns 503 if not ready.
+    """
+    health = await container.health_status()
+    
+    critical_ok = health.get("qdrant", False) and health.get("ollama", False)
+    
+    if not critical_ok:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "ready": False,
+                "qdrant": health.get("qdrant", False),
+                "llm": health.get("ollama", False),
+                "message": "Critical services not ready",
+            },
+        )
+    
+    return {
+        "ready": True,
+        "qdrant": True,
+        "llm": True,
+        "total_chunks": health.get("qdrant_count", 0),
+    }
 
 
 @app.get("/api/ingest/status")

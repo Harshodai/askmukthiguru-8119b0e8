@@ -46,8 +46,16 @@ class Settings(BaseSettings):
 
     # --- Sarvam Cloud API ---
     sarvam_api_key: str = ""                          # API subscription key from dashboard.sarvam.ai
-    sarvam_cloud_model: str = "sarvam-30b"             # Main generation model (sarvam-30b or sarvam-105b)
-    sarvam_cloud_classify_model: str = "sarvam-30b"    # Classification model
+    sarvam_cloud_model: str = "sarvam-30b"             # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
+    sarvam_cloud_classify_model: str = "sarvam-30b"    # Classification model — can be same or different from generation model
+    sarvam_base_url: str = "https://api.sarvam.ai/v1"  # Sarvam API base URL (override for proxy/staging)
+    llm_timeout: int = 60                              # HTTP timeout for LLM calls (seconds)
+    llm_max_retries: int = 3                           # Max retry attempts for failed LLM calls
+    serene_mind_enabled: bool = True                    # Enable/disable Serene Mind distress detection engine
+
+    # --- Guardrails ---
+    # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "disabled"
+    guardrails_provider: str = "nemo"                   # Falls back to lightweight if NeMo unavailable
 
     # --- Ollama (local mode) ---
     ollama_base_url: str = "http://localhost:11434"
@@ -69,7 +77,10 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "password123"
 
-    # --- Embeddings ---
+    # --- Embeddings (config-driven: switch models via env vars) ---
+    # Supported: "BAAI/bge-m3" (default, best multilingual, 1024-dim dense+sparse+ColBERT)
+    #            "intfloat/multilingual-e5-large" (alternative multilingual, 1024-dim)
+    #            "sentence-transformers/all-MiniLM-L6-v2" (English-only, 384-dim, fast)
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
@@ -121,6 +132,15 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = True
+    rerank_min_score: float = 0.3                       # Min CrossEncoder score to keep a doc (0.3 = moderate)
+
+    # --- Semantic Cache ---
+    semantic_cache_enabled: bool = True                  # Embedding-based semantic caching
+    semantic_cache_similarity: float = 0.92             # Cosine similarity threshold for cache hit
+    semantic_cache_ttl: int = 3600                      # Cache TTL in seconds (1 hour)
+
+    # --- Observability ---
+    enable_correlation_ids: bool = True                  # Add UUID correlation IDs to all logs/traces
 
     @property
     def cors_origins_list(self) -> list[str]:

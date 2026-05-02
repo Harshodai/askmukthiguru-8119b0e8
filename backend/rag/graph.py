@@ -50,6 +50,7 @@ from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
 from services.lightrag_service import LightRAGService
+from services.serene_mind_engine import SereneMindEngine
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ def build_rag_graph(
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
+    serene_mind_engine: SereneMindEngine = None,
 ) -> CompiledStateGraph:
     """
     Build and compile the complete RAG pipeline as a LangGraph.
@@ -86,7 +88,7 @@ def build_rag_graph(
         Compiled LangGraph (CompiledStateGraph) ready for invocation
     """
     # Inject services into nodes module
-    init_services(ollama_service, embedding_service, qdrant_service, lightrag_service)
+    init_services(ollama_service, embedding_service, qdrant_service, lightrag_service, serene_mind_engine)
 
     # Create the state graph
     graph = StateGraph(GraphState)
