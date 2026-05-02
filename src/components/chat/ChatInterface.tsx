@@ -28,6 +28,7 @@ import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
+import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
 import React from 'react';
 
 // ── Date separator helpers ──────────────────────────────────────────
