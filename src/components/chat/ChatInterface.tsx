@@ -405,6 +405,7 @@ export const ChatInterface = () => {
       };
       setMessages((prev) => [...prev, emptyGuru]);
       setIsStreaming(true);
+      setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
 
       let fullContent = '';
