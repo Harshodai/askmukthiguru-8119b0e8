@@ -63,7 +63,7 @@ import {
   derivePrePracticeInsights,
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
-import { getMeditationStats } from '@/lib/meditationStorage';
+import { getMeditationStats, loadMeditationSessions } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
 
@@ -533,6 +533,9 @@ const ProfilePage = () => {
             {(() => {
               const insights = derivePrePracticeInsights(profile.prePracticeLog);
               const history = (profile.prePracticeLog?.history ?? []).slice(-20).reverse();
+              const medSessions = loadMeditationSessions().filter(s => s.completed).sort(
+                (a, b) => new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime()
+              ).slice(0, 20);
               const answerIcon = (a: PrePracticeAnswer) => {
                 if (a === 'soul_sync') return <Sparkles className="w-4 h-4 text-ojas" />;
                 if (a === 'serene_mind') return <Flame className="w-4 h-4 text-ojas" />;
@@ -541,6 +544,27 @@ const ProfilePage = () => {
               };
               const answerLabel = (a: PrePracticeAnswer) =>
                 a === 'soul_sync' ? 'Soul Sync' : a === 'serene_mind' ? 'Serene Mind' : a === 'both' ? 'Both' : 'Skipped';
+
+              // Milestone badges
+              const milestones = [
+                { label: 'First Session', icon: Flame, earned: stats.totalSessions >= 1 },
+                { label: '7-Day Streak', icon: TrendingUp, earned: stats.streakDays >= 7 },
+                { label: '30 Sessions', icon: Target, earned: stats.totalSessions >= 30 },
+                { label: '100 Minutes', icon: Clock, earned: stats.totalMinutes >= 100 },
+              ];
+
+              // Practice heatmap (last 30 days)
+              const today = new Date();
+              const last30 = Array.from({ length: 30 }, (_, i) => {
+                const d = new Date(today);
+                d.setDate(d.getDate() - (29 - i));
+                return d;
+              });
+              const practiceDates = new Set([
+                ...history.map(e => new Date(e.at).toDateString()),
+                ...medSessions.map(s => new Date(s.completedAt || s.startedAt).toDateString()),
+              ]);
+
               return (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -566,6 +590,60 @@ const ProfilePage = () => {
                     </CardContent></Card>
                   </div>
 
+                  {/* Milestone Badges */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-ojas" /> Milestones</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {milestones.map((m) => (
+                          <div
+                            key={m.label}
+                            className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
+                              m.earned
+                                ? 'border-ojas/30 bg-ojas/5'
+                                : 'border-border/40 bg-muted/20 opacity-40'
+                            }`}
+                          >
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              m.earned ? 'bg-ojas/15' : 'bg-muted'
+                            }`}>
+                              <m.icon className={`w-5 h-5 ${m.earned ? 'text-ojas' : 'text-muted-foreground'}`} />
+                            </div>
+                            <span className="text-[11px] font-medium text-center">{m.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* 30-Day Practice Heatmap */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Calendar className="w-5 h-5 text-prana" /> Last 30 Days</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1.5">
+                        {last30.map((d, i) => {
+                          const practiced = practiceDates.has(d.toDateString());
+                          return (
+                            <div
+                              key={i}
+                              title={`${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}${practiced ? ' ✓' : ''}`}
+                              className={`w-5 h-5 rounded-sm transition-colors ${
+                                practiced ? 'bg-ojas/60' : 'bg-muted/40'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        {practiceDates.size} active days
+                      </p>
+                    </CardContent>
+                  </Card>
+
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-ojas" /> Encouragement</CardTitle>
@@ -574,6 +652,41 @@ const ProfilePage = () => {
                       <p className="text-sm text-muted-foreground italic">{insights.encouragement}</p>
                     </CardContent>
                   </Card>
+
+                  {/* Meditation Sessions Timeline */}
+                  {medSessions.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Wind className="w-5 h-5 text-prana" /> Meditation Sessions</CardTitle>
+                        <CardDescription>Your completed meditation history.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-0">
+                          {medSessions.map((session) => {
+                            const mins = Math.round(session.durationSeconds / 60);
+                            const dateObj = new Date(session.completedAt || session.startedAt);
+                            return (
+                              <div key={session.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-0">
+                                <div className="w-8 h-8 rounded-full bg-prana/10 flex items-center justify-center shrink-0">
+                                  <Wind className="w-4 h-4 text-prana" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground">
+                                    {mins} min · {session.breathCycles} cycles
+                                  </p>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                  {dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                  {' '}
+                                  {dateObj.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   <Card>
                     <CardHeader>

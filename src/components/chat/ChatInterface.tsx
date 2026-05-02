@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles } from 'lucide-react';
 import { 
   Message, 
   Conversation,
@@ -28,6 +28,7 @@ import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
+import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
 import React from 'react';
 
 // ── Date separator helpers ──────────────────────────────────────────
@@ -53,7 +54,7 @@ const STARTER_SUGGESTIONS = [
 ];
 
 // ── MessageList with date separators ────────────────────────────────
-const MessageList = React.memo(({ messages }: { messages: Message[] }) => {
+const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]; streamingId?: string }) => {
   const groups: { label: string; messages: Message[] }[] = [];
   let currentLabel = '';
 
@@ -85,6 +86,7 @@ const MessageList = React.memo(({ messages }: { messages: Message[] }) => {
               key={message.id} 
               message={message} 
               index={index}
+              isStreaming={message.id === streamingId && message.content.length > 0}
             />
           ))}
         </React.Fragment>
@@ -136,6 +138,8 @@ export const ChatInterface = () => {
   const [meditationStep, setMeditationStep] = useState(0);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showGuidedMeditation, setShowGuidedMeditation] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -401,6 +405,7 @@ export const ChatInterface = () => {
       };
       setMessages((prev) => [...prev, emptyGuru]);
       setIsStreaming(true);
+      setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
 
       let fullContent = '';
@@ -420,6 +425,7 @@ export const ChatInterface = () => {
       // Streaming not available — fall back to regular fetch
     } finally {
       setIsStreaming(false);
+      setStreamingMessageId(undefined);
     }
 
     if (streamingWorked) return;
@@ -559,7 +565,7 @@ export const ChatInterface = () => {
           className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual"
         >
           <div className="max-w-3xl mx-auto space-y-3">
-            <MessageList messages={messages} />
+            <MessageList messages={messages} streamingId={streamingMessageId} />
 
             {/* Suggested starters */}
             {showStarters && (
@@ -655,14 +661,21 @@ export const ChatInterface = () => {
         {/* Input Area */}
         <footer className="relative z-20 px-3 sm:px-4 pb-3 pt-2 pb-safe">
           <div className="max-w-3xl mx-auto">
-            {/* Subtle Serene Mind chip */}
-            <div className="flex justify-center mb-2">
+            {/* Subtle practice chips */}
+            <div className="flex justify-center gap-2 mb-2">
               <button
                 onClick={() => openSereneMind()}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
               >
                 <Flame className="w-3 h-3" />
-                <span>Feeling stressed? Try Serene Mind</span>
+                <span>Serene Mind</span>
+              </button>
+              <button
+                onClick={() => setShowGuidedMeditation(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>Guided Meditation</span>
               </button>
             </div>
 
@@ -817,6 +830,12 @@ export const ChatInterface = () => {
         onOpenSereneMind={() => openSereneMind()}
         onSelectConversation={handleSelectConversation}
         currentConversationId={currentConversation?.id}
+      />
+
+      {/* Guided Meditation Full-Screen Flow */}
+      <GuidedMeditationFlow
+        isOpen={showGuidedMeditation}
+        onClose={() => setShowGuidedMeditation(false)}
       />
     </div>
   );
