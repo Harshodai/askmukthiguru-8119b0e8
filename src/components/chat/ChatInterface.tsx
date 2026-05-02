@@ -831,6 +831,12 @@ export const ChatInterface = () => {
         onSelectConversation={handleSelectConversation}
         currentConversationId={currentConversation?.id}
       />
+
+      {/* Guided Meditation Full-Screen Flow */}
+      <GuidedMeditationFlow
+        isOpen={showGuidedMeditation}
+        onClose={() => setShowGuidedMeditation(false)}
+      />
     </div>
   );
 };
