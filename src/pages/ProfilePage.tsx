@@ -63,7 +63,7 @@ import {
   derivePrePracticeInsights,
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
-import { getMeditationStats } from '@/lib/meditationStorage';
+import { getMeditationStats, loadMeditationSessions } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
 
