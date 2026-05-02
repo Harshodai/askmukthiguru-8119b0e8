@@ -54,7 +54,7 @@ const STARTER_SUGGESTIONS = [
 ];
 
 // ── MessageList with date separators ────────────────────────────────
-const MessageList = React.memo(({ messages }: { messages: Message[] }) => {
+const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]; streamingId?: string }) => {
   const groups: { label: string; messages: Message[] }[] = [];
   let currentLabel = '';
 
@@ -86,6 +86,7 @@ const MessageList = React.memo(({ messages }: { messages: Message[] }) => {
               key={message.id} 
               message={message} 
               index={index}
+              isStreaming={message.id === streamingId && message.content.length > 0}
             />
           ))}
         </React.Fragment>
