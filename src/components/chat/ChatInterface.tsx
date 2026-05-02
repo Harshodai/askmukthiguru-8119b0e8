@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles } from 'lucide-react';
 import { 
   Message, 
   Conversation,
