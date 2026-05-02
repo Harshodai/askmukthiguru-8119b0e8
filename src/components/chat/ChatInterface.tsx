@@ -425,6 +425,7 @@ export const ChatInterface = () => {
       // Streaming not available — fall back to regular fetch
     } finally {
       setIsStreaming(false);
+      setStreamingMessageId(undefined);
     }
 
     if (streamingWorked) return;
