@@ -564,9 +564,9 @@ export const ChatInterface = () => {
         <main
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual"
+          className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-6 py-6 scrollbar-spiritual"
         >
-          <div className="max-w-3xl mx-auto space-y-3">
+          <div className="max-w-3xl mx-auto space-y-4">
             <MessageList messages={messages} streamingId={streamingMessageId} />
 
             {/* Suggested starters */}
