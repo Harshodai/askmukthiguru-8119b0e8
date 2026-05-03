@@ -1,10 +1,49 @@
+export interface MessageFeedback {
+  vote: 'up' | 'down';
+  tags: string[];
+  comment?: string;
+  timestamp: Date;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'guru';
   content: string;
   timestamp: Date;
   citations?: string[];
+  confidenceScore?: number;
+  feedback?: MessageFeedback;
 }
+
+// ── Feedback helpers ──────────────────────────────────────────────
+const FEEDBACK_KEY = 'askmukthiguru_feedback';
+
+export const saveFeedback = (messageId: string, feedback: MessageFeedback): void => {
+  try {
+    const all = loadAllFeedback();
+    all[messageId] = feedback;
+    localStorage.setItem(FEEDBACK_KEY, JSON.stringify(all));
+  } catch (e) {
+    console.error('Failed to save feedback:', e);
+  }
+};
+
+export const loadAllFeedback = (): Record<string, MessageFeedback> => {
+  try {
+    const raw = localStorage.getItem(FEEDBACK_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Re-hydrate dates
+      for (const key of Object.keys(parsed)) {
+        parsed[key].timestamp = new Date(parsed[key].timestamp);
+      }
+      return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to load feedback:', e);
+  }
+  return {};
+};
 
 export interface Conversation {
   id: string;
