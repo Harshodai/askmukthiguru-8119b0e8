@@ -777,9 +777,9 @@ export const ChatInterface = () => {
             {/* Input Form */}
             <motion.form
               onSubmit={handleSubmit}
-              className={`rounded-3xl border bg-card/80 backdrop-blur-md transition-all duration-300 ${
-                inputFocused ? 'border-ojas/50 shadow-lg shadow-ojas/10' : 'border-border/60'
-              } ${isListening ? 'border-ojas/60 shadow-ojas/20' : ''}`}
+              className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${
+                inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
+              } ${isListening ? 'border-ojas/50 shadow-ojas/15 ring-1 ring-ojas/20' : ''}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
