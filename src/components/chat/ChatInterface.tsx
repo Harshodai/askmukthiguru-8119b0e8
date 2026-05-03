@@ -141,6 +141,7 @@ export const ChatInterface = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showGuidedMeditation, setShowGuidedMeditation] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
+  const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
