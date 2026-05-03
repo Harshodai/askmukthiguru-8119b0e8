@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles, Share2 } from 'lucide-react';
 import { 
   Message, 
   Conversation,
@@ -22,6 +22,7 @@ import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
+import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
