@@ -679,6 +679,16 @@ export const ChatInterface = () => {
                 <Sparkles className="w-3 h-3" />
                 <span>Guided Meditation</span>
               </button>
+              {/* Quick share last guru message */}
+              {messages.length > 1 && messages[messages.length - 1]?.role === 'guru' && (
+                <button
+                  onClick={() => setShowQuickWisdomCard(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Share Wisdom</span>
+                </button>
+              )}
             </div>
 
             {/* Voice Recording Indicator */}
