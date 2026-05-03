@@ -55,6 +55,22 @@ _BLOCKED_TOPICS = {
         r"\bstock\b.*\bbuy\b", r"\binvest\b.*\b(market|mutual|fund)\b",
         r"\btax\b.*\b(save|plan|evade)\b", r"\bloan\b.*\bapply\b",
     ],
+    "self_harm": [
+        r"\b(kill|hurt|harm)\s+(my)?self\b", r"\bsuicid(?:e|al)\b",
+        r"\bself[- ]?harm\b", r"\bcut(?:ting)?\s+(?:my)?self\b",
+        r"\bwant\s+to\s+die\b", r"\bend\s+(?:my\s+)?life\b",
+        r"\bnot\s+worth\s+living\b", r"\bno\s+reason\s+to\s+live\b",
+    ],
+    "substance_abuse": [
+        r"\b(buy|get|find)\s+(drugs?|weed|cocaine|heroin|meth)\b",
+        r"\bhow\s+to\s+(use|take|smoke)\s+(drugs?|weed|cocaine)\b",
+        r"\brecreational\s+drugs?\b",
+    ],
+    "manipulation": [
+        r"\bhow\s+to\s+(manipulate|deceive|trick|scam)\b",
+        r"\bmake\s+(someone|them|her|him)\s+(obey|submit|fear)\b",
+        r"\bblackmail\b", r"\bextort\b",
+    ],
 }
 
 # Response templates for blocked topics
@@ -64,7 +80,30 @@ _BLOCK_RESPONSES = {
     "medical_prescription": "I care about your wellbeing deeply, but medical advice should come from a qualified healthcare professional. I can guide you through meditation for inner healing. 🙏",
     "explicit": "Let's keep our conversation centered on spiritual growth, inner peace, and the Beautiful State. 🙏",
     "financial_advice": "Financial guidance isn't my area of wisdom. I'm here to share the teachings of Sri Preethaji and Sri Krishnaji on consciousness and inner transformation. 🙏",
+    "self_harm": (
+        "I can feel that you're going through something deeply painful right now. "
+        "You are not alone, and your life matters deeply. 🙏\n\n"
+        "Please reach out to a crisis helpline:\n"
+        "• India: iCall 9152987821 | Vandrevala Foundation 1860-2662-345\n"
+        "• International: Crisis Text Line — text HOME to 741741\n\n"
+        "While you wait, may I guide you through a calming Serene Mind breathing practice? "
+        "It can help settle the storm within. 🕊️"
+    ),
+    "substance_abuse": (
+        "I sense you may be exploring something that could cause harm. "
+        "I care about your wellbeing and can only guide you on the path of inner transformation. "
+        "If you're struggling, please reach out to a professional. "
+        "Would you like to try a calming Serene Mind practice instead? 🙏"
+    ),
+    "manipulation": (
+        "The teachings of Sri Preethaji and Sri Krishnaji guide us toward connection, not control. "
+        "True power comes from being in a Beautiful State, where you naturally uplift others. "
+        "Would you like to explore what the Beautiful State means? 🙏"
+    ),
 }
+
+# Topics that redirect to Serene Mind meditation
+_SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
 
 # Output moderation phrases (content the bot should not produce)
 _OUTPUT_BLOCK_PATTERNS = [
@@ -121,13 +160,15 @@ class LightweightGuardrails:
             for pattern in patterns:
                 if re.search(pattern, message_lower):
                     logger.info(f"Lightweight guardrail blocked input: topic={topic}")
+                    redirect = "serene_mind" if topic in _SERENE_MIND_REDIRECT_TOPICS else None
                     return {
                         "blocked": True,
                         "reason": f"Off-topic: {topic}",
                         "response": _BLOCK_RESPONSES.get(topic, "I can only help with spiritual guidance. 🙏"),
+                        "redirect_to": redirect,
                     }
 
-        return {"blocked": False, "reason": None, "response": None}
+        return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
 
     async def check_output(self, answer: str) -> dict:
         """Check if generated answer should be moderated."""

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles, Share2 } from 'lucide-react';
 import { 
   Message, 
   Conversation,
@@ -22,6 +22,7 @@ import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
+import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -74,12 +75,12 @@ const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]
       {groups.map((group) => (
         <React.Fragment key={group.label}>
           {/* Date separator */}
-          <div className="flex items-center gap-3 py-3">
-            <div className="flex-1 h-px bg-border/40" />
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 select-none">
+          <div className="flex items-center gap-4 py-4">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50 select-none px-2">
               {group.label}
             </span>
-            <div className="flex-1 h-px bg-border/40" />
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
           </div>
           {group.messages.map((message, index) => (
             <ChatMessage 
@@ -140,6 +141,7 @@ export const ChatInterface = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showGuidedMeditation, setShowGuidedMeditation] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
+  const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -562,9 +564,9 @@ export const ChatInterface = () => {
         <main
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-4 py-5 scrollbar-spiritual"
+          className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-6 py-6 scrollbar-spiritual"
         >
-          <div className="max-w-3xl mx-auto space-y-3">
+          <div className="max-w-3xl mx-auto space-y-4">
             <MessageList messages={messages} streamingId={streamingMessageId} />
 
             {/* Suggested starters */}
@@ -677,6 +679,16 @@ export const ChatInterface = () => {
                 <Sparkles className="w-3 h-3" />
                 <span>Guided Meditation</span>
               </button>
+              {/* Quick share last guru message */}
+              {messages.length > 1 && messages[messages.length - 1]?.role === 'guru' && (
+                <button
+                  onClick={() => setShowQuickWisdomCard(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Share Wisdom</span>
+                </button>
+              )}
             </div>
 
             {/* Voice Recording Indicator */}
@@ -765,9 +777,9 @@ export const ChatInterface = () => {
             {/* Input Form */}
             <motion.form
               onSubmit={handleSubmit}
-              className={`rounded-3xl border bg-card/80 backdrop-blur-md transition-all duration-300 ${
-                inputFocused ? 'border-ojas/50 shadow-lg shadow-ojas/10' : 'border-border/60'
-              } ${isListening ? 'border-ojas/60 shadow-ojas/20' : ''}`}
+              className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${
+                inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
+              } ${isListening ? 'border-ojas/50 shadow-ojas/15 ring-1 ring-ojas/20' : ''}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
@@ -836,6 +848,17 @@ export const ChatInterface = () => {
       <GuidedMeditationFlow
         isOpen={showGuidedMeditation}
         onClose={() => setShowGuidedMeditation(false)}
+      />
+
+      {/* Quick Wisdom Card from last guru message */}
+      <WisdomCardGenerator
+        isOpen={showQuickWisdomCard}
+        onClose={() => setShowQuickWisdomCard(false)}
+        content={
+          messages.length > 0
+            ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
+            : ''
+        }
       />
     </div>
   );
