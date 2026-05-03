@@ -14,6 +14,7 @@ import {
   Settings,
   Users,
   LogOut,
+  ThumbsUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ const NAV = [
   { to: "/admin/queries", label: "Queries", icon: MessagesSquare },
   { to: "/admin/quality", label: "Quality", icon: ShieldCheck },
   { to: "/admin/retrieval", label: "Retrieval", icon: Database },
+  { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
   { to: "/admin/triggers", label: "Triggers", icon: Activity },
   { to: "/admin/topics", label: "Topics", icon: Sparkles },
   { to: "/admin/prompts", label: "Prompts", icon: FileText },
