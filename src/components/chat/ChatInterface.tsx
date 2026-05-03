@@ -75,12 +75,12 @@ const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]
       {groups.map((group) => (
         <React.Fragment key={group.label}>
           {/* Date separator */}
-          <div className="flex items-center gap-3 py-3">
-            <div className="flex-1 h-px bg-border/40" />
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 select-none">
+          <div className="flex items-center gap-4 py-4">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50 select-none px-2">
               {group.label}
             </span>
-            <div className="flex-1 h-px bg-border/40" />
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
           </div>
           {group.messages.map((message, index) => (
             <ChatMessage 
