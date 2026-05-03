@@ -849,6 +849,17 @@ export const ChatInterface = () => {
         isOpen={showGuidedMeditation}
         onClose={() => setShowGuidedMeditation(false)}
       />
+
+      {/* Quick Wisdom Card from last guru message */}
+      <WisdomCardGenerator
+        isOpen={showQuickWisdomCard}
+        onClose={() => setShowQuickWisdomCard(false)}
+        content={
+          messages.length > 0
+            ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
+            : ''
+        }
+      />
     </div>
   );
 };
