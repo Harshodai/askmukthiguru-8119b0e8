@@ -9,21 +9,22 @@ interface ScrollToBottomFabProps {
 
 /**
  * Floating "Jump to latest" button. Shows when user scrolls up
- * more than 400px from the bottom of the messages area.
+ * more than 200px from the bottom of the messages area.
+ * Positioned at bottom-right of the chat column (not the sidebar).
  */
 export const ScrollToBottomFab = ({ visible, unreadCount, onClick }: ScrollToBottomFabProps) => (
   <AnimatePresence>
     {visible && (
       <motion.button
-        initial={{ opacity: 0, y: 20, scale: 0.85 }}
+        initial={{ opacity: 0, y: 16, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.85 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        exit={{ opacity: 0, y: 16, scale: 0.9 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
         onClick={onClick}
-        className="absolute bottom-4 right-4 z-30 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-ojas text-primary-foreground shadow-lg shadow-ojas/30 hover:bg-ojas-light transition-colors focus:outline-none focus:ring-2 focus:ring-ojas/60"
+        className="absolute bottom-24 right-6 z-30 flex items-center gap-1.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border/60 text-foreground shadow-lg hover:shadow-xl hover:border-ojas/30 transition-all focus:outline-none focus:ring-2 focus:ring-ojas/40"
         aria-label={`Jump to latest message${unreadCount > 0 ? ` (${unreadCount} new)` : ''}`}
       >
-        <ChevronsDown className="w-4 h-4" />
+        <ChevronsDown className="w-4 h-4 text-ojas" />
         <span className="text-xs font-medium whitespace-nowrap">
           {unreadCount > 0 ? `${unreadCount} new` : 'Latest'}
         </span>

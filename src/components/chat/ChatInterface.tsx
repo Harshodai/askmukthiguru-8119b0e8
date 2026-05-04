@@ -71,16 +71,16 @@ const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]
   });
 
   return (
-    <AnimatePresence mode="popLayout">
+    <>
       {groups.map((group) => (
         <React.Fragment key={group.label}>
           {/* Date separator */}
-          <div className="flex items-center gap-4 py-4">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+          <div className="flex items-center gap-4 py-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
             <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50 select-none px-2">
               {group.label}
             </span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
           </div>
           {group.messages.map((message, index) => (
             <ChatMessage 
@@ -92,7 +92,7 @@ const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]
           ))}
         </React.Fragment>
       ))}
-    </AnimatePresence>
+    </>
   );
 });
 MessageList.displayName = 'MessageList';
@@ -143,7 +143,7 @@ export const ChatInterface = () => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
   const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
@@ -153,14 +153,16 @@ export const ChatInterface = () => {
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 400;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
     isNearBottomRef.current = nearBottom;
     setShowScrollFab(!nearBottom);
     if (nearBottom) setUnreadCount(0);
   }, []);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
     setShowScrollFab(false);
     setUnreadCount(0);
   }, []);
@@ -218,6 +220,10 @@ export const ChatInterface = () => {
     }
 
     setCurrentConversationId(conversation.id);
+    // Scroll to bottom on mount after a tick
+    requestAnimationFrame(() => {
+      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'instant' as ScrollBehavior });
+    });
   }, []);
 
   // Auto-speak new guru messages when TTS is enabled
@@ -340,11 +346,14 @@ export const ChatInterface = () => {
   // Scroll to bottom when new messages arrive (only if near bottom)
   useEffect(() => {
     if (isNearBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Use requestAnimationFrame for reliable scroll after DOM update
+      requestAnimationFrame(() => {
+        scrollToBottom('smooth');
+      });
     } else if (messages.length > 0 && messages[messages.length - 1].role === 'guru') {
       setUnreadCount(prev => prev + 1);
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, scrollToBottom]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,6 +374,8 @@ export const ChatInterface = () => {
       inputRef.current.style.height = 'auto';
     }
 
+    // Force scroll to bottom after sending
+    isNearBottomRef.current = true;
     setIsTyping(true);
 
     // Convert messages to API format
@@ -417,6 +428,15 @@ export const ChatInterface = () => {
         setMessages((prev) =>
           prev.map((m) => (m.id === streamingGuruId ? { ...m, content: captured } : m))
         );
+        // Keep scrolling during streaming if near bottom
+        if (isNearBottomRef.current) {
+          requestAnimationFrame(() => {
+            scrollContainerRef.current?.scrollTo({
+              top: scrollContainerRef.current.scrollHeight,
+              behavior: 'instant' as ScrollBehavior,
+            });
+          });
+        }
       }
 
       if (fullContent) {
@@ -494,12 +514,6 @@ export const ChatInterface = () => {
 
   const handleSuggestionClick = (text: string) => {
     setInputValue(text);
-    // Auto-submit after a brief tick so the user sees it
-    setTimeout(() => {
-      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-      setInputValue(text);
-      // We'll just set the value; user can press Send
-    }, 50);
   };
 
   const handleNewConversation = () => {
@@ -523,6 +537,10 @@ export const ChatInterface = () => {
     setCurrentConversation(conversation);
     setCurrentConversationId(conversation.id);
     setMessages(conversation.messages);
+    // Scroll to bottom when switching conversations
+    requestAnimationFrame(() => {
+      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'instant' as ScrollBehavior });
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -535,9 +553,9 @@ export const ChatInterface = () => {
   const showStarters = messages.length <= 1 && messages[0]?.role === 'guru';
 
   return (
-    <div className="min-h-screen flex bg-background relative overflow-hidden">
+    <div className="h-dvh flex bg-background relative overflow-hidden">
       {/* Background */}
-      <div className="fixed inset-0 bg-spiritual-gradient" />
+      <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
       <FloatingParticles />
 
       {/* Desktop Sidebar */}
@@ -552,7 +570,7 @@ export const ChatInterface = () => {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
         <ChatHeader 
           onClearChat={handleNewConversation}
@@ -560,13 +578,13 @@ export const ChatInterface = () => {
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 
-        {/* Messages Area */}
-        <main
+        {/* Messages Area — this is the scroll container */}
+        <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-6 py-6 scrollbar-spiritual"
+          className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 scrollbar-spiritual"
         >
-          <div className="max-w-3xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-3">
             <MessageList messages={messages} streamingId={streamingMessageId} />
 
             {/* Suggested starters */}
@@ -649,19 +667,20 @@ export const ChatInterface = () => {
               )}
             </AnimatePresence>
 
-            <div ref={messagesEndRef} />
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} className="h-1" />
           </div>
-        </main>
+        </div>
 
-        {/* Scroll-to-bottom FAB */}
+        {/* Scroll-to-bottom FAB — positioned relative to the chat column */}
         <ScrollToBottomFab
           visible={showScrollFab}
           unreadCount={unreadCount}
-          onClick={scrollToBottom}
+          onClick={() => scrollToBottom('smooth')}
         />
 
         {/* Input Area */}
-        <footer className="relative z-20 px-3 sm:px-4 pb-3 pt-2 pb-safe">
+        <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
           <div className="max-w-3xl mx-auto">
             {/* Subtle practice chips */}
             <div className="flex justify-center gap-2 mb-2">
@@ -727,21 +746,13 @@ export const ChatInterface = () => {
                   className="flex items-center justify-center gap-2 mb-3"
                 >
                   <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30">
-                    <motion.div
-                      className="flex gap-0.5"
-                    >
+                    <motion.div className="flex gap-0.5">
                       {[0, 1, 2, 3].map((i) => (
                         <motion.div
                           key={i}
                           className="w-1 bg-prana rounded-full"
-                          animate={{
-                            height: ['8px', '16px', '8px'],
-                          }}
-                          transition={{
-                            duration: 0.5,
-                            repeat: Infinity,
-                            delay: i * 0.1,
-                          }}
+                          animate={{ height: ['8px', '16px', '8px'] }}
+                          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
                         />
                       ))}
                     </motion.div>
@@ -775,40 +786,36 @@ export const ChatInterface = () => {
             </AnimatePresence>
 
             {/* Input Form */}
-            <motion.form
-              onSubmit={handleSubmit}
+            <div
               className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${
                 inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
               } ${isListening ? 'border-ojas/50 shadow-ojas/15 ring-1 ring-ojas/20' : ''}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
             >
-              <div className="flex items-end gap-2 px-3 pt-2.5 pb-1.5">
-                <textarea
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  placeholder={isListening ? 'Speak now…' : "Share what's on your heart…"}
-                  rows={1}
-                  aria-label="Your message"
-                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed"
-                  style={{ minHeight: '36px' }}
-                />
-                <motion.button
-                  type="submit"
-                  disabled={!inputValue.trim() || isTyping || isStreaming}
-                  className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
-                  whileHover={{ scale: inputValue.trim() ? 1.05 : 1 }}
-                  whileTap={{ scale: 0.95 }}
-                  aria-label="Send message"
-                >
-                  <Send className="w-4 h-4" />
-                </motion.button>
-              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="flex items-end gap-2 px-3 pt-2.5 pb-1.5">
+                  <textarea
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
+                    placeholder={isListening ? 'Speak now…' : "Share what's on your heart…"}
+                    rows={1}
+                    aria-label="Your message"
+                    className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed"
+                    style={{ minHeight: '36px' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim() || isTyping || isStreaming}
+                    className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+                    aria-label="Send message"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </form>
 
               {/* Secondary controls row */}
               <div className="flex items-center justify-between px-3 pb-2 pt-1">
@@ -825,7 +832,7 @@ export const ChatInterface = () => {
                   AI companion • Not a substitute for professional care
                 </p>
               </div>
-            </motion.form>
+            </div>
 
             <p className="text-center text-[10px] text-muted-foreground mt-1.5 sm:hidden">
               AI companion • Not a substitute for professional care
@@ -850,7 +857,7 @@ export const ChatInterface = () => {
         onClose={() => setShowGuidedMeditation(false)}
       />
 
-      {/* Quick Wisdom Card from last guru message */}
+      {/* Quick Wisdom Card from last guru message — rendered at root level for proper z-index */}
       <WisdomCardGenerator
         isOpen={showQuickWisdomCard}
         onClose={() => setShowQuickWisdomCard(false)}
