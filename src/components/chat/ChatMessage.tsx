@@ -5,6 +5,7 @@ import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
 import { getInitials } from '@/lib/profileStorage';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
+import { createPortal } from 'react-dom';
 
 interface ChatMessageProps {
   message: Message;
@@ -34,7 +35,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [feedbackComment, setFeedbackComment] = useState('');
 
     const handleVote = useCallback((vote: 'up' | 'down') => {
-      if (feedback) return; // Already voted
+      if (feedback) return;
       setFeedback({ vote, tags: [], timestamp: new Date() });
       setShowFeedbackPanel(true);
     }, [feedback]);
@@ -65,23 +66,22 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
       <>
         <motion.div
           ref={ref}
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.2) }}
+          transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.15) }}
           className={`group flex items-start gap-2.5 ${isGuru ? 'justify-start' : 'justify-end'}`}
         >
           {isGuru && (
-            <div className="w-8 h-8 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_8px_hsl(43_96%_56%/0.2)]">
-              <Sparkles className="w-4 h-4 text-ojas" />
+            <div className="w-8 h-8 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_6px_hsl(43_96%_56%/0.15)]">
+              <Sparkles className="w-3.5 h-3.5 text-ojas" />
             </div>
           )}
 
-          <div className={`max-w-[82%] sm:max-w-[75%] flex flex-col gap-1.5 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1.5 ${isGuru ? 'items-start' : 'items-end'}`}>
             <div
               className={`relative px-4 py-2.5 ${
                 isGuru
-                  ? 'glass-card rounded-2xl rounded-tl-md shadow-sm dark:shadow-inner dark:shadow-ojas/5'
+                  ? 'glass-card rounded-2xl rounded-tl-md'
                   : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-md shadow-md'
               }`}
             >
@@ -102,20 +102,19 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
               <div className="flex items-center justify-between mt-1.5 gap-2">
                 <p
                   className={`text-[10px] ${
-                    isGuru ? 'text-muted-foreground/70' : 'text-primary-foreground/70'
+                    isGuru ? 'text-muted-foreground/60' : 'text-primary-foreground/60'
                   }`}
                 >
                   {formatTime(message.timestamp)}
                 </p>
                 {/* Action buttons on guru messages */}
                 {isGuru && message.content && !isStreaming && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Thumbs up */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       onClick={() => handleVote('up')}
                       className={`p-1 rounded-full transition-colors ${
                         feedback?.vote === 'up'
-                          ? 'bg-green-500/15 text-green-600'
+                          ? 'bg-green-500/15 text-green-600 dark:text-green-400'
                           : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                       title="Helpful"
@@ -123,12 +122,11 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                     >
                       <ThumbsUp className="w-3 h-3" />
                     </button>
-                    {/* Thumbs down */}
                     <button
                       onClick={() => handleVote('down')}
                       className={`p-1 rounded-full transition-colors ${
                         feedback?.vote === 'down'
-                          ? 'bg-red-500/15 text-red-600'
+                          ? 'bg-red-500/15 text-red-600 dark:text-red-400'
                           : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                       title="Not helpful"
@@ -136,7 +134,6 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                     >
                       <ThumbsDown className="w-3 h-3" />
                     </button>
-                    {/* Share */}
                     <button
                       onClick={() => setShowWisdomCard(true)}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
@@ -156,7 +153,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="w-full rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm px-3 py-2.5 space-y-2 overflow-hidden"
+                  className="w-full rounded-xl border border-border/50 bg-card/90 backdrop-blur-sm px-3 py-2.5 space-y-2 overflow-hidden"
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-medium text-muted-foreground">
@@ -174,7 +171,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                         className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
                           selectedTags.includes(tag)
                             ? 'border-ojas/50 bg-ojas/10 text-ojas font-medium'
-                            : 'border-border text-muted-foreground hover:border-ojas/30'
+                            : 'border-border/60 text-muted-foreground hover:border-ojas/30'
                         }`}
                       >
                         {tag}
@@ -186,13 +183,13 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                     placeholder="Optional: tell us more…"
                     value={feedbackComment}
                     onChange={(e) => setFeedbackComment(e.target.value)}
-                    className="w-full bg-transparent border-b border-border/40 text-[12px] py-1 outline-none focus:border-ojas/40 text-foreground placeholder:text-muted-foreground/50"
+                    className="w-full bg-transparent border-b border-border/30 text-[12px] py-1 outline-none focus:border-ojas/40 text-foreground placeholder:text-muted-foreground/50"
                   />
                   <button
                     onClick={handleSubmitFeedback}
                     className="text-[11px] font-medium text-ojas hover:text-ojas-light transition-colors"
                   >
-                    Submit
+                    Submit feedback
                   </button>
                 </motion.div>
               )}
@@ -210,7 +207,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
 
             {/* Sources card */}
             {isGuru && citations.length > 0 && (
-              <div className="w-full rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm px-3 py-2">
+              <div className="w-full rounded-xl border border-border/40 bg-card/60 backdrop-blur-sm px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                   Sources
                 </p>
@@ -221,10 +218,10 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[11px] text-ojas hover:text-ojas-light transition-colors group"
+                      className="inline-flex items-center gap-1.5 text-[11px] text-ojas hover:text-ojas-light transition-colors group/link"
                     >
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      <span className="truncate group-hover:underline">{getDomain(url)}</span>
+                      <span className="truncate group-hover/link:underline">{getDomain(url)}</span>
                     </a>
                   ))}
                 </div>
@@ -233,11 +230,11 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
           </div>
 
           {!isGuru && (
-            <div className="w-8 h-8 rounded-full bg-prana/15 border border-prana/25 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-prana/12 border border-prana/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
               {profile.avatarDataUrl ? (
                 <img src={profile.avatarDataUrl} alt={profile.displayName} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-[10px] font-semibold text-prana-dark">
+                <span className="text-[10px] font-semibold text-prana-dark dark:text-prana">
                   {getInitials(profile.displayName)}
                 </span>
               )}
@@ -245,12 +242,15 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
           )}
         </motion.div>
 
-        {/* Wisdom Card Generator Modal */}
-        <WisdomCardGenerator
-          isOpen={showWisdomCard}
-          onClose={() => setShowWisdomCard(false)}
-          content={message.content}
-        />
+        {/* Wisdom Card Generator Modal — portaled to body to avoid sidebar z-index conflicts */}
+        {showWisdomCard && createPortal(
+          <WisdomCardGenerator
+            isOpen={showWisdomCard}
+            onClose={() => setShowWisdomCard(false)}
+            content={message.content}
+          />,
+          document.body
+        )}
       </>
     );
   }
