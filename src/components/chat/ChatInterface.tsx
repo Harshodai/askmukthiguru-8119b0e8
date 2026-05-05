@@ -867,16 +867,19 @@ export const ChatInterface = () => {
         onClose={() => setShowGuidedMeditation(false)}
       />
 
-      {/* Quick Wisdom Card from last guru message — rendered at root level for proper z-index */}
-      <WisdomCardGenerator
-        isOpen={showQuickWisdomCard}
-        onClose={() => setShowQuickWisdomCard(false)}
-        content={
-          messages.length > 0
-            ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
-            : ''
-        }
-      />
+      {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts */}
+      {showQuickWisdomCard && createPortal(
+        <WisdomCardGenerator
+          isOpen={showQuickWisdomCard}
+          onClose={() => setShowQuickWisdomCard(false)}
+          content={
+            messages.length > 0
+              ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
+              : ''
+          }
+        />,
+        document.body
+      )}
     </div>
   );
 };
