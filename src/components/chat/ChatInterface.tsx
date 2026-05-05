@@ -592,6 +592,9 @@ export const ChatInterface = () => {
           className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 scrollbar-spiritual"
         >
           <div className="max-w-3xl mx-auto space-y-3">
+            {/* Daily Teaching Banner */}
+            <DailyTeaching />
+
             <MessageList messages={messages} streamingId={streamingMessageId} />
 
             {/* Suggested starters */}
