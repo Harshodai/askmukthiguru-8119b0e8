@@ -566,6 +566,12 @@ export const ChatInterface = () => {
         onNewConversation={handleNewConversation}
         onOpenSereneMind={() => openSereneMind()}
         onSelectConversation={handleSelectConversation}
+        onDeleteConversation={(id) => {
+          if (id === currentConversation?.id) {
+            handleNewConversation();
+          }
+          setRefreshTrigger(prev => prev + 1);
+        }}
         currentConversationId={currentConversation?.id}
         refreshTrigger={refreshTrigger}
       />
