@@ -24,6 +24,7 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
+import { DailyTeaching } from './DailyTeaching';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
@@ -31,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
 import React from 'react';
-
+import { createPortal } from 'react-dom';
 // ── Date separator helpers ──────────────────────────────────────────
 const isSameDay = (a: Date, b: Date): boolean =>
   a.getFullYear() === b.getFullYear() &&
@@ -565,6 +566,12 @@ export const ChatInterface = () => {
         onNewConversation={handleNewConversation}
         onOpenSereneMind={() => openSereneMind()}
         onSelectConversation={handleSelectConversation}
+        onDeleteConversation={(id) => {
+          if (id === currentConversation?.id) {
+            handleNewConversation();
+          }
+          setRefreshTrigger(prev => prev + 1);
+        }}
         currentConversationId={currentConversation?.id}
         refreshTrigger={refreshTrigger}
       />
@@ -585,6 +592,9 @@ export const ChatInterface = () => {
           className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 scrollbar-spiritual"
         >
           <div className="max-w-3xl mx-auto space-y-3">
+            {/* Daily Teaching Banner */}
+            <DailyTeaching />
+
             <MessageList messages={messages} streamingId={streamingMessageId} />
 
             {/* Suggested starters */}
@@ -857,16 +867,19 @@ export const ChatInterface = () => {
         onClose={() => setShowGuidedMeditation(false)}
       />
 
-      {/* Quick Wisdom Card from last guru message — rendered at root level for proper z-index */}
-      <WisdomCardGenerator
-        isOpen={showQuickWisdomCard}
-        onClose={() => setShowQuickWisdomCard(false)}
-        content={
-          messages.length > 0
-            ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
-            : ''
-        }
-      />
+      {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts */}
+      {showQuickWisdomCard && createPortal(
+        <WisdomCardGenerator
+          isOpen={showQuickWisdomCard}
+          onClose={() => setShowQuickWisdomCard(false)}
+          content={
+            messages.length > 0
+              ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
+              : ''
+          }
+        />,
+        document.body
+      )}
     </div>
   );
 };
