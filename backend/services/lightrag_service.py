@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 from typing import Optional
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from lightrag import LightRAG
 from lightrag.llm.ollama import ollama_model_complete, ollama_embed
@@ -48,28 +49,47 @@ class LightRAGService:
 
         # Dynamically bridge our main generative LLM to LightRAG
         async def llm_func(prompt, system_prompt=None, history_messages=[], **kwargs) -> str:
-            return await ollama_model_complete(
-                settings.model_for_generation,
-                prompt,
-                system_prompt=system_prompt,
-                history_messages=history_messages,
-                host=settings.ollama_base_url,
-                **kwargs,
+            from app.dependencies import get_container
+            container = get_container()
+            if container.ollama is None:
+                logger.warning("LLM service not ready in container")
+                return ""
+            
+            # Format history (lightrag provides dicts like {"role": "user", "content": "..."})
+            context = ""
+            for msg in history_messages:
+                context += f"\n{msg.get('role', 'user')}: {msg.get('content', '')}"
+                
+            return await container.ollama.generate(
+                system_prompt=system_prompt or "You are a helpful assistant.",
+                user_prompt=prompt,
+                context=context
             )
 
-        # Assuming we are hosting bge-m3 via Ollama, or fallback to nomic-embed-text
+        # Use our local BGE-M3 model already loaded in memory instead of calling Ollama API
+        import numpy as np
+        import asyncio
+        async def embed_func(texts: list[str]) -> np.ndarray:
+            from app.dependencies import get_container
+            container = get_container()
+            if container.embedding is None:
+                logger.warning("Embedding service not ready in container")
+                return np.zeros((len(texts), settings.embedding_dimension))
+            # encode_batch returns {'dense': list[list[float]], 'sparse': ...}
+            # LightRAG requires a numpy array. Run in thread pool to avoid blocking event loop.
+            batch_result = await asyncio.to_thread(container.embedding.encode_batch, texts)
+            dense_vectors = batch_result['dense']
+            return np.array(dense_vectors)
+
         embedding_func = EmbeddingFunc(
             embedding_dim=settings.embedding_dimension,
             max_token_size=8192,
-            func=lambda texts: ollama_embed(
-                texts, 
-                embed_model="bge-m3", # Will fallback gracefully to server config
-                host=settings.ollama_base_url
-            )
+            func=embed_func
         )
 
-        try:
-            self.rag = LightRAG(
+        @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
+        def _create_lightrag():
+            return LightRAG(
                 working_dir=working_dir,
                 llm_model_func=llm_func,
                 embedding_func=embedding_func,
@@ -77,6 +97,9 @@ class LightRAGService:
                 vector_storage="QdrantVectorDBStorage",
                 chunk_token_size=settings.rag_chunk_size,
             )
+
+        try:
+            self.rag = _create_lightrag()
             
             # Async initialize storages (checks DB connections)
             await self.rag.initialize_storages()
@@ -103,14 +126,14 @@ class LightRAGService:
             logger.error(f"LightRAG query failed: {e}")
             return ""
 
-    def insert(self, text: str):
-        """Insert new content into the graph (synchronously triggered)."""
+    async def ainsert(self, text: str):
+        """Insert new content into the graph asynchronously."""
         if not self.rag:
             logger.warning("LightRAG is not active, skipping graph extraction.")
             return
         
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
-        self.rag.insert(text)
+        await self.rag.ainsert(text)
 
 # Singleton export
 lightrag_service = LightRAGService()

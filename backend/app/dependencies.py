@@ -98,6 +98,7 @@ class ServiceContainer:
             qdrant_service=self.qdrant,
             embedding_service=self.embedding,
             ollama_service=self.ollama,
+            lightrag_service=self.lightrag,
             ocr_service=self.ocr,
         )
 

@@ -11,7 +11,7 @@ This is the single entry point for ALL content ingestion.
 """
 
 import logging
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -55,6 +55,7 @@ class IngestionPipeline:
         qdrant_service: QdrantService,
         embedding_service: EmbeddingService,
         ollama_service: OllamaService,
+        lightrag_service: Optional[Any] = None,
         ocr_service: Optional[OCRService] = None,
     ) -> None:
         """
@@ -67,6 +68,7 @@ class IngestionPipeline:
         self._ocr = ocr_service or OCRService()
         self._auditor = DataAuditor(ollama_service)
         self._corrector = TranscriptCorrector(ollama_service)
+        self._lightrag = lightrag_service
 
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
@@ -103,7 +105,7 @@ class IngestionPipeline:
 
         # === Route to correct loader ===
         if is_playlist_url(url) or is_channel_url(url):
-            return await self._ingest_playlist(url, on_progress)
+            return await self._ingest_playlist(url, max_accuracy, on_progress)
         elif is_image_url(url):
             return await self._ingest_image(url, on_progress)
         if extract_video_id(url):
@@ -115,6 +117,78 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
             }
+
+    async def ingest_raw_text(
+        self,
+        text: str,
+        source_url: str,
+        title: str,
+        speaker: str = "Unknown",
+        topic: str = "Spiritual",
+        max_accuracy: bool = False,
+        on_progress: Optional[Callable] = None,
+    ) -> dict:
+        """
+        Ingest raw text directly, bypassing any fetching/loaders.
+        Useful for migrations or re-processing existing data.
+        """
+        self._notify(on_progress, "Starting raw text processing...", 0.1)
+        
+        # Step 1: Clean
+        clean_text = clean_transcript(text)
+
+        # Step 2: Chunk (single split, reused for both index and RAPTOR)
+        self._notify(on_progress, "Chunking and indexing...", 0.3)
+        chunks = self._split_text(clean_text, title=title, speaker=speaker, topic=topic, semantic=max_accuracy)
+        
+        if not chunks:
+            return {"status": "error", "message": "No meaningful chunks", "source_url": source_url}
+
+        # Step 3: Document Augmentation (Ch 11 RAG Made Simple)
+        self._notify(on_progress, "Augmenting chunks...", 0.5)
+        augmented_chunks = await self._augment_chunks(chunks)
+
+        # Step 4: Proposition Chunking (Phase 2 Improvement)
+        if max_accuracy:
+            self._notify(on_progress, "Refining propositions...", 0.7)
+            proposition_chunks = []
+            for chunk in augmented_chunks:
+                props = await self._proposition_split(chunk)
+                proposition_chunks.extend(props)
+            final_chunks = proposition_chunks
+        else:
+            final_chunks = augmented_chunks
+
+        # Step 5: Embed and index
+        chunks_count = self._embed_and_index(
+            final_chunks,
+            source_url=source_url,
+            title=title,
+            speaker=speaker,
+            topic=topic,
+            content_type="migration",
+        )
+
+        # Step 6: RAPTOR tree
+        self._notify(on_progress, "Building RAPTOR tree...", 0.85)
+        chunk_dicts = [
+            {"text": c, "source_url": source_url, "title": title, "speaker": speaker, "topic": topic}
+            for c in chunks
+        ]
+        summaries_count = await self._raptor.build_tree(chunk_dicts)
+
+        # Step 7: Graph RAG Extraction (Phase 4 Improvement)
+        if self._lightrag:
+            self._notify(on_progress, "Extracting knowledge graph...", 0.95)
+            await self._lightrag.ainsert(clean_text)
+
+        self._notify(on_progress, "Complete!", 1.0)
+        return {
+            "status": "success",
+            "source_url": source_url,
+            "chunks_indexed": chunks_count,
+            "summaries_created": summaries_count,
+        }
 
     async def _ingest_video(
         self,
@@ -169,7 +243,11 @@ class IngestionPipeline:
 
         # Step 3: Chunk (single split, reused for both index and RAPTOR)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
-        chunks = self._split_text(clean_text)
+        video_title = result.get("title", "") or ""
+        video_speaker = result.get("speaker", "Unknown")
+        video_topic = result.get("topic", "Spiritual")
+        
+        chunks = self._split_text(clean_text, title=video_title, speaker=video_speaker, topic=video_topic, semantic=max_accuracy)
         if not chunks:
             return {
                 "status": "error",
@@ -181,21 +259,45 @@ class IngestionPipeline:
 
         video_title = result.get("title", "") or ""
 
-        # Step 4: Embed and index
+        # Step 4: Document Augmentation (Ch 11 RAG Made Simple)
+        # Generate hypothetical questions for each chunk to improve retrieval recall.
+        self._notify(on_progress, "Augmenting chunks with potential questions...", 0.6)
+        augmented_chunks = await self._augment_chunks(chunks)
+
+        # Step 4.5: Proposition Chunking (Phase 2 Improvement)
+        # Break down augmented chunks into independent propositions for higher granularity.
+        if max_accuracy:
+            self._notify(on_progress, "Refining chunks into independent propositions...", 0.65)
+            proposition_chunks = []
+            for chunk in augmented_chunks:
+                props = await self._proposition_split(chunk)
+                proposition_chunks.extend(props)
+            final_chunks = proposition_chunks
+        else:
+            final_chunks = augmented_chunks
+
+        # Step 5: Embed and index
         chunks_count = self._embed_and_index(
-            chunks,
+            final_chunks,
             source_url=url,
             title=video_title,
+            speaker=video_speaker,
+            topic=video_topic,
             content_type="video",
         )
 
         # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
         self._notify(on_progress, "Building RAPTOR tree...", 0.8)
         chunk_dicts = [
-            {"text": c, "source_url": url, "title": video_title}
+            {"text": c, "source_url": url, "title": video_title, "speaker": video_speaker, "topic": video_topic}
             for c in chunks
         ]
         summaries_count = await self._raptor.build_tree(chunk_dicts)
+
+        # Step 6: Graph RAG Extraction (Phase 4 Improvement)
+        if self._lightrag:
+            self._notify(on_progress, "Extracting knowledge graph (LightRAG)...", 0.9)
+            await self._lightrag.ainsert(clean_text)
 
         self._notify(on_progress, "Complete!", 1.0)
         return {
@@ -210,6 +312,7 @@ class IngestionPipeline:
     async def _ingest_playlist(
         self,
         url: str,
+        max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
     ) -> dict:
         """Ingest all videos in a YouTube playlist/channel using concurrent extraction."""
@@ -266,25 +369,45 @@ class IngestionPipeline:
 
                 # Clean, chunk, embed, index
                 clean_text = clean_transcript(raw_text)
-                chunks = self._split_text(clean_text)
+                video_title = transcript.get("title", "")
+                video_speaker = transcript.get("speaker", "Unknown")
+                video_topic = transcript.get("topic", "Spiritual")
+                
+                chunks = self._split_text(clean_text, title=video_title, speaker=video_speaker, topic=video_topic, semantic=max_accuracy)
                 if not chunks:
                     continue
 
+                # Phase 2: Proposition Chunking
+                if max_accuracy:
+                    proposition_chunks = []
+                    for chunk in chunks:
+                        props = await self._proposition_split(chunk)
+                        proposition_chunks.extend(props)
+                    final_chunks = proposition_chunks
+                else:
+                    final_chunks = chunks
+
                 chunks_count = self._embed_and_index(
-                    chunks,
+                    final_chunks,
                     source_url=video["url"],
-                    title=video.get("title", ""),
+                    title=video_title,
+                    speaker=video_speaker,
+                    topic=video_topic,
                     content_type="video",
                 )
                 total_chunks += chunks_count
 
                 # RAPTOR
                 chunk_dicts = [
-                    {"text": c, "source_url": video["url"], "title": video.get("title", "")}
+                    {"text": c, "source_url": video["url"], "title": video_title, "speaker": video_speaker, "topic": video_topic}
                     for c in chunks
                 ]
                 summaries_count = await self._raptor.build_tree(chunk_dicts)
                 total_summaries += summaries_count
+
+                # Step 6: Graph RAG
+                await self._lightrag.ainsert(clean_text)
+                
                 processed += 1
 
             except Exception as e:
@@ -348,11 +471,13 @@ class IngestionPipeline:
         source_url: str,
         title: str,
         content_type: str,
+        speaker: str = "Unknown",
+        topic: str = "Spiritual",
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
 
-        Uses encode_with_sparse() to generate both dense and sparse vectors
+        Uses encode_batch() to generate both dense and sparse vectors
         in a single pass for hybrid search support.
         """
         if not chunks:
@@ -364,13 +489,15 @@ class IngestionPipeline:
             self._qdrant.delete_by_source(source_url)
 
         # Generate both dense and sparse embeddings in one pass
-        embeddings = self._embedder.encode_with_sparse(chunks)
+        embeddings = self._embedder.encode_batch(chunks)
 
         # Build metadata for each chunk
         metadatas = [
             {
                 "source_url": source_url,
                 "title": title,
+                "speaker": speaker,
+                "topic": topic,
                 "content_type": content_type,
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
@@ -392,20 +519,153 @@ class IngestionPipeline:
         source_url: str,
         title: str,
         content_type: str,
+        speaker: str = "Unknown",
+        topic: str = "Spiritual",
     ) -> int:
         """
         Split text → embed → upsert to Qdrant.
         
         Convenience method for content types that don't need the split result.
         """
-        chunks = self._split_text(text)
-        return self._embed_and_index(chunks, source_url, title, content_type)
+        chunks = self._split_text(text, title=title, speaker=speaker, topic=topic)
+        return self._embed_and_index(chunks, source_url, title, content_type, speaker=speaker, topic=topic)
 
-    def _split_text(self, text: str) -> list[str]:
-        """Split text into chunks using RecursiveCharacterTextSplitter."""
+    def _split_text(self, text: str, title: str = "", speaker: str = "", topic: str = "", semantic: bool = False) -> list[str]:
+        """
+        Split text into chunks using either Semantic Chunking or Recursive splitting,
+        then prepend Contextual Chunk Headers.
+        """
         if not text or len(text.strip()) < 50:
             return []
-        return self._splitter.split_text(text)
+        
+        if semantic:
+            chunks = self._semantic_split(text)
+        else:
+            chunks = self._splitter.split_text(text)
+        
+        if title:
+            # Prepend Contextual Header to every chunk to maintain narrative origin
+            # Recommendation: Source: {video_title} | Speaker: {speaker} | Topic: {topic}
+            header_parts = [f"Source: {title}"]
+            if speaker and speaker != "Unknown":
+                header_parts.append(f"Speaker: {speaker}")
+            if topic and topic != "Spiritual":
+                header_parts.append(f"Topic: {topic}")
+            
+            header = f"[{' | '.join(header_parts)}]\n"
+            return [header + chunk for chunk in chunks]
+            
+        return chunks
+
+    async def _augment_chunks(self, chunks: list[str]) -> list[str]:
+        """
+        Document Augmentation (Ch 11 RAG Made Simple).
+        Generates hypothetical questions for each chunk and appends them
+        to the text to improve retrieval recall.
+        """
+        if not settings.is_sarvam_cloud:
+            return chunks # Skip for local models to save time
+            
+        augmented = []
+        # Process in small batches to avoid rate limits
+        for i, chunk in enumerate(chunks):
+            try:
+                # Only augment every 2nd chunk or if the chunk is long enough
+                # to save cost/time while still providing coverage.
+                if i % 2 == 0 and len(chunk) > 200:
+                    questions = await self._llm.generate(
+                        "Generate 2-3 brief hypothetical questions that this spiritual teaching answers.",
+                        chunk,
+                        max_tokens=100
+                    )
+                    augmented.append(f"{chunk}\n\n[Potential Questions: {questions}]")
+                else:
+                    augmented.append(chunk)
+            except Exception as e:
+                logger.warning(f"Augmentation failed for chunk {i}: {e}")
+                augmented.append(chunk)
+                
+        return augmented
+
+    async def _proposition_split(self, text: str) -> list[str]:
+        """
+        Phase 2 Improvement: Proposition Chunking.
+        Decomposes a chunk into independent, self-contained propositions using an LLM.
+        """
+        try:
+            # System prompt: extraction instructions
+            # User prompt: the actual text to decompose
+            response = await self._llm.generate(
+                "Decompose the following spiritual teaching into independent, self-contained propositions. Return each on a new line prefixed with '- '.",
+                f"Teaching:\n{text}",
+                max_tokens=500
+            )
+            
+            # Parse lines starting with '- '
+            propositions = []
+            for line in response.split('\n'):
+                line = line.strip()
+                if line.startswith('- '):
+                    prop = line[2:].strip()
+                    if len(prop) > 20: # Filter out very short noise
+                        propositions.append(prop)
+                elif line and not line.startswith('#') and len(line) > 30:
+                    # Fallback for LLMs that don't follow the format perfectly
+                    propositions.append(line)
+            
+            if not propositions:
+                return [text]
+                
+            return propositions
+        except Exception as e:
+            logger.error(f"Proposition splitting failed: {e}")
+            return [text]
+
+    def _semantic_split(self, text: str) -> list[str]:
+        """
+        Phase 3 Improvement: Semantic Chunking.
+        Splits text into sentences and groups them based on embedding similarity.
+        """
+        import re
+        import numpy as np
+        
+        # 1. Split into sentences
+        sentences = re.split(r'(?<=[.!?]) +', text)
+        if len(sentences) < 5:
+            return [text]
+            
+        # 2. Embed sentences
+        sentence_embeddings = self._embedder.encode(sentences)
+        
+        # 3. Calculate similarities between adjacent sentences
+        similarities = []
+        for i in range(len(sentence_embeddings) - 1):
+            s1 = sentence_embeddings[i]
+            s2 = sentence_embeddings[i+1]
+            # Cosine similarity
+            sim = np.dot(s1, s2) / (np.linalg.norm(s1) * np.linalg.norm(s2))
+            similarities.append(sim)
+            
+        # 4. Find split points (local minima in similarity)
+        # We split where similarity is below a percentile (e.g., 20th percentile)
+        # or below a fixed threshold.
+        threshold = np.percentile(similarities, 20)
+        
+        chunks = []
+        current_chunk = [sentences[0]]
+        
+        for i, sim in enumerate(similarities):
+            if sim < threshold and len(" ".join(current_chunk)) > 300:
+                chunks.append(" ".join(current_chunk))
+                current_chunk = [sentences[i+1]]
+            else:
+                current_chunk.append(sentences[i+1])
+                
+        if current_chunk:
+            chunks.append(" ".join(current_chunk))
+            
+        logger.info(f"Semantic Chunking: Created {len(chunks)} chunks from {len(sentences)} sentences")
+        return chunks
 
     @staticmethod
     def _notify(callback: Optional[Callable], message: str, progress: float) -> None:

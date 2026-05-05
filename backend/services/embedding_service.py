@@ -85,9 +85,9 @@ class EmbeddingService:
         """Encode a single text into a dense vector."""
         return self.encode([text])[0]
 
-    def encode_with_sparse(self, texts: list[str]) -> dict:
+    def encode_batch(self, texts: list[str]) -> dict:
         """
-        Encode texts into both dense and sparse vectors.
+        Encode a batch of texts into both dense and sparse vectors.
 
         Used at ingestion time and for query encoding in hybrid search.
 
@@ -115,7 +115,7 @@ class EmbeddingService:
         Returns:
             dict with 'dense' (list[float]) and 'sparse' (dict of token_id->weight)
         """
-        result = self.encode_with_sparse([text])
+        result = self.encode_batch([text])
         return {
             'dense': result['dense'][0],
             'sparse': result['sparse'][0],
@@ -126,12 +126,14 @@ class EmbeddingService:
         query: str,
         documents: list[dict],
         top_k: Optional[int] = None,
+        min_score: Optional[float] = None,
     ) -> list[dict]:
         """
         Rerank documents using CrossEncoder for maximum precision.
 
         Pipeline: Qdrant returns 20 docs (from hybrid search)
                   -> CrossEncoder deeply scores each (query, doc) pair
+                  -> Sigmoid-normalize raw logits to [0,1] probabilities
                   -> Filter by minimum score threshold (rerank_min_score)
                   -> Return only the top-k most semantically relevant
         """
@@ -143,39 +145,47 @@ class EmbeddingService:
 
         self._ensure_models()
         pairs = [(query, doc["text"]) for doc in documents]
-        scores = self._reranker.predict(pairs)
+        raw_scores = self._reranker.predict(pairs)
 
-        for doc, score in zip(documents, scores):
-            doc["rerank_score"] = float(score)
+        # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
+        # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
+        import numpy as np
+        def _sigmoid(x):
+            return 1.0 / (1.0 + np.exp(-x))
+
+        for doc, raw_score in zip(documents, raw_scores):
+            doc["rerank_score"] = float(_sigmoid(raw_score))
+            doc["rerank_raw_logit"] = float(raw_score)
 
         # Score distribution logging for debugging
-        if scores is not None and len(scores) > 0:
-            import numpy as np
-            score_arr = np.array([float(s) for s in scores])
+        if raw_scores is not None and len(raw_scores) > 0:
+            score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
+            raw_arr = np.array([float(s) for s in raw_scores])
             logger.info(
-                f"Reranker scores: min={score_arr.min():.4f}, "
+                f"Reranker scores (sigmoid): min={score_arr.min():.4f}, "
                 f"max={score_arr.max():.4f}, mean={score_arr.mean():.4f}, "
-                f"median={float(np.median(score_arr)):.4f}"
+                f"median={float(np.median(score_arr)):.4f} | "
+                f"raw logits: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
             )
 
         ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
 
         # Apply minimum score threshold
-        min_score = settings.rerank_min_score
-        above_threshold = [d for d in ranked if d["rerank_score"] >= min_score]
+        effective_min_score = min_score if min_score is not None else settings.rerank_min_score
+        above_threshold = [d for d in ranked if d["rerank_score"] >= effective_min_score]
 
         if not above_threshold and ranked:
             # If ALL docs are below threshold, keep the top 1 as minimum
             above_threshold = ranked[:1]
             logger.warning(
-                f"All {len(ranked)} docs scored below threshold {min_score}. "
+                f"All {len(ranked)} docs scored below threshold {effective_min_score}. "
                 f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
             )
 
         filtered_count = len(ranked) - len(above_threshold)
         if filtered_count > 0:
             logger.info(
-                f"Reranker threshold {min_score}: filtered {filtered_count} docs below threshold"
+                f"Reranker threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
             )
 
         top_docs = above_threshold[:top_k]

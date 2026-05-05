@@ -77,6 +77,11 @@ RERANKER_SCORES = Histogram(
     buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
 )
 
+RETRIEVAL_RELEVANCE_RATIO = Gauge(
+    "guru_retrieval_relevance_ratio",
+    "Ratio of relevant docs to total retrieved docs (precision proxy)",
+)
+
 # ===================================================================
 # Emotional Intelligence Metrics
 # ===================================================================
@@ -123,6 +128,19 @@ CONFIDENCE_SCORES = Histogram(
     "Distribution of answer confidence scores",
     buckets=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
 )
+
+FAITHFULNESS_SCORE = Histogram(
+    "guru_faithfulness_score",
+    "Graded faithfulness score (0-1)",
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+
+RELEVANCY_SCORE = Histogram(
+    "guru_relevancy_score",
+    "Graded answer relevancy score (0-1)",
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+
 
 
 def metrics_endpoint():

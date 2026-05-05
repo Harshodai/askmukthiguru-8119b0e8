@@ -16,7 +16,7 @@ async def sync_youtube_playlist():
         container = get_container()
         
         # O&O Channel URL
-        playlist_url = "https://www.youtube.com/@PreetiKrishna/videos"
+        playlist_url = "https://www.youtube.com/@theonenessmovement/videos"
         
         # We start the ingestion asynchronously. 
         # ingest_url will discover videos and skip already indexed ones.

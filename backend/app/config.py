@@ -132,7 +132,9 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = True
-    rerank_min_score: float = 0.3                       # Min CrossEncoder score to keep a doc (0.3 = moderate)
+    rag_context_window: int = 1                         # Fetch N chunks before/after each retrieved chunk
+    rerank_min_score: float = 0.15                      # Min CrossEncoder score (sigmoid-normalized) to keep a doc
+
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True                  # Embedding-based semantic caching

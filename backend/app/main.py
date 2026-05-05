@@ -38,7 +38,6 @@ import time
 import uuid
 import contextvars
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
-from services.depression_detector import DepressionDetector
 
 # Correlation ID context variable — accessible from anywhere in the async call chain
 correlation_id_var = contextvars.ContextVar('correlation_id', default='-')
@@ -60,12 +59,32 @@ limiter = Limiter(key_func=get_remote_address)
 logger = logging.getLogger(__name__)
 
 # Global instances
-depression_detector = DepressionDetector()
-try:
-    response_cache = RedisCacheAdapter(redis_url=settings.redis_url)
-except Exception as e:
-    logger.warning(f"Redis initialization failed ({e}). Falling back to InMemoryCacheAdapter.")
-    response_cache = InMemoryCacheAdapter()
+class RequestCoalescer:
+    """
+    System Design Pattern 4.1: Coalesce Caching.
+    Merges identical concurrent requests to avoid redundant RAG runs.
+    """
+    def __init__(self):
+        self._locks = {}
+        self._results = {}
+
+    async def get_or_run(self, key: str, coro_func):
+        if key in self._results:
+            return self._results[key]
+        
+        if key not in self._locks:
+            self._locks[key] = asyncio.Lock()
+        
+        async with self._locks[key]:
+            if key in self._results:
+                return self._results[key]
+            
+            result = await coro_func()
+            self._results[key] = result
+            # Clean up after a short delay (or keep in semantic cache)
+            return result
+
+coalescer = RequestCoalescer()
 
 # Configure JSON logging for production observability (Phase 10)
 import json
@@ -129,15 +148,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"LightRAG initialization failed (GraphRAG unavailable): {e}")
 
-    # 4. Load depression detection model + wire Serene Mind
-    try:
-        depression_detector.load()
-        # Wire Serene Mind Engine for fast keyword-based detection (no LLM call)
-        if settings.serene_mind_enabled and hasattr(container, 'serene_mind'):
-            depression_detector.set_serene_mind(container.serene_mind)
-            logger.info("Depression detector linked to Serene Mind Engine (fast path)")
-    except Exception as e:
-        logger.warning(f"Depression detector failed to load: {e}")
+    # 4. (Deprecated) Depression detector is now merged into Serene Mind Engine
 
     # 5. Observability tracing (Arize Phoenix / OpenInference) (BE-8)
     try:
@@ -222,8 +233,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 from routers.admin import admin_router
+from routers.feedback import router as feedback_router
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(admin_router, prefix="/api/admin")
+app.include_router(feedback_router, prefix="/api")
 
 # Mount trace dashboard routes
 from app.trace_dashboard import router as trace_router
@@ -374,20 +387,22 @@ async def chat_endpoint(
     # Check directly here before RAG to fail-fast into meditation
     # Wrapped in try/except so detection failures don't crash the request
     try:
-        if await depression_detector.detect(user_msg):
-            from rag.meditation import get_distress_response
-            return ChatResponse(
-                response=get_distress_response(),
-                intent="DISTRESS",
-                meditation_step=1,
-            )
+        if container.serene_mind:
+            assessment = await container.serene_mind.aassess_distress(user_msg)
+            if assessment.level.value >= 2:  # MODERATE or higher
+                response = container.serene_mind.get_response(assessment)
+                return ChatResponse(
+                    response=response,
+                    intent="DISTRESS",
+                    meditation_step=1,
+                )
     except Exception as e:
         # Don't crash the request if depression detection fails
-        # The Serene Mind Engine in intent_router provides a fallback
+        logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
         logger.warning(f"Depression detection failed (non-fatal): {e}")
 
     # === Response Cache Check ===
-    cached = response_cache.get(user_msg)
+    cached = container.semantic_cache.get(user_msg)
     if cached is not None:
         REQUEST_COUNT.labels(status="cache_hit").inc()
         return ChatResponse(
@@ -399,15 +414,16 @@ async def chat_endpoint(
 
     # === Layers 2-11: LangGraph RAG Pipeline ===
     try:
-        with REQUEST_LATENCY.labels(stage="rag_pipeline").time():
+        # Coalesce identical concurrent requests (Sys 4.1)
+        async def run_pipeline():
             initial_state = create_initial_state(
                 question=user_msg,
                 chat_history=[m.model_dump() for m in chat_body.messages],
                 meditation_step=chat_body.meditation_step,
             )
+            return await container.rag_graph.ainvoke(initial_state)
 
-            # Invoke the compiled LangGraph
-            result = await container.rag_graph.ainvoke(initial_state)
+        result = await coalescer.get_or_run(user_msg, run_pipeline)
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
         intent = result.get("intent", "CASUAL")
@@ -417,7 +433,13 @@ async def chat_endpoint(
 
         # Populate cache for QUERY intents (not casual/distress/meditation)
         if intent == "QUERY":
-            response_cache.put(user_msg, final_answer, intent, citations, med_step)
+            container.semantic_cache.put(
+                query=user_msg,
+                response=final_answer,
+                intent=intent,
+                citations=citations,
+                meditation_step=med_step
+            )
 
     except Exception as e:
         citations = []
@@ -558,18 +580,19 @@ async def chat_stream_endpoint(
 
             # === Depression check (non-fatal if detection fails) ===
             try:
-                if await depression_detector.detect(user_msg):
-                    from rag.meditation import get_distress_response
-                    resp = get_distress_response()
-                    yield f"event: token\ndata: {resp}\n\n"
-                    meta = json.dumps({"intent": "DISTRESS", "meditation_step": 1})
-                    yield f"event: done\ndata: {meta}\n\n"
-                    return
+                if container.serene_mind:
+                    assessment = await container.serene_mind.aassess_distress(user_msg)
+                    if assessment.level.value >= 2:
+                        resp = container.serene_mind.get_response(assessment)
+                        yield f"event: token\ndata: {resp}\n\n"
+                        meta = json.dumps({"intent": "DISTRESS", "meditation_step": 1})
+                        yield f"event: done\ndata: {meta}\n\n"
+                        return
             except Exception as e:
-                logger.warning(f"Depression detection failed in stream (non-fatal): {e}")
+                logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
 
             # === Cache check ===
-            cached = response_cache.get(user_msg)
+            cached = container.semantic_cache.get(user_msg)
             if cached is not None:
                 yield f"event: token\ndata: {cached['response']}\n\n"
                 meta = json.dumps({
@@ -584,8 +607,8 @@ async def chat_stream_endpoint(
             yield f"event: status\ndata: Understanding your question...\n\n"
             initial_state = create_initial_state(
                 question=user_msg,
-                chat_history=[m.model_dump() for m in request.messages],
-                meditation_step=request.meditation_step,
+                chat_history=[m.model_dump() for m in chat_body.messages],
+                meditation_step=chat_body.meditation_step,
             )
 
             yield f"event: status\ndata: Searching knowledge base...\n\n"
@@ -609,7 +632,7 @@ async def chat_stream_endpoint(
 
             # Cache QUERY results
             if intent == "QUERY":
-                response_cache.put(user_msg, final_answer, intent, citations, med_step)
+                container.semantic_cache.put(user_msg, final_answer, intent, citations, meditation_step=med_step)
 
             REQUEST_COUNT.labels(status="success").inc()
 

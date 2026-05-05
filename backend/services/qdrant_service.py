@@ -195,15 +195,22 @@ class QdrantService:
             )
         search_filter = Filter(must=filter_conditions) if filter_conditions else None
 
-        # Hybrid search with RRF fusion
+        # Hybrid search with Multi-Vector Prefetching (Ch 6 RAG Made Simple)
         if sparse_vector:
             try:
                 sparse_qvec = self._sparse_dict_to_vector(sparse_vector)
                 prefetch_queries = [
+                    # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
                         query=query_vector, using="dense",
-                        limit=limit, filter=search_filter,
+                        limit=limit, filter=Filter(must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]),
                     ),
+                    # Prefetch 2: Summaries (Level 1)
+                    Prefetch(
+                        query=query_vector, using="dense",
+                        limit=limit // 2, filter=Filter(must=[FieldCondition(key="raptor_level", match=MatchValue(value=1))]),
+                    ),
+                    # Prefetch 3: Sparse Lexical Match
                     Prefetch(
                         query=sparse_qvec, using="sparse",
                         limit=limit, filter=search_filter,
@@ -237,7 +244,53 @@ class QdrantService:
             for hit in hits
         ]
 
+    def get_neighbor_chunks(self, source_url: str, chunk_index: int, window: int = 1) -> list[dict]:
+        """
+        Retrieve chunks immediately before and after the target chunk.
+        Used for the 'Context Enrichment Window' technique (RAG Made Simple Ch 8).
+        """
+        if not source_url:
+            return []
+
+        # Find indices within the window
+        indices = list(range(chunk_index - window, chunk_index + window + 1))
+        # Remove the target chunk itself if you only want neighbors,
+        # but usually we want the whole window for sequence.
+        
+        try:
+            results, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(key="source_url", match=MatchValue(value=source_url)),
+                        FieldCondition(key="chunk_index", match=MatchAny(any=indices)),
+                        FieldCondition(key="raptor_level", match=MatchValue(value=0)),
+                    ]
+                ),
+                limit=len(indices),
+                with_payload=True,
+            )
+            
+            # Sort by chunk_index to maintain sequence
+            neighbors = sorted(results, key=lambda x: x.payload.get("chunk_index", 0))
+            
+            return [
+                {
+                    "text": hit.payload.get("text", ""),
+                    "source_url": hit.payload.get("source_url", ""),
+                    "title": hit.payload.get("title", ""),
+                    "chunk_index": hit.payload.get("chunk_index", 0),
+                    "raptor_level": hit.payload.get("raptor_level", 0),
+                    "is_neighbor": hit.payload.get("chunk_index") != chunk_index
+                }
+                for hit in neighbors
+            ]
+        except Exception as e:
+            logger.warning(f"Failed to fetch neighbors for {source_url}:{chunk_index}: {e}")
+            return []
+
     def _dense_search(self, query_vector, limit, search_filter):
+
         """Dense-only search using the named 'dense' vector."""
         try:
             results = self._client.query_points(
@@ -273,6 +326,70 @@ class QdrantService:
             return len(results) > 0
         except Exception:
             return False
+
+    def backup_source(self, source_url: str, backup_collection: str) -> bool:
+        """
+        Copy all points for a source to a backup collection.
+        Acts as a safety net before re-processing.
+        """
+        try:
+            # Ensure backup collection exists
+            collections = [c.name for c in self._client.get_collections().collections]
+            if backup_collection not in collections:
+                source_config = self._client.get_collection(self._collection).config.params
+                self._client.create_collection(
+                    collection_name=backup_collection,
+                    vectors_config=source_config.vectors,
+                    sparse_vectors_config=source_config.sparse_vectors,
+                )
+                logger.info(f"Created backup collection: {backup_collection}")
+
+            # Scroll all points for this source
+            points, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
+                ),
+                limit=1000, # Sources rarely have more than 1000 chunks
+                with_payload=True,
+                with_vectors=True,
+            )
+
+            if not points:
+                return False
+
+            # Convert to PointStruct for upsert
+            backup_points = []
+            for p in points:
+                backup_points.append(PointStruct(
+                    id=p.id,
+                    vector=p.vector,
+                    payload=p.payload
+                ))
+
+            self._client.upsert(collection_name=backup_collection, points=backup_points)
+            logger.info(f"Backed up {len(backup_points)} points for {source_url} to {backup_collection}")
+            return True
+        except Exception as e:
+            logger.error(f"Backup failed for {source_url}: {e}")
+            return False
+
+    def prune_backups(self, prefix: str, max_backups: int = 5) -> None:
+        """
+        List all collections with the given prefix and keep only the last N.
+        Deletes the oldest collections based on alphanumeric order (works with timestamps).
+        """
+        try:
+            collections = [c.name for c in self._client.get_collections().collections]
+            backups = sorted([c for c in collections if c.startswith(prefix)])
+            
+            if len(backups) > max_backups:
+                to_delete = backups[: len(backups) - max_backups]
+                for coll in to_delete:
+                    logger.info(f"Pruning old backup collection: {coll}")
+                    self._client.delete_collection(coll)
+        except Exception as e:
+            logger.error(f"Failed to prune backups: {e}")
 
     def delete_by_source(self, source_url: str) -> None:
         """Delete all points with a given source_url (for re-ingestion)."""
@@ -315,6 +432,9 @@ class QdrantService:
                 "text": r.payload.get("text", ""),
                 "source_url": r.payload.get("source_url", ""),
                 "title": r.payload.get("title", ""),
+                "speaker": r.payload.get("speaker", "Unknown"),
+                "topic": r.payload.get("topic", "Spiritual"),
+                "chunk_index": r.payload.get("chunk_index", 0),
                 "content_type": r.payload.get("content_type", ""),
                 "raptor_level": r.payload.get("raptor_level", 0),
             }

@@ -113,24 +113,25 @@ export async function* sendMessageStreaming(
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  let buffer = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const text = decoder.decode(value, { stream: true });
-      // Parse SSE lines: "data: {...}\n\n"
-      const lines = text.split('\n');
-      for (const line of lines) {
+      buffer += decoder.decode(value, { stream: true });
+      const sseLines = buffer.split('\n');
+      buffer = sseLines.pop() || '';
+      for (const line of sseLines) {
         if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6).trim();
-        if (payload === '[DONE]') return;
+        const payload = line.slice(6);
+        if (payload.trim() === '[DONE]') return;
         try {
           const parsed = JSON.parse(payload);
           const chunk = parsed.choices?.[0]?.delta?.content ?? parsed.token ?? parsed.content ?? '';
           if (chunk) yield chunk;
         } catch {
-          // Non-JSON SSE line — yield raw text
+          // Non-JSON SSE line — yield raw text exactly without stripping spaces
           if (payload) yield payload;
         }
       }

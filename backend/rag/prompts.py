@@ -156,32 +156,15 @@ Focus on spiritual terminology and core concepts."""
 
 
 # === INTENT CLASSIFICATION PROMPT ===
-INTENT_CLASSIFICATION_PROMPT = """You are an intent classifier for a spiritual guidance app called Mukthi Guru.
-Classify the user's message into exactly one category.
-
-IMPORTANT: The user's input may be in ANY language (Hindi, Tamil, Telugu, Kannada, Bengali, English, code-mixed, etc).
-Translate internally, then classify strictly into these English labels:
+INTENT_CLASSIFICATION_PROMPT = """Classify the user's message into exactly one of these categories:
 
 DISTRESS - The user is expressing emotional pain, stress, anxiety, sadness, anger, fear, loneliness, hopelessness, or seeks emotional comfort.
-Examples:
-- English: 'I\'m so stressed', 'Life feels meaningless', 'I can\'t sleep'
-- Hindi: 'मुझे बहुत तकलीफ हो रही है', 'मैं बहुत उदास हूँ', 'जीने का मन नहीं है'
-- Tamil: 'நான் மிகவும் கஷ்டப்படுகிறேன்', 'என்னால் தாங்க முடியல'
-- Telugu: 'చాలా బాధగా ఉంది', 'ఎందుకు బతకాలి అనిపిస్తుంది'
-
-QUERY - The user is asking a question about spiritual teachings, meditation, consciousness, a guru, a concept, or seeking knowledge. ANY question about spiritual topics is QUERY.
-Examples:
-- English: 'What is the Beautiful State?', 'How do I meditate?', 'Who is goswami tulasidas?'
-- Hindi: 'ध्यान कैसे करें?', 'मोक्ष क्या है?', 'प्रीताजी ने क्या सिखाया?'
-- Tamil: 'தியானம் எப்படி செய்வது?', 'அழகான நிலை என்ன?'
-- Telugu: 'ధ్యానం ఎలా చేయాలి?', 'ప్రీతాజీ ఏమి చెప్పారు?'
-- Hinglish: 'preethaji ne kya bataya about consciousness?', 'beautiful state kaise achieve kare?'
-
+FACTUAL - The user is asking a specific question about spiritual teachings, concepts, or biographies that requires direct knowledge retrieval.
+FOLLOW_UP - The user is asking a question that refers to previous parts of the conversation (using pronouns like 'that', 'it', 'him') or continues a thread.
+MEDITATION - The user is asking for a meditation practice, wants to start a session, or is participating in an active session.
 CASUAL - The user is making small talk, greeting, or a general non-spiritual comment.
-Examples:
-- 'Hello', 'Thank you', 'How are you?', 'नमस्ते', 'धन्यवाद'
 
-RESPOND WITH ONLY ONE WORD: DISTRESS, QUERY, or CASUAL"""
+RESPOND WITH ONLY ONE WORD: DISTRESS, FACTUAL, FOLLOW_UP, MEDITATION, or CASUAL"""
 
 
 # === SUMMARIZE PROMPT (for RAPTOR tree node generation) ===
@@ -193,11 +176,13 @@ Keep the summary under 200 words."""
 
 
 # === HyDE PROMPT (Hypothetical Document Embeddings) ===
-HYDE_PROMPT = """You are Mukthi Guru, a spiritual guide for the teachings of Sri Preethaji and Sri Krishnaji. \
-Write a brief, hypothetical answer to the user's question \
-based on their spiritual teachings. \
-Do not hallucinate facts, just capture the style and vocabulary. \
-Keep it under 3 sentences."""
+HYDE_PROMPT = """You are Mukthi Guru, a spiritual guide grounded in the wisdom of Sri Preethaji and Sri Krishnaji. 
+Write a brief, hypothetical teaching that answers the user's question. 
+Use the specific vocabulary of the Ekam teachings (e.g., 'Beautiful State', 'Suffering State', 'Inner Transformation', 'Connection').
+Focus on the essence of the teaching rather than specific stories.
+Keep it to 2-3 sentences of pure spiritual wisdom.
+
+Question: {question}"""
 
 
 # === COMPLEXITY CHECK PROMPT ===
@@ -310,7 +295,7 @@ FALLBACK_RESPONSE = (
     "I appreciate your question, but I am unable to find specific teachings on this topic "
     "from Sri Preethaji and Sri Krishnaji that I can share confidently. Rather than risk "
     "providing inaccurate guidance, I encourage you to explore their teachings directly.\n\n"
-    "You can visit: https://www.youtube.com/@PreetiKrishna\n\n"
+    "You can visit: https://www.youtube.com/@theonenessmovement\n\n"
     "Is there another question about their teachings I can help with? 🙏"
 )
 
@@ -358,11 +343,11 @@ PART 2 - CLAIM VERIFICATION:
 Generate 2-3 specific verification questions about the CORE claims in the Answer.
 Check if the Context supports each claim.
 
-PART 3 - CONFIDENCE ASSESSMENT:
-Rate your overall confidence in the answer's accuracy on a scale of 1-10:
-- 1-3: Core claims are fabricated or contradicted by Context
-- 4-6: Some claims are supported, some are uncertain
-- 7-10: Core claims are well-grounded in Context
+PART 3 - QUALITY ASSESSMENT (0 to 1 scale):
+Rate the following metrics precisely:
+- FAITHFULNESS_SCORE: How grounded is the answer in context? (1.0 = perfect, 0.0 = complete hallucination)
+- RELEVANCY_SCORE: How well does the answer address the user's intent? (1.0 = perfect, 0.0 = completely off-topic)
+- CONFIDENCE: Overall certainty in the above (1-10)
 
 Respond in this EXACT format:
 
@@ -371,6 +356,8 @@ Q1: [verification question]
 A1: [VERIFIED or UNVERIFIED] - [brief reason]
 Q2: [verification question]
 A2: [VERIFIED or UNVERIFIED] - [brief reason]
+FAITHFULNESS_SCORE: [0.0 to 1.0]
+RELEVANCY_SCORE: [0.0 to 1.0]
 CONFIDENCE: [1-10]
 VERDICT: [PASS or FAIL]
 
@@ -435,7 +422,28 @@ The label should capture the main theme or topic discussed.
 Examples of good labels: "Meditation and Inner Peace", "Overcoming Suffering", "Beautiful State Practice", "Relationship Healing"
 
 Teachings:
-{texts}
+{texts}"""
 
-Output ONLY the topic label, nothing else."""
+
+# === PROPOSITION EXTRACTION PROMPT ===
+PROPOSITION_EXTRACTION_PROMPT = """Decompose the following spiritual teaching passage into a list of independent, self-contained propositions (propositions are individual factual claims or specific instructions).
+
+Rules for extraction:
+1. Each proposition must be a complete sentence that makes sense on its own.
+2. If a proposition refers to a concept or person (e.g., 'Preethaji teaches this'), include that context in the proposition.
+3. Remove any filler words, introductory phrases (e.g., 'I will now talk about...'), or conversational fluff.
+4. Preserve the exact spiritual meaning and terminology.
+5. If the passage is already concise, keep it as is.
+
+Format: Return each proposition on a new line, prefixed with '- '.
+
+Teaching:
+{text}
+"""
+
+# === CITATION REASONING PROMPT ===
+CITATION_REASONING_PROMPT = """You are a spiritual knowledge expert. 
+Given a user's question and a retrieved teaching, explain in 1 short sentence why this specific teaching is relevant and what core wisdom it provides for the question.
+
+Return ONLY the explanation sentence, nothing else."""
 

@@ -100,6 +100,8 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
                             'url': f"https://www.youtube.com/watch?v={entry.get('id', '')}",
                             'title': entry.get('title', 'Unknown'),
                             'video_id': entry.get('id', ''),
+                            'speaker': entry.get('uploader') or entry.get('channel') or 'Unknown',
+                            'topic': (entry.get('categories') or entry.get('tags') or ['Spiritual'])[0] if (entry.get('categories') or entry.get('tags')) else 'Spiritual',
                         })
                     except Exception as e:
                         logger.warning(f"Skipping playlist entry: {e}")
@@ -268,27 +270,14 @@ def fetch_transcript_hybrid(
     video_id: str,
     title: str = "",
     max_accuracy: bool = False,
+    speaker: str = "Unknown",
+    topic: str = "Spiritual",
 ) -> dict:
     """
     Robust transcript fetcher with optional Transcript Council.
-
-    Without council (enable_transcript_council=False):
-      Tier 1: Manual captions (youtube-transcript-api v1.x)
-      Tier 2: Auto-generated captions (youtube-transcript-api v1.x)
-      Tier 3: yt-dlp subtitle download + VTT parsing (fallback)
-
-    With council (enable_transcript_council=True, default):
-      - Runs Tier 1/2 for YouTube captions
-      - ALSO downloads audio and runs Sarvam Saaras v3 Batch STT
-      - Scores both, picks winner (or merges if both are long/comparable)
-
-    Args:
-        video_id: YouTube video ID
-        title: Video title for logging
-        max_accuracy: If True, skip auto-captions (manual only before council)
-
+    ...
     Returns:
-        Dict with 'text', 'source_url', 'title', 'method', optionally 'error'
+        Dict with 'text', 'source_url', 'title', 'speaker', 'topic', 'method', optionally 'error'
         and 'council' info (youtube_score, sarvam_score, winner)
     """
     source_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -328,6 +317,7 @@ def fetch_transcript_hybrid(
             logger.error(f"[{video_id}] ❌ Council: Both sources failed.")
             return {
                 "text": "", "source_url": source_url, "title": title,
+                "speaker": speaker, "topic": topic,
                 "method": "failed", "error": "All transcript extraction methods failed",
                 "council": council_info,
             }
@@ -338,16 +328,21 @@ def fetch_transcript_hybrid(
         )
         return {
             "text": chosen_text, "source_url": source_url, "title": title,
+            "speaker": speaker, "topic": topic,
             "method": method, "council": council_info,
         }
 
     # ── No council: use YouTube only ──
     if youtube_text:
-        return {"text": youtube_text, "source_url": source_url, "title": title, "method": "youtube_captions"}
+        return {
+            "text": youtube_text, "source_url": source_url, "title": title,
+            "speaker": speaker, "topic": topic, "method": "youtube_captions"
+        }
 
     logger.error(f"[{video_id}] ❌ All transcript extraction methods failed.")
     return {
         "text": "", "source_url": source_url, "title": title,
+        "speaker": speaker, "topic": topic,
         "method": "failed", "error": "All transcript extraction methods failed",
     }
 
@@ -408,6 +403,8 @@ async def fetch_transcripts_concurrent(
                 video_id,
                 title,
                 False,  # allow auto-captions
+                video.get('speaker', 'Unknown'),
+                video.get('topic', 'Spiritual'),
             )
 
         results.append(result)

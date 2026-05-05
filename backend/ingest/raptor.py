@@ -95,7 +95,7 @@ class RaptorIndexer:
 
         # Step 5: Index summaries as level-1 nodes (with sparse vectors for hybrid search)
         summary_texts = [s["text"] for s in summaries]
-        summary_embeddings = self._embedder.encode_with_sparse(summary_texts)
+        summary_embeddings = self._embedder.encode_batch(summary_texts)
         summary_metas = [
             {
                 "content_type": "summary",

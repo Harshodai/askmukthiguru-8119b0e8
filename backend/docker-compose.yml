@@ -89,7 +89,7 @@ services:
       # --- Guardrails ---
       - GUARDRAILS_PROVIDER=${GUARDRAILS_PROVIDER:-nemo}
       # --- Retrieval Quality ---
-      - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.3}
+      - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.15}
       - SEMANTIC_CACHE_ENABLED=${SEMANTIC_CACHE_ENABLED:-true}
       - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.92}
       # --- Observability ---

@@ -26,7 +26,7 @@ The 12-Layer Anti-Hallucination Pipeline (optimized — 5-6 LLM calls):
 
 import logging
 import asyncio
-from typing import Any
+from typing import Any, Optional, List, Dict
 
 from rag.states import GraphState
 from rag.prompts import (
@@ -47,18 +47,30 @@ from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
 from services.lightrag_service import LightRAGService
 from services.serene_mind_engine import SereneMindEngine, DistressLevel
+from rag.compression import ContextualCompressor
 from rag.compressor import compress_documents
 from rag.tree_navigator import navigate_tree, check_sufficiency
 from app.config import settings
+from app.metrics import (
+    PIPELINE_STAGE_LATENCY,
+    RETRIEVAL_DOCS_COUNT,
+    RERANKER_SCORES,
+    VERIFICATION_RESULTS,
+    CONFIDENCE_SCORES,
+    FAITHFULNESS_SCORE,
+    RELEVANCY_SCORE
+)
+
 
 logger = logging.getLogger(__name__)
 
 # Module-level service references (set during graph construction)
 _ollama: OllamaService = None
 _embedder: EmbeddingService = None
-_qdrant: QdrantService = None
-_lightrag: LightRAGService = None
-_serene_mind: SereneMindEngine = None
+_qdrant: Optional[QdrantService] = None
+_lightrag: Optional[LightRAGService] = None
+_serene_mind: Optional[SereneMindEngine] = None
+_compressor: Optional[ContextualCompressor] = None
 
 
 def init_services(
@@ -85,12 +97,13 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
     
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _compressor
     _ollama = ollama
     _embedder = embedder
     _qdrant = qdrant
     _lightrag = lightrag
     _serene_mind = serene_mind
+    _compressor = ContextualCompressor(embedder, threshold=0.45)
 
 
 import time
@@ -106,6 +119,12 @@ def log_metrics(func):
         
         node_name = func.__name__
         logger.info(f"Node '{node_name}' finished in {duration:.4f}s")
+        
+        # Record to Prometheus
+        try:
+            PIPELINE_STAGE_LATENCY.labels(stage=node_name).observe(duration)
+        except Exception:
+            pass
         
         # Merge metrics into state
         metrics = state.get("metrics") or {}
@@ -164,6 +183,11 @@ async def intent_router(state: GraphState) -> dict:
 
     # Stage 2: LLM classification (nuanced)
     intent = await _ollama.classify_intent(question)
+    
+    # Adaptive Retrieval: map older labels to new ones if necessary
+    if intent == "QUERY":
+        intent = "FACTUAL"
+        
     logger.info(
         f"Intent Router: classified '{question[:80]}...' → {intent} "
         f"(question_len={len(question)})"
@@ -184,12 +208,27 @@ async def decompose_query(state: GraphState) -> dict:
     The decomposition prompt returns the original query unchanged
     if it's already simple, so no quality loss.
     """
-    question = state.get("rewritten_query") or state["question"]
-
+    question = state["question"]
     sub_queries = await _ollama.decompose_query(question)
     is_complex = len(sub_queries) > 1
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
     return {"sub_queries": sub_queries, "is_complex": is_complex}
+
+
+@log_metrics
+async def generate_hyde(state: GraphState) -> dict:
+    """
+    HyDE (Hypothetical Document Embeddings): Generate a fake answer.
+    This hallucinated text is used as a dense vector to find real chunks
+    that 'look like' a good answer.
+    """
+    if not settings.rag_use_hyde:
+        return {"hyde_text": None}
+        
+    question = state.get("rewritten_query") or state["question"]
+    hyde_text = await _ollama.generate_hypothetical_answer(question)
+    logger.info(f"HyDE generated hypothetical answer ({len(hyde_text)} chars)")
+    return {"hyde_text": hyde_text}
 
 
 # ===================================================================
@@ -280,16 +319,9 @@ async def retrieve_documents(state: GraphState) -> dict:
                 augmented_query = f"{last_user_msgs[-1]} {query}"
 
         # HyDE (Hypothetical Document Embeddings)
-        query_for_embedding = augmented_query
-        if settings.rag_use_hyde:
-            logger.info("HyDE: Generating hypothetical answer...")
-            try:
-                hypothetical = await _ollama.generate_hypothetical_answer(query)
-                query_for_embedding = hypothetical
-                logger.debug(f"HyDE: {hypothetical[:50]}...")
-            except Exception as e:
-                logger.warning(f"HyDE generation failed: {e}. Using original query.")
-
+        # Use the pre-generated hyde_text from the parallel node if available
+        query_for_embedding = state.get("hyde_text") or augmented_query
+        
         # Encode query with both dense and sparse for hybrid search
         query_embedding = _embedder.encode_single_full(query_for_embedding)
 
@@ -346,6 +378,29 @@ async def retrieve_documents(state: GraphState) -> dict:
                 seen_texts.add(text_hash)
                 all_docs.append(doc)
 
+    # Context Augmentation Fallback
+    if len(all_docs) < 3:
+        logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
+        # Broaden search: remove cluster filters and increase top_k
+        fallback_query = sub_queries[0]
+        query_embedding = _embedder.encode_single_full(fallback_query)
+        
+        fallback_results = _qdrant.search(
+            query_vector=query_embedding['dense'],
+            limit=10,  # Broader search
+            sparse_vector=query_embedding['sparse'],
+            raptor_level=0,
+            cluster_ids=None, # Remove cluster restriction
+        )
+        
+        for doc in fallback_results:
+            text_hash = hash(doc["text"][:100])
+            if text_hash not in seen_texts:
+                seen_texts.add(text_hash)
+                all_docs.append(doc)
+        
+        logger.info(f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}")
+
     # Phase 6: Maximal Marginal Relevance (MMR) Diversity Re-ranking (BE-7)
     if len(all_docs) > settings.rag_top_k_retrieval:
         question = state.get("rewritten_query") or state["question"]
@@ -370,6 +425,7 @@ async def retrieve_documents(state: GraphState) -> dict:
     return {"documents": all_docs}
 
 
+
 # ===================================================================
 # Layer 5: Rerank Documents (CrossEncoder)
 # ===================================================================
@@ -377,19 +433,28 @@ async def retrieve_documents(state: GraphState) -> dict:
 @log_metrics
 async def rerank_documents(state: GraphState) -> dict:
     """
-    CrossEncoder reranking: top-20 → top-3.
-    
-    This is the single biggest precision boost. The CrossEncoder deeply
-    compares each (query, document) pair to produce precise relevance scores.
+    Layer 5: Rerank Documents (CrossEncoder)
+    Precise top-5 extraction with adaptive thresholds.
     """
     question = state.get("rewritten_query") or state["question"]
-    documents = state["documents"]
+    documents = state.get("documents", [])
 
     if not documents:
         return {"reranked_docs": []}
 
-    reranked = _embedder.rerank(question, documents)
-    logger.info(f"Reranked {len(documents)} → {len(reranked)} documents")
+    # Adaptive RAG Thresholds: adjust threshold based on query complexity
+    is_complex = state.get("is_complex", False)
+    base_threshold = getattr(settings, 'rerank_min_score', 0.2)
+    
+    # Complex queries (decomposed) need more context, simple queries need higher precision
+    # Use very permissive thresholds because CRAG grading is the primary filter
+    threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
+    
+    reranked = _embedder.rerank(question, documents, min_score=threshold)
+    logger.info(
+        f"Reranked {len(documents)} → {len(reranked)} documents "
+        f"(complex={is_complex}, threshold={threshold:.2f})"
+    )
     return {"reranked_docs": reranked}
 
 
@@ -427,8 +492,61 @@ async def grade_documents(state: GraphState) -> dict:
             min_sentences=2,
         )
 
+    # Record retrieval precision (relevance ratio) for observability
+    if reranked_docs:
+        from app.metrics import RETRIEVAL_RELEVANCE_RATIO
+        RETRIEVAL_RELEVANCE_RATIO.set(len(relevant) / len(reranked_docs))
+
     logger.info(f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check")
     return {"relevant_docs": relevant}
+
+
+@log_metrics
+async def enrich_context(state: GraphState) -> dict:
+    """
+    Fetch neighbor chunks for the top relevant documents.
+    Provides broader context for better reasoning (RAG Made Simple Ch 8).
+    """
+    relevant_docs = state.get("relevant_docs", [])
+    if not relevant_docs or settings.rag_context_window <= 0:
+        return {"relevant_docs": relevant_docs}
+
+    enriched_docs = []
+    seen_hashes = set()
+
+    # Only enrich top N to avoid context explosion
+    for doc in relevant_docs[:3]:
+        source_url = doc.get("source_url")
+        chunk_index = doc.get("chunk_index")
+        
+        if source_url and chunk_index is not None:
+            # Fetch neighbors (window size from settings)
+            neighbors = _qdrant.get_neighbor_chunks(
+                source_url, chunk_index, window=settings.rag_context_window
+            )
+            
+            for n in neighbors:
+                h = hash(n["text"][:100])
+                if h not in seen_hashes:
+                    seen_hashes.add(h)
+                    enriched_docs.append(n)
+        else:
+            # Fallback for docs without proper metadata
+            h = hash(doc["text"][:100])
+            if h not in seen_hashes:
+                seen_hashes.add(h)
+                enriched_docs.append(doc)
+
+    # Add remaining original docs that weren't in top 3
+    for doc in relevant_docs[3:]:
+        h = hash(doc["text"][:100])
+        if h not in seen_hashes:
+            seen_hashes.add(h)
+            enriched_docs.append(doc)
+
+    logger.info(f"Enriched {len(relevant_docs)} → {len(enriched_docs)} chunks using window={settings.rag_context_window}")
+    return {"relevant_docs": enriched_docs}
+
 
 
 # ===================================================================
@@ -458,6 +576,89 @@ async def rewrite_query(state: GraphState) -> dict:
 
 
 # ===================================================================
+# Layer 7.5: Context Engineering
+# ===================================================================
+
+@log_metrics
+async def context_engineer(state: GraphState) -> dict:
+    """
+    PageIndex-inspired Context Engineering.
+    Layers Persona, Knowledge, Instructions, and User State into a structured object.
+    
+    This replaces passing raw strings to the generator, allowing for 
+    more nuanced control over different parts of the prompt.
+    """
+    intent = state.get("intent", "FACTUAL")
+    relevant_docs = state.get("relevant_docs", [])
+    chat_history = state.get("chat_history", [])
+    meditation_step = state.get("meditation_step", 0)
+
+    # Layer 1: Persona
+    persona = GURU_SYSTEM_PROMPT
+
+    # Layer 2: Knowledge (Retrieved Chunks)
+    knowledge = "\n\n".join([
+        f"[Source: {doc.get('title', 'Unknown')}]\n{doc['text']}"
+        for doc in relevant_docs
+    ])
+
+    # Layer 3: User State
+    user_state = f"Intent: {intent}\n"
+    if meditation_step > 0:
+        user_state += f"Active Meditation Step: {meditation_step}\n"
+    if chat_history:
+        user_state += f"Conversation Depth: {len(chat_history)} turns\n"
+
+    # Layer 4: Instructions
+    instructions = (
+        "1. Base your answer ONLY on the provided Knowledge.\n"
+        "2. If Knowledge is insufficient, admit it warmly.\n"
+        "3. Use [Source: <title>] for citations.\n"
+        "4. Keep the tone compassionate and wise."
+    )
+
+    context_layers = {
+        "persona": persona,
+        "knowledge": knowledge,
+        "user_state": user_state,
+        "instructions": instructions
+    }
+
+    logger.info("Context Engineering: Layers assembled")
+    return {"context_layers": context_layers}
+
+
+@log_metrics
+async def explain_retrieval(state: GraphState) -> dict:
+    """
+    Phase 4 Improvement: Explainable Retrieval.
+    Generates a 1-sentence reasoning for why each top source was chosen.
+    """
+    from rag.prompts import CITATION_REASONING_PROMPT
+    
+    question = state["question"]
+    relevant_docs = state.get("relevant_docs", [])
+    
+    if not relevant_docs:
+        return {"citation_reasoning": {}}
+        
+    reasoning = {}
+    # Only explain top 3 to save time/cost
+    for doc in relevant_docs[:3]:
+        url = doc.get("source_url")
+        if not url: continue
+        
+        try:
+            user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
+            resp = await _ollama.generate(CITATION_REASONING_PROMPT, user_prompt)
+            reasoning[url] = resp.strip()
+        except Exception as e:
+            logger.warning(f"Reasoning failed for {url}: {e}")
+            
+    return {"citation_reasoning": reasoning}
+
+
+# ===================================================================
 # Layer 8+9: Generate Answer (with inline hint extraction)
 # Merged: extract_hints + generate_answer into one LLM call
 # ===================================================================
@@ -480,11 +681,19 @@ async def generate_answer(state: GraphState) -> dict:
     relevant_docs = state["relevant_docs"]
     chat_history = state.get("chat_history", [])
 
-    # Build context string
-    context = "\n\n---\n\n".join(
-        f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
-        for doc in relevant_docs
-    )
+    # Build context string with Contextual Compression (Ch 10 RAG Made Simple)
+    if len(relevant_docs) > 3 and _compressor:
+        compressed_texts = []
+        for doc in relevant_docs:
+            compressed_text = _compressor.compress(question, doc['text'])
+            title = doc.get('title', doc.get('source_url', 'Unknown'))
+            compressed_texts.append(f"[Source: {title}]\n{compressed_text}")
+        context = "\n\n---\n\n".join(compressed_texts)
+    else:
+        context = "\n\n---\n\n".join(
+            f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+            for doc in relevant_docs
+        )
 
     # Build citations list (deterministic ordering for reproducibility)
     citations = sorted(set(
@@ -505,17 +714,28 @@ async def generate_answer(state: GraphState) -> dict:
                 history="\n".join(history_lines)
             )
 
-    # Generate with inline hints prompt (merges hint extraction + generation)
-    prompt = GENERATE_WITH_HINTS_PROMPT.format(
-        context=context,
-        question=question,
-    )
+    # Use Context Engineering layers if available
+    layers = state.get("context_layers")
+    if layers:
+        prompt = (
+            f"PERSONA:\n{layers['persona']}\n\n"
+            f"USER STATE:\n{layers['user_state']}\n\n"
+            f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}\n\n"
+            f"INSTRUCTIONS:\n{layers['instructions']}\n\n"
+            f"QUESTION: {question}"
+        )
+    else:
+        # Fallback to legacy generation prompt
+        prompt = GENERATE_WITH_HINTS_PROMPT.format(
+            context=context,
+            question=question,
+        )
 
     if history_str:
         prompt = f"{history_str}\n\n{prompt}"
 
     answer = await _ollama.generate(
-        system_prompt="",  # System prompt is embedded in the template
+        system_prompt="",  # System prompt is now embedded in the persona layer
         user_prompt=prompt,
     )
 
@@ -555,10 +775,25 @@ async def verify_answer(state: GraphState) -> dict:
         f"Combined verify: faithful={'YES' if is_faithful else 'NO'}, "
         f"verdict={'PASS' if passed else 'FAIL'}, confidence={confidence}"
     )
+
+    # Record metrics
+    VERIFICATION_RESULTS.labels(result="faithful" if is_faithful else "hallucinated").inc()
+    VERIFICATION_RESULTS.labels(result="pass" if passed else "fail").inc()
+    CONFIDENCE_SCORES.observe(confidence)
+    
+    # Graded scores (assuming combined_verify returns these, or we estimate)
+    faithfulness = result.get("faithfulness_score", 1.0 if is_faithful else 0.0)
+    relevancy = result.get("relevancy_score", 1.0 if passed else 0.5)
+    
+    FAITHFULNESS_SCORE.observe(faithfulness)
+    RELEVANCY_SCORE.observe(relevancy)
+
     return {
         "is_faithful": is_faithful,
         "verification": {"passed": passed, "details": result["details"]},
         "confidence_score": confidence,
+        "faithfulness_score": faithfulness,
+        "relevancy_score": relevancy,
     }
 
 
@@ -578,9 +813,9 @@ async def format_final_answer(state: GraphState) -> dict:
     """
     # Check if faithfulness and verification passed
     is_faithful = state.get("is_faithful", False)
-    verification = state.get("verification", {})
+    verification = state.get("verification") or {}
     verified = verification.get("passed", False)
-    confidence = state.get("confidence_score", 5.0)
+    confidence = state.get("confidence_score") or 5.0
     answer = state.get("answer", "")
     citations = state.get("citations", [])
 
@@ -616,7 +851,15 @@ async def format_final_answer(state: GraphState) -> dict:
 
     # Append citation URLs if not already in the answer
     if citations:
-        citation_block = "\n\n📚 *Sources:*\n" + "\n".join(f"- {url}" for url in citations[:3])
+        reasoning = state.get("citation_reasoning") or {}
+        citation_lines = []
+        for url in citations[:3]:
+            line = f"- {url}"
+            if url in reasoning:
+                line += f" ({reasoning[url]})"
+            citation_lines.append(line)
+            
+        citation_block = "\n\n📚 *Sources:*\n" + "\n".join(citation_lines)
         if citation_block not in answer:
             answer += citation_block
 
@@ -690,9 +933,9 @@ def route_by_intent(state: GraphState) -> str:
     intent = state.get("intent", "CASUAL")
     if intent == "DISTRESS":
         return "distress"
-    elif intent == "MEDITATION_CONTINUE":
+    elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent == "QUERY":
+    elif intent in ["QUERY", "FACTUAL", "FOLLOW_UP"]:
         return "query"
     else:
         return "casual"

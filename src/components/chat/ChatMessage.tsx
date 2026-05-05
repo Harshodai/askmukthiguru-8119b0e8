@@ -79,18 +79,65 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
 
           <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1.5 ${isGuru ? 'items-start' : 'items-end'}`}>
             <div
-              className={`relative px-4 py-2.5 ${
+              className={`relative px-4 py-2.5 w-full ${
                 isGuru
                   ? 'glass-card rounded-2xl rounded-tl-md'
                   : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-md shadow-md'
               }`}
             >
-              <p
-                className={`text-[14px] leading-relaxed whitespace-pre-wrap break-words ${
-                  isGuru ? 'text-foreground' : ''
+              <div
+                className={`text-[14px] leading-relaxed break-words ${
+                  isGuru ? 'text-foreground' : 'whitespace-pre-wrap'
                 }`}
               >
-                {message.content}
+                {isGuru ? (
+                  <div className="space-y-1">
+                    {message.content.split('\n').map((line, lineIdx) => {
+                      if (line.trim().startsWith('- ') || line.trim().startsWith('• ') || line.trim().startsWith('* ')) {
+                        const content = line.trim().substring(2);
+                        return (
+                          <li key={lineIdx} className="ml-4 mb-1 list-disc text-foreground/90">
+                            {line.includes('**') ? (
+                              line.split('**').map((part, partIdx) => 
+                                partIdx % 2 === 1 ? (
+                                  <strong key={partIdx} className="font-bold text-ojas-dark dark:text-ojas">{part}</strong>
+                                ) : part
+                              )
+                            ) : line.includes('*') ? (
+                              line.split('*').map((part, partIdx) => 
+                                partIdx % 2 === 1 ? (
+                                  <em key={partIdx} className="italic text-muted-foreground">{part}</em>
+                                ) : part
+                              )
+                            ) : (
+                              content
+                            )}
+                          </li>
+                        );
+                      }
+                      if (line.trim() === '') {
+                        return <div key={lineIdx} className="h-1.5" />;
+                      }
+                      return (
+                        <p key={lineIdx} className="mb-1.5 last:mb-0 text-foreground/90 leading-relaxed">
+                          {line.split('**').map((part, partIdx) => 
+                            partIdx % 2 === 1 ? (
+                              <strong key={partIdx} className="font-bold text-ojas-dark dark:text-ojas">{part}</strong>
+                            ) : line.includes('*') ? (
+                              part.split('*').map((subpart, subpartIdx) => 
+                                subpartIdx % 2 === 1 ? (
+                                  <em key={subpartIdx} className="italic text-muted-foreground">{subpart}</em>
+                                ) : subpart
+                              )
+                            ) : part
+                          )}
+                        </p>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  message.content
+                )}
                 {isStreaming && (
                   <motion.span
                     animate={{ opacity: [1, 0] }}
@@ -98,7 +145,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                     className="inline-block w-[2px] h-[1em] bg-ojas ml-0.5 align-text-bottom"
                   />
                 )}
-              </p>
+              </div>
               <div className="flex items-center justify-between mt-1.5 gap-2">
                 <p
                   className={`text-[10px] ${

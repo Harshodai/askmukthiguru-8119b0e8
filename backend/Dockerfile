@@ -25,7 +25,7 @@ WORKDIR /app
 FROM base AS deps
 
 # Install 'uv' for state-of-the-art fast dependency installation
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN pip install --no-cache-dir uv
 
 COPY backend/pyproject.toml .
 # Compile the modern pyproject.toml into a strict lockfile and install it

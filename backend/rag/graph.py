@@ -34,14 +34,19 @@ from rag.nodes import (
     retrieve_documents,
     rerank_documents,
     grade_documents,
+    enrich_context,
     rewrite_query,
     generate_answer,
+    context_engineer,
+    explain_retrieval,
     verify_answer,
     format_final_answer,
+
     handle_casual,
     handle_distress,
     handle_meditation,
     handle_fallback,
+    generate_hyde,
     # Routing functions
     route_by_intent,
     route_after_grading,
@@ -100,15 +105,20 @@ def build_rag_graph(
     graph.add_node("retrieve_documents", retrieve_documents)
     graph.add_node("rerank_documents", rerank_documents)
     graph.add_node("grade_documents", grade_documents)
+    graph.add_node("enrich_context", enrich_context)
     graph.add_node("check_context_sufficiency", check_context_sufficiency)
+
     graph.add_node("rewrite_query", rewrite_query)
     graph.add_node("generate_answer", generate_answer)
     graph.add_node("verify_answer", verify_answer)
+    graph.add_node("explain_retrieval", explain_retrieval)
+    graph.add_node("context_engineer", context_engineer)
     graph.add_node("format_final_answer", format_final_answer)
     graph.add_node("handle_casual", handle_casual)
     graph.add_node("handle_distress", handle_distress)
     graph.add_node("handle_meditation", handle_meditation)
     graph.add_node("handle_fallback", handle_fallback)
+    graph.add_node("generate_hyde", generate_hyde)
 
     # === Set entry point ===
     graph.set_entry_point("intent_router")
@@ -128,9 +138,14 @@ def build_rag_graph(
     )
 
     # === Linear edges for the RAG pipeline ===
-    # PageIndex-inspired: navigate tree → retrieve (scoped) → rerank → grade → sufficiency
+    # PageIndex-inspired: navigate tree & HyDE in parallel → retrieve (scoped) → rerank → grade → sufficiency
     graph.add_edge("decompose_query", "navigate_knowledge_tree")
+    graph.add_edge("decompose_query", "generate_hyde")
+    
+    # Wait for both tree navigation and HyDE before retrieval
     graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
+    graph.add_edge("generate_hyde", "retrieve_documents")
+    
     graph.add_edge("retrieve_documents", "rerank_documents")
     graph.add_edge("rerank_documents", "grade_documents")
     graph.add_edge("grade_documents", "check_context_sufficiency")
@@ -140,20 +155,25 @@ def build_rag_graph(
         "check_context_sufficiency",
         route_after_grading,
         {
-            "relevant": "generate_answer",
+            "relevant": "enrich_context",
             "rewrite": "rewrite_query",
             "fallback": "handle_fallback",
         },
     )
 
+    graph.add_edge("enrich_context", "context_engineer")
+    graph.add_edge("context_engineer", "generate_answer")
+    graph.add_edge("context_engineer", "explain_retrieval")
+
     # Rewrite loop → back to retrieve
     graph.add_edge("rewrite_query", "retrieve_documents")
 
-    # Generate (with inline hints) → Combined verification → Format
+    # Generate (with inline hints) → Combined verification & Explanation → Format
     graph.add_edge("generate_answer", "verify_answer")
 
-    # Verification → format final answer
+    # Verification & Explanation → format final answer
     graph.add_edge("verify_answer", "format_final_answer")
+    graph.add_edge("explain_retrieval", "format_final_answer")
 
     # === Terminal edges → END ===
     graph.add_edge("format_final_answer", END)

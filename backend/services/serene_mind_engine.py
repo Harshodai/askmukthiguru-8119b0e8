@@ -338,6 +338,39 @@ class SereneMindEngine:
 
         return assessment
 
+    async def aassess_distress(
+        self,
+        message: str,
+        conversation_history: Optional[list[dict]] = None,
+    ) -> DistressAssessment:
+        """
+        Async evaluation of distress level.
+        Stage 1: Fast keyword/pattern detection (sync).
+        Stage 2: LLM fallback intent classification if no severe distress found.
+        """
+        assessment = self.assess_distress(message, conversation_history)
+        
+        # If Stage 1 found MODERATE or higher distress, return immediately
+        if assessment.level >= DistressLevel.MODERATE:
+            return assessment
+            
+        # Stage 2: LLM Fallback Check
+        try:
+            from app.dependencies import get_container
+            container = get_container()
+            if container.ollama:
+                intent = await container.ollama.classify_intent(message[:512])
+                if intent.strip().upper() == "DISTRESS":
+                    assessment.level = DistressLevel.MODERATE
+                    assessment.confidence = 0.6
+                    assessment.detected_signals.append("[LLM Fallback] Detected distress")
+                    assessment.recommended_response_type = "meditation"
+                    logger.info("Serene Mind: Stage 2 LLM Fallback detected distress")
+        except Exception as e:
+            logger.warning(f"Serene Mind LLM fallback failed: {e}")
+            
+        return assessment
+
     def get_response(self, assessment: DistressAssessment) -> str:
         """
         Get the appropriate response for a given distress assessment.

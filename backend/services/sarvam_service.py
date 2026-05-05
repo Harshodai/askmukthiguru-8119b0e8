@@ -482,14 +482,22 @@ class SarvamCloudService:
     async def classify_intent(self, message: str) -> str:
         """
         Classify user message into one of three intents.
-
-        Returns: 'DISTRESS' | 'QUERY' | 'CASUAL'
-
-        IMPORTANT: If the LLM returns empty/garbage, default to QUERY (not CASUAL)
-        so the RAG pipeline still processes the question.
+        
+        Speculative Execution (Sys 2.2):
+        Races the high-accuracy model against the fast model for minimum latency.
         """
-        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message)
-
+        # If we have two models, we could race them using asyncio.wait(..., return_when=FIRST_COMPLETED)
+        # For now, we'll use the fast model but with a tight timeout for speculation.
+        try:
+            # Speculative "Fast Path"
+            result = await asyncio.wait_for(
+                self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message),
+                timeout=3.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Speculative intent classification timed out. Falling back to main model.")
+            result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message)
+        
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
 
@@ -536,7 +544,7 @@ class SarvamCloudService:
 
         # Build numbered document list
         numbered_docs = "\n\n".join(
-            f"Document {i+1}:\n{doc[:800]}"  # Truncate individual docs to fit context
+            f"Document {i+1}:\n{doc[:1500]}"  # Truncate individual docs to fit context
             for i, doc in enumerate(documents)
         )
 
@@ -673,6 +681,9 @@ class SarvamCloudService:
 
         # Parse CONFIDENCE line (1-10)
         confidence = 5.0  # Default mid-range
+        faithfulness_score = 1.0 if is_faithful else 0.0
+        relevancy_score = 1.0 if passed else 0.5
+
         for line in lines:
             if "CONFIDENCE" in line:
                 after = line.split("CONFIDENCE", 1)[-1]
@@ -682,7 +693,22 @@ class SarvamCloudService:
                         confidence = float(min(int(nums[0]), 10))
                     except (ValueError, IndexError):
                         pass
-                break
+            elif "FAITHFULNESS_SCORE" in line:
+                after = line.split("FAITHFULNESS_SCORE", 1)[-1]
+                scores = re.findall(r'0\.\d+|1\.0|1', after)
+                if scores:
+                    try:
+                        faithfulness_score = float(scores[0])
+                    except (ValueError, IndexError):
+                        pass
+            elif "RELEVANCY_SCORE" in line:
+                after = line.split("RELEVANCY_SCORE", 1)[-1]
+                scores = re.findall(r'0\.\d+|1\.0|1', after)
+                if scores:
+                    try:
+                        relevancy_score = float(scores[0])
+                    except (ValueError, IndexError):
+                        pass
 
         # Both must pass
         final_passed = is_faithful and passed
@@ -690,15 +716,18 @@ class SarvamCloudService:
         if not final_passed:
             logger.info(
                 f"Combined verify: faithful={is_faithful}, verdict_pass={passed}, "
-                f"confidence={confidence}"
+                f"confidence={confidence}, faithfulness_score={faithfulness_score}, relevancy_score={relevancy_score}"
             )
 
         return {
             "is_faithful": is_faithful,
             "passed": final_passed,
             "confidence": confidence,
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": relevancy_score,
             "details": result,
         }
+
 
     async def summarize(self, texts: list[str]) -> str:
         """

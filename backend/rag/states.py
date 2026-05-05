@@ -10,9 +10,15 @@ This state flows through all 11 layers of the anti-hallucination pipeline.
 Every node reads what it needs and writes what it produces.
 """
 
-from typing import Optional
+from typing import Optional, Dict, Annotated
 from typing_extensions import TypedDict
 
+def add_dicts(left: dict, right: dict) -> dict:
+    if not left:
+        return right
+    if not right:
+        return left
+    return {**left, **right}
 
 class GraphState(TypedDict):
     """
@@ -77,6 +83,7 @@ class GraphState(TypedDict):
     # Retrieval
     documents: list[dict]
     reranked_docs: list[dict]
+    hyde_text: Optional[str]  # Hypothetical answer for HyDE retrieval
 
     # CRAG
     relevant_docs: list[dict]
@@ -117,5 +124,11 @@ class GraphState(TypedDict):
     final_answer: Optional[str]
     error: Optional[str]
     
+    # Context Engineering
+    context_layers: Optional[dict]  # {persona, knowledge, instructions, user_state}
+    
+    # Explainable Retrieval
+    citation_reasoning: Optional[Dict[str, str]]  # {url: reasoning}
+
     # Metrics
-    metrics: Optional[dict]  # {latency, output_tokens, etc.}
+    metrics: Annotated[dict, add_dicts]

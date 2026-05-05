@@ -207,7 +207,7 @@ class OllamaService:
 
         # Build numbered document list
         numbered_docs = "\n\n".join(
-            f"Document {i+1}:\n{doc[:800]}"  # Truncate individual docs to fit context
+            f"Document {i+1}:\n{doc[:1500]}"  # Truncate individual docs to fit context
             for i, doc in enumerate(documents)
         )
 
