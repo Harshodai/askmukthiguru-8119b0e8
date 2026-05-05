@@ -24,6 +24,7 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
+import { DailyTeaching } from './DailyTeaching';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
