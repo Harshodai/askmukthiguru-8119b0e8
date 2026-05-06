@@ -144,6 +144,8 @@ export const ChatInterface = () => {
   const [showGuidedMeditation, setShowGuidedMeditation] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
   const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
+  const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
+  const [showPipeline, setShowPipeline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
