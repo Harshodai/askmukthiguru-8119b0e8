@@ -198,44 +198,9 @@ export const sendMessage = async (
     }
   }
 
-  if (provider === 'openai' && apiKey) {
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: model || 'gpt-4',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages,
-            { role: 'user', content: userMessage },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorCode = httpStatusToErrorCode(response.status);
-        return {
-          content: getPlaceholderResponse(),
-          error: `OpenAI API error: ${response.status}`,
-          errorCode,
-        };
-      }
-
-      const data = await response.json();
-      return { content: data.choices[0].message.content };
-    } catch (error) {
-      console.error('OpenAI Service Error:', error);
-      return {
-        content: getPlaceholderResponse(),
-        error: error instanceof Error ? error.message : 'Connection failed',
-        errorCode: 'network',
-      };
-    }
-  }
+  // OpenAI direct client-side calls removed for security.
+  // API keys must never be stored or used in the browser.
+  // Use a server-side proxy (Edge Function) if OpenAI integration is needed.
 
   return { content: getPlaceholderResponse() };
 };
