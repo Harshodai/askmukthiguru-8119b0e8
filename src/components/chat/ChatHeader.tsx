@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 interface ChatHeaderProps {
   onClearChat: () => void;
   onOpenMobileMenu?: () => void;
-  onToggleSidebar?: () => void;
 }
 
 const formatRelativeTime = (iso: string | null): string => {
