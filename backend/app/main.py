@@ -230,7 +230,7 @@ from app.trace_dashboard import router as trace_router
 app.include_router(trace_router)
 
 @app.get("/metrics")
-async def get_metrics():
+async def get_metrics(user: AuthUser = Depends(current_active_user)):
     """Prometheus metrics endpoint."""
     from fastapi.responses import Response
     data, content_type = metrics_endpoint()
@@ -643,7 +643,9 @@ async def ingest_endpoint(
     request: Request,
     ingest_body: IngestRequest,
     background_tasks: BackgroundTasks,
+    user: AuthUser = Depends(current_active_user),
     container: ServiceContainer = Depends(get_container)
+) -> IngestResponse:
 ) -> IngestResponse:
     """
     Content ingestion endpoint.
@@ -748,7 +750,7 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
 
 
 @app.get("/api/ingest/status")
-async def ingest_status_endpoint(container: ServiceContainer = Depends(get_container)) -> dict:
+async def ingest_status_endpoint(user: AuthUser = Depends(current_active_user), container: ServiceContainer = Depends(get_container)) -> dict:
     """
     Get the status of active/recent ingestion jobs.
     Returns: {url: {status, message, progress, updated_at}}
