@@ -74,6 +74,7 @@ const EndUserApp = () => {
           <AnimatedLayout>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/practices" element={<PracticesPage />} />
