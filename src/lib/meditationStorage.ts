@@ -53,15 +53,18 @@ export const loadMeditationSessions = (): MeditationSession[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const sessions = JSON.parse(stored);
-      return sessions.map((session: MeditationSession) => ({
-        ...session,
-        startedAt: new Date(session.startedAt),
-        completedAt: session.completedAt ? new Date(session.completedAt) : null,
-      }));
+      const parsed = JSON.parse(stored);
+      const result = z.array(MeditationSessionSchema).safeParse(parsed);
+      if (!result.success) {
+        console.error('Corrupted meditation sessions — clearing:', result.error.message);
+        localStorage.removeItem(STORAGE_KEY);
+        return [];
+      }
+      return result.data as MeditationSession[];
     }
   } catch (error) {
-    console.error('Failed to load meditation sessions:', error);
+    console.error('Failed to load meditation sessions — clearing corrupted data:', error);
+    localStorage.removeItem(STORAGE_KEY);
   }
   return [];
 };
