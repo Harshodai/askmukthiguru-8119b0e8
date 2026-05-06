@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DesktopSidebar } from '@/components/chat/DesktopSidebar';
@@ -53,7 +53,6 @@ describe('DesktopSidebar', () => {
 
   it('renders collapsed sidebar without text labels', () => {
     render(<DesktopSidebar {...defaultProps} isCollapsed />, { wrapper });
-    // Brand name should not be visible in collapsed mode
     expect(screen.queryByText('AskMukthiGuru')).not.toBeInTheDocument();
   });
 
@@ -84,5 +83,37 @@ describe('DesktopSidebar', () => {
     );
     const items = screen.getAllByTestId('conversation-item');
     expect(items[0].className).toContain('bg-ojas/10');
+  });
+
+  // ── Delete confirmation dialog tests ──────────────────────────────
+
+  it('opens confirmation dialog when delete is clicked', () => {
+    render(<DesktopSidebar {...defaultProps} />, { wrapper });
+    const deleteBtn = screen.getByLabelText('Delete conversation');
+    fireEvent.click(deleteBtn);
+    expect(screen.getByText('Delete conversation?')).toBeInTheDocument();
+  });
+
+  it('cancels deletion when Cancel is clicked in dialog', () => {
+    render(<DesktopSidebar {...defaultProps} />, { wrapper });
+    const deleteBtn = screen.getByLabelText('Delete conversation');
+    fireEvent.click(deleteBtn);
+    const cancelBtn = screen.getByTestId('delete-cancel');
+    fireEvent.click(cancelBtn);
+    expect(defaultProps.onDeleteConversation).not.toHaveBeenCalled();
+  });
+
+  it('confirms deletion when Delete is clicked in dialog', () => {
+    render(<DesktopSidebar {...defaultProps} />, { wrapper });
+    const deleteBtn = screen.getByLabelText('Delete conversation');
+    fireEvent.click(deleteBtn);
+    const confirmBtn = screen.getByTestId('delete-confirm');
+    fireEvent.click(confirmBtn);
+    expect(defaultProps.onDeleteConversation).toHaveBeenCalledWith('conv-1');
+  });
+
+  it('shows brand icon M instead of guru photo', () => {
+    render(<DesktopSidebar {...defaultProps} />, { wrapper });
+    expect(screen.getByText('M')).toBeInTheDocument();
   });
 });
