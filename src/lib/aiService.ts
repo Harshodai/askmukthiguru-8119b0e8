@@ -73,11 +73,16 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
  * from an SSE/chunked endpoint. Falls back by throwing if streaming is
  * unavailable (caller should catch and use sendMessage instead).
  */
+/** Streaming chunk: either a content token or a pipeline status update */
+export type StreamChunk =
+  | { type: 'token'; text: string }
+  | { type: 'status'; text: string };
+
 export async function* sendMessageStreaming(
   messages: MessagePayload[],
   userMessage: string,
   meditationStep: number = 0,
-): AsyncGenerator<string> {
+): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
   // Streaming only works for the custom backend with SSE support
@@ -93,7 +98,6 @@ export async function* sendMessageStreaming(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
-    
     },
     body: JSON.stringify({
       messages: [
@@ -113,6 +117,7 @@ export async function* sendMessageStreaming(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let currentEvent = 'message'; // tracks the SSE event type
 
   try {
     while (true) {
@@ -122,16 +127,31 @@ export async function* sendMessageStreaming(
       const sseLines = buffer.split('\n');
       buffer = sseLines.pop() || '';
       for (const line of sseLines) {
+        // Parse SSE event type lines
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim();
+          continue;
+        }
         if (!line.startsWith('data: ')) continue;
         const payload = line.slice(6);
         if (payload.trim() === '[DONE]') return;
+
+        // Yield status events as pipeline step updates
+        if (currentEvent === 'status') {
+          yield { type: 'status', text: payload.trim() };
+          currentEvent = 'message'; // reset for next event
+          continue;
+        }
+
+        // Yield token events as content
+        currentEvent = 'message'; // reset
         try {
           const parsed = JSON.parse(payload);
           const chunk = parsed.choices?.[0]?.delta?.content ?? parsed.token ?? parsed.content ?? '';
-          if (chunk) yield chunk;
+          if (chunk) yield { type: 'token', text: chunk };
         } catch {
-          // Non-JSON SSE line — yield raw text exactly without stripping spaces
-          if (payload) yield payload;
+          // Non-JSON SSE line — yield raw text
+          if (payload) yield { type: 'token', text: payload };
         }
       }
     }

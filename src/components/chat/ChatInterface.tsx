@@ -14,7 +14,7 @@ import {
   setCurrentConversationId,
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk } from '@/lib/aiService';
 import { hashMessages, getCachedResponse, setCachedResponse } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -25,6 +25,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
+import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
@@ -143,6 +144,8 @@ export const ChatInterface = () => {
   const [showGuidedMeditation, setShowGuidedMeditation] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
   const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
+  const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
+  const [showPipeline, setShowPipeline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -410,6 +413,10 @@ export const ChatInterface = () => {
     try {
       const stream = sendMessageStreaming(messageHistory, userMessage.content, meditationStep);
       
+      // Show pipeline thinking pills
+      setPipelineSteps([]);
+      setShowPipeline(true);
+
       // Add an empty guru message that we'll fill progressively
       const emptyGuru: Message = {
         id: streamingGuruId,
@@ -423,8 +430,31 @@ export const ChatInterface = () => {
       setIsTyping(false);
 
       let fullContent = '';
+      let gotFirstToken = false;
       for await (const chunk of stream) {
-        fullContent += chunk;
+        if (chunk.type === 'status') {
+          // Pipeline status update → add or advance pills
+          const label = mapStatusToLabel(chunk.text);
+          setPipelineSteps((prev) => {
+            // Mark all previous steps as done
+            const updated = prev.map((s) =>
+              s.status === 'active' ? { ...s, status: 'done' as const } : s
+            );
+            // Add new active step
+            return [...updated, { id: `step-${updated.length}`, label, status: 'active' as const }];
+          });
+          continue;
+        }
+
+        // First token → hide pipeline pills
+        if (!gotFirstToken) {
+          gotFirstToken = true;
+          // Mark all steps as done, then fade out
+          setPipelineSteps((prev) => prev.map((s) => ({ ...s, status: 'done' as const })));
+          setTimeout(() => setShowPipeline(false), 600);
+        }
+
+        fullContent += chunk.text;
         const captured = fullContent;
         setMessages((prev) =>
           prev.map((m) => (m.id === streamingGuruId ? { ...m, content: captured } : m))
@@ -449,6 +479,8 @@ export const ChatInterface = () => {
     } finally {
       setIsStreaming(false);
       setStreamingMessageId(undefined);
+      setShowPipeline(false);
+      setPipelineSteps([]);
     }
 
     if (streamingWorked) return;
@@ -616,19 +648,22 @@ export const ChatInterface = () => {
               </motion.div>
             )}
 
+            {/* Pipeline Thinking Pills */}
+            <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
+
             {/* Streaming skeleton */}
             <AnimatePresence>
-              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && !showPipeline && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="flex items-start gap-3"
                 >
-                  <div className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30">
-                    <div className="w-4 h-4 rounded-full bg-ojas/50" />
+                  <div className="w-7 h-7 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30">
+                    <div className="w-3.5 h-3.5 rounded-full bg-ojas/50" />
                   </div>
-                  <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-sm space-y-2 w-48">
+                  <div className="border-l-2 border-ojas/20 pl-3.5 space-y-2 w-48">
                     <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse" />
                     <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-3/4" />
                     <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-1/2" />

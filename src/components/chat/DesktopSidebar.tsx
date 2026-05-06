@@ -76,7 +76,7 @@ export const DesktopSidebar = ({
     <>
       <motion.aside
         initial={false}
-        animate={{ width: isCollapsed ? 64 : 280 }}
+        animate={{ width: isCollapsed ? 72 : 280 }}
         transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
         className="hidden sm:flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border/50 relative z-20 overflow-hidden"
         data-testid="desktop-sidebar"
