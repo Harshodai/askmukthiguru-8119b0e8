@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface MessageFeedback {
   vote: 'up' | 'down';
   tags: string[];
