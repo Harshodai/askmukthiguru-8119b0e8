@@ -648,19 +648,22 @@ export const ChatInterface = () => {
               </motion.div>
             )}
 
+            {/* Pipeline Thinking Pills */}
+            <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
+
             {/* Streaming skeleton */}
             <AnimatePresence>
-              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && !showPipeline && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="flex items-start gap-3"
                 >
-                  <div className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30">
-                    <div className="w-4 h-4 rounded-full bg-ojas/50" />
+                  <div className="w-7 h-7 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30">
+                    <div className="w-3.5 h-3.5 rounded-full bg-ojas/50" />
                   </div>
-                  <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-sm space-y-2 w-48">
+                  <div className="border-l-2 border-ojas/20 pl-3.5 space-y-2 w-48">
                     <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse" />
                     <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-3/4" />
                     <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-1/2" />
