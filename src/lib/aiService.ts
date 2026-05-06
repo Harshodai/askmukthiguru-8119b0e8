@@ -1,11 +1,10 @@
 import { guruResponses } from './chatStorage';
 
-export type AIProvider = 'placeholder' | 'custom' | 'openai';
+export type AIProvider = 'placeholder' | 'custom';
 
 export interface AIConfig {
   provider: AIProvider;
   endpoint?: string;
-  apiKey?: string;
   systemPrompt?: string;
   model?: string;
   language?: string;
@@ -79,7 +78,7 @@ export async function* sendMessageStreaming(
   userMessage: string,
   meditationStep: number = 0,
 ): AsyncGenerator<string> {
-  const { provider, endpoint, apiKey, systemPrompt } = currentConfig;
+  const { provider, endpoint, systemPrompt } = currentConfig;
 
   // Streaming only works for the custom backend with SSE support
   if (provider !== 'custom' || !endpoint) {
@@ -94,7 +93,7 @@ export async function* sendMessageStreaming(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
-      ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+    
     },
     body: JSON.stringify({
       messages: [
@@ -147,7 +146,7 @@ export const sendMessage = async (
   userMessage: string,
   meditationStep: number = 0
 ): Promise<AIResponse> => {
-  const { provider, endpoint, apiKey, systemPrompt, model } = currentConfig;
+  const { provider, endpoint, systemPrompt } = currentConfig;
 
   if (provider === 'placeholder') {
     await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
@@ -161,7 +160,6 @@ export const sendMessage = async (
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
         },
         body: JSON.stringify({
           messages: [
@@ -201,44 +199,9 @@ export const sendMessage = async (
     }
   }
 
-  if (provider === 'openai' && apiKey) {
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: model || 'gpt-4',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages,
-            { role: 'user', content: userMessage },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorCode = httpStatusToErrorCode(response.status);
-        return {
-          content: getPlaceholderResponse(),
-          error: `OpenAI API error: ${response.status}`,
-          errorCode,
-        };
-      }
-
-      const data = await response.json();
-      return { content: data.choices[0].message.content };
-    } catch (error) {
-      console.error('OpenAI Service Error:', error);
-      return {
-        content: getPlaceholderResponse(),
-        error: error instanceof Error ? error.message : 'Connection failed',
-        errorCode: 'network',
-      };
-    }
-  }
+  // OpenAI direct client-side calls removed for security.
+  // API keys must never be stored or used in the browser.
+  // Use a server-side proxy (Edge Function) if OpenAI integration is needed.
 
   return { content: getPlaceholderResponse() };
 };

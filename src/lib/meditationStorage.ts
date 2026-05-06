@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface MeditationSession {
   id: string;
   startedAt: Date;
@@ -16,6 +18,15 @@ export interface MeditationStats {
 }
 
 const STORAGE_KEY = 'askmukthiguru_meditation_sessions';
+
+const MeditationSessionSchema = z.object({
+  id: z.string(),
+  startedAt: z.coerce.date(),
+  completedAt: z.coerce.date().nullable(),
+  durationSeconds: z.number(),
+  breathCycles: z.number(),
+  completed: z.boolean(),
+});
 
 /**
  * Generate a unique session ID
@@ -42,15 +53,18 @@ export const loadMeditationSessions = (): MeditationSession[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const sessions = JSON.parse(stored);
-      return sessions.map((session: MeditationSession) => ({
-        ...session,
-        startedAt: new Date(session.startedAt),
-        completedAt: session.completedAt ? new Date(session.completedAt) : null,
-      }));
+      const parsed = JSON.parse(stored);
+      const result = z.array(MeditationSessionSchema).safeParse(parsed);
+      if (!result.success) {
+        console.error('Corrupted meditation sessions — clearing:', result.error.message);
+        localStorage.removeItem(STORAGE_KEY);
+        return [];
+      }
+      return result.data as MeditationSession[];
     }
   } catch (error) {
-    console.error('Failed to load meditation sessions:', error);
+    console.error('Failed to load meditation sessions — clearing corrupted data:', error);
+    localStorage.removeItem(STORAGE_KEY);
   }
   return [];
 };

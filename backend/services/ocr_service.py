@@ -76,6 +76,23 @@ class OCRService:
             Dict with 'text', 'source_url', 'content_type', 'confidence'
         """
         logger.info(f"OCR: downloading {image_url}")
+
+        # SSRF protection: validate URL scheme and block private/internal addresses
+        from urllib.parse import urlparse
+        import ipaddress
+        import socket
+        parsed = urlparse(image_url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
+        hostname = parsed.hostname or ""
+        try:
+            resolved_ips = socket.getaddrinfo(hostname, None)
+            for _, _, _, _, sockaddr in resolved_ips:
+                ip = ipaddress.ip_address(sockaddr[0])
+                if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local:
+                    raise ValueError(f"URL resolves to a private/internal address")
+        except socket.gaierror:
+            raise ValueError(f"Cannot resolve hostname: {hostname}")
         tmp_path = None
 
         try:

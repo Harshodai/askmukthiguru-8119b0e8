@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface MessageFeedback {
   vote: 'up' | 'down';
   tags: string[];
@@ -28,19 +30,51 @@ export const saveFeedback = (messageId: string, feedback: MessageFeedback): void
   }
 };
 
+// ── Zod schemas for safe deserialization ─────────────────────────
+const MessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'guru']),
+  content: z.string(),
+  timestamp: z.coerce.date(),
+  citations: z.array(z.string()).optional(),
+  confidenceScore: z.number().optional(),
+  feedback: z.object({
+    vote: z.enum(['up', 'down']),
+    tags: z.array(z.string()),
+    comment: z.string().optional(),
+    timestamp: z.coerce.date(),
+  }).optional(),
+});
+
+const ConversationSchema = z.object({
+  id: z.string(),
+  startedAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  preview: z.string(),
+  messageCount: z.number(),
+  messages: z.array(MessageSchema),
+});
+
 export const loadAllFeedback = (): Record<string, MessageFeedback> => {
   try {
     const raw = localStorage.getItem(FEEDBACK_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (typeof parsed !== 'object' || parsed === null) {
+        localStorage.removeItem(FEEDBACK_KEY);
+        return {};
+      }
       // Re-hydrate dates
       for (const key of Object.keys(parsed)) {
-        parsed[key].timestamp = new Date(parsed[key].timestamp);
+        if (parsed[key] && typeof parsed[key] === 'object') {
+          parsed[key].timestamp = new Date(parsed[key].timestamp);
+        }
       }
       return parsed;
     }
   } catch (e) {
-    console.error('Failed to load feedback:', e);
+    console.error('Failed to load feedback — clearing corrupted data:', e);
+    localStorage.removeItem(FEEDBACK_KEY);
   }
   return {};
 };
@@ -76,14 +110,18 @@ export const loadChatHistory = (): Message[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const messages = JSON.parse(stored);
-      return messages.map((msg: Message) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
+      const parsed = JSON.parse(stored);
+      const result = z.array(MessageSchema).safeParse(parsed);
+      if (!result.success) {
+        console.error('Corrupted chat history — clearing:', result.error.message);
+        localStorage.removeItem(STORAGE_KEY);
+        return [];
+      }
+      return result.data as Message[];
     }
   } catch (error) {
-    console.error('Failed to load chat history:', error);
+    console.error('Failed to load chat history — clearing corrupted data:', error);
+    localStorage.removeItem(STORAGE_KEY);
   }
   return [];
 };
@@ -120,19 +158,18 @@ export const loadConversations = (): Conversation[] => {
   try {
     const stored = localStorage.getItem(CONVERSATIONS_KEY);
     if (stored) {
-      const conversations = JSON.parse(stored);
-      return conversations.map((conv: Conversation) => ({
-        ...conv,
-        startedAt: new Date(conv.startedAt),
-        updatedAt: new Date(conv.updatedAt),
-        messages: conv.messages.map((msg: Message) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-      }));
+      const parsed = JSON.parse(stored);
+      const result = z.array(ConversationSchema).safeParse(parsed);
+      if (!result.success) {
+        console.error('Corrupted conversations — clearing:', result.error.message);
+        localStorage.removeItem(CONVERSATIONS_KEY);
+        return [];
+      }
+      return result.data as Conversation[];
     }
   } catch (error) {
-    console.error('Failed to load conversations:', error);
+    console.error('Failed to load conversations — clearing corrupted data:', error);
+    localStorage.removeItem(CONVERSATIONS_KEY);
   }
   return [];
 };

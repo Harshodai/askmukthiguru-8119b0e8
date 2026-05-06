@@ -14,9 +14,11 @@ import logging
 import time
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
+from services.auth_service import current_active_user
+from models.user import User as AuthUser
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +110,15 @@ def _get_trace_redis(request_id: str) -> Optional[dict]:
 
 
 # ===================================================================
-# API Routes
+# API Routes — all require authentication
 # ===================================================================
 
 @router.get("/trace/{request_id}")
-async def get_trace(request_id: str):
-    """Get detailed trace for a specific request."""
+async def get_trace(request_id: str, user: AuthUser = Depends(current_active_user)):
+    """Get detailed trace for a specific request. Requires authentication."""
+    if not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
     # Check memory first
     if request_id in _traces:
         return _traces[request_id]
@@ -127,22 +132,18 @@ async def get_trace(request_id: str):
 
 
 @router.get("/metrics/summary")
-async def get_metrics_summary():
+async def get_metrics_summary(user: AuthUser = Depends(current_active_user)):
     """
-    High-level pipeline metrics summary.
+    High-level pipeline metrics summary. Requires authentication.
+    """
+    if not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
 
-    Returns JSON with:
-      - Average pipeline latency
-      - Cache hit rates
-      - Distress detection counts
-      - Recent trace summaries
-    """
     from app.metrics import (
         REQUEST_LATENCY, REQUEST_COUNT, CACHE_OPERATIONS,
         DISTRESS_DETECTIONS, LLM_LATENCY, LLM_TOKENS,
     )
 
-    # Compute summary from Prometheus metrics
     summary = {
         "pipeline": {
             "total_requests": _safe_counter_value(REQUEST_COUNT, ["success"])
