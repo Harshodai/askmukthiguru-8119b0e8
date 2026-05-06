@@ -31,7 +31,7 @@ const favouriteLabel = (fav: 'soul_sync' | 'serene_mind' | null): string => {
   return '';
 };
 
-export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: ChatHeaderProps) => {
+export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) => {
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
