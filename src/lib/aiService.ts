@@ -1,11 +1,10 @@
 import { guruResponses } from './chatStorage';
 
-export type AIProvider = 'placeholder' | 'custom' | 'openai';
+export type AIProvider = 'placeholder' | 'custom';
 
 export interface AIConfig {
   provider: AIProvider;
   endpoint?: string;
-  apiKey?: string;
   systemPrompt?: string;
   model?: string;
   language?: string;
