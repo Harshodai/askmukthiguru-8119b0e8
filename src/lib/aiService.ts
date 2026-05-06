@@ -78,7 +78,7 @@ export async function* sendMessageStreaming(
   userMessage: string,
   meditationStep: number = 0,
 ): AsyncGenerator<string> {
-  const { provider, endpoint, apiKey, systemPrompt } = currentConfig;
+  const { provider, endpoint, systemPrompt } = currentConfig;
 
   // Streaming only works for the custom backend with SSE support
   if (provider !== 'custom' || !endpoint) {
