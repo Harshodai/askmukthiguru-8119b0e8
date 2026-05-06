@@ -1,5 +1,5 @@
 import { z } from 'zod';
-
+import { supabase } from '@/integrations/supabase/client';
 export interface MeditationSession {
   id: string;
   startedAt: Date;
