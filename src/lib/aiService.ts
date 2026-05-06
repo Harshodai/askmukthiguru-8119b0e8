@@ -33,10 +33,12 @@ export interface AIResponse {
   blockReason?: string;
 }
 
-// Default configuration pointing to our FastAPI backend
+// Auto-detect backend URL: VITE_BACKEND_URL for local dev, relative path for production
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
 let currentConfig: AIConfig = {
   provider: 'custom',
-  endpoint: '/api/chat',
+  endpoint: `${BACKEND_URL}/api/chat`,
   language: 'en',
   systemPrompt: `You are a spiritual AI companion embodying the wisdom of Sri Preethaji & Sri Krishnaji. 
 Your purpose is to guide seekers toward their "beautiful state" - a state of consciousness free from suffering.
