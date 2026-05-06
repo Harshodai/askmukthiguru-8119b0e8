@@ -1,5 +1,5 @@
 import { z } from 'zod';
-
+import { supabase } from '@/integrations/supabase/client';
 export interface MeditationSession {
   id: string;
   startedAt: Date;
@@ -85,13 +85,13 @@ export const startMeditationSession = (): MeditationSession => {
 };
 
 /**
- * Complete and save a meditation session
+ * Complete and save a meditation session (localStorage + DB if authenticated)
  */
-export const completeMeditationSession = (
+export const completeMeditationSession = async (
   sessionId: string,
   durationSeconds: number,
   breathCycles: number
-): void => {
+): Promise<void> => {
   const sessions = loadMeditationSessions();
   const existingIndex = sessions.findIndex(s => s.id === sessionId);
   
@@ -111,6 +111,23 @@ export const completeMeditationSession = (
   }
 
   saveSessions(sessions);
+
+  // Also persist to DB if user is authenticated
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      await supabase.from('meditation_sessions').insert({
+        user_id: session.user.id,
+        started_at: completedSession.startedAt.toISOString(),
+        completed_at: completedSession.completedAt?.toISOString() ?? null,
+        duration_seconds: durationSeconds,
+        breath_cycles: breathCycles,
+        completed: true,
+      });
+    }
+  } catch (err) {
+    console.error('Failed to persist meditation session to DB:', err);
+  }
 };
 
 /**

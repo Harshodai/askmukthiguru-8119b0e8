@@ -4,6 +4,7 @@ import { PanelLeft, Wifi, WifiOff, Home } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -50,20 +51,34 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
             </Button>
           )}
 
-          <div className="flex items-center gap-1.5 min-w-0">
-            <h1 className="font-semibold text-foreground text-sm truncate leading-tight">
-              AskMukthiGuru
-            </h1>
-            <div className="flex items-center gap-1">
-              {connectionStatus.connected ? (
-                <Wifi className="w-3 h-3 text-prana" />
-              ) : (
-                <WifiOff className="w-3 h-3 text-muted-foreground" />
-              )}
-              <span className="text-[10px] text-muted-foreground leading-none hidden sm:inline">
-                {connectionStatus.mode}
-              </span>
+          {/* Guru avatar */}
+          <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex-shrink-0">
+            <img
+              src={gurusPhoto}
+              alt="Sri Preethaji & Sri Krishnaji"
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h1 className="font-semibold text-foreground text-sm truncate leading-tight">
+                AskMukthiGuru
+              </h1>
+              <div className="flex items-center gap-1">
+                {connectionStatus.connected ? (
+                  <Wifi className="w-3 h-3 text-prana" />
+                ) : (
+                  <WifiOff className="w-3 h-3 text-muted-foreground" />
+                )}
+                <span className="text-[10px] text-muted-foreground leading-none hidden sm:inline">
+                  {connectionStatus.mode}
+                </span>
+              </div>
             </div>
+            <p className="text-[10px] text-muted-foreground/60 leading-tight hidden sm:block">
+              Guided by Sri Preethaji & Sri Krishnaji
+            </p>
           </div>
         </div>
 

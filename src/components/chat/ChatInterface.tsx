@@ -409,6 +409,7 @@ export const ChatInterface = () => {
     // Try streaming first
     const streamingGuruId = generateId();
     let streamingWorked = false;
+    let fullContent = '';
 
     try {
       const stream = sendMessageStreaming(messageHistory, userMessage.content, meditationStep);
@@ -428,8 +429,6 @@ export const ChatInterface = () => {
       setIsStreaming(true);
       setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
-
-      let fullContent = '';
       let gotFirstToken = false;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
@@ -475,7 +474,11 @@ export const ChatInterface = () => {
         setCachedResponse(cacheKey, fullContent);
       }
     } catch {
-      // Streaming not available — fall back to regular fetch
+      // Streaming failed — show toast if partial content was received
+      if (fullContent) {
+        toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
+        streamingWorked = true; // Keep partial content
+      }
     } finally {
       setIsStreaming(false);
       setStreamingMessageId(undefined);

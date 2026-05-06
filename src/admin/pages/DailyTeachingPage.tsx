@@ -54,6 +54,9 @@ const DailyTeachingPage = () => {
     setLoading(true);
 
     try {
+      // Get current admin user for audit trail
+      const { data: { session } } = await supabase.auth.getSession();
+
       // Upload image to storage
       const fileName = `teaching-${Date.now()}.${imageFile.name.split('.').pop()}`;
       const { error: uploadError } = await supabase.storage
@@ -73,6 +76,7 @@ const DailyTeachingPage = () => {
         .insert({
           image_url: urlData.publicUrl,
           caption: caption.trim() || null,
+          created_by: session?.user?.id ?? null,
         });
 
       if (insertError) throw insertError;
