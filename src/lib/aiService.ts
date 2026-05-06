@@ -93,7 +93,7 @@ export async function* sendMessageStreaming(
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
-      ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+    
     },
     body: JSON.stringify({
       messages: [
