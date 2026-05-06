@@ -159,7 +159,6 @@ export const sendMessage = async (
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
         },
         body: JSON.stringify({
           messages: [
