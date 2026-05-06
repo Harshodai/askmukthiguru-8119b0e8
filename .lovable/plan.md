@@ -1,102 +1,88 @@
 
-# Implementation Plan
+# Plan: Chat UI/UX Overhaul + Daily Teaching Admin + Tests
 
-## What We're Building
+## Scope
 
-Six workstreams: (1) thumbs up/down feedback on guru responses, (2) stronger backend safety guardrails with Serene Mind redirect, (3) one-tap wisdom card sharing from the last assistant message, (4) sidebar collapse/expand UX fix + chat UI beautification, (5) move Soul Journey out of chat into profile, and (6) a confidence score display on responses plus a book-informed improvement document.
-
----
-
-## 1. Thumbs Up/Down Feedback System
-
-**Frontend (ChatMessage.tsx)**
-- Add thumbs-up and thumbs-down icon buttons next to the existing share button on every guru message (visible on hover, like the share button).
-- After voting, expand an optional "What helped?" text input (3-4 quick-tag chips like "Clear answer", "Relevant sources", "Calming tone", plus a free-text field).
-- Store feedback in localStorage keyed by message ID: `{ vote: 'up'|'down', tags: string[], comment?: string, timestamp }`.
-
-**Data model (chatStorage.ts)**
-- Add a `feedback` field to the `Message` interface: `feedback?: { vote: 'up'|'down'; tags: string[]; comment?: string; timestamp: Date }`.
-- Create `saveFeedback(messageId, feedback)` and `loadFeedback()` helpers.
-
-**Admin review (new admin page)**
-- Create `src/admin/pages/FeedbackPage.tsx` with a filterable table showing all feedback entries (message excerpt, vote, tags, timestamp).
-- Add route to admin shell and sidebar nav.
+Six concrete deliverables, all localStorage-based, no external services needed.
 
 ---
 
-## 2. Stronger Safety Guardrails with Serene Mind Redirect
+### 1. Fix Sidebar UI/UX (Expanded + Collapsed)
 
-**Backend (guardrails/rails.py)**
-- Add new blocked topic categories: `self_harm`, `substance_abuse`, `manipulation` with appropriate regex patterns.
-- For distress-adjacent blocked content, return a calming redirect response that suggests Serene Mind meditation instead of a flat refusal (e.g., "I sense this is a difficult moment. Let me guide you to Serene Mind...").
-- Add a `redirect_to` field in the block response dict (`"serene_mind"` | `null`) so the frontend can auto-trigger the meditation modal.
+**Problem:** Header redundancy -- sidebar shows guru photo + brand AND ChatHeader shows guru photo + guru names + Home button + sidebar toggle. Both have Home links.
 
-**Frontend (ChatInterface.tsx)**
-- When a response includes `redirect_to: "serene_mind"`, automatically open the Serene Mind modal after displaying the calming message.
+**Fix:**
+- Remove the guru photo from the sidebar header. Keep only the brand text "AskMukthiGuru" when expanded, and a small "M" brand icon when collapsed.
+- Remove the "Back to Home" footer link from the sidebar (ChatHeader already has a Home button).
+- Remove the desktop `onToggleSidebar` PanelLeft button from ChatHeader -- the sidebar's own chevron toggle is sufficient and always visible.
+- Add an AlertDialog confirmation before deleting a conversation in both expanded (trash icon) and collapsed (dropdown menu) modes.
+
+**Files:** `DesktopSidebar.tsx`, `ChatHeader.tsx`
+
+### 2. Daily Teaching: Admin Upload + User Display with TTL
+
+**Current state:** `DailyTeaching.tsx` reads from localStorage but no admin UI exists to set it.
+
+**Fix:**
+- Create a new admin page `DailyTeachingPage.tsx` at `/admin/daily-teaching` with:
+  - A file input to upload a photo (converted to base64 data URL and stored in localStorage)
+  - A caption text field
+  - A "Publish" button that calls `setDailyTeaching()` with today's ISO date
+  - A preview of the current teaching
+- Add the route to `App.tsx` and nav item to `AdminShell.tsx`
+- Update `DailyTeaching.tsx` to add 24-hour TTL: compare the teaching's `date` field against today's date; if older than 1 day, treat it as expired and don't show it
+- Update `ChatPage.tsx` flow: the DailyTeaching banner appears inside `ChatInterface` AFTER the PrePracticeGate is dismissed (this already works correctly since PrePracticeGate wraps ChatInterface and the teaching is inside ChatInterface's message area)
+
+**Files:** New `src/admin/pages/DailyTeachingPage.tsx`, edit `App.tsx`, `AdminShell.tsx`, `DailyTeaching.tsx`
+
+### 3. Light Mode Verification and Fixes
+
+- Test in browser by toggling to light mode
+- Fix any contrast issues found in sidebar, message bubbles, glass-card backgrounds, and input area
+- Both light and dark tokens already exist in `index.css` -- this is about verifying they render correctly
+
+**Files:** Potentially `index.css` if issues found
+
+### 4. Conversation Deletion with Confirmation
+
+- Add `AlertDialog` (already available from shadcn) to `DesktopSidebar.tsx`
+- In expanded mode: clicking trash opens confirmation dialog
+- In collapsed mode: clicking "Delete" in dropdown opens confirmation dialog
+- After confirmed deletion of active conversation: create new conversation and select it (existing `onDeleteConversation` callback already handles this)
+
+**Files:** `DesktopSidebar.tsx`
+
+### 5. Expand Vitest Tests
+
+- `DesktopSidebar.test.tsx`: Add tests for delete confirmation dialog (renders, confirm deletes, cancel keeps)
+- `ChatMessage.test.tsx`: Add tests for feedback flow (thumbs up sets state, tag selection, submit calls saveFeedback)
+- `DailyTeaching.test.tsx`: Add tests for TTL expiry (teaching older than 1 day not shown)
+
+**Files:** `src/test/DesktopSidebar.test.tsx`, `src/test/ChatMessage.test.tsx`, `src/test/DailyTeaching.test.tsx`
+
+### 6. Security Scan
+
+- Current scan shows zero findings. Will re-run after changes to confirm no new issues.
 
 ---
 
-## 3. One-Tap Wisdom Card from Last Assistant Message
+## What is NOT in this plan (and why)
 
-**ChatInterface.tsx**
-- Add a persistent "Share Wisdom" floating action button anchored near the input area that generates a wisdom card from the most recent guru message (no need to scroll up and hover).
-- Uses the existing `WisdomCardGenerator` component, passing `lastGuruMessage` content.
+- **Database persistence**: Not enabled. Everything stays in localStorage as specified.
+- **Backend Python auth testing**: Runs outside Lovable sandbox, cannot be tested here.
+- **Playwright E2E tests**: Not available in Lovable. Using Vitest + React Testing Library.
+- **Sidebar redesign from scratch**: Not needed. Fixing specific issues only.
 
----
+## File Change Summary
 
-## 4. Sidebar Collapse UX Fix + Chat UI Beautification
-
-**DesktopSidebar.tsx fixes:**
-- Fix the collapse toggle button: increase hit target to 32x32px, add a subtle tooltip, smooth the width transition with `will-change: width`.
-- When collapsed, show icon-only tooltips on hover for each sidebar item.
-- Add a subtle divider between action buttons and conversation history.
-
-**Chat UI beautification (ChatInterface.tsx, ChatMessage.tsx, index.css):**
-- **Message bubbles**: Add subtle inner shadow on guru messages, slightly rounded avatar rings with a glow in dark mode.
-- **Input area**: Add a frosted-glass backdrop with a warm gold glow ring on focus; increase border-radius consistency.
-- **Dark mode polish**: Increase contrast between card backgrounds and the spiritual gradient; make the typing indicator dots use a warmer gold instead of flat ojas.
-- **Light mode polish**: Soften the background gradient transitions; add a very subtle paper-like texture via CSS.
-- **Spacing**: Increase vertical rhythm between message groups; add breathing room around date separators.
-- Remove Soul Journey / Meditation Stats from the sidebar (move to profile only).
-
----
-
-## 5. Soul Journey in Profile (cleanup)
-
-- Remove `<MeditationStats />` from `DesktopSidebar.tsx`.
-- The Soul Journey tab already exists in `ProfilePage.tsx` -- verify it's complete and accessible. No duplication.
-
----
-
-## 6. Confidence Score + Book-Informed RAG Improvement Doc
-
-**Confidence score display (ChatMessage.tsx):**
-- If the message metadata includes a `confidenceScore` (1-10), show a small badge (e.g., "Confidence: 8/10") below the guru message bubble.
-- Add `confidenceScore?: number` to the `Message` interface.
-
-**Book-informed improvement document:**
-- Generate `docs/architecture/rag-improvement-recommendations.md` based on analysis of both uploaded books, mapping their techniques to the current 12-layer pipeline:
-  - From "RAG Made Simple": Proposition Chunking (Ch4), HyDE (Ch6), Contextual Chunk Headers (Ch7), Semantic Chunking (Ch9), Fusion Retrieval (Ch12), Feedback Loops (Ch17), Adaptive Retrieval (Ch18), Explainable Retrieval (Ch19).
-  - From "System Design for the LLM Era": Context Engineering patterns (Ch1.27), Designing for Low Latency (Ch2.2), Designing for Grounding (Ch2.4), Feedback-driven fine-tuning loops, Guardrail architecture patterns.
-  - Each recommendation will include: what exists today, what the book recommends, implementation priority, and estimated impact.
-
----
-
-## Technical Details
-
-**Files to create:**
-- `src/admin/pages/FeedbackPage.tsx`
-- `docs/architecture/rag-improvement-recommendations.md`
-
-**Files to modify:**
-- `src/lib/chatStorage.ts` -- add feedback field + helpers
-- `src/components/chat/ChatMessage.tsx` -- feedback buttons, confidence badge
-- `src/components/chat/ChatInterface.tsx` -- quick-share FAB, Serene Mind redirect handling
-- `src/components/chat/DesktopSidebar.tsx` -- collapse UX fix, remove MeditationStats
-- `src/index.css` -- dark/light mode polish
-- `backend/guardrails/rails.py` -- additional safety patterns + Serene Mind redirect
-- Admin shell/router -- add FeedbackPage route
-
-**Dependencies:** None new required.
-
-**Estimated scope:** ~12 files touched, all additive or refinement changes. No breaking changes.
+| File | Action |
+|------|--------|
+| `src/components/chat/DesktopSidebar.tsx` | Remove guru photo header, remove Home footer, add AlertDialog delete confirmation |
+| `src/components/chat/ChatHeader.tsx` | Remove desktop sidebar toggle button |
+| `src/components/chat/DailyTeaching.tsx` | Add 24-hour TTL check |
+| `src/admin/pages/DailyTeachingPage.tsx` | **New** -- admin upload UI for daily teaching photo + caption |
+| `src/admin/layout/AdminShell.tsx` | Add Daily Teaching nav item |
+| `src/App.tsx` | Add `/admin/daily-teaching` route |
+| `src/test/DesktopSidebar.test.tsx` | Add delete confirmation tests |
+| `src/test/ChatMessage.test.tsx` | Add feedback flow tests |
+| `src/test/DailyTeaching.test.tsx` | Add TTL expiry tests |
