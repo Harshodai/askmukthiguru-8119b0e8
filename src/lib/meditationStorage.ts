@@ -19,6 +19,15 @@ export interface MeditationStats {
 
 const STORAGE_KEY = 'askmukthiguru_meditation_sessions';
 
+const MeditationSessionSchema = z.object({
+  id: z.string(),
+  startedAt: z.coerce.date(),
+  completedAt: z.coerce.date().nullable(),
+  durationSeconds: z.number(),
+  breathCycles: z.number(),
+  completed: z.boolean(),
+});
+
 /**
  * Generate a unique session ID
  */
