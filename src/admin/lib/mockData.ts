@@ -1,6 +1,6 @@
 // Real-time data layer over Supabase.
 // Swapped from deterministic seeds to real database queries.
-import { supabase } from "./supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import type {
   AdminUser,
   AlertEvent,
@@ -178,5 +178,3 @@ export async function createPromptVersion(p: Partial<PromptVersion>): Promise<Pr
   const { data } = await supabase.from("prompt_versions").insert(p).select().single();
   return data as PromptVersion;
 }
-
-
