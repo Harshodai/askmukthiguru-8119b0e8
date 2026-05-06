@@ -30,19 +30,51 @@ export const saveFeedback = (messageId: string, feedback: MessageFeedback): void
   }
 };
 
+// ── Zod schemas for safe deserialization ─────────────────────────
+const MessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'guru']),
+  content: z.string(),
+  timestamp: z.coerce.date(),
+  citations: z.array(z.string()).optional(),
+  confidenceScore: z.number().optional(),
+  feedback: z.object({
+    vote: z.enum(['up', 'down']),
+    tags: z.array(z.string()),
+    comment: z.string().optional(),
+    timestamp: z.coerce.date(),
+  }).optional(),
+});
+
+const ConversationSchema = z.object({
+  id: z.string(),
+  startedAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  preview: z.string(),
+  messageCount: z.number(),
+  messages: z.array(MessageSchema),
+});
+
 export const loadAllFeedback = (): Record<string, MessageFeedback> => {
   try {
     const raw = localStorage.getItem(FEEDBACK_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (typeof parsed !== 'object' || parsed === null) {
+        localStorage.removeItem(FEEDBACK_KEY);
+        return {};
+      }
       // Re-hydrate dates
       for (const key of Object.keys(parsed)) {
-        parsed[key].timestamp = new Date(parsed[key].timestamp);
+        if (parsed[key] && typeof parsed[key] === 'object') {
+          parsed[key].timestamp = new Date(parsed[key].timestamp);
+        }
       }
       return parsed;
     }
   } catch (e) {
-    console.error('Failed to load feedback:', e);
+    console.error('Failed to load feedback — clearing corrupted data:', e);
+    localStorage.removeItem(FEEDBACK_KEY);
   }
   return {};
 };
