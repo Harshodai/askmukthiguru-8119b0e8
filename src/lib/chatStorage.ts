@@ -158,19 +158,18 @@ export const loadConversations = (): Conversation[] => {
   try {
     const stored = localStorage.getItem(CONVERSATIONS_KEY);
     if (stored) {
-      const conversations = JSON.parse(stored);
-      return conversations.map((conv: Conversation) => ({
-        ...conv,
-        startedAt: new Date(conv.startedAt),
-        updatedAt: new Date(conv.updatedAt),
-        messages: conv.messages.map((msg: Message) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-      }));
+      const parsed = JSON.parse(stored);
+      const result = z.array(ConversationSchema).safeParse(parsed);
+      if (!result.success) {
+        console.error('Corrupted conversations — clearing:', result.error.message);
+        localStorage.removeItem(CONVERSATIONS_KEY);
+        return [];
+      }
+      return result.data as Conversation[];
     }
   } catch (error) {
-    console.error('Failed to load conversations:', error);
+    console.error('Failed to load conversations — clearing corrupted data:', error);
+    localStorage.removeItem(CONVERSATIONS_KEY);
   }
   return [];
 };
