@@ -217,7 +217,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled server error on {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error. Please try again later.", "error": str(exc)},
+        content={"detail": "Internal server error. Please try again later."},
     )
 
 
@@ -460,7 +460,7 @@ async def chat_endpoint(
             REQUEST_COUNT.labels(status="error").inc()
             final_answer = (
                 "I apologize, I'm experiencing a moment of stillness. 🙏 "
-                "Please try asking your question again. DEBUG ERROR: " + str(e)
+                "Please try asking your question again."
             )
             intent = "ERROR"
             med_step = 0
