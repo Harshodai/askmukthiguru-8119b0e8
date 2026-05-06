@@ -475,7 +475,11 @@ export const ChatInterface = () => {
         setCachedResponse(cacheKey, fullContent);
       }
     } catch {
-      // Streaming not available — fall back to regular fetch
+      // Streaming failed — show toast if partial content was received
+      if (fullContent) {
+        toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
+        streamingWorked = true; // Keep partial content
+      }
     } finally {
       setIsStreaming(false);
       setStreamingMessageId(undefined);
