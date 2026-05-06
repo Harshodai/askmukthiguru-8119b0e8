@@ -1,84 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { DailyTeaching, setDailyTeaching, getDailyTeaching, clearDailyTeaching } from '@/components/chat/DailyTeaching';
+import { render, screen, waitFor } from '@testing-library/react';
+import { DailyTeaching } from '@/components/chat/DailyTeaching';
 
-describe('DailyTeaching TTL', () => {
+// Build chain mock
+const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+const mockLimit = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
+const mockOrder = vi.fn(() => ({ limit: mockLimit }));
+const mockSelect = vi.fn(() => ({ order: mockOrder }));
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn(() => ({ select: mockSelect })),
+  },
+}));
+
+describe('DailyTeaching (database-backed)', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
+    // Reset chain
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    mockLimit.mockReturnValue({ maybeSingle: mockMaybeSingle });
+    mockOrder.mockReturnValue({ limit: mockLimit });
+    mockSelect.mockReturnValue({ order: mockOrder });
   });
 
-  it('returns null when no teaching is stored', () => {
-    expect(getDailyTeaching()).toBeNull();
-  });
-
-  it('stores and retrieves teaching for today', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    setDailyTeaching({
-      id: 'test-1',
-      imageUrl: 'data:image/png;base64,abc',
-      caption: 'Test teaching',
-      date: today,
-    });
-    const result = getDailyTeaching();
-    expect(result).not.toBeNull();
-    expect(result!.caption).toBe('Test teaching');
-  });
-
-  it('returns null and cleans up for expired teaching (yesterday)', () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().slice(0, 10);
-
-    setDailyTeaching({
-      id: 'old',
-      imageUrl: 'data:image/png;base64,old',
-      caption: 'Old',
-      date: dateStr,
-    });
-
-    const result = getDailyTeaching();
-    expect(result).toBeNull();
-    // Should also have cleaned up localStorage
-    expect(localStorage.getItem('askmukthiguru_daily_teaching')).toBeNull();
-  });
-
-  it('clearDailyTeaching removes both teaching and dismissed state', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    setDailyTeaching({
-      id: 'test-2',
-      imageUrl: 'data:image/png;base64,xyz',
-      date: today,
-    });
-    localStorage.setItem('askmukthiguru_teaching_dismissed', today);
-
-    clearDailyTeaching();
-    expect(getDailyTeaching()).toBeNull();
-    expect(localStorage.getItem('askmukthiguru_teaching_dismissed')).toBeNull();
-  });
-
-  it('renders teaching banner for today', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    setDailyTeaching({
-      id: 'render-test',
-      imageUrl: 'data:image/png;base64,render',
-      caption: 'Be in your beautiful state',
-      date: today,
+  it('renders teaching when database returns active teaching', async () => {
+    mockMaybeSingle.mockResolvedValue({
+      data: {
+        id: 'test-1',
+        image_url: 'https://example.com/teaching.jpg',
+        caption: 'Be in your beautiful state',
+      },
+      error: null,
     });
 
     render(<DailyTeaching />);
-    expect(screen.getByText('Be in your beautiful state')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Be in your beautiful state')).toBeInTheDocument();
+    });
     expect(screen.getByTestId('daily-teaching')).toBeInTheDocument();
   });
 
-  it('does not render for expired teaching', () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    setDailyTeaching({
-      id: 'expired',
-      imageUrl: 'data:image/png;base64,exp',
-      caption: 'Expired',
-      date: yesterday.toISOString().slice(0, 10),
+  it('does not render when no active teaching exists', async () => {
+    render(<DailyTeaching />);
+    await waitFor(() => {
+      expect(mockSelect).toHaveBeenCalled();
     });
+    expect(screen.queryByTestId('daily-teaching')).not.toBeInTheDocument();
+  });
+
+  it('does not render when user already dismissed today', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('askmukthiguru_teaching_dismissed', today);
 
     render(<DailyTeaching />);
     expect(screen.queryByTestId('daily-teaching')).not.toBeInTheDocument();

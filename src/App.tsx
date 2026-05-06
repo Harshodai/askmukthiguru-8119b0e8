@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage";
 import PracticesPage from "./pages/PracticesPage";
 import PracticeDetailPage from "./pages/PracticeDetailPage";
 import NotFound from "./pages/NotFound";
+import AuthPage from "./pages/AuthPage";
 
 // Admin
 import AdminLoginPage from "./admin/pages/AdminLoginPage";
@@ -73,6 +74,7 @@ const EndUserApp = () => {
           <AnimatedLayout>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/practices" element={<PracticesPage />} />
