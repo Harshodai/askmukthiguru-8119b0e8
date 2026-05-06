@@ -17,6 +17,7 @@ The /api/chat endpoint orchestrates the full flow:
 
 import logging
 import sys
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -138,7 +139,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Background pre-warming failed: {e}")
             
-    import asyncio
     asyncio.create_task(asyncio.to_thread(prewarm_models))
 
 
@@ -314,6 +314,7 @@ class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
     messages: list[MessagePayload] = Field(..., description="Conversation history")
     user_message: str = Field(..., description="Current user message")
+    session_id: Optional[str] = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
 
 
@@ -495,9 +496,8 @@ async def chat_endpoint(
         final_answer = output_check["moderated_response"]
 
     # --- Telemetry Logging ---
-    import uuid
     try:
-        session_uuid = str(uuid.UUID(chat_body.session_id)) if chat_body.session_id else str(uuid.uuid4())
+        session_uuid = str(uuid.UUID(chat_body.session_id)) if hasattr(chat_body, 'session_id') and chat_body.session_id else str(uuid.uuid4())
     except (ValueError, TypeError, AttributeError):
         session_uuid = str(uuid.uuid4())
 
@@ -669,7 +669,6 @@ async def ingest_endpoint(
     user: AuthUser = Depends(current_active_user),
     container: ServiceContainer = Depends(get_container)
 ) -> IngestResponse:
-) -> IngestResponse:
     """
     Content ingestion endpoint.
     
@@ -698,7 +697,7 @@ async def ingest_endpoint(
             logger.info(f"Ingestion complete: {result}")
             container.update_progress(url, "Complete!", 1.0)
             # Invalidate response cache after new content ingestion
-            response_cache.invalidate_all()
+            container.semantic_cache.invalidate_all()
             
         except Exception as e:
             logger.error(f"Ingestion failed for {url}: {e}", exc_info=True)
