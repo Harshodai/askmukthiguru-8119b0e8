@@ -6,13 +6,13 @@ export interface DailyTeachingData {
   id: string;
   imageUrl: string;
   caption?: string;
-  date: string; // ISO date string
+  date: string; // ISO date string (YYYY-MM-DD)
 }
 
 const TEACHING_STORAGE_KEY = 'askmukthiguru_daily_teaching';
 const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed';
 
-/** Admin sets teaching via localStorage for now; will migrate to DB later */
+/** Admin sets teaching via localStorage; stored as base64 data URL */
 export const setDailyTeaching = (teaching: DailyTeachingData): void => {
   localStorage.setItem(TEACHING_STORAGE_KEY, JSON.stringify(teaching));
 };
@@ -21,10 +21,25 @@ export const getDailyTeaching = (): DailyTeachingData | null => {
   try {
     const raw = localStorage.getItem(TEACHING_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed: DailyTeachingData = JSON.parse(raw);
+
+    // 1-day TTL: only show if teaching date matches today
+    const today = new Date().toISOString().slice(0, 10);
+    if (parsed.date !== today) {
+      // Expired — clean up
+      localStorage.removeItem(TEACHING_STORAGE_KEY);
+      return null;
+    }
+
+    return parsed;
   } catch {
     return null;
   }
+};
+
+export const clearDailyTeaching = (): void => {
+  localStorage.removeItem(TEACHING_STORAGE_KEY);
+  localStorage.removeItem(DISMISSED_KEY);
 };
 
 export const DailyTeaching = () => {
