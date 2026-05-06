@@ -1,6 +1,7 @@
 import { forwardRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
 import { getInitials } from '@/lib/profileStorage';
@@ -71,69 +72,30 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
           transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.15) }}
           className={`group flex items-start gap-2.5 ${isGuru ? 'justify-start' : 'justify-end'}`}
         >
+          {/* Guru avatar */}
           {isGuru && (
-            <div className="w-8 h-8 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 dark:shadow-[0_0_6px_hsl(43_96%_56%/0.15)]">
-              <Sparkles className="w-3.5 h-3.5 text-ojas" />
+            <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Sparkles className="w-3 h-3 text-ojas" />
             </div>
           )}
 
-          <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1.5 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+            {/* Message body */}
             <div
-              className={`relative px-4 py-2.5 w-full ${
+              className={`relative w-full ${
                 isGuru
-                  ? 'glass-card rounded-2xl rounded-tl-md'
-                  : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-md shadow-md'
+                  ? 'border-l-2 border-ojas/25 pl-3.5 pr-1 py-0.5'
+                  : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm'
               }`}
             >
               <div
                 className={`text-[14px] leading-relaxed break-words ${
-                  isGuru ? 'text-foreground' : 'whitespace-pre-wrap'
+                  isGuru ? 'text-foreground/90' : 'whitespace-pre-wrap'
                 }`}
               >
                 {isGuru ? (
-                  <div className="space-y-1">
-                    {message.content.split('\n').map((line, lineIdx) => {
-                      if (line.trim().startsWith('- ') || line.trim().startsWith('• ') || line.trim().startsWith('* ')) {
-                        const content = line.trim().substring(2);
-                        return (
-                          <li key={lineIdx} className="ml-4 mb-1 list-disc text-foreground/90">
-                            {line.includes('**') ? (
-                              line.split('**').map((part, partIdx) => 
-                                partIdx % 2 === 1 ? (
-                                  <strong key={partIdx} className="font-bold text-ojas-dark dark:text-ojas">{part}</strong>
-                                ) : part
-                              )
-                            ) : line.includes('*') ? (
-                              line.split('*').map((part, partIdx) => 
-                                partIdx % 2 === 1 ? (
-                                  <em key={partIdx} className="italic text-muted-foreground">{part}</em>
-                                ) : part
-                              )
-                            ) : (
-                              content
-                            )}
-                          </li>
-                        );
-                      }
-                      if (line.trim() === '') {
-                        return <div key={lineIdx} className="h-1.5" />;
-                      }
-                      return (
-                        <p key={lineIdx} className="mb-1.5 last:mb-0 text-foreground/90 leading-relaxed">
-                          {line.split('**').map((part, partIdx) => 
-                            partIdx % 2 === 1 ? (
-                              <strong key={partIdx} className="font-bold text-ojas-dark dark:text-ojas">{part}</strong>
-                            ) : line.includes('*') ? (
-                              part.split('*').map((subpart, subpartIdx) => 
-                                subpartIdx % 2 === 1 ? (
-                                  <em key={subpartIdx} className="italic text-muted-foreground">{subpart}</em>
-                                ) : subpart
-                              )
-                            ) : part
-                          )}
-                        </p>
-                      );
-                    })}
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:mb-1.5 prose-p:mt-0 prose-li:mb-0.5 prose-strong:text-ojas prose-headings:text-foreground prose-headings:font-semibold prose-headings:text-base prose-a:text-ojas">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
                   message.content
@@ -146,17 +108,14 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                   />
                 )}
               </div>
-              <div className="flex items-center justify-between mt-1.5 gap-2">
-                <p
-                  className={`text-[10px] ${
-                    isGuru ? 'text-muted-foreground/60' : 'text-primary-foreground/60'
-                  }`}
-                >
+
+              {/* Timestamp + action buttons */}
+              <div className="flex items-center justify-between mt-1 gap-2">
+                <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/50' : 'text-primary-foreground/50'}`}>
                   {formatTime(message.timestamp)}
                 </p>
-                {/* Action buttons on guru messages */}
                 {isGuru && message.content && !isStreaming && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       onClick={() => handleVote('up')}
                       className={`p-1 rounded-full transition-colors ${
@@ -193,7 +152,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
               </div>
             </div>
 
-            {/* Feedback panel (expanded after voting) */}
+            {/* Feedback panel */}
             <AnimatePresence>
               {showFeedbackPanel && feedback && (
                 <motion.div
@@ -242,7 +201,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
               )}
             </AnimatePresence>
 
-            {/* Confidence score badge */}
+            {/* Confidence score */}
             {isGuru && message.confidenceScore != null && message.confidenceScore > 0 && (
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-prana/10 border border-prana/20">
                 <Shield className="w-3 h-3 text-prana" />
@@ -252,7 +211,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
               </div>
             )}
 
-            {/* Sources card */}
+            {/* Sources */}
             {isGuru && citations.length > 0 && (
               <div className="w-full rounded-xl border border-border/40 bg-card/60 backdrop-blur-sm px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
@@ -276,8 +235,9 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
             )}
           </div>
 
+          {/* User avatar */}
           {!isGuru && (
-            <div className="w-8 h-8 rounded-full bg-prana/12 border border-prana/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="w-7 h-7 rounded-full bg-prana/12 border border-prana/20 flex items-center justify-center flex-shrink-0 overflow-hidden mt-0.5">
               {profile.avatarDataUrl ? (
                 <img src={profile.avatarDataUrl} alt={profile.displayName} className="w-full h-full object-cover" />
               ) : (
@@ -289,7 +249,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
           )}
         </motion.div>
 
-        {/* Wisdom Card Generator Modal — portaled to body to avoid sidebar z-index conflicts */}
+        {/* Wisdom Card Modal */}
         {showWisdomCard && createPortal(
           <WisdomCardGenerator
             isOpen={showWisdomCard}
