@@ -1,61 +1,48 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface DailyTeachingData {
   id: string;
   imageUrl: string;
   caption?: string;
-  date: string; // ISO date string (YYYY-MM-DD)
 }
 
-const TEACHING_STORAGE_KEY = 'askmukthiguru_daily_teaching';
 const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed';
-
-/** Admin sets teaching via localStorage; stored as base64 data URL */
-export const setDailyTeaching = (teaching: DailyTeachingData): void => {
-  localStorage.setItem(TEACHING_STORAGE_KEY, JSON.stringify(teaching));
-};
-
-export const getDailyTeaching = (): DailyTeachingData | null => {
-  try {
-    const raw = localStorage.getItem(TEACHING_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed: DailyTeachingData = JSON.parse(raw);
-
-    // 1-day TTL: only show if teaching date matches today
-    const today = new Date().toISOString().slice(0, 10);
-    if (parsed.date !== today) {
-      // Expired — clean up
-      localStorage.removeItem(TEACHING_STORAGE_KEY);
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-export const clearDailyTeaching = (): void => {
-  localStorage.removeItem(TEACHING_STORAGE_KEY);
-  localStorage.removeItem(DISMISSED_KEY);
-};
 
 export const DailyTeaching = () => {
   const [teaching, setTeaching] = useState<DailyTeachingData | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    const data = getDailyTeaching();
-    if (!data) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const dismissedDate = localStorage.getItem(DISMISSED_KEY);
-    if (dismissedDate === today) {
-      setDismissed(true);
-      return;
-    }
-    setTeaching(data);
+    const fetchTeaching = async () => {
+      // Check if already dismissed today
+      const today = new Date().toISOString().slice(0, 10);
+      const dismissedDate = localStorage.getItem(DISMISSED_KEY);
+      if (dismissedDate === today) {
+        setDismissed(true);
+        return;
+      }
+
+      // Fetch active teaching from database (TTL handled by RLS: expires_at > now())
+      const { data, error } = await supabase
+        .from('daily_teachings')
+        .select('id, image_url, caption')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return;
+
+      setTeaching({
+        id: data.id,
+        imageUrl: data.image_url,
+        caption: data.caption ?? undefined,
+      });
+    };
+
+    fetchTeaching();
   }, []);
 
   const handleDismiss = () => {
@@ -76,7 +63,6 @@ export const DailyTeaching = () => {
         data-testid="daily-teaching"
       >
         <div className="relative rounded-2xl overflow-hidden border border-ojas/20 shadow-lg bg-card/90 backdrop-blur-sm">
-          {/* Close */}
           <button
             onClick={handleDismiss}
             className="absolute top-2.5 right-2.5 z-10 p-1 rounded-full bg-background/70 backdrop-blur-sm hover:bg-background transition-colors"
@@ -85,7 +71,6 @@ export const DailyTeaching = () => {
             <X className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
 
-          {/* Image */}
           <div className="relative aspect-[16/7] overflow-hidden">
             <img
               src={teaching.imageUrl}
@@ -95,7 +80,6 @@ export const DailyTeaching = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent" />
           </div>
 
-          {/* Caption */}
           <div className="px-4 py-3 -mt-8 relative z-10">
             <div className="flex items-center gap-1.5 mb-1">
               <Sparkles className="w-3.5 h-3.5 text-ojas" />
