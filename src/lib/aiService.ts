@@ -145,7 +145,7 @@ export const sendMessage = async (
   userMessage: string,
   meditationStep: number = 0
 ): Promise<AIResponse> => {
-  const { provider, endpoint, apiKey, systemPrompt, model } = currentConfig;
+  const { provider, endpoint, systemPrompt } = currentConfig;
 
   if (provider === 'placeholder') {
     await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
