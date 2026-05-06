@@ -110,14 +110,18 @@ export const loadChatHistory = (): Message[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const messages = JSON.parse(stored);
-      return messages.map((msg: Message) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
+      const parsed = JSON.parse(stored);
+      const result = z.array(MessageSchema).safeParse(parsed);
+      if (!result.success) {
+        console.error('Corrupted chat history — clearing:', result.error.message);
+        localStorage.removeItem(STORAGE_KEY);
+        return [];
+      }
+      return result.data;
     }
   } catch (error) {
-    console.error('Failed to load chat history:', error);
+    console.error('Failed to load chat history — clearing corrupted data:', error);
+    localStorage.removeItem(STORAGE_KEY);
   }
   return [];
 };
