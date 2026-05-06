@@ -117,7 +117,7 @@ export const loadChatHistory = (): Message[] => {
         localStorage.removeItem(STORAGE_KEY);
         return [];
       }
-      return result.data;
+      return result.data as Message[];
     }
   } catch (error) {
     console.error('Failed to load chat history — clearing corrupted data:', error);
