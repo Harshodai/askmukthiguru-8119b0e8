@@ -409,6 +409,7 @@ export const ChatInterface = () => {
     // Try streaming first
     const streamingGuruId = generateId();
     let streamingWorked = false;
+    let fullContent = '';
 
     try {
       const stream = sendMessageStreaming(messageHistory, userMessage.content, meditationStep);
@@ -428,8 +429,6 @@ export const ChatInterface = () => {
       setIsStreaming(true);
       setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
-
-      let fullContent = '';
       let gotFirstToken = false;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
