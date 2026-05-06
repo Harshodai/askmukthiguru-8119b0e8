@@ -413,6 +413,10 @@ export const ChatInterface = () => {
     try {
       const stream = sendMessageStreaming(messageHistory, userMessage.content, meditationStep);
       
+      // Show pipeline thinking pills
+      setPipelineSteps([]);
+      setShowPipeline(true);
+
       // Add an empty guru message that we'll fill progressively
       const emptyGuru: Message = {
         id: streamingGuruId,
@@ -426,8 +430,31 @@ export const ChatInterface = () => {
       setIsTyping(false);
 
       let fullContent = '';
+      let gotFirstToken = false;
       for await (const chunk of stream) {
-        fullContent += chunk;
+        if (chunk.type === 'status') {
+          // Pipeline status update → add or advance pills
+          const label = mapStatusToLabel(chunk.text);
+          setPipelineSteps((prev) => {
+            // Mark all previous steps as done
+            const updated = prev.map((s) =>
+              s.status === 'active' ? { ...s, status: 'done' as const } : s
+            );
+            // Add new active step
+            return [...updated, { id: `step-${updated.length}`, label, status: 'active' as const }];
+          });
+          continue;
+        }
+
+        // First token → hide pipeline pills
+        if (!gotFirstToken) {
+          gotFirstToken = true;
+          // Mark all steps as done, then fade out
+          setPipelineSteps((prev) => prev.map((s) => ({ ...s, status: 'done' as const })));
+          setTimeout(() => setShowPipeline(false), 600);
+        }
+
+        fullContent += chunk.text;
         const captured = fullContent;
         setMessages((prev) =>
           prev.map((m) => (m.id === streamingGuruId ? { ...m, content: captured } : m))
@@ -452,6 +479,8 @@ export const ChatInterface = () => {
     } finally {
       setIsStreaming(false);
       setStreamingMessageId(undefined);
+      setShowPipeline(false);
+      setPipelineSteps([]);
     }
 
     if (streamingWorked) return;
