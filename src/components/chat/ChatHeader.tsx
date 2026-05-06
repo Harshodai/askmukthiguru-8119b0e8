@@ -81,19 +81,6 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
             </Button>
           )}
 
-          {onToggleSidebar && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onToggleSidebar}
-              className="hidden sm:flex h-9 w-9"
-              aria-label="Toggle sidebar"
-              title="Toggle sidebar"
-            >
-              <PanelLeft className="w-4 h-4" />
-            </Button>
-          )}
-
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-ojas/30 shadow-sm shrink-0">
               <img
