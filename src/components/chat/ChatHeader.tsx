@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 interface ChatHeaderProps {
   onClearChat: () => void;
   onOpenMobileMenu?: () => void;
-  onToggleSidebar?: () => void;
 }
 
 const formatRelativeTime = (iso: string | null): string => {
@@ -32,7 +31,7 @@ const favouriteLabel = (fav: 'soul_sync' | 'serene_mind' | null): string => {
   return '';
 };
 
-export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: ChatHeaderProps) => {
+export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) => {
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
@@ -77,19 +76,6 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, onToggleSidebar }: C
               onClick={onOpenMobileMenu}
               className="sm:hidden h-9 w-9"
               aria-label="Open conversations"
-            >
-              <PanelLeft className="w-4 h-4" />
-            </Button>
-          )}
-
-          {onToggleSidebar && (
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onToggleSidebar}
-              className="hidden sm:flex h-9 w-9"
-              aria-label="Toggle sidebar"
-              title="Toggle sidebar"
             >
               <PanelLeft className="w-4 h-4" />
             </Button>

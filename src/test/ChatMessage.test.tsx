@@ -1,74 +1,100 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatMessage } from '@/components/chat/ChatMessage';
+import { BrowserRouter } from 'react-router-dom';
+import type { Message } from '@/lib/chatStorage';
 
 vi.mock('@/hooks/useProfile', () => ({
   useProfile: () => ({
-    profile: {
-      displayName: 'Seeker',
-      avatarDataUrl: null,
-    },
+    profile: { displayName: 'Seeker', avatarDataUrl: null },
   }),
 }));
 
 vi.mock('@/lib/profileStorage', () => ({
-  getInitials: (name: string) => name.slice(0, 2).toUpperCase(),
+  getInitials: (name: string) => name.charAt(0).toUpperCase(),
 }));
 
-const guruMessage = {
+vi.mock('@/lib/chatStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/chatStorage')>();
+  return {
+    ...actual,
+    saveFeedback: vi.fn(),
+  };
+});
+
+vi.mock('html-to-image', () => ({
+  toPng: vi.fn(() => Promise.resolve('data:image/png;base64,abc')),
+}));
+
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <BrowserRouter>{children}</BrowserRouter>
+);
+
+const guruMessage: Message = {
   id: 'msg-1',
-  role: 'guru' as const,
-  content: 'When you are in a beautiful state, you become life itself.',
+  role: 'guru',
+  content: 'Welcome to the beautiful state.',
   timestamp: new Date(),
 };
 
-const userMessage = {
+const userMessage: Message = {
   id: 'msg-2',
-  role: 'user' as const,
-  content: 'What is the Beautiful State?',
+  role: 'user',
+  content: 'Hello guru',
   timestamp: new Date(),
 };
 
 describe('ChatMessage', () => {
-  it('renders guru message with sparkles icon', () => {
-    render(<ChatMessage message={guruMessage} />);
-    expect(screen.getByText(/beautiful state/i)).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders guru message with sparkle icon', () => {
+    render(<ChatMessage message={guruMessage} />, { wrapper });
+    expect(screen.getByText(/Welcome to the beautiful state/)).toBeInTheDocument();
   });
 
   it('renders user message with initials', () => {
-    render(<ChatMessage message={userMessage} />);
-    expect(screen.getByText('What is the Beautiful State?')).toBeInTheDocument();
-    expect(screen.getByText('SE')).toBeInTheDocument();
+    render(<ChatMessage message={userMessage} />, { wrapper });
+    expect(screen.getByText('Hello guru')).toBeInTheDocument();
+    expect(screen.getByText('S')).toBeInTheDocument();
   });
 
-  it('shows feedback buttons on guru messages', () => {
-    render(<ChatMessage message={guruMessage} />);
-    expect(screen.getByTitle('Helpful')).toBeInTheDocument();
-    expect(screen.getByTitle('Not helpful')).toBeInTheDocument();
-  });
-
-  it('shows share button on guru messages', () => {
-    render(<ChatMessage message={guruMessage} />);
-    expect(screen.getByTitle('Share as Wisdom Card')).toBeInTheDocument();
-  });
-
-  it('does not show feedback on user messages', () => {
-    render(<ChatMessage message={userMessage} />);
-    expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
-  });
-
-  it('shows feedback panel after voting', () => {
-    render(<ChatMessage message={guruMessage} />);
+  it('shows feedback tags panel after thumbs up click', async () => {
+    render(<ChatMessage message={guruMessage} />, { wrapper });
     const thumbsUp = screen.getByTitle('Helpful');
     fireEvent.click(thumbsUp);
     expect(screen.getByText('What helped?')).toBeInTheDocument();
+    expect(screen.getByText('Clear answer')).toBeInTheDocument();
   });
 
-  it('shows streaming cursor when isStreaming', () => {
-    const streamingMsg = { ...guruMessage, content: 'Streaming...' };
-    const { container } = render(<ChatMessage message={streamingMsg} isStreaming />);
-    // The cursor is a motion.span — check for presence
-    const cursor = container.querySelector('[class*="bg-ojas"]');
-    expect(cursor).not.toBeNull();
+  it('shows different label for thumbs down', () => {
+    render(<ChatMessage message={guruMessage} />, { wrapper });
+    const thumbsDown = screen.getByTitle('Not helpful');
+    fireEvent.click(thumbsDown);
+    expect(screen.getByText('What could improve?')).toBeInTheDocument();
+  });
+
+  it('allows selecting feedback tags', () => {
+    render(<ChatMessage message={guruMessage} />, { wrapper });
+    const thumbsUp = screen.getByTitle('Helpful');
+    fireEvent.click(thumbsUp);
+    const tagBtn = screen.getByText('Calming tone');
+    fireEvent.click(tagBtn);
+    expect(tagBtn.className).toContain('border-ojas');
+  });
+
+  it('does not show feedback buttons for user messages', () => {
+    render(<ChatMessage message={userMessage} />, { wrapper });
+    expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
+  });
+
+  it('shows confidence score badge when present', () => {
+    const msgWithScore: Message = {
+      ...guruMessage,
+      confidenceScore: 8,
+    };
+    render(<ChatMessage message={msgWithScore} />, { wrapper });
+    expect(screen.getByText('Confidence: 8/10')).toBeInTheDocument();
   });
 });

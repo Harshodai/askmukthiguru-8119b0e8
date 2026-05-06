@@ -23,6 +23,7 @@ import QueriesPage from "./admin/pages/QueriesPage";
 import QualityPage from "./admin/pages/QualityPage";
 import RetrievalPage from "./admin/pages/RetrievalPage";
 import FeedbackPage from "./admin/pages/FeedbackPage";
+import DailyTeachingPage from "./admin/pages/DailyTeachingPage";
 import TriggersPage from "./admin/pages/TriggersPage";
 import TopicsPage from "./admin/pages/TopicsPage";
 import PromptsPage from "./admin/pages/PromptsPage";
@@ -50,6 +51,7 @@ const EndUserApp = () => {
           <Route path="quality" element={<QualityPage />} />
           <Route path="retrieval" element={<RetrievalPage />} />
           <Route path="feedback" element={<FeedbackPage />} />
+          <Route path="daily-teaching" element={<DailyTeachingPage />} />
           <Route path="triggers" element={<TriggersPage />} />
           <Route path="topics" element={<TopicsPage />} />
           <Route path="prompts" element={<PromptsPage />} />

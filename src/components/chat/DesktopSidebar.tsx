@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Flame, MessageCircle, Trash2, ChevronLeft, ChevronRight, Home, MoreVertical } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import gurusPhoto from '@/assets/gurus-photo.jpg';
+import { Plus, Flame, MessageCircle, Trash2, ChevronRight } from 'lucide-react';
 import { 
   Conversation, 
   loadConversations, 
@@ -17,6 +15,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface DesktopSidebarProps {
   isCollapsed: boolean;
@@ -40,17 +48,19 @@ export const DesktopSidebar = ({
   refreshTrigger,
 }: DesktopSidebarProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     setConversations(loadConversations());
   }, [refreshTrigger]);
 
-  const handleDeleteConversation = useCallback((id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    deleteConversation(id);
+  const confirmDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteConversation(deleteTarget);
     setConversations(loadConversations());
-    onDeleteConversation?.(id);
-  }, [onDeleteConversation]);
+    onDeleteConversation?.(deleteTarget);
+    setDeleteTarget(null);
+  }, [deleteTarget, onDeleteConversation]);
 
   // Group conversations by relative time
   const groupedConversations = conversations.reduce((groups, conv) => {
@@ -63,161 +73,154 @@ export const DesktopSidebar = ({
   }, {} as Record<string, Conversation[]>);
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: isCollapsed ? 64 : 280 }}
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-      className="hidden sm:flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border/50 relative z-20 overflow-hidden"
-      data-testid="desktop-sidebar"
-    >
-      {/* Collapse Toggle */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={onToggleCollapse}
-            className="absolute -right-3.5 top-20 z-30 w-7 h-7 rounded-full bg-card border border-border/80 shadow-md flex items-center justify-center hover:bg-muted hover:scale-110 transition-all active:scale-95"
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            data-testid="sidebar-toggle"
-          >
-            <motion.div
-              animate={{ rotate: isCollapsed ? 0 : 180 }}
-              transition={{ duration: 0.25 }}
+    <>
+      <motion.aside
+        initial={false}
+        animate={{ width: isCollapsed ? 64 : 280 }}
+        transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+        className="hidden sm:flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border/50 relative z-20 overflow-hidden"
+        data-testid="desktop-sidebar"
+      >
+        {/* Collapse Toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onToggleCollapse}
+              className="absolute -right-3.5 top-20 z-30 w-7 h-7 rounded-full bg-card border border-border/80 shadow-md flex items-center justify-center hover:bg-muted hover:scale-110 transition-all active:scale-95"
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              data-testid="sidebar-toggle"
             >
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-            </motion.div>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={8}>
-          <p>{isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Header */}
-      <div className="p-3 border-b border-border/30">
-        <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-ojas/20 shadow-sm flex-shrink-0">
-            <img
-              src={gurusPhoto}
-              alt="Sri Preethaji & Sri Krishnaji"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <AnimatePresence mode="wait">
-            {!isCollapsed && (
               <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.2 }}
-                className="min-w-0 overflow-hidden"
+                animate={{ rotate: isCollapsed ? 0 : 180 }}
+                transition={{ duration: 0.25 }}
               >
-                <h2 className="font-semibold text-foreground text-sm truncate">AskMukthiGuru</h2>
-                <p className="text-[11px] text-muted-foreground truncate">Your Spiritual Companion</p>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            <p>{isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</p>
+          </TooltipContent>
+        </Tooltip>
 
-      {/* Scrollable Content */}
-      <ScrollArea className="flex-1">
-        <div className={`p-2.5 space-y-1.5 ${isCollapsed ? 'px-1.5' : ''}`}>
-          {/* Action Buttons */}
-          <SidebarActionButton
-            onClick={onNewConversation}
-            icon={Plus}
-            label="New Conversation"
-            isCollapsed={isCollapsed}
-            variant="ojas"
-          />
-          <SidebarActionButton
-            onClick={onOpenSereneMind}
-            icon={Flame}
-            label="Serene Mind"
-            isCollapsed={isCollapsed}
-            variant="prana"
-          />
-
-          {/* Divider */}
-          <div className="h-px bg-border/30 my-2" />
-
-          {/* Conversation History */}
-          {Object.keys(groupedConversations).length > 0 && (
-            <div>
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-2 font-medium px-2"
-                  >
-                    History
-                  </motion.p>
-                )}
-              </AnimatePresence>
-              <div className="space-y-0.5">
-                {Object.entries(groupedConversations).map(([timeGroup, convs]) => (
-                  <div key={timeGroup}>
-                    <AnimatePresence>
-                      {!isCollapsed && (
-                        <motion.p
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="text-[10px] text-muted-foreground/50 mb-1 px-2 mt-2 first:mt-0"
-                        >
-                          {timeGroup}
-                        </motion.p>
-                      )}
-                    </AnimatePresence>
-                    <div className="space-y-0.5">
-                      {convs.map((conv) => (
-                        <ConversationItem
-                          key={conv.id}
-                          conversation={conv}
-                          isActive={conv.id === currentConversationId}
-                          isCollapsed={isCollapsed}
-                          onSelect={() => onSelectConversation(conv)}
-                          onDelete={(e) => handleDeleteConversation(conv.id, e)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* Header — brand only, no guru photo (ChatHeader has that) */}
+        <div className="p-3 border-b border-border/30">
+          <div className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : ''}`}>
+            <div className="w-9 h-9 rounded-full bg-ojas/15 border border-ojas/30 flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-bold text-ojas">M</span>
             </div>
-          )}
+            <AnimatePresence mode="wait">
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="min-w-0 overflow-hidden"
+                >
+                  <h2 className="font-semibold text-foreground text-sm truncate">AskMukthiGuru</h2>
+                  <p className="text-[11px] text-muted-foreground truncate">Conversations</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </ScrollArea>
 
-      {/* Footer Navigation */}
-      <div className={`p-2.5 border-t border-border/30 ${isCollapsed ? 'px-1.5' : ''}`}>
-        {isCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                to="/"
-                className="flex items-center justify-center p-2 rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <Home className="w-4 h-4 text-muted-foreground" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={12}>
-              <p>Back to Home</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <Link
-            to="/"
-            className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-          >
-            <Home className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">Back to Home</span>
-          </Link>
-        )}
-      </div>
-    </motion.aside>
+        {/* Scrollable Content */}
+        <ScrollArea className="flex-1">
+          <div className={`p-2.5 space-y-1.5 ${isCollapsed ? 'px-1.5' : ''}`}>
+            {/* Action Buttons */}
+            <SidebarActionButton
+              onClick={onNewConversation}
+              icon={Plus}
+              label="New Conversation"
+              isCollapsed={isCollapsed}
+              variant="ojas"
+            />
+            <SidebarActionButton
+              onClick={onOpenSereneMind}
+              icon={Flame}
+              label="Serene Mind"
+              isCollapsed={isCollapsed}
+              variant="prana"
+            />
+
+            {/* Divider */}
+            <div className="h-px bg-border/30 my-2" />
+
+            {/* Conversation History */}
+            {Object.keys(groupedConversations).length > 0 && (
+              <div>
+                <AnimatePresence>
+                  {!isCollapsed && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-2 font-medium px-2"
+                    >
+                      History
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+                <div className="space-y-0.5">
+                  {Object.entries(groupedConversations).map(([timeGroup, convs]) => (
+                    <div key={timeGroup}>
+                      <AnimatePresence>
+                        {!isCollapsed && (
+                          <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="text-[10px] text-muted-foreground/50 mb-1 px-2 mt-2 first:mt-0"
+                          >
+                            {timeGroup}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                      <div className="space-y-0.5">
+                        {convs.map((conv) => (
+                          <ConversationItem
+                            key={conv.id}
+                            conversation={conv}
+                            isActive={conv.id === currentConversationId}
+                            isCollapsed={isCollapsed}
+                            onSelect={() => onSelectConversation(conv)}
+                            onDelete={() => setDeleteTarget(conv.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </motion.aside>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This conversation will be permanently removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="delete-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="delete-confirm"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
@@ -233,7 +236,7 @@ const ConversationItem = ({
   isActive: boolean;
   isCollapsed: boolean;
   onSelect: () => void;
-  onDelete: (e?: React.MouseEvent) => void;
+  onDelete: () => void;
 }) => {
   const preview = conversation.preview || 'New conversation';
 
@@ -259,7 +262,7 @@ const ConversationItem = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onDelete(e);
+              onDelete();
             }}
             className="p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all flex-shrink-0"
             aria-label="Delete conversation"

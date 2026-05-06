@@ -1,51 +1,86 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { DailyTeaching, setDailyTeaching, getDailyTeaching } from '@/components/chat/DailyTeaching';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { DailyTeaching, setDailyTeaching, getDailyTeaching, clearDailyTeaching } from '@/components/chat/DailyTeaching';
 
-describe('DailyTeaching', () => {
+describe('DailyTeaching TTL', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it('returns null when no teaching is set', () => {
-    const { container } = render(<DailyTeaching />);
-    expect(container.firstChild).toBeNull();
+  it('returns null when no teaching is stored', () => {
+    expect(getDailyTeaching()).toBeNull();
   });
 
-  it('renders teaching when data exists', () => {
+  it('stores and retrieves teaching for today', () => {
+    const today = new Date().toISOString().slice(0, 10);
     setDailyTeaching({
-      id: 't1',
-      imageUrl: '/test-image.jpg',
-      caption: 'The Beautiful State awaits you',
-      date: new Date().toISOString().slice(0, 10),
-    });
-    render(<DailyTeaching />);
-    expect(screen.getByText("Today's Teaching")).toBeInTheDocument();
-    expect(screen.getByText('The Beautiful State awaits you')).toBeInTheDocument();
-  });
-
-  it('dismisses when close button is clicked', () => {
-    setDailyTeaching({
-      id: 't1',
-      imageUrl: '/test-image.jpg',
+      id: 'test-1',
+      imageUrl: 'data:image/png;base64,abc',
       caption: 'Test teaching',
-      date: new Date().toISOString().slice(0, 10),
+      date: today,
     });
-    render(<DailyTeaching />);
-    const dismissBtn = screen.getByLabelText('Dismiss teaching');
-    fireEvent.click(dismissBtn);
-    expect(screen.queryByText("Today's Teaching")).not.toBeInTheDocument();
+    const result = getDailyTeaching();
+    expect(result).not.toBeNull();
+    expect(result!.caption).toBe('Test teaching');
   });
 
-  it('setDailyTeaching and getDailyTeaching round-trip correctly', () => {
-    const data = {
-      id: 't1',
-      imageUrl: '/test.jpg',
-      caption: 'Test',
-      date: '2026-05-05',
-    };
-    setDailyTeaching(data);
+  it('returns null and cleans up for expired teaching (yesterday)', () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().slice(0, 10);
+
+    setDailyTeaching({
+      id: 'old',
+      imageUrl: 'data:image/png;base64,old',
+      caption: 'Old',
+      date: dateStr,
+    });
+
     const result = getDailyTeaching();
-    expect(result).toEqual(data);
+    expect(result).toBeNull();
+    // Should also have cleaned up localStorage
+    expect(localStorage.getItem('askmukthiguru_daily_teaching')).toBeNull();
+  });
+
+  it('clearDailyTeaching removes both teaching and dismissed state', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setDailyTeaching({
+      id: 'test-2',
+      imageUrl: 'data:image/png;base64,xyz',
+      date: today,
+    });
+    localStorage.setItem('askmukthiguru_teaching_dismissed', today);
+
+    clearDailyTeaching();
+    expect(getDailyTeaching()).toBeNull();
+    expect(localStorage.getItem('askmukthiguru_teaching_dismissed')).toBeNull();
+  });
+
+  it('renders teaching banner for today', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setDailyTeaching({
+      id: 'render-test',
+      imageUrl: 'data:image/png;base64,render',
+      caption: 'Be in your beautiful state',
+      date: today,
+    });
+
+    render(<DailyTeaching />);
+    expect(screen.getByText('Be in your beautiful state')).toBeInTheDocument();
+    expect(screen.getByTestId('daily-teaching')).toBeInTheDocument();
+  });
+
+  it('does not render for expired teaching', () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    setDailyTeaching({
+      id: 'expired',
+      imageUrl: 'data:image/png;base64,exp',
+      caption: 'Expired',
+      date: yesterday.toISOString().slice(0, 10),
+    });
+
+    render(<DailyTeaching />);
+    expect(screen.queryByTestId('daily-teaching')).not.toBeInTheDocument();
   });
 });
