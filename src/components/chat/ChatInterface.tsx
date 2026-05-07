@@ -327,11 +327,15 @@ export const ChatInterface = () => {
     }
   }, [isListening, stopListening, startListening]);
 
-  // Save conversation whenever messages change
-  const saveCurrentConversation = useCallback(() => {
-    if (currentConversation && messages.length > 0) {
+  // Save conversation whenever messages change (use ref to avoid re-render loop)
+  const currentConversationRef = useRef(currentConversation);
+  currentConversationRef.current = currentConversation;
+
+  useEffect(() => {
+    const conv = currentConversationRef.current;
+    if (conv && messages.length > 0) {
       const updatedConversation: Conversation = {
-        ...currentConversation,
+        ...conv,
         messages,
         messageCount: messages.length,
         preview: getConversationPreview(messages),
@@ -341,11 +345,8 @@ export const ChatInterface = () => {
       setCurrentConversation(updatedConversation);
       setRefreshTrigger(prev => prev + 1);
     }
-  }, [currentConversation, messages]);
-
-  useEffect(() => {
-    saveCurrentConversation();
-  }, [messages, saveCurrentConversation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
   // Scroll to bottom when new messages arrive (only if near bottom)
   useEffect(() => {
