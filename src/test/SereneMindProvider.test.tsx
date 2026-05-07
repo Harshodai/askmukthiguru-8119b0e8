@@ -24,14 +24,14 @@ const Probe = () => {
 };
 
 describe('SereneMindProvider', () => {
-  it('throws if useSereneMind is used outside provider', () => {
+  it('returns no-op fallback if useSereneMind is used outside provider', () => {
     const Bad = () => {
-      useSereneMind();
-      return null;
+      const ctx = useSereneMind();
+      return <span data-testid="fallback">{ctx.isOpen ? 'open' : 'closed'}</span>;
     };
-    // Suppress error logging for this expected throw
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(() => render(<Bad />)).toThrow(/SereneMindProvider/);
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<Bad />);
+    expect(screen.getByTestId('fallback')).toHaveTextContent('closed');
     spy.mockRestore();
   });
 
