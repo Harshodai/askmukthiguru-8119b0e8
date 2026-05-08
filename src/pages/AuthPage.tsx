@@ -86,18 +86,38 @@ const AuthPage = () => {
     setLoading(true);
     setError(null);
     try {
+      // Configuration toggle: Use native Supabase OAuth for local Docker, 
+      // Lovable OAuth wrapper for Lovable Cloud deployments.
+      const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
+
+      if (useNativeOAuth) {
+        const { error: supabaseError } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/chat`,
+          },
+        });
+        if (supabaseError) throw supabaseError;
+        // The browser will redirect to the Google consent screen.
+        return;
+      }
+
+      // Lovable Cloud wrapped OAuth path
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
+      
       if (result.error) {
         const message = result.error instanceof Error ? result.error.message : 'Google sign-in failed. Please try again.';
         setError(message);
         return;
       }
       if (result.redirected) return; // browser will redirect
+      
       // Tokens set — navigate
       navigate('/chat');
-    } catch {
+    } catch (err) {
+      console.error('[Google Auth Error]', err);
       setError('Could not connect to Google. Please try again.');
     } finally {
       setLoading(false);

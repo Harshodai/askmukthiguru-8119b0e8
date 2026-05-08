@@ -8,6 +8,7 @@ evaluations, and user feedback via Supabase.
 import os
 import json
 import logging
+import re
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 from app.config import get_settings
@@ -29,6 +30,24 @@ async def init_telemetry_db():
     """
     logger.info(f"Telemetry initialized using Supabase at {settings.supabase_url}")
 
+class PIIScrubber:
+    """Regex-based lightweight PII redaction utility."""
+    # Common PII regex patterns
+    EMAIL_REGEX = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
+    # Matches international and local phone numbers
+    PHONE_REGEX = re.compile(r'(\+\d{1,3}[\s-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}')
+    # Matches 12-digit Indian Aadhaar or 16 digit credit cards
+    ID_REGEX = re.compile(r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}([\s-]?\d{4})?\b')
+
+    @classmethod
+    def scrub(cls, text: str) -> str:
+        if not text:
+            return text
+        text = cls.EMAIL_REGEX.sub('[EMAIL]', text)
+        text = cls.PHONE_REGEX.sub('[PHONE]', text)
+        text = cls.ID_REGEX.sub('[ID_NUMBER]', text)
+        return text
+
 async def log_query_trace(query_data: dict, response_data: dict) -> None:
     """Log a complete query and response trace to Supabase."""
     client = _get_client()
@@ -43,7 +62,7 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
             "id": query_data['id'],
             "session_id": query_data.get('session_id'),
             "anon_user_id": query_data.get('anon_user_id'),
-            "query_text": query_data['query_text'],
+            "query_text": PIIScrubber.scrub(query_data['query_text']),
             "model": query_data.get('model'),
             "latency_ms": query_data.get('latency_ms', 0),
             "status": query_data.get('status', 'ok'),

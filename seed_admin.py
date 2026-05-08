@@ -34,12 +34,12 @@ def seed_admin():
         print("Admin role assigned successfully!")
         
     except Exception as e:
-        if "already exists" in str(e).lower() or "unique constraint" in str(e).lower():
+        if "already exists" in str(e).lower() or "already been registered" in str(e).lower() or "unique constraint" in str(e).lower():
             print("Admin user already exists. Checking role...")
             # Try to just assign role if user exists
             try:
-                user = supabase.auth.admin.list_users()
-                target_user = next((u for u in user if u.email == email), None)
+                user_list = supabase.auth.admin.list_users()
+                target_user = next((u for u in user_list if u.email == email), None)
                 if target_user:
                     supabase.table("user_roles").upsert({
                         "user_id": target_user.id,

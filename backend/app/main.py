@@ -371,6 +371,17 @@ async def chat_endpoint(
     if not user_msg:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
+    # === Response Cache Check (Bypass Guardrails for known safe queries) ===
+    cached = container.semantic_cache.get(user_msg)
+    if cached is not None:
+        REQUEST_COUNT.labels(status="cache_hit").inc()
+        return ChatResponse(
+            response=cached["response"],
+            intent=cached.get("intent"),
+            meditation_step=cached.get("meditation_step", 0),
+            citations=cached.get("citations", []),
+        )
+
     # === Layer 1: NeMo Input Rail ===
     with REQUEST_LATENCY.labels(stage="guardrails").time():
         input_check = await container.guardrails.check_input(user_msg)
@@ -402,17 +413,6 @@ async def chat_endpoint(
         logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
         logger.warning(f"Depression detection failed (non-fatal): {e}")
 
-    # === Response Cache Check ===
-    cached = container.semantic_cache.get(user_msg)
-    if cached is not None:
-        REQUEST_COUNT.labels(status="cache_hit").inc()
-        return ChatResponse(
-            response=cached["response"],
-            intent=cached.get("intent"),
-            meditation_step=cached.get("meditation_step", 0),
-            citations=cached.get("citations", []),
-        )
-
     # === Layers 2-11: LangGraph RAG Pipeline ===
     try:
         # Coalesce identical concurrent requests (Sys 4.1)
@@ -432,8 +432,8 @@ async def chat_endpoint(
         citations = result.get("citations", [])
         REQUEST_COUNT.labels(status="success").inc()
 
-        # Populate cache for QUERY intents (not casual/distress/meditation)
-        if intent == "QUERY":
+        # Populate cache for QUERY and CASUAL intents (Semantic Caching for fast routing)
+        if intent in ["QUERY", "CASUAL"]:
             container.semantic_cache.put(
                 query=user_msg,
                 response=final_answer,
@@ -568,6 +568,18 @@ async def chat_stream_endpoint(
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
         try:
+            # === Cache check (Bypass guardrails for known safe queries) ===
+            cached = container.semantic_cache.get(user_msg)
+            if cached is not None:
+                yield f"event: token\ndata: {cached['response']}\n\n"
+                meta = json.dumps({
+                    "intent": cached.get("intent"),
+                    "citations": cached.get("citations", []),
+                    "meditation_step": cached.get("meditation_step", 0),
+                })
+                yield f"event: done\ndata: {meta}\n\n"
+                return
+
             # === Layer 1: Input rail ===
             yield f"event: status\ndata: Checking message safety...\n\n"
             input_check = await container.guardrails.check_input(user_msg)
@@ -590,18 +602,6 @@ async def chat_stream_endpoint(
                         return
             except Exception as e:
                 logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
-
-            # === Cache check ===
-            cached = container.semantic_cache.get(user_msg)
-            if cached is not None:
-                yield f"event: token\ndata: {cached['response']}\n\n"
-                meta = json.dumps({
-                    "intent": cached.get("intent"),
-                    "citations": cached.get("citations", []),
-                    "meditation_step": cached.get("meditation_step", 0),
-                })
-                yield f"event: done\ndata: {meta}\n\n"
-                return
 
             # === RAG Pipeline ===
             yield f"event: status\ndata: Understanding your question...\n\n"
@@ -630,8 +630,8 @@ async def chat_stream_endpoint(
                 escaped = chunk.replace("\n", "\\n")
                 yield f"event: token\ndata: {escaped}\n\n"
 
-            # Cache QUERY results
-            if intent == "QUERY":
+            # Cache QUERY and CASUAL results (Semantic Caching for fast routing)
+            if intent in ["QUERY", "CASUAL"]:
                 container.semantic_cache.put(user_msg, final_answer, intent, citations, meditation_step=med_step)
 
             REQUEST_COUNT.labels(status="success").inc()

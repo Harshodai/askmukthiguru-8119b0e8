@@ -165,6 +165,7 @@ services:
       args:
         VITE_SUPABASE_URL: ${PUBLIC_SUPABASE_URL:-http://localhost:54321}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_KEY}
+        VITE_USE_NATIVE_OAUTH: ${USE_NATIVE_OAUTH:-true}
     container_name: mukthiguru-frontend
     ports:
       - "80:80"

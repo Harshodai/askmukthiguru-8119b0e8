@@ -181,6 +181,14 @@ async def intent_router(state: GraphState) -> dict:
             )
             return {"intent": "DISTRESS"}
 
+    # Intelligence Layer: Fast Semantic Routing for common greetings
+    import string
+    normalized_q = question.strip().lower().translate(str.maketrans('', '', string.punctuation))
+    casual_greetings = {"namaste", "hello", "hi", "hey", "how are you", "who are you", "good morning", "good evening", "good afternoon", "thanks", "thank you"}
+    if normalized_q in casual_greetings:
+        logger.info(f"Intent Router: Semantic routing mapped '{question}' to CASUAL (fast path)")
+        return {"intent": "CASUAL"}
+
     # Stage 2: LLM classification (nuanced)
     intent = await _ollama.classify_intent(question)
     

@@ -15,10 +15,12 @@ RUN npm install
 # Build arguments for environment variables
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ARG VITE_USE_NATIVE_OAUTH
 
 # Set them as environment variables for the build process
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_USE_NATIVE_OAUTH=$VITE_USE_NATIVE_OAUTH
 
 # Copy source code and build
 COPY index.html vite.config.ts tsconfig*.json tailwind.config.ts postcss.config.js components.json ./

@@ -101,7 +101,7 @@ export const DesktopSidebar = ({
               <TooltipTrigger asChild>
                 <button
                   onClick={onToggleCollapse}
-                  className="absolute -right-3.5 top-14 z-30 w-7 h-7 rounded-full bg-card border border-border/80 shadow-md flex items-center justify-center hover:bg-muted hover:scale-110 transition-all active:scale-95"
+                  className="group absolute -right-4 top-14 z-30 w-8 h-8 rounded-full bg-background border-2 border-border/80 shadow-md flex items-center justify-center hover:bg-muted hover:scale-110 transition-all active:scale-95 text-foreground"
                   aria-label="Collapse sidebar"
                   data-testid="sidebar-toggle"
                 >
@@ -109,7 +109,7 @@ export const DesktopSidebar = ({
                     animate={{ rotate: 180 }}
                     transition={{ duration: 0.25 }}
                   >
-                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
                   </motion.div>
                 </button>
               </TooltipTrigger>
