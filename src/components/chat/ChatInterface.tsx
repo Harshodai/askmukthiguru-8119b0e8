@@ -430,6 +430,7 @@ export const ChatInterface = () => {
       setIsStreaming(true);
       setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
+      let gotFirstToken = false;
       let streamedCitations: string[] = [];
       let streamedIntent = 'CASUAL';
       let streamedMedStep = 0;
