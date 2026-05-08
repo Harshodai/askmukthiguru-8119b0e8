@@ -671,15 +671,11 @@ async def ingest_endpoint(
 ) -> IngestResponse:
     """
     Content ingestion endpoint (Admin only).
-    """
-    if not user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    """
-    Content ingestion endpoint.
-    
     Accepts YouTube video/playlist URLs and image URLs.
     Runs ingestion in the background so the API responds immediately.
     """
+    if not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
     url = ingest_body.url.strip()
 
     if not url:
