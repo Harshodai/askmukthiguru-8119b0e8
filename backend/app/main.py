@@ -670,6 +670,11 @@ async def ingest_endpoint(
     container: ServiceContainer = Depends(get_container)
 ) -> IngestResponse:
     """
+    Content ingestion endpoint (Admin only).
+    """
+    if not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    """
     Content ingestion endpoint.
     
     Accepts YouTube video/playlist URLs and image URLs.
