@@ -8,6 +8,7 @@ import { SafetyDisclaimer } from "./components/common/SafetyDisclaimer";
 import { ThemeProvider } from "./components/common/ThemeProvider";
 import { ReminderProvider } from "./components/common/ReminderProvider";
 import { SereneMindProvider } from "./components/common/SereneMindProvider";
+import { ChatErrorBoundary } from "./components/common/ChatErrorBoundary";
 import Index from "./pages/Index";
 import ChatPage from "./pages/ChatPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -37,40 +38,37 @@ import AdminsPage from "./admin/pages/AdminsPage";
 
 const queryClient = new QueryClient();
 
-// Wraps the end-user app shell. Excluded for /admin routes so the admin
-// console is fully isolated (no Navbar, no SafetyDisclaimer, no SereneMind, etc.).
-const EndUserApp = () => {
-  const loc = useLocation();
-  const isAdmin = loc.pathname.startsWith("/admin");
-  if (isAdmin) {
-    return (
-      <Routes>
-        <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/admin" element={<AdminShell />}>
-          <Route index element={<OverviewPage />} />
-          <Route path="queries" element={<QueriesPage />} />
-          <Route path="quality" element={<QualityPage />} />
-          <Route path="retrieval" element={<RetrievalPage />} />
-          <Route path="feedback" element={<FeedbackPage />} />
-          <Route path="daily-teaching" element={<DailyTeachingPage />} />
-          <Route path="triggers" element={<TriggersPage />} />
-          <Route path="topics" element={<TopicsPage />} />
-          <Route path="prompts" element={<PromptsPage />} />
-          <Route path="evals" element={<EvalsPage />} />
-          <Route path="ingestion" element={<IngestionPage />} />
-          <Route path="logs" element={<LogsPage />} />
-          <Route path="alerts" element={<AlertsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="admins" element={<AdminsPage />} />
-        </Route>
-      </Routes>
-    );
-  }
-  return (
-    <ThemeProvider>
-      <ReminderProvider>
-        <SereneMindProvider>
-          <SafetyDisclaimer />
+// Admin routes — fully isolated (no Navbar, SafetyDisclaimer, or SereneMind)
+const AdminRoutes = () => (
+  <Routes>
+    <Route path="/admin/login" element={<AdminLoginPage />} />
+    <Route path="/admin" element={<AdminShell />}>
+      <Route index element={<OverviewPage />} />
+      <Route path="queries" element={<QueriesPage />} />
+      <Route path="quality" element={<QualityPage />} />
+      <Route path="retrieval" element={<RetrievalPage />} />
+      <Route path="feedback" element={<FeedbackPage />} />
+      <Route path="daily-teaching" element={<DailyTeachingPage />} />
+      <Route path="triggers" element={<TriggersPage />} />
+      <Route path="topics" element={<TopicsPage />} />
+      <Route path="prompts" element={<PromptsPage />} />
+      <Route path="evals" element={<EvalsPage />} />
+      <Route path="ingestion" element={<IngestionPage />} />
+      <Route path="logs" element={<LogsPage />} />
+      <Route path="alerts" element={<AlertsPage />} />
+      <Route path="settings" element={<SettingsPage />} />
+      <Route path="admins" element={<AdminsPage />} />
+    </Route>
+  </Routes>
+);
+
+// End-user routes — wrapped with all providers + error boundary
+const UserRoutes = () => (
+  <ThemeProvider>
+    <ReminderProvider>
+      <SereneMindProvider>
+        <SafetyDisclaimer />
+        <ChatErrorBoundary>
           <AnimatedLayout>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -83,10 +81,16 @@ const EndUserApp = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AnimatedLayout>
-        </SereneMindProvider>
-      </ReminderProvider>
-    </ThemeProvider>
-  );
+        </ChatErrorBoundary>
+      </SereneMindProvider>
+    </ReminderProvider>
+  </ThemeProvider>
+);
+
+const EndUserApp = () => {
+  const loc = useLocation();
+  const isAdmin = loc.pathname.startsWith("/admin");
+  return isAdmin ? <AdminRoutes /> : <UserRoutes />;
 };
 
 const App = () => (

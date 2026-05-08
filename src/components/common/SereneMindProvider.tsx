@@ -32,10 +32,23 @@ export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/**
+ * Hook to access SereneMind context.
+ * Returns a safe no-op fallback if called outside the provider during
+ * HMR or concurrent rendering edge cases, instead of crashing the app.
+ */
 export const useSereneMind = (): SereneMindContextValue => {
   const ctx = useContext(SereneMindContext);
   if (!ctx) {
-    throw new Error('useSereneMind must be used within a SereneMindProvider');
+    if (import.meta.env.DEV) {
+      console.warn('useSereneMind called outside SereneMindProvider — returning no-op fallback');
+    }
+    return {
+      isOpen: false,
+      open: () => {},
+      close: () => {},
+      toggle: () => {},
+    };
   }
   return ctx;
 };
