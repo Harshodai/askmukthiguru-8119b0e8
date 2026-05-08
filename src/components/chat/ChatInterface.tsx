@@ -561,7 +561,7 @@ export const ChatInterface = () => {
           role: 'guru',
           content: response.content,
           timestamp: new Date(),
-          citations: response.citations && response.citations.length > 0 ? response.citations.slice(0, 3) : undefined,
+          citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         setCachedResponse(cacheKey, response.content, guruMessage.citations);
