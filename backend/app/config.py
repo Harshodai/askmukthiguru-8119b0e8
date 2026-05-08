@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     # --- Neo4j ---
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
-    neo4j_password: str = "password123"
+    neo4j_password: str = ""
 
     # --- Embeddings (config-driven: switch models via env vars) ---
     # Supported: "BAAI/bge-m3" (default, best multilingual, 1024-dim dense+sparse+ColBERT)
