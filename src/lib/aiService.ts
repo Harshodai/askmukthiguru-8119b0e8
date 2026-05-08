@@ -75,10 +75,12 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
  * from an SSE/chunked endpoint. Falls back by throwing if streaming is
  * unavailable (caller should catch and use sendMessage instead).
  */
-/** Streaming chunk: either a content token or a pipeline status update */
+/** Streaming chunk: either a content token, a pipeline status update, or final metadata */
 export type StreamChunk =
   | { type: 'token'; text: string }
-  | { type: 'status'; text: string };
+  | { type: 'status'; text: string }
+  | { type: 'done'; intent: string; citations: string[]; meditationStep: number }
+  | { type: 'error'; text: string };
 
 export async function* sendMessageStreaming(
   messages: MessagePayload[],
