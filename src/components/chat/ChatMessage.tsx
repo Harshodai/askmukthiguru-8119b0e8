@@ -226,7 +226,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                   Sources
                 </p>
                 <div className="flex flex-col gap-1">
-                  {citations.slice(0, 3).map((url, i) => (
+                  {citations.map((url, i) => (
                     <a
                       key={`${url}-${i}`}
                       href={url}
