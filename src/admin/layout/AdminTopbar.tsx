@@ -28,11 +28,12 @@ export function AdminTopbar() {
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Badge variant="outline" className="gap-1.5 border-green-500/50 text-green-500 bg-green-500/5">
           <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-          Real-time via Supabase
+          Role Verified
         </Badge>
-        <span className="hidden md:inline text-xs opacity-70">
-          Connected to local Docker cluster
-        </span>
+        <Badge variant="outline" className="gap-1.5 border-prana/50 text-prana bg-prana/5">
+          <div className="h-1.5 w-1.5 rounded-full bg-prana animate-pulse" />
+          Real-time
+        </Badge>
       </div>
 
       <div className="flex items-center gap-2">
