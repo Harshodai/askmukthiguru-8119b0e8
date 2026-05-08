@@ -96,9 +96,9 @@ const EndUserApp = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
       <BrowserRouter>
+        <Toaster />
+        <Sonner />
         <EndUserApp />
       </BrowserRouter>
     </TooltipProvider>

@@ -1,12 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+
+/** Map Supabase error messages/codes to user-friendly descriptions */
+const friendlyError = (err: Error | { message: string }): string => {
+  const msg = err.message?.toLowerCase() ?? '';
+  if (msg.includes('email rate limit') || msg.includes('over_email_send_rate_limit'))
+    return 'Too many attempts. Please wait a few minutes before trying again.';
+  if (msg.includes('user already registered') || msg.includes('already exists'))
+    return 'An account with this email already exists. Try signing in instead.';
+  if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials'))
+    return 'Incorrect email or password. Please check and try again.';
+  if (msg.includes('email not confirmed'))
+    return 'Please verify your email before signing in. Check your inbox for a confirmation link.';
+  if (msg.includes('network') || msg.includes('fetch'))
+    return 'Network error — please check your connection and try again.';
+  if (msg.includes('database') || msg.includes('timeout'))
+    return 'Database timeout. Please try again in a moment.';
+  if (msg.includes('weak_password') || msg.includes('password'))
+    return 'Password must be at least 6 characters long.';
+  return err.message || 'Something went wrong. Please try again.';
+};
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -14,35 +35,48 @@ const AuthPage = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // If already signed in, redirect to /chat
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) navigate('/chat', { replace: true });
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) navigate('/chat', { replace: true });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
         toast({
           title: 'Check your email',
           description: 'We sent you a verification link to complete sign-up.',
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
         navigate('/chat');
       }
     } catch (err: unknown) {
-      toast({
-        title: 'Authentication error',
-        description: err instanceof Error ? err.message : 'Something went wrong',
-        variant: 'destructive',
-      });
+      const message = friendlyError(err as Error);
+      setError(message);
+      console.error('[Auth Error]', err);
     } finally {
       setLoading(false);
     }
@@ -50,27 +84,21 @@ const AuthPage = () => {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
+    setError(null);
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
       if (result.error) {
-        toast({
-          title: 'Google sign-in failed',
-          description: result.error instanceof Error ? result.error.message : 'Please try again',
-          variant: 'destructive',
-        });
+        const message = result.error instanceof Error ? result.error.message : 'Google sign-in failed. Please try again.';
+        setError(message);
         return;
       }
       if (result.redirected) return; // browser will redirect
       // Tokens set — navigate
       navigate('/chat');
     } catch {
-      toast({
-        title: 'Sign-in error',
-        description: 'Could not connect to Google. Please try again.',
-        variant: 'destructive',
-      });
+      setError('Could not connect to Google. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -89,6 +117,14 @@ const AuthPage = () => {
             {isSignUp ? 'Create your account' : 'Welcome back, dear seeker'}
           </p>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">{error}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Google */}
         <Button
@@ -137,7 +173,7 @@ const AuthPage = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setError(null); }}
                 placeholder="you@example.com"
                 className="pl-9 h-10"
                 required
@@ -152,7 +188,7 @@ const AuthPage = () => {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 placeholder="••••••••"
                 className="pl-9 pr-9 h-10"
                 required
@@ -175,7 +211,7 @@ const AuthPage = () => {
         <p className="text-center text-xs text-muted-foreground">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
             className="text-ojas hover:underline font-medium"
           >
             {isSignUp ? 'Sign in' : 'Sign up'}

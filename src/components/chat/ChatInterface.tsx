@@ -431,6 +431,9 @@ export const ChatInterface = () => {
       setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
       let gotFirstToken = false;
+      let streamedCitations: string[] = [];
+      let streamedIntent = 'CASUAL';
+      let streamedMedStep = 0;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
           // Pipeline status update → add or advance pills
@@ -443,6 +446,19 @@ export const ChatInterface = () => {
             // Add new active step
             return [...updated, { id: `step-${updated.length}`, label, status: 'active' as const }];
           });
+          continue;
+        }
+
+        if (chunk.type === 'done') {
+          // Final metadata from backend — citations, intent, meditationStep
+          streamedCitations = chunk.citations;
+          streamedIntent = chunk.intent;
+          streamedMedStep = chunk.meditationStep;
+          continue;
+        }
+
+        if (chunk.type === 'error') {
+          toast({ title: 'Server error', description: chunk.text, variant: 'destructive' });
           continue;
         }
 
@@ -472,7 +488,23 @@ export const ChatInterface = () => {
 
       if (fullContent) {
         streamingWorked = true;
-        setCachedResponse(cacheKey, fullContent);
+        // Update the guru message with citations from the done event
+        if (streamedCitations.length > 0) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamingGuruId ? { ...m, citations: streamedCitations } : m))
+          );
+        }
+        setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
+
+        // Update meditation step from streaming metadata
+        if (streamedMedStep !== undefined) {
+          setMeditationStep(streamedMedStep);
+        }
+
+        // Trigger Serene Mind if distress detected in streaming
+        if (streamedIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
+          openSereneMind('audio');
+        }
       }
     } catch {
       // Streaming failed — show toast if partial content was received
@@ -529,7 +561,7 @@ export const ChatInterface = () => {
           role: 'guru',
           content: response.content,
           timestamp: new Date(),
-          citations: response.citations && response.citations.length > 0 ? response.citations.slice(0, 3) : undefined,
+          citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         setCachedResponse(cacheKey, response.content, guruMessage.citations);
@@ -618,6 +650,8 @@ export const ChatInterface = () => {
         <ChatHeader 
           onClearChat={handleNewConversation}
           onOpenMobileMenu={() => setShowMobileSheet(true)}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 
         {/* Messages Area — this is the scroll container */}

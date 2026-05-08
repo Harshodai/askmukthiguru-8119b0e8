@@ -5,21 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, FlaskConical } from "lucide-react";
-import { loginAdmin, isAdminAuthenticated } from "@/admin/lib/adminAuth";
+import { ShieldCheck, AlertCircle } from "lucide-react";
+import { loginAdmin, verifyAdminSession } from "@/admin/lib/adminAuth";
 
 export default function AdminLoginPage() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const redirectTo = params.get("redirect") || "/admin";
-  const [email, setEmail] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAdminAuthenticated()) nav(redirectTo, { replace: true });
+    verifyAdminSession().then(({ authenticated }) => {
+      if (authenticated) nav(redirectTo, { replace: true });
+    });
   }, [nav, redirectTo]);
 
   async function onSubmit(e: FormEvent) {
@@ -50,40 +51,39 @@ export default function AdminLoginPage() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Sign in</CardTitle>
-              <Badge variant="secondary" className="gap-1.5">
-                <FlaskConical className="h-3 w-3" />
-                DEV MODE
-              </Badge>
-            </div>
+            <CardTitle className="text-lg">Sign in</CardTitle>
             <CardDescription>
-              Use <code className="text-xs">admin / admin</code>. Real Supabase auth wires
-              in when backend auth is enabled.
+              Enter your admin credentials to access the dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email or username</Label>
+                <Label htmlFor="admin-email">Email</Label>
                 <Input
-                  id="email"
+                  id="admin-email"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
                   autoFocus
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="admin-password">Password</Label>
                 <Input
-                  id="password"
+                  id="admin-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
                 />
               </div>
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
+                  <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}

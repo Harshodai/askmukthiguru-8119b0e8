@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PanelLeft, Wifi, WifiOff, Home } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Wifi, WifiOff, Home } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,11 @@ import gurusPhoto from '@/assets/gurus-photo.jpg';
 interface ChatHeaderProps {
   onClearChat: () => void;
   onOpenMobileMenu?: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) => {
+export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, onToggleSidebar }: ChatHeaderProps) => {
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
@@ -31,6 +33,24 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu }: ChatHeaderProps) =
     <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/80 border-b border-border/40">
       <div className="flex items-center justify-between px-3 sm:px-5 h-11">
         <div className="flex items-center gap-2 min-w-0">
+          {/* Sidebar toggle — desktop */}
+          {onToggleSidebar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onToggleSidebar}
+              className="hidden sm:flex h-8 w-8"
+              aria-label={sidebarCollapsed ? 'Open sidebar' : 'Close sidebar'}
+              title={sidebarCollapsed ? 'Open sidebar' : 'Close sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeft className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4 text-muted-foreground" />
+              )}
+            </Button>
+          )}
+
           <Link
             to="/"
             className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
