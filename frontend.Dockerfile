@@ -12,13 +12,21 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 
+# Build arguments for environment variables
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+
+# Set them as environment variables for the build process
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+
 # Copy source code and build
 COPY index.html vite.config.ts tsconfig*.json tailwind.config.ts postcss.config.js components.json ./
 COPY src/ ./src/
 COPY public/ ./public/
 
 # Build for production
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 # --- Stage 2: Serve with Nginx ---
 FROM nginx:alpine

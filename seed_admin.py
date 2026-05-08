@@ -2,14 +2,14 @@ import os
 from supabase import create_client, Client
 
 # Local Supabase settings
-url = "http://127.0.0.1:54321"
+url = "http://host.docker.internal:54321"
 # Service role key from supabase_status.json
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
 
 supabase: Client = create_client(url, key)
 
 def seed_admin():
-    email = "admin@example.com"
+    email = "kharshaengineer@gmail.com"
     password = "password123"
     
     print(f"Attempting to create admin user: {email}")
