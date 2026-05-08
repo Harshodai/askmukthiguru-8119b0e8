@@ -28,7 +28,15 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, index = 0, isStreaming = false }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
-    const citations = message.citations ?? [];
+    // Extract inline YouTube URLs from content as fallback citations
+    const inlineUrls = isGuru
+      ? Array.from(new Set(
+          (message.content.match(/https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g) ?? [])
+        ))
+      : [];
+    const citations = (message.citations && message.citations.length > 0)
+      ? message.citations
+      : inlineUrls;
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [feedback, setFeedback] = useState<MessageFeedback | null>(message.feedback ?? null);
     const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
