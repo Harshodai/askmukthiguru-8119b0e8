@@ -147,15 +147,39 @@ export async function* sendMessageStreaming(
           continue;
         }
 
-        // Yield token events as content
+        // Handle done event with final metadata (intent, citations, meditation_step)
+        if (currentEvent === 'done') {
+          currentEvent = 'message';
+          try {
+            const meta = JSON.parse(payload);
+            yield {
+              type: 'done',
+              intent: meta.intent ?? 'CASUAL',
+              citations: meta.citations ?? [],
+              meditationStep: meta.meditation_step ?? 0,
+            };
+          } catch {
+            // Ignore malformed done payload
+          }
+          continue;
+        }
+
+        // Handle error events
+        if (currentEvent === 'error') {
+          currentEvent = 'message';
+          yield { type: 'error', text: payload.trim() };
+          continue;
+        }
+
+        // Yield token events as content — unescape \\n back to real newlines
         currentEvent = 'message'; // reset
         try {
           const parsed = JSON.parse(payload);
           const chunk = parsed.choices?.[0]?.delta?.content ?? parsed.token ?? parsed.content ?? '';
-          if (chunk) yield { type: 'token', text: chunk };
+          if (chunk) yield { type: 'token', text: chunk.replace(/\\n/g, '\n') };
         } catch {
-          // Non-JSON SSE line — yield raw text
-          if (payload) yield { type: 'token', text: payload };
+          // Non-JSON SSE line — yield raw text (unescape newlines)
+          if (payload) yield { type: 'token', text: payload.replace(/\\n/g, '\n') };
         }
       }
     }
