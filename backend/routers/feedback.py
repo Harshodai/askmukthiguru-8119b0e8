@@ -30,8 +30,9 @@ async def get_feedback_history(
     user: User = Depends(current_active_user)
 ):
     """
-    Retrieve recent feedback history (Admin only in future).
+    Retrieve recent feedback history (Admin only).
     """
-    # In a real app, we'd check if user.is_superuser here
+    if not user.is_superuser:
+        raise HTTPException(status_code=403, detail="Admin access required")
     service = FeedbackService(db)
     return await service.get_feedback_history(limit=limit)
