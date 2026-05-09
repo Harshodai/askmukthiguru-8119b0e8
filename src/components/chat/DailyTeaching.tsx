@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,49 +9,60 @@ export interface DailyTeachingData {
   caption?: string;
 }
 
-const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed';
+// Dismissed teachings are tracked by id, so a fresh upload re-shows the banner.
+const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed_id';
 
 export const DailyTeaching = () => {
   const [teaching, setTeaching] = useState<DailyTeachingData | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissedId, setDismissedId] = useState<string | null>(
+    () => localStorage.getItem(DISMISSED_KEY),
+  );
 
-  useEffect(() => {
-    const fetchTeaching = async () => {
-      // Check if already dismissed today
-      const today = new Date().toISOString().slice(0, 10);
-      const dismissedDate = localStorage.getItem(DISMISSED_KEY);
-      if (dismissedDate === today) {
-        setDismissed(true);
-        return;
-      }
+  const fetchTeaching = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('daily_teachings')
+      .select('id, image_url, caption')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-      // Fetch active teaching from database (TTL handled by RLS: expires_at > now())
-      const { data, error } = await supabase
-        .from('daily_teachings')
-        .select('id, image_url, caption')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    if (error || !data) return;
 
-      if (error || !data) return;
-
-      setTeaching({
-        id: data.id,
-        imageUrl: data.image_url,
-        caption: data.caption ?? undefined,
-      });
-    };
-
-    fetchTeaching();
+    setTeaching({
+      id: data.id,
+      imageUrl: data.image_url,
+      caption: data.caption ?? undefined,
+    });
   }, []);
 
+  useEffect(() => {
+    fetchTeaching();
+
+    // Realtime: when a new daily teaching is uploaded, refetch immediately
+    // so all open chat sessions update without a reload.
+    const channel = supabase
+      .channel('daily-teachings-feed')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'daily_teachings' },
+        () => {
+          fetchTeaching();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchTeaching]);
+
   const handleDismiss = () => {
-    setDismissed(true);
-    const today = new Date().toISOString().slice(0, 10);
-    localStorage.setItem(DISMISSED_KEY, today);
+    if (!teaching) return;
+    setDismissedId(teaching.id);
+    localStorage.setItem(DISMISSED_KEY, teaching.id);
   };
 
-  if (dismissed || !teaching) return null;
+  if (!teaching || teaching.id === dismissedId) return null;
 
   return (
     <AnimatePresence>
@@ -76,6 +87,7 @@ export const DailyTeaching = () => {
               src={teaching.imageUrl}
               alt="Today's teaching from the Gurus"
               className="w-full h-full object-cover"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent" />
           </div>
