@@ -9,6 +9,13 @@ define flow check topic
   user ask about explicit content
     bot refuse topic "Let's keep our conversation centered on spiritual growth and inner peace."
 
+define flow allow spiritual death
+  """Allow spiritual metaphors like ego death or dying to the self."""
+  user ask about ego death
+    bot respond "Ego death is a powerful stage of transformation Sri Preethaji teaches about..."
+  user ask about dying to self
+    bot respond "Dying to the self is the birth of the Beautiful State..."
+
 define flow check safety
   """Detect self-harm/suicide and redirect to helpline."""
   user express self harm intent

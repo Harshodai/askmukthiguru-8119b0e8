@@ -26,6 +26,9 @@ from services.lightrag_service import lightrag_service, LightRAGService
 from services.cache_service import init_llm_cache
 from services.serene_mind_engine import SereneMindEngine
 from services.semantic_cache import SemanticCacheService
+from services.user_profile_service import UserProfileService
+from services.language_router import LanguageRouter
+from services.krutrim_service import KrutrimService
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +79,7 @@ class ServiceContainer:
         self.embedding = EmbeddingService()
         self.ollama = _create_llm_service()  # SarvamCloudService OR OllamaService
         self.ocr = OCRService()
+        self.krutrim = KrutrimService()
 
         # Layer 3: Emotional Intelligence (depends on embedding, config-gated)
         if settings.serene_mind_enabled:
@@ -92,6 +96,23 @@ class ServiceContainer:
             redis_url=settings.redis_url,
             embedding_service=self.embedding,
         )
+
+        # Layer 4c: Language Router (no dependencies)
+        self.language_router = LanguageRouter()
+
+        # Layer 4d: User Profiles (depends on supabase)
+        if settings.user_profile_enabled:
+            from supabase import create_client
+            supabase_client = None
+            if settings.supabase_url and settings.supabase_key:
+                try:
+                    supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+                except Exception as e:
+                    logger.error(f"Failed to initialize Supabase client: {e}")
+            
+            self.user_profile = UserProfileService(supabase_client=supabase_client)
+        else:
+            self.user_profile = None
 
         # Layer 5: Ingestion pipeline (depends on all services)
         self.ingestion = IngestionPipeline(
@@ -165,7 +186,7 @@ class ServiceContainer:
         dependent services are released before their dependencies.
         """
         # LIFO order: rag_graph → ingestion → guardrails → ocr → ollama → embedding → qdrant
-        for name in ("rag_graph", "ingestion", "guardrails", "ocr", "ollama", "embedding", "qdrant"):
+        for name in ("rag_graph", "ingestion", "guardrails", "ocr", "ollama", "embedding", "qdrant", "user_profile"):
             svc = getattr(self, name, None)
             if svc is None:
                 continue

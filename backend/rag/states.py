@@ -132,3 +132,9 @@ class GraphState(TypedDict):
 
     # Metrics
     metrics: Annotated[dict, add_dicts]
+
+    # NEW: User & Language Context
+    user_id: Optional[str]
+    detected_language: Optional[str]
+    memory_context: Optional[str]
+    ab_model: Optional[str]  # "primary" or "krutrim" for A/B testing

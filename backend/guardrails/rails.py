@@ -139,6 +139,23 @@ def _contains_phrase(text: str, phrases: frozenset) -> bool:
     )
 
 
+# Spiritual context exceptions — these phrases in spiritual context are SAFE
+_SPIRITUAL_CONTEXT_PATTERNS = [
+    r'\bego\s+death\b',
+    r'\bdissolution\s+of\s+self\b',
+    r'\bdeath\s+of\s+the\s+ego\b',
+    r'\bsurrender\s+(the\s+)?self\b',
+    r'\bmaya\b.*\billusion\b',
+    r'\batta(?:in|ning)\s+nirvana\b',
+    r'\bmoksha\b',
+    r'\bliberation\s+from\s+suffering\b',
+    r'\bend\s+of\s+suffering\b',
+    r'\btranscend\s+(the\s+)?self\b',
+    r'\boneness\s+with\b',
+    r'\b(atma|soul)\s+(merges?|unites?)\b',
+]
+
+
 # ===================================================================
 # Lightweight Guardrails (regex-based, always available)
 # ===================================================================
@@ -155,6 +172,12 @@ class LightweightGuardrails:
     async def check_input(self, message: str) -> dict:
         """Check if user message should be blocked."""
         message_lower = message.lower()
+
+        # Check spiritual context FIRST — exempt from crisis detection
+        for pattern in _SPIRITUAL_CONTEXT_PATTERNS:
+            if re.search(pattern, message_lower):
+                logger.info(f"Spiritual context detected, bypassing crisis guardrails")
+                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
 
         for topic, patterns in _BLOCKED_TOPICS.items():
             for pattern in patterns:

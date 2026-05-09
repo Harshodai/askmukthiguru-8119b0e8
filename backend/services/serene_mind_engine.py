@@ -19,6 +19,8 @@ Distress Levels:
 
 import logging
 import re
+import asyncio
+import numpy as np
 from enum import IntEnum
 from dataclasses import dataclass, field
 from typing import Optional
@@ -232,6 +234,119 @@ DISTRESS_RESPONSES = {
 
 
 # ---------------------------------------------------------------------------
+# Semantic Distress Detection
+# ---------------------------------------------------------------------------
+
+_SEMANTIC_DISTRESS_EXAMPLES = {
+    DistressLevel.CRISIS: [
+        "I want to end my life. There is no point in living anymore.",
+        "I can't take this pain anymore. I want to die.",
+        "Nobody would miss me if I was gone. I should just kill myself.",
+    ],
+    DistressLevel.SEVERE: [
+        "I feel completely hopeless. Nothing matters anymore.",
+        "I am worthless. My life has no meaning.",
+        "The pain is unbearable. I can't go on like this.",
+    ],
+    DistressLevel.MODERATE: [
+        "I feel so anxious all the time. I can't breathe.",
+        "I am so stressed and overwhelmed. I can't handle this.",
+        "I feel so lonely and disconnected from everyone.",
+        "I can't sleep. My mind won't stop racing with worries.",
+    ],
+    DistressLevel.MILD: [
+        "I feel stuck. I don't know what to do with my life.",
+        "I am so tired all the time. I have no energy.",
+        "I feel restless and uneasy. Something feels off.",
+    ],
+}
+
+
+class SemanticDistressDetector:
+    """
+    Embedding-based semantic distress detection.
+    
+    Compares user message against pre-computed distress example embeddings.
+    Captures nuance that keyword matching misses.
+    """
+    
+    def __init__(self, embedding_service, threshold: float = 0.72):
+        self._embedder = embedding_service
+        self._threshold = threshold
+        self._distress_embeddings = {}  # level -> list of embeddings
+        self._initialized = False
+    
+    async def initialize(self):
+        """Pre-compute distress example embeddings."""
+        if self._initialized or not self._embedder:
+            return
+            
+        try:
+            for level, examples in _SEMANTIC_DISTRESS_EXAMPLES.items():
+                # Use encode_batch if available, else encode individually
+                if hasattr(self._embedder, 'encode_batch'):
+                    embeddings = await asyncio.to_thread(
+                        self._embedder.encode_batch, examples
+                    )
+                    self._distress_embeddings[level] = embeddings['dense']
+                else:
+                    level_embs = []
+                    for ex in examples:
+                        emb = await asyncio.to_thread(
+                            self._embedder.encode_single_full, ex
+                        )
+                        level_embs.append(emb['dense'])
+                    self._distress_embeddings[level] = level_embs
+            
+            self._initialized = True
+            logger.info("Semantic distress detector initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize SemanticDistressDetector: {e}")
+    
+    async def detect(self, message: str) -> Optional[DistressLevel]:
+        """
+        Detect distress via semantic similarity to known distress patterns.
+        """
+        if not self._initialized:
+            await self.initialize()
+            
+        if not self._distress_embeddings:
+            return None
+        
+        try:
+            # Encode user message
+            msg_embedding = await asyncio.to_thread(
+                self._embedder.encode_single_full, message
+            )
+            msg_vec = np.array(msg_embedding['dense'])
+            
+            # Compare against each level's examples
+            max_sim = 0.0
+            detected_level = None
+            
+            for level in sorted(self._distress_embeddings.keys(), reverse=True):
+                level_embs = self._distress_embeddings[level]
+                similarities = []
+                for emb in level_embs:
+                    emb_vec = np.array(emb)
+                    sim = np.dot(msg_vec, emb_vec) / (np.linalg.norm(msg_vec) * np.linalg.norm(emb_vec))
+                    similarities.append(sim)
+                
+                best_sim = max(similarities) if similarities else 0.0
+                if best_sim > self._threshold and best_sim > max_sim:
+                    max_sim = best_sim
+                    detected_level = level
+            
+            if detected_level:
+                logger.info(f"Semantic distress detected: level={detected_level.name}, sim={max_sim:.3f}")
+            
+            return detected_level
+        except Exception as e:
+            logger.warning(f"Semantic distress detection failed: {e}")
+            return None
+
+
+# ---------------------------------------------------------------------------
 # Serene Mind Engine
 # ---------------------------------------------------------------------------
 
@@ -255,6 +370,9 @@ class SereneMindEngine:
                               If provided, enables semantic similarity-based detection.
         """
         self._embedder = embedding_service
+        self._semantic_detector = None
+        if embedding_service:
+            self._semantic_detector = SemanticDistressDetector(embedding_service)
         logger.info("Serene Mind Engine initialized")
 
     def assess_distress(
@@ -338,37 +456,57 @@ class SereneMindEngine:
 
         return assessment
 
-    async def aassess_distress(
+    async def async_assess_distress(
         self,
         message: str,
         conversation_history: Optional[list[dict]] = None,
     ) -> DistressAssessment:
         """
-        Async evaluation of distress level.
-        Stage 1: Fast keyword/pattern detection (sync).
-        Stage 2: LLM fallback intent classification if no severe distress found.
+        Three-stage distress assessment:
+        1. Fast keyword detection (sync)
+        2. LLM semantic classification (async)
+        3. Embedding-based semantic similarity (async)
+        
+        Returns the HIGHEST distress level found across all stages.
         """
+        # Stage 1: Fast keyword (always run)
         assessment = self.assess_distress(message, conversation_history)
         
-        # If Stage 1 found MODERATE or higher distress, return immediately
-        if assessment.level >= DistressLevel.MODERATE:
-            return assessment
-            
-        # Stage 2: LLM Fallback Check
-        try:
-            from app.dependencies import get_container
-            container = get_container()
-            if container.ollama:
-                intent = await container.ollama.classify_intent(message[:512])
-                if intent.strip().upper() == "DISTRESS":
-                    assessment.level = DistressLevel.MODERATE
-                    assessment.confidence = 0.6
-                    assessment.detected_signals.append("[LLM Fallback] Detected distress")
-                    assessment.recommended_response_type = "meditation"
-                    logger.info("Serene Mind: Stage 2 LLM Fallback detected distress")
-        except Exception as e:
-            logger.warning(f"Serene Mind LLM fallback failed: {e}")
-            
+        # Stage 2: LLM fallback (if Stage 1 didn't find MODERATE+)
+        if assessment.level < DistressLevel.MODERATE:
+            try:
+                from app.dependencies import get_container
+                container = get_container()
+                if container.ollama:
+                    intent = await container.ollama.classify_intent(message[:512])
+                    if intent.strip().upper() == "DISTRESS":
+                        assessment.level = DistressLevel.MODERATE
+                        assessment.confidence = 0.55
+                        assessment.detected_signals.append("[LLM Stage 2] Semantic distress")
+            except Exception as e:
+                logger.warning(f"Stage 2 LLM distress detection failed: {e}")
+        
+        # Stage 3: Embedding-based semantic detection (if available)
+        if self._semantic_detector and assessment.level < DistressLevel.CRISIS:
+            try:
+                semantic_level = await self._semantic_detector.detect(message)
+                if semantic_level and semantic_level > assessment.level:
+                    assessment.level = semantic_level
+                    assessment.confidence = 0.65
+                    assessment.detected_signals.append(f"[Semantic Stage 3] {semantic_level.name}")
+            except Exception as e:
+                logger.warning(f"Stage 3 semantic distress detection failed: {e}")
+        
+        # Update response type based on final level
+        response_type_map = {
+            DistressLevel.NONE: "normal",
+            DistressLevel.MILD: "gentle",
+            DistressLevel.MODERATE: "meditation",
+            DistressLevel.SEVERE: "meditation",
+            DistressLevel.CRISIS: "crisis",
+        }
+        assessment.recommended_response_type = response_type_map.get(assessment.level, "normal")
+        
         return assessment
 
     def get_response(self, assessment: DistressAssessment) -> str:

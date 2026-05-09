@@ -16,6 +16,10 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - [x] `/reset-password`, `/privacy`, `/terms`
 - [x] Forgot-password link on AuthPage
 - [x] Copy button on guru responses
+- [x] Three-stage distress detection (Keyword, LLM, Semantic)
+- [x] Compassionate distress routing (RAG-integrated)
+- [x] Qdrant retry-with-backoff resilience
+- [x] Spiritual guardrail false-positive protection
 
 ## P1 — Trust (1 sprint)
 

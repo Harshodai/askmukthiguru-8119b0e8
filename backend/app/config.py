@@ -144,6 +144,14 @@ class Settings(BaseSettings):
     semantic_cache_similarity: float = 0.92             # Cosine similarity threshold for cache hit
     semantic_cache_ttl: int = 3600                      # Cache TTL in seconds (1 hour)
 
+    # --- User Profiles & Persistence ---
+    user_profile_enabled: bool = True                    # Enable user profiles and persistent memory
+    krutrim_api_key: str = ""                            # Fallback Indian LLM provider
+
+    # --- A/B Testing ---
+    ab_testing_enabled: bool = False                    # Randomly switch between primary LLM and Krutrim
+    ab_testing_ratio: float = 0.1                       # 10% traffic to Krutrim
+
     # --- Observability ---
     enable_correlation_ids: bool = True                  # Add UUID correlation IDs to all logs/traces
 

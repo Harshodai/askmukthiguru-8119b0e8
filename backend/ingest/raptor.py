@@ -94,7 +94,11 @@ class RaptorIndexer:
         summaries = await self._summarize_clusters(chunks, clusters)
 
         # Step 5: Index summaries as level-1 nodes (with sparse vectors for hybrid search)
-        summary_texts = [s["text"] for s in summaries]
+        summary_texts = []
+        for s in summaries:
+            header = f"[RAPTOR Level: 1 | Topic: {s['topic_label'] or 'General'}]\n"
+            summary_texts.append(header + s["text"])
+            
         summary_embeddings = self._embedder.encode_batch(summary_texts)
         summary_metas = [
             {
@@ -104,6 +108,7 @@ class RaptorIndexer:
                 "source_chunks": s["source_count"],
                 "source_urls": s.get("source_urls", []),
                 "titles": s.get("titles", []),
+                "topic": s.get("topic_label", "General"),
                 "source_url": s.get("source_urls", [""])[0],  # Primary source for dedup ID
                 "chunk_index": s["cluster_id"],  # Use cluster_id as chunk_index for dedup
             }

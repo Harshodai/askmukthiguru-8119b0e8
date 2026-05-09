@@ -35,6 +35,8 @@ from rag.prompts import (
     GENERATE_WITH_HINTS_PROMPT,
     FALLBACK_RESPONSE,
     MULTI_TURN_PROMPT,
+    STIMULUS_RAG_PROMPT,
+    DISTRESS_PROMPT,
 )
 from rag.meditation import (
     get_distress_response,
@@ -748,22 +750,56 @@ async def generate_answer(state: GraphState) -> dict:
             f"QUESTION: {question}"
         )
     else:
-        # Fallback to legacy generation prompt
+        # Legacy generation prompt with memory and language injection
+        memory = state.get("memory_context", "")
+        lang = state.get("detected_language", "en")
+        
+        # Get language-specific suffix
+        from services.language_router import LanguageRouter, LanguageCode
+        router = LanguageRouter()
+        lang_suffix = router.get_system_prompt_suffix(LanguageCode(lang))
+        
         prompt = GENERATE_WITH_HINTS_PROMPT.format(
-            context=context,
+            context=f"{memory}\n\n{context}",
             question=question,
-        )
+        ) + lang_suffix
 
     if history_str:
         prompt = f"{history_str}\n\n{prompt}"
 
-    answer = await _ollama.generate(
-        system_prompt="",  # System prompt is now embedded in the persona layer
-        user_prompt=prompt,
-    )
+    # A/B Testing: Choose model
+    ab_model = state.get("ab_model", "primary")
+    
+    if ab_model == "krutrim":
+        try:
+            from app.dependencies import get_container
+            container = get_container()
+            if container.krutrim:
+                logger.info("A/B Testing: Using Krutrim Pro for generation")
+                answer = await container.krutrim.generate(
+                    system_prompt="", # Persona already in prompt
+                    user_prompt=prompt,
+                )
+            else:
+                # Fallback to primary if krutrim not available
+                answer = await _ollama.generate(
+                    system_prompt="",
+                    user_prompt=prompt,
+                )
+        except Exception as e:
+            logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
+            answer = await _ollama.generate(
+                system_prompt="",
+                user_prompt=prompt,
+            )
+    else:
+        answer = await _ollama.generate(
+            system_prompt="",  # System prompt is now embedded in the persona layer
+            user_prompt=prompt,
+        )
 
-    logger.info(f"Generated answer ({len(answer)} chars, {len(citations)} citations)")
-    return {"answer": answer, "citations": citations}
+    logger.info(f"Generated answer ({len(answer)} chars, {len(citations)} citations, model={ab_model})")
+    return {"answer": answer, "citations": citations, "citation_reasoning": {}}
 
 
 # ===================================================================
@@ -932,23 +968,71 @@ async def handle_casual(state: GraphState) -> dict:
 
 
 async def handle_distress(state: GraphState) -> dict:
-    """Handle distress detection — offer graduated meditation response using Serene Mind Engine."""
+    """
+    Handle distress with COMPASSIONATE TEACHINGS + meditation offer.
+    
+    Instead of a static response, we:
+    1. Retrieve the most relevant teachings for their emotional state
+    2. Generate a personalized compassionate response grounded in teachings
+    3. Offer Serene Mind meditation
+    """
     question = state["question"]
-
-    # Use Serene Mind Engine for graduated response if available
+    
+    # Get Serene Mind assessment
     if _serene_mind is not None:
-        assessment = _serene_mind.assess_distress(question)
-        if assessment.level.value > 0:
-            response = _serene_mind.get_response(assessment)
-            logger.info(
-                f"Distress handler: level={assessment.level.name}, "
-                f"confidence={assessment.confidence:.2f}"
-            )
-            return {"final_answer": response, "meditation_step": 1}
+        assessment = await _serene_mind.async_assess_distress(question)
+    else:
+        assessment = DistressAssessment(level=DistressLevel.MODERATE, confidence=0.5)
+    
+    # Retrieve relevant teachings for their emotional state
+    relevant_docs = state.get("relevant_docs", [])
+    
+    if relevant_docs:
+        # Build compassionate teaching response
+        context = "\n\n---\n\n".join(
+            f"[Source: {doc.get('title', 'Unknown')}]\n{doc['text']}"
+            for doc in relevant_docs[:3]
+        )
+        
+        # Use STIMULUS_RAG_PROMPT for emotionally-aware generation
+        prompt = f"""The user is in emotional distress. Their message: {question}
 
-    # Fallback to static response
-    response = get_distress_response()
-    return {"final_answer": response, "meditation_step": 1}
+Retrieved teachings from Sri Preethaji and Sri Krishnaji:
+{context}
+
+Based on the above teachings, compose a deeply compassionate response that:
+1. Acknowledges their pain with genuine empathy
+2. Shares the MOST relevant teaching that speaks directly to their situation
+3. Uses Sri Preethaji or Sri Krishnaji's words naturally, as if the guru is speaking directly
+4. Offers to guide them through a Serene Mind meditation
+5. Keeps the tone warm, personal, and non-clinical"""
+        
+        try:
+            response = await _ollama.generate(
+                system_prompt=STIMULUS_RAG_PROMPT,
+                user_prompt=prompt,
+                temperature=0.3,  # Slightly warmer for compassion
+            )
+        except Exception as e:
+            logger.error(f"Distress generation failed: {e}")
+            response = _serene_mind.get_response(assessment) if _serene_mind else get_distress_response()
+    else:
+        # Fallback to static graduated response
+        response = _serene_mind.get_response(assessment) if _serene_mind else get_distress_response()
+    
+    # For SEVERE/CRISIS: prepend helpline info
+    if assessment.level >= DistressLevel.SEVERE:
+        crisis_info = (
+            "\n\n🆘 **Crisis Support (available 24/7):**\n"
+            "• iCall (India): 9152987821\n"
+            "• AASRA (India): 9820466726 | aasra.info\n"
+            "• Vandrevala Foundation: 1860-2662-345\n"
+            "• International: Crisis Text Line — text HOME to 741741"
+        )
+        response = crisis_info + "\n\n" + response
+    
+    logger.info(f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}")
+    return {"final_answer": response, "meditation_step": 1 if assessment.level >= DistressLevel.MODERATE else 0}
 
 
 async def handle_meditation(state: GraphState) -> dict:
@@ -993,8 +1077,11 @@ def route_after_grading(state: GraphState) -> str:
     """
     relevant = state.get("relevant_docs", [])
     rewrite_count = state.get("rewrite_count", 0)
+    intent = state.get("intent", "FACTUAL")
 
     if relevant:
+        if intent == "DISTRESS":
+            return "distress"
         return "relevant"
     elif rewrite_count < settings.rag_max_rewrites:
         return "rewrite"

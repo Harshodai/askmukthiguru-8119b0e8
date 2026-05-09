@@ -161,6 +161,7 @@ def build_rag_graph(
         route_after_grading,
         {
             "relevant": "enrich_context",
+            "distress": "handle_distress",
             "rewrite": "rewrite_query",
             "fallback": "handle_fallback",
         },
@@ -242,4 +243,9 @@ def create_initial_state(
         # Final
         final_answer=None,
         error=None,
+        # User & Language
+        user_id=None,
+        detected_language="en",
+        memory_context="",
+        ab_model="primary",
     )

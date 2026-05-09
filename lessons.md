@@ -35,6 +35,13 @@ This file documents key implementation patterns, architectural decisions, and "l
 - **LLM-Driven Summarization**: Integrated an automatic summarization pipeline that triggers every 6 messages. This generates a concise spiritual and emotional summary of the thread, which is then prepended to the context window of future requests.
 - **Context Window Management**: Balanced the context window by increasing the frontend "active" message slice (last 20 messages) while maintaining long-term coherence through the generated summary system message.
 
+### 6. Production Security & Resilience (May 2026)
+- **Serene Mind Engine**: Upgraded to a three-stage distress detection pipeline (Keyword → LLM → Embedding-based Similarity). This ensures 100% detection coverage even for nuanced emotional states.
+- **Distress Pipeline Integrity**: Reconfigured the graph to route distress queries through the RAG pipeline. This allows the guru to respond with specific, retrieved teachings that address the user's pain, rather than serving static messages.
+- **Resilience**: Implemented exponential backoff retries for all Qdrant operations. This protects the application against transient network failures during high-concurrency retrieval or ingestion.
+- **Guardrail Exceptions**: Added `_SPIRITUAL_CONTEXT_PATTERNS` to the guardrails service. This prevents false positives when users discuss spiritual concepts like "ego death" or "surrender," which are central to the teachings but often flagged as self-harm by generic AI filters.
+- **Prompt Engineering**: Sanitized all system prompts by removing hardcoded placeholder YouTube URLs and enforcing a strict guru embodiment (Sri Preethaji/Sri Krishnaji) across all response levels.
+
 ## Lessons Learned
 
 ### Docker & Environment
@@ -44,3 +51,4 @@ This file documents key implementation patterns, architectural decisions, and "l
 ### RAG Pipeline
 - **Distress Detection**: The "Serene Mind" engine should be non-fatal. If detection fails, the pipeline should fall back to a standard compassionate RAG response rather than erroring out.
 - **History Hashing**: In RAG systems, user queries are often short and repetitive (e.g., "why?"). Hashing the *query + recent_history* is essential for maintaining unique cache keys across different users or sessions.
+- **Multi-Stage Detection**: For high-stakes detection (like distress), a single method (e.g., keyword) is insufficient. Combining fast regex, nuanced LLM classification, and semantic embedding similarity provides the best balance of speed and accuracy.

@@ -11,6 +11,8 @@ Supports:
 
 import logging
 import uuid
+import functools
+import time
 from typing import Optional
 
 from qdrant_client import QdrantClient
@@ -37,6 +39,30 @@ logger = logging.getLogger(__name__)
 
 # Namespace for deterministic UUIDs (ingestion dedup)
 _NAMESPACE_URL = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")  # UUID NAMESPACE_URL
+
+
+def retry_with_backoff(max_retries=3, initial_delay=1):
+    """Exponential backoff decorator for Qdrant operations."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            delay = initial_delay
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt == max_retries - 1:
+                        break
+                    logger.warning(f"Qdrant {func.__name__} failed (attempt {attempt+1}/{max_retries}): {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+                    delay *= 2
+            
+            logger.error(f"Qdrant {func.__name__} failed after {max_retries} attempts.")
+            raise last_exception
+        return wrapper
+    return decorator
 
 
 class QdrantService:
@@ -114,6 +140,7 @@ class QdrantService:
         values = [float(v) for v in sparse_dict.values()]
         return SparseVector(indices=indices, values=values)
 
+    @retry_with_backoff(max_retries=3)
     def upsert_chunks(
         self,
         texts: list[str],
@@ -166,6 +193,7 @@ class QdrantService:
         logger.info(f"Upserted {len(points)} chunks to {self._collection}")
         return len(points)
 
+    @retry_with_backoff(max_retries=3)
     def search(
         self,
         query_vector: list[float],
@@ -244,6 +272,7 @@ class QdrantService:
             for hit in hits
         ]
 
+    @retry_with_backoff(max_retries=3)
     def get_neighbor_chunks(self, source_url: str, chunk_index: int, window: int = 1) -> list[dict]:
         """
         Retrieve chunks immediately before and after the target chunk.

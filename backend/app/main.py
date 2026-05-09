@@ -381,6 +381,31 @@ async def chat_endpoint(
             citations=cached.get("citations", []),
         )
 
+    user_id = user.get("id", "anonymous")
+    
+    # === NEW: Language Detection ===
+    lang_detection = container.language_router.detect(user_msg)
+    
+    # === NEW: User Profile & Memory ===
+    memory_context = ""
+    distress_history = []
+    if container.user_profile:
+        profile = await container.user_profile.get_or_create_profile(user_id)
+        profile.total_conversations += 1
+        await container.user_profile.update_profile(profile)
+        
+        recent_memories = await container.user_profile.get_recent_memories(user_id, limit=2)
+        if recent_memories:
+            memory_context = "\n\nPrevious conversations with this seeker:\n"
+            for mem in recent_memories:
+                if mem.key_insights:
+                    memory_context += f"- Topics explored: {', '.join(mem.key_insights[:3])}\n"
+                if mem.emotional_arc:
+                    recent_emotion = mem.emotional_arc[-1]
+                    memory_context += f"- Recent emotional state: {recent_emotion.get('topic', 'unknown')}\n"
+                    if recent_emotion.get("distress_level", 0) >= 2:
+                        distress_history.append(recent_emotion)
+
     # === Layer 1: NeMo Input Rail ===
     with REQUEST_LATENCY.labels(stage="guardrails").time():
         input_check = await container.guardrails.check_input(user_msg)
@@ -400,7 +425,11 @@ async def chat_endpoint(
     # provide a compassionate teaching-based response first.
     try:
         if container.serene_mind:
-            assessment = await container.serene_mind.aassess_distress(user_msg)
+            assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
+            assessment = await container.serene_mind.async_assess_distress(
+                user_msg,
+                conversation_history=chat_body.messages + assessment_history
+            )
             if assessment.level.value >= 2:
                 logger.info(f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response.")
     except Exception as e:
@@ -415,6 +444,18 @@ async def chat_endpoint(
                 chat_history=[m.model_dump() for m in chat_body.messages],
                 meditation_step=chat_body.meditation_step,
             )
+            # Inject language and user context into state
+            initial_state["detected_language"] = lang_detection.primary.value
+            initial_state["user_id"] = user_id
+            initial_state["memory_context"] = memory_context
+            
+            # A/B Testing Logic
+            import random
+            if settings.ab_testing_enabled and random.random() < settings.ab_testing_ratio:
+                initial_state["ab_model"] = "krutrim"
+            else:
+                initial_state["ab_model"] = "primary"
+                
             return await container.rag_graph.ainvoke(initial_state)
 
         result = await coalescer.get_or_run(
@@ -427,6 +468,20 @@ async def chat_endpoint(
         med_step = result.get("meditation_step", 0)
         citations = result.get("citations", [])
         REQUEST_COUNT.labels(status="success").inc()
+
+        # NEW: Save conversation memory
+        if container.user_profile:
+            from services.user_profile_service import ConversationMemory
+            memory = ConversationMemory(
+                session_id=chat_body.session_id or str(uuid.uuid4()),
+                user_id=user_id,
+                started_at=time.time(),
+                messages=[{"role": "user", "content": user_msg}, {"role": "assistant", "content": final_answer}],
+                key_insights=[c if isinstance(c, str) else c.get("title", "") for c in citations],
+                emotional_arc=[{"timestamp": time.time(), "distress_level": assessment.level.value if 'assessment' in locals() else 0, "topic": intent}],
+                follow_up_suggestions=[],
+            )
+            background_tasks.add_task(container.user_profile.save_conversation_memory, memory)
 
         # Populate cache for QUERY and CASUAL intents (Semantic Caching for fast routing)
         if intent in ["QUERY", "CASUAL"]:
@@ -577,6 +632,31 @@ async def chat_stream_endpoint(
                 yield f"event: done\ndata: {meta}\n\n"
                 return
 
+            user_id = user.get("id", "anonymous")
+            
+            # === NEW: Language Detection ===
+            lang_detection = container.language_router.detect(user_msg)
+            
+            # === NEW: User Profile & Memory ===
+            memory_context = ""
+            distress_history = []
+            if container.user_profile:
+                profile = await container.user_profile.get_or_create_profile(user_id)
+                profile.total_conversations += 1
+                await container.user_profile.update_profile(profile)
+                
+                recent_memories = await container.user_profile.get_recent_memories(user_id, limit=2)
+                if recent_memories:
+                    memory_context = "\n\nPrevious conversations with this seeker:\n"
+                    for mem in recent_memories:
+                        if mem.key_insights:
+                            memory_context += f"- Topics explored: {', '.join(mem.key_insights[:3])}\n"
+                        if mem.emotional_arc:
+                            recent_emotion = mem.emotional_arc[-1]
+                            memory_context += f"- Recent emotional state: {recent_emotion.get('topic', 'unknown')}\n"
+                            if recent_emotion.get("distress_level", 0) >= 2:
+                                distress_history.append(recent_emotion)
+
             # === Layer 1: Input rail ===
             yield f"event: status\ndata: Checking message safety...\n\n"
             input_check = await container.guardrails.check_input(user_msg)
@@ -590,7 +670,7 @@ async def chat_stream_endpoint(
             # === Depression check (non-fatal if detection fails) ===
             try:
                 if container.serene_mind:
-                    assessment = await container.serene_mind.aassess_distress(user_msg)
+                    assessment = await container.serene_mind.async_assess_distress(user_msg)
                     if assessment.level.value >= 2:
                         logger.info(f"Stream: Distress detected ({assessment.level.name}), passing to RAG pipeline.")
             except Exception as e:
@@ -603,6 +683,10 @@ async def chat_stream_endpoint(
                 chat_history=[m.model_dump() for m in chat_body.messages],
                 meditation_step=chat_body.meditation_step,
             )
+            # Inject language and user context into state
+            initial_state["detected_language"] = lang_detection.primary.value
+            initial_state["user_id"] = user_id
+            initial_state["memory_context"] = memory_context
 
             yield f"event: status\ndata: Searching knowledge base...\n\n"
             result = await container.rag_graph.ainvoke(initial_state)
@@ -636,6 +720,20 @@ async def chat_stream_endpoint(
                 "meditation_step": med_step,
             })
             yield f"event: done\ndata: {meta}\n\n"
+
+            # NEW: Save conversation memory
+            if container.user_profile:
+                from services.user_profile_service import ConversationMemory
+                memory = ConversationMemory(
+                    session_id=chat_body.session_id or str(uuid.uuid4()),
+                    user_id=user_id,
+                    started_at=time.time(),
+                    messages=[{"role": "user", "content": user_msg}, {"role": "assistant", "content": final_answer}],
+                    key_insights=[c if isinstance(c, str) else c.get("title", "") for c in citations],
+                    emotional_arc=[{"timestamp": time.time(), "distress_level": assessment.level.value if 'assessment' in locals() else 0, "topic": intent}],
+                    follow_up_suggestions=[],
+                )
+                background_tasks.add_task(container.user_profile.save_conversation_memory, memory)
 
         except Exception as e:
             logger.error(f"SSE streaming error: {e}", exc_info=True)
