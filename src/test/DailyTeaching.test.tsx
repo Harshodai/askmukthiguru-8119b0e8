@@ -11,8 +11,8 @@ const mockSelect = vi.fn(() => ({ order: mockOrder }));
 // Realtime channel mock — chainable .on().subscribe()
 const mockSubscribe = vi.fn(() => ({ unsubscribe: vi.fn() }));
 const mockOn = vi.fn(() => ({ subscribe: mockSubscribe }));
-const mockChannel = vi.fn(() => ({ on: mockOn }));
-const mockRemoveChannel = vi.fn();
+const mockChannel = vi.fn((_name: string) => ({ on: mockOn }));
+const mockRemoveChannel = vi.fn((_ch: unknown) => undefined);
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
