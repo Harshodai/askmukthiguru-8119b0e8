@@ -51,6 +51,7 @@ from rag.nodes import (
     route_by_intent,
     route_after_grading,
 )
+from rag.resolve_followup import resolve_followup
 from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
@@ -100,6 +101,7 @@ def build_rag_graph(
 
     # === Add all nodes ===
     graph.add_node("intent_router", intent_router)
+    graph.add_node("resolve_followup", resolve_followup)
     graph.add_node("decompose_query", decompose_query)
     graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
     graph.add_node("retrieve_documents", retrieve_documents)
@@ -130,12 +132,15 @@ def build_rag_graph(
         "intent_router",
         route_by_intent,
         {
-            "distress": "decompose_query",
+            "distress": "handle_distress",
             "meditation": "handle_meditation",
             "casual": "handle_casual",
-            "query": "decompose_query",
+            "query": "resolve_followup",
         },
     )
+
+    # Follow-up resolution feeds into decomposition
+    graph.add_edge("resolve_followup", "decompose_query")
 
     # === Linear edges for the RAG pipeline ===
     # PageIndex-inspired: navigate tree & HyDE in parallel → retrieve (scoped) → rerank → grade → sufficiency

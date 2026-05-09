@@ -122,7 +122,7 @@ export default function OverviewPage() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate">{truncate(q.query_text, 70)}</div>
                     <div className="text-xs text-muted-foreground">
-                      {fmtDateTime(q.created_at)} · {q.model.split("/").pop()}
+                      {fmtDateTime(q.created_at)} · {q.model?.split("/").pop() || "unknown"}
                     </div>
                   </div>
                   <div className="text-xs tabular-nums text-muted-foreground">
@@ -139,13 +139,15 @@ export default function OverviewPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Top retrieved sources</CardTitle></CardHeader>
             <CardContent className="space-y-1.5">
-              {retr?.sources.slice(0, 10).map((s) => (
+              {retr?.sources ? retr.sources.slice(0, 10).map((s: any) => (
                 <div key={s.source} className="flex items-center justify-between text-sm border-b border-border/40 pb-1.5 last:border-0">
                   <span className="font-mono text-xs truncate flex-1">{s.source}</span>
                   <span className="tabular-nums text-xs text-muted-foreground w-20 text-right">{fmtInt(s.count)}</span>
                   <span className="tabular-nums text-xs w-20 text-right">{fmtPct(s.avgFaith)}</span>
                 </div>
-              ))}
+              )) : (
+                <div className="text-xs text-muted-foreground py-4 text-center">No source data available</div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

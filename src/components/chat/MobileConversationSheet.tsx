@@ -183,7 +183,7 @@ export const MobileConversationSheet = ({
                               </div>
                               <button
                                 onClick={(e) => handleDeleteConversation(conv.id, e)}
-                                className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
+                                className="p-1.5 rounded-full opacity-60 hover:opacity-100 active:opacity-100 hover:bg-destructive/20 transition-all"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-destructive" />
                               </button>

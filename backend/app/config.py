@@ -118,8 +118,11 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"
-    jwt_secret: Optional[str] = None  # MUST be overridden in production via .env
-
+    # --- Auth & Rate Limiting ---
+    jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
+    disable_public_registration: bool = False
+    chat_rate_limit: str = "20/minute"
+    registration_rate_limit: str = "5/minute"
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8

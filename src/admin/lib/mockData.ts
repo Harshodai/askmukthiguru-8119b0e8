@@ -73,12 +73,12 @@ export async function getQueryTrace(queryId: string): Promise<QueryTrace | null>
   ]);
 
   if (!query) return null;
-
+  
   return {
     query: query as ChatQuery,
-    prompt: null as any,
-    retrieval: retrieval as any,
-    response: response as any,
+    prompt: null,
+    retrieval: retrieval as any || null,
+    response: response as any || null,
     spans: (spans || []) as any,
     triggers: (triggers || []) as any,
     feedback: null,
@@ -298,8 +298,8 @@ export async function listAdmins(): Promise<AdminUser[]> {
   })) as AdminUser[];
 }
 
-export async function getRetrievalHealth(range?: { from?: Date; to?: Date }): Promise<any> { return null; }
-export async function getQualityData(range?: { from?: Date; to?: Date }): Promise<any> { return null; }
+export async function getRetrievalHealth(range?: { from?: Date; to?: Date }): Promise<any> { return { sources: [] }; }
+export async function getQualityData(range?: { from?: Date; to?: Date }): Promise<any> { return { metrics: [] }; }
 export async function upsertAlertRule(rule: Partial<AlertRule>): Promise<void> {}
 export async function upsertGoldenQuestion(q: Partial<GoldenQuestion>): Promise<void> {}
 export async function deleteGoldenQuestion(id: string): Promise<void> {}

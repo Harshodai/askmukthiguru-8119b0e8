@@ -37,25 +37,24 @@ from app.telemetry_db import init_telemetry_db, log_query_trace
 from rag.graph import create_initial_state
 import time
 import uuid
+import hashlib
 import contextvars
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
+from services.auth_service import current_active_user, get_current_user_from_supabase
+from typing import Dict
 
 # Correlation ID context variable — accessible from anywhere in the async call chain
 correlation_id_var = contextvars.ContextVar('correlation_id', default='-')
 from services.cache_service import RedisCacheAdapter, InMemoryCacheAdapter, init_llm_cache
 
-# Rate limiting and Auth
-from fastapi import Request
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from app.core.limiter import limiter
 from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 from app.api.endpoints.auth import router as auth_router
-from services.auth_service import current_active_user
-from models.user import User as AuthUser
-from fastapi import Depends
+from routers.admin import admin_router
+from routers.feedback import router as feedback_router
 from app.core.database import init_db
-
-limiter = Limiter(key_func=get_remote_address)
+from models.user import User as AuthUser
 
 logger = logging.getLogger(__name__)
 
@@ -232,9 +231,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-from routers.admin import admin_router
-from routers.feedback import router as feedback_router
 app.include_router(auth_router, prefix="/api/auth")
+# (Other routers moved down to avoid circular deps if any, or just kept here)
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
 
@@ -353,11 +351,12 @@ class HealthResponse(BaseModel):
 # === Route Handlers ===
 
 @app.post("/api/chat", response_model=ChatResponse)
-@limiter.limit("20/minute")
+@limiter.limit(settings.chat_rate_limit)
 async def chat_endpoint(
     request: Request,
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
+    user: Dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container)
 ) -> ChatResponse:
     """
@@ -418,7 +417,10 @@ async def chat_endpoint(
             )
             return await container.rag_graph.ainvoke(initial_state)
 
-        result = await coalescer.get_or_run(user_msg, run_pipeline)
+        result = await coalescer.get_or_run(
+            f"{user_msg}:{hashlib.md5(str([m.model_dump() for m in chat_body.messages[-4:]]).encode()).hexdigest()[:8]}",
+            run_pipeline,
+        )
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
         intent = result.get("intent", "CASUAL")
@@ -533,10 +535,11 @@ async def chat_endpoint(
 
 
 @app.post("/api/chat/stream")
-@limiter.limit("20/minute")
+@limiter.limit(settings.chat_rate_limit)
 async def chat_stream_endpoint(
     request: Request,
     chat_body: ChatRequest,
+    user: Dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container)
 ):
     """
@@ -725,8 +728,8 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     return HealthResponse(
         status="healthy" if all_healthy else "degraded",
-        services={k: v for k, v in health.items() if k != "qdrant_count"},
-        total_chunks=health.get("qdrant_count", 0),
+        services={k: (v if isinstance(v, bool) else True) for k, v in health.items() if k not in ["qdrant_count", "guardrails_provider"]},
+        total_chunks=0 if not all_healthy else -1, # Redact exact count
     )
 
 
@@ -758,7 +761,7 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
         "ready": True,
         "qdrant": True,
         "llm": True,
-        "total_chunks": health.get("qdrant_count", 0),
+        "total_chunks": -1, # Redacted
     }
 
 

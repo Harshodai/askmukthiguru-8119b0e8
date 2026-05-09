@@ -83,12 +83,12 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
           <div className="flex flex-col min-w-0">
             <button className="flex items-center gap-1.5 group">
               <h1 className="font-semibold text-foreground text-base truncate leading-tight">
-                Mukthi Guru
+                Sri Preethaji & Sri Krishnaji
               </h1>
               <PanelLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors rotate-270" />
             </button>
             <p className="text-[10px] text-muted-foreground/60 leading-tight hidden sm:block">
-              Spiritual Guide
+              Your Spiritual Guide
             </p>
           </div>
         </div>

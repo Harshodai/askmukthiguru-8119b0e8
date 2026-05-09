@@ -57,7 +57,8 @@ export default function QueriesPage() {
     limit: 200,
   });
 
-  const promptLabel = (id: string) => {
+  const promptLabel = (id: string | null | undefined) => {
+    if (!id) return "v0 (default)";
     const p = prompts?.find((p) => p.id === id);
     return p ? `${p.name} v${p.version}` : id.slice(0, 8);
   };
@@ -189,7 +190,7 @@ export default function QueriesPage() {
                       {fmtDateTime(q.created_at)}
                     </TableCell>
                     <TableCell>{truncate(q.query_text, 60)}</TableCell>
-                    <TableCell className="text-xs font-mono">{q.model.split("/").pop()}</TableCell>
+                    <TableCell className="text-xs font-mono">{q.model?.split("/").pop() || "unknown"}</TableCell>
                     <TableCell className="text-xs">{promptLabel(q.prompt_version_id)}</TableCell>
                     <TableCell className="text-right tabular-nums text-xs">
                       {fmtMs(q.latency_ms)}

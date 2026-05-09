@@ -50,6 +50,7 @@ from services.serene_mind_engine import SereneMindEngine, DistressLevel
 from rag.compression import ContextualCompressor
 from rag.compressor import compress_documents
 from rag.tree_navigator import navigate_tree, check_sufficiency
+from rag.resolve_followup import resolve_followup, set_ollama as set_followup_ollama
 from app.config import settings
 from app.metrics import (
     PIPELINE_STAGE_LATENCY,
@@ -104,6 +105,8 @@ def init_services(
     _lightrag = lightrag
     _serene_mind = serene_mind
     _compressor = ContextualCompressor(embedder, threshold=0.45)
+    # Inject ollama into follow-up resolver
+    set_followup_ollama(ollama)
 
 
 import time
@@ -894,11 +897,23 @@ async def format_final_answer(state: GraphState) -> dict:
 
 
 async def handle_casual(state: GraphState) -> dict:
-    """Handle casual conversation (greetings, thanks, etc.)."""
+    """Handle casual conversation with multi-turn awareness."""
+    chat_history = state.get("chat_history", [])
+    
+    # Build conversation context for the casual handler
+    history_ctx = ""
+    if chat_history:
+        recent = chat_history[-4:]
+        history_lines = [
+            f"{m.get('role', 'user').capitalize()}: {m.get('content', '')[:150]}"
+            for m in recent
+        ]
+        history_ctx = f"\n\nRecent conversation:\n" + "\n".join(history_lines)
+    
     try:
         response = await _ollama.generate(
             system_prompt=CASUAL_SYSTEM_PROMPT,
-            user_prompt=state["question"],
+            user_prompt=state["question"] + history_ctx,
         )
         if not response or not response.strip():
             logger.warning("handle_casual: LLM returned empty response, using warm fallback")

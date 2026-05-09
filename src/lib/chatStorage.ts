@@ -53,6 +53,7 @@ const ConversationSchema = z.object({
   preview: z.string(),
   messageCount: z.number(),
   messages: z.array(MessageSchema),
+  summary: z.string().optional(),
 });
 
 export const loadAllFeedback = (): Record<string, MessageFeedback> => {
@@ -86,6 +87,7 @@ export interface Conversation {
   preview: string;
   messageCount: number;
   messages: Message[];
+  summary?: string;
 }
 
 const STORAGE_KEY = 'askmukthiguru_chat_history';
@@ -191,6 +193,33 @@ export const deleteConversation = (id: string): void => {
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(filtered));
   } catch (error) {
     console.error('Failed to delete conversation:', error);
+  }
+};
+
+export const renameConversation = (id: string, newTitle: string): void => {
+  try {
+    const conversations = loadConversations();
+    const index = conversations.findIndex(c => c.id === id);
+    if (index >= 0) {
+      conversations[index].preview = newTitle;
+      conversations[index].updatedAt = new Date();
+      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+    }
+  } catch (error) {
+    console.error('Failed to rename conversation:', error);
+  }
+};
+
+export const updateConversationSummary = (id: string, summary: string): void => {
+  try {
+    const conversations = loadConversations();
+    const index = conversations.findIndex(c => c.id === id);
+    if (index >= 0) {
+      conversations[index].summary = summary;
+      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+    }
+  } catch (error) {
+    console.error('Failed to update conversation summary:', error);
   }
 };
 

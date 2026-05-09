@@ -12,9 +12,10 @@ import {
   getConversationPreview,
   getCurrentConversationId,
   setCurrentConversationId,
+  updateConversationSummary,
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary } from '@/lib/aiService';
 import { hashMessages, getCachedResponse, setCachedResponse } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -340,6 +341,7 @@ export const ChatInterface = () => {
         messageCount: messages.length,
         preview: getConversationPreview(messages),
         updatedAt: new Date(),
+        summary: conv.summary,
       };
       saveConversation(updatedConversation);
       setCurrentConversation(updatedConversation);
@@ -407,13 +409,31 @@ export const ChatInterface = () => {
       return;
     }
 
+    // Summary helper — fire-and-forget after every ~6 user messages
+    const maybeSummarize = () => {
+      const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
+      if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
+        generateSummary(allMsgs).then(summary => {
+          if (summary) {
+            updateConversationSummary(currentConversation.id, summary);
+            setCurrentConversation(prev => prev ? { ...prev, summary } : null);
+          }
+        }).catch(() => { /* non-fatal */ });
+      }
+    };
+
     // Try streaming first
     const streamingGuruId = generateId();
     let streamingWorked = false;
     let fullContent = '';
 
     try {
-      const stream = sendMessageStreaming(messageHistory, userMessage.content, meditationStep);
+      const stream = sendMessageStreaming(
+        messageHistory, 
+        userMessage.content, 
+        meditationStep,
+        currentConversation?.summary
+      );
       
       // Show pipeline thinking pills
       setPipelineSteps([]);
@@ -519,14 +539,22 @@ export const ChatInterface = () => {
       setPipelineSteps([]);
     }
 
-    if (streamingWorked) return;
+    if (streamingWorked) {
+      maybeSummarize();
+      return;
+    }
 
     // Remove the empty streaming bubble if it was added
     setMessages((prev) => prev.filter((m) => m.id !== streamingGuruId || m.content !== ''));
     setIsTyping(true);
 
     try {
-      const response = await sendMessage(messageHistory, userMessage.content, meditationStep);
+      const response = await sendMessage(
+        messageHistory, 
+        userMessage.content, 
+        meditationStep,
+        currentConversation?.summary
+      );
 
       if (response.blocked && response.blockReason) {
         const blockedMessage: Message = {
@@ -578,6 +606,7 @@ export const ChatInterface = () => {
       console.error('Error getting response:', error);
     } finally {
       setIsTyping(false);
+      maybeSummarize();
     }
   };
 

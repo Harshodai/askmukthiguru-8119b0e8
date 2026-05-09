@@ -109,17 +109,18 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               <div>
                 <div className="text-xs text-muted-foreground">Prompt</div>
                 <div className="font-medium">
-                  {trace.prompt.name} <Badge variant="secondary">v{trace.prompt.version}</Badge>
+                  {trace.prompt?.name || "v0 (default)"}{" "}
+                  {trace.prompt?.version && <Badge variant="secondary">v{trace.prompt.version}</Badge>}
                 </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Model</div>
-                <div className="font-mono text-xs">{trace.query.model}</div>
+                <div className="font-mono text-xs">{trace.query.model || "unknown"}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Tokens</div>
                 <div className="tabular-nums">
-                  {trace.query.prompt_tokens} in · {trace.query.completion_tokens} out
+                  {trace.query.prompt_tokens || 0} in · {trace.query.completion_tokens || 0} out
                 </div>
               </div>
               <div>
@@ -162,8 +163,10 @@ export function TraceDrawer({ queryId, onClose }: Props) {
 
             {/* Retrieved chunks */}
             <section>
+            {/* Retrieved chunks */}
+            <section>
               <h3 className="text-sm font-medium mb-2">Retrieved chunks</h3>
-              {trace.retrieval ? (
+              {trace.retrieval?.source_docs ? (
                 <div className="space-y-1.5 text-xs">
                   {trace.retrieval.source_docs.map((src, i) => (
                     <div
@@ -175,7 +178,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
                       </Badge>
                       <span className="font-mono truncate flex-1">{truncate(src, 60)}</span>
                       <span className="tabular-nums text-muted-foreground">
-                        {trace.retrieval!.scores[i]?.toFixed(3)}
+                        {trace.retrieval?.scores?.[i]?.toFixed(3) || "0.000"}
                       </span>
                     </div>
                   ))}
@@ -183,6 +186,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               ) : (
                 <div className="text-xs text-muted-foreground">No retrieval recorded.</div>
               )}
+            </section>
             </section>
 
             <Separator />

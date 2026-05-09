@@ -1,14 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Flame, MessageCircle, Trash2, ChevronRight, PanelLeft } from 'lucide-react';
+import { 
+  Plus, 
+  Flame, 
+  MessageCircle, 
+  Trash2, 
+  PanelLeft, 
+  Search, 
+  Edit2, 
+  Check, 
+  X,
+  MoreVertical
+} from 'lucide-react';
 import { 
   Conversation, 
   loadConversations, 
   deleteConversation,
+  renameConversation,
   formatRelativeTime 
 } from '@/lib/chatStorage';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +61,9 @@ export const DesktopSidebar = ({
 }: DesktopSidebarProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
 
   useEffect(() => {
     setConversations(loadConversations());
@@ -56,7 +77,24 @@ export const DesktopSidebar = ({
     setDeleteTarget(null);
   }, [deleteTarget, onDeleteConversation]);
 
-  const groupedConversations = conversations.reduce((groups, conv) => {
+  const handleRename = useCallback((id: string) => {
+    if (!editTitle.trim()) {
+      setEditingId(null);
+      return;
+    }
+    renameConversation(id, editTitle.trim());
+    setConversations(loadConversations());
+    setEditingId(null);
+  }, [editTitle]);
+
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    return conversations.filter(c => 
+      c.preview.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [conversations, searchQuery]);
+
+  const groupedConversations = filteredConversations.reduce((groups, conv) => {
     const timeGroup = formatRelativeTime(conv.updatedAt);
     if (!groups[timeGroup]) {
       groups[timeGroup] = [];
@@ -67,7 +105,6 @@ export const DesktopSidebar = ({
 
   return (
     <>
-      {/* Sidebar panel */}
       <AnimatePresence>
         {!isCollapsed && (
           <motion.aside
@@ -76,16 +113,14 @@ export const DesktopSidebar = ({
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
             className="hidden sm:flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border/50 relative z-20"
-            data-testid="desktop-sidebar"
           >
-
-
-            {/* Header - ChatGPT Style */}
-            <div className="h-14 flex items-center justify-between px-3.5">
+            {/* Header */}
+            <div className="h-14 flex items-center justify-between px-3.5 border-b border-border/10">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-ojas/10 flex items-center justify-center">
                   <Flame className="w-5 h-5 text-ojas" />
                 </div>
+                <span className="font-semibold text-sm tracking-tight">AskMukthiGuru</span>
               </div>
               <button
                 onClick={onToggleCollapse}
@@ -96,62 +131,136 @@ export const DesktopSidebar = ({
               </button>
             </div>
 
+            {/* Top Actions */}
+            <div className="p-3 space-y-1">
+              <button
+                onClick={onNewConversation}
+                className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/15 transition-all group border border-primary/20"
+              >
+                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center group-hover:bg-primary/30">
+                  <Plus className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-medium text-sm">New Chat</span>
+              </button>
+              
+              <div className="relative mt-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search chats..."
+                  className="pl-9 h-9 bg-muted/30 border-transparent focus-visible:bg-muted/50 focus-visible:ring-ojas/30 transition-all text-xs"
+                />
+              </div>
+            </div>
+
             {/* Scrollable Content */}
-            <ScrollArea className="flex-1">
-              <div className="p-2.5 space-y-1.5">
-                {/* Action Buttons */}
-                <SidebarActionButton
-                  onClick={onNewConversation}
-                  icon={Plus}
-                  label="New Conversation"
-                  variant="ojas"
-                  prominent
-                />
-                <SidebarActionButton
-                  onClick={onOpenSereneMind}
-                  icon={Flame}
-                  label="Serene Mind"
-                  variant="prana"
-                />
-
-                {/* Divider */}
-                <div className="h-px bg-border/30 my-2" />
-
-                {/* Conversation History */}
-                {Object.keys(groupedConversations).length > 0 && (
-                  <div>
-                    <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider mb-2 font-medium px-2">
-                      History
+            <ScrollArea className="flex-1 px-2">
+              <div className="py-2 space-y-4">
+                {Object.entries(groupedConversations).map(([timeGroup, convs]) => (
+                  <div key={timeGroup} className="space-y-1">
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-bold px-2 mb-1">
+                      {timeGroup}
                     </p>
                     <div className="space-y-0.5">
-                      {Object.entries(groupedConversations).map(([timeGroup, convs]) => (
-                        <div key={timeGroup}>
-                          <p className="text-[10px] text-muted-foreground/50 mb-1 px-2 mt-2 first:mt-0">
-                            {timeGroup}
-                          </p>
-                          <div className="space-y-0.5">
-                            {convs.map((conv) => (
-                              <ConversationItem
-                                key={conv.id}
-                                conversation={conv}
-                                isActive={conv.id === currentConversationId}
-                                onSelect={() => onSelectConversation(conv)}
-                                onDelete={() => setDeleteTarget(conv.id)}
+                      {convs.map((conv) => (
+                        <div key={conv.id} className="relative group">
+                          {editingId === conv.id ? (
+                            <div className="flex items-center gap-1 px-2 py-1.5 bg-muted/60 rounded-xl border border-ojas/30">
+                              <Input
+                                autoFocus
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRename(conv.id);
+                                  if (e.key === 'Escape') setEditingId(null);
+                                }}
+                                className="h-6 text-xs px-1 bg-transparent border-none focus-visible:ring-0"
                               />
-                            ))}
-                          </div>
+                              <button onClick={() => handleRename(conv.id)} className="p-1 text-ojas hover:bg-ojas/10 rounded">
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => onSelectConversation(conv)}
+                              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 relative group ${
+                                conv.id === currentConversationId
+                                  ? 'bg-muted text-foreground'
+                                  : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <MessageCircle className={`w-4 h-4 flex-shrink-0 ${conv.id === currentConversationId ? 'text-ojas' : 'opacity-50'}`} />
+                              <p className="flex-1 text-xs truncate pr-6 font-medium">
+                                {conv.preview || 'New conversation'}
+                              </p>
+                              
+                              <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 transition-opacity ${
+                                conv.id === currentConversationId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              }`}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button 
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="p-1 rounded-md hover:bg-muted-foreground/10 text-muted-foreground"
+                                    >
+                                      <MoreVertical className="w-3.5 h-3.5" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-32">
+                                    <DropdownMenuItem onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingId(conv.id);
+                                      setEditTitle(conv.preview);
+                                    }}>
+                                      <Edit2 className="w-3.5 h-3.5 mr-2" />
+                                      Rename
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteTarget(conv.id);
+                                      }}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             </ScrollArea>
+
+            {/* Footer — Serene Mind */}
+            <div className="p-3 border-t border-border/10">
+              <button
+                onClick={onOpenSereneMind}
+                className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-all group"
+              >
+                <div className="w-7 h-7 rounded-full bg-prana/10 flex items-center justify-center text-prana group-hover:bg-prana/20 transition-colors">
+                  <Flame className="w-4 h-4" />
+                </div>
+                <div className="text-left overflow-hidden">
+                  <p className="text-[11px] font-semibold truncate text-foreground">Serene Mind</p>
+                  <p className="text-[10px] text-muted-foreground truncate">Guided Breathing</p>
+                </div>
+              </button>
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -161,14 +270,13 @@ export const DesktopSidebar = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="delete-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 confirmDelete();
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              data-testid="delete-confirm"
             >
               Delete
             </AlertDialogAction>
@@ -176,93 +284,5 @@ export const DesktopSidebar = ({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-};
-
-// ── Conversation item ───────────────────────────────────────────────
-const ConversationItem = ({
-  conversation,
-  isActive,
-  onSelect,
-  onDelete,
-}: {
-  conversation: Conversation;
-  isActive: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-}) => {
-  const preview = conversation.preview || 'New conversation';
-
-  return (
-    <div
-      className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
-        isActive
-          ? 'bg-muted/80 text-foreground'
-          : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-      }`}
-      onClick={onSelect}
-      title={preview}
-    >
-      <p className="flex-1 text-sm truncate">
-        {preview}
-      </p>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className={`p-1 rounded-md transition-all flex-shrink-0 ${
-          isActive 
-            ? 'opacity-100' 
-            : 'opacity-0 group-hover:opacity-100'
-        } hover:bg-red-500/10 hover:text-red-500`}
-        aria-label="Delete conversation"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
-
-// ── Sidebar action button ───────────────────────────────────────────
-const SidebarActionButton = ({
-  onClick,
-  icon: Icon,
-  label,
-  variant,
-  prominent = false,
-}: {
-  onClick: () => void;
-  icon: React.ElementType;
-  label: string;
-  variant: 'ojas' | 'prana';
-  prominent?: boolean;
-}) => {
-  if (prominent) {
-    return (
-      <button
-        onClick={onClick}
-        className="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:bg-muted group"
-      >
-        <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center flex-shrink-0 group-hover:border-foreground transition-colors">
-          <Icon className="w-4 h-4 text-foreground" />
-        </div>
-        <span className="font-medium text-foreground text-sm">
-          {label}
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:bg-muted/50 group"
-    >
-      <Icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-      <span className="text-muted-foreground group-hover:text-foreground text-sm transition-colors">
-        {label}
-      </span>
-    </button>
   );
 };

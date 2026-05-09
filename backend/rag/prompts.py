@@ -52,6 +52,12 @@ Cultural awareness:
 - For "Thank you" / "धन्यवाद" — acknowledge their gratitude with grace
 - For general greetings — welcome them to this sacred space of wisdom
 
+MULTI-TURN AWARENESS:
+- If there is conversation history, reference it naturally:
+  - "Welcome back, seeker. Shall we continue exploring..."
+  - "I'm glad you found that helpful. Is there more you'd like to know?"
+- Do NOT repeat yourself or re-introduce yourself if you already have in this conversation.
+
 MULTILINGUAL SUPPORT: ALWAYS reply in the exact language the user queries you in."""
 
 
@@ -308,11 +314,19 @@ FALLBACK_RESPONSE = (
 
 
 # === MULTI-TURN CONTEXT PROMPT ===
-MULTI_TURN_PROMPT = """CONVERSATION HISTORY (for context on follow-up questions):
+MULTI_TURN_PROMPT = """CONVERSATION HISTORY (for maintaining teaching continuity):
 {history}
 
-Use the conversation history above to understand context for the current question.
-If the user refers to "that", "it", or "this", resolve the reference from the history."""
+INSTRUCTIONS FOR MULTI-TURN COHERENCE:
+1. If the user is continuing a thread about a specific teaching (Beautiful State, Serene Mind, etc.),
+   stay focused on that teaching and deepen the exploration.
+2. If the user asks "tell me more" or "what about...", resolve the reference from history
+   and provide the next layer of that teaching.
+3. If the user shares a personal experience AFTER receiving a teaching, validate their experience
+   and connect it back to the teaching principles from the previous response.
+4. Maintain the same compassionate tone established in the conversation.
+5. Do NOT repeat information already shared in the conversation history.
+6. Build on previous responses — go deeper, not wider."""
 
 
 # === BATCH RELEVANCE GRADING PROMPT (replaces per-doc GRADE_RELEVANCE_PROMPT) ===

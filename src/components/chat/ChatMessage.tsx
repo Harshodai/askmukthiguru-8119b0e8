@@ -91,10 +91,10 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
           <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`relative w-full ${
+              className={`relative w-full transition-all duration-300 ${
                 isGuru
-                  ? 'border-l-2 border-ojas/25 pl-3.5 pr-1 py-0.5'
-                  : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm'
+                  ? 'border-l-[3px] border-ojas/30 pl-4 pr-1 py-1 hover:border-ojas/50'
+                  : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm hover:shadow-md'
               }`}
             >
               <div
@@ -103,11 +103,16 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                 }`}
               >
                 {isGuru ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:mb-1.5 prose-p:mt-0 prose-li:mb-0.5 prose-strong:text-ojas prose-headings:text-foreground prose-headings:font-semibold prose-headings:text-base prose-a:text-ojas">
+                  <div className="prose prose-sm dark:prose-invert max-w-none 
+                    prose-p:mb-2.5 prose-p:mt-0 prose-p:leading-relaxed
+                    prose-li:mb-1 prose-strong:text-ojas prose-strong:font-semibold
+                    prose-headings:text-foreground prose-headings:font-bold prose-headings:text-base prose-headings:mb-2
+                    prose-a:text-ojas prose-a:no-underline hover:prose-a:underline
+                    selection:bg-ojas/20">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
-                  message.content
+                  <span className="font-medium">{message.content}</span>
                 )}
                 {isStreaming && (
                   <motion.span

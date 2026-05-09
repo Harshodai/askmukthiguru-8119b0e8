@@ -1,4 +1,5 @@
 import { guruResponses } from './chatStorage';
+import { supabase } from '@/integrations/supabase/client';
 
 export type AIProvider = 'placeholder' | 'custom';
 
@@ -86,6 +87,7 @@ export async function* sendMessageStreaming(
   messages: MessagePayload[],
   userMessage: string,
   meditationStep: number = 0,
+  summary?: string,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -95,17 +97,22 @@ export async function* sendMessageStreaming(
   }
 
   const streamEndpoint = endpoint.replace(/\/?$/, '/stream');
-  const trimmedMessages = messages.slice(-10);
+  const trimmedMessages = messages.slice(-20);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
 
   const response = await fetch(streamEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
       messages: [
         { role: 'system', content: systemPrompt },
+        ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
         ...trimmedMessages,
       ],
       user_message: userMessage,
@@ -192,7 +199,8 @@ export async function* sendMessageStreaming(
 export const sendMessage = async (
   messages: MessagePayload[],
   userMessage: string,
-  meditationStep: number = 0
+  meditationStep: number = 0,
+  summary?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -203,15 +211,20 @@ export const sendMessage = async (
 
   if (provider === 'custom' && endpoint) {
     try {
-      const trimmedMessages = messages.slice(-10);
+      const trimmedMessages = messages.slice(-20);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           messages: [
             { role: 'system', content: systemPrompt },
+            ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
             ...trimmedMessages,
           ],
           user_message: userMessage,
@@ -253,6 +266,42 @@ export const sendMessage = async (
 
   return { content: getPlaceholderResponse() };
 };
+
+export const generateSummary = async (messages: MessagePayload[]): Promise<string> => {
+  const { provider, endpoint } = currentConfig;
+  if (provider !== 'custom' || !endpoint) return '';
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a summarizer. Provide a concise 2-3 sentence summary of the key spiritual insights and user concerns discussed in this conversation history. Focus on maintaining teaching continuity.' 
+          },
+          ...messages.slice(-10),
+        ],
+        user_message: 'Summarize our conversation so far.',
+      }),
+    });
+
+    if (!response.ok) return '';
+    const data = await response.json();
+    return data.response || data.choices?.[0]?.message?.content || data.content || '';
+  } catch (error) {
+    console.error('Failed to generate summary:', error);
+    return '';
+  }
+};
+
 
 export const checkConnection = async (): Promise<{ connected: boolean; mode: string }> => {
   const { provider, endpoint } = currentConfig;
