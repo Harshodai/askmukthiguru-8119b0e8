@@ -39,14 +39,31 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // If already signed in, redirect to /chat
+  // If already signed in, redirect to /profile (if onboarding needed) or /chat
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate('/chat', { replace: true });
-    });
+    const handleRedirect = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Fetch profile to see if it's default
+        const { loadProfile, fetchProfileFromServer } = await import('@/lib/profileStorage');
+        const serverProfile = await fetchProfileFromServer();
+        const profile = serverProfile || loadProfile();
+        
+        // If it's the default 'Seeker' or empty bio, assume onboarding is needed
+        if (profile.displayName === 'Seeker' || !profile.bio) {
+          navigate('/profile?onboarding=true', { replace: true });
+        } else {
+          navigate('/chat', { replace: true });
+        }
+      }
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) navigate('/chat', { replace: true });
+    handleRedirect();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user && event === 'SIGNED_IN') {
+        handleRedirect();
+      }
     });
 
     return () => subscription.unsubscribe();

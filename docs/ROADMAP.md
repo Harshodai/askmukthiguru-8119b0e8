@@ -16,10 +16,17 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - [x] `/reset-password`, `/privacy`, `/terms`
 - [x] Forgot-password link on AuthPage
 - [x] Copy button on guru responses
+- [x] End-to-end Spiritual Profile sync (Supabase + localStorage)
+- [x] Admin dashboard seeker auditing (Total Seeker counts)
+- [x] Enhanced telemetry (Triggers, Retrieval, Context events)
+- [x] Master SQL Schema for production database initialization
+- [x] Fixed Nginx route shadowing for protected auth paths
 - [x] Three-stage distress detection (Keyword, LLM, Semantic)
 - [x] Compassionate distress routing (RAG-integrated)
 - [x] Qdrant retry-with-backoff resilience
 - [x] Spiritual guardrail false-positive protection
+- [x] Onboarding gate (Redirect new users to Profile setup)
+- [x] Visible sidebar management (Direct Rename/Delete icons)
 
 ## P1 — Trust (1 sprint)
 
@@ -49,7 +56,7 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 
 ## P4 — UX delight (1 sprint)
 
-- [ ] **D16** Inline rename + destructive confirm in conversation sidebar
+- [x] **D16** Inline rename + destructive confirm in conversation sidebar
 - [ ] **D17** Persist partial assistant message during stream (debounced 500 ms)
 - [ ] **D18b** Regenerate button (rerun last user turn)
 - [ ] **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus, ⌘B sidebar

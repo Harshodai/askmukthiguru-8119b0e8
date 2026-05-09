@@ -185,9 +185,27 @@ const ProfilePage = () => {
     { icon: Wind, label: 'Breaths', value: stats.totalCycles, color: 'text-prana-light', bg: 'bg-prana/10' },
   ];
 
+  const isOnboarding = searchParams.get('onboarding') === 'true';
+
   return (
-    <AppShell title="My Profile">
+    <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+        {/* Onboarding Welcome */}
+        {isOnboarding && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-ojas/10 border border-ojas/20 rounded-2xl p-6 text-center space-y-3"
+          >
+            <Sparkles className="w-8 h-8 text-ojas mx-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Begin Your Journey</h1>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Welcome to AskMukthiGuru. Tell us a bit about yourself so Sri Preethaji and Sri Krishnaji 
+              can guide you with teachings tailored to your soul's language and depth.
+            </p>
+          </motion.div>
+        )}
+
         {/* Hero card */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -223,12 +241,24 @@ const ProfilePage = () => {
                   />
                 </div>
                 <div className="flex-1 min-w-0 pb-2">
-                  <h2 className="text-xl sm:text-2xl font-semibold text-foreground truncate">
-                    {profile.displayName}
-                  </h2>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {profile.bio || 'A seeker walking the path of the Beautiful State.'}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-semibold text-foreground truncate">
+                        {profile.displayName}
+                      </h2>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {profile.bio || 'A seeker walking the path of the Beautiful State.'}
+                      </p>
+                    </div>
+                    {isOnboarding && !dirty && (
+                      <Button 
+                        onClick={() => navigate('/chat')}
+                        className="bg-ojas hover:bg-ojas-light text-primary-foreground rounded-full px-6"
+                      >
+                        Enter Chat <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge variant="secondary" className="bg-ojas/15 text-ojas border-ojas/30">
                       <Sparkles className="w-3 h-3 mr-1" /> {profile.guruTone}

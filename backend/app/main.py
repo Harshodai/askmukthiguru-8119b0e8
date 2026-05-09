@@ -19,7 +19,9 @@ import logging
 import sys
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, List, Dict, Any, Union
+import contextvars
+from dataclasses import asdict
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -38,10 +40,9 @@ from rag.graph import create_initial_state
 import time
 import uuid
 import hashlib
-import contextvars
 from app.metrics import REQUEST_LATENCY, REQUEST_COUNT, metrics_endpoint
 from services.auth_service import current_active_user, get_current_user_from_supabase
-from typing import Dict
+from services.user_profile_service import LanguagePreference, SpiritualLevel
 
 # Correlation ID context variable — accessible from anywhere in the async call chain
 correlation_id_var = contextvars.ContextVar('correlation_id', default='-')
@@ -241,7 +242,7 @@ from app.trace_dashboard import router as trace_router
 app.include_router(trace_router)
 
 @app.get("/metrics")
-async def get_metrics(user: AuthUser = Depends(current_active_user)):
+async def get_metrics(user: Dict = Depends(get_current_user_from_supabase)):
     """Prometheus metrics endpoint."""
     from fastapi.responses import Response
     data, content_type = metrics_endpoint()
@@ -265,8 +266,8 @@ for p in ui_possible_paths:
         break
 
 if ui_path:
-    app.mount("/ingest", StaticFiles(directory=str(ui_path), html=True), name="ingest")
-    logger.info(f"✅ Ingestion UI mounted at /ingest (from {ui_path})")
+    app.mount("/static-ingest", StaticFiles(directory=str(ui_path), html=True), name="ingest")
+    logger.info(f"✅ Ingestion UI mounted at /static-ingest (from {ui_path})")
 else:
     logger.warning("⚠️ Ingestion UI directory not found. UI will not be available.")
 
@@ -284,8 +285,8 @@ for p in chat_ui_possible_paths:
         break
 
 if chat_ui_path:
-    app.mount("/chat", StaticFiles(directory=str(chat_ui_path), html=True), name="chat")
-    logger.info(f"✅ Premium Chat UI mounted at /chat (from {chat_ui_path})")
+    app.mount("/static-chat", StaticFiles(directory=str(chat_ui_path), html=True), name="chat")
+    logger.info(f"✅ Premium Chat UI mounted at /static-chat (from {chat_ui_path})")
 else:
     logger.warning("⚠️ Chat UI directory not found.")
 
@@ -553,15 +554,42 @@ async def chat_endpoint(
         session_uuid = str(uuid.uuid4())
 
     query_id = str(uuid.uuid4())
+    
+    # Collect retrieval metadata from result
+    retrieval_meta = None
+    if citations:
+        retrieval_meta = {
+            "chunk_ids": [c.get("id") if isinstance(c, dict) else "" for c in citations],
+            "source_docs": [c.get("source_url") if isinstance(c, dict) else c for c in citations],
+            "scores": [c.get("score", 0.0) if isinstance(c, dict) else 1.0 for c in citations],
+            "top_k": len(citations),
+            "hit": len(citations) > 0
+        }
+
+    # Collect trigger events (Distress)
+    trigger_events = []
+    if 'assessment' in locals() and assessment.level.value >= 2:
+        trigger_events.append({
+            "name": "DISTRESS",
+            "metadata": {
+                "level": assessment.level.name,
+                "confidence": assessment.confidence,
+                "signals": assessment.detected_signals
+            }
+        })
+
     query_data = {
         "id": query_id,
         "session_id": session_uuid,
+        "user_id": user_id,
         "anon_user_id": str(uuid.uuid4()),
         "query_text": user_msg,
         "model": "askmukthiguru",
         "latency_ms": int((time.time() - start_time) * 1000),
         "status": "ok" if intent != "ERROR" else "error",
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "retrieval_metadata": retrieval_meta,
+        "trigger_events": trigger_events
     }
     
     # Safely pull RAG eval scores if available
@@ -757,7 +785,7 @@ async def ingest_endpoint(
     request: Request,
     ingest_body: IngestRequest,
     background_tasks: BackgroundTasks,
-    user: AuthUser = Depends(current_active_user),
+    user: Dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container)
 ) -> IngestResponse:
     """
@@ -765,7 +793,7 @@ async def ingest_endpoint(
     Accepts YouTube video/playlist URLs and image URLs.
     Runs ingestion in the background so the API responds immediately.
     """
-    if not user.is_superuser:
+    if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     url = ingest_body.url.strip()
 
@@ -805,6 +833,55 @@ async def ingest_endpoint(
         message=f"Ingestion started for: {url}",
         source_url=url,
     )
+
+
+@app.get("/api/profile")
+async def get_profile_endpoint(
+    user: Dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container)
+):
+    """Fetch the authenticated user's spiritual profile."""
+    if not container.user_profile:
+        raise HTTPException(status_code=501, detail="User profile service not enabled")
+    
+    profile = await container.user_profile.get_or_create_profile(user["id"])
+    return asdict(profile)
+
+
+@app.put("/api/profile")
+async def update_profile_endpoint(
+    profile_data: Dict,
+    user: Dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container)
+):
+    """Update user preferences and spiritual level."""
+    if not container.user_profile:
+        raise HTTPException(status_code=501, detail="User profile service not enabled")
+    
+    # Load current profile
+    profile = await container.user_profile.get_or_create_profile(user["id"])
+    
+    # Update allowed fields
+    if "preferred_language" in profile_data:
+        try:
+            profile.preferred_language = LanguagePreference(profile_data["preferred_language"])
+        except ValueError:
+            pass
+            
+    if "spiritual_level" in profile_data:
+        try:
+            profile.spiritual_level = SpiritualLevel(profile_data["spiritual_level"])
+        except ValueError:
+            pass
+            
+    if "topics_of_interest" in profile_data:
+        profile.topics_of_interest = profile_data["topics_of_interest"]
+        
+    if "codemix_preference" in profile_data:
+        profile.codemix_preference = bool(profile_data["codemix_preference"])
+    
+    await container.user_profile.update_profile(profile)
+    return asdict(profile)
 
 
 @app.get("/api/health", response_model=HealthResponse)

@@ -76,5 +76,6 @@ apscheduler>=3.10.0
 #   pip install ragas>=0.2.1
 #   pip install gptcache>=0.1.43
 #   pip install easyocr>=1.7.2
+gptcache>=0.1.43
 nemoguardrails>=0.11.0
 

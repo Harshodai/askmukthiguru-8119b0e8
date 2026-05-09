@@ -4,6 +4,7 @@ import {
   loadProfile,
   saveProfile,
   updateProfile as persistUpdate,
+  fetchProfileFromServer,
 } from '@/lib/profileStorage';
 
 /**
@@ -14,6 +15,13 @@ export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>(() => loadProfile());
 
   useEffect(() => {
+    // Initial fetch from server if logged in
+    const sync = async () => {
+      const serverProfile = await fetchProfileFromServer();
+      if (serverProfile) setProfile(serverProfile);
+    };
+    sync();
+
     const handler = () => setProfile(loadProfile());
     window.addEventListener('profile:updated', handler);
     window.addEventListener('storage', handler);

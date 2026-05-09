@@ -61,6 +61,7 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
         query_payload = {
             "id": query_data['id'],
             "session_id": query_data.get('session_id'),
+            "user_id": query_data.get('user_id'),
             "anon_user_id": query_data.get('anon_user_id'),
             "query_text": PIIScrubber.scrub(query_data['query_text']),
             "model": query_data.get('model'),
@@ -76,6 +77,7 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
         try:
             session_payload = {
                 "id": query_payload["session_id"],
+                "user_id": query_payload.get("user_id"),
                 "anon_user_id": query_payload.get("anon_user_id"),
                 "started_at": query_payload["created_at"]
             }
@@ -104,6 +106,32 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
         response_payload = {k: v for k, v in response_payload.items() if v is not None}
         
         client.table("chat_responses").insert(response_payload).execute()
+        
+        # 3. Log Retrieval Event (if any)
+        retrieval = query_data.get("retrieval_metadata")
+        if retrieval:
+            retrieval_payload = {
+                "query_id": query_data['id'],
+                "chunk_ids": retrieval.get("chunk_ids", []),
+                "source_docs": retrieval.get("source_docs", []),
+                "scores": retrieval.get("scores", []),
+                "top_k": retrieval.get("top_k", 0),
+                "retrieval_hit": retrieval.get("hit", False)
+            }
+            client.table("retrieval_events").insert(retrieval_payload).execute()
+            
+        # 4. Log Triggers (e.g. Distress Detection)
+        triggers = query_data.get("trigger_events", [])
+        if triggers:
+            trigger_payloads = []
+            for t in triggers:
+                trigger_payloads.append({
+                    "query_id": query_data['id'],
+                    "trigger_name": t.get("name"),
+                    "metadata": t.get("metadata", {}),
+                    "created_at": query_data['created_at']
+                })
+            client.table("trigger_events").insert(trigger_payloads).execute()
         
         logger.debug(f"Successfully logged trace {query_data['id']} to Supabase")
         

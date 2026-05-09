@@ -41,8 +41,9 @@ export default function OverviewPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <KpiCard label="Queries" value={isLoading ? "…" : fmtInt(kpis?.total_queries ?? 0)} />
+        <KpiCard label="Total Seekers" value={isLoading ? "…" : fmtInt(kpis?.total_seekers ?? 0)} tone="good" />
         <KpiCard label="p50 latency" value={isLoading ? "…" : fmtMs(kpis?.p50_latency_ms ?? 0)} />
         <KpiCard
           label="p95 latency"

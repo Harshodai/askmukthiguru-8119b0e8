@@ -198,39 +198,30 @@ export const DesktopSidebar = ({
                                 {conv.preview || 'New conversation'}
                               </p>
                               
-                              <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 transition-opacity ${
+                              <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity ${
                                 conv.id === currentConversationId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                               }`}>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button 
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 rounded-md hover:bg-muted-foreground/10 text-muted-foreground"
-                                    >
-                                      <MoreVertical className="w-3.5 h-3.5" />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-32">
-                                    <DropdownMenuItem onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingId(conv.id);
-                                      setEditTitle(conv.preview);
-                                    }}>
-                                      <Edit2 className="w-3.5 h-3.5 mr-2" />
-                                      Rename
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeleteTarget(conv.id);
-                                      }}
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingId(conv.id);
+                                    setEditTitle(conv.preview);
+                                  }}
+                                  className="p-1 rounded-md hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                                  title="Rename"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteTarget(conv.id);
+                                  }}
+                                  className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
                           )}

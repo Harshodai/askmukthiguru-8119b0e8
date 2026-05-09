@@ -39,9 +39,9 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy the built React app
 COPY --from=builder /app/dist /usr/share/nginx/html/app
 
-# Copy static UI folders (lightweight chat & ingest widgets)
-COPY ingest-ui/ /usr/share/nginx/html/ingest/
-COPY chat-ui/ /usr/share/nginx/html/chat/
+# Copy static UI folders (lightweight chat & ingest widgets) - Renamed to avoid shadowing React routes
+COPY ingest-ui/ /usr/share/nginx/html/static-ingest/
+COPY chat-ui/ /usr/share/nginx/html/static-chat/
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf

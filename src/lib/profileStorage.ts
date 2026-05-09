@@ -1,7 +1,7 @@
 /**
- * Local profile storage — no server, no auth.
- * All data lives in the browser's localStorage.
+ * Local profile storage with backend sync support.
  */
+import { supabase } from "@/integrations/supabase/client";
 
 export type GuruTone = 'gentle' | 'direct' | 'poetic';
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -174,14 +174,81 @@ export const loadProfile = (): UserProfile => {
   }
 };
 
-export const saveProfile = (profile: UserProfile): void => {
+export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true): void => {
   try {
     const next = { ...profile, updatedAt: new Date() };
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
     window.dispatchEvent(new CustomEvent('profile:updated', { detail: next }));
+    
+    if (syncWithServer) {
+      syncProfileToServer(next);
+    }
   } catch (err) {
     console.error('Failed to save profile', err);
   }
+};
+
+/**
+ * Sync the local profile to the backend.
+ */
+export const syncProfileToServer = async (profile: UserProfile) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const response = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        preferred_language: profile.preferred_language,
+        codemix_preference: profile.preferred_language !== 'en', // Simple heuristic
+        topics_of_interest: profile.prePracticeLog?.history?.map(h => h.answer).filter(a => a !== 'none') || []
+      })
+    });
+    
+    if (!response.ok) {
+      console.warn('Backend profile sync failed');
+    }
+  } catch (err) {
+    console.error('Profile sync error:', err);
+  }
+};
+
+/**
+ * Fetch profile from server and merge with local.
+ */
+export const fetchProfileFromServer = async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    const response = await fetch('/api/profile', {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+    
+    if (response.ok) {
+      const serverProfile = await response.json();
+      const current = loadProfile();
+      
+      // Merge server fields into local profile
+      const merged: UserProfile = {
+        ...current,
+        preferredLanguage: serverProfile.preferred_language as any,
+        // Map other fields as needed
+      };
+      
+      saveProfile(merged, false); // Save locally but don't loop back to server
+      return merged;
+    }
+  } catch (err) {
+    console.error('Fetch profile error:', err);
+  }
+  return null;
 };
 
 export const updateProfile = (patch: Partial<UserProfile>): UserProfile => {

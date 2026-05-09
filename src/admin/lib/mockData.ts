@@ -140,8 +140,11 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
     }
   });
 
+  const { count: totalSeekers } = await fromUntyped("user_profiles").select("*", { count: 'exact', head: true });
+
   return {
     total_queries: total || 0,
+    total_seekers: totalSeekers || 0,
     p50_latency_ms: p50,
     p95_latency_ms: p95,
     hallucination_rate: total ? hallucinationCount / total : 0,

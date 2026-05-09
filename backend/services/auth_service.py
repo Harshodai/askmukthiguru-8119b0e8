@@ -1,8 +1,8 @@
 import uuid
 import logging
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, List
 import jwt
-from typing import Optional, Dict
 from fastapi import Depends, Request, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 if not settings.jwt_secret:
     raise RuntimeError("CRITICAL: jwt_secret environment variable is missing. Halting application.")
 
+# --- Internal FastAPI-Users Management ---
+
 async def get_user_db(session: AsyncSession = Depends(get_db)):
     yield SQLAlchemyUserDatabase(session, User)
-
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = settings.jwt_secret
@@ -31,20 +32,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         logger.info(f"User {user.id} has registered.")
 
-    async def on_after_forgot_password(
-        self, user: User, token: str, request: Optional[Request] = None
-    ):
-        logger.info(f"User {user.id} has requested a password reset.")
-
-    async def on_after_request_verify(
-        self, user: User, token: str, request: Optional[Request] = None
-    ):
-        logger.info(f"Verification requested for user {user.id}.")
-
-
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)
-
 
 bearer_transport = BearerTransport(tokenUrl="api/auth/jwt/login")
 
@@ -62,60 +51,86 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
     [auth_backend],
 )
 
-current_active_user = fastapi_users.current_user(active=True)
+# --- SOLID Auth Strategy Pattern ---
 
-# --- Supabase Auth Bridge ---
+class AuthStrategy(ABC):
+    """Abstract Base Class for Authentication Strategies (SOLID: Open/Closed)"""
+    @abstractmethod
+    async def authenticate(self, request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Optional[Dict]:
+        pass
+
+class LocalAuthStrategy(AuthStrategy):
+    """Strategy for local FastAPI-Users sessions (Admin/Local Seeding)"""
+    async def authenticate(self, request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Optional[Dict]:
+        # This uses the internal FastAPI-Users dependency resolution
+        try:
+            user = await fastapi_users.get_current_user(active=True, optional=True)(request)
+            if user:
+                return {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "is_superuser": user.is_superuser,
+                    "provider": "local"
+                }
+        except Exception as e:
+            logger.debug(f"Local auth attempt failed: {e}")
+        return None
+
+class SupabaseAuthStrategy(AuthStrategy):
+    """Strategy for Supabase JWTs (Production Seeker Flow)"""
+    async def authenticate(self, request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Optional[Dict]:
+        if not credentials:
+            return None
+        
+        try:
+            # Validate algorithm and signature
+            payload = jwt.decode(
+                credentials.credentials, 
+                settings.jwt_secret, 
+                algorithms=["HS256", "RS256"],
+                options={"verify_aud": False}
+            )
+            
+            return {
+                "id": payload.get("sub"),
+                "email": payload.get("email"),
+                "is_superuser": payload.get("role") == "service_role",
+                "provider": "supabase"
+            }
+        except jwt.ExpiredSignatureError:
+            logger.warning("Supabase token expired")
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.warning(f"Invalid Supabase token: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Supabase auth bridge error: {type(e).__name__}: {e}")
+            return None
+
+class AuthBridge:
+    """Orchestrator for multiple Auth Strategies (SOLID: Single Responsibility)"""
+    def __init__(self, strategies: List[AuthStrategy]):
+        self.strategies = strategies
+
+    async def get_user(self, request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Dict:
+        for strategy in self.strategies:
+            user = await strategy.authenticate(request, credentials)
+            if user:
+                return user
+        
+        raise HTTPException(status_code=401, detail="Authentication required or session expired")
+
+# --- Dependency Injection Components ---
 
 security = HTTPBearer(auto_error=False)
+auth_bridge = AuthBridge([LocalAuthStrategy(), SupabaseAuthStrategy()])
 
 async def get_current_user_from_supabase(
     request: Request,
-    token: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    local_user: Optional[User] = Depends(fastapi_users.current_user(active=True, optional=True))
+    token: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Dict:
     """
-    Unified Auth Bridge: Validates EITHER a local FastAPI-Users session
-    OR a Supabase JWT. Allows frontend to stay on Supabase while 
-    backend stays secure.
+    Production-grade Auth Bridge.
+    Returns a unified user object regardless of the underlying auth provider.
     """
-    # 1. Try local FastAPI-Users first (for admin/local login)
-    if local_user:
-        return {
-            "id": str(local_user.id),
-            "email": local_user.email,
-            "is_superuser": local_user.is_superuser,
-            "provider": "local"
-        }
-
-    # 2. Try Supabase JWT from Authorization header
-    if not token:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    try:
-        # Debugging: Log header to see what's happening
-        header = jwt.get_unverified_header(token.credentials)
-        logger.debug(f"Validating Supabase JWT with header: {header}")
-
-        # Supabase JWTs are signed with the same secret as our backend JWT_SECRET
-        # Local Supabase uses HS256, but some providers might use RS256
-        payload = jwt.decode(
-            token.credentials, 
-            settings.jwt_secret, 
-            algorithms=["HS256", "RS256"],
-            options={"verify_aud": False} # Supabase aud varies (authenticated vs proj-id)
-        )
-        
-        return {
-            "id": payload.get("sub"),
-            "email": payload.get("email"),
-            "is_superuser": payload.get("role") == "service_role",
-            "provider": "supabase"
-        }
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid Supabase token: {e}")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    except Exception as e:
-        logger.error(f"Auth bridge error: {e}")
-        raise HTTPException(status_code=401, detail="Authentication failed")
+    return await auth_bridge.get_user(request, token)

@@ -248,6 +248,7 @@ export interface QueryFilters extends Partial<DateRange> {
 
 export interface KpiSnapshot {
   total_queries: number;
+  total_seekers: number;
   p50_latency_ms: number;
   p95_latency_ms: number;
   hallucination_rate: number; // 0..1
