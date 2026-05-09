@@ -18,6 +18,9 @@ import PracticesPage from "./pages/PracticesPage";
 import PracticeDetailPage from "./pages/PracticeDetailPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
 
 // Admin
 import AdminLoginPage from "./admin/pages/AdminLoginPage";
@@ -75,6 +78,9 @@ const UserRoutes = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/practices" element={<PracticesPage />} />
