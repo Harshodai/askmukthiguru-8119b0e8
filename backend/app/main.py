@@ -396,22 +396,16 @@ async def chat_endpoint(
         )
 
     # === Depression Detection (Council Recommendation) ===
-    # Check directly here before RAG to fail-fast into meditation
-    # Wrapped in try/except so detection failures don't crash the request
+    # We log the distress assessment here, but no longer fail-fast.
+    # We let the query proceed to the RAG pipeline so Mukti Guru can
+    # provide a compassionate teaching-based response first.
     try:
         if container.serene_mind:
             assessment = await container.serene_mind.aassess_distress(user_msg)
-            if assessment.level.value >= 2:  # MODERATE or higher
-                response = container.serene_mind.get_response(assessment)
-                return ChatResponse(
-                    response=response,
-                    intent="DISTRESS",
-                    meditation_step=1,
-                )
+            if assessment.level.value >= 2:
+                logger.info(f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response.")
     except Exception as e:
-        # Don't crash the request if depression detection fails
-        logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
-        logger.warning(f"Depression detection failed (non-fatal): {e}")
+        logger.warning(f"Serene Mind detection failed (non-fatal): {e}")
 
     # === Layers 2-11: LangGraph RAG Pipeline ===
     try:
@@ -595,11 +589,7 @@ async def chat_stream_endpoint(
                 if container.serene_mind:
                     assessment = await container.serene_mind.aassess_distress(user_msg)
                     if assessment.level.value >= 2:
-                        resp = container.serene_mind.get_response(assessment)
-                        yield f"event: token\ndata: {resp}\n\n"
-                        meta = json.dumps({"intent": "DISTRESS", "meditation_step": 1})
-                        yield f"event: done\ndata: {meta}\n\n"
-                        return
+                        logger.info(f"Stream: Distress detected ({assessment.level.name}), passing to RAG pipeline.")
             except Exception as e:
                 logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
 

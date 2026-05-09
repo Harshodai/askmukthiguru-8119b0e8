@@ -117,6 +117,33 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                 )}
               </div>
 
+              {/* YouTube Embeds (Triggered videos) */}
+              {isGuru && citations.length > 0 && (
+                <div className="space-y-2.5 mt-2">
+                  {citations
+                    .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
+                    .map((url, i) => {
+                      const videoId = url.includes('v=') 
+                        ? url.split('v=')[1]?.split('&')[0] 
+                        : url.split('/').pop();
+                      if (!videoId) return null;
+                      return (
+                        <div key={videoId} className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[400px]">
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            src={`https://www.youtube.com/embed/${videoId}`}
+                            title="YouTube video player"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+
               {/* Timestamp + action buttons */}
               <div className="flex items-center justify-between mt-1 gap-2">
                 <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/50' : 'text-primary-foreground/50'}`}>

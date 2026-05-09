@@ -67,24 +67,6 @@ export const DesktopSidebar = ({
 
   return (
     <>
-      {/* Floating toggle button — always visible on tablet/desktop when sidebar is hidden */}
-      <AnimatePresence>
-        {isCollapsed && (
-          <motion.button
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -12 }}
-            transition={{ duration: 0.2 }}
-            onClick={onToggleCollapse}
-            className="hidden sm:flex fixed left-3 top-14 z-30 w-9 h-9 items-center justify-center rounded-xl bg-card/95 backdrop-blur-xl border border-border/60 shadow-lg hover:bg-muted hover:scale-105 transition-all active:scale-95"
-            aria-label="Open sidebar"
-            data-testid="sidebar-open-toggle"
-          >
-            <PanelLeft className="w-4 h-4 text-muted-foreground" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Sidebar panel */}
       <AnimatePresence>
         {!isCollapsed && (
@@ -93,42 +75,25 @@ export const DesktopSidebar = ({
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-            className="hidden sm:flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border/50 relative z-20 overflow-hidden"
+            className="hidden sm:flex flex-col h-full bg-card/95 backdrop-blur-xl border-r border-border/50 relative z-20"
             data-testid="desktop-sidebar"
           >
-            {/* Close toggle */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onToggleCollapse}
-                  className="group absolute -right-4 top-14 z-30 w-8 h-8 rounded-full bg-background border-2 border-border/80 shadow-md flex items-center justify-center hover:bg-muted hover:scale-110 transition-all active:scale-95 text-foreground"
-                  aria-label="Collapse sidebar"
-                  data-testid="sidebar-toggle"
-                >
-                  <motion.div
-                    animate={{ rotate: 180 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
-                  </motion.div>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                <p>Collapse sidebar</p>
-              </TooltipContent>
-            </Tooltip>
 
-            {/* Header */}
-            <div className="p-3 border-b border-border/30">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-ojas/15 border border-ojas/30 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-ojas">M</span>
-                </div>
-                <div className="min-w-0 overflow-hidden">
-                  <h2 className="font-semibold text-foreground text-sm truncate">AskMukthiGuru</h2>
-                  <p className="text-[11px] text-muted-foreground truncate">Conversations</p>
+
+            {/* Header - ChatGPT Style */}
+            <div className="h-14 flex items-center justify-between px-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-ojas/10 flex items-center justify-center">
+                  <Flame className="w-5 h-5 text-ojas" />
                 </div>
               </div>
+              <button
+                onClick={onToggleCollapse}
+                className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeft className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Scrollable Content */}
@@ -140,6 +105,7 @@ export const DesktopSidebar = ({
                   icon={Plus}
                   label="New Conversation"
                   variant="ojas"
+                  prominent
                 />
                 <SidebarActionButton
                   onClick={onOpenSereneMind}
@@ -197,7 +163,10 @@ export const DesktopSidebar = ({
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="delete-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="delete-confirm"
             >
@@ -226,19 +195,15 @@ const ConversationItem = ({
 
   return (
     <div
-      className={`group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-all duration-200 ${
+      className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 ${
         isActive
-          ? 'bg-ojas/10 border border-ojas/20 shadow-sm'
-          : 'hover:bg-muted/40 border border-transparent'
+          ? 'bg-muted/80 text-foreground'
+          : 'hover:bg-muted/40 text-muted-foreground hover:text-foreground'
       }`}
       onClick={onSelect}
       title={preview}
-      data-testid="conversation-item"
     >
-      <MessageCircle className={`w-4 h-4 flex-shrink-0 transition-colors ${
-        isActive ? 'text-ojas' : 'text-muted-foreground'
-      }`} />
-      <p className="flex-1 text-sm text-foreground truncate min-w-0">
+      <p className="flex-1 text-sm truncate">
         {preview}
       </p>
       <button
@@ -246,11 +211,14 @@ const ConversationItem = ({
           e.stopPropagation();
           onDelete();
         }}
-        className="p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all flex-shrink-0"
+        className={`p-1 rounded-md transition-all flex-shrink-0 ${
+          isActive 
+            ? 'opacity-100' 
+            : 'opacity-0 group-hover:opacity-100'
+        } hover:bg-red-500/10 hover:text-red-500`}
         aria-label="Delete conversation"
-        data-testid="delete-conversation"
       >
-        <Trash2 className="w-3 h-3 text-destructive" />
+        <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );
@@ -262,30 +230,37 @@ const SidebarActionButton = ({
   icon: Icon,
   label,
   variant,
+  prominent = false,
 }: {
   onClick: () => void;
   icon: React.ElementType;
   label: string;
   variant: 'ojas' | 'prana';
+  prominent?: boolean;
 }) => {
-  const colors = {
-    ojas: 'bg-ojas/8 border-ojas/15 hover:border-ojas/30 hover:bg-ojas/12',
-    prana: 'bg-prana/8 border-prana/15 hover:border-prana/30 hover:bg-prana/12',
-  };
-  const iconColors = {
-    ojas: 'text-ojas',
-    prana: 'text-prana',
-  };
+  if (prominent) {
+    return (
+      <button
+        onClick={onClick}
+        className="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:bg-muted group"
+      >
+        <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center flex-shrink-0 group-hover:border-foreground transition-colors">
+          <Icon className="w-4 h-4 text-foreground" />
+        </div>
+        <span className="font-medium text-foreground text-sm">
+          {label}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl border transition-all duration-200 ${colors[variant]}`}
+      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 hover:bg-muted/50 group"
     >
-      <div className="w-8 h-8 rounded-full bg-background/50 flex items-center justify-center flex-shrink-0">
-        <Icon className={`w-4 h-4 ${iconColors[variant]}`} />
-      </div>
-      <span className="font-medium text-foreground text-sm whitespace-nowrap overflow-hidden">
+      <Icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+      <span className="text-muted-foreground group-hover:text-foreground text-sm transition-colors">
         {label}
       </span>
     </button>

@@ -130,7 +130,7 @@ def build_rag_graph(
         "intent_router",
         route_by_intent,
         {
-            "distress": "handle_distress",
+            "distress": "decompose_query",
             "meditation": "handle_meditation",
             "casual": "handle_casual",
             "query": "decompose_query",

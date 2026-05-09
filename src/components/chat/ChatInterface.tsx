@@ -588,8 +588,6 @@ export const ChatInterface = () => {
   const handleNewConversation = () => {
     stopSpeaking();
     const newConversation = createNewConversation();
-    setCurrentConversation(newConversation);
-    setCurrentConversationId(newConversation.id);
     
     const welcomeMessage: Message = {
       id: generateId(),
@@ -597,6 +595,13 @@ export const ChatInterface = () => {
       content: 'The slate is clean, dear one. Let us begin anew. What would you like to explore?',
       timestamp: new Date(),
     };
+    
+    newConversation.messages = [welcomeMessage];
+    newConversation.preview = getConversationPreview([welcomeMessage]);
+    saveConversation(newConversation);
+    
+    setCurrentConversation(newConversation);
+    setCurrentConversationId(newConversation.id);
     setMessages([welcomeMessage]);
     setRefreshTrigger(prev => prev + 1);
   };

@@ -81,23 +81,14 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
           </div>
 
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="font-semibold text-foreground text-sm truncate leading-tight">
-                AskMukthiGuru
+            <button className="flex items-center gap-1.5 group">
+              <h1 className="font-semibold text-foreground text-base truncate leading-tight">
+                Mukthi Guru
               </h1>
-              <div className="flex items-center gap-1">
-                {connectionStatus.connected ? (
-                  <Wifi className="w-3 h-3 text-prana" />
-                ) : (
-                  <WifiOff className="w-3 h-3 text-muted-foreground" />
-                )}
-                <span className="text-[10px] text-muted-foreground leading-none hidden sm:inline">
-                  {connectionStatus.mode}
-                </span>
-              </div>
-            </div>
+              <PanelLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors rotate-270" />
+            </button>
             <p className="text-[10px] text-muted-foreground/60 leading-tight hidden sm:block">
-              Guided by Sri Preethaji & Sri Krishnaji
+              Spiritual Guide
             </p>
           </div>
         </div>
