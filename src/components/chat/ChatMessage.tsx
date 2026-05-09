@@ -1,6 +1,6 @@
 import { forwardRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
@@ -38,6 +38,7 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
       ? message.citations
       : inlineUrls;
     const [showWisdomCard, setShowWisdomCard] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState<MessageFeedback | null>(message.feedback ?? null);
     const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -174,6 +175,19 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
                       disabled={!!feedback}
                     >
                       <ThumbsDown className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(message.content);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1500);
+                        } catch { /* ignore */ }
+                      }}
+                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                      title={copied ? 'Copied!' : 'Copy response'}
+                    >
+                      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     </button>
                     <button
                       onClick={() => setShowWisdomCard(true)}
