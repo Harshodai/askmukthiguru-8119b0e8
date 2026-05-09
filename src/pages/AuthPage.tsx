@@ -228,6 +228,28 @@ const AuthPage = () => {
           </Button>
         </form>
 
+        {!isSignUp && (
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={async () => {
+                if (!email) return setError('Enter your email above first, then tap Forgot password.');
+                setLoading(true);
+                setError(null);
+                const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                });
+                setLoading(false);
+                if (resetErr) setError(friendlyError(resetErr));
+                else toast({ title: 'Check your email', description: 'We sent you a link to reset your password.' });
+              }}
+              className="text-xs text-muted-foreground hover:text-ojas hover:underline"
+            >
+              Forgot your password?
+            </button>
+          </div>
+        )}
+
         <p className="text-center text-xs text-muted-foreground">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button
@@ -236,6 +258,12 @@ const AuthPage = () => {
           >
             {isSignUp ? 'Sign in' : 'Sign up'}
           </button>
+        </p>
+
+        <p className="text-center text-[11px] text-muted-foreground/70 pt-2">
+          By continuing you agree to our{' '}
+          <a href="/terms" className="hover:text-ojas hover:underline">Terms</a> and{' '}
+          <a href="/privacy" className="hover:text-ojas hover:underline">Privacy Policy</a>.
         </p>
       </div>
     </div>
