@@ -2,6 +2,9 @@
 
 An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a multi-layer RAG pipeline, real-time guardrails, and beautiful conversational UI.
 
+> **New contributor?** Start with **[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** for an end-to-end walk-through, then **[docs/ROADMAP.md](docs/ROADMAP.md)** for the prioritized backlog.
+
+
 ## Architecture
 
 | Component | Technology | Port |
