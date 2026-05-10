@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
-const PrivacyPage = () => (
+const PrivacyPage = () => {
+  usePageMeta({
+    title: 'Privacy Policy — AskMukthiGuru',
+    description: 'How AskMukthiGuru handles your data: minimum collection, no third-party sharing, full export and deletion rights under DPDP Act and GDPR.',
+    canonical: 'https://askmukthiguru.lovable.app/privacy',
+  });
+  return (
   <main className="min-h-screen bg-background text-foreground px-4 py-10">
     <div className="max-w-2xl mx-auto space-y-6">
       <Link to="/" className="inline-flex items-center gap-2 text-ojas hover:underline">
@@ -43,6 +50,7 @@ const PrivacyPage = () => (
       <Link to="/" className="text-sm text-ojas hover:underline">← Back to home</Link>
     </div>
   </main>
-);
+  );
+};
 
 export default PrivacyPage;
