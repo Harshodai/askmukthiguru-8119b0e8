@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Loader2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +10,10 @@ import { getPracticeBySlug } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { recordRecentPractice } from '@/lib/favoritesStorage';
 import { cn } from '@/lib/utils';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 const PracticeDetailPage = () => {
+  const { loading: authLoading } = useRequireAuth();
   const { slug = '' } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const practice = getPracticeBySlug(slug);
@@ -22,6 +24,14 @@ const PracticeDetailPage = () => {
   useEffect(() => {
     if (practice) recordRecentPractice(practice.slug);
   }, [practice]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+      </div>
+    );
+  }
 
   if (!practice) {
     return (

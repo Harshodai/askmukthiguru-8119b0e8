@@ -128,7 +128,7 @@ class GraphState(TypedDict):
     context_layers: Optional[dict]  # {persona, knowledge, instructions, user_state}
     
     # Explainable Retrieval
-    citation_reasoning: Optional[Dict[str, str]]  # {url: reasoning}
+    citation_reasoning: Annotated[dict, add_dicts]  # {url: reasoning}
 
     # Metrics
     metrics: Annotated[dict, add_dicts]

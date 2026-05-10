@@ -7,6 +7,7 @@ import {
   Sparkles,
   Search,
   Compass,
+  Loader2,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -35,6 +36,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/profileStorage';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { checkConnection } from '@/lib/aiService';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 interface AppShellProps {
   children: ReactNode;
@@ -232,6 +234,7 @@ const HeaderSereneButton = () => {
 };
 
 export const AppShell = ({ children, title }: AppShellProps) => {
+  const { loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -245,6 +248,14 @@ export const AppShell = ({ children, title }: AppShellProps) => {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>

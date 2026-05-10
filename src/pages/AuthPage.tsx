@@ -39,11 +39,18 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // If already signed in, redirect to /profile (if onboarding needed) or /chat
   useEffect(() => {
     const handleRedirect = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        // Check for saved redirect path
+        const redirectPath = sessionStorage.getItem('auth_redirect_path');
+        if (redirectPath) {
+          sessionStorage.removeItem('auth_redirect_path');
+          navigate(redirectPath, { replace: true });
+          return;
+        }
+
         // Fetch profile to see if it's default
         const { loadProfile, fetchProfileFromServer } = await import('@/lib/profileStorage');
         const serverProfile = await fetchProfileFromServer();
@@ -88,7 +95,7 @@ const AuthPage = () => {
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
-        navigate('/chat');
+        // Redirect logic is handled by onAuthStateChange effect
       }
     } catch (err: unknown) {
       const message = friendlyError(err as Error);
@@ -103,23 +110,19 @@ const AuthPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // Configuration toggle: Use native Supabase OAuth for local Docker, 
-      // Lovable OAuth wrapper for Lovable Cloud deployments.
       const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
 
       if (useNativeOAuth) {
         const { error: supabaseError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: `${window.location.origin}/chat`,
+            redirectTo: window.location.href, // Return here to process saved redirect path
           },
         });
         if (supabaseError) throw supabaseError;
-        // The browser will redirect to the Google consent screen.
         return;
       }
 
-      // Lovable Cloud wrapped OAuth path
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
@@ -129,10 +132,9 @@ const AuthPage = () => {
         setError(message);
         return;
       }
-      if (result.redirected) return; // browser will redirect
+      if (result.redirected) return;
       
-      // Tokens set — navigate
-      navigate('/chat');
+      // onAuthStateChange will handle navigation
     } catch (err) {
       console.error('[Google Auth Error]', err);
       setError('Could not connect to Google. Please try again.');
@@ -144,7 +146,6 @@ const AuthPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
-        {/* Brand */}
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6 text-ojas" />
@@ -155,7 +156,6 @@ const AuthPage = () => {
           </p>
         </div>
 
-        {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="border-destructive/40 bg-destructive/5">
             <AlertCircle className="h-4 w-4" />
@@ -163,7 +163,6 @@ const AuthPage = () => {
           </Alert>
         )}
 
-        {/* Google */}
         <Button
           variant="outline"
           className="w-full h-11 gap-2"
@@ -185,7 +184,7 @@ const AuthPage = () => {
             />
             <path
               fill="currentColor"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
           Continue with Google
@@ -200,7 +199,6 @@ const AuthPage = () => {
           </div>
         </div>
 
-        {/* Email form */}
         <form onSubmit={handleEmailAuth} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>

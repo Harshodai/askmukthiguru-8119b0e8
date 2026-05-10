@@ -48,15 +48,7 @@ export const UserMenu = () => {
     toast({ title: 'Data exported', description: 'Your data was downloaded.' });
   };
 
-  const handleSignOut = () => {
-    // Local profile only — "sign out" resets to a fresh seeker.
-    resetProfile();
-    toast({
-      title: 'Profile reset',
-      description: 'A fresh local profile has been created.',
-    });
-    navigate('/');
-  };
+
 
   const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
 
@@ -127,8 +119,17 @@ export const UserMenu = () => {
         <DropdownMenuItem onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" /> Export my data
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
-          <LogOut className="w-4 h-4 mr-2" /> Reset profile
+        <DropdownMenuItem 
+          onClick={async () => {
+            const { supabase } = await import('@/integrations/supabase/client');
+            await supabase.auth.signOut();
+            resetProfile();
+            navigate('/auth');
+            toast({ title: 'Signed out', description: 'You have been logged out.' });
+          }} 
+          className="text-destructive focus:text-destructive"
+        >
+          <LogOut className="w-4 h-4 mr-2" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

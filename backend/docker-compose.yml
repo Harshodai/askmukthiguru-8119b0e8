@@ -124,6 +124,7 @@ services:
       - WHISPER_COMPUTE_TYPE=float16
       - TRANSCRIPT_LANGUAGES=en,hi,te,ta,kn,ml,bn,gu,mr,pa
       - TRANSCRIPT_CONCURRENT_WORKERS=4
+      - OCR_LANGUAGES=en,hi
       # Redis cache
       - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379/0
       # Server
@@ -153,6 +154,13 @@ services:
       # Mount UIs for development
       - ../ingest-ui:/app/ingest-ui
       - ../chat-ui:/app/chat-ui
+      # Mount backend code and scripts for live-reloading/direct execution
+      - ./app:/app/app
+      - ./rag:/app/rag
+      - ./services:/app/services
+      - ./guardrails:/app/guardrails
+      - ../scripts:/app/scripts
+      - ../results:/app/results
     # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:
       - "host.docker.internal:host-gateway"

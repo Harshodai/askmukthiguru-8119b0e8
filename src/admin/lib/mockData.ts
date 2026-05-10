@@ -337,10 +337,12 @@ export async function getTopFailures(range?: { from?: Date; to?: Date }, limit =
     .sort((a: any, b: any) => (a.faithfulness + a.answer_relevancy) - (b.faithfulness + b.answer_relevancy))
     .slice(0, limit)
     .map((r: any) => ({
-      id: r.id,
-      query: r.chat_queries?.query_text,
+      query_id: r.query_id || r.id,
+      query_text: r.chat_queries?.query_text || "Unknown query",
       faithfulness: r.faithfulness,
-      relevancy: r.answer_relevancy
+      answer_relevancy: r.answer_relevancy,
+      created_at: r.created_at || new Date().toISOString(),
+      reason: "Low faithfulness score"
     }));
 }
 

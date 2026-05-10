@@ -941,11 +941,11 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
 
 
 @app.get("/api/ingest/status")
-async def ingest_status_endpoint(user: AuthUser = Depends(current_active_user), container: ServiceContainer = Depends(get_container)) -> dict:
+async def ingest_status_endpoint(user: Dict = Depends(get_current_user_from_supabase), container: ServiceContainer = Depends(get_container)) -> dict:
     """
     Get the status of active/recent ingestion jobs (Admin only).
     """
-    if not user.is_superuser:
+    if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     return container.ingest_status
 

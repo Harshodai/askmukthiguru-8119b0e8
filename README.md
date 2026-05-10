@@ -91,7 +91,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 npm install && npm run dev
 ```
 
-Frontend dev server runs on http://localhost:8080.
+**Frontend Dev Server**: Defaults to [http://localhost:8080](http://localhost:8080). If port 8080 is busy, it may use `8081` or `8082`. Check the terminal output.
+
+### Local Google Sign-In Setup
+To enable Google Sign-In during local development:
+1. Ensure `.env.local` has `VITE_USE_NATIVE_OAUTH=true`.
+2. Configure `supabase/config.toml` with your Google `client_id` and `secret`.
+3. Restart the Supabase stack: `npx supabase stop` followed by `npx supabase start`.
 
 ## LLM Configuration
 

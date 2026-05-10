@@ -1,9 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from services.auth_service import fastapi_users, auth_backend
 from schemas.user import UserRead, UserCreate, UserUpdate
 from app.config import settings
-from app.core.limiter import limiter
-from fastapi import Depends
 
 router = APIRouter()
 
@@ -15,15 +13,15 @@ router.include_router(
 
 if not settings.disable_public_registration:
     register_router = fastapi_users.get_register_router(UserRead, UserCreate)
-    # Apply rate limiting to the registration route
-    # Note: fastapi-users includes routes dynamically, so we apply it to the router or wrap it
+    # NOTE: Do NOT use Depends(limiter.limit(...)) here — slowapi's limit() returns a
+    # Callable that Pydantic v2 cannot serialise to OpenAPI JSON schema, crashing
+    # /openapi.json with PydanticInvalidForJsonSchema: core_schema.CallableSchema.
+    # Rate limiting for this router is handled by the global slowapi middleware.
     router.include_router(
         register_router,
         tags=["auth"],
-        dependencies=[Depends(limiter.limit(settings.registration_rate_limit))]
     )
 else:
-    from fastapi import HTTPException
     @router.post("/register", tags=["auth"])
     async def register_disabled():
         raise HTTPException(status_code=403, detail="Public registration is disabled.")

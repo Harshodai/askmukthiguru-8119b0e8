@@ -243,6 +243,8 @@ def create_initial_state(
         # Final
         final_answer=None,
         error=None,
+        # Explainable Retrieval
+        citation_reasoning={},
         # User & Language
         user_id=None,
         detected_language="en",

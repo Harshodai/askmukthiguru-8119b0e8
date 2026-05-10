@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     stt_max_audio_mb: int = 200                 # Skip STT if audio file exceeds this size (MB)
 
     # --- OCR ---
-    ocr_languages: str = "en,hi,te"
+    ocr_languages: str = "en,hi"
 
     # --- Data Quality ---
     data_audit_enabled: bool = True  # Enable LLM-based quality checks

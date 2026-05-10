@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python3.12",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
+      "type": "stdio"
+    }
+  }
+}

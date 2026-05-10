@@ -19,6 +19,10 @@ export function useRequireAuth() {
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!session?.user) {
+        // Save current path for post-login redirect
+        if (window.location.pathname !== '/auth') {
+          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+        }
         navigate('/auth', { replace: true });
         return;
       }
@@ -31,6 +35,9 @@ export function useRequireAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;
       if (!session?.user) {
+        if (window.location.pathname !== '/auth') {
+          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+        }
         navigate('/auth', { replace: true });
         return;
       }

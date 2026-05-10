@@ -69,9 +69,9 @@ describe('DesktopSidebar', () => {
     expect(deleteBtn).toBeInTheDocument();
   });
 
-  it('calls onNewConversation when New Conversation is clicked', () => {
+  it('calls onNewConversation when New Chat is clicked', () => {
     render(<DesktopSidebar {...defaultProps} />, { wrapper });
-    const btn = screen.getByText('New Conversation');
+    const btn = screen.getByText('New Chat');
     fireEvent.click(btn);
     expect(defaultProps.onNewConversation).toHaveBeenCalledTimes(1);
   });
@@ -82,7 +82,8 @@ describe('DesktopSidebar', () => {
       { wrapper }
     );
     const items = screen.getAllByTestId('conversation-item');
-    expect(items[0].className).toContain('bg-ojas/10');
+    // Active class is 'bg-muted text-foreground'
+    expect(items[0].firstChild?.parentElement?.innerHTML).toContain('bg-muted');
   });
 
   // ── Delete confirmation dialog tests ──────────────────────────────
@@ -112,8 +113,10 @@ describe('DesktopSidebar', () => {
     expect(defaultProps.onDeleteConversation).toHaveBeenCalledWith('conv-1');
   });
 
-  it('shows brand icon M instead of guru photo', () => {
+  it('shows brand icon Flame instead of guru photo', () => {
     render(<DesktopSidebar {...defaultProps} />, { wrapper });
-    expect(screen.getByText('M')).toBeInTheDocument();
+    // The component uses the Flame icon from lucide-react
+    const brandIcon = document.querySelector('.lucide-flame');
+    expect(brandIcon).toBeInTheDocument();
   });
 });

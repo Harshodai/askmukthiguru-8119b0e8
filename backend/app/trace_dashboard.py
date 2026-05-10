@@ -15,10 +15,10 @@ import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict
 
 from app.config import settings
-from services.auth_service import current_active_user
-from models.user import User as AuthUser
+from services.auth_service import get_current_user_from_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +114,9 @@ def _get_trace_redis(request_id: str) -> Optional[dict]:
 # ===================================================================
 
 @router.get("/trace/{request_id}")
-async def get_trace(request_id: str, user: AuthUser = Depends(current_active_user)):
-    """Get detailed trace for a specific request. Requires authentication."""
-    if not user.is_superuser:
+async def get_trace(request_id: str, user: Dict = Depends(get_current_user_from_supabase)):
+    """Get detailed trace for a specific request. Requires admin authentication."""
+    if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
 
     # Check memory first
@@ -132,11 +132,11 @@ async def get_trace(request_id: str, user: AuthUser = Depends(current_active_use
 
 
 @router.get("/metrics/summary")
-async def get_metrics_summary(user: AuthUser = Depends(current_active_user)):
+async def get_metrics_summary(user: Dict = Depends(get_current_user_from_supabase)):
     """
-    High-level pipeline metrics summary. Requires authentication.
+    High-level pipeline metrics summary. Requires admin authentication.
     """
-    if not user.is_superuser:
+    if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
 
     from app.metrics import (

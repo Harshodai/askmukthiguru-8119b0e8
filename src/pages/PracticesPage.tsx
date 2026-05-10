@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star } from 'lucide-react';
+import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star, Loader2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { practices, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { cn } from '@/lib/utils';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 const accentMap: Record<Practice['accent'], { icon: typeof Flame; ring: string; bg: string; text: string }> = {
   ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas' },
@@ -80,9 +81,18 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
 };
 
 const PracticesPage = () => {
+  const { loading: authLoading } = useRequireAuth();
   const { favorites, toggle, isFavorited } = useFavorites();
   const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
   const otherPractices = practices.filter((p) => !favorites.includes(p.slug));
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <AppShell title="Practices">

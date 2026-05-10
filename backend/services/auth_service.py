@@ -1,8 +1,11 @@
 import uuid
 import logging
+import asyncio
+import time
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List
 import jwt
+from jwt import PyJWKClient, PyJWKClientError
 from fastapi import Depends, Request, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
@@ -78,31 +81,99 @@ class LocalAuthStrategy(AuthStrategy):
             logger.debug(f"Local auth attempt failed: {e}")
         return None
 
+# ---- JWKS Client (cached, lazy-initialised) ----
+# Supabase local v2.x issues ES256 (ECDSA) tokens verified via JWKS.
+# We cache the client so JWKS is only fetched once (or on key rotation).
+_jwks_client: Optional[PyJWKClient] = None
+_jwks_lock = asyncio.Lock()
+
+def _get_jwks_url() -> str:
+    """Return the JWKS URL for the configured Supabase instance."""
+    base = settings.supabase_url.rstrip("/")
+    return f"{base}/auth/v1/.well-known/jwks.json"
+
+async def _get_jwks_client() -> PyJWKClient:
+    """Lazily initialise and cache the JWKS client."""
+    global _jwks_client
+    if _jwks_client is not None:
+        return _jwks_client
+    async with _jwks_lock:
+        if _jwks_client is None:  # Double-checked locking
+            url = _get_jwks_url()
+            logger.info(f"Initialising JWKS client from {url}")
+            # PyJWKClient fetches JWKS synchronously; run in thread to not block
+            _jwks_client = await asyncio.to_thread(
+                PyJWKClient, url, cache_jwk_set=True, lifespan=3600
+            )
+    return _jwks_client
+
+
 class SupabaseAuthStrategy(AuthStrategy):
-    """Strategy for Supabase JWTs (Production Seeker Flow)"""
-    async def authenticate(self, request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Optional[Dict]:
+    """
+    Strategy for Supabase JWTs (Production Seeker Flow).
+
+    Supabase local v2.x issues ES256 (ECDSA) tokens.  We verify these
+    against the public key published at the JWKS endpoint.
+    Supabase static keys (anon / service_role) are still HS256 and are
+    verified with the shared jwt_secret as a fallback.
+    """
+
+    async def authenticate(
+        self,
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials],
+    ) -> Optional[Dict]:
         if not credentials:
             return None
-        
+
+        token = credentials.credentials
+
+        # ---- Peek at the token header to pick the right path ----
         try:
-            # Validate algorithm and signature
-            payload = jwt.decode(
-                credentials.credentials, 
-                settings.jwt_secret, 
-                algorithms=["HS256", "RS256"],
-                options={"verify_aud": False}
-            )
-            
+            unverified_header = jwt.get_unverified_header(token)
+        except jwt.DecodeError as e:
+            logger.warning(f"Malformed JWT header: {e}")
+            return None
+
+        alg = unverified_header.get("alg", "")
+
+        try:
+            if alg in ("ES256", "RS256"):
+                # ---- Asymmetric path: verify via JWKS public key ----
+                client = await _get_jwks_client()
+                signing_key = await asyncio.to_thread(
+                    client.get_signing_key_from_jwt, token
+                )
+                payload = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=["ES256", "RS256"],
+                    options={"verify_aud": False},
+                )
+            else:
+                # ---- Symmetric path: verify with shared HS256 secret ----
+                if not settings.jwt_secret:
+                    logger.error("jwt_secret not configured — cannot verify HS256 token")
+                    return None
+                payload = jwt.decode(
+                    token,
+                    settings.jwt_secret,
+                    algorithms=["HS256"],
+                    options={"verify_aud": False},
+                )
+
             return {
                 "id": payload.get("sub"),
                 "email": payload.get("email"),
+                "role": payload.get("role", "authenticated"),
                 "is_superuser": payload.get("role") == "service_role",
-                "provider": "supabase"
+                "provider": "supabase",
             }
+
         except jwt.ExpiredSignatureError:
             logger.warning("Supabase token expired")
-            raise HTTPException(status_code=401, detail="Token expired")
-        except jwt.InvalidTokenError as e:
+            raise HTTPException(status_code=401, detail="Token expired. Please sign in again.")
+        except (jwt.InvalidTokenError, PyJWKClientError) as e:
             logger.warning(f"Invalid Supabase token: {e}")
             return None
         except Exception as e:

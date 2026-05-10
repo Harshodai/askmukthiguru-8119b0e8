@@ -126,6 +126,7 @@ export const DesktopSidebar = ({
                 onClick={onToggleCollapse}
                 className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                 aria-label="Collapse sidebar"
+                data-testid="sidebar-toggle"
               >
                 <PanelLeft className="w-5 h-5" />
               </button>
@@ -164,7 +165,7 @@ export const DesktopSidebar = ({
                     </p>
                     <div className="space-y-0.5">
                       {convs.map((conv) => (
-                        <div key={conv.id} className="relative group">
+                        <div key={conv.id} className="relative group" data-testid="conversation-item">
                           {editingId === conv.id ? (
                             <div className="flex items-center gap-1 px-2 py-1.5 bg-muted/60 rounded-xl border border-ojas/30">
                               <Input
@@ -219,6 +220,7 @@ export const DesktopSidebar = ({
                                   }}
                                   className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                   title="Delete"
+                                  aria-label="Delete conversation"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -261,13 +263,14 @@ export const DesktopSidebar = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="delete-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 confirmDelete();
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="delete-confirm"
             >
               Delete
             </AlertDialogAction>
