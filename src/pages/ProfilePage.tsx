@@ -94,6 +94,7 @@ const formatTime = (mins: number): string => {
 
 const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialTab = searchParams.get('tab') || 'profile';
   const [tab, setTab] = useState(initialTab);
   const { profile, update } = useProfile();
