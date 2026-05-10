@@ -42,15 +42,22 @@ This builds and starts **all 5 services**:
 - **Redis** on port **6379** — response caching
 - **Neo4j** on port **7474** — knowledge graph
 
-### Access the app
-
-| URL | Description |
-|---|---|
-| http://localhost | Main app (landing, chat, practices, profile) |
-| http://localhost/admin | Admin dashboard (login: `admin` / `admin`) |
-| http://localhost/chat | Lightweight chat widget |
-| http://localhost/ingest | Content ingestion portal |
-| http://localhost:8000/api/health | Backend health check |
+### 5. Access the app
+ 
+ | URL | Description |
+ |---|---|
+ | http://localhost | Main app (landing, chat, practices, profile) |
+ | http://localhost/admin | Admin dashboard (login: `admin` / `admin`) |
+ | http://localhost/static-chat | Lightweight chat widget — Auth-protected |
+ | http://localhost/static-ingest | Content ingestion portal — Admin-only |
+ | http://localhost:8000/api/health | Backend health check |
+ 
+ ### 6. Database Setup (Supabase)
+ 
+ For persistent user profiles and admin telemetry, you must run the **[master_schema.sql](master_schema.sql)** in your Supabase SQL Editor. This script creates:
+ - **User Profiles**: Persistent spiritual preference storage.
+ - **Admin Telemetry**: Auditing for queries, responses, and AI triggers (distress/serene mind).
+ - **Role Management**: RBAC for admin access.
 
 ### Useful commands (Run these in the backend folder)
 

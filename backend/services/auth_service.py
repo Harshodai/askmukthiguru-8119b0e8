@@ -51,6 +51,8 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](
     [auth_backend],
 )
 
+current_active_user = fastapi_users.current_user(active=True)
+
 # --- SOLID Auth Strategy Pattern ---
 
 class AuthStrategy(ABC):

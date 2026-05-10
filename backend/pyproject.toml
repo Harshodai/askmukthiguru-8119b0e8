@@ -48,6 +48,9 @@ dependencies = [
     "slowapi>=0.1.9",
     "aiosqlite>=0.20.0",
     "passlib[bcrypt]>=1.7.4",
+    "gptcache>=0.1.43",
+    "easyocr>=1.7.2",
+    "nemoguardrails>=0.11.0",
     
     # UI
     "gradio>=4.0.0"
@@ -59,9 +62,6 @@ heavy = [
     "arize-phoenix>=4.38.0",
     "openinference-instrumentation-langchain>=0.1.33",
     "ragas>=0.2.1",
-    "gptcache>=0.1.43",
-    "easyocr>=1.7.2",
-    "nemoguardrails>=0.11.0"
 ]
 
 [dependency-groups]
