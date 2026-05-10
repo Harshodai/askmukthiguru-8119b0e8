@@ -178,3 +178,29 @@ Before reporting issues, always verify all of these:
 - **Symptom**: Backend health checks time out on startup, and `/api/chat` fails to respond or resets connections.
 - **Root Cause**: The background model prewarming thread (`asyncio.to_thread(prewarm_models)`) crashes if `OCR_LANGUAGES` includes incompatible language pairs (e.g., Telugu `te` and Hindi `hi`). EasyOCR raises `Telugu is only compatible with English`.
 - **Action**: Ensure `OCR_LANGUAGES` (in `.env` and `docker-compose.yml`) only contains compatible languages (e.g., `en,hi` or `en,te`). Do not mix incompatible scripts in a single EasyOCR reader instance.
+
+## Architectural Audit & Structural Knowledge (May 2026)
+
+Integrated the `code-review-graph` methodology to perform a deep-dive structural analysis of the Mukthi Guru codebase.
+
+### 1. Structural Chokepoints (Bridge Nodes)
+Bridge nodes sit on the shortest paths between many node pairs. If they break, large portions of the application lose connectivity or consistency.
+- **`DesktopSidebar`**: The primary navigation hub. Its state management is critical for user-facing session persistence.
+- **`SereneMindProvider`**: The central coordinator for distress detection and meditation flows. All compassionate RAG logic depends on this provider's availability.
+- **`SereneMindModal`**: The UI bridge for the meditation experience.
+
+### 2. High-Risk Hubs (Untested Hotspots)
+Hub nodes have the highest total degree (in + out edges). Changes to these have a disproportionate blast radius.
+- **`cn` (`src/lib/utils.ts`)**: Used in 213+ locations for Tailwind class merging. A regression here would break the styling of nearly every UI component. **Immediate Action**: Add regression tests for `cn`.
+- **`generateSeed` (`src/admin/lib/seed.ts`)**: A central utility for admin-side data generation (163 connections).
+- **`ProfilePage`**: A massive state hub (150 connections) that manages seeker-profile synchronization.
+
+### 3. Community Map
+The codebase is structured into 10 primary communities detected via the Leiden algorithm:
+- **`lib-use`**: The massive React component and hook ecosystem.
+- **`services-check`**: The core FastAPI backend and service adapter layer.
+- **`pageindex-page`**: The specialized ingestion pipeline for structured document parsing.
+
+### 4. Knowledge Gaps
+- **Isolated Ports**: Many methods in `ICacheRepository` and `ILLMService` appear isolated because they are abstract interfaces. This is expected in a Clean Architecture/Hexagonal design, but ensures that implementations must be explicitly wired in the `ServiceContainer`.
+- **Test Coverage Gap**: Despite being a "critical connector," `DesktopSidebar` was flagged for needing more comprehensive E2E validation compared to its impact radius.
