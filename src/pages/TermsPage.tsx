@@ -49,6 +49,7 @@ const TermsPage = () => {
       <Link to="/" className="text-sm text-ojas hover:underline">← Back to home</Link>
     </div>
   </main>
-);
+  );
+};
 
 export default TermsPage;
