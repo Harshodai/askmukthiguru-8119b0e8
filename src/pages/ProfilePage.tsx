@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Camera,
@@ -94,6 +94,7 @@ const formatTime = (mins: number): string => {
 
 const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialTab = searchParams.get('tab') || 'profile';
   const [tab, setTab] = useState(initialTab);
   const { profile, update } = useProfile();

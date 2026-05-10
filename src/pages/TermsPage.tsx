@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
-const TermsPage = () => (
+const TermsPage = () => {
+  usePageMeta({
+    title: 'Terms of Service — AskMukthiGuru',
+    description: 'Terms governing personal, non-commercial use of AskMukthiGuru. AI guidance is not a substitute for professional mental-health care.',
+    canonical: 'https://askmukthiguru.lovable.app/terms',
+  });
+  return (
   <main className="min-h-screen bg-background text-foreground px-4 py-10">
     <div className="max-w-2xl mx-auto space-y-6">
       <Link to="/" className="inline-flex items-center gap-2 text-ojas hover:underline">
@@ -42,6 +49,7 @@ const TermsPage = () => (
       <Link to="/" className="text-sm text-ojas hover:underline">← Back to home</Link>
     </div>
   </main>
-);
+  );
+};
 
 export default TermsPage;

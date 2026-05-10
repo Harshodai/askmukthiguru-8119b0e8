@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { AnimatedLayout } from "./components/layout/AnimatedLayout";
 import { SafetyDisclaimer } from "./components/common/SafetyDisclaimer";
 import { ThemeProvider } from "./components/common/ThemeProvider";
@@ -22,49 +23,57 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 
-// Admin
-import AdminLoginPage from "./admin/pages/AdminLoginPage";
-import { AdminShell } from "./admin/layout/AdminShell";
-import OverviewPage from "./admin/pages/OverviewPage";
-import QueriesPage from "./admin/pages/QueriesPage";
-import QualityPage from "./admin/pages/QualityPage";
-import RetrievalPage from "./admin/pages/RetrievalPage";
-import FeedbackPage from "./admin/pages/FeedbackPage";
-import DailyTeachingPage from "./admin/pages/DailyTeachingPage";
-import TriggersPage from "./admin/pages/TriggersPage";
-import TopicsPage from "./admin/pages/TopicsPage";
-import PromptsPage from "./admin/pages/PromptsPage";
-import EvalsPage from "./admin/pages/EvalsPage";
-import IngestionPage from "./admin/pages/IngestionPage";
-import LogsPage from "./admin/pages/LogsPage";
-import AlertsPage from "./admin/pages/AlertsPage";
-import SettingsPage from "./admin/pages/SettingsPage";
-import AdminsPage from "./admin/pages/AdminsPage";
+// Admin — lazy-loaded so the ~16 admin pages don't ship in the user bundle
+const AdminLoginPage = lazy(() => import("./admin/pages/AdminLoginPage"));
+const AdminShell = lazy(() => import("./admin/layout/AdminShell").then(m => ({ default: m.AdminShell })));
+const OverviewPage = lazy(() => import("./admin/pages/OverviewPage"));
+const QueriesPage = lazy(() => import("./admin/pages/QueriesPage"));
+const QualityPage = lazy(() => import("./admin/pages/QualityPage"));
+const RetrievalPage = lazy(() => import("./admin/pages/RetrievalPage"));
+const FeedbackPage = lazy(() => import("./admin/pages/FeedbackPage"));
+const DailyTeachingPage = lazy(() => import("./admin/pages/DailyTeachingPage"));
+const TriggersPage = lazy(() => import("./admin/pages/TriggersPage"));
+const TopicsPage = lazy(() => import("./admin/pages/TopicsPage"));
+const PromptsPage = lazy(() => import("./admin/pages/PromptsPage"));
+const EvalsPage = lazy(() => import("./admin/pages/EvalsPage"));
+const IngestionPage = lazy(() => import("./admin/pages/IngestionPage"));
+const LogsPage = lazy(() => import("./admin/pages/LogsPage"));
+const AlertsPage = lazy(() => import("./admin/pages/AlertsPage"));
+const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
+const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
 
 const queryClient = new QueryClient();
 
+const AdminFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+  </div>
+);
+
 // Admin routes — fully isolated (no Navbar, SafetyDisclaimer, or SereneMind)
 const AdminRoutes = () => (
-  <Routes>
-    <Route path="/admin/login" element={<AdminLoginPage />} />
-    <Route path="/admin" element={<AdminShell />}>
-      <Route index element={<OverviewPage />} />
-      <Route path="queries" element={<QueriesPage />} />
-      <Route path="quality" element={<QualityPage />} />
-      <Route path="retrieval" element={<RetrievalPage />} />
-      <Route path="feedback" element={<FeedbackPage />} />
-      <Route path="daily-teaching" element={<DailyTeachingPage />} />
-      <Route path="triggers" element={<TriggersPage />} />
-      <Route path="topics" element={<TopicsPage />} />
-      <Route path="prompts" element={<PromptsPage />} />
-      <Route path="evals" element={<EvalsPage />} />
-      <Route path="ingestion" element={<IngestionPage />} />
-      <Route path="logs" element={<LogsPage />} />
-      <Route path="alerts" element={<AlertsPage />} />
-      <Route path="settings" element={<SettingsPage />} />
-      <Route path="admins" element={<AdminsPage />} />
-    </Route>
-  </Routes>
+  <Suspense fallback={<AdminFallback />}>
+    <Routes>
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminShell />}>
+        <Route index element={<OverviewPage />} />
+        <Route path="queries" element={<QueriesPage />} />
+        <Route path="quality" element={<QualityPage />} />
+        <Route path="retrieval" element={<RetrievalPage />} />
+        <Route path="feedback" element={<FeedbackPage />} />
+        <Route path="daily-teaching" element={<DailyTeachingPage />} />
+        <Route path="triggers" element={<TriggersPage />} />
+        <Route path="topics" element={<TopicsPage />} />
+        <Route path="prompts" element={<PromptsPage />} />
+        <Route path="evals" element={<EvalsPage />} />
+        <Route path="ingestion" element={<IngestionPage />} />
+        <Route path="logs" element={<LogsPage />} />
+        <Route path="alerts" element={<AlertsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="admins" element={<AdminsPage />} />
+      </Route>
+    </Routes>
+  </Suspense>
 );
 
 // End-user routes — wrapped with all providers + error boundary

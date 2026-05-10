@@ -203,8 +203,8 @@ export const syncProfileToServer = async (profile: UserProfile) => {
         'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
-        preferred_language: profile.preferred_language,
-        codemix_preference: profile.preferred_language !== 'en', // Simple heuristic
+        preferred_language: profile.preferredLanguage,
+        codemix_preference: profile.preferredLanguage !== 'en', // Simple heuristic
         topics_of_interest: profile.prePracticeLog?.history?.map(h => h.answer).filter(a => a !== 'none') || []
       })
     });

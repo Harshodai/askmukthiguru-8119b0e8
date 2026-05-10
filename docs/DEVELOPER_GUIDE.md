@@ -283,3 +283,30 @@ Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
 - `docs/admin/` — admin-console internals.
 
 Welcome aboard. 🌅
+
+---
+
+## 14. Performance & SEO conventions
+
+- **Lazy-load admin chunk.** All `/admin/*` pages are imported via `React.lazy` in
+  `src/App.tsx`. End-user bundle never pulls them. Keep this pattern when
+  adding new admin pages.
+- **Per-route SEO.** Use `usePageMeta({ title, description, canonical })`
+  from `src/hooks/usePageMeta.ts` at the top of every public page. The hook
+  restores previous meta on unmount so SPA navigation never leaks stale
+  titles to crawlers.
+- **JSON-LD.** Site-wide `WebApplication` schema lives in `index.html`.
+  Per-route schema (e.g. `Article` for teachings) should be added inside the
+  page component using `<script type="application/ld+json">`.
+- **Sitemap & robots.** `public/sitemap.xml` and `public/robots.txt` are
+  static. Update sitemap when you add a new public route.
+
+## 15. Local + Lovable parity checklist
+
+When you ship a feature, verify both surfaces:
+
+1. **Lovable preview** — push, open the preview URL, exercise the new flow.
+2. **Local Docker** — `./start_docker.sh` (uses absolute Docker path from
+   `lessons.md`), then visit `http://localhost/`. Both must work without
+   editing code per environment; route everything through the
+   `VITE_*` env vars baked at build time.
