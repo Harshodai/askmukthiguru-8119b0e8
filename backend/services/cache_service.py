@@ -176,8 +176,7 @@ def init_llm_cache():
             data_manager = manager_factory(
                 "sqlite", 
                 data_dir="data/gptcache",
-                max_size=5000,
-                eviction="LRU"
+                max_size=5000
             )
             cache_obj.init(
                 pre_embedding_func=get_prompt,

@@ -49,7 +49,6 @@ from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
 from services.lightrag_service import LightRAGService
 from services.serene_mind_engine import SereneMindEngine, DistressLevel
-from rag.compression import ContextualCompressor
 from rag.compressor import compress_documents
 from rag.tree_navigator import navigate_tree, check_sufficiency
 from rag.resolve_followup import resolve_followup, set_ollama as set_followup_ollama
@@ -73,7 +72,6 @@ _embedder: EmbeddingService = None
 _qdrant: Optional[QdrantService] = None
 _lightrag: Optional[LightRAGService] = None
 _serene_mind: Optional[SereneMindEngine] = None
-_compressor: Optional[ContextualCompressor] = None
 
 
 def init_services(
@@ -100,13 +98,12 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
     
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _compressor
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind
     _ollama = ollama
     _embedder = embedder
     _qdrant = qdrant
     _lightrag = lightrag
     _serene_mind = serene_mind
-    _compressor = ContextualCompressor(embedder, threshold=0.45)
     # Inject ollama into follow-up resolver
     set_followup_ollama(ollama)
 
@@ -707,18 +704,29 @@ async def generate_answer(state: GraphState) -> dict:
     chat_history = state.get("chat_history", [])
 
     # Build context string with Contextual Compression (Ch 10 RAG Made Simple)
-    if len(relevant_docs) > 3 and _compressor:
-        compressed_texts = []
-        for doc in relevant_docs:
-            compressed_text = _compressor.compress(question, doc['text'])
-            title = doc.get('title', doc.get('source_url', 'Unknown'))
-            compressed_texts.append(f"[Source: {title}]\n{compressed_text}")
-        context = "\n\n---\n\n".join(compressed_texts)
+    # Using LLM-based compressor (Fast model)
+    if len(relevant_docs) > 0:
+        async def compress_and_format(doc):
+            compressed_text = await _ollama.compress_context(question, doc['text'])
+            if compressed_text:
+                title = doc.get('title', doc.get('source_url', 'Unknown'))
+                return f"[Source: {title}]\n{compressed_text}"
+            return None
+            
+        compressed_results = await asyncio.gather(*[compress_and_format(doc) for doc in relevant_docs])
+        # Filter out empty results where NO_RELEVANT_CONTEXT was returned
+        valid_compressed = [res for res in compressed_results if res]
+        
+        if valid_compressed:
+            context = "\n\n---\n\n".join(valid_compressed)
+        else:
+            # Fallback if everything got compressed away
+            context = "\n\n---\n\n".join(
+                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+                for doc in relevant_docs
+            )
     else:
-        context = "\n\n---\n\n".join(
-            f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
-            for doc in relevant_docs
-        )
+        context = ""
 
     # Build citations list (deterministic ordering for reproducibility)
     citations = sorted(set(

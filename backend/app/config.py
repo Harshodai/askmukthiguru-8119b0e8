@@ -89,6 +89,8 @@ class Settings(BaseSettings):
     whisper_model: str = "large-v3"           # Whisper model size
     whisper_backend: str = "faster-whisper"    # Backend: 'faster-whisper' (4x faster) or 'openai-whisper'
     whisper_compute_type: str = "float16"      # GPU: float16, CPU: int8 or float32
+    whisper_local_model: str = "mlx-community/whisper-large-v3-turbo"
+    whisper_local_device: str = "mps"
 
     # --- Transcript Extraction ---
     transcript_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa"  # 10 Indian languages

@@ -69,3 +69,5 @@ scratch-llmfit/
 supabase_status.json
 # Added by code-review-graph
 .code-review-graph/
+.venv_whisper/
+.venv_host

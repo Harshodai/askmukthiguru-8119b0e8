@@ -19,6 +19,7 @@ Supports both single videos and playlists with sequential extraction (rate-limit
 """
 
 import asyncio
+import os
 import logging
 import re
 import tempfile
@@ -286,30 +287,33 @@ def fetch_transcript_hybrid(
     # ── Step 1: YouTube Captions (Tier 1 + Tier 2) ──
     youtube_text = None
 
-    logger.info(f"[{video_id}] Fetching YouTube captions...")
-    youtube_text = _fetch_youtube_captions(
-        video_id, languages,
-        allow_auto=(not max_accuracy)
-    )
+    if os.environ.get("WHISPER_ONLY", "false").lower() == "true":
+        logger.info(f"[{video_id}] WHISPER_ONLY mode: skipping YouTube captions")
+    else:
+        logger.info(f"[{video_id}] Fetching YouTube captions...")
+        youtube_text = _fetch_youtube_captions(
+            video_id, languages,
+            allow_auto=(not max_accuracy)
+        )
 
-    # Tier 3 fallback: yt-dlp if YouTube API failed
-    if not youtube_text:
-        logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download...")
-        youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
+        # Tier 3 fallback: yt-dlp if YouTube API failed
+        if not youtube_text:
+            logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download...")
+            youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
 
-    # ── Step 2: Council — Sarvam STT ──
-    if settings.enable_transcript_council:
-        logger.info(f"[{video_id}] Council: Running Sarvam Saaras v3 STT...")
-        sarvam_text = _run_sarvam_stt(video_id)
+    # ── Step 2: Council / Whisper Fallback ──
+    if settings.enable_transcript_council or os.environ.get("WHISPER_ONLY", "false").lower() == "true":
+        logger.info(f"[{video_id}] Running local Whisper large-v3-turbo STT...")
+        whisper_text = _run_whisper_stt(video_id)
 
-        from services.sarvam_stt_service import council_pick_best
-        council_result = council_pick_best(youtube_text, sarvam_text, video_id)
+        from services.whisper_local_service import council_pick_best
+        council_result = council_pick_best(youtube_text, whisper_text, video_id)
 
         chosen_text = council_result["text"]
         method = f"council_{council_result['method']}"
         council_info = {
             "youtube_score": council_result["youtube_score"],
-            "sarvam_score": council_result["sarvam_score"],
+            "whisper_score": council_result.get("whisper_score", 0.0),
             "winner": council_result["winner"],
         }
 
@@ -324,7 +328,7 @@ def fetch_transcript_hybrid(
 
         logger.info(
             f"[{video_id}] ✅ Council complete: {method} "
-            f"(YT={council_result['youtube_score']:.2f}, SV={council_result['sarvam_score']:.2f})"
+            f"(YT={council_result['youtube_score']:.2f}, WH={council_result.get('whisper_score', 0.0):.2f})"
         )
         return {
             "text": chosen_text, "source_url": source_url, "title": title,
@@ -347,20 +351,20 @@ def fetch_transcript_hybrid(
     }
 
 
-def _run_sarvam_stt(video_id: str) -> Optional[str]:
-    """Download audio and transcribe via Sarvam STT. Returns text or None."""
+def _run_whisper_stt(video_id: str) -> Optional[str]:
+    """Download audio and transcribe via local Whisper STT. Returns text or None."""
     try:
-        from services.sarvam_stt_service import download_audio, transcribe_with_sarvam
+        from services.whisper_local_service import download_audio, transcribe_with_whisper
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             audio_path = download_audio(video_id, tmp_dir)
             if not audio_path:
-                logger.warning(f"[{video_id}] Sarvam STT: audio download failed")
+                logger.warning(f"[{video_id}] Whisper STT: audio download failed")
                 return None
 
-            return transcribe_with_sarvam(video_id, audio_path)
+            return transcribe_with_whisper(video_id, audio_path)
     except Exception as e:
-        logger.error(f"[{video_id}] Sarvam STT error: {e}")
+        logger.error(f"[{video_id}] Whisper STT error: {e}")
         return None
 
 

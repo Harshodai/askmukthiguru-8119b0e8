@@ -150,17 +150,37 @@ async def lifespan(app: FastAPI):
 
     # 4. (Deprecated) Depression detector is now merged into Serene Mind Engine
 
-    # 5. Observability tracing (Arize Phoenix / OpenInference) (BE-8)
+    # 5. Observability tracing (OpenTelemetry + Jaeger)
     try:
-        import phoenix as px
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from openinference.instrumentation.langchain import LangChainInstrumentor
-        px.launch_app()  # Starts Phoenix server locally
+        import os
+
+        # Setup Tracer Provider
+        resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "mukthiguru-backend")})
+        provider = TracerProvider(resource=resource)
+        
+        # Configure the Exporter (point to Jaeger OTLP endpoint)
+        endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317")
+        otlp_exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
+        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+        
+        trace.set_tracer_provider(provider)
+        
+        # Instrument FastAPI and LangChain
+        FastAPIInstrumentor.instrument_app(app)
         LangChainInstrumentor().instrument()
-        logger.info("Arize Phoenix and OpenInference tracing successfully initialized.")
-    except ImportError:
-        logger.info("Arize Phoenix not installed — skipping observability tracing")
+        
+        logger.info("✅ OpenTelemetry tracing (Jaeger) successfully initialized.")
+    except ImportError as e:
+        logger.info(f"OpenTelemetry packages not installed — skipping observability tracing. ({e})")
     except Exception as e:
-        logger.warning(f"Failed to initialize Arize Phoenix tracing: {e}")
+        logger.warning(f"Failed to initialize OpenTelemetry tracing: {e}")
 
     # 6. Schedule recurring jobs (BE-5)
     shutdown_scheduler = lambda: None

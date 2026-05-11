@@ -546,3 +546,20 @@ CRITICAL SOURCE RULES:
 
 The user should feel they are receiving wisdom from the ORIGINAL SOURCE, not from an AI database.
 """
+
+
+# === CONTEXT COMPRESSION PROMPT (RAG Made Simple - Ch 10) ===
+COMPRESS_CONTEXT_PROMPT = """You are a precise context compressor for a spiritual guidance system.
+Given a user's question and a retrieved document chunk, extract ONLY the sentences, facts, and concepts that directly relate to answering the question.
+
+RULES:
+1. Do not rewrite or summarize unnecessarily—extract the most relevant exact quotes or phrases.
+2. If the entire chunk is irrelevant to the question, return: "NO_RELEVANT_CONTEXT"
+3. Preserve all spiritual terminology exactly as it appears.
+4. Output only the compressed, relevant information. Do not add any conversational filler.
+
+Question: {question}
+
+Chunk:
+{document_text}"""
+

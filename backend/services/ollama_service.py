@@ -101,7 +101,11 @@ class OllamaService:
             # Bind runtime args like temperature
             chain = self._llm.bind(**kwargs) if kwargs else self._llm
             response = await chain.ainvoke(messages)
-            return response.content.strip()
+            content = response.content.strip()
+            # Strip <think> tags from reasoning models like DeepSeek-R1
+            import re
+            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            return content
         except Exception as e:
             logger.error(f"Ollama generation failed: {e}")
             raise
@@ -126,7 +130,10 @@ class OllamaService:
         try:
             chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
             response = await chain.ainvoke(messages)
-            return response.content.strip()
+            content = response.content.strip()
+            import re
+            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            return content
         except Exception as e:
             # Fall back to main model if fast model fails
             logger.warning(f"Fast model failed, falling back to main: {e}")
@@ -421,6 +428,25 @@ class OllamaService:
         """
         result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query)
         return "complex" in result.lower()
+
+    async def compress_context(self, question: str, document_text: str) -> str:
+        """
+        Compress a document chunk using the fast LLM to retain only relevant information.
+        If NO_RELEVANT_CONTEXT is returned, it returns an empty string.
+        """
+        from rag.prompts import COMPRESS_CONTEXT_PROMPT
+        
+        prompt = COMPRESS_CONTEXT_PROMPT.format(
+            question=question,
+            document_text=document_text
+        )
+        # Always use the fast model for compression to save time
+        compressed = await self._generate_fast("", prompt)
+        
+        if "NO_RELEVANT_CONTEXT" in compressed:
+            return ""
+            
+        return compressed.strip()
 
     async def health_check(self) -> bool:
         """Check if Ollama is reachable (async)."""

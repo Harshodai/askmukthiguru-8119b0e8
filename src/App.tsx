@@ -20,6 +20,18 @@ const AdminLoginPage = lazy(() => import("./admin/pages/AdminLoginPage"));
 const AdminShell = lazy(() => import("./admin/layout/AdminShell").then(m => ({ default: m.AdminShell })));
 const OverviewPage = lazy(() => import("./admin/pages/OverviewPage"));
 const QueriesPage = lazy(() => import("./admin/pages/QueriesPage"));
+const QualityPage = lazy(() => import("./admin/pages/QualityPage"));
+const RetrievalPage = lazy(() => import("./admin/pages/RetrievalPage"));
+const DailyTeachingPage = lazy(() => import("./admin/pages/DailyTeachingPage"));
+const TriggersPage = lazy(() => import("./admin/pages/TriggersPage"));
+const TopicsPage = lazy(() => import("./admin/pages/TopicsPage"));
+const PromptsPage = lazy(() => import("./admin/pages/PromptsPage"));
+const EvalsPage = lazy(() => import("./admin/pages/EvalsPage"));
+const IngestionPage = lazy(() => import("./admin/pages/IngestionPage"));
+const LogsPage = lazy(() => import("./admin/pages/LogsPage"));
+const AlertsPage = lazy(() => import("./admin/pages/AlertsPage"));
+const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
+const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
 
 const queryClient = new QueryClient();
 
@@ -47,6 +59,18 @@ const App = () => {
           }>
             <Route index element={<OverviewPage />} />
             <Route path="queries" element={<QueriesPage />} />
+            <Route path="quality" element={<QualityPage />} />
+            <Route path="retrieval" element={<RetrievalPage />} />
+            <Route path="daily-teaching" element={<DailyTeachingPage />} />
+            <Route path="triggers" element={<TriggersPage />} />
+            <Route path="topics" element={<TopicsPage />} />
+            <Route path="prompts" element={<PromptsPage />} />
+            <Route path="evals" element={<EvalsPage />} />
+            <Route path="ingestion" element={<IngestionPage />} />
+            <Route path="logs" element={<LogsPage />} />
+            <Route path="alerts" element={<AlertsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="admins" element={<AdminsPage />} />
           </Route>
 
           {/* Seeker */}

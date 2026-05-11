@@ -162,12 +162,26 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
             batch = chunks[batch_start:batch_start + 20]
 
             try:
-                job = client.speech_to_text_job.create_job(
-                    model=settings.sarvam_stt_model,
-                    mode=settings.sarvam_stt_mode,
-                    language_code=settings.sarvam_stt_language,
-                    with_diarization=False,  # Keep simple for RAG use case
-                )
+                # Retry loop for 429 errors
+                import time
+                max_sv_retries = 3
+                for attempt in range(max_sv_retries):
+                    try:
+                        logger.info(f"[{video_id}] Creating Sarvam job with model: {settings.sarvam_stt_model} (Attempt {attempt+1})")
+                        job = client.speech_to_text_job.create_job(
+                            model=settings.sarvam_stt_model,
+                            mode=settings.sarvam_stt_mode,
+                            language_code=settings.sarvam_stt_language,
+                            with_diarization=False,
+                        )
+                        break
+                    except Exception as e:
+                        if "429" in str(e) and attempt < max_sv_retries - 1:
+                            wait_sec = 10 * (attempt + 1)
+                            logger.warning(f"[{video_id}] Sarvam rate limit (429), waiting {wait_sec}s...")
+                            time.sleep(wait_sec)
+                        else:
+                            raise e
 
                 job.upload_files(file_paths=batch)
                 job.start()
@@ -191,24 +205,50 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
                         logger.warning(f"[{video_id}] download_outputs failed: {e}, trying get_output_mappings")
 
                 # Extract transcripts from successful results
+                # Sarvam Batch API often renames files to index (0.json, 1.json, etc.)
+                # If we have only 1 chunk, we can just grab the first .json or .txt file.
+                
+                # List all files in the output directory
+                output_files = os.listdir(output_dir) if os.path.exists(output_dir) else []
+                logger.info(f"[{video_id}] Sarvam output files: {output_files}")
+
                 for f in successful:
                     transcript_text = f.get("transcript", "") or f.get("text", "")
                     if transcript_text:
                         all_transcripts.append(transcript_text.strip())
-                    else:
-                        # Try reading from downloaded output files
-                        fname = f.get("file_name", "")
-                        if fname:
-                            out_path = os.path.join(output_dir, Path(fname).stem + ".txt")
-                            if os.path.exists(out_path):
+                        continue
+                    
+                    # Try to find a matching file in output_dir
+                    # Strategy: if only 1 file exists, use it. Otherwise try to match by index.
+                    found_text = None
+                    
+                    # Look for ANY .json or .txt file if we're desperate
+                    for out_fname in output_files:
+                        out_path = os.path.join(output_dir, out_fname)
+                        if out_fname.endswith(".txt"):
+                            with open(out_path) as fp:
+                                found_text = fp.read().strip()
+                        elif out_fname.endswith(".json"):
+                            try:
+                                import json
                                 with open(out_path) as fp:
-                                    all_transcripts.append(fp.read().strip())
+                                    data = json.load(fp)
+                                    found_text = data.get("transcript", "") or data.get("text", "")
+                            except Exception as je:
+                                logger.error(f"[{video_id}] Failed to parse JSON {out_fname}: {je}")
+                        
+                        if found_text:
+                            all_transcripts.append(found_text)
+                            # Remove from output_files so we don't reuse it for next chunk in same batch
+                            output_files.remove(out_fname)
+                            break
 
             except Exception as e:
                 logger.error(f"[{video_id}] Sarvam STT batch error: {e}")
                 continue
 
     if not all_transcripts:
+        logger.warning(f"[{video_id}] No transcripts extracted from Sarvam results")
         return None
 
     merged = " ".join(all_transcripts)

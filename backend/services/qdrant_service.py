@@ -77,10 +77,10 @@ class QdrantService:
     def __init__(self) -> None:
         if settings.qdrant_local_path:
             logger.info(f"Qdrant: local mode at {settings.qdrant_local_path}")
-            self._client = QdrantClient(path=settings.qdrant_local_path)
+            self._client = QdrantClient(path=settings.qdrant_local_path, check_compatibility=False)
         else:
             logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
-            self._client = QdrantClient(url=settings.qdrant_url)
+            self._client = QdrantClient(url=settings.qdrant_url, check_compatibility=False)
 
         self._collection = settings.qdrant_collection
         self._dimension = settings.embedding_dimension
@@ -172,7 +172,10 @@ class QdrantService:
             # Build named vector dict
             vector_dict = {"dense": vector}
             if sparse_vectors and i < len(sparse_vectors):
-                vector_dict["sparse"] = self._sparse_dict_to_vector(sparse_vectors[i])
+                sparse_vec = sparse_vectors[i]
+                # Only include sparse if it has meaningful data to avoid 400 Bad Request
+                if sparse_vec and (len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0):
+                    vector_dict["sparse"] = self._sparse_dict_to_vector(sparse_vec)
 
             point = PointStruct(
                 id=point_id,

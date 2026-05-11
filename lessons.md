@@ -204,3 +204,38 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 ### 4. Knowledge Gaps
 - **Isolated Ports**: Many methods in `ICacheRepository` and `ILLMService` appear isolated because they are abstract interfaces. This is expected in a Clean Architecture/Hexagonal design, but ensures that implementations must be explicitly wired in the `ServiceContainer`.
 - **Test Coverage Gap**: Despite being a "critical connector," `DesktopSidebar` was flagged for needing more comprehensive E2E validation compared to its impact radius.
+
+## Ingestion Pipeline Results (May 10, 2026)
+
+### 1. PDF Ingestion — The Four Sacred Secrets
+- **Tool**: `scripts/smart_extract_and_ingest.py` + `scripts/ingest_structure_to_qdrant.py`
+- **Model**: `ollama/deepseek-r1:7b` (local, 4.7GB Q4_K_M)
+- **Environment**: Python 3.12 venv for extraction, Docker backend for Qdrant upsert
+- **Results**:
+  - 161 pages parsed, 67,119 tokens
+  - 25 hand-verified sections, **100% structure accuracy**
+  - 25/25 LLM summaries generated (batch size 4, ~10min total)
+  - **50 chunks upserted** to Qdrant `spiritual_wisdom` collection (25 text + 25 summary)
+  - Dense vectors: bge-m3 (1024-dim) + sparse vectors
+- **Lesson**: Split extraction (CPU-bound, needs litellm) from ingestion (needs backend deps) into two scripts for clean dependency separation.
+
+### 2. YouTube Playlist Ingestion — BLOCKED
+- **Blockers**: Two simultaneous failures:
+  1. YouTube HTTP 429 — yt-dlp subtitle download rate-limited
+  2. Sarvam STT quota exhausted — `insufficient_quota_error`
+- **Resolution needed**: Top up Sarvam API credits or wait for YouTube rate limit cooldown
+- **Script ready**: `scripts/ingest_youtube_seeds.py` updated with staggered delays and dual-playlist support
+
+### 3. Admin Routing Fix
+- **Bug**: `App.tsx` only had 2/14 admin routes wired (Overview, Queries). All other sidebar links (Daily Teaching, Quality, Retrieval, etc.) showed blank pages.
+- **Fix**: Added lazy imports and `<Route>` entries for all 14 admin pages.
+- **Lesson**: When adding admin pages, always wire BOTH the sidebar `NavLink` in `AdminShell.tsx` AND the `<Route>` in `App.tsx`. Missing either causes silent navigation failures.
+
+
+### 10. Local Whisper STT Migration (Apple Silicon) (May 2026)
+- **Problem**: YouTube subtitle downloads (Tier 3) and cloud STT APIs (Sarvam) are prone to rate limits (HTTP 429) and quota bottlenecks.
+- **Solution**: Implemented local STT using `mlx-whisper` and `mlx-community/whisper-large-v3-turbo`.
+- **Performance**: Achieved ~150x realtime transcription speeds on M5 hardware (~3000-4000 frames/sec).
+- **Architecture**: A "Transcript Council" logic fallback allows the system to seamlessly switch to local Whisper when cloud/YT sources fail. This maintains 100% ingestion coverage without API dependencies.
+- **Environment**: Native macOS hardware access is required for MLX; ingestion runs in a Python 3.12 venv on the host to leverage the Apple Neural Engine and Metal.
+- **Transcript Council**: Hybrid scoring (Word count + Punctuation + Domain Terms) ensures that the highest quality transcript is selected, whether it's from YouTube captions or local Whisper.

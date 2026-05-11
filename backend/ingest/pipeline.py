@@ -83,6 +83,44 @@ class IngestionPipeline:
             qdrant_service=self._qdrant,
         )
 
+    async def ingest_file(
+        self,
+        file_path: str,
+        max_accuracy: bool = False,
+        on_progress: Optional[Callable] = None,
+    ) -> dict:
+        """
+        Ingest a local PDF or TXT file.
+        """
+        self._notify(on_progress, f"Loading file: {os.path.basename(file_path)}", 0.1)
+        
+        text = ""
+        ext = os.path.splitext(file_path)[1].lower()
+        
+        if ext == ".pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(file_path)
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+        elif ext == ".txt":
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+        else:
+            return {"status": "error", "message": f"Unsupported file type: {ext}"}
+
+        if not text.strip():
+            return {"status": "error", "message": "No text extracted from file"}
+
+        # Ingest as raw text
+        return await self.ingest_raw_text(
+            text=text,
+            source_url=os.path.basename(file_path),
+            title=os.path.basename(file_path),
+            content_type="document",
+            max_accuracy=max_accuracy,
+            on_progress=on_progress
+        )
+
     async def ingest_url(
         self,
         url: str,
@@ -127,6 +165,7 @@ class IngestionPipeline:
         title: str,
         speaker: str = "Unknown",
         topic: str = "Spiritual",
+        content_type: str = "migration",
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
     ) -> dict:
@@ -168,7 +207,7 @@ class IngestionPipeline:
             title=title,
             speaker=speaker,
             topic=topic,
-            content_type="migration",
+            content_type=content_type,
         )
 
         # Step 6: RAPTOR tree

@@ -114,26 +114,85 @@ class LightRAGService:
         Execute GraphRAG query async.
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
         """
+        if not self._initialized:
+            await self.initialize()
+
         if not self.rag:
-            logger.warning("LightRAG is not active, returning empty context.")
-            return ""
+            logger.warning("LightRAG is not active, skipping graph query.")
+            return "Knowledge graph is currently offline."
             
         from lightrag import QueryParam
         try:
             logger.info(f"Querying LightRAG graph (mode={mode})...")
             return await self.rag.aquery(query, param=QueryParam(mode=mode))
         except Exception as e:
+            # Check for common initialization error and retry once
+            if "JsonDocStatusStorage not initialized" in str(e):
+                logger.warning("LightRAG storage not initialized, retrying...")
+                await self.rag.initialize_storages()
+                return await self.rag.aquery(query, param=QueryParam(mode=mode))
             logger.error(f"LightRAG query failed: {e}")
             return ""
 
     async def ainsert(self, text: str):
         """Insert new content into the graph asynchronously."""
+        if not self._initialized:
+            await self.initialize()
+
         if not self.rag:
             logger.warning("LightRAG is not active, skipping graph extraction.")
             return
         
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
-        await self.rag.ainsert(text)
+        try:
+            await self.rag.ainsert(text)
+        except Exception as e:
+            # Check for common initialization error and retry once
+            if "JsonDocStatusStorage not initialized" in str(e):
+                logger.warning("LightRAG storage not initialized during insertion, retrying...")
+                await self.rag.initialize_storages()
+                await self.rag.ainsert(text)
+            else:
+                raise
+
+    async def ainsert_chunked(self, text: str, max_chunk_size: int = 8000, overlap: int = 500, sleep_between: float = 3.0):
+        """Insert large texts into the graph in chunks to prevent SIGSEGV or OOM errors."""
+        if not self._initialized:
+            await self.initialize()
+
+        if not self.rag:
+            logger.warning("LightRAG is not active, skipping graph extraction.")
+            return
+
+        def chunk_text(t: str, size: int, ov: int) -> list[str]:
+            chunks = []
+            start = 0
+            while start < len(t):
+                end = min(start + size, len(t))
+                if end < len(t):
+                    for boundary_char in ['. ', '.\n', '!\n', '?\n', '! ', '? ']:
+                        last_boundary = t.rfind(boundary_char, start + size // 2, end)
+                        if last_boundary != -1:
+                            end = last_boundary + len(boundary_char)
+                            break
+                chunk = t[start:end].strip()
+                if chunk:
+                    chunks.append(chunk)
+                start = max(start + 1, end - ov)
+            return chunks
+
+        chunks = chunk_text(text, max_chunk_size, overlap)
+        total = len(chunks)
+        logger.info(f"LightRAG: Splitting {len(text):,} chars into {total} chunks")
+
+        for i, chunk in enumerate(chunks, 1):
+            logger.info(f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars)")
+            try:
+                await self.ainsert(chunk)
+            except Exception as e:
+                logger.error(f"LightRAG: Chunk {i}/{total} failed: {e}")
+            if i < total:
+                await asyncio.sleep(sleep_between)
 
 # Singleton export
 lightrag_service = LightRAGService()
