@@ -99,6 +99,11 @@ const formatTime = (mins: number): string => {
 
 const ProfilePage = () => {
   const { loading: authLoading } = useRequireAuth();
+  usePageMeta({
+    title: 'Your Profile — AskMukthiGuru',
+    description: 'Manage your seeker profile, preferred guru tone, language, theme, and meditation reminder settings.',
+    canonical: 'https://askmukthiguru.lovable.app/profile',
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialTab = searchParams.get('tab') || 'profile';

@@ -26,6 +26,27 @@ const PracticeDetailPage = () => {
     if (practice) recordRecentPractice(practice.slug);
   }, [practice]);
 
+  usePageMeta({
+    title: practice ? `${practice.title} — ${practice.tagline} | AskMukthiGuru` : 'Practice not found | AskMukthiGuru',
+    description: practice ? `${practice.purpose.slice(0, 155)}` : 'The requested practice could not be found.',
+    canonical: practice ? `https://askmukthiguru.lovable.app/practices/${practice.slug}` : 'https://askmukthiguru.lovable.app/practices',
+    ogType: practice ? 'article' : 'website',
+    jsonLd: practice
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: practice.title,
+          description: practice.purpose,
+          totalTime: practice.durationLabel,
+          step: practice.howItWorks.map((text, i) => ({
+            '@type': 'HowToStep',
+            position: i + 1,
+            text,
+          })),
+        }
+      : undefined,
+  });
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
