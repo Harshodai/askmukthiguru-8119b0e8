@@ -22,7 +22,10 @@ import {
   Target,
   ArrowRight,
   Loader2,
+  MessageCircle,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -96,6 +99,11 @@ const formatTime = (mins: number): string => {
 
 const ProfilePage = () => {
   const { loading: authLoading } = useRequireAuth();
+  usePageMeta({
+    title: 'Your Profile — AskMukthiGuru',
+    description: 'Manage your seeker profile, preferred guru tone, language, theme, and meditation reminder settings.',
+    canonical: 'https://askmukthiguru.lovable.app/profile',
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialTab = searchParams.get('tab') || 'profile';
@@ -373,8 +381,11 @@ const ProfilePage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {derivePrePracticeInsights().length > 0 ? (
-                      derivePrePracticeInsights().map((insight, idx) => (
+                    {(() => {
+                      const insights = derivePrePracticeInsights(profile.prePracticeLog);
+                      const items = [insights.encouragement].filter(Boolean);
+                      return items.length > 0 ? (
+                      items.map((insight, idx) => (
                         <div key={idx} className="p-4 rounded-lg bg-ojas/5 border border-ojas/10 flex gap-3">
                           <Sparkles className="w-5 h-5 text-ojas shrink-0" />
                           <p className="text-sm text-foreground/80 italic leading-relaxed">
@@ -392,7 +403,8 @@ const ProfilePage = () => {
                           Start a practice <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                         </Button>
                       </div>
-                    )}
+                    );
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -513,7 +525,7 @@ const ProfilePage = () => {
                           variant="outline" 
                           size="sm" 
                           className="h-8 text-[11px] gap-2"
-                          onClick={() => fireTestReminder()}
+                          onClick={() => fireTestReminder(toast)}
                         >
                           <Bell className="w-3.5 h-3.5" /> Send test reminder
                         </Button>

@@ -1,10 +1,16 @@
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { Loader2 } from 'lucide-react';
 
 const ChatPage = () => {
   const { loading } = useRequireAuth();
+  usePageMeta({
+    title: 'Chat with the Guru — AskMukthiGuru',
+    description: 'Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    canonical: 'https://askmukthiguru.lovable.app/chat',
+  });
 
   if (loading) {
     return (

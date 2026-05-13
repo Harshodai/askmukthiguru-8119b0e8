@@ -8,6 +8,7 @@ import { practices, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { cn } from '@/lib/utils';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const accentMap: Record<Practice['accent'], { icon: typeof Flame; ring: string; bg: string; text: string }> = {
   ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas' },
@@ -85,6 +86,23 @@ const PracticesPage = () => {
   const { favorites, toggle, isFavorited } = useFavorites();
   const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
   const otherPractices = practices.filter((p) => !favorites.includes(p.slug));
+
+  usePageMeta({
+    title: 'Daily Practices — Guided Meditations | AskMukthiGuru',
+    description: 'Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    canonical: 'https://askmukthiguru.lovable.app/practices',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'AskMukthiGuru Practices',
+      itemListElement: practices.map((p, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: `https://askmukthiguru.lovable.app/practices/${p.slug}`,
+        name: p.title,
+      })),
+    },
+  });
 
   if (authLoading) {
     return (

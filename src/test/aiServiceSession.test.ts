@@ -43,7 +43,7 @@ describe('aiService session continuity', () => {
     const fetchMock = globalThis.fetch as unknown as {
       mock: { calls: Array<[string, RequestInit]> };
     };
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
 
     expect(body.session_id).toBe('conversation-123');
     expect(body.messages[1].content).toContain('Prior summary');

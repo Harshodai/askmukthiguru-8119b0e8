@@ -1,0 +1,21 @@
+# AskMukthiGuru
+
+> AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Free, private, and always available — designed to help you transition from a stressful state into a Beautiful State.
+
+AskMukthiGuru is a privacy-first chat companion and meditation guide. It pairs a conversational guru persona with short guided practices (Soul Sync, Serene Mind, Beautiful State, Daily Reflection) and a daily teaching feed. Conversations are stored per-user; anonymous use falls back to local storage.
+
+## Pages
+
+- [Home](/): Overview, meet the gurus, how it works, and featured practices.
+- [Chat](/chat): Conversational AI guru rooted in Preethaji & Krishnaji's teachings.
+- [Practices](/practices): Catalog of guided meditations and reflections.
+- [Sign in](/auth): Email, password, and Google sign-in.
+- [Privacy](/privacy): How conversations and meditation data are handled.
+- [Terms](/terms): Terms of use, including AI disclosure.
+
+## Practices
+
+- [Soul Sync](/practices/soul-sync): 15–20 min contemplative practice for inner connection.
+- [Serene Mind](/practices/serene-mind): 3-minute 4-in/6-out breathing reset with flame visualization.
+- [Beautiful State](/practices/beautiful-state): 10–15 min heart-opening loving-kindness practice.
+- [Daily Reflection](/practices/daily-reflection): 5–10 min evening review with gratitude.
