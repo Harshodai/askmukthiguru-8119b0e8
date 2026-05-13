@@ -11,10 +11,16 @@ from typing import Optional
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(os.path.join(BASE_DIR, "backend"))
 
-# Set environment variables for the benchmark
-# Set environment variables for the benchmark
-os.environ["SARVAM_API_KEY"] = "sk_r7p2col5_nkOZ0VWMxCkhwwqmzHAgLLjv"
-os.environ["WHISPER_LOCAL_MODEL"] = "mlx-community/whisper-large-v3-turbo"
+# Set environment variables for the benchmark.
+# IMPORTANT: SARVAM_API_KEY must be supplied via the environment or a local
+# .env file (already in .gitignore). Never hardcode real API keys here —
+# the previously committed key has been rotated.
+if not os.environ.get("SARVAM_API_KEY"):
+    raise RuntimeError(
+        "SARVAM_API_KEY is not set. Export it in your shell or .env before "
+        "running this benchmark; do not hardcode it in source."
+    )
+os.environ.setdefault("WHISPER_LOCAL_MODEL", "mlx-community/whisper-large-v3-turbo")
 os.environ["PATH"] = f"/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv_host/bin:/opt/homebrew/bin:/usr/local/bin:{os.environ['PATH']}"
 
 # 2. Setup Logging
