@@ -122,7 +122,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"
     # --- Auth & Rate Limiting ---
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
-    disable_public_registration: bool = False
+    # Default to disabled: the frontend uses Supabase auth, so the FastAPI
+    # /api/auth/register endpoint has no legitimate public use case and would
+    # otherwise expose an email-enumeration surface. Override with the
+    # DISABLE_PUBLIC_REGISTRATION env var only for explicit internal flows.
+    disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
     registration_rate_limit: str = "5/minute"
 
