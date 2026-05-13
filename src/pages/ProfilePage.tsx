@@ -520,7 +520,7 @@ const ProfilePage = () => {
                           variant="outline" 
                           size="sm" 
                           className="h-8 text-[11px] gap-2"
-                          onClick={() => fireTestReminder()}
+                          onClick={() => fireTestReminder(toast)}
                         >
                           <Bell className="w-3.5 h-3.5" /> Send test reminder
                         </Button>
