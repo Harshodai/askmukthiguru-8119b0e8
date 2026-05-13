@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 // Pages
 import Index from "./pages/Index";
@@ -89,6 +90,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
+        <SonnerToaster richColors closeButton position="top-right" />
       </BrowserRouter>
     </QueryClientProvider>
   );
