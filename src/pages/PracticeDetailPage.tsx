@@ -11,6 +11,7 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { recordRecentPractice } from '@/lib/favoritesStorage';
 import { cn } from '@/lib/utils';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const PracticeDetailPage = () => {
   const { loading: authLoading } = useRequireAuth();
