@@ -432,7 +432,8 @@ export const ChatInterface = () => {
         messageHistory, 
         userMessage.content, 
         meditationStep,
-        currentConversation?.summary
+        currentConversation?.summary,
+        currentConversation?.id
       );
       
       // Show pipeline thinking pills
@@ -553,7 +554,8 @@ export const ChatInterface = () => {
         messageHistory, 
         userMessage.content, 
         meditationStep,
-        currentConversation?.summary
+        currentConversation?.summary,
+        currentConversation?.id
       );
 
       if (response.blocked && response.blockReason) {

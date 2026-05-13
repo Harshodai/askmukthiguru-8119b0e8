@@ -50,6 +50,10 @@ This file documents key implementation patterns, architectural decisions, and "l
 ### 9. Admin Observability & Audit (May 2026)
 - **User Auditing**: Added "Total Seekers" KPI to the admin dashboard, powered by real-time counts from the `user_profiles` table.
 - **Enhanced Telemetry**: Expanded the telemetry database to include `trigger_events` (for Serene Mind auditing) and `retrieval_events` (for knowledge base performance tracking).
+- **OTel Dependency Source**: Backend Docker images install Python packages from `backend/pyproject.toml`, so observability packages must live there as well as in `backend/requirements.txt` for local pip users.
+- **Direct LLM Providers Need Manual Spans**: OpenInference LangChain instrumentation covers LangChain/LangGraph calls, but direct HTTP gateways such as Sarvam Cloud need explicit OpenTelemetry spans for token usage, latency, status, and retry metadata.
+- **Conversation IDs Need Backend Normalization**: Browser-local conversation ids are not always UUIDs, but Supabase memory tables often are. Normalize them with deterministic `uuid5(user_id:session_id)` in the backend so memory persists without breaking older localStorage conversations.
+- **Memory Is Context, Not Evidence**: Conversation memory should personalize tone and resolve references, while retrieved Qdrant/LightRAG documents remain the only source of spiritual factual claims.
 - **Master Schema**: Created `master_schema.sql` to centralize all production table definitions (profiles, telemetry, observability) into a single, idempotent script.
 - **Onboarding Flow**: Implemented a "Profile-First" onboarding pattern. New users are redirected to `/profile?onboarding=true` immediately after authentication to set their spiritual parameters (Language, Tone, Bio) before their first chat.
 - **UI Discoverability**: Replaced the hidden sidebar menu with direct "Rename" and "Delete" icons that appear on hover, improving task efficiency and feature visibility.

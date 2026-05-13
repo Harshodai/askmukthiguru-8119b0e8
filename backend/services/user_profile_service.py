@@ -158,7 +158,11 @@ class UserProfileService:
                 return memories
             except Exception as e:
                 logger.warning(f"Supabase memory fetch failed for {user_id}: {e}")
-        return []
+        memories = [
+            memory for memory in self._conversation_cache.values()
+            if memory.user_id == user_id
+        ]
+        return sorted(memories, key=lambda mem: mem.started_at, reverse=True)[:limit]
     
     async def detect_language_preference(self, user_id: str, message: str) -> LanguagePreference:
         """Detect and update user's language preference."""

@@ -21,6 +21,18 @@ from types import SimpleNamespace as config
 if not os.getenv("OPENAI_API_KEY") and os.getenv("CHATGPT_API_KEY"):
     os.environ["OPENAI_API_KEY"] = os.getenv("CHATGPT_API_KEY")
 
+# Re-read config for global settings
+try:
+    _config_path = Path(__file__).parent / "config.yaml"
+    if _config_path.exists():
+        with open(_config_path, "r", encoding="utf-8") as f:
+            _global_config = yaml.safe_load(f) or {}
+            GLOBAL_CONTEXT_LENGTH = _global_config.get("context_length")
+    else:
+        GLOBAL_CONTEXT_LENGTH = None
+except Exception:
+    GLOBAL_CONTEXT_LENGTH = None
+
 litellm.drop_params = True
 
 def count_tokens(text, model=None):
@@ -29,9 +41,14 @@ def count_tokens(text, model=None):
     return litellm.token_counter(model=model, text=text)
 
 
-def llm_completion(model, prompt, chat_history=None, return_finish_reason=False):
+def llm_completion(model, prompt, chat_history=None, return_finish_reason=False, num_ctx=None):
     if model:
         model = model.removeprefix("litellm/")
+    
+    # Use global context length if not provided
+    if num_ctx is None:
+        num_ctx = GLOBAL_CONTEXT_LENGTH
+        
     max_retries = 3
     messages = list(chat_history) + [{"role": "user", "content": prompt}] if chat_history else [{"role": "user", "content": prompt}]
     sarvam_key = os.getenv("SARVAM_API_KEY", "")
@@ -40,14 +57,19 @@ def llm_completion(model, prompt, chat_history=None, return_finish_reason=False)
     api_base = os.getenv("OPENAI_API_BASE") or None
     for i in range(max_retries):
         try:
-            response = litellm.completion(
-                model=model,
-                messages=messages,
-                temperature=0,
-                timeout=600,
-                api_base=api_base,
-                extra_headers=extra_headers,
-            )
+            # Pass num_ctx to litellm for Ollama support
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0,
+                "timeout": 600,
+                "api_base": api_base,
+                "extra_headers": extra_headers,
+            }
+            if num_ctx:
+                kwargs["num_ctx"] = num_ctx
+                
+            response = litellm.completion(**kwargs)
             content = response.choices[0].message.content or ""
             if return_finish_reason:
                 finish_reason = "max_output_reached" if response.choices[0].finish_reason == "length" else "finished"
@@ -66,9 +88,14 @@ def llm_completion(model, prompt, chat_history=None, return_finish_reason=False)
 
 
 
-async def llm_acompletion(model, prompt):
+async def llm_acompletion(model, prompt, num_ctx=None):
     if model:
         model = model.removeprefix("litellm/")
+        
+    # Use global context length if not provided
+    if num_ctx is None:
+        num_ctx = GLOBAL_CONTEXT_LENGTH
+        
     max_retries = 3
     messages = [{"role": "user", "content": prompt}]
     sarvam_key = os.getenv("SARVAM_API_KEY", "")
@@ -77,14 +104,19 @@ async def llm_acompletion(model, prompt):
     api_base = os.getenv("OPENAI_API_BASE") or None
     for i in range(max_retries):
         try:
-            response = await litellm.acompletion(
-                model=model,
-                messages=messages,
-                temperature=0,
-                timeout=600,
-                api_base=api_base,
-                extra_headers=extra_headers,
-            )
+            # Pass num_ctx to litellm for Ollama support
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": 0,
+                "timeout": 600,
+                "api_base": api_base,
+                "extra_headers": extra_headers,
+            }
+            if num_ctx:
+                kwargs["num_ctx"] = num_ctx
+                
+            response = await litellm.acompletion(**kwargs)
             return response.choices[0].message.content or ""
         except Exception as e:
             print('************* Retrying *************')
@@ -94,6 +126,7 @@ async def llm_acompletion(model, prompt):
             else:
                 logging.error('Max retries reached for prompt: ' + prompt[:200])
                 return ""
+
             
             
 import re

@@ -88,6 +88,7 @@ export async function* sendMessageStreaming(
   userMessage: string,
   meditationStep: number = 0,
   summary?: string,
+  sessionId?: string,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -117,6 +118,7 @@ export async function* sendMessageStreaming(
       ],
       user_message: userMessage,
       meditation_step: meditationStep,
+      session_id: sessionId,
       stream: true,
     }),
   });
@@ -201,6 +203,7 @@ export const sendMessage = async (
   userMessage: string,
   meditationStep: number = 0,
   summary?: string,
+  sessionId?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -229,6 +232,7 @@ export const sendMessage = async (
           ],
           user_message: userMessage,
           meditation_step: meditationStep,
+          session_id: sessionId,
         }),
       });
 

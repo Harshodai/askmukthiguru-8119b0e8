@@ -1,0 +1,13 @@
+[mcp_servers.code-review-graph]
+args = [
+    "-m",
+    "code_review_graph",
+    "serve",
+]
+command = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python3.12"
+
+[mcp_servers.code-review-graph.tools.semantic_search_nodes_tool]
+approval_mode = "approve"
+
+[mcp_servers.code-review-graph.tools.query_graph_tool]
+approval_mode = "approve"

@@ -611,6 +611,8 @@ async def context_engineer(state: GraphState) -> dict:
     relevant_docs = state.get("relevant_docs", [])
     chat_history = state.get("chat_history", [])
     meditation_step = state.get("meditation_step", 0)
+    memory_context = state.get("memory_context") or ""
+    detected_language = state.get("detected_language") or "en"
 
     # Layer 1: Persona
     if intent == "DISTRESS":
@@ -630,13 +632,19 @@ async def context_engineer(state: GraphState) -> dict:
         user_state += f"Active Meditation Step: {meditation_step}\n"
     if chat_history:
         user_state += f"Conversation Depth: {len(chat_history)} turns\n"
+    if detected_language:
+        user_state += f"Detected Language: {detected_language}\n"
+    if memory_context:
+        user_state += f"\n{memory_context}\n"
 
     # Layer 4: Instructions
     instructions = (
         "1. Base your answer ONLY on the provided Knowledge.\n"
         "2. If Knowledge is insufficient, admit it warmly.\n"
         "3. Use [Source: <title>] for citations.\n"
-        "4. Keep the tone compassionate and wise."
+        "4. Keep the tone compassionate and wise.\n"
+        "5. Use the continuity context only to personalize and resolve references; "
+        "do not treat it as a source of spiritual facts."
     )
 
     context_layers = {
@@ -702,6 +710,12 @@ async def generate_answer(state: GraphState) -> dict:
     question = state.get("rewritten_query") or state["question"]
     relevant_docs = state["relevant_docs"]
     chat_history = state.get("chat_history", [])
+    lang = state.get("detected_language", "en")
+
+    # Get language-specific suffix once for both context-engineered and legacy prompts.
+    from services.language_router import LanguageRouter, LanguageCode
+    router = LanguageRouter()
+    lang_suffix = router.get_system_prompt_suffix(LanguageCode(lang))
 
     # Build context string with Contextual Compression (Ch 10 RAG Made Simple)
     # Using LLM-based compressor (Fast model)
@@ -760,17 +774,12 @@ async def generate_answer(state: GraphState) -> dict:
     else:
         # Legacy generation prompt with memory and language injection
         memory = state.get("memory_context", "")
-        lang = state.get("detected_language", "en")
-        
-        # Get language-specific suffix
-        from services.language_router import LanguageRouter, LanguageCode
-        router = LanguageRouter()
-        lang_suffix = router.get_system_prompt_suffix(LanguageCode(lang))
-        
         prompt = GENERATE_WITH_HINTS_PROMPT.format(
             context=f"{memory}\n\n{context}",
             question=question,
-        ) + lang_suffix
+        )
+
+    prompt += lang_suffix
 
     if history_str:
         prompt = f"{history_str}\n\n{prompt}"

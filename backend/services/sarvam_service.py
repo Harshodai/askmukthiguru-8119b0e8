@@ -51,6 +51,14 @@ from rag.prompts import (
 
 logger = logging.getLogger(__name__)
 
+try:
+    from opentelemetry import trace
+    from opentelemetry.trace import Status, StatusCode
+except ImportError:  # OpenTelemetry is optional in local/minimal installs.
+    trace = None
+    Status = None
+    StatusCode = None
+
 
 class QuotaExceededError(Exception):
     """Raised when the Sarvam Cloud API has exceeded its quota/credits."""
@@ -165,6 +173,7 @@ class SarvamCloudService:
         max_tokens: int = 2048,
         temperature: float = 0.1,
         stream: bool = False,
+        operation: str = "generate",
         **kwargs,
     ) -> str:
         """
@@ -176,10 +185,13 @@ class SarvamCloudService:
         Returns: The assistant's response content (stripped of <think> tags).
         """
         if not self._circuit.can_execute():
-            raise Exception(
+            exc = Exception(
                 f"Sarvam API circuit breaker is OPEN — "
                 f"failing fast. Will retry after recovery timeout."
             )
+            with self._start_llm_span(model=model, operation=operation, attempt=0) as span:
+                self._record_span_exception(span, exc)
+            raise exc
 
         headers = {
             "Content-Type": "application/json",
@@ -215,115 +227,178 @@ class SarvamCloudService:
         last_error = None
         for attempt in range(1, self._max_retries + 1):
             start_time = time.time()
-            try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    resp = await client.post(
-                        f"{self._base_url}/chat/completions",
-                        headers=headers,
-                        json=payload,
-                    )
+            with self._start_llm_span(model=model, operation=operation, attempt=attempt) as span:
+                try:
+                    async with httpx.AsyncClient(timeout=self._timeout) as client:
+                        resp = await client.post(
+                            f"{self._base_url}/chat/completions",
+                            headers=headers,
+                            json=payload,
+                        )
 
-                latency_ms = (time.time() - start_time) * 1000
+                    latency_ms = (time.time() - start_time) * 1000
+                    self._set_span_attr(span, "http.status_code", resp.status_code)
+                    self._set_span_attr(span, "llm.request.max_tokens", max_tokens)
+                    self._set_span_attr(span, "llm.request.temperature", temperature)
+                    self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
 
-                if resp.status_code == 200:
-                    data = resp.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
-                    tokens_used = data.get("usage", {}).get("total_tokens", 0)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+                        usage = data.get("usage", {}) or {}
+                        tokens_used = usage.get("total_tokens", 0)
+                        self._record_usage(span, usage)
 
-                    # Strip <think> tags from reasoning models
-                    # Sarvam-30b sometimes puts ALL content inside <think>...</think>,
-                    # especially for classification/grading tasks.
-                    # Strategy: First check if there's content OUTSIDE think tags.
-                    # If not, extract the meaningful output FROM the think tags.
-                    think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                    content_outside_think = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                        # Strip <think> tags from reasoning models
+                        # Sarvam-30b sometimes puts ALL content inside <think>...</think>,
+                        # especially for classification/grading tasks.
+                        # Strategy: First check if there's content OUTSIDE think tags.
+                        # If not, extract the meaningful output FROM the think tags.
+                        think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                        content_outside_think = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
-                    if content_outside_think:
-                        # Normal case: real content exists outside think tags
-                        content = content_outside_think
-                    elif think_match:
-                        # Reasoning model put EVERYTHING in think tags
-                        # Extract the last non-empty line as the "answer"
-                        think_text = think_match.group(1).strip()
-                        lines = [l.strip() for l in think_text.splitlines() if l.strip()]
-                        if lines:
-                            # For classification: use the last line (usually the final answer)
-                            content = lines[-1]
-                            logger.debug(
-                                f"Extracted answer from <think> tags: '{content[:100]}'"
-                            )
+                        if content_outside_think:
+                            # Normal case: real content exists outside think tags
+                            content = content_outside_think
+                        elif think_match:
+                            # Reasoning model put EVERYTHING in think tags
+                            # Extract the last non-empty line as the "answer"
+                            think_text = think_match.group(1).strip()
+                            lines = [l.strip() for l in think_text.splitlines() if l.strip()]
+                            if lines:
+                                # For classification: use the last line (usually the final answer)
+                                content = lines[-1]
+                                logger.debug(
+                                    f"Extracted answer from <think> tags: '{content[:100]}'"
+                                )
+                            else:
+                                content = ""
                         else:
-                            content = ""
-                    else:
-                        content = content.strip()
+                            content = content.strip()
 
-                    logger.info(
-                        f"Sarvam API OK — model={model}, "
-                        f"latency={latency_ms:.0f}ms, tokens={tokens_used}, "
-                        f"response_len={len(content)}"
-                    )
+                        self._set_span_attr(span, "llm.response.content_length", len(content))
+                        logger.info(
+                            f"Sarvam API OK — model={model}, "
+                            f"latency={latency_ms:.0f}ms, tokens={tokens_used}, "
+                            f"response_len={len(content)}"
+                        )
 
-                    # Prometheus instrumentation
-                    try:
-                        from app.metrics import LLM_LATENCY, LLM_TOKENS
-                        LLM_LATENCY.labels(model=model, operation="generate").observe(latency_ms / 1000)
-                        if tokens_used:
-                            LLM_TOKENS.labels(model=model).inc(tokens_used)
-                    except Exception:
-                        pass  # Metrics are optional
+                        # Prometheus instrumentation
+                        try:
+                            from app.metrics import LLM_LATENCY, LLM_TOKENS
+                            LLM_LATENCY.labels(model=model, operation=operation).observe(latency_ms / 1000)
+                            if tokens_used:
+                                LLM_TOKENS.labels(model=model).inc(tokens_used)
+                        except Exception:
+                            pass  # Metrics are optional
 
-                    self._circuit.record_success()
-                    return content
+                        self._circuit.record_success()
+                        return content
 
-                # Handle specific error codes
-                status = resp.status_code
-                body = resp.text[:500]
+                    # Handle specific error codes
+                    status = resp.status_code
+                    body = resp.text[:500]
 
-                if status == 429 or "credits" in body.lower():
+                    if status == 429 or "credits" in body.lower():
+                        self._circuit.record_failure()
+                        raise QuotaExceededError(
+                            f"Sarvam API quota exceeded (HTTP {status}): {body}"
+                        )
+
+                    if status >= 500:
+                        # Server error — retry
+                        logger.warning(
+                            f"Sarvam API server error (attempt {attempt}/{self._max_retries}): "
+                            f"HTTP {status} — {body}"
+                        )
+                        last_error = Exception(f"HTTP {status}: {body}")
+                        self._record_span_exception(span, last_error)
+                        await asyncio.sleep(min(2 ** attempt, 8))  # Exponential backoff
+                        continue
+
+                    # Client error (4xx) — don't retry
                     self._circuit.record_failure()
-                    raise QuotaExceededError(
-                        f"Sarvam API quota exceeded (HTTP {status}): {body}"
+                    raise Exception(
+                        f"Sarvam API client error: HTTP {status} — {body}"
                     )
 
-                if status >= 500:
-                    # Server error — retry
-                    logger.warning(
-                        f"Sarvam API server error (attempt {attempt}/{self._max_retries}): "
-                        f"HTTP {status} — {body}"
-                    )
-                    last_error = Exception(f"HTTP {status}: {body}")
-                    await asyncio.sleep(min(2 ** attempt, 8))  # Exponential backoff
-                    continue
-
-                # Client error (4xx) — don't retry
-                self._circuit.record_failure()
-                raise Exception(
-                    f"Sarvam API client error: HTTP {status} — {body}"
-                )
-
-            except QuotaExceededError:
-                raise
-            except httpx.TimeoutException:
-                latency_ms = (time.time() - start_time) * 1000
-                logger.warning(
-                    f"Sarvam API timeout (attempt {attempt}/{self._max_retries}): "
-                    f"{latency_ms:.0f}ms"
-                )
-                last_error = Exception(f"Timeout after {latency_ms:.0f}ms")
-                await asyncio.sleep(min(2 ** attempt, 8))
-            except Exception as e:
-                if isinstance(e, QuotaExceededError):
+                except QuotaExceededError as exc:
+                    self._record_span_exception(span, exc)
                     raise
-                latency_ms = (time.time() - start_time) * 1000
-                logger.warning(
-                    f"Sarvam API error (attempt {attempt}/{self._max_retries}): {e}"
-                )
-                last_error = e
-                await asyncio.sleep(min(2 ** attempt, 8))
+                except httpx.TimeoutException as exc:
+                    latency_ms = (time.time() - start_time) * 1000
+                    self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
+                    self._record_span_exception(span, exc)
+                    logger.warning(
+                        f"Sarvam API timeout (attempt {attempt}/{self._max_retries}): "
+                        f"{latency_ms:.0f}ms"
+                    )
+                    last_error = Exception(f"Timeout after {latency_ms:.0f}ms")
+                    await asyncio.sleep(min(2 ** attempt, 8))  # Exponential backoff
+                except Exception as e:
+                    if isinstance(e, QuotaExceededError):
+                        raise
+                    latency_ms = (time.time() - start_time) * 1000
+                    self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
+                    self._record_span_exception(span, e)
+                    logger.warning(
+                        f"Sarvam API error (attempt {attempt}/{self._max_retries}): {e}"
+                    )
+                    last_error = e
+                    await asyncio.sleep(min(2 ** attempt, 8))
 
         # All retries exhausted
         self._circuit.record_failure()
         raise last_error or Exception("Sarvam API call failed after all retries")
+
+    def _start_llm_span(self, model: str, operation: str, attempt: int):
+        """Create an optional OTel span for a Sarvam request."""
+        from contextlib import nullcontext
+
+        if trace is None:
+            return nullcontext(None)
+
+        tracer = trace.get_tracer(__name__)
+        return tracer.start_as_current_span(
+            "llm.sarvam.chat",
+            attributes={
+                "llm.provider": "sarvam",
+                "llm.system": "sarvam",
+                "llm.model_name": model,
+                "llm.operation": operation,
+                "llm.request.attempt": attempt,
+            },
+        )
+
+    @staticmethod
+    def _set_span_attr(span, key: str, value) -> None:
+        if span is not None and value is not None:
+            try:
+                span.set_attribute(key, value)
+            except Exception:
+                pass
+
+    def _record_usage(self, span, usage: dict) -> None:
+        if not usage:
+            return
+        token_attrs = {
+            "llm.token_count.prompt": usage.get("prompt_tokens"),
+            "llm.token_count.completion": usage.get("completion_tokens"),
+            "llm.token_count.total": usage.get("total_tokens"),
+        }
+        for key, value in token_attrs.items():
+            self._set_span_attr(span, key, value)
+
+    @staticmethod
+    def _record_span_exception(span, exc: Exception) -> None:
+        if span is None:
+            return
+        try:
+            span.record_exception(exc)
+            if Status is not None and StatusCode is not None:
+                span.set_status(Status(StatusCode.ERROR, str(exc)))
+        except Exception:
+            pass
 
     # -----------------------------------------------------------------------
     # Public generation methods (unchanged interface)
@@ -362,6 +437,7 @@ class SarvamCloudService:
             model=self._gen_model,
             max_tokens=max_tokens,
             temperature=temperature,
+            operation="generate",
         )
 
     async def _generate_fast(
@@ -390,6 +466,7 @@ class SarvamCloudService:
                 model=self._cls_model,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                operation="classification",
             )
         except QuotaExceededError:
             raise
@@ -401,6 +478,7 @@ class SarvamCloudService:
                 model=self._gen_model,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                operation="classification_fallback",
             )
 
     async def generate_stream(

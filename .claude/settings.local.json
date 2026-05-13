@@ -10,5 +10,9 @@
       "Bash(cd \"C:\\\\Users\\\\khars\\\\PycharmProjects\\\\askmukthiguru-8119b0e8\" && for f in backend/services/embedding_service.py backend/services/qdrant_service.py backend/ingest/pipeline.py backend/ingest/raptor.py backend/rag/nodes.py backend/rag/prompts.py backend/guardrails/rails.py backend/app/config.py; do py -c \"import ast; ast.parse\\(open\\('$f', encoding='utf-8'\\).read\\(\\)\\); print\\('$f: OK'\\)\" 2>&1; done)",
       "Bash(cd \"C:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/backend\" && py -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) for f in ['rag/prompts.py', 'rag/nodes.py', 'rag/graph.py', 'services/ollama_service.py', 'services/cache_service.py', 'ingest/corrector.py', 'ingest/raptor.py', 'app/main.py']]; print\\('All Python files parsed OK'\\)\")"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "code-review-graph"
+  ],
+  "enableAllProjectMcpServers": true
 }

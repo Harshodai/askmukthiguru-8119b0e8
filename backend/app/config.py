@@ -131,19 +131,19 @@ class Settings(BaseSettings):
     raptor_summary_model: str = ""  # Auto-set from model_preset
 
     # --- RAG ---
-    rag_top_k_retrieval: int = 20
-    rag_top_k_rerank: int = 5
+    rag_top_k_retrieval: int = 30
+    rag_top_k_rerank: int = 10
     rag_max_rewrites: int = 3
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = True
-    rag_context_window: int = 1                         # Fetch N chunks before/after each retrieved chunk
-    rerank_min_score: float = 0.15                      # Min CrossEncoder score (sigmoid-normalized) to keep a doc
+    rag_context_window: int = 2                         # Fetch N chunks before/after each retrieved chunk
+    rerank_min_score: float = 0.35                      # Min CrossEncoder score (sigmoid-normalized) to keep a doc
 
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True                  # Embedding-based semantic caching
-    semantic_cache_similarity: float = 0.92             # Cosine similarity threshold for cache hit
+    semantic_cache_similarity: float = 0.95             # Cosine similarity threshold for cache hit
     semantic_cache_ttl: int = 3600                      # Cache TTL in seconds (1 hour)
 
     # --- User Profiles & Persistence ---

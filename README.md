@@ -29,18 +29,19 @@ Since you are on a Mac, you may need to ensure Docker is in your PATH. Open your
 cd /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
 
 # 2. Add Docker to your PATH (fixes "command not found" errors on Mac)
-export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+export PATH="/Users/harshodaikolluru/.docker/bin:$PATH"
 
 # 3. Build and start all services in detached mode
 docker compose up -d --build
 ```
 
-This builds and starts **all 5 services**:
+This builds and starts **all 6 services**:
 - **Frontend** on port **80** — serves the React app, Chat widget, and Ingest UI via Nginx
 - **Backend** on port **8000** — FastAPI RAG pipeline
 - **Qdrant** on port **6333** — vector database
 - **Redis** on port **6379** — response caching
 - **Neo4j** on port **7474** — knowledge graph
+- **Jaeger** on port **16686** — OpenTelemetry trace UI
 
 ### 5. Access the app
  
@@ -51,6 +52,7 @@ This builds and starts **all 5 services**:
  | http://localhost/static-chat | Lightweight chat widget — Auth-protected |
  | http://localhost/static-ingest | Content ingestion portal — Admin-only |
  | http://localhost:8000/api/health | Backend health check |
+ | http://localhost:16686 | Jaeger trace explorer |
  
  ### 6. Database Setup (Supabase)
  
@@ -81,7 +83,7 @@ For development with hot-reload:
 
 ```bash
 # 1. Start infrastructure only
-cd backend && docker compose up -d qdrant redis neo4j
+cd backend && docker compose up -d qdrant redis neo4j jaeger
 
 # 2. Start backend (in one terminal)
 cd backend && pip install -r requirements.txt
@@ -118,10 +120,15 @@ Set `LLM_PROVIDER` in `backend/.env`:
 6. Cross-encoder Reranking
 7. CRAG Document Grading
 8. Stimulus RAG (Hint Extraction)
-9. Context-aware Generation
+9. Context-aware Generation with bounded conversation memory
 10. Self-RAG Faithfulness Check
 11. Chain of Verification (CoVe)
 12. NeMo Output Rail
+
+Conversation continuity is carried by the active chat `session_id`. The backend
+normalizes local browser conversation ids into stable UUIDs for Supabase memory
+tables, then injects a compact current-thread and prior-session memory block into
+the RAG context.
 
 ## Project Structure
 

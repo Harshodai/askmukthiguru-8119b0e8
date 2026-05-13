@@ -35,8 +35,10 @@ sys.path.insert(0, ".")
 
 from app.config import settings
 from app.dependencies import get_container, startup, shutdown, ServiceContainer
+from app.observability import init_observability
 from app.telemetry_db import init_telemetry_db, log_query_trace
 from rag.graph import create_initial_state
+from rag.memory import build_memory_context, normalize_session_id
 import time
 import uuid
 import hashlib
@@ -151,36 +153,7 @@ async def lifespan(app: FastAPI):
     # 4. (Deprecated) Depression detector is now merged into Serene Mind Engine
 
     # 5. Observability tracing (OpenTelemetry + Jaeger)
-    try:
-        from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import Resource
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-        from openinference.instrumentation.langchain import LangChainInstrumentor
-        import os
-
-        # Setup Tracer Provider
-        resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "mukthiguru-backend")})
-        provider = TracerProvider(resource=resource)
-        
-        # Configure the Exporter (point to Jaeger OTLP endpoint)
-        endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317")
-        otlp_exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
-        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-        
-        trace.set_tracer_provider(provider)
-        
-        # Instrument FastAPI and LangChain
-        FastAPIInstrumentor.instrument_app(app)
-        LangChainInstrumentor().instrument()
-        
-        logger.info("✅ OpenTelemetry tracing (Jaeger) successfully initialized.")
-    except ImportError as e:
-        logger.info(f"OpenTelemetry packages not installed — skipping observability tracing. ({e})")
-    except Exception as e:
-        logger.warning(f"Failed to initialize OpenTelemetry tracing: {e}")
+    init_observability(app)
 
     # 6. Schedule recurring jobs (BE-5)
     shutdown_scheduler = lambda: None
@@ -371,6 +344,34 @@ class HealthResponse(BaseModel):
 
 # === Route Handlers ===
 
+async def _prepare_user_memory(
+    container: ServiceContainer,
+    user_id: str,
+    chat_history: list[dict],
+) -> tuple[str, list[dict]]:
+    """Load bounded user memory and derive distress signals for this turn."""
+    if not container.user_profile:
+        return "", []
+
+    profile = await container.user_profile.get_or_create_profile(user_id)
+    profile.total_conversations += 1
+    await container.user_profile.update_profile(profile)
+
+    recent_memories = await container.user_profile.get_recent_memories(user_id, limit=3)
+    memory_context = build_memory_context(
+        recent_memories=recent_memories,
+        chat_history=chat_history,
+    )
+
+    distress_history = []
+    for mem in recent_memories:
+        if mem.emotional_arc:
+            recent_emotion = mem.emotional_arc[-1]
+            if recent_emotion.get("distress_level", 0) >= 2:
+                distress_history.append(recent_emotion)
+
+    return memory_context, distress_history
+
 @app.post("/api/chat", response_model=ChatResponse)
 @limiter.limit(settings.chat_rate_limit)
 async def chat_endpoint(
@@ -402,30 +403,18 @@ async def chat_endpoint(
             citations=cached.get("citations", []),
         )
 
-    user_id = user.get("id", "anonymous")
-    
     # === NEW: Language Detection ===
     lang_detection = container.language_router.detect(user_msg)
+    user_id = user.get("id", "anonymous")
+    stable_session_id = normalize_session_id(chat_body.session_id, user_id)
+    chat_history = [m.model_dump() for m in chat_body.messages]
     
     # === NEW: User Profile & Memory ===
-    memory_context = ""
-    distress_history = []
-    if container.user_profile:
-        profile = await container.user_profile.get_or_create_profile(user_id)
-        profile.total_conversations += 1
-        await container.user_profile.update_profile(profile)
-        
-        recent_memories = await container.user_profile.get_recent_memories(user_id, limit=2)
-        if recent_memories:
-            memory_context = "\n\nPrevious conversations with this seeker:\n"
-            for mem in recent_memories:
-                if mem.key_insights:
-                    memory_context += f"- Topics explored: {', '.join(mem.key_insights[:3])}\n"
-                if mem.emotional_arc:
-                    recent_emotion = mem.emotional_arc[-1]
-                    memory_context += f"- Recent emotional state: {recent_emotion.get('topic', 'unknown')}\n"
-                    if recent_emotion.get("distress_level", 0) >= 2:
-                        distress_history.append(recent_emotion)
+    memory_context, distress_history = await _prepare_user_memory(
+        container,
+        user_id,
+        chat_history,
+    )
 
     # === Layer 1: NeMo Input Rail ===
     with REQUEST_LATENCY.labels(stage="guardrails").time():
@@ -449,7 +438,7 @@ async def chat_endpoint(
             assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
             assessment = await container.serene_mind.async_assess_distress(
                 user_msg,
-                conversation_history=chat_body.messages + assessment_history
+                conversation_history=chat_history + assessment_history
             )
             if assessment.level.value >= 2:
                 logger.info(f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response.")
@@ -462,7 +451,7 @@ async def chat_endpoint(
         async def run_pipeline():
             initial_state = create_initial_state(
                 question=user_msg,
-                chat_history=[m.model_dump() for m in chat_body.messages],
+                chat_history=chat_history,
                 meditation_step=chat_body.meditation_step,
             )
             # Inject language and user context into state
@@ -494,7 +483,7 @@ async def chat_endpoint(
         if container.user_profile:
             from services.user_profile_service import ConversationMemory
             memory = ConversationMemory(
-                session_id=chat_body.session_id or str(uuid.uuid4()),
+                session_id=stable_session_id,
                 user_id=user_id,
                 started_at=time.time(),
                 messages=[{"role": "user", "content": user_msg}, {"role": "assistant", "content": final_answer}],
@@ -569,7 +558,7 @@ async def chat_endpoint(
 
     # --- Telemetry Logging ---
     try:
-        session_uuid = str(uuid.UUID(chat_body.session_id)) if hasattr(chat_body, 'session_id') and chat_body.session_id else str(uuid.uuid4())
+        session_uuid = stable_session_id
     except (ValueError, TypeError, AttributeError):
         session_uuid = str(uuid.uuid4())
 
@@ -642,6 +631,7 @@ async def chat_endpoint(
 async def chat_stream_endpoint(
     request: Request,
     chat_body: ChatRequest,
+    background_tasks: BackgroundTasks,
     user: Dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container)
 ):
@@ -684,26 +674,15 @@ async def chat_stream_endpoint(
             
             # === NEW: Language Detection ===
             lang_detection = container.language_router.detect(user_msg)
+            stable_session_id = normalize_session_id(chat_body.session_id, user_id)
+            chat_history = [m.model_dump() for m in chat_body.messages]
             
             # === NEW: User Profile & Memory ===
-            memory_context = ""
-            distress_history = []
-            if container.user_profile:
-                profile = await container.user_profile.get_or_create_profile(user_id)
-                profile.total_conversations += 1
-                await container.user_profile.update_profile(profile)
-                
-                recent_memories = await container.user_profile.get_recent_memories(user_id, limit=2)
-                if recent_memories:
-                    memory_context = "\n\nPrevious conversations with this seeker:\n"
-                    for mem in recent_memories:
-                        if mem.key_insights:
-                            memory_context += f"- Topics explored: {', '.join(mem.key_insights[:3])}\n"
-                        if mem.emotional_arc:
-                            recent_emotion = mem.emotional_arc[-1]
-                            memory_context += f"- Recent emotional state: {recent_emotion.get('topic', 'unknown')}\n"
-                            if recent_emotion.get("distress_level", 0) >= 2:
-                                distress_history.append(recent_emotion)
+            memory_context, distress_history = await _prepare_user_memory(
+                container,
+                user_id,
+                chat_history,
+            )
 
             # === Layer 1: Input rail ===
             yield f"event: status\ndata: Checking message safety...\n\n"
@@ -718,7 +697,11 @@ async def chat_stream_endpoint(
             # === Depression check (non-fatal if detection fails) ===
             try:
                 if container.serene_mind:
-                    assessment = await container.serene_mind.async_assess_distress(user_msg)
+                    assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
+                    assessment = await container.serene_mind.async_assess_distress(
+                        user_msg,
+                        conversation_history=chat_history + assessment_history,
+                    )
                     if assessment.level.value >= 2:
                         logger.info(f"Stream: Distress detected ({assessment.level.name}), passing to RAG pipeline.")
             except Exception as e:
@@ -728,7 +711,7 @@ async def chat_stream_endpoint(
             yield f"event: status\ndata: Understanding your question...\n\n"
             initial_state = create_initial_state(
                 question=user_msg,
-                chat_history=[m.model_dump() for m in chat_body.messages],
+                chat_history=chat_history,
                 meditation_step=chat_body.meditation_step,
             )
             # Inject language and user context into state
@@ -773,7 +756,7 @@ async def chat_stream_endpoint(
             if container.user_profile:
                 from services.user_profile_service import ConversationMemory
                 memory = ConversationMemory(
-                    session_id=chat_body.session_id or str(uuid.uuid4()),
+                    session_id=stable_session_id,
                     user_id=user_id,
                     started_at=time.time(),
                     messages=[{"role": "user", "content": user_msg}, {"role": "assistant", "content": final_answer}],

@@ -119,7 +119,17 @@ npm install
 npm run dev
 ```
 
-Smoke check: open http://localhost:8000/docs and http://localhost:8080.
+OpenTelemetry traces are exported to Jaeger when `OTEL_ENABLED=true`:
+
+```bash
+OTEL_SERVICE_NAME=mukthiguru-backend
+OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+OTEL_PYTHON_FASTAPI_EXCLUDED_URLS='^(?!.*\/api\/chat(?:\/stream)?(?:\?.*)?$).*'
+OPENINFERENCE_HIDE_EMBEDDINGS_VECTORS=true
+VITE_JAEGER_UI_URL=http://localhost:16686
+```
+
+Smoke check: open http://localhost:8000/docs, http://localhost:8080, and http://localhost:16686.
 
 ---
 
@@ -154,9 +164,12 @@ ChatInterface.handleSend()
 sendMessageStreaming()  in src/lib/aiService.ts
    │
    │   POST  ${VITE_BACKEND_URL}/api/chat/stream
-   │   body: { messages, user_message, meditation_step }
+   │   body: { messages, user_message, meditation_step, session_id }
    ▼
 FastAPI /api/chat/stream  (backend/app/main.py)
+   │
+   ▼
+Normalize session_id ─► Load compact memory context
    │
    ▼
 NeMo Input Rail ─► Depression Detector ─► LangGraph
@@ -185,6 +198,14 @@ Frontend yields StreamChunks → ChatInterface updates message
    - tokens append to current guru bubble (markdown-rendered)
    - "done" event sets citations and triggers Serene Mind if intent==='DISTRESS'
 ```
+
+Memory notes:
+- `ChatInterface` passes the active conversation id as `session_id` on both
+  streaming and non-streaming calls.
+- `backend/rag/memory.py` maps local non-UUID ids to deterministic UUIDs with
+  `uuid5`, preserving browser continuity while satisfying Supabase UUID tables.
+- The generated prompt treats memory as personalization and reference-resolution
+  context only; spiritual facts must still come from retrieved teachings.
 
 ---
 
@@ -218,6 +239,7 @@ Tables (all under `public`):
 | `profiles`           | display name, avatar, language       | self         |
 | `conversations`      | one per chat                         | self         |
 | `chat_messages`      | turns (role, content, citations)     | self via FK  |
+| `conversation_memories` | compact backend continuity summaries | backend service |
 | `meditation_sessions`| Serene Mind tracking                 | self         |
 | `daily_teachings`    | admin-uploaded card                  | admins       |
 | `user_roles`         | role assignments (admin, …)          | admins       |

@@ -16,60 +16,32 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cleanup")
 
 async def cleanup():
-    # 1. Selective Clear Qdrant
+    # 1. FULL Clear Qdrant
     logger.info("Connecting to Qdrant...")
     try:
-        client = QdrantClient(url="http://localhost:6333")
-        collection_name = "spiritual_wisdom"
+        client = QdrantClient(url="http://qdrant:6333")
         
-        # Check if collection exists
+        # Get all collections
         collections = client.get_collections().collections
-        if any(c.name == collection_name for c in collections):
-            logger.info(f"Selective delete in Qdrant: {collection_name}")
-            # Delete everything EXCEPT The_Four_Sacred_Secrets.pdf
-            client.delete(
-                collection_name=collection_name,
-                points_selector=models.FilterSelector(
-                    filter=models.Filter(
-                        must_not=[
-                            models.FieldCondition(
-                                key="source_url",
-                                match=models.MatchValue(value="The_Four_Sacred_Secrets.pdf")
-                            )
-                        ]
-                    )
-                )
-            )
-            logger.info("✅ Qdrant (spiritual_wisdom) partially cleared.")
+        for c in collections:
+            logger.info(f"Deleting Qdrant collection: {c.name}")
+            client.delete_collection(c.name)
         
-        # Clear LightRAG collections entirely (we'll re-ingest if needed, or check if they have 4SS)
-        # Usually LightRAG handles its own indexing. Let's clear them to be safe if they are from other videos.
-        for col in ["lightrag_vdb_chunks", "lightrag_vdb_entities", "lightrag_vdb_relationships"]:
-            if any(c.name == col for c in collections):
-                logger.info(f"Deleting LightRAG collection: {col}")
-                client.delete_collection(col)
+        logger.info("✅ Qdrant completely cleared.")
                 
     except Exception as e:
         logger.error(f"❌ Qdrant cleanup failed: {e}")
 
-    # 2. Selective Clear Neo4j
+    # 2. FULL Clear Neo4j
     logger.info("Connecting to Neo4j...")
     try:
-        # Use proper auth
-        driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "mukthiguru_neo4j_pass"))
+        # Use proper auth from config/env if possible, but hardcoded for now as per original script
+        driver = GraphDatabase.driver("bolt://neo4j:7687", auth=("neo4j", "mukthiguru_neo4j_pass"))
         with driver.session() as session:
-            logger.info("Deleting Neo4j data (excluding Four Sacred Secrets)...")
-            # We assume nodes from 4SS have a property like 'source' or 'file_name'
-            # Let's try to match anything NOT related to the PDF
-            # If we don't have a clear property, we might need to be careful.
-            # But usually the PDF ingestion adds a 'source' property.
-            session.run("""
-                MATCH (n)
-                WHERE NOT (n.source_url CONTAINS 'The_Four_Sacred_Secrets.pdf' OR n.source CONTAINS 'The_Four_Sacred_Secrets.pdf')
-                DETACH DELETE n
-            """)
+            logger.info("Deleting ALL Neo4j data...")
+            session.run("MATCH (n) DETACH DELETE n")
         driver.close()
-        logger.info("✅ Neo4j partially cleared.")
+        logger.info("✅ Neo4j completely cleared.")
     except Exception as e:
         logger.error(f"❌ Neo4j cleanup failed: {e}")
 
@@ -77,7 +49,7 @@ async def cleanup():
     logger.info("Connecting to Redis...")
     try:
         import redis
-        r = redis.from_url("redis://:mukthiguru_redis_pass@localhost:6379/0")
+        r = redis.from_url("redis://:mukthiguru_redis_pass@redis:6379/0")
         r.flushall()
         logger.info("✅ Redis cleared.")
     except Exception as e:

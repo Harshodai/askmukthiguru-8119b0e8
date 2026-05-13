@@ -19,6 +19,7 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - [x] End-to-end Spiritual Profile sync (Supabase + localStorage)
 - [x] Admin dashboard seeker auditing (Total Seeker counts)
 - [x] Enhanced telemetry (Triggers, Retrieval, Context events)
+- [x] OpenTelemetry + Jaeger tracing for chat and LangGraph observability
 - [x] Master SQL Schema for production database initialization
 - [x] Fixed Nginx route shadowing for protected auth paths
 - [x] Three-stage distress detection (Keyword, LLM, Semantic)
@@ -27,6 +28,7 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - [x] Spiritual guardrail false-positive protection
 - [x] Onboarding gate (Redirect new users to Profile setup)
 - [x] Visible sidebar management (Direct Rename/Delete icons)
+- [x] Stable conversational memory continuity (`session_id` + compact context injection)
 
 ## P1 — Trust (1 sprint)
 
@@ -44,6 +46,7 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - [ ] **B9** A/B prompt shadow mode in admin Prompts page
 - [ ] **J34** Down-vote → `golden_questions` clustering nightly job
 - [ ] **K35** Playwright e2e: signup → chat → stream → meditation → admin upload → realtime
+- [ ] **B10** Memory eval set: follow-up resolution, persona continuity, and grounding regression checks
 
 ## P3 — Performance (1 sprint)
 

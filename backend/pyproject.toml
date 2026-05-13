@@ -53,7 +53,19 @@ dependencies = [
     "nemoguardrails>=0.11.0",
     
     # UI
-    "gradio>=4.0.0"
+    "gradio>=4.0.0",
+
+    # Observability & Tracing
+    "opentelemetry-sdk>=1.24.0,<2.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0,<1.0",
+    "opentelemetry-exporter-otlp>=1.24.0,<2.0",
+    "openinference-instrumentation-langchain>=0.1.33,<1.0",
+
+    # Advanced Ingestion
+    "litellm>=1.24.0",
+    "PyPDF2>=3.0.0",
+    "pymupdf>=1.23.0",
+    "PyYAML>=6.0.0"
 ]
 
 [project.optional-dependencies]

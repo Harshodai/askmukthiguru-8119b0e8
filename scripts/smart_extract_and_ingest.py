@@ -331,6 +331,22 @@ def verify_structure(tree, pages):
 
 # ── Ingestion ───────────────────────────────────────────────────────────────
 
+def split_text_into_chunks(text, max_chars=3000, overlap=500):
+    """Split long text into overlapping chunks."""
+    if len(text) <= max_chars:
+        return [text]
+    
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + max_chars
+        chunks.append(text[start:end])
+        if end >= len(text):
+            break
+        start += (max_chars - overlap)
+    return chunks
+
+
 def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
     """Recursively flatten the tree structure into chunk items for Qdrant."""
     chunks = []
@@ -343,18 +359,22 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
         summary = node.get("summary", "").strip()
 
         if text:
-            chunks.append({
-                "text": text,
-                "metadata": {
-                    "source_url": "The_Four_Sacred_Secrets.pdf",
-                    "title": context_title,
-                    "content_type": "book",
-                    "raptor_level": 0,
-                    "cluster_id": cluster_id,
-                    "node_id": node.get("node_id", ""),
-                    "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}"
-                }
-            })
+            # Split large sections into smaller overlapping chunks for 10/10 confidence retrieval
+            sub_chunks = split_text_into_chunks(text, max_chars=4000, overlap=800)
+            for i, sub_text in enumerate(sub_chunks):
+                chunk_title = context_title if len(sub_chunks) == 1 else f"{context_title} (Part {i+1})"
+                chunks.append({
+                    "text": sub_text,
+                    "metadata": {
+                        "source_url": "The_Four_Sacred_Secrets.pdf",
+                        "title": chunk_title,
+                        "content_type": "book",
+                        "raptor_level": 0,
+                        "cluster_id": cluster_id,
+                        "node_id": f"{node.get('node_id', '')}_{i}",
+                        "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}"
+                    }
+                })
 
         if summary:
             chunks.append({
@@ -365,7 +385,7 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
                     "content_type": "summary",
                     "raptor_level": 1,
                     "cluster_id": cluster_id,
-                    "node_id": node.get("node_id", "")
+                    "node_id": f"{node.get('node_id', '')}_sum"
                 }
             })
 

@@ -47,17 +47,17 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-  # --- Vector Database ---
+  # --- Observability / Tracing ---
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:1.76.0
     container_name: mukthiguru-jaeger
     restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
     ports:
       - "16686:16686" # Web UI
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP
-    networks:
-      - mukthiguru-net
 
   qdrant:
     image: qdrant/qdrant:v1.17.1
@@ -139,9 +139,12 @@ services:
       # Redis cache
       - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379/0
       # OpenTelemetry
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
       - OTEL_SERVICE_NAME=mukthiguru-backend
+      - OTEL_PYTHON_FASTAPI_EXCLUDED_URLS=^(?!.*\/api\/chat(?:\/stream)?(?:\?.*)?$).*
+      - OPENINFERENCE_HIDE_EMBEDDINGS_VECTORS=true
       # Server
       - HOST=0.0.0.0
       - PORT=8000
@@ -150,6 +153,8 @@ services:
       # Development only. In production, set this to allowed origins (e.g. https://myapp.com)
       - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS must be set to allowed origins}
     depends_on:
+      jaeger:
+        condition: service_started
       qdrant:
         condition: service_healthy
       redis:
@@ -189,6 +194,7 @@ services:
         VITE_SUPABASE_URL: ${PUBLIC_SUPABASE_URL:-http://localhost:54321}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_KEY}
         VITE_USE_NATIVE_OAUTH: ${USE_NATIVE_OAUTH:-true}
+        VITE_JAEGER_UI_URL: ${VITE_JAEGER_UI_URL:-http://localhost:16686}
     container_name: mukthiguru-frontend
     ports:
       - "80:80"
