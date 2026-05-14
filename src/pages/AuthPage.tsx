@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon } from 'lucide-react';
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
@@ -31,6 +31,7 @@ const friendlyError = (err: Error | { message: string }): string => {
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -82,12 +83,27 @@ const AuthPage = () => {
     setError(null);
     try {
       if (isSignUp) {
+        const trimmedName = fullName.trim();
+        if (!trimmedName) {
+          setError('Please enter your full name.');
+          setLoading(false);
+          return;
+        }
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { full_name: trimmedName },
+          },
         });
         if (signUpError) throw signUpError;
+        // Seed the local profile with the chosen name so the chat header / profile
+        // page reflect it immediately, even before the email is confirmed.
+        try {
+          const { updateProfile } = await import('@/lib/profileStorage');
+          updateProfile({ displayName: trimmedName });
+        } catch { /* non-fatal */ }
         toast({
           title: 'Check your email',
           description: 'We sent you a verification link to complete sign-up.',
@@ -200,6 +216,24 @@ const AuthPage = () => {
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="text-xs text-muted-foreground">Full name</Label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => { setFullName(e.target.value); setError(null); }}
+                  placeholder="Your name"
+                  className="pl-9 h-10"
+                  autoComplete="name"
+                  required
+                />
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>
             <div className="relative">
