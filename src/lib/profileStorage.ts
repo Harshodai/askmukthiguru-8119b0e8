@@ -191,12 +191,17 @@ export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true
 /**
  * Sync the local profile to the backend.
  */
+// Backend /api/profile lives on the FastAPI server. In Lovable preview /
+// production it isn't reachable, so we skip the round-trip there.
+const HAS_CUSTOM_BACKEND = Boolean(import.meta.env.VITE_BACKEND_URL);
+
 export const syncProfileToServer = async (profile: UserProfile) => {
+  if (!HAS_CUSTOM_BACKEND) return;
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const response = await fetch('/api/profile', {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -221,17 +226,19 @@ export const syncProfileToServer = async (profile: UserProfile) => {
  * Fetch profile from server and merge with local.
  */
 export const fetchProfileFromServer = async () => {
+  if (!HAS_CUSTOM_BACKEND) return null;
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    const response = await fetch('/api/profile', {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/profile`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
     });
     
-    if (response.ok) {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (response.ok && contentType.includes('application/json')) {
       const serverProfile = await response.json();
       const current = loadProfile();
       
