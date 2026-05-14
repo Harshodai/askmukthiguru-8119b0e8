@@ -31,6 +31,7 @@ const friendlyError = (err: Error | { message: string }): string => {
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -82,12 +83,27 @@ const AuthPage = () => {
     setError(null);
     try {
       if (isSignUp) {
+        const trimmedName = fullName.trim();
+        if (!trimmedName) {
+          setError('Please enter your full name.');
+          setLoading(false);
+          return;
+        }
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { full_name: trimmedName },
+          },
         });
         if (signUpError) throw signUpError;
+        // Seed the local profile with the chosen name so the chat header / profile
+        // page reflect it immediately, even before the email is confirmed.
+        try {
+          const { updateProfile } = await import('@/lib/profileStorage');
+          updateProfile({ displayName: trimmedName });
+        } catch { /* non-fatal */ }
         toast({
           title: 'Check your email',
           description: 'We sent you a verification link to complete sign-up.',
