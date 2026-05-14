@@ -3,7 +3,11 @@ import { render, screen } from '@testing-library/react';
 
 vi.mock('@/admin/lib/filtersStore', () => ({
   useAdminFilters: () => ({
-    filters: { preset: '24h', range: { from: new Date(), to: new Date() } },
+    filters: {
+      preset: '24h',
+      from: new Date('2026-01-01T00:00:00Z'),
+      to: new Date('2026-01-02T00:00:00Z'),
+    },
     setPreset: vi.fn(),
     setRange: vi.fn(),
     refresh: vi.fn(),

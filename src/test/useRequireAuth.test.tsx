@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
-const navigateMock = vi.fn();
-const getSessionMock = vi.fn();
-const onAuthStateChangeMock = vi.fn(() => ({
-  data: { subscription: { unsubscribe: vi.fn() } },
+const { navigateMock, getSessionMock, onAuthStateChangeMock } = vi.hoisted(() => ({
+  navigateMock: vi.fn(),
+  getSessionMock: vi.fn(),
+  onAuthStateChangeMock: vi.fn(() => ({
+    data: { subscription: { unsubscribe: vi.fn() } },
+  })),
 }));
 
 vi.mock('react-router-dom', () => ({
