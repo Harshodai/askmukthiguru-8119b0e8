@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon } from 'lucide-react';
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
@@ -216,6 +216,24 @@ const AuthPage = () => {
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="text-xs text-muted-foreground">Full name</Label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => { setFullName(e.target.value); setError(null); }}
+                  placeholder="Your name"
+                  className="pl-9 h-10"
+                  autoComplete="name"
+                  required
+                />
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>
             <div className="relative">
