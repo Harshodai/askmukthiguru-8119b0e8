@@ -540,35 +540,109 @@ const ProfilePage = () => {
                   <CardTitle className="text-lg text-destructive flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" /> Danger Zone
                   </CardTitle>
-                  <CardDescription>Irreversible actions on your local data.</CardDescription>
+                  <CardDescription>Export your data, or permanently delete your account.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col sm:flex-row gap-3">
-                  <Button variant="outline" className="flex-1 gap-2" onClick={handleExport}>
-                    <Download className="w-4 h-4" /> Export All Data
-                  </Button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="flex-1 gap-2">
-                        <Trash2 className="w-4 h-4" /> Clear All Data
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete everything?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently erase your profile, chat history, and meditation stats from this device. 
-                          This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteEverything} className="bg-destructive hover:bg-destructive/90">
-                          Clear Data
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button variant="outline" className="flex-1 gap-2" onClick={handleExport}>
+                      <Download className="w-4 h-4" /> Export Local Data
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2"
+                      onClick={async () => {
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (!session) return toast({ title: 'Sign in first', variant: 'destructive' });
+                          const { data, error } = await supabase.functions.invoke('export-my-data');
+                          if (error) throw error;
+                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `askmukthiguru-cloud-export-${new Date().toISOString().slice(0, 10)}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          toast({ title: 'Cloud data exported' });
+                        } catch (e) {
+                          toast({ title: 'Export failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                        }
+                      }}
+                    >
+                      <Download className="w-4 h-4" /> Export Cloud Data
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="flex-1 gap-2">
+                          <Trash2 className="w-4 h-4" /> Clear Local Data
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Clear local data?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Erases this device's profile, chat history, and meditation stats.
+                            Your account remains. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteEverything} className="bg-destructive hover:bg-destructive/90">
+                            Clear
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="flex-1 gap-2">
+                          <Trash2 className="w-4 h-4" /> Delete Account
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Permanently delete your account?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This deletes your account and ALL server-side data: profile, chats,
+                            meditation sessions, roles. You will be signed out immediately. This
+                            cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive hover:bg-destructive/90"
+                            onClick={async () => {
+                              try {
+                                const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
+                                if (error) throw error;
+                                deleteAllData();
+                                resetProfile();
+                                await supabase.auth.signOut();
+                                toast({ title: 'Account deleted' });
+                                navigate('/', { replace: true });
+                              } catch (e) {
+                                toast({ title: 'Delete failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                              }
+                            }}
+                          >
+                            Permanently Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground pt-1">
+                    Need help debugging access?{' '}
+                    <a href="/auth/diagnostics" className="text-ojas hover:underline">
+                      Open auth diagnostics
+                    </a>
+                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
