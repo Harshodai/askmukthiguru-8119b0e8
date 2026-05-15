@@ -32,11 +32,12 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 
 ## P1 — Trust (1 sprint)
 
-- [ ] **A2** Edge function `chat-rate-limit` (sliding window, auth=20/min)
+- [ ] **A2** Edge function `chat-rate-limit` (sliding window, auth=20/min) — *edge fn shipped at `supabase/functions/chat-rate-limit`; backend wiring still pending*
 - [ ] **A3** PII redaction middleware in FastAPI logs
-- [ ] **A5** Global session-expired toast + redirect
-- [ ] **M42** Cookie/consent banner (DPDP + GDPR)
-- [ ] **M43** Edge functions: `export-my-data`, `delete-my-account`
+- [x] **A5** Global session-expired toast + redirect (`SessionExpiredHandler`)
+- [x] **M42** Cookie/consent banner (DPDP + GDPR) — `CookieConsentBanner`
+- [x] **M43** Edge functions: `export-my-data`, `delete-my-account` + Profile UI hooks
+- [x] **NEW** `/auth/diagnostics` self-test page + `whoami_diagnostics` RPC + auto user-role seed on signup
 
 ## P2 — Quality gate (1 sprint)
 
@@ -51,10 +52,10 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 ## P3 — Performance (1 sprint)
 
 - [ ] **C10** TTFT / total-latency / tok-s metrics on `/api/chat/stream` (target TTFT p50 < 800 ms)
-- [ ] **C11** Lazy-load `AdminShell` (`React.lazy`) — est. −300 KB on `/chat`
+- [ ] **C11** Lazy-load `AdminShell` (`React.lazy`) — *already lazy in `App.tsx`*
 - [ ] **C12** Daily-teaching image transforms (webp, srcset)
 - [ ] **C13** Prefetch `/chat` chunk + warm Supabase auth on landing
-- [ ] **C14** `React.memo` on `<ChatMessage>` markdown render
+- [x] **C14** `React.memo` on `<ChatMessage>` markdown render (custom prop comparator)
 - [ ] **H30** PWA via `vite-plugin-pwa` (with `/~oauth` denylist)
 
 ## P4 — UX delight (1 sprint)

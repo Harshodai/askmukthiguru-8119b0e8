@@ -196,6 +196,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      whoami_diagnostics: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user"
