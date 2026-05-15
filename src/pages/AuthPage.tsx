@@ -89,7 +89,8 @@ const AuthPage = () => {
           setLoading(false);
           return;
         }
-        const { error: signUpError } = await supabase.auth.signUp({
+        console.info('[Auth] signUp start', { email, hasName: true });
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -97,7 +98,15 @@ const AuthPage = () => {
             data: { full_name: trimmedName },
           },
         });
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.error('[Auth] signUp failed', { code: (signUpError as { code?: string }).code, status: (signUpError as { status?: number }).status, message: signUpError.message });
+          throw signUpError;
+        }
+        console.info('[Auth] signUp success', {
+          user_id: signUpData.user?.id,
+          identities: signUpData.user?.identities?.length ?? 0,
+          needs_confirmation: !signUpData.session,
+        });
         // Seed the local profile with the chosen name so the chat header / profile
         // page reflect it immediately, even before the email is confirmed.
         try {
@@ -106,11 +115,16 @@ const AuthPage = () => {
         } catch { /* non-fatal */ }
         toast({
           title: 'Check your email',
-          description: 'We sent you a verification link to complete sign-up.',
+          description: 'We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup.',
         });
       } else {
+        console.info('[Auth] signIn start', { email });
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
+        if (signInError) {
+          console.error('[Auth] signIn failed', { code: (signInError as { code?: string }).code, status: (signInError as { status?: number }).status, message: signInError.message });
+          throw signInError;
+        }
+        console.info('[Auth] signIn success');
         // Redirect logic is handled by onAuthStateChange effect
       }
     } catch (err: unknown) {
@@ -313,6 +327,13 @@ const AuthPage = () => {
           By continuing you agree to our{' '}
           <a href="/terms" className="hover:text-ojas hover:underline">Terms</a> and{' '}
           <a href="/privacy" className="hover:text-ojas hover:underline">Privacy Policy</a>.
+        </p>
+
+        <p className="text-center text-[11px] text-muted-foreground/60 pt-1">
+          Trouble signing in?{' '}
+          <a href="/auth/diagnostics" className="text-ojas hover:underline">
+            Run diagnostics
+          </a>
         </p>
       </div>
     </div>
