@@ -1,4 +1,4 @@
-import { forwardRef, useState, useCallback } from 'react';
+import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -24,7 +24,7 @@ const getDomain = (url: string): string => {
 
 const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
-export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
+const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, index = 0, isStreaming = false }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
@@ -317,7 +317,20 @@ export const ChatMessage = forwardRef<HTMLDivElement, ChatMessageProps>(
   }
 );
 
-ChatMessage.displayName = 'ChatMessage';
+ChatMessageInner.displayName = 'ChatMessageInner';
+
+// React.memo to skip re-renders when props haven't changed.
+// During streaming, only the actively-streaming message changes.
+export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
+  return (
+    prev.message.id === next.message.id &&
+    prev.message.content === next.message.content &&
+    prev.message.feedback === next.message.feedback &&
+    prev.isStreaming === next.isStreaming &&
+    prev.index === next.index
+  );
+}) as typeof ChatMessageInner;
+(ChatMessage as { displayName?: string }).displayName = 'ChatMessage';
 
 const formatTime = (date: Date): string => {
   return new Intl.DateTimeFormat('en-US', {
