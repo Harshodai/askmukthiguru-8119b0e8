@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
+import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 
 // Pages
 import Index from "./pages/Index";
@@ -12,6 +14,7 @@ import PracticesPage from "./pages/PracticesPage";
 import PracticeDetailPage from "./pages/PracticeDetailPage";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
+import AuthDiagnosticsPage from "./pages/AuthDiagnosticsPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -80,6 +83,7 @@ const App = () => {
           <Route element={<DebugLayout />}>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/diagnostics" element={<AuthDiagnosticsPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
@@ -90,6 +94,8 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
+        <SessionExpiredHandler />
+        <CookieConsentBanner />
         <SonnerToaster richColors closeButton position="top-right" />
       </BrowserRouter>
     </QueryClientProvider>
