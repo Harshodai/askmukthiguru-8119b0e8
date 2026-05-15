@@ -71,6 +71,7 @@ import { getMeditationStats, loadMeditationSessions } from '@/lib/meditationStor
 import { loadConversations } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const languages: { code: 'en' | 'hi' | 'te' | 'ml'; label: string }[] = [
   { code: 'en', label: 'English' },
