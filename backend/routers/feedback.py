@@ -6,8 +6,10 @@ from app.core.database import get_db
 from services.feedback_service import FeedbackService
 from schemas.feedback import FeedbackCreate, FeedbackResponse
 from services.auth_service import get_current_user_from_supabase
+from app.core.feedback_store import FeedbackStore
 
 router = APIRouter(prefix="/feedback", tags=["Feedback"])
+jsonl_store = FeedbackStore()
 
 @router.post("/", response_model=FeedbackResponse)
 async def submit_feedback(
@@ -20,6 +22,17 @@ async def submit_feedback(
     """
     service = FeedbackService(db)
     user_id = user.get("id") if user else None
+    
+    # Save to JSONL store for RAG analytics/fine-tuning (Production Report requirement)
+    # Convert rating format: 1/-1 -> "up"/"down"
+    jsonl_store.record_feedback(
+        session_id=user_id or "anonymous",
+        query=feedback_in.query,
+        response=feedback_in.answer,
+        rating="up" if feedback_in.rating > 0 else "down",
+        intent="QUERY"  # Assume query for now, could be passed in metadata
+    )
+    
     return await service.create_feedback(feedback_in, user_id=user_id)
 
 @router.get("/history", response_model=List[FeedbackResponse])

@@ -13,6 +13,27 @@ This is the single entry point for ALL content ingestion.
 import logging
 from typing import Optional, Callable, Any
 
+import json
+from pathlib import Path
+
+class IngestionCheckpoint:
+    def __init__(self, filepath="data/ingest_checkpoint.json"):
+        self.filepath = Path(filepath)
+        self.filepath.parent.mkdir(exist_ok=True)
+        self.processed_chunks = self._load()
+
+    def _load(self):
+        if self.filepath.exists():
+            return set(json.loads(self.filepath.read_text()))
+        return set()
+
+    def save(self, chunk_id: str):
+        self.processed_chunks.add(chunk_id)
+        self.filepath.write_text(json.dumps(list(self.processed_chunks)))
+        
+    def is_processed(self, chunk_id: str) -> bool:
+        return chunk_id in self.processed_chunks
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from app.config import settings
@@ -450,18 +471,30 @@ class IngestionPipeline:
         if not videos:
             return {"status": "error", "message": "No videos found in playlist/channel"}
 
-        # Phase 1: Concurrent transcript extraction (spawns multiple workers)
+        # Phase 1: Filter out already processed videos
+        checkpoint = IngestionCheckpoint()
+        unprocessed_videos = []
+        for i, video in enumerate(videos):
+            if checkpoint.is_processed(video["url"]):
+                self._notify(on_progress, f"Skipping {i+1}/{len(videos)}: {video.get('title', 'Unknown')[:50]}... (already processed)", 0.05 + (i / len(videos)) * 0.05)
+            else:
+                unprocessed_videos.append(video)
+                
+        if not unprocessed_videos:
+            self._notify(on_progress, "All videos already processed!", 1.0)
+            return {"status": "success", "message": "All videos already processed"}
+
         self._notify(
             on_progress,
-            f"Extracting transcripts for {len(videos)} videos concurrently...",
+            f"Extracting transcripts for {len(unprocessed_videos)} videos concurrently...",
             0.1,
         )
         
         transcript_results = await fetch_transcripts_concurrent(
-            videos,
+            unprocessed_videos,
             on_progress=lambda idx, total, res: self._notify(
                 on_progress,
-                f"Transcript {idx+1}/{total}: {videos[idx].get('title', '')[:40]}... [{res.get('method', '?')}]",
+                f"Transcript {idx+1}/{total}: {unprocessed_videos[idx].get('title', '')[:40]}... [{res.get('method', '?')}]",
                 0.1 + (idx / total) * 0.4,
             ),
         )
@@ -472,7 +505,7 @@ class IngestionPipeline:
         processed = 0
         errors = []
 
-        for i, (video, transcript) in enumerate(zip(videos, transcript_results)):
+        for i, (video, transcript) in enumerate(zip(unprocessed_videos, transcript_results)):
             progress = 0.5 + (i / len(videos)) * 0.4
             self._notify(
                 on_progress,
@@ -536,6 +569,7 @@ class IngestionPipeline:
                 # Step 6: Graph RAG
                 await self._lightrag.ainsert(clean_text)
                 
+                checkpoint.save(video["url"])
                 processed += 1
 
             except Exception as e:

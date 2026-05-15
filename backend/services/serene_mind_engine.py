@@ -373,7 +373,29 @@ class SereneMindEngine:
         self._semantic_detector = None
         if embedding_service:
             self._semantic_detector = SemanticDistressDetector(embedding_service)
+        self.distress_threshold = 3
+        self.rolling_window = 5
         logger.info("Serene Mind Engine initialized")
+
+    async def analyze_with_history(self, message: str, history: list) -> DistressAssessment:
+        # Check window for escalating patterns
+        recent = history[-self.rolling_window:]
+        # Extract distress score either from object attribute or dict key
+        def get_distress(msg):
+            if isinstance(msg, dict):
+                return msg.get("distress_score", 0)
+            return getattr(msg, "distress_score", 0)
+            
+        distress_count = sum(1 for msg in recent if get_distress(msg) > 0.6)
+        
+        assessment = await self.async_assess_distress(message)
+        
+        # Escalate if persistent
+        if distress_count >= self.distress_threshold and assessment.level.value >= 1:
+            assessment.level = DistressLevel.SEVERE
+            assessment.detected_signals.append("Persistent distress over rolling window")
+            
+        return assessment
 
     def assess_distress(
         self,

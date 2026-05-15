@@ -1,0 +1,209 @@
+
+--- PAGE 1 ---
+
+--- PAGE 2 ---
+RAG Made Simple
+The Complete Visual Guide to Retrieval-Augmented Generation
+Nir Diamant
+2026
+Copyright © 2026 Nir Diamant. All rights reserved.
+--- PAGE 3 ---
+RAG Made Simple
+1. Copyright
+2. Introduction
+1. Where This Book Comes From
+2. Who This Book Is For
+3. How the Book Is Organized
+4. How to Read This Book
+5. A Note on Illustrations
+3. Chapter 1: Simple RAG: The Foundation of Document-Powered AI
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+4. Chapter 2: RAG for Structured Data: When Spreadsheets Meet Semantic
+Search
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+5. Chapter 3: Reliable RAG: Building Trust Through Verification
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+--- PAGE 4 ---
+6. Chapter 4: Proposition Chunking: Breaking Documents Into Atomic
+Facts
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+7. Chapter 5: Query Transformations: Reshaping the Question Before the
+Search
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+8. Chapter 6: Hypothetical Document Embedding
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. HyDE and Other Pre-Retrieval Techniques
+5. When to Use This
+6. Key Takeaways
+9. Chapter 7: Contextual Chunk Headers: Giving Every Chunk Its Origin
+Story
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+10. Chapter 8: Context Enrichment Window
+1. The Problem
+--- PAGE 5 ---
+2. The Core Idea
+3. How It Works
+4. How This Relates to Contextual Chunk Headers
+5. When to Use This
+6. Key Takeaways
+11. Chapter 9: Semantic Chunking: Splitting Text Where the Meaning Shifts
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+12. Chapter 10: Contextual Compression: Extracting Only What Matters
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+13. Chapter 11: Document Augmentation: Giving Every Chunk a Set of
+Questions
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+14. Chapter 12: Fusion Retrieval: Combining Keyword and Semantic Search
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+--- PAGE 6 ---
+15. Chapter 13: Reranking
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+16. Chapter 14: Hierarchical Indices
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+17. Chapter 15: Dartboard Retrieval
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+18. Chapter 16: Multi-Modal RAG with Captioning
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+19. Chapter 17: Retrieval with Feedback Loops
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+--- PAGE 7 ---
+20. Chapter 18: Adaptive Retrieval
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+21. Chapter 19: Explainable Retrieval
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. Crafting the Explanation Prompt
+5. When to Use This
+6. Key Takeaways
+22. Chapter 20: Corrective RAG
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+23. Chapter 21: Graph RAG
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+5. Key Takeaways
+24. Chapter 22: RAG Evaluation
+1. The Problem
+2. The Core Idea
+3. How It Works
+4. When to Use This
+--- PAGE 8 ---
+5. Key Takeaways
+25. Appendix A: Choosing Your Techniques: A Decision Guide
+1. How to Use This Appendix
+2. The RAG Pipeline at a Glance
+3. What Symptom Are You Seeing?
+4. Progressive Enhancement: Build in Layers
+5. Common Technique Stacks
+6. Quick-Reference Tables
+7. Key Takeaways
+26. Appendix B: Glossary
+27. About the Author
+--- PAGE 9 ---
+Copyright
+RAG Made Simple The Complete Visual Guide to Retrieval-Augmented
+Generation
+Copyright © 2026 Nir Diamant. All rights reserved.
+No part of this publication may be reproduced, distributed, or transmitted
+in any form or by any means, including photocopying, recording, or other
+electronic or mechanical methods, without the prior written permission of
+the author, except for brief quotations in reviews and certain other
+noncommercial uses permitted by copyright law.
+Based on the open-source RAG Techniques repository.
+For updates, new techniques, and applied AI insights, visit the DiamantAI
+Newsletter.
+First Edition, 2026.
+--- PAGE 10 ---
+Introduction
+A guide to 22 retrieval-augmented generation techniques, explained
+through intuition and illustrations instead of code.
+Retrieval-Augmented Generation has become one of the most important
+patterns in applied AI. The idea is deceptively simple: instead of asking a
+language model to answer from memory, you first retrieve relevant
+information from your own documents and hand it to the model as context.
+The model reads, then answers. No hallucination. No guesswork.
+But that simple idea hides a landscape of complexity. How should you split
+documents into searchable pieces? What if the user’s question is vague or
+ambiguous? What if the retrieved passages are almost-but-not-quite
+relevant? What if the model ignores the context and hallucinates anyway?
+Each of these failure modes has spawned its own family of techniques, and
+the field is growing fast.
+This book maps that landscape. It covers 22 distinct RAG techniques, from
+the foundational pipeline through advanced strategies like graph-based
+retrieval and self-correcting systems. Each chapter extracts the algorithm and
+intuition from a real implementation, then teaches it without a single line of
+code. The following illustration shows how these techniques span the full
+RAG pipeline, from how you prepare documents to how you verify the final
+answer.
