@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     # Supported: "BAAI/bge-m3" (default, best multilingual, 1024-dim dense+sparse+ColBERT)
     #            "intfloat/multilingual-e5-large" (alternative multilingual, 1024-dim)
     #            "sentence-transformers/all-MiniLM-L6-v2" (English-only, 384-dim, fast)
-    embedding_model: str = "BAAI/bge-m3"
+    embedding_model: str = "intfloat/multilingual-e5-large-instruct"
     embedding_dimension: int = 1024
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 

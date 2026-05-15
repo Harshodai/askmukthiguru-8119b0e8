@@ -80,16 +80,17 @@ def transcribe_with_whisper(
     Returns full transcript text or None on failure.
     """
     try:
-        import mlx_whisper
+        from transformers import pipeline
+        import torch
     except ImportError:
-        logger.error("mlx-whisper not installed — run: pip install mlx-whisper")
+        logger.error("transformers or torch not installed — run: pip install transformers torch")
         return None
 
     if not os.path.exists(audio_path):
         logger.error(f"[{video_id}] Audio file not found: {audio_path}")
         return None
 
-    model = model or settings.whisper_local_model
+    model = "collabora/whisper-hindi-v2"
     size_mb = os.path.getsize(audio_path) / (1024 * 1024)
     logger.info(f"[{video_id}] Transcribing {size_mb:.1f}MB audio with {model}...")
 
@@ -112,22 +113,13 @@ def transcribe_with_whisper(
     }
 
     try:
-        # Provide an initial prompt to bias Whisper towards correct terminology
-        initial_prompt = (
-            "Mukthi Guru, Sri Krishnaji, Sri Preethaji, Ekam, enlightenment, spiritual, "
-            "meditation, beautiful state, oneness, Deeksha, Soul Sync, Antaryamin, "
-            "Samyama, Ananda, Moola Mantra, Ekam World Peace Festival."
+        pipe = pipeline(
+            "automatic-speech-recognition",
+            model=model,
+            device=0 if torch.cuda.is_available() else -1
         )
         
-        result = mlx_whisper.transcribe(
-            audio_path,
-            path_or_hf_repo=model,
-            language=language,
-            word_timestamps=False,
-            verbose=False,
-            initial_prompt=initial_prompt,
-        )
-
+        result = pipe(audio_path, return_timestamps=False)
         text = result.get("text", "").strip()
 
         if not text:

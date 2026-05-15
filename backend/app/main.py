@@ -218,10 +218,18 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global error boundary catching all unhandled exceptions."""
-    logger.error(f"Unhandled server error on {request.url.path}: {exc}", exc_info=True)
+    error_id = f"err_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    logger.error(
+        f"Unhandled server error on {request.url.path} (error_id: {error_id}): {exc}", 
+        exc_info=True
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error. Please try again later."},
+        content={
+            "error": "An internal error occurred",
+            "message": "We encountered an issue processing your request. Please try again.",
+            "error_id": error_id
+        },
     )
 
 
@@ -436,9 +444,9 @@ async def chat_endpoint(
     try:
         if container.serene_mind:
             assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
-            assessment = await container.serene_mind.async_assess_distress(
+            assessment = await container.serene_mind.analyze_with_history(
                 user_msg,
-                conversation_history=chat_history + assessment_history
+                history=chat_history + assessment_history
             )
             if assessment.level.value >= 2:
                 logger.info(f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response.")
@@ -698,9 +706,9 @@ async def chat_stream_endpoint(
             try:
                 if container.serene_mind:
                     assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
-                    assessment = await container.serene_mind.async_assess_distress(
+                    assessment = await container.serene_mind.analyze_with_history(
                         user_msg,
-                        conversation_history=chat_history + assessment_history,
+                        history=chat_history + assessment_history,
                     )
                     if assessment.level.value >= 2:
                         logger.info(f"Stream: Distress detected ({assessment.level.name}), passing to RAG pipeline.")
@@ -727,16 +735,27 @@ async def chat_stream_endpoint(
             med_step = result.get("meditation_step", 0)
             citations = result.get("citations", [])
 
-            # Stream the answer token by token (simulate chunked delivery)
-            yield f"event: status\ndata: Composing response...\n\n"
-
-            # Split answer into small chunks for streaming effect
-            chunk_size = 20  # chars per chunk
-            for i in range(0, len(final_answer), chunk_size):
-                chunk = final_answer[i:i + chunk_size]
-                # Escape newlines for SSE format
-                escaped = chunk.replace("\n", "\\n")
-                yield f"event: token\ndata: {escaped}\n\n"
+            # Stream the answer using real SSE if it's a QUERY with context
+            if intent == "QUERY" and result.get("documents") and settings.sarvam_api_key:
+                from services.streaming_generator import stream_sarvam_response
+                context_text = "\n\n".join([d.get("text", d.get("page_content", "")) if isinstance(d, dict) else getattr(d, "page_content", "") for d in result.get("documents", [])])
+                messages = [
+                    {"role": "system", "content": f"You are a spiritual guide. Answer using this context:\n{context_text}"},
+                    {"role": "user", "content": user_msg}
+                ]
+                final_answer = ""
+                async for chunk in stream_sarvam_response(messages, api_key=settings.sarvam_api_key):
+                    if chunk:
+                        final_answer += chunk
+                        escaped = chunk.replace("\n", "\\n")
+                        yield f"event: token\ndata: {escaped}\n\n"
+            else:
+                # Fallback to simulated stream for casual/distress/cached responses
+                for i in range(0, len(final_answer), 20):
+                    chunk = final_answer[i:i + 20]
+                    escaped = chunk.replace("\n", "\\n")
+                    yield f"event: token\ndata: {escaped}\n\n"
+                    await asyncio.sleep(0.01)
 
             # Cache QUERY and CASUAL results (Semantic Caching for fast routing)
             if intent in ["QUERY", "CASUAL"]:

@@ -37,6 +37,8 @@ class EmbeddingService:
         self._encoder = None
         self._reranker = None
         self._lock = threading.Lock()
+        # REQUIRED for multilingual-e5-large-instruct
+        self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
         logger.info("Embedding service initialized (lazy load)")
 
     def _ensure_models(self) -> None:
@@ -110,12 +112,11 @@ class EmbeddingService:
 
     def encode_single_full(self, text: str) -> dict:
         """
-        Encode a single text into both dense and sparse vectors.
-
-        Returns:
-            dict with 'dense' (list[float]) and 'sparse' (dict of token_id->weight)
+        Encode a single query text into both dense and sparse vectors.
+        Uses the instruction prefix required for e5 models.
         """
-        result = self.encode_batch([text])
+        prefixed_text = f"{self.instruction}{text}"
+        result = self.encode_batch([prefixed_text])
         return {
             'dense': result['dense'][0],
             'sparse': result['sparse'][0],
