@@ -611,11 +611,12 @@ class SarvamCloudService:
         result = await self._generate_fast(GRADE_RELEVANCE_PROMPT, prompt)
         return "yes" in result.lower()
 
-    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[bool]:
+    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[dict]:
         """
         CRAG: Batch relevance grading of multiple documents in one LLM call.
 
-        Returns: List of booleans, one per document (True = relevant).
+        Returns: List of dicts, one per document:
+            {"relevant": bool, "reason": str}
         """
         if not documents:
             return []
@@ -629,27 +630,38 @@ class SarvamCloudService:
         prompt = f"Question: {query}\n\n{numbered_docs}"
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
 
-        # Parse "1: yes\n2: no\n3: yes" format
-        relevance = [False] * len(documents)
+        # Parse "1: [yes/no] - reason\n2: [yes/no] - reason" format
+        relevance_results = [{"relevant": False, "reason": "No response from LLM"} for _ in documents]
+        
+        # Regex to handle various formats like "1: yes - The document discusses..."
+        # or "1: yes (Reason: ...)"
         for line in result.strip().splitlines():
             line = line.strip()
-            if ":" in line:
-                parts = line.split(":", 1)
+            if not line:
+                continue
+            
+            # Match pattern: index, then yes/no, then optional reason
+            match = re.match(r"(\d+)[:.]\s*(yes|no)(?:\s*[:-]\s*(.*))?", line, re.IGNORECASE)
+            if match:
                 try:
-                    idx = int(parts[0].strip()) - 1  # 1-indexed → 0-indexed
+                    idx = int(match.group(1)) - 1
                     if 0 <= idx < len(documents):
-                        relevance[idx] = "yes" in parts[1].lower()
+                        is_relevant = match.group(2).lower() == "yes"
+                        reason = match.group(3).strip() if match.group(3) else ("Relevant teaching" if is_relevant else "Irrelevant content")
+                        relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
                 except (ValueError, IndexError):
                     continue
 
         # If parser didn't match or LLM graded everything False,
-        # keep the top-5 documents to guarantee context!
-        if not any(relevance) and len(documents) > 0:
-            logger.warning("Relevance grading returned no docs. Using top documents fallback.")
-            for i in range(min(5, len(documents))):
-                relevance[i] = True
+        # keep the top document to guarantee context, but note the low confidence
+        if not any(r["relevant"] for r in relevance_results) and len(documents) > 0:
+            logger.warning("Relevance grading returned no docs. Using top document fallback.")
+            relevance_results[0] = {
+                "relevant": True, 
+                "reason": "Fallback: Used top retrieval result as a starting point despite low initial relevance score."
+            }
 
-        return relevance
+        return relevance_results
 
     async def check_faithfulness(self, answer: str, context: str) -> bool:
         """
@@ -684,11 +696,20 @@ class SarvamCloudService:
 
         return hints[:5]  # Cap at 5 hints
 
-    async def rewrite_query(self, original_query: str) -> str:
+    async def rewrite_query(self, original_query: str, grading_reasons: list[str] = None) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
+        
+        Args:
+            original_query: The query that failed to find relevant docs
+            grading_reasons: Explanations from the grader about why retrieval failed
         """
-        return await self.generate(QUERY_REWRITE_PROMPT, f"Original query: {original_query}")
+        prompt = f"Original query: {original_query}"
+        if grading_reasons:
+            reasons_text = "\n".join([f"- {r}" for r in grading_reasons if r])
+            prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing and perform a more targeted query expansion."
+            
+        return await self.generate(QUERY_REWRITE_PROMPT, prompt)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
         """
@@ -844,6 +865,25 @@ class SarvamCloudService:
         """
         result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query)
         return "complex" in result.lower()
+
+    async def compress_context(self, question: str, document_text: str) -> str:
+        """
+        Compress a document chunk using the fast LLM to retain only relevant information.
+        If NO_RELEVANT_CONTEXT is returned, it returns an empty string.
+        """
+        from rag.prompts import COMPRESS_CONTEXT_PROMPT
+        
+        prompt = COMPRESS_CONTEXT_PROMPT.format(
+            question=question,
+            document_text=document_text
+        )
+        # Always use the fast model for compression to save time
+        compressed = await self._generate_fast("", prompt)
+        
+        if "NO_RELEVANT_CONTEXT" in compressed:
+            return ""
+            
+        return compressed.strip()
 
     async def health_check(self) -> bool:
         """Check if Sarvam Cloud API is reachable."""
