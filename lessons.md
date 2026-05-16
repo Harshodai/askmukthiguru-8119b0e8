@@ -248,3 +248,10 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Symptom**: `test_chat_endpoint_success` was failing with `AssertionError: assert 'I apologize, something went wrong.' == 'This is a mocked response'`.
 - **Root Cause**: The RAG graph `ainvoke` method mock was returning a dictionary with `"final_response"` instead of the expected `"final_answer"`. The `chat_endpoint` uses `result.get("final_answer", "I apologize, something went wrong.")` which fell back silently to the default failure message, masking the actual mock configuration error.
 - **Lesson**: When mocking complex pipeline outputs (like `langgraph` state dictionaries), ensure all dictionary keys precisely match the consumption logic in the endpoint. A silent `.get()` fallback can obscure configuration errors.
+
+### 12. Corrective RAG (CRAG) & Infrastructure Hardening (May 2026)
+- **Corrective Reasoning**: Enhanced the `grade_documents` node to not just provide a binary "yes/no" but also a brief "reason" for each document's relevance. This reasoning is then passed to the `rewrite_query` node, allowing the LLM to make informed query expansions based on why previous retrievals failed.
+- **State-Driven Routing**: Successfully integrated the `route_after_grading` conditional edge in LangGraph, enabling a dynamic flow between generation, query rewriting, and "I don't know" fallback based on document relevance and rewrite history.
+- **Test Telemetry Mocking**: Hardened the backend test suite by implementing comprehensive mocking for the `ServiceContainer` and `log_query_trace`. This ensures tests are 100% deterministic and do not depend on external providers.
+- **Gradio/Pydantic Modernization**: Resolved all Pydantic V2 migration warnings and Gradio UI deprecations, ensuring the codebase is forward-compatible.
+- **Deep Interaction Testing**: Refactored the `ChatInterface.test.tsx` to include functional submission testing, verifying that the frontend correctly handles the end-to-end conversational flow.

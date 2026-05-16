@@ -238,6 +238,7 @@ def create_initial_state(
         reranked_docs=[],
         # CRAG
         relevant_docs=[],
+        grading_reasons=[],
         rewrite_count=0,
         rewritten_query=None,
         # Decomposition

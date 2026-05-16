@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class FeedbackCreate(BaseModel):
     """Schema for creating a new feedback entry."""
@@ -18,5 +18,4 @@ class FeedbackResponse(FeedbackCreate):
     user_id: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

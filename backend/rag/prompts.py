@@ -373,11 +373,11 @@ Given a user question and a numbered list of retrieved documents, determine whic
 
 A document does NOT need to fully answer the question. It just needs to contain SOME relevant information.
 
-For each document, respond with its number and 'yes' or 'no'.
-Respond in EXACTLY this format (one line per document, nothing else):
-1: yes
-2: no
-3: yes"""
+For each document, respond with its number, 'yes' or 'no', and a very brief reason (max 10 words).
+Respond in EXACTLY this format:
+1: yes - [brief reason]
+2: no - [brief reason]
+3: yes - [brief reason]"""
 
 
 # === COMBINED VERIFICATION PROMPT (merges Self-RAG + CoVe into one call) ===

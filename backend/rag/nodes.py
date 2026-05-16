@@ -512,17 +512,21 @@ async def grade_documents(state: GraphState) -> dict:
 
     intent = state.get("intent", "FACTUAL")
     if intent == "DISTRESS":
-        # For emotional distress, bypass strict factual grading.
-        # Just take the top 3 semantically similar teachings to provide comfort.
         relevant = reranked_docs[:3]
+        state["grading_reasons"] = ["Distress intent bypass" for _ in relevant]
         logger.info(f"CRAG batch: DISTRESS intent, bypassing grading, accepted {len(relevant)} docs")
     else:
         doc_texts = [doc["text"] for doc in reranked_docs]
-        relevance_flags = await _ollama.batch_grade_relevance(question, doc_texts)
+        relevance_results = await _ollama.batch_grade_relevance(question, doc_texts)
 
-        relevant = [
-            doc for doc, is_rel in zip(reranked_docs, relevance_flags) if is_rel
-        ]
+        relevant = []
+        reasons = []
+        for doc, res in zip(reranked_docs, relevance_results):
+            if res["relevant"]:
+                relevant.append(doc)
+            reasons.append(res["reason"])
+        
+        state["grading_reasons"] = reasons
 
     # Contextual compression: extract only the most relevant sentences
     if relevant:
@@ -606,7 +610,7 @@ async def rewrite_query(state: GraphState) -> dict:
     rewrite_count = state.get("rewrite_count", 0) + 1
     original = state.get("rewritten_query") or state["question"]
 
-    rewritten = await _ollama.rewrite_query(original)
+    rewritten = await _ollama.rewrite_query(original, reasons=state.get("grading_reasons", []))
     logger.info(f"CRAG rewrite #{rewrite_count}: {original[:50]}... → {rewritten[:50]}...")
 
     return {
