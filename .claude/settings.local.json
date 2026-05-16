@@ -11,8 +11,12 @@
       "Bash(cd \"C:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/backend\" && py -c \"import ast; [ast.parse\\(open\\(f, encoding='utf-8'\\).read\\(\\)\\) for f in ['rag/prompts.py', 'rag/nodes.py', 'rag/graph.py', 'services/ollama_service.py', 'services/cache_service.py', 'ingest/corrector.py', 'ingest/raptor.py', 'app/main.py']]; print\\('All Python files parsed OK'\\)\")"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "code-review-graph"
   ],
-  "enableAllProjectMcpServers": true
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false
+  }
 }

@@ -59,11 +59,12 @@ _EN_PATTERNS = {
     ],
     DistressLevel.SEVERE: [
         r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point)\b",
+        r"\b(don'?t\s*know\s*if\s*i\s*can\s*go\s*on)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
         r"\b(meaningless|empty\s*inside|broken)\b",
     ],
     DistressLevel.MODERATE: [
-        r"\b(stressed|anxious|anxiety|panic|overwhelm|can'?t\s*sleep|insomnia)\b",
+        r"\b(stressed|anxious|anxiety|panic|overwhelm\w*|can'?t\s*sleep|insomnia)\b",
         r"\b(depressed|sad|unhappy|miserable|frustrated|angry|furious)\b",
         r"\b(scared|afraid|terrified|worried|fear|nervous)\b",
         r"\b(lonely|isolated|alone|abandoned|rejected)\b",

@@ -842,6 +842,10 @@ async def generate_answer(state: GraphState) -> dict:
             user_prompt=prompt,
         )
 
+    if not answer or not answer.strip():
+        logger.warning("Main generation returned empty response. Using internal fallback.")
+        answer = "I apologize, but I am unable to formulate a complete response right now. Please allow me to share some relevant teachings from the sacred knowledge base instead."
+
     logger.info(f"Generated answer ({len(answer)} chars, {len(citations)} citations, model={ab_model})")
     return {"answer": answer, "citations": citations, "citation_reasoning": {}}
 
@@ -1099,6 +1103,9 @@ Based on the above teachings, compose a deeply compassionate response that:
                 user_prompt=prompt,
                 temperature=0.3,  # Slightly warmer for compassion
             )
+            if not response or not response.strip():
+                logger.warning("Distress generation returned empty response. Falling back to template.")
+                response = _serene_mind.get_response(assessment) if _serene_mind else get_distress_response()
         except Exception as e:
             logger.error(f"Distress generation failed: {e}")
             response = _serene_mind.get_response(assessment) if _serene_mind else get_distress_response()
