@@ -27,6 +27,7 @@ qdrant-client>=1.13.0,<2.0
 # --- Embeddings & Reranking ---
 sentence-transformers>=3.4.0,<4.0
 FlagEmbedding>=1.2.10
+ragatouille>=0.0.8
 
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0

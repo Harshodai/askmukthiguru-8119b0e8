@@ -737,18 +737,28 @@ async def chat_stream_endpoint(
 
             # Stream the answer using real SSE if it's a QUERY with context
             if intent == "QUERY" and result.get("documents") and settings.sarvam_api_key:
-                from services.streaming_generator import stream_sarvam_response
-                context_text = "\n\n".join([d.get("text", d.get("page_content", "")) if isinstance(d, dict) else getattr(d, "page_content", "") for d in result.get("documents", [])])
-                messages = [
-                    {"role": "system", "content": f"You are a spiritual guide. Answer using this context:\n{context_text}"},
-                    {"role": "user", "content": user_msg}
-                ]
-                final_answer = ""
-                async for chunk in stream_sarvam_response(messages, api_key=settings.sarvam_api_key):
-                    if chunk:
-                        final_answer += chunk
+                try:
+                    from services.streaming_generator import stream_sarvam_response
+                    context_text = "\n\n".join([d.get("text", d.get("page_content", "")) if isinstance(d, dict) else getattr(d, "page_content", "") for d in result.get("documents", [])])
+                    messages = [
+                        {"role": "system", "content": f"You are a spiritual guide. Answer using this context:\n{context_text}"},
+                        {"role": "user", "content": user_msg}
+                    ]
+                    sarvam_answer = ""
+                    async for chunk in stream_sarvam_response(messages, api_key=settings.sarvam_api_key):
+                        if chunk:
+                            sarvam_answer += chunk
+                            escaped = chunk.replace("\n", "\\n")
+                            yield f"event: token\ndata: {escaped}\n\n"
+                    final_answer = sarvam_answer
+                except Exception as stream_e:
+                    logger.warning(f"Sarvam API streaming failed: {stream_e}. Falling back to Ollama.")
+                    # Fallback to simulated stream of local LLM answer
+                    for i in range(0, len(final_answer), 20):
+                        chunk = final_answer[i:i + 20]
                         escaped = chunk.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
+                        await asyncio.sleep(0.01)
             else:
                 # Fallback to simulated stream for casual/distress/cached responses
                 for i in range(0, len(final_answer), 20):
@@ -783,7 +793,7 @@ async def chat_stream_endpoint(
                     emotional_arc=[{"timestamp": time.time(), "distress_level": assessment.level.value if 'assessment' in locals() else 0, "topic": intent}],
                     follow_up_suggestions=[],
                 )
-                background_tasks.add_task(container.user_profile.save_conversation_memory, memory)
+                asyncio.create_task(container.user_profile.save_conversation_memory(memory))
 
         except Exception as e:
             logger.error(f"SSE streaming error: {e}", exc_info=True)

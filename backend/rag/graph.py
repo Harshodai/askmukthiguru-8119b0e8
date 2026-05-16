@@ -37,6 +37,7 @@ from rag.nodes import (
     enrich_context,
     rewrite_query,
     generate_answer,
+    reflect_on_answer,
     context_engineer,
     explain_retrieval,
     verify_answer,
@@ -51,6 +52,15 @@ from rag.nodes import (
     route_by_intent,
     route_after_grading,
 )
+
+def route_after_reflection(state: GraphState) -> str:
+    """Route after self-reflection."""
+    if state.get("needs_correction"):
+        if state.get("rewrite_count", 0) >= 3:
+            return "fallback"
+        return "rewrite"
+    return "verify"
+
 from rag.resolve_followup import resolve_followup
 from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
@@ -112,6 +122,7 @@ def build_rag_graph(
 
     graph.add_node("rewrite_query", rewrite_query)
     graph.add_node("generate_answer", generate_answer)
+    graph.add_node("reflect_on_answer", reflect_on_answer)
     graph.add_node("verify_answer", verify_answer)
     graph.add_node("explain_retrieval", explain_retrieval)
     graph.add_node("context_engineer", context_engineer)
@@ -174,8 +185,19 @@ def build_rag_graph(
     # Rewrite loop → back to retrieve
     graph.add_edge("rewrite_query", "retrieve_documents")
 
-    # Generate (with inline hints) → Combined verification & Explanation → Format
-    graph.add_edge("generate_answer", "verify_answer")
+    # Generate (with inline hints) → Reflect
+    graph.add_edge("generate_answer", "reflect_on_answer")
+
+    # Reflect → decide: verify / rewrite / fallback
+    graph.add_conditional_edges(
+        "reflect_on_answer",
+        route_after_reflection,
+        {
+            "rewrite": "rewrite_query",
+            "fallback": "handle_fallback",
+            "verify": "verify_answer",
+        },
+    )
 
     # Verification & Explanation → format final answer
     graph.add_edge("verify_answer", "format_final_answer")
@@ -230,6 +252,8 @@ def create_initial_state(
         citations=[],
         # Self-RAG
         is_faithful=None,
+        needs_correction=False,
+        reflection_feedback=None,
         # CoVe
         verification=None,
         confidence_score=None,

@@ -260,6 +260,7 @@ const ProfilePage = () => {
                           value={form.displayName}
                           onChange={(e) => patch('displayName', e.target.value)}
                           placeholder="How should I address you?"
+                          maxLength={40}
                         />
                       </div>
                       {profile.avatarDataUrl && (
@@ -278,6 +279,7 @@ const ProfilePage = () => {
                       onChange={(e) => patch('bio', e.target.value)}
                       placeholder="Share what brings you here or your current spiritual challenges..."
                       className="min-h-[120px] resize-none"
+                      maxLength={280}
                     />
                     <p className="text-[11px] text-muted-foreground text-right">
                       {form.bio.length}/280 characters

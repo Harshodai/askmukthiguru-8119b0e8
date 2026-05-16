@@ -150,9 +150,150 @@ class RedisCacheAdapter(ICacheRepository):
             if count % 1000 == 0:
                 pipe.execute()
                 pipe = self._redis.pipeline()
-        pipe.execute()
         logger.info(f"Redis Cache invalidated ({count} entries cleared)")
 
+
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams, PointStruct
+from services.embedding_service import EmbeddingService
+from app.config import settings
+
+class SemanticCacheAdapter(ICacheRepository):
+    """
+    Semantic response cache using Qdrant for vector similarity and Redis for TTL payload storage.
+    """
+
+    def __init__(self, embedding_service: EmbeddingService, qdrant_url: str = None, qdrant_path: str = None, redis_url: str = None, ttl: int = _CACHE_TTL) -> None:
+        import redis
+        self._redis = redis.from_url(redis_url, decode_responses=True)
+        if qdrant_path:
+            self._qdrant = QdrantClient(path=qdrant_path)
+        else:
+            self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
+        self._embedder = embedding_service
+        self._ttl = ttl
+        self._collection = "mukthi_semantic_cache"
+        self._threshold = 0.95  # 95% similarity required for a hit
+        self._hits = 0
+        self._misses = 0
+
+        self._init_collection()
+
+    def _init_collection(self):
+        try:
+            collections = [c.name for c in self._qdrant.get_collections().collections]
+            if self._collection not in collections:
+                self._qdrant.create_collection(
+                    collection_name=self._collection,
+                    vectors_config=VectorParams(
+                        size=settings.embedding_dimension,
+                        distance=Distance.COSINE,
+                    ),
+                )
+                logger.info(f"Created semantic cache collection: {self._collection}")
+        except Exception as e:
+            logger.warning(f"Semantic cache collection init issue: {e}")
+
+    def _make_id(self, query: str) -> str:
+        """Deterministic ID based on query string."""
+        normalized = query.strip().lower()
+        # Qdrant requires UUIDs or integers. We'll use UUIDv5.
+        import uuid
+        namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
+        return str(uuid.uuid5(namespace, normalized))
+
+    def get(self, query: str) -> Optional[dict]:
+        """Look up a cached response semantically."""
+        # Encode query
+        emb = self._embedder.encode_single(query)
+        
+        try:
+            # Search Qdrant
+            results = self._qdrant.search(
+                collection_name=self._collection,
+                query_vector=emb,
+                limit=1,
+                score_threshold=self._threshold
+            )
+            
+            if results:
+                hit = results[0]
+                point_id = hit.id
+                
+                # Fetch payload from Redis (using the point_id as key)
+                redis_key = f"mukthiguru:semcache:{point_id}"
+                payload_str = self._redis.get(redis_key)
+                
+                if payload_str:
+                    self._hits += 1
+                    logger.info(f"Semantic Cache HIT (score={hit.score:.3f}, hits={self._hits}, misses={self._misses})")
+                    return json.loads(payload_str)
+                else:
+                    # Redis TTL expired, but Qdrant vector remains. Act as miss.
+                    pass
+        except Exception as e:
+            logger.error(f"Semantic cache get error: {e}")
+
+        self._misses += 1
+        return None
+
+    def put(self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0) -> None:
+        """Store a response semantically."""
+        point_id = self._make_id(query)
+        emb = self._embedder.encode_single(query)
+        
+        payload = {
+            "response": response,
+            "intent": intent,
+            "citations": citations,
+            "meditation_step": meditation_step,
+            "cached_at": time.time(),
+        }
+        
+        try:
+            # Upsert vector to Qdrant (payload is minimal, just original query for debugging)
+            self._qdrant.upsert(
+                collection_name=self._collection,
+                points=[PointStruct(id=point_id, vector=emb, payload={"query": query})]
+            )
+            
+            # Save actual response payload to Redis with TTL
+            redis_key = f"mukthiguru:semcache:{point_id}"
+            self._redis.setex(redis_key, self._ttl, json.dumps(payload))
+        except Exception as e:
+            logger.error(f"Semantic cache put error: {e}")
+
+    def invalidate_all(self) -> None:
+        """Clear the semantic cache."""
+        try:
+            self._qdrant.delete_collection(self._collection)
+            self._init_collection()
+            
+            # Clear Redis keys
+            pipe = self._redis.pipeline()
+            count = 0
+            for key in self._redis.scan_iter(match="mukthiguru:semcache:*"):
+                pipe.delete(key)
+                count += 1
+            pipe.execute()
+            logger.info(f"Semantic Cache invalidated ({count} entries cleared)")
+        except Exception as e:
+            logger.error(f"Semantic cache invalidation error: {e}")
+
+    @property
+    def is_available(self) -> bool:
+        return True
+
+    @property
+    def stats(self) -> dict:
+        total = self._hits + self._misses
+        return {
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
+            "threshold": self._threshold,
+            "available": True,
+        }
 
 def init_llm_cache():
     """

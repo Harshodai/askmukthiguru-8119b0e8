@@ -36,6 +36,7 @@ class EmbeddingService:
         import threading
         self._encoder = None
         self._reranker = None
+        self._colbert = None
         self._lock = threading.Lock()
         # REQUIRED for multilingual-e5-large-instruct
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
@@ -43,7 +44,7 @@ class EmbeddingService:
 
     def _ensure_models(self) -> None:
         """Lazy-load the heavy embedding and reranking models."""
-        if self._encoder is not None and self._reranker is not None:
+        if self._encoder is not None and self._reranker is not None and self._colbert is not None:
             return
         with self._lock:
             if self._encoder is None:
@@ -61,6 +62,17 @@ class EmbeddingService:
                     settings.reranker_model,
                     device="cpu",
                 )
+            if self._colbert is None:
+                try:
+                    from ragatouille import RAGPretrainedModel
+                    logger.info("Loading ColBERTv2 reranker (RAGatouille)")
+                    # Force CPU execution for ColBERT locally
+                    import torch
+                    self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
+                except Exception as e:
+                    logger.warning(f"Failed to load RAGatouille ColBERTv2: {e}")
+                    self._colbert = False # mark as failed so we don't retry forever
+
                 logger.info("Embedding service models fully loaded")
 
 
@@ -197,4 +209,49 @@ class EmbeddingService:
         )
 
         return top_docs
+
+    def cascaded_rerank(
+        self,
+        query: str,
+        documents: list[dict],
+        colbert_top_k: int = 15,
+        cross_top_k: int = 5,
+        min_score: Optional[float] = None,
+    ) -> list[dict]:
+        """
+        Cascaded Pipeline: 
+        1. ColBERTv2 rapidly narrows down the pool (e.g. 100 -> 15).
+        2. CrossEncoder performs ultra-precise scoring (15 -> 5).
+        """
+        if not documents:
+            return []
+
+        self._ensure_models()
+        
+        # Step 1: ColBERT Reranking
+        colbert_docs = documents
+        if self._colbert and len(documents) > colbert_top_k:
+            texts = [doc["text"] for doc in documents]
+            # RAGatouille rerank returns list of dicts: [{'content': text, 'score': score, 'rank': int}, ...]
+            try:
+                colbert_results = self._colbert.rerank(query=query, documents=texts, k=colbert_top_k)
+                
+                # Map back to original document dicts
+                mapped_docs = []
+                for res in colbert_results:
+                    # Find matching doc by content
+                    for doc in documents:
+                        if doc["text"] == res["content"]:
+                            doc_copy = doc.copy()
+                            doc_copy["colbert_score"] = res["score"]
+                            mapped_docs.append(doc_copy)
+                            break
+                colbert_docs = mapped_docs
+                logger.info(f"ColBERT narrowed {len(documents)} -> {len(colbert_docs)} docs")
+            except Exception as e:
+                logger.error(f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder.")
+                colbert_docs = documents[:colbert_top_k*2] # Fallback rough slice
+        
+        # Step 2: CrossEncoder Polish
+        return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
 

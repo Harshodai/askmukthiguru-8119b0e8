@@ -331,3 +331,31 @@ export const checkConnection = async (): Promise<{ connected: boolean; mode: str
 
   return { connected: true, mode: 'Cloud Mode' };
 };
+
+export const submitFeedbackToBackend = async (payload: {
+  query: string;
+  answer: string;
+  rating: number;
+  comment?: string;
+}) => {
+  const { provider, endpoint } = currentConfig;
+  if (provider !== 'custom' || !endpoint) return;
+
+  try {
+    // Usually endpoint is /api/chat. We replace it with /api/feedback.
+    const feedbackEndpoint = endpoint.replace(/\/chat\/?$/, '/feedback');
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    await fetch(feedbackEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error('Failed to submit feedback to server:', error);
+  }
+};

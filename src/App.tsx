@@ -7,17 +7,17 @@ import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 
 // Pages
-import Index from "./pages/Index";
-import ChatPage from "./pages/ChatPage";
-import ProfilePage from "./pages/ProfilePage";
-import PracticesPage from "./pages/PracticesPage";
-import PracticeDetailPage from "./pages/PracticeDetailPage";
-import NotFound from "./pages/NotFound";
-import AuthPage from "./pages/AuthPage";
-import AuthDiagnosticsPage from "./pages/AuthDiagnosticsPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import PrivacyPage from "./pages/PrivacyPage";
-import TermsPage from "./pages/TermsPage";
+const Index = lazy(() => import("./pages/Index"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const PracticesPage = lazy(() => import("./pages/PracticesPage"));
+const PracticeDetailPage = lazy(() => import("./pages/PracticeDetailPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const AuthDiagnosticsPage = lazy(() => import("./pages/AuthDiagnosticsPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
 
 // Admin
 const AdminLoginPage = lazy(() => import("./admin/pages/AdminLoginPage"));
@@ -81,17 +81,17 @@ const App = () => {
 
           {/* Seeker */}
           <Route element={<DebugLayout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/auth/diagnostics" element={<AuthDiagnosticsPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/practices" element={<PracticesPage />} />
-            <Route path="/practices/:slug" element={<PracticeDetailPage />} />
-            <Route path="*" element={<NotFound />} />
+            <Route path="/" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><Index /></Suspense>} />
+            <Route path="/auth" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><AuthPage /></Suspense>} />
+            <Route path="/auth/diagnostics" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><AuthDiagnosticsPage /></Suspense>} />
+            <Route path="/reset-password" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><ResetPasswordPage /></Suspense>} />
+            <Route path="/privacy" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><PrivacyPage /></Suspense>} />
+            <Route path="/terms" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><TermsPage /></Suspense>} />
+            <Route path="/chat" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><ChatPage /></Suspense>} />
+            <Route path="/profile" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><ProfilePage /></Suspense>} />
+            <Route path="/practices" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><PracticesPage /></Suspense>} />
+            <Route path="/practices/:slug" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><PracticeDetailPage /></Suspense>} />
+            <Route path="*" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><NotFound /></Suspense>} />
           </Route>
         </Routes>
         <SessionExpiredHandler />

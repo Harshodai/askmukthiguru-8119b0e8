@@ -300,6 +300,73 @@ async def check_context_sufficiency(state: GraphState) -> dict:
 # Layer 4: Retrieve Documents
 # ===================================================================
 
+async def retrieve_for_single_query(
+    query: str,
+    chat_history: list,
+    hyde_text: Optional[str],
+    intent: str,
+    selected_clusters: list,
+    embedder: EmbeddingService,
+    qdrant: QdrantService,
+    lightrag: Optional[LightRAGService]
+) -> list[dict]:
+    """Retrieve documents for a single sub-query, decoupled from state."""
+    # Augment query with last user message from history for follow-up context
+    augmented_query = query
+    if chat_history:
+        last_user_msgs = [
+            m["content"] for m in chat_history[-4:]
+            if m.get("role") == "user"
+        ]
+        if last_user_msgs:
+            augmented_query = f"{last_user_msgs[-1]} {query}"
+
+    # HyDE (Hypothetical Document Embeddings)
+    query_for_embedding = hyde_text or augmented_query
+    
+    # Encode query with both dense and sparse for hybrid search
+    query_embedding = await asyncio.to_thread(embedder.encode_single_full, query_for_embedding)
+
+    # Phase 1: Search RAPTOR level-1 summaries (thematic overview)
+    summary_results = await asyncio.to_thread(
+        qdrant.search,
+        query_vector=query_embedding['dense'],
+        limit=2,
+        sparse_vector=query_embedding['sparse'],
+        raptor_level=1,
+    )
+
+    # Phase 2: Search level-0 leaf chunks (specific details)
+    chunk_results = await asyncio.to_thread(
+        qdrant.search,
+        query_vector=query_embedding['dense'],
+        limit=settings.rag_top_k_retrieval,
+        sparse_vector=query_embedding['sparse'],
+        raptor_level=0,
+        cluster_ids=selected_clusters if selected_clusters else None,
+    )
+
+    # Phase 3: Search LightRAG graph
+    lightrag_results = []
+    if lightrag and intent == "RELATIONAL":
+        try:
+            graph_answer = await lightrag.aquery(query, mode="hybrid")
+            if graph_answer:
+                lightrag_results.append({
+                    "text": graph_answer,
+                    "title": "Knowledge Graph (LightRAG)",
+                    "source_url": "knowledge_graph",
+                    "content_type": "graph_summary",
+                    "chunk_index": 0,
+                    "raptor_level": 0,
+                    "score": 1.0,
+                })
+        except Exception as e:
+            logger.error(f"LightRAG query failed in retrieve_documents: {e}")
+
+    return summary_results + chunk_results + lightrag_results
+
+
 @log_metrics
 async def retrieve_documents(state: GraphState) -> dict:
     """
@@ -315,67 +382,14 @@ async def retrieve_documents(state: GraphState) -> dict:
     sub_queries = state.get("sub_queries", [state["question"]])
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
-
-    async def _retrieve_for_query(query: str) -> list[dict]:
-        """Retrieve documents for a single sub-query."""
-        # Augment query with last user message from history for follow-up context
-        augmented_query = query
-        if chat_history:
-            last_user_msgs = [
-                m["content"] for m in chat_history[-4:]
-                if m.get("role") == "user"
-            ]
-            if last_user_msgs:
-                augmented_query = f"{last_user_msgs[-1]} {query}"
-
-        # HyDE (Hypothetical Document Embeddings)
-        # Use the pre-generated hyde_text from the parallel node if available
-        query_for_embedding = state.get("hyde_text") or augmented_query
-        
-        # Encode query with both dense and sparse for hybrid search
-        query_embedding = _embedder.encode_single_full(query_for_embedding)
-
-        # Phase 1: Search RAPTOR level-1 summaries (thematic overview)
-        summary_results = _qdrant.search(
-            query_vector=query_embedding['dense'],
-            limit=2,
-            sparse_vector=query_embedding['sparse'],
-            raptor_level=1,
-        )
-
-        # Phase 2: Search level-0 leaf chunks (specific details)
-        # Scope to selected clusters if tree navigation was performed
-        chunk_results = _qdrant.search(
-            query_vector=query_embedding['dense'],
-            limit=settings.rag_top_k_retrieval,
-            sparse_vector=query_embedding['sparse'],
-            raptor_level=0,
-            cluster_ids=selected_clusters if selected_clusters else None,
-        )
-
-        # Phase 3: Search LightRAG graph
-        lightrag_results = []
-        if _lightrag:
-            try:
-                graph_answer = await _lightrag.aquery(query, mode="hybrid")
-                if graph_answer:
-                    lightrag_results.append({
-                        "text": graph_answer,
-                        "title": "Knowledge Graph (LightRAG)",
-                        "source_url": "knowledge_graph",
-                        "content_type": "graph_summary",
-                        "chunk_index": 0,
-                        "raptor_level": 0,
-                        "score": 1.0,
-                    })
-            except Exception as e:
-                logger.error(f"LightRAG query failed in retrieve_documents: {e}")
-
-        return summary_results + chunk_results + lightrag_results
+    hyde_text = state.get("hyde_text")
+    intent = state.get("intent", "FACTUAL")
 
     # Run all sub-query retrievals in parallel
     all_results = await asyncio.gather(
-        *[_retrieve_for_query(q) for q in sub_queries]
+        *[retrieve_for_single_query(
+            q, chat_history, hyde_text, intent, selected_clusters, _embedder, _qdrant, _lightrag
+        ) for q in sub_queries]
     )
 
     # Merge and deduplicate across all sub-query results
@@ -393,9 +407,10 @@ async def retrieve_documents(state: GraphState) -> dict:
         logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
         # Broaden search: remove cluster filters and increase top_k
         fallback_query = sub_queries[0]
-        query_embedding = _embedder.encode_single_full(fallback_query)
+        query_embedding = await asyncio.to_thread(_embedder.encode_single_full, fallback_query)
         
-        fallback_results = _qdrant.search(
+        fallback_results = await asyncio.to_thread(
+            _qdrant.search,
             query_vector=query_embedding['dense'],
             limit=10,  # Broader search
             sparse_vector=query_embedding['sparse'],
@@ -460,7 +475,15 @@ async def rerank_documents(state: GraphState) -> dict:
     # Use very permissive thresholds because CRAG grading is the primary filter
     threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
     
-    reranked = _embedder.rerank(question, documents, min_score=threshold)
+    # Cascaded Reranking (ColBERT + CrossEncoder)
+    reranked = await asyncio.to_thread(
+        _embedder.cascaded_rerank,
+        question, 
+        documents, 
+        colbert_top_k=20, 
+        cross_top_k=5, 
+        min_score=threshold
+    )
     logger.info(
         f"Reranked {len(documents)} → {len(reranked)} documents "
         f"(complex={is_complex}, threshold={threshold:.2f})"
@@ -818,6 +841,48 @@ async def generate_answer(state: GraphState) -> dict:
     logger.info(f"Generated answer ({len(answer)} chars, {len(citations)} citations, model={ab_model})")
     return {"answer": answer, "citations": citations, "citation_reasoning": {}}
 
+# ===================================================================
+# Layer 9.5: Self-Reflection RAG Loop
+# ===================================================================
+
+@log_metrics
+async def reflect_on_answer(state: GraphState) -> dict:
+    """
+    Self-Reflection RAG loop.
+    Evaluates the generated answer against the retrieved context to detect hallucinations.
+    If hallucinated, flags needs_correction=True to trigger a rewrite.
+    """
+    answer = state.get("answer")
+    relevant_docs = state.get("relevant_docs", [])
+    question = state.get("rewritten_query") or state["question"]
+    
+    if not answer or not relevant_docs:
+        return {"needs_correction": False}
+        
+    # Context compression for reflection to avoid token limits
+    context = "\n\n".join(doc["text"][:500] for doc in relevant_docs[:3])
+    
+    prompt = (
+        "You are an expert evaluator of RAG systems. "
+        "Read the following context and the generated answer.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {question}\n\n"
+        f"Generated Answer: {answer}\n\n"
+        "Does the answer hallucinate or make claims not supported by the context? "
+        "If it is completely supported or if the answer correctly states that it doesn't know, reply with exactly 'VALID'. "
+        "If it hallucinated or is unsupported, reply with a short explanation of why it failed."
+    )
+    
+    reflection = await _ollama.generate("You are a strict evaluator. Be concise.", prompt)
+    reflection = reflection.strip()
+    
+    if reflection.upper() == "VALID" or "VALID" in reflection.upper()[:10] or "doesn't know" in answer.lower():
+        logger.info("Self-Reflection: Answer is VALID.")
+        return {"needs_correction": False, "reflection_feedback": None}
+        
+    logger.warning(f"Self-Reflection: Hallucination detected! Feedback: {reflection}")
+    return {"needs_correction": True, "reflection_feedback": reflection}
+
 
 # ===================================================================
 # Layer 10+11: Combined Verification (Self-RAG + CoVe merged)
@@ -1075,10 +1140,10 @@ def route_by_intent(state: GraphState) -> str:
     """Route after intent classification."""
     intent = state.get("intent", "CASUAL")
     if intent == "DISTRESS":
-        return "query"  # Route distress through RAG to provide teaching-based response
+        return "query"  # Route distress through RAG to fetch teachings; intercepted after grading for Serene Mind
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent in ["QUERY", "FACTUAL", "FOLLOW_UP"]:
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP"]:
         return "query"
     else:
         return "casual"
@@ -1103,4 +1168,6 @@ def route_after_grading(state: GraphState) -> str:
     elif rewrite_count < settings.rag_max_rewrites:
         return "rewrite"
     else:
+        if intent == "DISTRESS":
+            return "distress"
         return "fallback"
