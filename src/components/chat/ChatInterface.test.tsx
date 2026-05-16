@@ -100,7 +100,7 @@ vi.mock('@/components/chat/MessageList', () => ({
   MessageList: () => <div data-testid="message-list">Messages</div>,
 }));
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, waitFor } from '@testing-library/react';
 import { sendMessage } from '@/lib/aiService';
 
 describe('ChatInterface', () => {
