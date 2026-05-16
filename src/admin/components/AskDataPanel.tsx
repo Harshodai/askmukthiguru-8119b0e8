@@ -2,25 +2,89 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Search } from "lucide-react";
-import { askData } from "@/admin/lib/mockData";
+import { Sparkles, Search, Loader2 } from "lucide-react";
+import { sendMessage } from "@/lib/aiService";
 
-export function AskDataPanel() {
+const ADMIN_SYSTEM_PROMPT = `You are an AI analytics assistant for the AskMukthiGuru admin dashboard.
+You have access to platform metrics. Answer admin questions about query volume, latency, hallucination rates,
+costs, serene mind triggers, and platform health concisely and accurately.
+If you don't have specific data, say so — don't fabricate numbers.
+Respond in 2-4 sentences maximum. Be direct and data-focused.`;
+
+interface AskDataPanelProps {
+  /** Optional KPI snapshot to provide as context to the LLM */
+  kpiContext?: string;
+}
+
+export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ summary: string; rows: any[] } | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function ask(question: string) {
+    if (!question.trim()) return;
     setLoading(true);
-    const r = await askData(question);
-    setResult({ summary: r, rows: [] });
-    setLoading(false);
+    setError(null);
+    setResult(null);
+
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
+      const contextBlock = kpiContext
+        ? `Current platform metrics:\n${kpiContext}\n\n`
+        : "";
+
+      const res = await fetch(`${backendUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an AI analytics assistant for the AskMukthiGuru admin dashboard. " +
+                "Answer questions about platform metrics, query volume, latency, costs, " +
+                "hallucination rates and serene mind triggers. Be concise (2-4 sentences). " +
+                "If data is unavailable say so — do not fabricate numbers.",
+            },
+            {
+              role: "user",
+              content: `${contextBlock}${question}`,
+            },
+          ],
+          user_message: `${contextBlock}${question}`,
+          meditation_step: 0,
+        }),
+      });
+
+      if (!res.ok) {
+        setError(`Backend returned ${res.status} — is Docker running?`);
+        return;
+      }
+      const data = await res.json();
+      const text = data.response || data.choices?.[0]?.message?.content || data.content;
+      if (text) {
+        setResult(text);
+      } else {
+        setError("Empty response from backend.");
+      }
+    } catch {
+      setError("Connection failed — check that the backend is running.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const examples = [
-    "Hallucination rate by prompt version",
-    "Slowest queries",
-    "Serene Mind triggers by day",
+    "What is the current p95 latency?",
+    "Serene Mind triggers this week",
+    "How much has the platform cost today?",
   ];
 
   return (
@@ -42,12 +106,18 @@ export function AskDataPanel() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="e.g. hallucination rate by prompt"
+            placeholder="e.g. What is the current hallucination rate?"
+            disabled={loading}
           />
-          <Button type="submit" size="icon" disabled={loading}>
-            <Search className="h-4 w-4" />
+          <Button type="submit" size="icon" disabled={loading || !q.trim()}>
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
           </Button>
         </form>
+
         <div className="flex flex-wrap gap-1.5">
           {examples.map((e) => (
             <Button
@@ -55,6 +125,7 @@ export function AskDataPanel() {
               variant="outline"
               size="sm"
               className="text-xs h-7"
+              disabled={loading}
               onClick={() => {
                 setQ(e);
                 ask(e);
@@ -65,35 +136,22 @@ export function AskDataPanel() {
           ))}
         </div>
 
-        {result && (
-          <div className="text-xs space-y-2">
-            <div className="text-muted-foreground">{result.summary}</div>
-            {result.rows.length > 0 && (
-              <div className="border border-border rounded overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-muted text-muted-foreground">
-                    <tr>
-                      {Object.keys(result.rows[0]).map((k) => (
-                        <th key={k} className="text-left px-2 py-1 font-medium">
-                          {k}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.rows.map((r, i) => (
-                      <tr key={i} className="border-t border-border">
-                        {Object.keys(result.rows[0]).map((k) => (
-                          <td key={k} className="px-2 py-1 tabular-nums">
-                            {String(r[k])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        {loading && (
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Consulting Sarvam 30B…
+          </div>
+        )}
+
+        {error && (
+          <div className="text-xs text-destructive bg-destructive/10 rounded p-2">
+            {error}
+          </div>
+        )}
+
+        {result && !loading && (
+          <div className="text-sm text-foreground bg-muted/40 rounded-lg p-3 leading-relaxed border border-border/40">
+            {result}
           </div>
         )}
       </CardContent>

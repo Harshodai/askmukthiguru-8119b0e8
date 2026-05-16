@@ -14,6 +14,7 @@ const DailyTeachingPage = () => {
   const [currentTeaching, setCurrentTeaching] = useState<DailyTeachingData | null>(null);
   const [published, setPublished] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,25 +53,22 @@ const DailyTeachingPage = () => {
   const handlePublish = async () => {
     if (!imageFile) return;
     setLoading(true);
+    setError(null);
 
     try {
-      // Get current admin user for audit trail
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Upload image to storage
       const fileName = `teaching-${Date.now()}.${imageFile.name.split('.').pop()}`;
       const { error: uploadError } = await supabase.storage
         .from('daily-teachings')
         .upload(fileName, imageFile, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-      // Get public URL
       const { data: urlData } = supabase.storage
         .from('daily-teachings')
         .getPublicUrl(fileName);
 
-      // Insert into database (TTL is handled by default expires_at = now() + 24h)
       const { error: insertError } = await supabase
         .from('daily_teachings')
         .insert({
@@ -79,12 +77,14 @@ const DailyTeachingPage = () => {
           created_by: session?.user?.id ?? null,
         });
 
-      if (insertError) throw insertError;
+      if (insertError) throw new Error(`Database error: ${insertError.message}`);
 
       setPublished(true);
       setTimeout(() => setPublished(false), 3000);
       await fetchCurrentTeaching();
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(msg);
       console.error('Failed to publish teaching:', err);
     } finally {
       setLoading(false);
@@ -93,10 +93,15 @@ const DailyTeachingPage = () => {
 
   const handleClear = async () => {
     if (!currentTeaching) return;
-    await supabase.from('daily_teachings').delete().eq('id', currentTeaching.id);
+    const { error } = await supabase.from('daily_teachings').delete().eq('id', currentTeaching.id);
+    if (error) {
+      setError(`Delete failed: ${error.message}`);
+      return;
+    }
     setCurrentTeaching(null);
     setImagePreview(null);
     setCaption('');
+    setError(null);
   };
 
   return (
@@ -208,6 +213,12 @@ const DailyTeachingPage = () => {
             <Upload className="w-4 h-4 mr-2" />
             {published ? '✓ Published!' : loading ? 'Uploading…' : 'Publish Teaching'}
           </Button>
+
+          {error && (
+            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

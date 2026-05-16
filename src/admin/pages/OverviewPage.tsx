@@ -133,7 +133,17 @@ export default function OverviewPage() {
               ))}
             </CardContent>
           </Card>
-          <AskDataPanel />
+          <AskDataPanel kpiContext={kpis ? [
+            `Total queries: ${kpis.total_queries ?? 0}`,
+            `Total seekers: ${kpis.total_seekers ?? 0}`,
+            `p50 latency: ${kpis.p50_latency_ms ?? 0}ms`,
+            `p95 latency: ${kpis.p95_latency_ms ?? 0}ms`,
+            `Hallucination rate: ${((kpis.hallucination_rate ?? 0) * 100).toFixed(1)}%`,
+            `Serene Mind trigger rate: ${((kpis.serene_mind_trigger_rate ?? 0) * 100).toFixed(1)}%`,
+            `Thumbs up rate: ${((kpis.thumbs_up_rate ?? 0) * 100).toFixed(1)}%`,
+            `Estimated cost: $${(kpis.estimated_cost_usd ?? 0).toFixed(4)} USD`,
+            `Error rate: ${((kpis.error_rate ?? 0) * 100).toFixed(2)}%`,
+          ].join('\n') : undefined} />
         </TabsContent>
 
         <TabsContent value="sources">
