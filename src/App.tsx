@@ -1,11 +1,11 @@
 import { useEffect, lazy, Suspense } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
+import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 
 // Pages
 const Index = lazy(() => import("./pages/Index"));
@@ -54,51 +54,59 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Admin */}
-          <Route path="/admin/login" element={
-            <Suspense fallback={<BrandedSpinner />}><AdminLoginPage /></Suspense>
-          } />
-          <Route path="/admin" element={
-            <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
-          }>
-            <Route index element={<OverviewPage />} />
-            <Route path="queries" element={<QueriesPage />} />
-            <Route path="quality" element={<QualityPage />} />
-            <Route path="retrieval" element={<RetrievalPage />} />
-            <Route path="daily-teaching" element={<DailyTeachingPage />} />
-            <Route path="triggers" element={<TriggersPage />} />
-            <Route path="topics" element={<TopicsPage />} />
-            <Route path="prompts" element={<PromptsPage />} />
-            <Route path="evals" element={<EvalsPage />} />
-            <Route path="ingestion" element={<IngestionPage />} />
-            <Route path="logs" element={<LogsPage />} />
-            <Route path="telemetry" element={<TelemetryPage />} />
-            <Route path="alerts" element={<AlertsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="admins" element={<AdminsPage />} />
-          </Route>
+      {/*
+        SereneMindProvider wraps the entire router so every route
+        (ChatInterface, PrePracticeGate, AppShell, CommandPalette)
+        can call useSereneMind() and get a real context, not the no-op fallback.
+        Previously missing from this tree — Serene Mind modal never rendered.
+      */}
+      <SereneMindProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Admin */}
+            <Route path="/admin/login" element={
+              <Suspense fallback={<BrandedSpinner />}><AdminLoginPage /></Suspense>
+            } />
+            <Route path="/admin" element={
+              <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
+            }>
+              <Route index element={<OverviewPage />} />
+              <Route path="queries" element={<QueriesPage />} />
+              <Route path="quality" element={<QualityPage />} />
+              <Route path="retrieval" element={<RetrievalPage />} />
+              <Route path="daily-teaching" element={<DailyTeachingPage />} />
+              <Route path="triggers" element={<TriggersPage />} />
+              <Route path="topics" element={<TopicsPage />} />
+              <Route path="prompts" element={<PromptsPage />} />
+              <Route path="evals" element={<EvalsPage />} />
+              <Route path="ingestion" element={<IngestionPage />} />
+              <Route path="logs" element={<LogsPage />} />
+              <Route path="telemetry" element={<TelemetryPage />} />
+              <Route path="alerts" element={<AlertsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="admins" element={<AdminsPage />} />
+            </Route>
 
-          {/* Seeker */}
-          <Route element={<DebugLayout />}>
-            <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
-            <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
-            <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
-            <Route path="/reset-password" element={<Suspense fallback={<BrandedSpinner />}><ResetPasswordPage /></Suspense>} />
-            <Route path="/privacy" element={<Suspense fallback={<BrandedSpinner />}><PrivacyPage /></Suspense>} />
-            <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
-            <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
-            <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
-            <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
-            <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
-            <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
-          </Route>
-        </Routes>
-        <SessionExpiredHandler />
-        <CookieConsentBanner />
-        <SonnerToaster richColors closeButton position="top-right" />
-      </BrowserRouter>
+            {/* Seeker */}
+            <Route element={<DebugLayout />}>
+              <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
+              <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
+              <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
+              <Route path="/reset-password" element={<Suspense fallback={<BrandedSpinner />}><ResetPasswordPage /></Suspense>} />
+              <Route path="/privacy" element={<Suspense fallback={<BrandedSpinner />}><PrivacyPage /></Suspense>} />
+              <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
+              <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
+              <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
+              <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
+              <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
+              <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
+            </Route>
+          </Routes>
+          <SessionExpiredHandler />
+          <CookieConsentBanner />
+          <SonnerToaster richColors closeButton position="top-right" />
+        </BrowserRouter>
+      </SereneMindProvider>
     </QueryClientProvider>
   );
 };
