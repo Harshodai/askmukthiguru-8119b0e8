@@ -205,7 +205,7 @@ class OllamaService:
         result = await self._generate_fast(GRADE_RELEVANCE_PROMPT, prompt)
         return "yes" in result.lower()
 
-    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[bool]:
+    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[dict]:
         """
         CRAG: Batch relevance grading of multiple documents in one LLM call.
 
@@ -213,7 +213,7 @@ class OllamaService:
         at once with a structured prompt. Reduces LLM calls from N to 1.
         Uses the fast model for speed.
 
-        Returns: List of booleans, one per document (True = relevant).
+        Returns: List of dicts, one per document ({"relevant": bool, "reason": str}).
         """
         if not documents:
             return []
@@ -227,8 +227,8 @@ class OllamaService:
         prompt = f"Question: {query}\n\n{numbered_docs}"
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
 
-        # Parse "1: yes\n2: no\n3: yes" format
-        relevance = [False] * len(documents)
+        # Parse "1: yes - [reason]\n2: no - [reason]" format
+        relevance_data = [{"relevant": False, "reason": "No reason provided"} for _ in range(len(documents))]
         for line in result.strip().splitlines():
             line = line.strip()
             if ":" in line:
@@ -236,11 +236,14 @@ class OllamaService:
                 try:
                     idx = int(parts[0].strip()) - 1  # 1-indexed → 0-indexed
                     if 0 <= idx < len(documents):
-                        relevance[idx] = "yes" in parts[1].lower()
+                        content = parts[1].strip()
+                        is_relevant = "yes" in content.lower().split("-")[0]
+                        reason = content.split("-", 1)[1].strip() if "-" in content else content
+                        relevance_data[idx] = {"relevant": is_relevant, "reason": reason}
                 except (ValueError, IndexError):
                     continue
 
-        return relevance
+        return relevance_data
 
     async def check_faithfulness(self, answer: str, context: str) -> bool:
         """
@@ -282,13 +285,19 @@ class OllamaService:
         
         return hints[:5]  # Cap at 5 hints
 
-    async def rewrite_query(self, original_query: str) -> str:
+    async def rewrite_query(self, original_query: str, reasons: list[str] = None) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
         
         Uses the main model for better query expansion with spiritual terminology.
+        If reasons for previous retrieval failure are provided, they are incorporated.
         """
-        return await self.generate(QUERY_REWRITE_PROMPT, f"Original query: {original_query}")
+        prompt = f"Original query: {original_query}"
+        if reasons:
+            prompt += f"\n\nReasons for previous retrieval failure:\n- " + "\n- ".join(reasons[:5])
+            prompt += "\n\nRewrite the query to address these gaps while keeping the spiritual essence."
+
+        return await self.generate(QUERY_REWRITE_PROMPT, prompt)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
         """

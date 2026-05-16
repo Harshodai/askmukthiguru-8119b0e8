@@ -1,0 +1,64 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.13, pytest-8.4.2, pluggy-1.6.0 -- /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+configfile: pyproject.toml
+plugins: asyncio-0.26.0, langsmith-0.8.5, anyio-4.13.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_chat_endpoint.py::test_chat_endpoint_success FAILED
+
+=================================== FAILURES ===================================
+__________________________ test_chat_endpoint_success __________________________
+
+    def test_chat_endpoint_success():
+        """Verify that the chat endpoint correctly returns a ChatResponse."""
+        payload = {
+            "user_message": "Hello Mukthi Guru",
+            "session_id": "test-session",
+            "messages": []
+        }
+        response = client.post("/api/chat", json=payload)
+    
+        assert response.status_code == 200
+        data = response.json()
+        assert "response" in data
+>       assert data["response"] == "This is a mocked response"
+E       AssertionError: assert 'I apologize, something went wrong.' == 'This is a mocked response'
+E         
+E         - This is a mocked response
+E         + I apologize, something went wrong.
+
+tests/test_chat_endpoint.py:72: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.telemetry_db:telemetry_db.py:87 Upserting session failed: [Errno 8] nodename nor servname provided, or not known
+ERROR    app.telemetry_db:telemetry_db.py:139 Failed to log telemetry trace to Supabase: [Errno 8] nodename nor servname provided, or not known
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/langgraph/cache/base/__init__.py:8: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+schemas/feedback.py:15
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/schemas/feedback.py:15: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class FeedbackResponse(FeedbackCreate):
+
+app/gradio_ui.py:39
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/gradio_ui.py:39: UserWarning: The parameters have been moved from the Blocks constructor to the launch() method in Gradio 6.0: css. Please pass these parameters to launch() instead.
+    with gr.Blocks(css=custom_css, title="Mukthi Guru") as demo:
+
+tests/test_chat_endpoint.py::test_chat_endpoint_success
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/supabase/_sync/client.py:309: DeprecationWarning: The 'timeout' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+tests/test_chat_endpoint.py::test_chat_endpoint_success
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/supabase/_sync/client.py:309: DeprecationWarning: The 'verify' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_chat_endpoint.py::test_chat_endpoint_success - AssertionError: assert 'I apologize, something went wrong.' == 'This is a mocked response'
+  
+  - This is a mocked response
+  + I apologize, something went wrong.
+======================== 1 failed, 5 warnings in 4.80s =========================

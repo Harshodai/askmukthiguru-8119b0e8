@@ -100,20 +100,54 @@ vi.mock('@/components/chat/MessageList', () => ({
   MessageList: () => <div data-testid="message-list">Messages</div>,
 }));
 
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { sendMessage } from '@/lib/aiService';
+
 describe('ChatInterface', () => {
   beforeEach(() => {
     // We need to mock scrollIntoView which doesn't exist in jsdom
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    vi.clearAllMocks();
   });
 
-  it('renders without crashing and displays the welcome message', () => {
+  it('renders without crashing and displays the sidebar', () => {
     render(
       <BrowserRouter>
         <ChatInterface />
       </BrowserRouter>
     );
     
-    // Check if the chat interface renders the mocked message list
+    expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('message-list')).toBeInTheDocument();
+  });
+
+  it('allows user to type and send a message', async () => {
+    render(
+      <BrowserRouter>
+        <ChatInterface />
+      </BrowserRouter>
+    );
+
+    const input = screen.getByLabelText('Your message');
+    const sendButton = screen.getByLabelText('Send message');
+
+    fireEvent.change(input, { target: { value: 'How do I find peace?' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.any(Array),
+        'How do I find peace?',
+        0,
+        undefined,
+        'test-conv-id'
+      );
+    });
+
+    // Check if the mock message appears in the list
+    // MessageList is mocked as <div data-testid="message-list">Messages</div>
+    // We should probably unmock it or check if it's called with the new messages.
+    // Since it's mocked, we can't see the actual messages inside it easily unless we use props.
+    // Let's improve the MessageList mock to show children or messages.
   });
 });

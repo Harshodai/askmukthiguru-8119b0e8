@@ -87,6 +87,7 @@ class GraphState(TypedDict):
 
     # CRAG
     relevant_docs: list[dict]
+    grading_reasons: list[str]  # Reasoning for document relevance/irrelevance
     rewrite_count: int
     rewritten_query: Optional[str]
 

@@ -32,15 +32,11 @@ async def chat_fn(message, history):
     return response
 
 def create_demo():
-    custom_css = """
-    #chatbot {min_height: 500px;}
-    """
-    
-    with gr.Blocks(css=custom_css, title="Mukthi Guru") as demo:
+    with gr.Blocks(title="Mukthi Guru") as demo:
         gr.Markdown("# 🕉️ Mukthi Guru")
         gr.Markdown("Conversational AI based on the teachings of Sri Preethaji & Sri Krishnaji.")
         
-        chatbot = gr.Chatbot(elem_id="chatbot")
+        chatbot = gr.Chatbot(elem_id="chatbot", height=500)
         msg = gr.Textbox(placeholder="Ask a spiritual question...", show_label=False)
         clear = gr.ClearButton([msg, chatbot])
 
