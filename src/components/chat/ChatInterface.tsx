@@ -21,7 +21,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
-import { DesktopSidebar } from './DesktopSidebar';
+import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
 import { LanguageSelector } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
@@ -84,7 +84,7 @@ export const ChatInterface = () => {
   const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { isCollapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarCollapsed();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [meditationStep, setMeditationStep] = useState(0);
   const [showScrollFab, setShowScrollFab] = useState(false);
@@ -169,6 +169,31 @@ export const ChatInterface = () => {
     }
 
     setCurrentConversationId(conversation.id);
+
+    // ── Restore partial stream checkpoint ─────────────────────────────
+    try {
+      const raw = sessionStorage.getItem('askmukthiguru_stream_checkpoint');
+      if (raw) {
+        const cp = JSON.parse(raw) as { conversationId: string; messageId: string; content: string; timestamp: number };
+        const age = Date.now() - cp.timestamp;
+        if (age < 60_000 && cp.conversationId === conversation.id && cp.content.length > 20) {
+          const restoredMsg: Message = {
+            id: cp.messageId,
+            role: 'guru',
+            content: cp.content + '\n\n*(Response was interrupted — tap Regenerate to try again)*',
+            timestamp: new Date(cp.timestamp),
+          };
+          setMessages(prev => {
+            // Only add if not already in the list
+            if (prev.some(m => m.id === cp.messageId)) return prev;
+            return [...prev, restoredMsg];
+          });
+        }
+        sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+      }
+    } catch { /* non-fatal */ }
+    // ────────────────────────────────────────────────────────────────
+
     // Scroll to bottom on mount after a tick
     requestAnimationFrame(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
@@ -396,6 +421,22 @@ export const ChatInterface = () => {
       setIsStreaming(true);
       setStreamingMessageId(streamingGuruId);
       setIsTyping(false);
+
+      // ── 500ms stream persistence checkpoint ────────────────────────
+      const checkpointInterval = setInterval(() => {
+        if (fullContent.length > 20) {
+          try {
+            sessionStorage.setItem('askmukthiguru_stream_checkpoint', JSON.stringify({
+              conversationId: currentConversation?.id ?? '',
+              messageId: streamingGuruId,
+              content: fullContent,
+              timestamp: Date.now(),
+            }));
+          } catch { /* storage full — ignore */ }
+        }
+      }, 500);
+      // ────────────────────────────────────────────────────────────────
+
       let gotFirstToken = false;
       let streamedCitations: string[] = [];
       let streamedMedStep = 0;
@@ -478,11 +519,14 @@ export const ChatInterface = () => {
         streamingWorked = true; // Keep partial content
       }
     } finally {
+      clearInterval(checkpointInterval);
       setIsStreaming(false);
       setStreamingMessageId(undefined);
       setStreamingContent('');
       setShowPipeline(false);
       setPipelineSteps([]);
+      // Clear stream checkpoint on completion
+      try { sessionStorage.removeItem('askmukthiguru_stream_checkpoint'); } catch {}
     }
 
     if (streamingWorked) {
@@ -561,6 +605,31 @@ export const ChatInterface = () => {
     setInputValue(text);
   };
 
+  // ── Regenerate last guru response ─────────────────────────────────
+  const handleRegenerate = useCallback(() => {
+    if (isStreaming || isTyping) return;
+    setMessages(prev => {
+      // Find and remove the last guru message
+      const lastGuruIdx = [...prev].reverse().findIndex(m => m.role === 'guru');
+      if (lastGuruIdx === -1) return prev;
+      const realIdx = prev.length - 1 - lastGuruIdx;
+      return prev.filter((_, i) => i !== realIdx);
+    });
+    // Find the last user message to re-submit
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) {
+      // Slight delay to allow state update to settle
+      setTimeout(() => {
+        setInputValue(lastUserMsg.content);
+        // Simulate submit
+        const synth = new Event('submit') as any;
+        synth.preventDefault = () => {};
+        handleSubmit(synth);
+      }, 100);
+    }
+  }, [isStreaming, isTyping, messages]);
+  // ─────────────────────────────────────────────────────────────────
+
   const handleNewConversation = () => {
     stopSpeaking();
     const newConversation = createNewConversation();
@@ -611,18 +680,11 @@ export const ChatInterface = () => {
       {/* Desktop Sidebar */}
       <DesktopSidebar
         isCollapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onToggleCollapse={toggleSidebar}
         onNewConversation={handleNewConversation}
         onOpenSereneMind={() => openSereneMind()}
         onSelectConversation={handleSelectConversation}
-        onDeleteConversation={(id) => {
-          if (id === currentConversation?.id) {
-            handleNewConversation();
-          }
-          setRefreshTrigger(prev => prev + 1);
-        }}
         currentConversationId={currentConversation?.id}
-        refreshTrigger={refreshTrigger}
       />
 
       {/* Main Chat Area */}
@@ -632,20 +694,20 @@ export const ChatInterface = () => {
           onClearChat={handleNewConversation}
           onOpenMobileMenu={() => setShowMobileSheet(true)}
           sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleSidebar={toggleSidebar}
         />
 
         {/* Messages Area — this is the scroll container */}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 scrollbar-spiritual"
+          className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
         >
           <div className="max-w-3xl mx-auto space-y-3">
             {/* Daily Teaching Banner */}
             <DailyTeaching />
 
-            <MessageList messages={messages} streamingId={streamingMessageId} streamingContent={streamingContent} />
+            <MessageList messages={messages} streamingId={streamingMessageId} streamingContent={streamingContent} onRegenerate={handleRegenerate} />
 
             {/* Suggested starters */}
             {showStarters && (
@@ -746,7 +808,7 @@ export const ChatInterface = () => {
         <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
           <div className="max-w-3xl mx-auto">
             {/* Subtle practice chips */}
-            <div className="flex justify-center gap-2 mb-2">
+            <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-2">
               <button
                 onClick={() => openSereneMind()}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"

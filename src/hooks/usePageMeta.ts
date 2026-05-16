@@ -5,6 +5,7 @@ interface PageMeta {
   description?: string;
   canonical?: string;
   ogType?: 'website' | 'article' | 'video.other';
+  ogImage?: string;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
@@ -14,7 +15,7 @@ interface PageMeta {
  * <script> block. Restores previous values on unmount so route changes
  * don't leak meta from an unmounted page.
  */
-export function usePageMeta({ title, description, canonical, ogType = 'website', jsonLd }: PageMeta) {
+export function usePageMeta({ title, description, canonical, ogType = 'website', ogImage, jsonLd }: PageMeta) {
   useEffect(() => {
     const prevTitle = document.title;
     document.title = title;
@@ -47,8 +48,11 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
     const ogDesc = setMeta('meta[property="og:description"]', 'property', 'og:description', description);
     const ogUrl = setMeta('meta[property="og:url"]', 'property', 'og:url', canonical);
     const ogTypeMeta = setMeta('meta[property="og:type"]', 'property', 'og:type', ogType);
+    const ogImg = setMeta('meta[property="og:image"]', 'property', 'og:image', ogImage);
     const twTitle = setMeta('meta[name="twitter:title"]', 'name', 'twitter:title', title);
     const twDesc = setMeta('meta[name="twitter:description"]', 'name', 'twitter:description', description);
+    const twImg = setMeta('meta[name="twitter:image"]', 'name', 'twitter:image', ogImage);
+    const twCard = setMeta('meta[name="twitter:card"]', 'name', 'twitter:card', ogImage ? 'summary_large_image' : undefined);
 
     let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     const prevCanonical = canonicalEl?.href;
@@ -84,13 +88,16 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
       restore(ogDesc);
       restore(ogUrl);
       restore(ogTypeMeta);
+      restore(ogImg);
       restore(twTitle);
       restore(twDesc);
+      restore(twImg);
+      restore(twCard);
       if (canonicalEl) {
         if (canonicalCreated) canonicalEl.remove();
         else if (prevCanonical !== undefined) canonicalEl.href = prevCanonical;
       }
       if (jsonLdEl) jsonLdEl.remove();
     };
-  }, [title, description, canonical, ogType, JSON.stringify(jsonLd)]);
+  }, [title, description, canonical, ogType, ogImage, JSON.stringify(jsonLd)]);
 }

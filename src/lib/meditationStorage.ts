@@ -7,6 +7,9 @@ export interface MeditationSession {
   durationSeconds: number;
   breathCycles: number;
   completed: boolean;
+  mood?: string;        // e.g. 'peaceful', 'grateful', 'lighter', 'contemplative', 'heavy'
+  reflection?: string; // post-meditation journal text
+  gratitude?: string;  // gratitude prompt response
 }
 
 export interface MeditationStats {
@@ -26,6 +29,9 @@ const MeditationSessionSchema = z.object({
   durationSeconds: z.number(),
   breathCycles: z.number(),
   completed: z.boolean(),
+  mood: z.string().optional(),
+  reflection: z.string().optional(),
+  gratitude: z.string().optional(),
 });
 
 /**
@@ -90,7 +96,8 @@ export const startMeditationSession = (): MeditationSession => {
 export const completeMeditationSession = async (
   sessionId: string,
   durationSeconds: number,
-  breathCycles: number
+  breathCycles: number,
+  extras?: { mood?: string; reflection?: string; gratitude?: string }
 ): Promise<void> => {
   const sessions = loadMeditationSessions();
   const existingIndex = sessions.findIndex(s => s.id === sessionId);
@@ -102,6 +109,7 @@ export const completeMeditationSession = async (
     durationSeconds,
     breathCycles,
     completed: true,
+    ...(extras ?? {}),
   };
 
   if (existingIndex >= 0) {

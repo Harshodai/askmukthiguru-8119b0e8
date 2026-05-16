@@ -17,10 +17,15 @@ const formatDateLabel = (date: Date): string => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export const MessageList = React.memo(({ messages, streamingId, streamingContent }: { messages: Message[]; streamingId?: string; streamingContent?: string }) => {
+export const MessageList = React.memo(({ messages, streamingId, streamingContent, onRegenerate }: { messages: Message[]; streamingId?: string; streamingContent?: string; onRegenerate?: () => void }) => {
+  // Find the ID of the last guru message for the regenerate button
+  let lastGuruId: string | undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'guru') { lastGuruId = messages[i].id; break; }
+  }
+
   const groups: { label: string; messages: Message[] }[] = [];
   let currentLabel = '';
-
   messages.forEach((msg) => {
     const ts = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
     const label = formatDateLabel(ts);
@@ -31,6 +36,7 @@ export const MessageList = React.memo(({ messages, streamingId, streamingContent
       groups[groups.length - 1].messages.push(msg);
     }
   });
+
 
   return (
     <>
@@ -62,6 +68,8 @@ export const MessageList = React.memo(({ messages, streamingId, streamingContent
                 queryText={queryText}
                 index={index}
                 isStreaming={message.id === streamingId && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
+                isLastGuru={message.id === lastGuruId && !streamingId}
+                onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
               />
             );
           })}

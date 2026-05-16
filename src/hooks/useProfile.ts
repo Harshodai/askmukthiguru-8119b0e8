@@ -15,10 +15,12 @@ export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>(() => loadProfile());
 
   useEffect(() => {
-    // Initial fetch from server if logged in
+    // Initial fetch/sync from server. fetchProfileFromServer may write
+    // auth metadata (full_name, avatar_url) to localStorage as a side effect.
+    // We always re-read from loadProfile() afterwards to pick up those writes.
     const sync = async () => {
-      const serverProfile = await fetchProfileFromServer();
-      if (serverProfile) setProfile(serverProfile);
+      await fetchProfileFromServer();
+      setProfile(loadProfile());
     };
     sync();
 

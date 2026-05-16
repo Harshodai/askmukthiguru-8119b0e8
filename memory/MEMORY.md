@@ -1,0 +1,1 @@
+- [E2E Wiring Audit Summary](audit_summary.md) — Prod deployment readiness assessment

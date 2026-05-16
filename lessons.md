@@ -258,3 +258,38 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Sarvam API Resilience**: Discovered that Sarvam API can return empty responses for certain sensitive prompts (e.g., distress). Hardened RAG nodes to fallback to static compassionate templates when LLM output is empty or whitespace.
 - **Interface Standardization**: Standardized the `ILLMService` interface across Ollama and Sarvam providers to return consistent `List[Dict]` structures for batch grading, ensuring LangGraph nodes remain provider-agnostic.
 - **RAG Wiring Validation**: Implemented a `qa_wiring_check.py` tool to automate end-to-end verification of the spiritual graph across all intent categories (Casual, Query, Distress, Meditation), serving as a regression gate for future RAG logic changes.
+
+### 13. Production Hardening Session — UI Stability & Feature Parity (May 2026)
+
+**P0 Bug Fixes:**
+- `streamedIntent` ReferenceError in `ChatInterface.tsx` line 467: the variable was never declared — correctly replaced with `finalIntent` (the declared const at line 398).
+- OAuth user name stuck at "Seeker": Fixed by adding auth metadata sync in both `AuthPage.tsx` (immediately after session) and `profileStorage.ts::fetchProfileFromServer` (reads `user_metadata.full_name`/`name` and `avatar_url`/`picture` from Supabase auth user). The `useProfile` hook was also updated to always re-read from `loadProfile()` after the sync to propagate any writes.
+
+**Architectural Patterns:**
+- **Stream persistence via sessionStorage**: Use `setInterval(500ms)` during streaming to write `{conversationId, messageId, content, timestamp}` to `sessionStorage`. On mount, check for a checkpoint < 60s old and restore it with a "tap Regenerate" banner. Clear the checkpoint in the `finally` block.
+- **Regenerate button**: Remove last guru message from state, then re-submit the last user message. Key: use `setTimeout(100ms)` to let React flush the `setMessages` state before calling `handleSubmit`.
+- **Sidebar v2**: Animate between `56px` icon-rail and `280px` full sidebar using `motion.aside`. Persist preference to `localStorage`. Attach keyboard shortcut via `window.addEventListener('keydown')` in a `useEffect`.
+- **BrandedSpinner**: Never use bare `<div>Loading...</div>` as Suspense fallback. Use a component with animated Ojas flame and brand name for premium UX.
+- **avatarUrl field**: `UserProfile` now has both `avatarDataUrl` (base64, for uploads) and `avatarUrl` (remote URL, for Google OAuth photos). Prefer `avatarUrl` when `avatarDataUrl` is null.
+
+**SEO:**
+- `usePageMeta` extended with `ogImage` prop that sets `og:image`, `twitter:image`, and `twitter:card=summary_large_image`.
+- Landing page now has Organization + FAQPage JSON-LD; Chat page has WebApplication JSON-LD.
+- OG image generated at `public/og-image.png` (1200×630, golden lotus mandala, dark spiritual aesthetic).
+
+**DailyTeaching:**
+- Added `expires_at` filter: `.or('expires_at.is.null,expires_at.gte.' + now)` to skip expired teachings.
+- Added `onError={() => setTeaching(null)}` to img tag so broken storage URLs don't show a broken image.
+
+**Meditation Reflection (GuidedMeditationFlow):**
+- Post-meditation completion screen replaced with a 3-step reflection flow: mood selector (6 options) → journal textarea → gratitude textarea → closing message.
+- State: `reflectionStep: 0|1|2|3`, `selectedMood`, `journalText`, `gratitudeText`. All saved to `meditationStorage` via the new `extras` parameter of `completeMeditationSession`.
+- `MeditationSession` type extended with optional `mood`, `reflection`, and `gratitude` fields.
+
+**RAG Benchmarking:**
+- `scripts/benchmark_rag_responses.py`: 10 curated queries across all 4 intents. Scores intent accuracy, keyword relevance, citation presence, latency. Exits non-zero if accuracy < 70% or keyword score < 50%.
+
+**Responsive fixes:**
+- Footer chips: `flex-wrap` added so they don't overflow on narrow screens.
+- Messages area padding: `px-3 sm:px-4 md:px-6` for graduated responsiveness.
+- `ChatHeader`: Removed non-functional `PanelLeft` orphan icon from guru title button.

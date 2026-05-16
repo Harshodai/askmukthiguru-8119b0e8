@@ -10,7 +10,20 @@ const ChatPage = () => {
     title: 'Chat with the Guru — AskMukthiGuru',
     description: 'Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
     canonical: 'https://askmukthiguru.lovable.app/chat',
+    ogType: 'website',
+    ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebApplication',
+      name: 'AskMukthiGuru Chat',
+      url: 'https://askmukthiguru.lovable.app/chat',
+      applicationCategory: 'LifestyleApplication',
+      operatingSystem: 'Web',
+      description: 'AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    },
   });
+
 
   if (loading) {
     return (

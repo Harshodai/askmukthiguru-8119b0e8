@@ -21,6 +21,11 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
   const [isPlaying, setIsPlaying] = useState(false);
   const [breathPhase, setBreathPhase] = useState<BreathPhase>('inhale');
   const [breathTimer, setBreathTimer] = useState(0);
+  // Reflection state
+  const [reflectionStep, setReflectionStep] = useState<0 | 1 | 2 | 3>(0); // 0=mood, 1=journal, 2=gratitude, 3=done
+  const [selectedMood, setSelectedMood] = useState<string>('');
+  const [journalText, setJournalText] = useState('');
+  const [gratitudeText, setGratitudeText] = useState('');
   const sessionIdRef = useRef(generateSessionId());
   const startTimeRef = useRef<number>(0);
 
@@ -36,6 +41,10 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
       setIsPlaying(false);
       setBreathPhase('inhale');
       setBreathTimer(0);
+      setReflectionStep(0);
+      setSelectedMood('');
+      setJournalText('');
+      setGratitudeText('');
       sessionIdRef.current = generateSessionId();
       startTimeRef.current = Date.now();
     }
@@ -132,21 +141,123 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center space-y-6 px-6"
+            className="w-full max-w-sm mx-auto space-y-5 px-6"
           >
-            <div className="w-20 h-20 mx-auto rounded-full bg-ojas/15 flex items-center justify-center">
-              <span className="text-3xl">🙏</span>
-            </div>
-            <h2 className="text-2xl font-semibold text-foreground">Namaste</h2>
-            <p className="text-muted-foreground max-w-sm">
-              Your meditation is complete. Carry this peace with you throughout your day.
-            </p>
-            <button
-              onClick={handleClose}
-              className="px-6 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
-            >
-              Return to Chat
-            </button>
+            {reflectionStep === 0 && (
+              <>
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-ojas/15 flex items-center justify-center">
+                    <span className="text-2xl">🙏</span>
+                  </div>
+                  <h2 className="text-xl font-semibold text-foreground">Namaste</h2>
+                  <p className="text-sm text-muted-foreground">How do you feel right now?</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { emoji: '☮️', label: 'Peaceful' },
+                    { emoji: '🙏', label: 'Grateful' },
+                    { emoji: '🌸', label: 'Lighter' },
+                    { emoji: '🤔', label: 'Reflective' },
+                    { emoji: '💧', label: 'Emotional' },
+                    { emoji: '⚡', label: 'Energised' },
+                  ].map(({ emoji, label }) => (
+                    <button
+                      key={label}
+                      onClick={() => setSelectedMood(label)}
+                      className={`flex flex-col items-center gap-1 py-3 rounded-xl border text-xs font-medium transition-all ${
+                        selectedMood === label
+                          ? 'border-ojas bg-ojas/10 text-ojas'
+                          : 'border-border/40 bg-card/60 text-muted-foreground hover:border-ojas/30'
+                      }`}
+                    >
+                      <span className="text-lg">{emoji}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setReflectionStep(1)}
+                  disabled={!selectedMood}
+                  className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium disabled:opacity-40 transition-opacity"
+                >
+                  Continue
+                </button>
+                <button onClick={handleClose} className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Skip to chat
+                </button>
+              </>
+            )}
+
+            {reflectionStep === 1 && (
+              <>
+                <div className="text-center space-y-1">
+                  <h2 className="text-lg font-semibold text-foreground">Capture this moment</h2>
+                  <p className="text-sm text-muted-foreground">What insight arose during your meditation?</p>
+                </div>
+                <textarea
+                  value={journalText}
+                  onChange={e => setJournalText(e.target.value)}
+                  placeholder="What do you notice in this moment… thoughts, sensations, feelings…"
+                  rows={4}
+                  className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
+                />
+                <button
+                  onClick={() => setReflectionStep(2)}
+                  className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
+                >
+                  {journalText.trim() ? 'Continue' : 'Skip'}
+                </button>
+              </>
+            )}
+
+            {reflectionStep === 2 && (
+              <>
+                <div className="text-center space-y-1">
+                  <h2 className="text-lg font-semibold text-foreground">One thing of gratitude</h2>
+                  <p className="text-sm text-muted-foreground">Name something you are grateful for right now.</p>
+                </div>
+                <textarea
+                  value={gratitudeText}
+                  onChange={e => setGratitudeText(e.target.value)}
+                  placeholder="I am grateful for…"
+                  rows={3}
+                  className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
+                />
+                <button
+                  onClick={async () => {
+                    // Save reflection extras to existing session
+                    const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
+                    await completeMeditationSession(sessionIdRef.current, durationSec, 0, {
+                      mood: selectedMood,
+                      reflection: journalText.trim() || undefined,
+                      gratitude: gratitudeText.trim() || undefined,
+                    });
+                    setReflectionStep(3);
+                  }}
+                  className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
+                >
+                  {gratitudeText.trim() ? 'Complete' : 'Skip'}
+                </button>
+              </>
+            )}
+
+            {reflectionStep === 3 && (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
+                  <span className="text-2xl">✨</span>
+                </div>
+                <h2 className="text-xl font-semibold text-foreground">Beautiful</h2>
+                <p className="text-sm text-muted-foreground">
+                  You have completed your practice. Carry this {selectedMood.toLowerCase()} state into your day.
+                </p>
+                <button
+                  onClick={handleClose}
+                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
+                >
+                  Return to Chat
+                </button>
+              </div>
+            )}
           </motion.div>
         ) : (
           <div className="flex flex-col items-center gap-8 px-6 max-w-md w-full">
