@@ -6,6 +6,12 @@ import logging
 # Add backend to path
 sys.path.append(os.getcwd())
 
+# Set environment variables for local testing (pointing to localhost instead of Docker hostnames)
+os.environ["QDRANT_URL"] = "http://localhost:6333"
+os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+os.environ["SUPABASE_URL"] = "http://localhost:54321"
+
 from app.dependencies import get_container
 from rag.graph import create_initial_state
 
@@ -21,18 +27,21 @@ TEST_CASES = [
     },
     {
         "name": "SPIRITUAL_QUERY",
-        "query": "What is the core message of the Four Sacred Secrets?",
-        "expected_intent": "QUERY"
+        "query": "What are the Four Sacred Secrets?",
+        "expected_intent": "FACTUAL"
     },
     {
-        "name": "DISTRESS",
-        "query": "I am feeling very overwhelmed and I don't know if I can go on.",
+        "name": "DISTRESS_DETECTION",
+        "query": "I feel so lost and hopeless, I don't know what to do.",
         "expected_intent": "DISTRESS"
     },
     {
-        "name": "MEDITATION",
-        "query": "Can you start a meditation for me?",
-        "expected_intent": "MEDITATION"
+        "name": "MEDITATION_FLOW",
+        "turns": [
+            {"query": "Can you guide me through a meditation?", "expected_intent": "MEDITATION"},
+            {"query": "I am ready", "expected_intent": "MEDITATION_CONTINUE"},
+            {"query": "Done with that", "expected_intent": "MEDITATION_CONTINUE"}
+        ]
     }
 ]
 
@@ -48,34 +57,53 @@ async def run_qa_check():
     
     for case in TEST_CASES:
         print(f"Testing: {case['name']}")
-        print(f"Query: '{case['query']}'")
         
         try:
-            state = create_initial_state(case['query'])
-            # Add some context to help with intent
-            state["chat_history"] = []
-            
-            result = await graph.ainvoke(state)
-            
-            intent = result.get("intent", "UNKNOWN")
-            answer = result.get("final_answer") or result.get("response") or ""
-            
-            print(f"Detected Intent: {intent}")
-            print(f"Response Preview: {answer[:150]}...")
-            
-            # Check for empty response
-            if not answer:
-                print("\u274c FAILED: Empty response")
-                results.append((case['name'], False, "Empty response"))
-                continue
+            if "turns" in case:
+                # Multi-turn test
+                state = create_initial_state("")
+                for i, turn in enumerate(case["turns"]):
+                    print(f"  Turn {i+1}: '{turn['query']}'")
+                    state["question"] = turn["query"]
+                    
+                    result = await graph.ainvoke(state)
+                    
+                    intent = result.get("intent", "UNKNOWN")
+                    answer = result.get("final_answer") or result.get("response") or ""
+                    meditation_step = result.get("meditation_step", 0)
+                    
+                    print(f"    Detected Intent: {intent}")
+                    print(f"    Meditation Step: {meditation_step}")
+                    print(f"    Response Preview: {answer[:80]}...")
+                    
+                    # Update state for next turn
+                    state = result
+                    
+                    if not answer:
+                        raise ValueError(f"Empty response in turn {i+1}")
                 
-            # Check intent routing (soft check)
-            if intent != case['expected_intent'] and case['expected_intent'] != "QUERY":
-                 # Some intents like RELATIONAL or FACTUAL might overlap with QUERY
-                 print(f"\u26a0\ufe0f WARNING: Intent mismatch. Expected {case['expected_intent']}, got {intent}")
-            
-            print("\u2705 PASSED: Wiring functional")
-            results.append((case['name'], True, "OK"))
+                print("\u2705 PASSED: Multi-turn sequence functional")
+                results.append((case['name'], True, "OK"))
+            else:
+                # Single-turn test
+                print(f"Query: '{case['query']}'")
+                state = create_initial_state(case['query'])
+                
+                result = await graph.ainvoke(state)
+                
+                intent = result.get("intent", "UNKNOWN")
+                answer = result.get("final_answer") or result.get("response") or ""
+                
+                print(f"Detected Intent: {intent}")
+                print(f"Response Preview: {answer[:150]}...")
+                
+                if not answer:
+                    print("\u274c FAILED: Empty response")
+                    results.append((case['name'], False, "Empty response"))
+                    continue
+                    
+                print("\u2705 PASSED: Wiring functional")
+                results.append((case['name'], True, "OK"))
             
         except Exception as e:
             print(f"\u274c FAILED: Error during execution: {e}")

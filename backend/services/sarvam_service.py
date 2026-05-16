@@ -589,6 +589,14 @@ class SarvamCloudService:
 
         if "DISTRESS" in result_upper:
             return "DISTRESS"
+        elif "MEDITATION" in result_upper:
+            return "MEDITATION"
+        elif "FACTUAL" in result_upper:
+            return "FACTUAL"
+        elif "RELATIONAL" in result_upper:
+            return "RELATIONAL"
+        elif "FOLLOW_UP" in result_upper:
+            return "FOLLOW_UP"
         elif "QUERY" in result_upper:
             return "QUERY"
         elif "CASUAL" in result_upper:
