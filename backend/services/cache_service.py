@@ -209,12 +209,12 @@ class SemanticCacheAdapter(ICacheRepository):
         
         try:
             # Search Qdrant
-            results = self._qdrant.search(
+            results = self._qdrant.query_points(
                 collection_name=self._collection,
-                query_vector=emb,
+                query=emb,
                 limit=1,
                 score_threshold=self._threshold
-            )
+            ).points
             
             if results:
                 hit = results[0]

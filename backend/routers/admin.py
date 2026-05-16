@@ -32,3 +32,15 @@ async def fetch_evaluations(
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     return []
+@admin_router.get("/kpis")
+async def fetch_kpis(
+    from_date: str = None,
+    to_date: str = None,
+    user: Dict = Depends(get_current_user_from_supabase),
+) -> Dict[str, Any]:
+    """Fetch aggregated KPIs for Admin UI. Requires admin authentication."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from app.telemetry_db import get_kpis
+    return await get_kpis(from_date, to_date)

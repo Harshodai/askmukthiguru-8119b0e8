@@ -1002,24 +1002,61 @@ async def format_final_answer(state: GraphState) -> dict:
         logger.info(f"Final: Moderate confidence ({confidence}), adding caveat")
 
     # Append citation URLs if not already in the answer
-    if citations:
+    intent = state.get("intent") or "CASUAL"
+    if intent == "?":
+        intent = "CASUAL"
+
+    if citations or intent in ["FACTUAL", "QUERY", "RELATIONAL", "SPIRITUAL_QUERY"]:
         reasoning = state.get("citation_reasoning") or {}
         citation_lines = []
-        for url in citations[:3]:
+        
+        # Canonical links for enrichment (Verified Research)
+        BOOK_LINK = "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112102"
+        YOUTUBE_LINK = "https://www.youtube.com/c/pkconsciousness"
+        
+        # Deduplicate and prioritize official links
+        enriched_citations = list(citations)
+        
+        content_to_check = (answer + " " + state.get("question", "")).lower()
+        has_book_keyword = any(kw in content_to_check for kw in ["sacred", "secret", "preethaji", "krishnaji", "book", "teaching"])
+        has_video_keyword = any(kw in content_to_check for kw in ["youtube", "video", "watch", "channel", "meditation", "session"])
+        
+        if has_book_keyword and BOOK_LINK not in enriched_citations:
+            enriched_citations.insert(0, BOOK_LINK)
+        if has_video_keyword and YOUTUBE_LINK not in enriched_citations:
+            pos = 1 if BOOK_LINK in enriched_citations else 0
+            enriched_citations.insert(pos, YOUTUBE_LINK)
+
+        # Ensure both are present for deep spiritual queries
+        if intent in ["FACTUAL", "SPIRITUAL_QUERY"] and len(enriched_citations) < 2:
+            if BOOK_LINK not in enriched_citations: enriched_citations.append(BOOK_LINK)
+            if YOUTUBE_LINK not in enriched_citations: enriched_citations.append(YOUTUBE_LINK)
+
+        seen_urls = set()
+        for url in enriched_citations[:5]:
+            if url in seen_urls: continue
+            seen_urls.add(url)
+            
             line = f"- {url}"
             if url in reasoning:
                 line += f" ({reasoning[url]})"
+            elif url == BOOK_LINK:
+                line += " (The Four Sacred Secrets — Official Book)"
+            elif url == YOUTUBE_LINK:
+                line += " (Sri Preethaji & Sri Krishnaji — Official YouTube)"
             citation_lines.append(line)
             
-        citation_block = "\n\n📚 *Sources:*\n" + "\n".join(citation_lines)
-        if citation_block not in answer:
-            answer += citation_block
+        if citation_lines:
+            citation_block = "\n\n📚 *Sources & Teachings:*\n" + "\n".join(citation_lines)
+            if citation_block not in answer:
+                answer += citation_block
 
-    result = {"final_answer": answer}
+    result = {"final_answer": answer, "citations": citations, "intent": intent} # Preserve original citations for state
     if state.get("intent") == "DISTRESS":
         result["meditation_step"] = 1
         
     return result
+
 
 
 async def handle_casual(state: GraphState) -> dict:

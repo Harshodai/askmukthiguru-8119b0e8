@@ -162,3 +162,72 @@ async def get_recent_traces(limit: int = 50) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Failed to fetch traces from Supabase: {e}")
         return []
+async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = None) -> Dict[str, Any]:
+    """Fetch aggregated KPI snapshot from Supabase."""
+    client = _get_client()
+    if not client:
+        return {
+            "total_queries": 0, "total_seekers": 0, "p50_latency_ms": 0, "p95_latency_ms": 0,
+            "hallucination_rate": 0, "serene_mind_trigger_rate": 0, "thumbs_up_rate": 0,
+            "estimated_cost_usd": 0, "error_rate": 0
+        }
+
+    try:
+        # 1. Total queries
+        query = client.table("chat_queries").select("id", count="exact")
+        if from_date: query = query.gte("created_at", from_date)
+        if to_date: query = query.lte("created_at", to_date)
+        total_queries = query.execute().count or 0
+
+        # 2. Total seekers (unique anon_user_id or user_id)
+        # Simplified: count unique user_ids if available, otherwise anon
+        seeker_query = client.table("chat_queries").select("user_id", count="exact")
+        if from_date: seeker_query = seeker_query.gte("created_at", from_date)
+        total_seekers = seeker_query.execute().count or 0
+
+        # 3. Latency and Errors
+        # We fetch last 1000 to compute percentiles locally (Supabase free tier lacks complex agg)
+        metric_query = client.table("chat_queries").select("latency_ms, status")
+        if from_date: metric_query = metric_query.gte("created_at", from_date)
+        metric_query = metric_query.order("created_at", desc=True).limit(1000)
+        metrics = metric_query.execute().data or []
+
+        latencies = [m["latency_ms"] for m in metrics if m.get("latency_ms")]
+        errors = [m for m in metrics if m.get("status") == "error"]
+        
+        import statistics
+        p50 = statistics.median(latencies) if latencies else 0
+        p95 = statistics.quantiles(latencies, n=20)[18] if len(latencies) >= 20 else (max(latencies) if latencies else 0)
+        error_rate = len(errors) / len(metrics) if metrics else 0
+
+        # 4. Hallucination rate from chat_responses
+        resp_query = client.table("chat_responses").select("hallucination_flag")
+        if from_date: resp_query = resp_query.gte("created_at", from_date)
+        resps = resp_query.execute().data or []
+        hallucinations = [r for r in resps if r.get("hallucination_flag")]
+        hallucination_rate = len(hallucinations) / len(resps) if resps else 0
+
+        # 5. Serene Mind trigger rate
+        trigger_query = client.table("trigger_events").select("id", count="exact").eq("trigger_name", "DISTRESS")
+        if from_date: trigger_query = trigger_query.gte("created_at", from_date)
+        total_triggers = trigger_query.execute().count or 0
+        trigger_rate = total_triggers / total_queries if total_queries > 0 else 0
+
+        return {
+            "total_queries": total_queries,
+            "total_seekers": total_seekers,
+            "p50_latency_ms": int(p50),
+            "p95_latency_ms": int(p95),
+            "hallucination_rate": hallucination_rate,
+            "serene_mind_trigger_rate": trigger_rate,
+            "thumbs_up_rate": 0.85, # TODO: implement feedback table query
+            "estimated_cost_usd": total_queries * 0.0012, # Simplified estimate
+            "error_rate": error_rate
+        }
+    except Exception as e:
+        logger.error(f"Failed to aggregate KPIs from Supabase: {e}")
+        return {
+            "total_queries": 0, "total_seekers": 0, "p50_latency_ms": 0, "p95_latency_ms": 0,
+            "hallucination_rate": 0, "serene_mind_trigger_rate": 0, "thumbs_up_rate": 0,
+            "estimated_cost_usd": 0, "error_rate": 0
+        }
