@@ -24,6 +24,9 @@ sarvamai>=0.1.0
 # --- Vector Database ---
 qdrant-client>=1.13.0,<2.0
 
+# --- Supabase ---
+supabase>=2.0.0
+
 # --- Embeddings & Reranking ---
 sentence-transformers>=3.4.0,<4.0
 FlagEmbedding>=1.2.10
