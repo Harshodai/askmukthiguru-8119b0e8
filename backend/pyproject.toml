@@ -102,3 +102,6 @@ ignore = ["E501"] # Line length handled by formatter
 python_version = "3.12"
 strict = false
 ignore_missing_imports = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "rag", "domain", "services", "routers"]

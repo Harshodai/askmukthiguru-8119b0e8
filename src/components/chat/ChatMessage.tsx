@@ -5,11 +5,13 @@ import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
 import { getInitials } from '@/lib/profileStorage';
+import { submitFeedbackToBackend } from '@/lib/aiService';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { createPortal } from 'react-dom';
 
 interface ChatMessageProps {
   message: Message;
+  queryText?: string;
   index?: number;
   isStreaming?: boolean;
 }
@@ -25,7 +27,7 @@ const getDomain = (url: string): string => {
 const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, index = 0, isStreaming = false }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
     // Extract inline YouTube URLs from content as fallback citations
@@ -60,7 +62,16 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       saveFeedback(message.id, finalFeedback);
       setFeedback(finalFeedback);
       setShowFeedbackPanel(false);
-    }, [feedback, selectedTags, feedbackComment, message.id]);
+
+      if (queryText && message.content) {
+        submitFeedbackToBackend({
+          query: queryText,
+          answer: message.content,
+          rating: finalFeedback.vote === 'up' ? 1 : -1,
+          comment: finalFeedback.comment || finalFeedback.tags.join(', ')
+        });
+      }
+    }, [feedback, selectedTags, feedbackComment, message.id, queryText, message.content]);
 
     const handleDismissFeedback = useCallback(() => {
       if (!feedback) return;

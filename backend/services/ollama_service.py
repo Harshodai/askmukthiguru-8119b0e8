@@ -173,7 +173,7 @@ class OllamaService:
         """
         Classify user message into one of three intents.
         
-        Returns: 'DISTRESS' | 'QUERY' | 'CASUAL'
+        Returns: 'DISTRESS' | 'FACTUAL' | 'RELATIONAL' | 'FOLLOW_UP' | 'MEDITATION' | 'CASUAL'
         
         Uses the fast model for ~10x speed improvement.
         """
@@ -183,8 +183,14 @@ class OllamaService:
         result_upper = result.upper().strip()
         if "DISTRESS" in result_upper:
             return "DISTRESS"
-        elif "QUERY" in result_upper:
-            return "QUERY"
+        elif "FACTUAL" in result_upper or "QUERY" in result_upper:
+            return "FACTUAL"
+        elif "RELATIONAL" in result_upper:
+            return "RELATIONAL"
+        elif "FOLLOW_UP" in result_upper:
+            return "FOLLOW_UP"
+        elif "MEDITATION" in result_upper:
+            return "MEDITATION"
         else:
             return "CASUAL"
 

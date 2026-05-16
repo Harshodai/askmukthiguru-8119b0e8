@@ -198,11 +198,12 @@ INTENT_CLASSIFICATION_PROMPT = """Classify the user's message into exactly one o
 
 DISTRESS - The user is expressing emotional pain, stress, anxiety, sadness, anger, fear, loneliness, hopelessness, or seeks emotional comfort.
 FACTUAL - The user is asking a specific question about spiritual teachings, concepts, or biographies that requires direct knowledge retrieval.
+RELATIONAL - The user is asking about the connection, relationship, or differences between multiple concepts, or asking a broad structural question (e.g., "How does observation relate to letting go?", "What is the relationship between karma and dharma?").
 FOLLOW_UP - The user is asking a question that refers to previous parts of the conversation (using pronouns like 'that', 'it', 'him') or continues a thread.
 MEDITATION - The user is asking for a meditation practice, wants to start a session, or is participating in an active session.
 CASUAL - The user is making small talk, greeting, or a general non-spiritual comment.
 
-RESPOND WITH ONLY ONE WORD: DISTRESS, FACTUAL, FOLLOW_UP, MEDITATION, or CASUAL"""
+RESPOND WITH ONLY ONE WORD: DISTRESS, FACTUAL, RELATIONAL, FOLLOW_UP, MEDITATION, or CASUAL"""
 
 
 # === SUMMARIZE PROMPT (for RAPTOR tree node generation) ===

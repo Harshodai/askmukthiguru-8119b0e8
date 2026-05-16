@@ -35,20 +35,7 @@ import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
 import React from 'react';
 import { createPortal } from 'react-dom';
-// ── Date separator helpers ──────────────────────────────────────────
-const isSameDay = (a: Date, b: Date): boolean =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
-const formatDateLabel = (date: Date): string => {
-  const now = new Date();
-  if (isSameDay(date, now)) return 'Today';
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
+import { MessageList } from './MessageList';
 
 // ── Suggested starter chips ─────────────────────────────────────────
 const STARTER_SUGGESTIONS = [
@@ -57,48 +44,6 @@ const STARTER_SUGGESTIONS = [
   "I'm feeling overwhelmed",
 ];
 
-// ── MessageList with date separators ────────────────────────────────
-const MessageList = React.memo(({ messages, streamingId }: { messages: Message[]; streamingId?: string }) => {
-  const groups: { label: string; messages: Message[] }[] = [];
-  let currentLabel = '';
-
-  messages.forEach((msg) => {
-    const ts = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
-    const label = formatDateLabel(ts);
-    if (label !== currentLabel) {
-      currentLabel = label;
-      groups.push({ label, messages: [msg] });
-    } else {
-      groups[groups.length - 1].messages.push(msg);
-    }
-  });
-
-  return (
-    <>
-      {groups.map((group) => (
-        <React.Fragment key={group.label}>
-          {/* Date separator */}
-          <div className="flex items-center gap-4 py-3">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50 select-none px-2">
-              {group.label}
-            </span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
-          </div>
-          {group.messages.map((message, index) => (
-            <ChatMessage 
-              key={message.id} 
-              message={message} 
-              index={index}
-              isStreaming={message.id === streamingId && message.content.length > 0}
-            />
-          ))}
-        </React.Fragment>
-      ))}
-    </>
-  );
-});
-MessageList.displayName = 'MessageList';
 
 const WELCOME_MESSAGE =
   'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
@@ -130,6 +75,8 @@ export const ChatInterface = () => {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>();
+  const [streamingContent, setStreamingContent] = useState<string>('');
   const { open: openSereneMind } = useSereneMind();
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -143,7 +90,6 @@ export const ChatInterface = () => {
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showGuidedMeditation, setShowGuidedMeditation] = useState(false);
-  const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>(undefined);
   const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [showPipeline, setShowPipeline] = useState(false);
@@ -165,9 +111,7 @@ export const ChatInterface = () => {
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
+    messagesEndRef.current?.scrollIntoView({ behavior });
     setShowScrollFab(false);
     setUnreadCount(0);
   }, []);
@@ -227,7 +171,7 @@ export const ChatInterface = () => {
     setCurrentConversationId(conversation.id);
     // Scroll to bottom on mount after a tick
     requestAnimationFrame(() => {
-      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'instant' as ScrollBehavior });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     });
   }, []);
 
@@ -355,7 +299,7 @@ export const ChatInterface = () => {
     if (isNearBottomRef.current) {
       // Use requestAnimationFrame for reliable scroll after DOM update
       requestAnimationFrame(() => {
-        scrollToBottom('smooth');
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       });
     } else if (messages.length > 0 && messages[messages.length - 1].role === 'guru') {
       setUnreadCount(prev => prev + 1);
@@ -426,6 +370,7 @@ export const ChatInterface = () => {
     const streamingGuruId = generateId();
     let streamingWorked = false;
     let fullContent = '';
+    let finalIntent = 'CASUAL';
 
     try {
       const stream = sendMessageStreaming(
@@ -453,7 +398,6 @@ export const ChatInterface = () => {
       setIsTyping(false);
       let gotFirstToken = false;
       let streamedCitations: string[] = [];
-      let streamedIntent = 'CASUAL';
       let streamedMedStep = 0;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
@@ -473,7 +417,7 @@ export const ChatInterface = () => {
         if (chunk.type === 'done') {
           // Final metadata from backend — citations, intent, meditationStep
           streamedCitations = chunk.citations;
-          streamedIntent = chunk.intent;
+          finalIntent = chunk.intent;
           streamedMedStep = chunk.meditationStep;
           continue;
         }
@@ -491,30 +435,27 @@ export const ChatInterface = () => {
           setTimeout(() => setShowPipeline(false), 600);
         }
 
+        // Update the streaming message state locally without mapping entire array
         fullContent += chunk.text;
-        const captured = fullContent;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === streamingGuruId ? { ...m, content: captured } : m))
-        );
+        setStreamingContent(fullContent);
         // Keep scrolling during streaming if near bottom
         if (isNearBottomRef.current) {
           requestAnimationFrame(() => {
-            scrollContainerRef.current?.scrollTo({
-              top: scrollContainerRef.current.scrollHeight,
-              behavior: 'instant' as ScrollBehavior,
-            });
+            messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
           });
         }
       }
 
       if (fullContent) {
         streamingWorked = true;
-        // Update the guru message with citations from the done event
-        if (streamedCitations.length > 0) {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, citations: streamedCitations } : m))
-          );
-        }
+        // Commit the final streamed content to the message list
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined } : m))
+        );
+        
+        setStreamingMessageId(undefined);
+        setStreamingContent('');
+
         setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
 
         // Update meditation step from streaming metadata
@@ -530,12 +471,16 @@ export const ChatInterface = () => {
     } catch {
       // Streaming failed — show toast if partial content was received
       if (fullContent) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
+        );
         toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
         streamingWorked = true; // Keep partial content
       }
     } finally {
       setIsStreaming(false);
       setStreamingMessageId(undefined);
+      setStreamingContent('');
       setShowPipeline(false);
       setPipelineSteps([]);
     }
@@ -644,7 +589,7 @@ export const ChatInterface = () => {
     setMessages(conversation.messages);
     // Scroll to bottom when switching conversations
     requestAnimationFrame(() => {
-      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'instant' as ScrollBehavior });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     });
   };
 
@@ -700,7 +645,7 @@ export const ChatInterface = () => {
             {/* Daily Teaching Banner */}
             <DailyTeaching />
 
-            <MessageList messages={messages} streamingId={streamingMessageId} />
+            <MessageList messages={messages} streamingId={streamingMessageId} streamingContent={streamingContent} />
 
             {/* Suggested starters */}
             {showStarters && (

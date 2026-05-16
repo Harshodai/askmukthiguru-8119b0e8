@@ -28,6 +28,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { UserMenu } from '@/components/common/UserMenu';
 import { CommandPalette } from '@/components/common/CommandPalette';
+import { ChatErrorBoundary } from '@/components/common/ChatErrorBoundary';
 import { FloatingParticles } from '@/components/landing/FloatingParticles';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
@@ -292,7 +293,11 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             <UserMenu />
           </header>
 
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto">
+            <ChatErrorBoundary>
+              {children}
+            </ChatErrorBoundary>
+          </main>
         </div>
 
         <CommandPalette

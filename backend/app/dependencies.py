@@ -23,9 +23,8 @@ from guardrails.rails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
 from services.lightrag_service import lightrag_service, LightRAGService
-from services.cache_service import init_llm_cache
+from services.cache_service import init_llm_cache, SemanticCacheAdapter
 from services.serene_mind_engine import SereneMindEngine
-from services.semantic_cache import SemanticCacheService
 from services.user_profile_service import UserProfileService
 from services.language_router import LanguageRouter
 from services.krutrim_service import KrutrimService
@@ -91,9 +90,11 @@ class ServiceContainer:
         # Layer 4: Guardrails (depends on config)
         self.guardrails = GuardrailsService()
 
-        # Layer 4b: Semantic Cache (depends on embedding + redis)
-        self.semantic_cache = SemanticCacheService(
+        # Layer 4b: Semantic Cache (depends on embedding + redis + qdrant)
+        self.semantic_cache = SemanticCacheAdapter(
             redis_url=settings.redis_url,
+            qdrant_url=settings.qdrant_url if not settings.qdrant_local_path else None,
+            qdrant_path=settings.qdrant_local_path if settings.qdrant_local_path else None,
             embedding_service=self.embedding,
         )
 

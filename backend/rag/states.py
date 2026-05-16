@@ -106,6 +106,10 @@ class GraphState(TypedDict):
 
     # Self-RAG
     is_faithful: Optional[bool]
+    
+    # Self-Reflection RAG (Nir Diamant pattern)
+    needs_correction: bool
+    reflection_feedback: Optional[str]
 
     # CoVe
     verification: Optional[dict]

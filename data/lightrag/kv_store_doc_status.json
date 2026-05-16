@@ -12,12 +12,12 @@
     "content_summary": "Namaste. Let me share a fable with you, for stories are ways of immortalizing messages. Two monks, Yasmi and Nomi, are returning back to the monastery after a day of teaching in the nearby village. They were just about to cross the river when they he...",
     "content_length": 20809,
     "created_at": "2026-05-14T05:09:32.514690+00:00",
-    "updated_at": "2026-05-15T00:33:33.236567+00:00",
+    "updated_at": "2026-05-15T08:13:26.307236+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_103932_ef829e87",
     "metadata": {
-      "processing_start_time": 1778804846,
-      "processing_end_time": 1778805213
+      "processing_start_time": 1778832431,
+      "processing_end_time": 1778832806
     }
   },
   "doc-5a4c4d0e0f7b2f4be26e9df8fa9564f9": {
@@ -38,16 +38,17 @@
     "content_summary": "Hey, it's Marie Forleo and you are watching MarieTV, the place to be to create a business and life you love. If you want to set yourself on a path to have the most beautiful life possible, regardless of your circumstances, this episode is for you. Sr...",
     "content_length": 57309,
     "created_at": "2026-05-14T05:11:35.011444+00:00",
-    "updated_at": "2026-05-15T05:20:26.905811+00:00",
+    "updated_at": "2026-05-15T08:19:26.366948+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_104135_971ff690",
     "metadata": {
-      "processing_start_time": 1778804846,
-      "processing_end_time": 1778822426
+      "processing_start_time": 1778832431,
+      "processing_end_time": 1778833166
     }
   },
   "doc-df60a07f8c5149037d2a44c42c34f00d": {
-    "status": "processing",
+    "status": "failed",
+    "error_msg": "C[1/10]: chunk-3ba320b05f330dd38ee53d270146e432: LLM func: Worker execution timeout after 360s",
     "chunks_count": 10,
     "chunks_list": [
       "chunk-3ba320b05f330dd38ee53d270146e432",
@@ -64,15 +65,17 @@
     "content_summary": "You need to have a beautiful heart in order to nurture a relationship. If you do not have that heart, relationships can be very difficult. There is a lot of confusion between taking the external problems into the inner world, but if you can clearly d...",
     "content_length": 58718,
     "created_at": "2026-05-14T05:15:32.415371+00:00",
-    "updated_at": "2026-05-15T00:33:33.366851+00:00",
+    "updated_at": "2026-05-15T08:25:26.370775+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_104532_0b1ac332",
     "metadata": {
-      "processing_start_time": 1778805213
+      "processing_start_time": 1778832806,
+      "processing_end_time": 1778833526
     }
   },
   "doc-444b7ced4a1f5d30530f670a6783a327": {
-    "status": "processing",
+    "status": "failed",
+    "error_msg": "C[1/5]: chunk-5c8f3b58191cd7eb20e97c7adfd8085c: LLM func: Worker execution timeout after 360s",
     "chunks_count": 5,
     "chunks_list": [
       "chunk-5c8f3b58191cd7eb20e97c7adfd8085c",
@@ -84,17 +87,17 @@
     "content_summary": "Hello and welcome to Frankly Speaking. Today we have a very special guest, Mukthi Guru, Sri Sri Krishnaji, co-creator of Ekam, World Center for Enlightenment. Namaste and welcome to Frankly Speaking. I want to ask you, your mission at ACAM has always...",
     "content_length": 26500,
     "created_at": "2026-05-14T05:17:39.820343+00:00",
-    "updated_at": "2026-05-15T05:20:27.059670+00:00",
+    "updated_at": "2026-05-15T08:31:26.423465+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_104739_be1d5fb8",
     "metadata": {
-      "processing_start_time": 1778822427
+      "processing_start_time": 1778833166,
+      "processing_end_time": 1778833886
     }
   },
   "doc-21358065ba7286b2b6f90449974ec204": {
-    "status": "pending",
-    "content_summary": "What is the Golden Being? Yes, I had a very beautiful divine experience at the age of 11. I had this golden being with whom I could communicate and this golden being called himself as Prajapati. My parents, they are the founders of Oneness Movement, ...",
-    "content_length": 60909,
+    "status": "failed",
+    "error_msg": "C[1/10]: chunk-9cc01d3ebb7c00cd64ce3517df7de5fd: LLM func: Worker execution timeout after 360s",
     "chunks_count": 10,
     "chunks_list": [
       "chunk-9cc01d3ebb7c00cd64ce3517df7de5fd",
@@ -108,17 +111,20 @@
       "chunk-76149e88e75ab43aa17ddf5959e26b51",
       "chunk-b627dc352e57393913eae7e0fdc2dc90"
     ],
+    "content_summary": "What is the Golden Being? Yes, I had a very beautiful divine experience at the age of 11. I had this golden being with whom I could communicate and this golden being called himself as Prajapati. My parents, they are the founders of Oneness Movement, ...",
+    "content_length": 60909,
     "created_at": "2026-05-14T05:20:24.275751+00:00",
-    "updated_at": "2026-05-15T00:27:26.799794+00:00",
+    "updated_at": "2026-05-15T08:37:26.406245+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_105024_50b2b5da",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778833526,
+      "processing_end_time": 1778834246
+    }
   },
   "doc-b5859e270046728fd02c3c0e914e1aa7": {
-    "status": "pending",
-    "content_summary": "알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알...",
-    "content_length": 49632,
+    "status": "failed",
+    "error_msg": "C[1/8]: chunk-5c61cf6a11b484a07796c6dda3777527: LLM func: Worker execution timeout after 360s",
     "chunks_count": 8,
     "chunks_list": [
       "chunk-5c61cf6a11b484a07796c6dda3777527",
@@ -130,43 +136,53 @@
       "chunk-ee8405ae87a23d4c3cf8bfa26fd8efc8",
       "chunk-66c9d2b7ebbf4aa02386f608fa1ab6e8"
     ],
+    "content_summary": "알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알아 알...",
+    "content_length": 49632,
     "created_at": "2026-05-14T08:00:51.773619+00:00",
-    "updated_at": "2026-05-15T00:27:26.799853+00:00",
+    "updated_at": "2026-05-15T08:43:26.445002+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_133051_d14e7cc4",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778833886,
+      "processing_end_time": 1778834606
+    }
   },
   "doc-e25c39bb1e659f873118af19e0e15068": {
-    "status": "pending",
-    "content_summary": "Thank you for downloading this Simon &\nSchuster ebook.\nGet a FREE ebook when you join our mailing list. Plus, get updates on new\nreleases, deals, recommended reads, and more from Simon & Schuster. Click\nbelow to sign up and see terms and conditions.\n...",
-    "content_length": 552,
+    "status": "failed",
+    "error_msg": "C[1/1]: chunk-e25c39bb1e659f873118af19e0e15068: LLM func: Worker execution timeout after 360s",
     "chunks_count": 1,
     "chunks_list": [
       "chunk-e25c39bb1e659f873118af19e0e15068"
     ],
+    "content_summary": "Thank you for downloading this Simon &\nSchuster ebook.\nGet a FREE ebook when you join our mailing list. Plus, get updates on new\nreleases, deals, recommended reads, and more from Simon & Schuster. Click\nbelow to sign up and see terms and conditions.\n...",
+    "content_length": 552,
     "created_at": "2026-05-14T16:13:35.909416+00:00",
-    "updated_at": "2026-05-15T00:27:26.799924+00:00",
+    "updated_at": "2026-05-15T09:28:05.686379+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_214335_fefb462b",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778834246,
+      "processing_end_time": 1778837285
+    }
   },
   "doc-7257eecd3803f8428a5e0003e29f28d7": {
-    "status": "pending",
-    "content_summary": "I n t r o d u c t i o n\nBy Preethaji\nAs I open the doors and walk onto the veranda, I feel the crispness of the air turn\nmoist. The breeze brings the scent of the wet earth from afar. Two large dark\nclouds gather overhead, unburden themselves, and go...",
-    "content_length": 8154,
+    "status": "failed",
+    "error_msg": "C[1/2]: chunk-d83a359a3b08bc2ee4dd9304ff1558fc: LLM func: Worker execution timeout after 360s",
     "chunks_count": 2,
     "chunks_list": [
       "chunk-d83a359a3b08bc2ee4dd9304ff1558fc",
       "chunk-d811826bea0deb967cfcbb2d65aede0d"
     ],
+    "content_summary": "I n t r o d u c t i o n\nBy Preethaji\nAs I open the doors and walk onto the veranda, I feel the crispness of the air turn\nmoist. The breeze brings the scent of the wet earth from afar. Two large dark\nclouds gather overhead, unburden themselves, and go...",
+    "content_length": 8154,
     "created_at": "2026-05-14T16:13:50.021949+00:00",
-    "updated_at": "2026-05-15T00:27:26.800027+00:00",
+    "updated_at": "2026-05-15T09:28:15.941641+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_214350_7a662088",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778834606,
+      "processing_end_time": 1778837295
+    }
   },
   "dup-942612292a4cab1a7dd8869f54ecffdd": {
     "status": "failed",
@@ -203,25 +219,27 @@
     }
   },
   "doc-d85c205bcaa78394e678ff9ac7fb1a31": {
-    "status": "pending",
-    "content_summary": "My Awakening\nBy Krishnaji\nPreethaji and I had just traveled to Big Bear Lake in Southern California with\nour daughter, Lokaa, who was ve at the time. It was the spring of 2009. We\nwere on a vacation we had been looking forward to for some time, and w...",
-    "content_length": 9769,
+    "status": "failed",
+    "error_msg": "C[1/2]: chunk-4e99ee5a072a09fef024d92b7ddd4204: LLM func: Worker execution timeout after 360s",
     "chunks_count": 2,
     "chunks_list": [
       "chunk-4e99ee5a072a09fef024d92b7ddd4204",
       "chunk-00283c6d3847e844c97d2dea1db37c97"
     ],
+    "content_summary": "My Awakening\nBy Krishnaji\nPreethaji and I had just traveled to Big Bear Lake in Southern California with\nour daughter, Lokaa, who was ve at the time. It was the spring of 2009. We\nwere on a vacation we had been looking forward to for some time, and w...",
+    "content_length": 9769,
     "created_at": "2026-05-14T17:33:34.131134+00:00",
-    "updated_at": "2026-05-15T00:27:26.800135+00:00",
+    "updated_at": "2026-05-15T12:16:50.961523+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_230334_ad4e35c9",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778837285,
+      "processing_end_time": 1778847410
+    }
   },
   "doc-6d5498fa627b7a8e0e1aaa016ab2d026": {
-    "status": "pending",
-    "content_summary": "The First Sacred Secret: Live with a\nSpiritual Vision\nBy Krishnaji\nBefore you begin your journey, take a few moments.\nPlease pause here.\nTake three deep breaths.\nSlowly say within yourself,\nMay I ﬁnd the answers I seek.\nMay I discover the solutions I...",
-    "content_length": 30610,
+    "status": "failed",
+    "error_msg": "C[1/5]: chunk-23f4ae85323a27ae180ceca7fa33c13a: LLM func: Worker execution timeout after 360s",
     "chunks_count": 5,
     "chunks_list": [
       "chunk-23f4ae85323a27ae180ceca7fa33c13a",
@@ -230,65 +248,77 @@
       "chunk-2984b976f037a27596b29e94de8e3b21",
       "chunk-ba8be2f785637451bf56a7dc7363715b"
     ],
+    "content_summary": "The First Sacred Secret: Live with a\nSpiritual Vision\nBy Krishnaji\nBefore you begin your journey, take a few moments.\nPlease pause here.\nTake three deep breaths.\nSlowly say within yourself,\nMay I ﬁnd the answers I seek.\nMay I discover the solutions I...",
+    "content_length": 30610,
     "created_at": "2026-05-14T18:22:24.855596+00:00",
-    "updated_at": "2026-05-15T00:27:26.800271+00:00",
+    "updated_at": "2026-05-15T12:33:56.937657+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260514_235224_74a71762",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778837295,
+      "processing_end_time": 1778848436
+    }
   },
   "doc-dad86cc04528a53c723f853b94021683": {
-    "status": "pending",
-    "content_summary": "The First Sacred Secret: Live with a\nSpiritual Vision\nBy Krishnaji\nBefore you begin your journey, take a few moments.\nPlease pause here.\nTake three deep breaths.\nSlowly say within yourself,\nMay I ﬁnd the answers I seek.\nMay I discover the solutions I...",
-    "content_length": 3477,
+    "status": "failed",
+    "error_msg": "C[1/1]: chunk-dad86cc04528a53c723f853b94021683: LLM func: Worker execution timeout after 360s",
     "chunks_count": 1,
     "chunks_list": [
       "chunk-dad86cc04528a53c723f853b94021683"
     ],
+    "content_summary": "The First Sacred Secret: Live with a\nSpiritual Vision\nBy Krishnaji\nBefore you begin your journey, take a few moments.\nPlease pause here.\nTake three deep breaths.\nSlowly say within yourself,\nMay I ﬁnd the answers I seek.\nMay I discover the solutions I...",
+    "content_length": 3477,
     "created_at": "2026-05-14T19:17:11.085770+00:00",
-    "updated_at": "2026-05-15T00:27:26.800359+00:00",
+    "updated_at": "2026-05-15T15:08:57.103172+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260515_004711_351b8a81",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778847411,
+      "processing_end_time": 1778857737
+    }
   },
   "doc-99cad48d52173f18d5f4bf13ee2249f5": {
-    "status": "pending",
-    "content_summary": "The First Sacred Secret: Live with a Spiritual\nVision Which state of being is carrying you?\nBy Preethaji\nThis ancient fable will lead you into comprehending the rst sacred secret. Read\nit slowly.\nTwo monks, Yesmi and Nomi, were returning to their mon...",
-    "content_length": 18917,
+    "status": "failed",
+    "error_msg": "C[1/3]: chunk-bd28b1a048122e44541304a8505b07db: LLM func: Worker execution timeout after 360s",
     "chunks_count": 3,
     "chunks_list": [
       "chunk-bd28b1a048122e44541304a8505b07db",
       "chunk-f409e10dfbb8baffb10d6e9f51706947",
       "chunk-fb514840089d6805bbfb2598cae38dae"
     ],
+    "content_summary": "The First Sacred Secret: Live with a Spiritual\nVision Which state of being is carrying you?\nBy Preethaji\nThis ancient fable will lead you into comprehending the rst sacred secret. Read\nit slowly.\nTwo monks, Yesmi and Nomi, were returning to their mon...",
+    "content_length": 18917,
     "created_at": "2026-05-14T20:12:11.357526+00:00",
-    "updated_at": "2026-05-15T00:27:26.800433+00:00",
+    "updated_at": "2026-05-15T15:08:57.264156+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260515_014211_65a22a93",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778848436,
+      "processing_end_time": 1778857737
+    }
   },
   "doc-ea8b5281bb54953c53b87cda96471fac": {
-    "status": "pending",
-    "content_summary": "By Preethaji\nBefore you enter the rst life journey, we would like to share with you a powerful\ntool that will help you awaken to the beautiful states we just discussed. I created\nSoul Sync to be more than a meditation. It is a sacred practice that hu...",
-    "content_length": 8214,
+    "status": "failed",
+    "error_msg": "C[1/2]: chunk-b694dcc1bb7e7bd6fa7878c3592e7c19: LLM func: Worker execution timeout after 360s",
     "chunks_count": 2,
     "chunks_list": [
       "chunk-b694dcc1bb7e7bd6fa7878c3592e7c19",
       "chunk-01203a1e0e707c01ca21f28b8ce5261d"
     ],
+    "content_summary": "By Preethaji\nBefore you enter the rst life journey, we would like to share with you a powerful\ntool that will help you awaken to the beautiful states we just discussed. I created\nSoul Sync to be more than a meditation. It is a sacred practice that hu...",
+    "content_length": 8214,
     "created_at": "2026-05-14T21:06:57.588270+00:00",
-    "updated_at": "2026-05-15T00:27:26.800541+00:00",
+    "updated_at": "2026-05-15T15:58:13.956019+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260515_023657_38a56cc5",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778857737,
+      "processing_end_time": 1778860693
+    }
   },
   "doc-1b1da97b5ebb4008f3bc411f4af2434a": {
-    "status": "pending",
-    "content_summary": "The First Life Journey: Heal the\nWounded Child\nBy Krishnaji\nMost people live with a sense of self-imposed claustrophobia.\nPerhaps you have experienced this painful state yourself. It’s as if a crowd\nshowed up at your front door and announced they wer...",
-    "content_length": 30461,
+    "status": "failed",
+    "error_msg": "C[1/5]: chunk-697da9f4d9cac1cfedd243857a8b8ccc: Server disconnected without sending a response.",
     "chunks_count": 5,
     "chunks_list": [
       "chunk-b75e52bdeada1ddd1aebcff0a658afb0",
@@ -297,17 +327,20 @@
       "chunk-25634a7e16db511e9e5b4a8597da99fd",
       "chunk-375c5a9677d230291448c04daac40524"
     ],
+    "content_summary": "The First Life Journey: Heal the\nWounded Child\nBy Krishnaji\nMost people live with a sense of self-imposed claustrophobia.\nPerhaps you have experienced this painful state yourself. It’s as if a crowd\nshowed up at your front door and announced they wer...",
+    "content_length": 30461,
     "created_at": "2026-05-14T22:07:51.908295+00:00",
-    "updated_at": "2026-05-15T00:27:26.800665+00:00",
+    "updated_at": "2026-05-15T16:01:18.515409+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260515_033751_7cad9b5b",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778857737,
+      "processing_end_time": 1778860878
+    }
   },
   "doc-76700379ab797eafe536dc9c2543d415": {
-    "status": "pending",
-    "content_summary": "The Second Sacred Secret: Discover\nYour Inner Truth\nBy Preethaji\nEvery one of us aspires to greatness—to  be a great parent, a great partner, a great\nprofessional, a great athlete, a great wealth creator, or a great change-maker. But\nit is my deep co...",
-    "content_length": 24873,
+    "status": "failed",
+    "error_msg": "C[1/5]: chunk-107b2dccdd97eea5e4e04ec3f64a95a9: All connection attempts failed",
     "chunks_count": 5,
     "chunks_list": [
       "chunk-dec047b5cab8e88110c88f8cc2cfcd7d",
@@ -316,21 +349,60 @@
       "chunk-214089f71bed8468f80247a24979283e",
       "chunk-14473e52fc6ef3ac056612345f72aa74"
     ],
+    "content_summary": "The Second Sacred Secret: Discover\nYour Inner Truth\nBy Preethaji\nEvery one of us aspires to greatness—to  be a great parent, a great partner, a great\nprofessional, a great athlete, a great wealth creator, or a great change-maker. But\nit is my deep co...",
+    "content_length": 24873,
     "created_at": "2026-05-14T23:14:44.154555+00:00",
-    "updated_at": "2026-05-15T00:27:26.800768+00:00",
+    "updated_at": "2026-05-15T16:01:18.610638+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260515_044444_333e13a3",
-    "error_msg": "",
-    "metadata": {}
+    "metadata": {
+      "processing_start_time": 1778860694,
+      "processing_end_time": 1778860878
+    }
   },
   "doc-e5f3d8a172f2f23f96090fa5d170acbe": {
-    "status": "pending",
+    "status": "failed",
+    "error_msg": "C[1/6]: chunk-676c070f41c08ddde395290878529cf3: All connection attempts failed",
+    "chunks_count": 6,
+    "chunks_list": [
+      "chunk-2bd00175db71e25481fb9ce67f057b84",
+      "chunk-676c070f41c08ddde395290878529cf3",
+      "chunk-da4b247a4eac03fe686b0059bd126928",
+      "chunk-dc33576be7c40b3be079f258d63f03be",
+      "chunk-7146bcb62c68c22b68c6b0cc9e8d3a09",
+      "chunk-6af7eefe80697b9b2cf1b0520fd6a984"
+    ],
     "content_summary": "The Second Life Journey: Dissolve\nthe Inner Divide\nBy Preethaji\nWhen our daughter, Lokaa, was ve years old, her English tutor gave her a poem\ntitled “Inside-Outside,” by Abigail Grith, that began:\nMy inside self and my outside self\nAre diﬀerent as ca...",
     "content_length": 31726,
     "created_at": "2026-05-15T00:27:26.671958+00:00",
-    "updated_at": "2026-05-15T00:27:26.671973+00:00",
+    "updated_at": "2026-05-15T16:07:25.311226+00:00",
     "file_path": "unknown_source",
     "track_id": "insert_20260515_055726_9e3fbb99",
-    "chunks_list": []
+    "metadata": {
+      "processing_start_time": 1778860878,
+      "processing_end_time": 1778861245
+    }
+  },
+  "doc-b659999f53b917cd7af0890dcdd85eeb": {
+    "status": "failed",
+    "error_msg": "C[1/5]: chunk-1a4e20db18753630cc0835f806d71f29: peer closed connection without sending complete message body (incomplete chunked read)",
+    "chunks_count": 5,
+    "chunks_list": [
+      "chunk-c2e9550af5ee4cb36f1fd8cf174ec458",
+      "chunk-747dd6f3fc344d596e672f021c5892ee",
+      "chunk-2a44f8cb9c9f8ea13650035b5bbd408c",
+      "chunk-1a4e20db18753630cc0835f806d71f29",
+      "chunk-6d0566c8fa6f2aed45fb2e69b00761b1"
+    ],
+    "content_summary": "are? How did we become such self-preoccupied individuals?\nWhy Am I Unhappy?\nWho is the rst person you wake up to every morning? Who is the person you\nspend every moment of your life with, even in your dreams? Who is it you are\nwith when you are alone...",
+    "content_length": 28377,
+    "created_at": "2026-05-15T08:07:11.518488+00:00",
+    "updated_at": "2026-05-15T16:07:25.297788+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260515_133711_cc462009",
+    "metadata": {
+      "processing_start_time": 1778860878,
+      "processing_end_time": 1778861245
+    }
   }
 }

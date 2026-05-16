@@ -243,3 +243,8 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Architecture**: A "Transcript Council" logic fallback allows the system to seamlessly switch to local Whisper when cloud/YT sources fail. This maintains 100% ingestion coverage without API dependencies.
 - **Environment**: Native macOS hardware access is required for MLX; ingestion runs in a Python 3.12 venv on the host to leverage the Apple Neural Engine and Metal.
 - **Transcript Council**: Hybrid scoring (Word count + Punctuation + Domain Terms) ensures that the highest quality transcript is selected, whether it's from YouTube captions or local Whisper.
+
+### 11. Backend Unit Testing Mocks (May 2026)
+- **Symptom**: `test_chat_endpoint_success` was failing with `AssertionError: assert 'I apologize, something went wrong.' == 'This is a mocked response'`.
+- **Root Cause**: The RAG graph `ainvoke` method mock was returning a dictionary with `"final_response"` instead of the expected `"final_answer"`. The `chat_endpoint` uses `result.get("final_answer", "I apologize, something went wrong.")` which fell back silently to the default failure message, masking the actual mock configuration error.
+- **Lesson**: When mocking complex pipeline outputs (like `langgraph` state dictionaries), ensure all dictionary keys precisely match the consumption logic in the endpoint. A silent `.get()` fallback can obscure configuration errors.
