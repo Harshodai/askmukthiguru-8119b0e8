@@ -1,6 +1,6 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
@@ -14,6 +14,8 @@ interface ChatMessageProps {
   queryText?: string;
   index?: number;
   isStreaming?: boolean;
+  isLastGuru?: boolean;
+  onRegenerate?: () => void;
 }
 
 const getDomain = (url: string): string => {
@@ -27,7 +29,7 @@ const getDomain = (url: string): string => {
 const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, queryText, index = 0, isStreaming = false }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
     // Extract inline YouTube URLs from content as fallback citations
@@ -168,6 +170,16 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 </p>
                 {isGuru && message.content && !isStreaming && (
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    {/* Regenerate — only on last guru message */}
+                    {isLastGuru && onRegenerate && (
+                      <button
+                        onClick={onRegenerate}
+                        className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                        title="Regenerate response"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleVote('up')}
                       className={`p-1 rounded-full transition-colors ${

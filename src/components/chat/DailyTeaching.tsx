@@ -19,9 +19,11 @@ export const DailyTeaching = () => {
   );
 
   const fetchTeaching = useCallback(async () => {
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('daily_teachings')
       .select('id, image_url, caption')
+      .or(`expires_at.is.null,expires_at.gte.${now}`)   // skip expired
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -34,6 +36,7 @@ export const DailyTeaching = () => {
       caption: data.caption ?? undefined,
     });
   }, []);
+
 
   useEffect(() => {
     fetchTeaching();
@@ -88,6 +91,7 @@ export const DailyTeaching = () => {
               alt="Today's teaching from the Gurus"
               className="w-full h-full object-cover"
               loading="lazy"
+              onError={() => setTeaching(null)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent" />
           </div>

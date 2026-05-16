@@ -33,6 +33,7 @@ export interface UserProfile {
   id: string;
   displayName: string;
   avatarDataUrl: string | null; // base64 data URL (kept small, validated)
+  avatarUrl?: string | null; // Remote URL (e.g. Google profile photo)
   bio: string;
   preferredLanguage: 'en' | 'hi' | 'te' | 'ml';
   guruTone: GuruTone;
@@ -224,8 +225,32 @@ export const syncProfileToServer = async (profile: UserProfile) => {
 
 /**
  * Fetch profile from server and merge with local.
+ * Also syncs display name / avatar from Supabase auth metadata so OAuth users
+ * (Google, etc.) always see their real name even without a backend.
  */
 export const fetchProfileFromServer = async () => {
+  // ── Step 1: Sync from Supabase auth user_metadata (works without backend) ──
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const meta = user.user_metadata ?? {};
+      const metaName: string = meta.full_name || meta.name || '';
+      const metaAvatar: string = meta.avatar_url || meta.picture || '';
+      const current = loadProfile();
+      const patch: Partial<UserProfile> = {};
+      if (metaName && (current.displayName === 'Seeker' || current.displayName === '')) {
+        patch.displayName = metaName.trim().slice(0, 40);
+      }
+      if (metaAvatar && !current.avatarDataUrl && !current.avatarUrl) {
+        patch.avatarUrl = metaAvatar;
+      }
+      if (Object.keys(patch).length > 0) {
+        saveProfile({ ...current, ...patch }, false);
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Step 2: Sync from backend API (only if backend is configured) ──
   if (!HAS_CUSTOM_BACKEND) return null;
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -255,7 +280,7 @@ export const fetchProfileFromServer = async () => {
   } catch (err) {
     console.error('Fetch profile error:', err);
   }
-  return null;
+  return loadProfile();
 };
 
 export const updateProfile = (patch: Partial<UserProfile>): UserProfile => {

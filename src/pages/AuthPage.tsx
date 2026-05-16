@@ -52,6 +52,29 @@ const AuthPage = () => {
           return;
         }
 
+        // ── OAuth / email signup name sync ─────────────────────────
+        // Seed local profile from Supabase user_metadata so Google OAuth users
+        // never get stuck with the default 'Seeker' display name.
+        const meta = session.user.user_metadata ?? {};
+        const metaName: string = meta.full_name || meta.name || '';
+        const metaAvatar: string = meta.avatar_url || meta.picture || '';
+        try {
+          const { loadProfile, updateProfile } = await import('@/lib/profileStorage');
+          const local = loadProfile();
+          const patch: Record<string, string> = {};
+          if (metaName && (local.displayName === 'Seeker' || local.displayName === '')) {
+            patch.displayName = metaName.trim().slice(0, 40);
+          }
+          if (metaAvatar && !local.avatarDataUrl) {
+            // Store avatar URL directly (Google serves HTTPS URLs)
+            patch.avatarUrl = metaAvatar;
+          }
+          if (Object.keys(patch).length > 0) {
+            updateProfile(patch as Parameters<typeof updateProfile>[0]);
+          }
+        } catch { /* non-fatal */ }
+        // ─────────────────────────────────────────────────────────────
+
         // Fetch profile to see if it's default
         const { loadProfile, fetchProfileFromServer } = await import('@/lib/profileStorage');
         const serverProfile = await fetchProfileFromServer();

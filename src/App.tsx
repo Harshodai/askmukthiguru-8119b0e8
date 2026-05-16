@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
+import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 
 // Pages
 const Index = lazy(() => import("./pages/Index"));
@@ -57,10 +58,10 @@ const App = () => {
         <Routes>
           {/* Admin */}
           <Route path="/admin/login" element={
-            <Suspense fallback={<div>Loading...</div>}><AdminLoginPage /></Suspense>
+            <Suspense fallback={<BrandedSpinner />}><AdminLoginPage /></Suspense>
           } />
           <Route path="/admin" element={
-            <Suspense fallback={<div>Loading...</div>}><AdminShell /></Suspense>
+            <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
           }>
             <Route index element={<OverviewPage />} />
             <Route path="queries" element={<QueriesPage />} />
@@ -81,17 +82,17 @@ const App = () => {
 
           {/* Seeker */}
           <Route element={<DebugLayout />}>
-            <Route path="/" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><Index /></Suspense>} />
-            <Route path="/auth" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><AuthPage /></Suspense>} />
-            <Route path="/auth/diagnostics" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><AuthDiagnosticsPage /></Suspense>} />
-            <Route path="/reset-password" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><ResetPasswordPage /></Suspense>} />
-            <Route path="/privacy" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><PrivacyPage /></Suspense>} />
-            <Route path="/terms" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><TermsPage /></Suspense>} />
-            <Route path="/chat" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><ChatPage /></Suspense>} />
-            <Route path="/profile" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><ProfilePage /></Suspense>} />
-            <Route path="/practices" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><PracticesPage /></Suspense>} />
-            <Route path="/practices/:slug" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><PracticeDetailPage /></Suspense>} />
-            <Route path="*" element={<Suspense fallback={<div className="h-screen w-full flex items-center justify-center">Loading...</div>}><NotFound /></Suspense>} />
+            <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
+            <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
+            <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
+            <Route path="/reset-password" element={<Suspense fallback={<BrandedSpinner />}><ResetPasswordPage /></Suspense>} />
+            <Route path="/privacy" element={<Suspense fallback={<BrandedSpinner />}><PrivacyPage /></Suspense>} />
+            <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
+            <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
+            <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
+            <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
+            <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
+            <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
           </Route>
         </Routes>
         <SessionExpiredHandler />
