@@ -231,8 +231,8 @@ const ProfilePage = () => {
                   <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
                     <div className="relative group">
                       <Avatar className="w-24 h-24 ring-2 ring-border transition-all group-hover:ring-ojas/40">
-                        {profile.avatarDataUrl ? (
-                          <AvatarImage src={profile.avatarDataUrl} />
+                        {(profile.avatarDataUrl || profile.avatarUrl) ? (
+                          <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
                         ) : null}
                         <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-bold">
                           {getInitials(profile.displayName)}

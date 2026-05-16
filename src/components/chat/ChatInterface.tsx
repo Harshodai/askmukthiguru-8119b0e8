@@ -331,19 +331,20 @@ export const ChatInterface = () => {
     }
   }, [messages, isTyping, scrollToBottom]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
-    if (!inputValue.trim() || isTyping) return;
+    const textToSend = overrideText ?? inputValue;
+    if (!textToSend.trim() || isTyping) return;
 
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
-      content: inputValue.trim(),
+      content: textToSend.trim(),
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
+    if (!overrideText) setInputValue('');
     
     // Reset textarea height
     if (inputRef.current) {
@@ -396,6 +397,8 @@ export const ChatInterface = () => {
     let streamingWorked = false;
     let fullContent = '';
     let finalIntent = 'CASUAL';
+    // Declared OUTSIDE try so finally block can access it
+    let checkpointInterval: ReturnType<typeof setInterval> | undefined;
 
     try {
       const stream = sendMessageStreaming(
@@ -423,7 +426,7 @@ export const ChatInterface = () => {
       setIsTyping(false);
 
       // ── 500ms stream persistence checkpoint ────────────────────────
-      const checkpointInterval = setInterval(() => {
+      checkpointInterval = setInterval(() => {
         if (fullContent.length > 20) {
           try {
             sessionStorage.setItem('askmukthiguru_stream_checkpoint', JSON.stringify({
@@ -608,25 +611,20 @@ export const ChatInterface = () => {
   // ── Regenerate last guru response ─────────────────────────────────
   const handleRegenerate = useCallback(() => {
     if (isStreaming || isTyping) return;
+    // Capture last user text BEFORE mutating messages state
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMsg) return;
+    // Remove the last guru message
     setMessages(prev => {
-      // Find and remove the last guru message
       const lastGuruIdx = [...prev].reverse().findIndex(m => m.role === 'guru');
       if (lastGuruIdx === -1) return prev;
       const realIdx = prev.length - 1 - lastGuruIdx;
       return prev.filter((_, i) => i !== realIdx);
     });
-    // Find the last user message to re-submit
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (lastUserMsg) {
-      // Slight delay to allow state update to settle
-      setTimeout(() => {
-        setInputValue(lastUserMsg.content);
-        // Simulate submit
-        const synth = new Event('submit') as any;
-        synth.preventDefault = () => {};
-        handleSubmit(synth);
-      }, 100);
-    }
+    // Call handleSubmit with overrideText — zero state timing dependency
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, lastUserMsg.content);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStreaming, isTyping, messages]);
   // ─────────────────────────────────────────────────────────────────
 

@@ -151,6 +151,9 @@ export const saveConversation = (conversation: Conversation): void => {
     // Keep only the last MAX_CONVERSATIONS
     const trimmed = conversations.slice(0, MAX_CONVERSATIONS);
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(trimmed));
+
+    // Notify sidebar (DesktopSidebar listens for this to reload its list)
+    window.dispatchEvent(new CustomEvent('conversation:updated'));
   } catch (error) {
     console.error('Failed to save conversation:', error);
   }

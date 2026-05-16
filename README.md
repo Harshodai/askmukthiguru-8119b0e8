@@ -155,3 +155,32 @@ the RAG context.
 ## License
 
 Private — All rights reserved.
+
+## Frontend Architecture (May 2026)
+
+### Key UI Components
+| Component | Description |
+|---|---|
+| `DesktopSidebar.tsx` | Collapsible icon-rail sidebar (56px ↔ 280px), `Cmd+B` shortcut, auto-refreshes on `conversation:updated` event |
+| `BrandedSpinner.tsx` | Branded loading fallback (replaces all `<Suspense>` bare `Loading...`) |
+| `GuidedMeditationFlow.tsx` | Post-session reflection flow: mood → journal → gratitude |
+| `DailyTeaching.tsx` | Realtime teaching banner with `expires_at` filter and broken-image fallback |
+
+### Auth Behaviour
+- Google OAuth users receive their full name and avatar URL from `user_metadata` immediately on first sign-in.
+- `useProfile` always re-reads `localStorage` after server sync to pick up metadata writes.
+- `clearProfile()` in `profileStorage.ts` should be called on sign-out.
+
+### Stream Persistence
+- Active streaming is checkpointed to `sessionStorage` every 500ms.
+- Checkpoint key: `askmukthiguru_stream_checkpoint`. Cleared in `finally` on completion.
+- Restored on mount if checkpoint is < 60s old.
+
+### Testing
+```bash
+# Auth + stream checkpoint unit tests
+npx vitest run src/tests/auth.e2e.test.ts
+
+# RAG quality benchmark (requires running Docker stack)
+python scripts/benchmark_rag_responses.py --base-url http://localhost:8000
+```
