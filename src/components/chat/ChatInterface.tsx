@@ -464,7 +464,7 @@ export const ChatInterface = () => {
         }
 
         // Trigger Serene Mind if distress detected in streaming
-        if (streamedIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
+        if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
           openSereneMind('audio');
         }
       }
