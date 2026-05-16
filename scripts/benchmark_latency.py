@@ -230,6 +230,124 @@ async def main(url: str, n: int, concurrency: int) -> None:
         else:
             print(f"  ❌ All concurrent requests failed")
 
+        # ── Phase 4: Multi-turn Conversation Flow ──
+        # Simulates a real seeker journey through the platform:
+        # greeting → spiritual question → follow-up → distress → Serene Mind steps
+        print(f"\n{'─'*80}")
+        print(f"  PHASE 4: Multi-Turn Conversation Flow")
+        print(f"{'─'*80}")
+
+        CONVERSATION_SCENARIOS = [
+            {
+                "name": "Seeker Journey: Greeting → Knowledge → Distress → Serene Mind",
+                "turns": [
+                    {"msg": "Namaste Guruji, I am new here.", "expect_intent": "CASUAL", "expect_med": 0},
+                    {"msg": "Can you tell me about the Four Sacred Secrets?", "expect_intent": "QUERY", "expect_med": 0},
+                    {"msg": "That is beautiful. How does the second secret about Inner Truth work?", "expect_intent": "QUERY", "expect_med": 0},
+                    {"msg": "I try to practice but I feel overwhelmed and hopeless.", "expect_intent": "DISTRESS", "expect_med": None},
+                    {"msg": "Yes, please guide me through the Serene Mind meditation.", "expect_intent": None, "expect_med": None},
+                    {"msg": "I am ready for the next step.", "expect_intent": None, "expect_med": None},
+                ],
+            },
+            {
+                "name": "Returning Seeker: Soul Sync → Deeper Question → Gratitude",
+                "turns": [
+                    {"msg": "I did Soul Sync this morning and feel wonderful.", "expect_intent": "CASUAL", "expect_med": 0},
+                    {"msg": "What is the relationship between consciousness and the beautiful state?", "expect_intent": "QUERY", "expect_med": 0},
+                    {"msg": "How can I stay in the beautiful state during stressful work?", "expect_intent": "QUERY", "expect_med": 0},
+                    {"msg": "Thank you Guruji, this is very helpful. Namaste.", "expect_intent": "CASUAL", "expect_med": 0},
+                ],
+            },
+        ]
+
+        conv_results = []
+        for scenario in CONVERSATION_SCENARIOS:
+            print(f"\n  📖 {scenario['name']}")
+            print(f"  {'─'*70}")
+            messages_history = []
+            med_step = 0
+
+            for i, turn in enumerate(scenario["turns"], 1):
+                messages_history.append({"role": "user", "content": turn["msg"]})
+                t0 = time.perf_counter()
+                try:
+                    r = await client.post(f"{url}/api/chat", json={
+                        "messages": messages_history,
+                        "user_message": turn["msg"],
+                        "meditation_step": med_step,
+                    }, timeout=90.0)
+                    elapsed = (time.perf_counter() - t0) * 1000
+
+                    if r.status_code == 200:
+                        body = r.json()
+                        intent = body.get("intent", "?")
+                        new_med = body.get("meditation_step", 0)
+                        resp_text = body.get("response", "")
+                        citations = body.get("citations", [])
+                        blocked = body.get("blocked", False)
+
+                        # Track intent transition
+                        intent_match = "✅" if turn["expect_intent"] is None or intent == turn["expect_intent"] else "⚠️"
+                        med_match = "✅" if turn["expect_med"] is None or new_med == turn["expect_med"] else "⚠️"
+
+                        print(f"  Turn {i}: {turn['msg'][:50]}")
+                        print(f"    ├─ Intent   : {intent_match} {intent} (expected: {turn['expect_intent'] or 'any'})")
+                        print(f"    ├─ Med Step : {med_match} {med_step}→{new_med}")
+                        print(f"    ├─ Latency  : {elapsed:.0f}ms")
+                        print(f"    ├─ Citations: {len(citations)}")
+                        print(f"    ├─ Blocked  : {blocked}")
+                        print(f"    └─ Response : {resp_text[:80]}{'…' if len(resp_text)>80 else ''}")
+
+                        # Update conversation state
+                        messages_history.append({"role": "assistant", "content": resp_text})
+                        if new_med > 0:
+                            med_step = new_med
+
+                        conv_results.append({
+                            "scenario": scenario["name"], "turn": i,
+                            "query": turn["msg"][:50], "intent": intent,
+                            "meditation_step": new_med, "latency_ms": round(elapsed, 1),
+                            "citations": len(citations), "response_len": len(resp_text),
+                            "blocked": blocked, "error": "",
+                        })
+                    else:
+                        print(f"  Turn {i}: ❌ HTTP {r.status_code}")
+                        conv_results.append({
+                            "scenario": scenario["name"], "turn": i,
+                            "query": turn["msg"][:50], "intent": "?",
+                            "meditation_step": 0, "latency_ms": round(elapsed, 1),
+                            "citations": 0, "response_len": 0,
+                            "blocked": False, "error": f"HTTP {r.status_code}",
+                        })
+                except Exception as e:
+                    print(f"  Turn {i}: ❌ {str(e)[:60]}")
+                    conv_results.append({
+                        "scenario": scenario["name"], "turn": i,
+                        "query": turn["msg"][:50], "intent": "?",
+                        "meditation_step": 0, "latency_ms": 0,
+                        "citations": 0, "response_len": 0,
+                        "blocked": False, "error": str(e)[:80],
+                    })
+
+        # ── Phase 5: Pipeline Health & Service Status ──
+        print(f"\n{'─'*80}")
+        print(f"  PHASE 5: Pipeline Health & Service Status")
+        print(f"{'─'*80}")
+        health_checks = [
+            ("/api/health", "Backend core"),
+            ("/api/admin/kpis", "Admin KPIs (telemetry DB)"),
+        ]
+        for endpoint, label in health_checks:
+            try:
+                hr = await client.get(f"{url}{endpoint}", timeout=10.0)
+                if hr.status_code == 200:
+                    body = hr.json() if hr.headers.get("content-type", "").startswith("application/json") else {}
+                    print(f"  ✅ {label:<30} {hr.status_code}  {json.dumps(body)[:80]}")
+                else:
+                    print(f"  ⚠️  {label:<30} {hr.status_code}")
+            except Exception as e:
+                print(f"  ❌ {label:<30} {str(e)[:50]}")
+
     # ═══════════════════════════════════════════════════════════════════
     # ANALYSIS
     # ═══════════════════════════════════════════════════════════════════
@@ -319,6 +437,21 @@ async def main(url: str, n: int, concurrency: int) -> None:
             print(f"    p50 TTFT : {pct(ttfts, 50):>7.0f}ms")
             print(f"    p95 TTFT : {pct(ttfts, 95):>7.0f}ms")
 
+        # Conversation flow summary
+        if conv_results:
+            print(f"\n  Conversation Flow Analysis:")
+            ok_conv = [c for c in conv_results if not c["error"]]
+            conv_lats = [c["latency_ms"] for c in ok_conv]
+            print(f"    Total turns    : {len(conv_results)}")
+            print(f"    Successful     : {len(ok_conv)}/{len(conv_results)}")
+            if conv_lats:
+                print(f"    Avg turn lat.  : {statistics.mean(conv_lats):>7.0f}ms")
+            max_med = max((c["meditation_step"] for c in ok_conv), default=0)
+            if max_med > 0:
+                print(f"    Max med step   : {max_med} (Serene Mind reached)")
+            else:
+                print(f"    Max med step   : 0 (Serene Mind NOT triggered)")
+
         # Verdict
         p99 = pct(lats, 99)
         print(f"\n{'═'*80}")
@@ -342,6 +475,7 @@ async def main(url: str, n: int, concurrency: int) -> None:
         "results": [r._asdict() for r in results],
         "stream_results": stream_results,
         "concurrent_latencies": conc_latencies,
+        "conversation_flows": conv_results,
     }
     with open("benchmark_results.json", "w") as f:
         json.dump(out, f, indent=2)
