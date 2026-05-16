@@ -97,16 +97,22 @@ const AuthPage = () => {
         try {
           const { data: ensured, error: ensureErr } = await (supabase.rpc as unknown as (
             fn: string,
-          ) => Promise<{ data: { ok: boolean; profile_created: boolean; role_created: boolean } | null; error: { message: string } | null }>)(
+          ) => Promise<{ data: { ok: boolean; profile_created: boolean; role_created: boolean } | null; error: { message: string; code?: string } | null }>)(
             'ensure_profile_and_role',
           );
           if (ensureErr) {
             console.error('[Auth] ensure_profile_and_role failed', ensureErr);
-            toast({
-              title: 'Account setup issue',
-              description: 'We could not finish setting up your account. Visit /auth/diagnostics for details.',
-              variant: 'destructive',
-            });
+            // 404 / "function does not exist" = migration not applied yet — NOT a user-facing error.
+            // Only show destructive toast for real auth or server failures.
+            const msg = (ensureErr.message ?? '').toLowerCase();
+            const isSchemaGap = msg.includes('404') || msg.includes('does not exist') || msg.includes('could not find') || msg.includes('function');
+            if (!isSchemaGap) {
+              toast({
+                title: 'Account setup issue',
+                description: 'We could not finish setting up your account. Visit /auth/diagnostics for details.',
+                variant: 'destructive',
+              });
+            }
           } else {
             console.info('[Auth] ensure_profile_and_role', ensured);
           }

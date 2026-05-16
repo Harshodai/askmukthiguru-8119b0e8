@@ -32,15 +32,18 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
-    // Extract inline YouTube URLs from content as fallback citations
+    // Extract any https:// URL from the guru's response as a fallback citation.
+    // Covers: YouTube links, source references like "Source: https://...", inline citations.
     const inlineUrls = isGuru
       ? Array.from(new Set(
-          (message.content.match(/https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[\w-]+/g) ?? [])
+          (message.content.match(/https?:\/\/[^\s\)"'<>]+/g) ?? [])
+            .filter(u => { try { new URL(u); return true; } catch { return false; } })
         ))
       : [];
     const citations = (message.citations && message.citations.length > 0)
       ? message.citations
       : inlineUrls;
+
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
     const [feedback, setFeedback] = useState<MessageFeedback | null>(message.feedback ?? null);
