@@ -68,8 +68,28 @@ const AuthPage = () => {
 
     handleRedirect();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user && event === 'SIGNED_IN') {
+        // Guarantee profile + default role exist (covers Google, email, and any user the trigger missed)
+        try {
+          const { data: ensured, error: ensureErr } = await (supabase.rpc as unknown as (
+            fn: string,
+          ) => Promise<{ data: { ok: boolean; profile_created: boolean; role_created: boolean } | null; error: { message: string } | null }>)(
+            'ensure_profile_and_role',
+          );
+          if (ensureErr) {
+            console.error('[Auth] ensure_profile_and_role failed', ensureErr);
+            toast({
+              title: 'Account setup issue',
+              description: 'We could not finish setting up your account. Visit /auth/diagnostics for details.',
+              variant: 'destructive',
+            });
+          } else {
+            console.info('[Auth] ensure_profile_and_role', ensured);
+          }
+        } catch (rpcErr) {
+          console.error('[Auth] ensure_profile_and_role threw', rpcErr);
+        }
         handleRedirect();
       }
     });
