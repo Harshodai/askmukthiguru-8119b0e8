@@ -511,6 +511,21 @@ export const ChatInterface = () => {
         if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
           openSereneMind('audio');
         }
+
+        // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
+        // but backend didn't flag DISTRESS (e.g. serene_mind module not running),
+        // open the modal so the real guided session plays alongside the text.
+        if (finalIntent !== 'DISTRESS') {
+          const t = fullContent.toLowerCase();
+          const looksLikeSereneMind =
+            t.includes('serene mind') ||
+            t.includes('step 1/') ||
+            (t.includes('close your eyes') && t.includes('breath')) ||
+            (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
+          if (looksLikeSereneMind && meditationStep === 0) {
+            openSereneMind('breathing');
+          }
+        }
       }
     } catch {
       // Streaming failed — show toast if partial content was received
@@ -594,6 +609,19 @@ export const ChatInterface = () => {
 
         if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
+        }
+
+        // Heuristic fallback for non-streaming path (same logic as streaming)
+        if (response.intent !== 'DISTRESS') {
+          const t = (response.content || '').toLowerCase();
+          const looksLikeSereneMind =
+            t.includes('serene mind') ||
+            t.includes('step 1/') ||
+            (t.includes('close your eyes') && t.includes('breath')) ||
+            (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
+          if (looksLikeSereneMind && meditationStep === 0) {
+            openSereneMind('breathing');
+          }
         }
       }
     } catch (error) {
