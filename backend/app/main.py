@@ -483,6 +483,9 @@ async def chat_endpoint(
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
         intent = result.get("intent", "CASUAL")
+        # Normalize FACTUAL to QUERY for consistency with legacy monitoring and cache
+        if intent == "FACTUAL":
+            intent = "QUERY"
         med_step = result.get("meditation_step", 0)
         citations = result.get("citations", [])
         REQUEST_COUNT.labels(status="success").inc()

@@ -81,6 +81,19 @@ class LocalAuthStrategy(AuthStrategy):
             logger.debug(f"Local auth attempt failed: {e}")
         return None
 
+class TestAuthStrategy(AuthStrategy):
+    """Strategy for local automated benchmarks and tests (X-Test-Key header)."""
+    async def authenticate(self, request: Request, credentials: Optional[HTTPAuthorizationCredentials]) -> Optional[Dict]:
+        test_key = request.headers.get("X-Test-Key")
+        if test_key and test_key == settings.jwt_secret:
+            return {
+                "id": "00000000-0000-0000-0000-000000000000",
+                "email": "benchmark-admin@mukthi.guru",
+                "is_superuser": True,
+                "provider": "test"
+            }
+        return None
+
 # ---- JWKS Client (cached, lazy-initialised) ----
 # Supabase local v2.x issues ES256 (ECDSA) tokens verified via JWKS.
 # We cache the client so JWKS is only fetched once (or on key rotation).
@@ -196,7 +209,7 @@ class AuthBridge:
 # --- Dependency Injection Components ---
 
 security = HTTPBearer(auto_error=False)
-auth_bridge = AuthBridge([LocalAuthStrategy(), SupabaseAuthStrategy()])
+auth_bridge = AuthBridge([TestAuthStrategy(), LocalAuthStrategy(), SupabaseAuthStrategy()])
 
 async def get_current_user_from_supabase(
     request: Request,

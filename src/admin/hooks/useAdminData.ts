@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import * as api from "@/admin/lib/mockData";
+import * as api from "@/admin/lib/api";
 import { useAdminFilters } from "@/admin/lib/filtersStore";
 import type { QueryFilters, TimeseriesMetric } from "@/admin/types";
 
