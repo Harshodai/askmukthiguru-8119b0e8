@@ -43,7 +43,17 @@ export const DesktopSidebar = ({
 
   const reload = useCallback(() => setConversations(loadConversations()), []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    // Listen for localStorage changes from any component (new message, new conversation, delete)
+    window.addEventListener('storage', reload);
+    // Custom event fired by ChatInterface when conversation state changes
+    window.addEventListener('conversation:updated', reload);
+    return () => {
+      window.removeEventListener('storage', reload);
+      window.removeEventListener('conversation:updated', reload);
+    };
+  }, [reload]);
 
   // Keyboard shortcut: Cmd+B / Ctrl+B
   useEffect(() => {

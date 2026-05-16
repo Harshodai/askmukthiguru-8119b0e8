@@ -125,3 +125,23 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - **C13** Prefetch `/chat` chunk + warm Supabase auth from landing
 - **G26** `react-helmet-async` per-route SEO + branded OG image
 - **G28** JSON-LD Organization + FAQPage on landing
+
+## ✅ Completed (May 2026 Production Hardening Sprint)
+
+- **Sidebar redesign v2** — Collapsible icon-rail (56px ↔ 280px), `Cmd+B` shortcut, grouped history, auto-refreshes via `conversation:updated` event
+- **D17** Partial-stream persistence — 500ms `sessionStorage` checkpoint, restored on reload with Regenerate nudge
+- **D18b** Regenerate button — `RotateCcw` hover-reveal on last guru message; calls `handleSubmit(fakeEvent, overrideText)` directly (no state race condition)
+- **G26** Per-route SEO — `og:image`, `twitter:image`, `summary_large_image` tags on every route
+- **G28** JSON-LD Organization + FAQPage on `/`; WebApplication JSON-LD on `/chat`
+- **Auth/OAuth** — Full name + avatar from `user_metadata` seeded on first sign-in; `clearProfile()` on sign-out; `useProfile` always re-reads after server sync
+- **Post-meditation reflection** — 3-step flow (mood → journal → gratitude) saved to `meditationStorage`
+- **DailyTeaching** — `expires_at` TTL filter + broken-image `onError` fallback
+- **Auth tests** — 10 passing unit tests in `src/tests/auth.e2e.test.ts`
+- **RAG benchmark** — `scripts/benchmark_rag_responses.py` with 10 curated spiritual queries
+
+### Still to do
+- **K35** Full Playwright E2E (signup → chat → meditation → admin)
+- **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat
+- **D20** Mobile swipe-from-left to open sidebar
+- **C12** Daily-teaching webp + `srcset` via Supabase Storage transforms
+- **B6** RAGAS thresholds in `make eval` + CI gate (requires Docker)

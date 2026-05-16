@@ -80,6 +80,19 @@ export const createDefaultProfile = (): UserProfile => {
   };
 };
 
+/** Shared sentinel for the default display name — used to detect un-seeded profiles. */
+export const DEFAULT_DISPLAY_NAME = 'Seeker';
+
+/** Remove profile from localStorage (used on sign-out). */
+export const clearProfile = (): void => {
+  try {
+    localStorage.removeItem(PROFILE_KEY);
+  } catch {
+    // ignore
+  }
+};
+
+
 const MAX_HISTORY = 50;
 
 /**
