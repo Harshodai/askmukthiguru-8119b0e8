@@ -46,10 +46,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     │   ├── qdrant_service.py    # Qdrant vector DB client
     │   ├── ocr_service.py       # EasyOCR
     │   └── depression_detector.py # Distress detection
-    ├── guardrails/rails.py # NeMo Guardrails input/output rails
+    ├── guardrails/rails.py # Zero-Shot LLM Guardrails
     ├── models/            # Sarvam 30B setup scripts + Modelfile
     ├── colab/             # Google Colab setup & backup scripts
-    └── docker-compose.yml # Qdrant + Backend (Ollama runs on host)
+    └── docker-compose.yml # Qdrant, Neo4j, Redis + Backend (Ollama runs on host)
 ```
 
 ## Development Commands
@@ -75,17 +75,17 @@ venv\Scripts\activate        # Windows
 source venv/bin/activate     # Linux/Mac
 pip install -r requirements.txt
 
-# Run locally (requires Qdrant running separately)
+# Run locally (requires Qdrant, Redis, Neo4j running separately)
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Run Qdrant (Docker, from backend/ directory)
-docker run -p 6333:6333 -p 6334:6334 -v ${PWD}/qdrant_storage:/qdrant/storage qdrant/qdrant:v1.13.2
+# Run required infrastructure (Docker, from backend/ directory)
+docker compose up -d qdrant redis neo4j jaeger
 ```
 
 ### Docker (Recommended)
 ```bash
 cd backend
-docker compose up -d --build   # Start Qdrant + Backend
+docker compose up -d --build   # Start Qdrant, Redis, Neo4j, Jaeger + Backend
 docker compose logs -f         # Stream logs
 docker compose logs -f backend # Backend logs only
 docker compose down            # Stop all
@@ -110,6 +110,8 @@ chmod +x setup_sarvam.sh && ./setup_sarvam.sh   # Linux/Colab
 | Qdrant Dashboard | http://localhost:6333/dashboard |
 | Prometheus Metrics | http://localhost:8000/metrics |
 | Health Check | http://localhost:8000/api/health |
+| Jaeger Traces | http://localhost:16686 |
+| Neo4j Browser | http://localhost:7474 |
 
 ## Configuration
 
@@ -127,14 +129,14 @@ Config is loaded via `app/config.py` (`pydantic-settings`). Import as `from app.
 
 The chat endpoint (`POST /api/chat`) runs every message through:
 
-1. **NeMo Input Rail** (`guardrails/rails.py`) — blocks harmful/off-topic input
+1. **Zero-Shot Input Rail** (`guardrails/rails.py`) — blocks harmful/off-topic input
 2. **Depression Detector** (`services/depression_detector.py`) — fast-path to meditation
 3–11. **LangGraph State Machine** (`rag/graph.py`) — assembled from nodes in `rag/nodes.py`:
    - `intent_router` → DISTRESS / CASUAL / QUERY
-   - QUERY path: `decompose_query` → `retrieve_documents` → `rerank_documents` → `grade_documents`
+   - QUERY path: `decompose_query` → `retrieve_documents` (Parent-Child) → `rerank_documents` → `grade_documents`
    - CRAG loop: if docs irrelevant → `rewrite_query` → retrieve again (max 3x)
    - `extract_hints` (Stimulus RAG) → `generate_answer` → `check_faithfulness` (Self-RAG) → `verify_answer` (CoVe) → `format_final_answer`
-12. **NeMo Output Rail** — moderates/blocks harmful output
+12. **Zero-Shot Output Rail** — moderates/blocks harmful output
 
 The `GraphState` TypedDict in `rag/states.py` is the data contract flowing through all nodes.
 
@@ -149,7 +151,7 @@ The `GraphState` TypedDict in `rag/states.py` is the data contract flowing throu
 5. Clean text (`cleaner.py`)
 6. Chunk with `RecursiveCharacterTextSplitter(500 chars, 50 overlap)`
 7. Embed with `all-MiniLM-L6-v2` → upsert to Qdrant (level 0: leaf chunks)
-8. Build RAPTOR tree (`raptor.py`): cluster chunks → summarize → embed summaries → upsert to Qdrant (level 1: summary nodes)
+8. Build Parent-Child index (`raptor.py`): chunks with metadata → upsert to Qdrant
 
 Playlist ingestion uses concurrent workers (`TRANSCRIPT_CONCURRENT_WORKERS=4`).
 
@@ -174,7 +176,7 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | **CRAG** | Corrective RAG — grade docs, rewrite query if poor, loop up to 3x |
 | **Self-RAG** | LLM checks its own answer for faithfulness to retrieved context |
 | **CoVe** | Chain of Verification — generate sub-questions to fact-check the answer |
-| **RAPTOR** | Recursive clustering + summarization of chunks into a 2-level tree |
+| **Parent-Child Retrieval** | 400-char child chunks in Qdrant, 1500-char Parent Context injected into the LLM |
 | **Beautiful State** | Core teaching concept — state of calm, joy, connection |
 | **Serene Mind** | 4-step guided meditation flow triggered by distress detection |
 
