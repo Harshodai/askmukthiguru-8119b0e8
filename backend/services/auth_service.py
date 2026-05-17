@@ -175,11 +175,28 @@ class SupabaseAuthStrategy(AuthStrategy):
                     options={"verify_aud": False},
                 )
 
+            user_id = payload.get("sub")
+            user_email = payload.get("email")
+            jwt_role = payload.get("role", "authenticated")
+
+            # service_role tokens are always superuser
+            if jwt_role == "service_role":
+                return {
+                    "id": user_id,
+                    "email": user_email,
+                    "role": jwt_role,
+                    "is_superuser": True,
+                    "provider": "supabase",
+                }
+
+            # For authenticated users, check user_roles table for admin role
+            is_admin = await self._check_admin_role(user_id)
+
             return {
-                "id": payload.get("sub"),
-                "email": payload.get("email"),
-                "role": payload.get("role", "authenticated"),
-                "is_superuser": payload.get("role") == "service_role",
+                "id": user_id,
+                "email": user_email,
+                "role": jwt_role,
+                "is_superuser": is_admin,
                 "provider": "supabase",
             }
 
@@ -192,6 +209,44 @@ class SupabaseAuthStrategy(AuthStrategy):
         except Exception as e:
             logger.error(f"Supabase auth bridge error: {type(e).__name__}: {e}")
             return None
+
+    # Simple TTL cache for admin role lookups
+    _admin_cache: Dict[str, tuple] = {}
+    _CACHE_TTL = 300  # 5 minutes
+
+    async def _check_admin_role(self, user_id: str) -> bool:
+        """Check if user has admin role via Supabase user_roles table."""
+        now = time.time()
+        cached = self._admin_cache.get(user_id)
+        if cached and (now - cached[1]) < self._CACHE_TTL:
+            return cached[0]
+
+        try:
+            import httpx
+            base_url = settings.supabase_url.rstrip("/")
+            service_key = getattr(settings, 'supabase_service_key', None) or settings.supabase_key
+            if not service_key:
+                logger.debug("No Supabase service key — cannot check admin role")
+                return False
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{base_url}/rest/v1/user_roles",
+                    params={"user_id": f"eq.{user_id}", "role": "eq.admin", "select": "id"},
+                    headers={
+                        "apikey": service_key,
+                        "Authorization": f"Bearer {service_key}",
+                    },
+                    timeout=5.0,
+                )
+                is_admin = resp.status_code == 200 and len(resp.json()) > 0
+                self._admin_cache[user_id] = (is_admin, now)
+                if is_admin:
+                    logger.info(f"User {user_id} confirmed as admin via user_roles")
+                return is_admin
+        except Exception as e:
+            logger.warning(f"Admin role check failed: {e}")
+            return False
 
 class AuthBridge:
     """Orchestrator for multiple Auth Strategies (SOLID: Single Responsibility)"""

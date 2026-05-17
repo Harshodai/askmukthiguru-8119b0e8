@@ -37,29 +37,15 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
         ? `Current platform metrics:\n${kpiContext}\n\n`
         : "";
 
-      const res = await fetch(`${backendUrl}/api/chat`, {
+      const res = await fetch(`${backendUrl}/api/admin/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an AI analytics assistant for the AskMukthiGuru admin dashboard. " +
-                "Answer questions about platform metrics, query volume, latency, costs, " +
-                "hallucination rates and serene mind triggers. Be concise (2-4 sentences). " +
-                "If data is unavailable say so — do not fabricate numbers.",
-            },
-            {
-              role: "user",
-              content: `${contextBlock}${question}`,
-            },
-          ],
-          user_message: `${contextBlock}${question}`,
-          meditation_step: 0,
+          question: question,
+          kpi_context: kpiContext || "",
         }),
       });
 

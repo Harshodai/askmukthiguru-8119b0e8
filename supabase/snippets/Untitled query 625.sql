@@ -1,1 +1,1 @@
-select * from user_profiles
+update auth.users set encrypted_password = crypt('Test1234!', gen_salt('bf')) where email = 'kharshaengineer@gmail.com';
