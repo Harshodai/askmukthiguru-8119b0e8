@@ -93,6 +93,12 @@ Before claiming a feature is "production-ready," verify:
 - **Multi-Stage Detection**: For high-stakes detection (like distress), a single method (e.g., keyword) is insufficient. Combining fast regex, nuanced LLM classification, and semantic embedding similarity provides the best balance of speed and accuracy.
 - **Telemetry Richness**: Telemetry should capture the *entire* lifecycle of a request, including retrieval scores and emotional assessments, to provide actionable insights for tuning the guru's responses.
 
+### Advanced RAG Hardening (Phase 1, 2, 3)
+- **Hierarchical Parent-Child Retrieval (Phase 2)**: Avoided heavy abstractions (LlamaIndex) and implemented native hierarchical splitting. We store 400-char child chunks in Qdrant but inject the 1500-char Parent Context into the LLM context window. This ensures high vector density while preserving the surrounding spiritual doctrine.
+- **Zero-Shot LLM Guardrails (Phase 3)**: When heavyweight safety frameworks (`guardrails-ai`, `nemo`) fail due to OS/Python constraints, a lightweight zero-shot classifier using `instructor` (Pydantic schema enforcement) over the local LLM provides highly robust threat detection that is far superior to brittle regex.
+- **Native Observability (Phase 1)**: Instead of fighting dependency hell with `ragas` or `trulens-eval`, we built `eval_ragas_native.py`. This script natively computes the RAG Triad (Faithfulness, Precision, Security Bypass) using the existing `OllamaService` grading prompts.
+- **Standalone Evaluation Scripts**: Never use FastAPI dependency injection (`get_container()`) in lightweight CLI evaluation scripts if they pull in framework-level dependencies that cause Python typing errors (`TypeError: unsupported operand type(s) for |: 'type' and 'type'`). Manually instantiate the core services (`OllamaService`, `QdrantService`) to keep the evaluation context pure.
+
 ---
 
 ## Critical Incident Report — 2026-05-10

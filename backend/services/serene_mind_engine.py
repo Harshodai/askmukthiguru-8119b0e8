@@ -501,11 +501,13 @@ class SereneMindEngine:
                 from app.dependencies import get_container
                 container = get_container()
                 if container.ollama:
-                    intent = await container.ollama.classify_intent(message[:512])
-                    if intent.strip().upper() == "DISTRESS":
+                    # Phase 3: Deterministic JSON outputs via Instructor
+                    structured_assessment = await container.ollama.classify_distress_structured(message[:512])
+                    if structured_assessment.get("is_distress"):
                         assessment.level = DistressLevel.MODERATE
-                        assessment.confidence = 0.55
-                        assessment.detected_signals.append("[LLM Stage 2] Semantic distress")
+                        assessment.confidence = structured_assessment.get("confidence", 0.55)
+                        reason = structured_assessment.get("reason", "Semantic distress")
+                        assessment.detected_signals.append(f"[LLM Stage 2] {reason}")
             except Exception as e:
                 logger.warning(f"Stage 2 LLM distress detection failed: {e}")
         

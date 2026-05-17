@@ -92,3 +92,12 @@ PyPDF2>=3.0.0
 pymupdf>=1.23.0
 PyYAML>=6.0.0
 openinference-instrumentation-langchain>=0.1.33,<1.0
+
+# --- Advanced RAG Optimization & Guardrails (Phase 2 & 3) ---
+dspy-ai>=2.4.0
+llama-index-core>=0.10.0
+llama-index-vector-stores-qdrant>=0.1.0
+llm-guard>=0.3.0
+guardrails-ai>=0.4.0
+ragas>=0.1.0
+trulens-eval>=0.28.0

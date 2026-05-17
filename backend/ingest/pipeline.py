@@ -199,27 +199,23 @@ class IngestionPipeline:
         # Step 1: Clean
         clean_text = clean_transcript(text)
 
-        # Step 2: Chunk (single split, reused for both index and RAPTOR)
+        # Step 2: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.3)
-        chunks = self._split_text(clean_text, title=title, speaker=speaker, topic=topic, semantic=max_accuracy)
-        
-        if not chunks:
-            return {"status": "error", "message": "No meaningful chunks", "source_url": source_url}
-
-        # Step 3: Document Augmentation (Ch 11 RAG Made Simple)
-        self._notify(on_progress, "Augmenting chunks...", 0.5)
-        augmented_chunks = await self._augment_chunks(chunks)
-
-        # Step 4: Proposition Chunking (Phase 2 Improvement)
+        extra_metadatas = None
         if max_accuracy:
-            self._notify(on_progress, "Refining propositions...", 0.7)
-            proposition_chunks = []
-            for chunk in augmented_chunks:
-                props = await self._proposition_split(chunk)
-                proposition_chunks.extend(props)
-            final_chunks = proposition_chunks
+            # Phase 2 Improvement: Parent-Child Hierarchical Chunking
+            self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.4)
+            final_chunks, extra_metadatas = self._hierarchical_split(clean_text, title=title, speaker=speaker, topic=topic)
+            chunks = final_chunks # For RAPTOR later
         else:
-            final_chunks = augmented_chunks
+            chunks = self._split_text(clean_text, title=title, speaker=speaker, topic=topic)
+            
+            # Step 3: Document Augmentation (only for standard mode to avoid blowing up child chunk tokens)
+            self._notify(on_progress, "Augmenting chunks...", 0.5)
+            final_chunks = await self._augment_chunks(chunks)
+
+        if not final_chunks:
+            return {"status": "error", "message": "No meaningful chunks", "source_url": source_url}
 
         # Step 5: Embed and index
         chunks_count = self._embed_and_index(
@@ -229,6 +225,7 @@ class IngestionPipeline:
             speaker=speaker,
             topic=topic,
             content_type=content_type,
+            extra_metadatas=extra_metadatas
         )
 
         # Step 6: RAPTOR tree
@@ -303,14 +300,25 @@ class IngestionPipeline:
         self._notify(on_progress, "Cleaning text...", 0.3)
         clean_text = clean_transcript(raw_text)
 
-        # Step 3: Chunk (single split, reused for both index and RAPTOR)
+        # Step 3: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
         video_title = result.get("title", "") or ""
         video_speaker = result.get("speaker", "Unknown")
         video_topic = result.get("topic", "Spiritual")
         
-        chunks = self._split_text(clean_text, title=video_title, speaker=video_speaker, topic=video_topic, semantic=max_accuracy)
-        if not chunks:
+        extra_metadatas = None
+        if max_accuracy:
+            self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.6)
+            final_chunks, extra_metadatas = self._hierarchical_split(clean_text, title=video_title, speaker=video_speaker, topic=video_topic)
+            chunks = final_chunks
+        else:
+            chunks = self._split_text(clean_text, title=video_title, speaker=video_speaker, topic=video_topic)
+            
+            # Step 4: Document Augmentation (Standard only)
+            self._notify(on_progress, "Augmenting chunks with potential questions...", 0.6)
+            final_chunks = await self._augment_chunks(chunks)
+        
+        if not final_chunks:
             return {
                 "status": "error",
                 "message": "No meaningful chunks after cleaning",
@@ -318,25 +326,6 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
             }
-
-        video_title = result.get("title", "") or ""
-
-        # Step 4: Document Augmentation (Ch 11 RAG Made Simple)
-        # Generate hypothetical questions for each chunk to improve retrieval recall.
-        self._notify(on_progress, "Augmenting chunks with potential questions...", 0.6)
-        augmented_chunks = await self._augment_chunks(chunks)
-
-        # Step 4.5: Proposition Chunking (Phase 2 Improvement)
-        # Break down augmented chunks into independent propositions for higher granularity.
-        if max_accuracy:
-            self._notify(on_progress, "Refining chunks into independent propositions...", 0.65)
-            proposition_chunks = []
-            for chunk in augmented_chunks:
-                props = await self._proposition_split(chunk)
-                proposition_chunks.extend(props)
-            final_chunks = proposition_chunks
-        else:
-            final_chunks = augmented_chunks
 
         # Step 5: Embed and index
         chunks_count = self._embed_and_index(
@@ -346,6 +335,7 @@ class IngestionPipeline:
             speaker=video_speaker,
             topic=video_topic,
             content_type="video",
+            extra_metadatas=extra_metadatas
         )
 
         # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
@@ -635,6 +625,7 @@ class IngestionPipeline:
         content_type: str,
         speaker: str = "Unknown",
         topic: str = "Spiritual",
+        extra_metadatas: Optional[list[dict]] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -654,8 +645,9 @@ class IngestionPipeline:
         embeddings = self._embedder.encode_batch(chunks)
 
         # Build metadata for each chunk
-        metadatas = [
-            {
+        metadatas = []
+        for i in range(len(chunks)):
+            base_meta = {
                 "source_url": source_url,
                 "title": title,
                 "speaker": speaker,
@@ -664,8 +656,9 @@ class IngestionPipeline:
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
             }
-            for i in range(len(chunks))
-        ]
+            if extra_metadatas and i < len(extra_metadatas):
+                base_meta.update(extra_metadatas[i])
+            metadatas.append(base_meta)
 
         # Upsert to Qdrant with both dense and sparse vectors
         return self._qdrant.upsert_chunks(
@@ -674,6 +667,54 @@ class IngestionPipeline:
             metadatas,
             sparse_vectors=embeddings['sparse'],
         )
+
+    def _hierarchical_split(self, text: str, title: str = "", speaker: str = "", topic: str = "") -> tuple[list[str], list[dict]]:
+        """
+        Phase 2 Improvement: Parent-Child Hierarchical Chunking.
+        Splits text into large Parent Chunks, and then into smaller Child Chunks.
+        Returns: (child_texts, child_metadatas) where metadatas contain parent mapping.
+        """
+        import uuid
+        
+        # 1. Split into large parent chunks (e.g., 1500 chars)
+        parent_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500,
+            chunk_overlap=200,
+            length_function=len,
+        )
+        parent_chunks = parent_splitter.split_text(text)
+        
+        # 2. Split into small child chunks (e.g., 400 chars)
+        child_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=400,
+            chunk_overlap=50,
+            length_function=len,
+        )
+        
+        all_child_texts = []
+        all_child_metadatas = []
+        
+        for parent_text in parent_chunks:
+            parent_id = str(uuid.uuid4())
+            children = child_splitter.split_text(parent_text)
+            
+            for child in children:
+                # Add context headers to the child
+                header_parts = [f"Source: {title}"]
+                if speaker and speaker != "Unknown":
+                    header_parts.append(f"Speaker: {speaker}")
+                if topic and topic != "Spiritual":
+                    header_parts.append(f"Topic: {topic}")
+                header = f"[{' | '.join(header_parts)}]\n"
+                
+                all_child_texts.append(header + child)
+                all_child_metadatas.append({
+                    "parent_id": parent_id,
+                    "parent_text": parent_text,
+                    "is_child": True
+                })
+                
+        return all_child_texts, all_child_metadatas
 
     def _chunk_embed_index(
         self,
