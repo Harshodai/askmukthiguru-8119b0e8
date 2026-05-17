@@ -80,19 +80,20 @@ def transcribe_with_whisper(
     Returns full transcript text or None on failure.
     """
     try:
-        from transformers import pipeline
-        import torch
+        import mlx_whisper
     except ImportError:
-        logger.error("transformers or torch not installed — run: pip install transformers torch")
+        logger.error("mlx_whisper not installed — run: pip install mlx-whisper")
         return None
 
     if not os.path.exists(audio_path):
         logger.error(f"[{video_id}] Audio file not found: {audio_path}")
         return None
 
-    model = "collabora/whisper-hindi-v2"
+    if not model:
+        model = settings.whisper_local_model or "mlx-community/whisper-large-v3-turbo"
+        
     size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-    logger.info(f"[{video_id}] Transcribing {size_mb:.1f}MB audio with {model}...")
+    logger.info(f"[{video_id}] Transcribing {size_mb:.1f}MB audio with local MLX model: {model}...")
 
     # Domain-specific terminology corrections
     REPLACEMENTS = {
@@ -113,13 +114,11 @@ def transcribe_with_whisper(
     }
 
     try:
-        pipe = pipeline(
-            "automatic-speech-recognition",
-            model=model,
-            device=0 if torch.cuda.is_available() else -1
+        result = mlx_whisper.transcribe(
+            audio_path,
+            path_or_hf_repo=model,
+            verbose=False
         )
-        
-        result = pipe(audio_path, return_timestamps=False)
         text = result.get("text", "").strip()
 
         if not text:
@@ -127,7 +126,6 @@ def transcribe_with_whisper(
             return None
 
         # Filter out common Whisper hallucinations (e.g., repeated "Thank you" loops)
-        # This is a simple heuristic: if a phrase repeats many times at the start, strip it.
         import re
         
         # Remove repeated intro phrases like "Thank you. Thank you. Thank you."

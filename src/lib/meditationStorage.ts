@@ -136,6 +136,11 @@ export const completeMeditationSession = async (
   } catch (err) {
     console.error('Failed to persist meditation session to DB:', err);
   }
+
+  // Dispatch event so UI components (like DailyTeaching) can react and reward the user
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('askmukthiguru:meditation_completed'));
+  }
 };
 
 /**

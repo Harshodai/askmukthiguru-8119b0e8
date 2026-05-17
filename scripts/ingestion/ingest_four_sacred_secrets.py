@@ -13,15 +13,25 @@ import os
 import json
 
 # Add backend to python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 from app.config import settings
 from services.qdrant_service import QdrantService
 from services.embedding_service import EmbeddingService
 
+import uuid
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
     """Recursively flatten the PageIndex tree structure into chunk items."""
     chunks = []
+    
+    # Initialize child text splitter for parent-child hierarchical chunking
+    child_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=400,
+        chunk_overlap=50,
+        length_function=len,
+    )
     
     for node in nodes:
         # Build context-aware title
@@ -35,28 +45,43 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
         text = node.get("text", "").strip()
         summary = node.get("summary", "").strip()
         
-        # If there's meaningful text, add it as a Level 0 (Leaf) chunk
+        # If there's meaningful text, create child paragraph chunks linked to this parent text
         if text:
-            chunks.append({
-                "text": text,
-                "metadata": {
-                    "source_url": "The_Four_Sacred_Secrets.pdf",
-                    "title": context_title,
-                    "content_type": "book",
-                    "raptor_level": 0,
-                    "cluster_id": cluster_id,
-                    "node_id": node.get("node_id", ""),
-                    "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}"
-                }
-            })
+            parent_id = str(uuid.uuid4())
+            child_paragraphs = child_splitter.split_text(text)
             
-        # If there's a summary, add it as a Level 1 (Summary) chunk
+            # Prepend contextual header for UI provenance
+            header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
+            
+            for child_index, child_text in enumerate(child_paragraphs):
+                chunks.append({
+                    "text": header + child_text,
+                    "metadata": {
+                        "source_url": "The_Four_Sacred_Secrets.pdf",
+                        "title": context_title,
+                        "speaker": "Sri Preethaji & Sri Krishnaji",
+                        "topic": "Spiritual",
+                        "content_type": "book",
+                        "raptor_level": 0,
+                        "cluster_id": cluster_id,
+                        "node_id": node.get("node_id", ""),
+                        "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
+                        "parent_id": parent_id,
+                        "parent_text": text,
+                        "is_child": True,
+                    }
+                })
+            
+        # If there's a summary, add it as a Level 1 (Summary) chunk (no parent-child mapping needed)
         if summary:
+            header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
             chunks.append({
-                "text": summary,
+                "text": header + summary,
                 "metadata": {
                     "source_url": "The_Four_Sacred_Secrets.pdf",
                     "title": f"Summary: {context_title}",
+                    "speaker": "Sri Preethaji & Sri Krishnaji",
+                    "topic": "Spiritual",
                     "content_type": "summary",
                     "raptor_level": 1,
                     "cluster_id": cluster_id,
@@ -79,7 +104,7 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
     return chunks
 
 def main():
-    json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results", "The_Four_Sacred_Secrets_structure.json"))
+    json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "results", "The_Four_Sacred_Secrets_structure.json"))
     if not os.path.exists(json_path):
         print(f"Error: JSON structure not found at {json_path}")
         print("Please run 'bash run_pageindex_sarvam.sh' first to generate the structure.")

@@ -43,15 +43,23 @@ docker-up: ## Build and start the full Docker stack in detached mode
 	@echo "${GREEN}Starting full Docker stack...${NC}"
 	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --build
 
-docker-rebuild: ## Rebuild without cache and restart Docker (keeps persisted volumes)
+docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs up and restores data!)
+	@echo "${YELLOW}Taking protective snapshot of all databases before rebuilding...${NC}"
+	@python3 scripts/backup/snapshot_manager.py backup || true
 	@echo "${GREEN}Rebuilding full Docker stack without cache...${NC}"
 	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose build --no-cache && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --force-recreate
+	@echo "${YELLOW}Waiting 15 seconds for database containers to boot...${NC}"
+	@sleep 15
+	@echo "${GREEN}Restoring database state from protective snapshot...${NC}"
+	@python3 scripts/backup/snapshot_manager.py restore || true
 
 docker-down: ## Stop and remove all Docker containers
 	@echo "${GREEN}Stopping Docker stack...${NC}"
 	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose down
 
-clean: ## Stop Docker, remove volumes, and clean local caches
+clean: ## Stop Docker, remove volumes, and clean local caches (automatically backs up first!)
+	@echo "${YELLOW}Taking protective snapshot of all databases before clean...${NC}"
+	@python3 scripts/backup/snapshot_manager.py backup || true
 	@echo "${YELLOW}Cleaning up volumes and caches...${NC}"
 	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose down -v
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -59,6 +67,12 @@ clean: ## Stop Docker, remove volumes, and clean local caches
 	@find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	@rm -rf node_modules
 	@echo "${GREEN}Clean complete.${NC}"
+
+backup: ## Take a comprehensive snapshot of Qdrant, Neo4j, and Supabase data
+	@python3 scripts/backup/snapshot_manager.py backup
+
+restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
+	@python3 scripts/backup/snapshot_manager.py restore
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose logs -f

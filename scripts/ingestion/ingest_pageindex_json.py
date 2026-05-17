@@ -4,7 +4,7 @@ import json
 import asyncio
 
 # Add the project root to the python path so we can import backend modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 from app.config import settings
 from services.qdrant_service import QdrantService

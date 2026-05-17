@@ -58,6 +58,12 @@ This file documents key implementation patterns, architectural decisions, and "l
 - **Onboarding Flow**: Implemented a "Profile-First" onboarding pattern. New users are redirected to `/profile?onboarding=true` immediately after authentication to set their spiritual parameters (Language, Tone, Bio) before their first chat.
 - **UI Discoverability**: Replaced the hidden sidebar menu with direct "Rename" and "Delete" icons that appear on hover, improving task efficiency and feature visibility.
 
+### 21. High-Fidelity RAG Schema Preservation & Database UI Clarity
+- **Search Schema Preservation**: Discovered that even if the vector DB holds advanced hierarchical metadata (like `parent_id`, `parent_text`, `is_child`, `speaker`, and `topic`), they are silently dropped unless `QdrantService.search()` explicitly maps them from the Qdrant payload into the standard return dictionary. Without this mapping, downstream RAG nodes are blind to parent-child links and cannot perform parent swapping.
+- **Hierarchical Proposition Links**: Instead of chunking spiritual books or long transcripts into flat independent blocks, we partition text into coherent paragraphs (~1500 chars) as parent contexts, then split them into dense leaf chunks (~400 chars) that point back to the `parent_id`. When retrieval matches a leaf chunk, the engine swaps in the richer parent context for generation.
+- **Traceability in Database UIs**: To ensure complete clarity when an administrator views vector database collections or knowledge graphs (Neo4j), prepending a clear, human-readable source header (e.g. `[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n` or `[Source: YouTube Video: {title} (URL: {url})]\n`) directly to the chunk text guarantees that the source of every piece of knowledge is instantly identifiable, fulfilling strict audit and lineage requirements.
+- **Error Propagation & Retries**: During multi-phase orchestration, pipelines must never suppress internal failures or silently return error codes. By validating status flags inside the bulk orchestrator and throwing explicit errors on failure, we allow outer exponential backoff retry loops to successfully intercept, delay, and re-trigger execution.
+
 ## Environment Parity: Lovable vs Local
 
 ### 1. OAuth Strategy & VITE_USE_NATIVE_OAUTH
@@ -358,3 +364,30 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 **Cross-Platform File System Quirks:**
 - **Case Sensitivity**: Globbing for files (e.g., `Path.rglob("privacy*")`) is case-sensitive on macOS and Linux. This caused the audit to miss `PrivacyPage.tsx`. **Lesson**: When doing file-discovery scripts, glob by extension (`*.tsx`) and use Python's case-insensitive string matching (`"privacy" in f.name.lower()`) to ensure reliable detection across all operating systems.
 
+### 18. Multi-Database Backup & Restore Orchestration (May 2026)
+- **Problem**: In local developer environments, calling total database reset (`make clean`) or rebuilding stack containers (`make docker-rebuild`) frequently wiped hard-earned user profiles, conversation histories, vector indices, and graph relations. This resulted in significant data loss and friction.
+- **Solution**: Developed a zero-dependency dynamic snapshot pipeline ([snapshot_manager.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/backup/snapshot_manager.py)) that coordinates:
+  - **Qdrant**: REST-driven backups that download server-side snapshots, and multipart-form restores that recreate the collection schema dynamically.
+  - **Neo4j**: Streams live graph states utilizing APOC export, and restores in a clean shell straight into `cypher-shell`.
+  - **Supabase**: Discovers random container suffix tags at runtime, runs `pg_dump` with `--data-only --schema=public --disable-triggers`, and seeds database back via `psql`.
+- **Lessons Learned**:
+  - **Auto-Protection hooks**: Always hook backup routines directly into your local lifecycle commands (like `make clean` and `make docker-rebuild`). Taking a protective snapshot BEFORE a wipe and running a delayed restore AFTER a spin-up guarantees zero-loss workflows.
+  - **Container Health Latency**: When rebuilding and immediately restoring, always allow a 15-second `sleep` between starting the containers and attempting the restore. This gives PostgreSQL and Neo4j sufficient time to apply internal migrations, boot their JVM/database engines, and listen on ports.
+  - **No Hardcoded Docker Names**: Since Supabase CLI generates container name suffixes dynamically (e.g. `supabase_db_[random]`), never hardcode database container names in automated scripts. Always query the Docker API dynamically using filters (`--filter ancestor=public.ecr.aws/supabase/postgres:17.6.1.106`) to resolve the target name at runtime.
+
+### 19. Large-Scale Ingestion & macOS Sleep Prevention (May 2026)
+- **Problem**: When running a large-scale ingestion pipeline (e.g., sequentially downloading and transcribing 20 YouTube playlists along with book indexing), the process can take hours. macOS will automatically put the system to sleep if it is idle, immediately suspending background terminal scripts, network connections, and local Whisper/Ollama model inference.
+- **Solution**: Implemented programmatic macOS sleep prevention within the ingestion script using `caffeinate`:
+  ```python
+  caffeinate_proc = subprocess.Popen(["caffeinate", "-w", str(os.getpid())])
+  ```
+  This spawns a background `caffeinate` process that monitors the current Python script's PID. It keeps the computer fully awake for the exact duration of the ingestion and automatically self-terminates when the Python process completes or exits.
+- **Resilient Multi-Source De-duplication**: 
+  - **In-Memory Filtering**: Cross-playlist de-duplication keeps track of queued video IDs globally to ensure any video duplicated across different playlists is only processed exactly **once**.
+  - **Persistent State Saving**: Storing successfully processed video IDs and PDF documents in `/scripts/ingestion_state.json` allows the pipeline to act as a resumable state machine. If interrupted, subsequent runs will immediately skip already processed items, saving immense local CPU, Neural Engine, and network resources.
+### 20. Unified Metadata Schema & Data Quality (May 2026)
+- **Problem**: When data columns/metadata fields are populated inconsistently across different ingestion pipelines (e.g. YouTube transcripts having `speaker` and `topic` while local PDF parsed books do not), vector search queries and RAG routing filters that rely on those dimensions will either ignore the book chunks or suffer degraded retrieval accuracy.
+- **Solution**: Standardized the metadata payload schemas globally. We modified `ingest_four_sacred_secrets.py` to populate identical schema fields:
+  - `speaker`: Assigned `"Sri Preethaji & Sri Krishnaji"` as the default authors/speakers.
+  - `topic`: Assigned `"Spiritual"` as the primary topic, mirroring the video transcript category labels.
+- **Architectural Lesson**: High data quality in a multi-source RAG system requires a strict data-contract schema. Every ingestion adapter (whether parsing text, video transcripts, or PDF structures) must map a complete and unified set of metadata columns before index insertion to ensure flawless downstream retrieval.

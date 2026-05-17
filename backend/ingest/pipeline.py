@@ -15,6 +15,7 @@ from typing import Optional, Callable, Any
 
 import json
 from pathlib import Path
+import os
 
 class IngestionCheckpoint:
     def __init__(self, filepath="data/ingest_checkpoint.json"):
@@ -370,6 +371,7 @@ class IngestionPipeline:
         Production Ingestion (Phase 3): Enhanced video processing.
         Includes speaker diarization, topic extraction, and partitioned indexing.
         """
+        import uuid
         video_id = extract_video_id(url)
         self._notify(on_progress, "Phase 3: Starting enhanced ingestion...", 0.1)
 
@@ -393,27 +395,72 @@ class IngestionPipeline:
         self._notify(on_progress, "Partitioning by topic relevance...", 0.6)
         sections = self._topic_partition(clean_text, topics)
         
-        total_chunks = 0
+        # We will split parent texts into chunks of 1500 chars to avoid oversized parents
+        parent_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500,
+            chunk_overlap=200,
+            length_function=len,
+        )
+        
+        all_chunks = []
+        all_extra_metadatas = []
+        
+        speaker = result.get("speaker", "Unknown")
+        
+        # Process each topic partition
+        topic_index = 0
         for topic, text in sections.items():
-            self._notify(on_progress, f"Indexing topic: {topic}...", 0.7 + (total_chunks * 0.05))
+            self._notify(on_progress, f"Processing topic: {topic}...", 0.7 + (topic_index * 0.05))
             
-            # Use Proposition Chunking for maximum precision
-            chunks = await self._proposition_split(text)
-            augmented = await self._augment_chunks(chunks)
+            # Split the topic segment into parent chunks
+            parent_chunks = parent_splitter.split_text(text)
             
-            count = self._embed_and_index(
-                augmented,
+            for parent_chunk in parent_chunks:
+                parent_id = str(uuid.uuid4())
+                
+                # Decompose the parent chunk into propositions (child chunks)
+                propositions = await self._proposition_split(parent_chunk)
+                augmented = await self._augment_chunks(propositions)
+                
+                # Prepend contextual header to each child chunk to guarantee UI clarity
+                header_parts = [f"Source: {video_title}"]
+                if speaker and speaker != "Unknown":
+                    header_parts.append(f"Speaker: {speaker}")
+                if topic and topic != "Spiritual":
+                    header_parts.append(f"Topic: {topic}")
+                header = f"[{' | '.join(header_parts)}]\n"
+                
+                for child_prop in augmented:
+                    all_chunks.append(header + child_prop)
+                    all_extra_metadatas.append({
+                        "parent_id": parent_id,
+                        "parent_text": parent_chunk,
+                        "is_child": True,
+                        "topic": topic,
+                    })
+            topic_index += 1
+
+        # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
+        self._notify(on_progress, "Indexing all extracted topic chunks...", 0.85)
+        total_chunks = 0
+        if all_chunks:
+            total_chunks = self._embed_and_index(
+                all_chunks,
                 source_url=url,
                 title=video_title,
-                speaker=result.get("speaker", "Unknown"),
-                topic=topic,
+                speaker=speaker,
+                topic="Multi-Topic",  # Override by individual chunk's topic in extra_metadatas
                 content_type="video_enhanced",
+                extra_metadatas=all_extra_metadatas,
             )
-            total_chunks += count
 
         # 5. Build RAPTOR and Graph
         self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
-        await self._raptor.build_tree([{"text": clean_text, "source_url": url, "title": video_title}])
+        if all_chunks:
+            # Build RAPTOR summaries using the actual compiled leaf chunks
+            chunks_data = [{"text": c, "source_url": url, "title": video_title} for c in all_chunks]
+            await self._raptor.build_tree(chunks_data)
+            
         if self._lightrag:
             await self._lightrag.ainsert(clean_text)
 
@@ -421,6 +468,7 @@ class IngestionPipeline:
         return {
             "status": "success",
             "source_url": url,
+            "title": video_title,
             "topics_detected": list(sections.keys()),
             "chunks_indexed": total_chunks,
             "method": "enhanced_diarization",
