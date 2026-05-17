@@ -339,13 +339,7 @@ MEDITATION_STEPS = [
 
 
 # === FALLBACK RESPONSE ===
-FALLBACK_RESPONSE = (
-    "I appreciate your question, but I am unable to find specific teachings on this topic "
-    "from Sri Preethaji and Sri Krishnaji that I can share confidently. Rather than risk "
-    "providing inaccurate guidance, I encourage you to explore their teachings directly.\n\n"
-    "You can visit: https://www.youtube.com/@theonenessmovement\n\n"
-    "Is there another question about their teachings I can help with? 🙏"
-)
+FALLBACK_RESPONSE = "I don't have that specific teaching. 🙏"
 
 
 # === MULTI-TURN CONTEXT PROMPT ===

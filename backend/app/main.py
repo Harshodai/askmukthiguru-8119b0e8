@@ -542,11 +542,8 @@ async def chat_endpoint(
     except asyncio.TimeoutError:
         logger.error(f"Pipeline timeout after {settings.llm_timeout + 10}s for: {user_msg[:100]}")
         REQUEST_COUNT.labels(status="timeout").inc()
-        final_answer = (
-            "I apologize, I'm experiencing a moment of stillness. 🙏 "
-            "Please try asking your question again."
-        )
-        intent = "TIMEOUT"
+        final_answer = "I apologize, the process took too long. 🙏 Please try asking your question again."
+        intent = "ERROR"
         med_step = 0
         citations = []
     except Exception as e:
@@ -588,10 +585,7 @@ async def chat_endpoint(
         else:
             logger.error(f"RAG pipeline error: {e}", exc_info=True)
             REQUEST_COUNT.labels(status="error").inc()
-            final_answer = (
-                "I apologize, I'm experiencing a moment of stillness. 🙏 "
-                "Please try asking your question again."
-            )
+            final_answer = "I apologize, but I don't have that specific teaching. 🙏 Please try asking another question."
             intent = "ERROR"
             med_step = 0
             citations = []
