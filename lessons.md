@@ -341,3 +341,20 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - When cherry-picking cross-branch fixes that conflict with local hardening, keep the more defensive/dynamic version for infrastructure settings (timeouts, auth) and adopt the PR's cleaner error messages for user-facing text.
 - After resolving conflicts, always run `python3 -c "import ast; ast.parse(open('file.py').read()); print('OK')"` on each resolved file to catch syntax errors before committing.
 
+### 17. Pre-Launch Security Audit & Automated Compliance (May 2026)
+
+**Automated Vibe-Coder Checklist:**
+- Implemented a standalone Python script (`scripts/security_audit.py`) that enforces a 5-category pre-launch security checklist: Legal/Privacy, Security Basics, Secrets, Abuse Prevention, and Security Headers.
+- **Continuous Security**: Wired the script into GitHub Actions (`.github/workflows/security-audit.yml`) to run on push, PR, and weekly. The CI fails if any checks fail, preventing vulnerable code from shipping.
+
+**Security Headers Implementation:**
+- Identified that standard deployments often lack HTTP security headers. Implemented a `SecurityHeadersMiddleware` in FastAPI that automatically adds `Content-Security-Policy`, `X-Frame-Options` (DENY), `Strict-Transport-Security` (HSTS), `X-Content-Type-Options` (nosniff), `Referrer-Policy`, and `Permissions-Policy`.
+- **Auto-Fixing**: Designed the audit script to not just detect missing headers, but to optionally inject the middleware into the codebase using a `--fix` flag.
+
+**Secret Scanning False Positives:**
+- **Supabase Anon Keys**: Supabase `anon` keys (Publishable keys) are public by design and are required in the frontend application (`import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY`). Secret scanning regex patterns that flag any JWT-like string will falsely flag these. **Lesson**: Refine JWT regexes to explicitly look for the `service_role` claim when scanning for leaked backend Supabase keys.
+- **Environment Virtual Directories**: When doing recursive file grepping for secrets or vulnerabilities, ensure you explicitly exclude all virtual environment variants (`.venv`, `.venv_host`, `venv`) and `node_modules`. Failing to do so will flag code inside third-party library files.
+
+**Cross-Platform File System Quirks:**
+- **Case Sensitivity**: Globbing for files (e.g., `Path.rglob("privacy*")`) is case-sensitive on macOS and Linux. This caused the audit to miss `PrivacyPage.tsx`. **Lesson**: When doing file-discovery scripts, glob by extension (`*.tsx`) and use Python's case-insensitive string matching (`"privacy" in f.name.lower()`) to ensure reliable detection across all operating systems.
+
