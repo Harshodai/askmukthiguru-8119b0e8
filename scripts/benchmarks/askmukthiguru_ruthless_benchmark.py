@@ -77,7 +77,7 @@ INFRA = {
     "fastapi":  {"health": "/api/health",       "port": 8000,  "name": "FastAPI Backend"},
     "qdrant":   {"health": "/healthz",          "port": 6333,  "name": "Qdrant Vector DB"},
     "redis":    {"health": None,                 "port": 6379,  "name": "Redis Cache"},
-    "neo4j":    {"health": "/db/manage/server/jmx/domain/org.neo4j/instance/kernel#0,name=Configuration", "port": 7474, "name": "Neo4j Knowledge Graph"},
+    "neo4j":    {"health": "/",                 "port": 7474,  "name": "Neo4j Knowledge Graph"},
     "jaeger":   {"health": "/",                 "port": 16686, "name": "Jaeger Tracing"},
     "nginx":    {"health": "/",                 "port": 80,    "name": "Nginx Frontend"},
 }
@@ -626,20 +626,35 @@ def pct(data: list[float], p: float) -> float:
 # ═══════════════════════════════════════════════════════════════════════════
 
 async def check_infra(base_url: str) -> List[InfraResult]:
+    import socket
     results = []
     for key, cfg in INFRA.items():
         parsed = httpx.URL(base_url)
         host = parsed.host or "localhost"
-        url = f"http://{host}:{cfg['port']}{cfg['health'] or ''}"
         t0 = time.perf_counter()
-        try:
-            async with httpx.AsyncClient() as c:
-                r = await c.get(url, timeout=5.0)
-            lat = (time.perf_counter() - t0) * 1000
-            results.append(InfraResult(cfg["name"], r.status_code < 400, round(lat, 1), r.status_code))
-        except Exception as e:
-            lat = (time.perf_counter() - t0) * 1000
-            results.append(InfraResult(cfg["name"], False, round(lat, 1), 0, str(e)[:60]))
+        
+        if key == "redis":
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(5.0)
+            try:
+                s.connect((host, cfg["port"]))
+                lat = (time.perf_counter() - t0) * 1000
+                results.append(InfraResult(cfg["name"], True, round(lat, 1), 200))
+            except Exception as e:
+                lat = (time.perf_counter() - t0) * 1000
+                results.append(InfraResult(cfg["name"], False, round(lat, 1), 0, str(e)[:60]))
+            finally:
+                s.close()
+        else:
+            url = f"http://{host}:{cfg['port']}{cfg['health'] or ''}"
+            try:
+                async with httpx.AsyncClient() as c:
+                    r = await c.get(url, timeout=5.0)
+                lat = (time.perf_counter() - t0) * 1000
+                results.append(InfraResult(cfg["name"], r.status_code < 400, round(lat, 1), r.status_code))
+            except Exception as e:
+                lat = (time.perf_counter() - t0) * 1000
+                results.append(InfraResult(cfg["name"], False, round(lat, 1), 0, str(e)[:60]))
     return results
 
 # ═══════════════════════════════════════════════════════════════════════════

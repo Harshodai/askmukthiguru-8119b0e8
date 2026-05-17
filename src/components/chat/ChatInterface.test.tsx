@@ -90,6 +90,10 @@ vi.mock('@/lib/responseCache', () => ({
 
 vi.mock('@/components/chat/DesktopSidebar', () => ({
   DesktopSidebar: () => <div data-testid="desktop-sidebar">Sidebar</div>,
+  useSidebarCollapsed: () => ({
+    isCollapsed: false,
+    toggle: vi.fn(),
+  }),
 }));
 
 vi.mock('@/components/chat/ChatHeader', () => ({

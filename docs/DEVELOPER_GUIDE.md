@@ -327,8 +327,18 @@ Welcome aboard. 🌅
 
 When you ship a feature, verify both surfaces:
 
-1. **Lovable preview** — push, open the preview URL, exercise the new flow.
-2. **Local Docker** — `./start_docker.sh` (uses absolute Docker path from
-   `lessons.md`), then visit `http://localhost/`. Both must work without
-   editing code per environment; route everything through the
-   `VITE_*` env vars baked at build time.
+## 16. macOS Sleep Prevention & Resumable Ingestion
+
+When running large-scale ingestion pipelines (e.g. transcribing 20+ video playlists sequentially using local Apple Neural Engine accelerated Whisper), execution times can span several hours. macOS automatically suspends idle processes by default, interrupting transcription or database writing.
+
+To prevent this programmatically without requiring manual configuration changes, the ingestion framework incorporates a monitored `caffeinate` subprocess:
+```python
+import subprocess
+import os
+
+# Spawns caffeinate bound to the Python process PID
+caffeinate_proc = subprocess.Popen(["caffeinate", "-w", str(os.getpid())])
+```
+This forces the host system to maintain full CPU, disk, and network activity exactly for the lifespan of the parent ingestion process. 
+
+Additionally, the pipeline writes successful step signatures to `scripts/ingestion_state.json`. If execution is manually aborted or interrupted by network dropouts, running the script again will resume exactly where it left off, avoiding redundant compute.

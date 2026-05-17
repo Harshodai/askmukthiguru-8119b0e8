@@ -71,7 +71,7 @@ describe('DesktopSidebar', () => {
 
   it('calls onNewConversation when New Chat is clicked', () => {
     render(<DesktopSidebar {...defaultProps} />, { wrapper });
-    const btn = screen.getByText('New Chat');
+    const btn = screen.getByText('New Conversation');
     fireEvent.click(btn);
     expect(defaultProps.onNewConversation).toHaveBeenCalledTimes(1);
   });
@@ -82,8 +82,8 @@ describe('DesktopSidebar', () => {
       { wrapper }
     );
     const items = screen.getAllByTestId('conversation-item');
-    // Active class is 'bg-muted text-foreground'
-    expect(items[0].firstChild?.parentElement?.innerHTML).toContain('bg-muted');
+    // Active class is 'bg-ojas/12 text-ojas'
+    expect(items[0].className).toContain('bg-ojas/12');
   });
 
   // ── Delete confirmation dialog tests ──────────────────────────────

@@ -6,7 +6,8 @@ import { DailyTeaching } from '@/components/chat/DailyTeaching';
 const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
 const mockLimit = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
 const mockOrder = vi.fn(() => ({ limit: mockLimit }));
-const mockSelect = vi.fn(() => ({ order: mockOrder }));
+const mockOr = vi.fn(() => ({ order: mockOrder }));
+const mockSelect = vi.fn(() => ({ or: mockOr }));
 
 // Realtime channel mock — chainable .on().subscribe()
 const mockSubscribe = vi.fn(() => ({ unsubscribe: vi.fn() }));
@@ -14,11 +15,24 @@ const mockOn = vi.fn(() => ({ subscribe: mockSubscribe }));
 const mockChannel = vi.fn((_name: string) => ({ on: mockOn }));
 const mockRemoveChannel = vi.fn((_ch: unknown) => undefined);
 
+// Auth mock
+const mockUnsubscribe = vi.fn();
+const mockOnAuthStateChange = vi.fn(() => ({
+  data: {
+    subscription: {
+      unsubscribe: mockUnsubscribe,
+    },
+  },
+}));
+
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: vi.fn(() => ({ select: mockSelect })),
     channel: (name: string) => mockChannel(name),
     removeChannel: (ch: unknown) => mockRemoveChannel(ch),
+    auth: {
+      onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+    },
   },
 }));
 
@@ -29,7 +43,15 @@ describe('DailyTeaching (database-backed)', () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     mockLimit.mockReturnValue({ maybeSingle: mockMaybeSingle });
     mockOrder.mockReturnValue({ limit: mockLimit });
-    mockSelect.mockReturnValue({ order: mockOrder });
+    mockOr.mockReturnValue({ order: mockOrder });
+    mockSelect.mockReturnValue({ or: mockOr });
+    mockOnAuthStateChange.mockReturnValue({
+      data: {
+        subscription: {
+          unsubscribe: mockUnsubscribe,
+        },
+      },
+    });
     mockOn.mockReturnValue({ subscribe: mockSubscribe });
     mockChannel.mockReturnValue({ on: mockOn });
   });

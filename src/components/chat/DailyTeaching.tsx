@@ -14,6 +14,7 @@ const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed_id';
 
 export const DailyTeaching = () => {
   const [teaching, setTeaching] = useState<DailyTeachingData | null>(null);
+  const [imageError, setImageError] = useState(false);
   const [dismissedId, setDismissedId] = useState<string | null>(
     () => localStorage.getItem(DISMISSED_KEY),
   );
@@ -59,6 +60,7 @@ export const DailyTeaching = () => {
       setDismissedId(null);
     }
 
+    setImageError(false);
     setTeaching({
       id: data.id,
       imageUrl: data.image_url,
@@ -92,9 +94,19 @@ export const DailyTeaching = () => {
       )
       .subscribe();
 
+    const handleMeditationCompleted = () => {
+      localStorage.removeItem(DISMISSED_KEY);
+      setDismissedId(null);
+      retryCount.current = 0;
+      fetchTeaching();
+    };
+
+    window.addEventListener('askmukthiguru:meditation_completed', handleMeditationCompleted);
+
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
+      window.removeEventListener('askmukthiguru:meditation_completed', handleMeditationCompleted);
     };
   }, [fetchTeaching]);
 
@@ -125,24 +137,30 @@ export const DailyTeaching = () => {
           </button>
 
           <div className="relative aspect-[16/7] overflow-hidden bg-muted/20">
-            <picture>
-              <source 
-                srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=800 800w, ${teaching.imageUrl}?transform=1&format=webp&width=400 400w`} 
-                type="image/webp" 
-                sizes="(max-width: 600px) 400px, 800px" 
-              />
-              <img
-                src={teaching.imageUrl}
-                alt="Today's teaching from the Gurus"
-                className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
-                loading="lazy"
-                decoding="async"
-                onError={() => {
-                  console.warn('[DailyTeaching] Image failed to load:', teaching.imageUrl);
-                  setTeaching(null);
-                }}
-              />
-            </picture>
+            {imageError ? (
+              <div className="w-full h-full bg-gradient-to-tr from-indigo-950/80 via-purple-900/60 to-amber-900/40 flex items-center justify-center pointer-events-none">
+                <Sparkles className="w-12 h-12 text-amber-500/20 animate-pulse" />
+              </div>
+            ) : (
+              <picture>
+                <source 
+                  srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=800 800w, ${teaching.imageUrl}?transform=1&format=webp&width=400 400w`} 
+                  type="image/webp" 
+                  sizes="(max-width: 600px) 400px, 800px" 
+                />
+                <img
+                  src={teaching.imageUrl}
+                  alt="Today's teaching from the Gurus"
+                  className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
+                  loading="lazy"
+                  decoding="async"
+                  onError={() => {
+                    console.warn('[DailyTeaching] Image failed to load:', teaching.imageUrl);
+                    setImageError(true);
+                  }}
+                />
+              </picture>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent pointer-events-none" />
           </div>
 

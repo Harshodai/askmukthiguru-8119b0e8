@@ -271,6 +271,11 @@ class QdrantService:
                 "chunk_index": hit.payload.get("chunk_index", 0),
                 "raptor_level": hit.payload.get("raptor_level", 0),
                 "score": getattr(hit, "score", 0.0),
+                "parent_id": hit.payload.get("parent_id"),
+                "parent_text": hit.payload.get("parent_text"),
+                "is_child": hit.payload.get("is_child", False),
+                "speaker": hit.payload.get("speaker", "Unknown"),
+                "topic": hit.payload.get("topic", "Spiritual"),
             }
             for hit in hits
         ]

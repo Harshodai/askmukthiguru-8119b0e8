@@ -353,8 +353,9 @@ def init_llm_cache():
         
         def init_gptcache(cache_obj: Cache, llm: str):
             data_manager = manager_factory(
-                "sqlite", 
+                "sqlite,faiss", 
                 data_dir="data/gptcache",
+                vector_params={"dimension": settings.embedding_dimension},
                 max_size=5000
             )
             cache_obj.init(

@@ -999,7 +999,10 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     # Only core services determine healthy/degraded status
     # Optional services (OCR, guardrails) don't affect overall health
-    core_services = {"qdrant", "ollama", "embedding"}
+    from app.config import settings
+    core_services = {"qdrant", "embedding"}
+    if settings.llm_provider == "ollama":
+        core_services.add("ollama")
     all_healthy = all(
         v for k, v in health.items()
         if k in core_services
