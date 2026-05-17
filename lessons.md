@@ -317,3 +317,27 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Bidirectional Streaming Protection**: Fast API chat endpoints need symmetric safety controls. Aligned the streaming (`/api/chat/stream`) and non-streaming endpoints by applying identical input character limits (2000 chars), chat history capping (20 messages), and strict execution time limits via `asyncio.wait_for()`.
 - **Regex Context Alignment**: Broad regex rules for medical/violence blocking can easily trigger false positives on domain-specific inputs. Refined overly broad patterns (e.g. `r'\b(cure|remedy)\s+(for|to)\b'`) to require adjacent clinical descriptors (e.g. `disease|cancer|diabetes|illness`), allowing spiritual questions about "remedies for suffering" to pass seamlessly while ensuring absolute safety boundaries.
 
+### 16. PR #3 Benchmark Hardening — Production Safety & RAG Reliability (May 2026)
+
+**Security Guardrails (Defense-in-Depth):**
+- **Two-tier rejection**: `LightweightGuardrails.check_input()` applies fast regex patterns first (`_HARMFUL_PATTERNS`), then `intent_router` applies LLM-level keyword blocking for medical/adversarial inputs. This ensures harmful patterns are caught at two independent layers.
+- **Adversarial patterns blocked**: Prompt injection (`ignore previous instructions`, `system prompt override`), medical advice (`prescribe`, `lithium`, `bipolar`), and financial promises (`guaranteed returns`, `invest in`) are all caught before entering the RAG graph.
+- **Spiritual context preservation**: Do NOT over-broad the harmful regex. Patterns like `ego death`, `surrender`, and `pain of longing` are core Ekam teachings and must never be blocked. Always test guardrails against the spiritual vocabulary before deploying.
+
+**RAG Pipeline Reliability:**
+- **Contradiction detection node**: Added `check_contradiction` between `verify_answer` and `format_final_answer`. If the LLM detects a contradiction, the node retries retrieval once and re-generates. Only do one retry — recursive contradiction loops cause latency spirals.
+- **Chat history cap**: `create_initial_state()` now caps history to last 8 messages (`settings.chat_history_max_messages`). Without this, long sessions hit LLM context windows and cause `context_length_exceeded` errors. The cap is also applied in `main.py` before invoking the graph.
+- **Pipeline timeout value**: Use `settings.llm_timeout + 10` (dynamic), not a hardcoded `30.0`. This allows tuning via env var without code changes and provides a 10s buffer above the per-LLM-call timeout for graph orchestration overhead.
+
+**Redis Cache Resilience:**
+- **Null-guard pattern**: Always set `self._redis = None` before the try/except in Redis adapter `__init__`. If `ping()` fails, reset to None. All `get()`/`put()` methods must check `if not self._redis: return None` before any operation. Without this, a Redis outage crashes the entire chat endpoint.
+- **Socket timeouts**: Always set `socket_connect_timeout=5, socket_timeout=5, retry_on_timeout=True` in `redis.from_url()`. Without socket timeouts, a blocked Redis connection hangs the event loop indefinitely.
+
+**Meditation Engine:**
+- **Named scripts**: Route explicit meditation requests (`soul sync`, `serene mind`) to `MEDITATION_SCRIPTS` dict instead of RAG. This ensures consistent, curated guided sessions rather than hallucinated meditation steps.
+- **Distress escalation**: `burn out`, `burned out`, `pointless`, and `crying` are now mapped to MODERATE distress (not MILD). Underclassifying burnout leads to insufficient compassionate routing.
+
+**Merge Conflict Resolution Pattern:**
+- When cherry-picking cross-branch fixes that conflict with local hardening, keep the more defensive/dynamic version for infrastructure settings (timeouts, auth) and adopt the PR's cleaner error messages for user-facing text.
+- After resolving conflicts, always run `python3 -c "import ast; ast.parse(open('file.py').read()); print('OK')"` on each resolved file to catch syntax errors before committing.
+
