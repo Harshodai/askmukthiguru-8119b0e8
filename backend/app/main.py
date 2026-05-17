@@ -225,6 +225,35 @@ class CorrelationIDMiddleware(BaseHTTPMiddleware):
 if settings.enable_correlation_ids:
     app.add_middleware(CorrelationIDMiddleware)
 
+# ── Security Headers Middleware (auto-added by security_audit.py) ──
+from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTPMiddleware
+from starlette.requests import Request as _Request
+
+class SecurityHeadersMiddleware(_BaseHTTPMiddleware):
+    """Adds OWASP-recommended security headers to every response."""
+    async def dispatch(self, request: _Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        # Spiritual app CSP — allows Supabase, Google Fonts, self
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
+            "frame-ancestors 'none';"
+        )
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
