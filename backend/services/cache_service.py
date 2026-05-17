@@ -102,16 +102,22 @@ class RedisCacheAdapter(ICacheRepository):
 
     def __init__(self, redis_url: str, ttl: int = _CACHE_TTL) -> None:
         import redis
-        self._redis = redis.from_url(
-            redis_url,
-            decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            retry_on_timeout=True,
-        )
+        self._redis = None
         self._ttl = ttl
         self._hits = 0
         self._misses = 0
+        try:
+            self._redis = redis.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5,
+                retry_on_timeout=True,
+            )
+            self._redis.ping()
+        except Exception as e:
+            logger.warning(f"Failed to connect to Redis: {e}. Gracefully continuing without cache.")
+            self._redis = None
 
     def _make_key(self, query: str) -> str:
         """Normalize query and generate cache key."""
@@ -121,6 +127,9 @@ class RedisCacheAdapter(ICacheRepository):
 
     def get(self, query: str) -> Optional[dict]:
         """Look up a cached response for the given query."""
+        if not self._redis:
+            return None
+
         try:
             key = self._make_key(query)
             result = self._redis.get(key)
@@ -129,16 +138,18 @@ class RedisCacheAdapter(ICacheRepository):
                 self._hits += 1
                 logger.info(f"Redis Cache HIT (hits={self._hits}, misses={self._misses})")
                 return json.loads(result)
-
-            self._misses += 1
-            return None
         except Exception as e:
-            logger.warning(f"Redis cache GET failed (non-fatal): {e}")
-            return None
+            logger.warning(f"Redis get failed: {e}")
+
+        self._misses += 1
+        return None
 
     def put(self, query: str, response: str, intent: str, citations: list[str],
             meditation_step: int = 0) -> None:
         """Store a response in the cache with TTL."""
+        if not self._redis:
+            return
+
         try:
             key = self._make_key(query)
             payload = {
@@ -150,20 +161,28 @@ class RedisCacheAdapter(ICacheRepository):
             }
             self._redis.setex(key, self._ttl, json.dumps(payload))
         except Exception as e:
-            logger.warning(f"Redis cache PUT failed (non-fatal): {e}")
+            logger.warning(f"Redis put failed: {e}")
 
     def invalidate_all(self) -> None:
         """Clear the entire cache via namespace deletion using non-blocking SCAN batched pipeline."""
-        pipe = self._redis.pipeline()
-        count = 0
-        for key in self._redis.scan_iter(match="mukthiguru:cache:*"):
-            pipe.delete(key)
-            count += 1
-            # Execute in batches of 1000 to prevent large memory spikes or blocking
-            if count % 1000 == 0:
+        if not self._redis:
+            return
+
+        try:
+            pipe = self._redis.pipeline()
+            count = 0
+            for key in self._redis.scan_iter(match="mukthiguru:cache:*"):
+                pipe.delete(key)
+                count += 1
+                # Execute in batches of 1000 to prevent large memory spikes or blocking
+                if count % 1000 == 0:
+                    pipe.execute()
+                    pipe = self._redis.pipeline()
+            if count % 1000 != 0:
                 pipe.execute()
-                pipe = self._redis.pipeline()
-        logger.info(f"Redis Cache invalidated ({count} entries cleared)")
+            logger.info(f"Redis Cache invalidated ({count} entries cleared)")
+        except Exception as e:
+            logger.warning(f"Redis invalidate failed: {e}")
 
 
 from qdrant_client import QdrantClient
