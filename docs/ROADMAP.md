@@ -55,7 +55,7 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 
 - [ ] **C10** TTFT / total-latency / tok-s metrics on `/api/chat/stream` (target TTFT p50 < 800 ms)
 - [ ] **C11** Lazy-load `AdminShell` (`React.lazy`) — *already lazy in `App.tsx`*
-- [ ] **C12** Daily-teaching image transforms (webp, srcset)
+- [x] **C12** Daily-teaching image transforms (webp, srcset)
 - [ ] **C13** Prefetch `/chat` chunk + warm Supabase auth on landing
 - [x] **C14** `React.memo` on `<ChatMessage>` markdown render (custom prop comparator)
 - [ ] **H30** PWA via `vite-plugin-pwa` (with `/~oauth` denylist)

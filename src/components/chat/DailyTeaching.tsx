@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ export const DailyTeaching = () => {
   const [dismissedId, setDismissedId] = useState<string | null>(
     () => localStorage.getItem(DISMISSED_KEY),
   );
+  const retryCount = useRef(0);
 
   const fetchTeaching = useCallback(async () => {
     const now = new Date().toISOString();
@@ -28,7 +29,35 @@ export const DailyTeaching = () => {
       .limit(1)
       .maybeSingle();
 
-    if (error || !data) return;
+    if (error) {
+      console.warn('[DailyTeaching] Fetch error:', error.message);
+      // Retry up to 3 times — RLS may reject if auth session isn't ready yet
+      if (retryCount.current < 3) {
+        retryCount.current += 1;
+        setTimeout(() => fetchTeaching(), 2000 * retryCount.current);
+      }
+      return;
+    }
+
+    if (!data) {
+      console.debug('[DailyTeaching] No active teaching found.');
+      // If no data and auth might not be ready, retry once after a delay
+      if (retryCount.current < 2) {
+        retryCount.current += 1;
+        setTimeout(() => fetchTeaching(), 2500);
+      }
+      return;
+    }
+
+    console.debug('[DailyTeaching] Loaded:', data.id, data.caption?.slice(0, 40));
+    retryCount.current = 0;
+
+    // If a NEW teaching arrived, clear the old dismissed state
+    const oldDismissed = localStorage.getItem(DISMISSED_KEY);
+    if (oldDismissed && oldDismissed !== data.id) {
+      localStorage.removeItem(DISMISSED_KEY);
+      setDismissedId(null);
+    }
 
     setTeaching({
       id: data.id,
@@ -41,6 +70,14 @@ export const DailyTeaching = () => {
   useEffect(() => {
     fetchTeaching();
 
+    // Re-fetch after auth state changes (login completes after component mount)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        retryCount.current = 0;
+        fetchTeaching();
+      }
+    });
+
     // Realtime: when a new daily teaching is uploaded, refetch immediately
     // so all open chat sessions update without a reload.
     const channel = supabase
@@ -49,12 +86,14 @@ export const DailyTeaching = () => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'daily_teachings' },
         () => {
+          retryCount.current = 0;
           fetchTeaching();
         },
       )
       .subscribe();
 
     return () => {
+      subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
   }, [fetchTeaching]);
@@ -85,15 +124,26 @@ export const DailyTeaching = () => {
             <X className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
 
-          <div className="relative aspect-[16/7] overflow-hidden">
-            <img
-              src={teaching.imageUrl}
-              alt="Today's teaching from the Gurus"
-              className="w-full h-full object-cover"
-              loading="lazy"
-              onError={() => setTeaching(null)}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent" />
+          <div className="relative aspect-[16/7] overflow-hidden bg-muted/20">
+            <picture>
+              <source 
+                srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=800 800w, ${teaching.imageUrl}?transform=1&format=webp&width=400 400w`} 
+                type="image/webp" 
+                sizes="(max-width: 600px) 400px, 800px" 
+              />
+              <img
+                src={teaching.imageUrl}
+                alt="Today's teaching from the Gurus"
+                className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
+                loading="lazy"
+                decoding="async"
+                onError={() => {
+                  console.warn('[DailyTeaching] Image failed to load:', teaching.imageUrl);
+                  setTeaching(null);
+                }}
+              />
+            </picture>
+            <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent pointer-events-none" />
           </div>
 
           <div className="px-4 py-3 -mt-8 relative z-10">

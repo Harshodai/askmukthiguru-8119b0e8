@@ -83,7 +83,7 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
           <div className="flex flex-col min-w-0">
             <button className="flex items-center gap-1.5 group">
               <h1 className="font-semibold text-foreground text-base truncate leading-tight">
-                Sri Preethaji &amp; Sri Krishnaji
+                Sri Preethaji & Sri Krishnaji
               </h1>
             </button>
             <p className="text-[10px] text-muted-foreground/60 leading-tight hidden sm:block">
