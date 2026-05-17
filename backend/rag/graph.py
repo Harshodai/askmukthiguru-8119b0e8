@@ -42,6 +42,7 @@ from rag.nodes import (
     explain_retrieval,
     verify_answer,
     format_final_answer,
+    check_contradiction,
 
     handle_casual,
     handle_distress,
@@ -127,6 +128,7 @@ def build_rag_graph(
     graph.add_node("explain_retrieval", explain_retrieval)
     graph.add_node("context_engineer", context_engineer)
     graph.add_node("format_final_answer", format_final_answer)
+    graph.add_node("check_contradiction", check_contradiction)
     graph.add_node("handle_casual", handle_casual)
     graph.add_node("handle_distress", handle_distress)
     graph.add_node("handle_meditation", handle_meditation)
@@ -200,7 +202,8 @@ def build_rag_graph(
     )
 
     # Verification & Explanation → format final answer
-    graph.add_edge("verify_answer", "format_final_answer")
+    graph.add_edge("verify_answer", "check_contradiction")
+    graph.add_edge("check_contradiction", "format_final_answer")
     graph.add_edge("explain_retrieval", "format_final_answer")
 
     # === Terminal edges → END ===
@@ -227,10 +230,16 @@ def create_initial_state(
     All fields initialized to safe defaults.
     The question and chat_history are the only required inputs.
     """
+    # Cap chat history to last 4 turns (8 messages) to prevent context window overflow
+    capped_history = []
+    if chat_history:
+        # Each "turn" is typically 1 user + 1 assistant message
+        capped_history = chat_history[-8:]
+
     return GraphState(
         # Input
         question=question,
-        chat_history=chat_history or [],
+        chat_history=capped_history,
         # Routing
         intent=None,
         # Retrieval

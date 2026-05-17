@@ -476,9 +476,12 @@ async def chat_endpoint(
                 
             return await container.rag_graph.ainvoke(initial_state)
 
-        result = await coalescer.get_or_run(
-            f"{user_msg}:{hashlib.md5(str([m.model_dump() for m in chat_body.messages[-4:]]).encode()).hexdigest()[:8]}",
-            run_pipeline,
+        result = await asyncio.wait_for(
+            coalescer.get_or_run(
+                f"{user_msg}:{hashlib.md5(str([m.model_dump() for m in chat_body.messages[-4:]]).encode()).hexdigest()[:8]}",
+                run_pipeline,
+            ),
+            timeout=30.0
         )
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
@@ -514,6 +517,13 @@ async def chat_endpoint(
                 meditation_step=med_step
             )
 
+    except asyncio.TimeoutError:
+        logger.error(f"RAG pipeline timed out after 30s")
+        REQUEST_COUNT.labels(status="timeout").inc()
+        final_answer = "I apologize, the process took too long. 🙏 Please try asking your question again."
+        intent = "ERROR"
+        med_step = 0
+        citations = []
     except Exception as e:
         citations = []
         from services.sarvam_service import QuotaExceededError
@@ -553,10 +563,7 @@ async def chat_endpoint(
         else:
             logger.error(f"RAG pipeline error: {e}", exc_info=True)
             REQUEST_COUNT.labels(status="error").inc()
-            final_answer = (
-                "I apologize, I'm experiencing a moment of stillness. 🙏 "
-                "Please try asking your question again."
-            )
+            final_answer = "I apologize, but I don't have that specific teaching. 🙏 Please try asking another question."
             intent = "ERROR"
             med_step = 0
             citations = []

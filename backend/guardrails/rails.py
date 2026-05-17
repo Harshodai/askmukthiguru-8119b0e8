@@ -27,8 +27,41 @@ CONFIG_DIR = Path(__file__).parent / "config"
 
 
 # ===================================================================
+_HARMFUL_PATTERNS = [
+    r"ignore previous instructions",
+    r"ignore all previous",
+    r"forget previous instructions",
+    r"system prompt",
+    r"you are a (?!spiritual)",
+    r"hack (a )?compu",
+    r"sql injection",
+    r"insult the user",
+    r"translate to.*stupid",
+    r"bipolar disorder",
+    r"lithium",
+    r"stop.*medication",
+    r"prescribe",
+]
+
+# ===================================================================
 # Off-Topic / Safety Detection Patterns
 # ===================================================================
+
+_HARMFUL_PATTERNS = [
+    r"ignore previous instructions",
+    r"ignore all previous",
+    r"forget previous instructions",
+    r"system prompt",
+    r"you are a (?!spiritual)",
+    r"hack (a )?compu",
+    r"sql injection",
+    r"insult the user",
+    r"translate to.*stupid",
+    r"bipolar disorder",
+    r"lithium",
+    r"stop.*medication",
+    r"prescribe",
+]
 
 # Topics that should be blocked (from topics.co patterns)
 _BLOCKED_TOPICS = {
@@ -172,6 +205,27 @@ class LightweightGuardrails:
     async def check_input(self, message: str) -> dict:
         """Check if user message should be blocked."""
         message_lower = message.lower()
+
+        # Hard rejection for harmful patterns
+        for pattern in _HARMFUL_PATTERNS:
+            if re.search(pattern, message_lower):
+                logger.info(f"Lightweight guardrail hard rejection: {pattern}")
+
+                # Medical advice specific refusal
+                if any(kw in pattern for kw in ["bipolar", "lithium", "medication", "prescribe"]):
+                    return {
+                        "blocked": True,
+                        "reason": "Medical advice requested",
+                        "response": "I cannot provide medical advice. Please consult a qualified healthcare professional.",
+                        "redirect_to": None,
+                    }
+
+                return {
+                    "blocked": True,
+                    "reason": "Harmful pattern detected",
+                    "response": "I cannot fulfill this request. I am here to share spiritual wisdom.",
+                    "redirect_to": None,
+                }
 
         # Check spiritual context FIRST — exempt from crisis detection
         for pattern in _SPIRITUAL_CONTEXT_PATTERNS:
