@@ -967,13 +967,13 @@ async def run_admin_telemetry(results: List[SingleResult], client: httpx.AsyncCl
                 category="admin_telemetry", query="Admin Dashboard Check", latency_ms=0,
                 status=200 if kpi_found or telemetry_ok else 500, intent="ADMIN", citations=[],
                 response=f"Dashboard Visible: {kpi_found}, API OK: {telemetry_ok}",
-                safety_pass=kpi_found or telemetry_ok, backend_logs=res.get("backend_logs", "")
+                safety_pass=kpi_found or telemetry_ok, backend_logs=""
             ))
             await browser.close()
     except Exception as e:
         results.append(SingleResult(
             category="admin_telemetry", query="Admin Dashboard Check", latency_ms=0,
-            status=0, intent="ERROR", citations=[], response=str(e), safety_pass=False, backend_logs=res.get("backend_logs", "")
+            status=0, intent="ERROR", citations=[], response=str(e), safety_pass=False, backend_logs=""
         ))
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1187,6 +1187,7 @@ def print_report(results: List[SingleResult], infra: List[InfraResult], scores: 
 def save_json(results, infra, scores, total, url):
     out = {
         "timestamp": time.time(),
+        "run_id": str(uuid.uuid4()),
         "backend": url,
         "repo": "github.com/Harshodai/askmukthiguru-8119b0e8",
         "production_readiness_score": round(total, 3),
@@ -1197,9 +1198,217 @@ def save_json(results, infra, scores, total, url):
         "results": [asdict(r) for r in results]
     }
     fname = "askmukthiguru_corrected_report.json"
+
+    # Clean up old report if it exists
+    if os.path.exists(fname):
+        backup = f"askmukthiguru_corrected_report.{int(time.time())}.bak.json"
+        os.rename(fname, backup)
+        print(f"  📦 Previous report backed up to: {backup}")
+
     with open(fname, "w") as f:
         json.dump(out, f, indent=2)
     print(f"  💾 Report saved to: {fname}\n")
+
+    # Raise exception if score is critically low
+    if total < 0.50:
+        raise RuntimeError(f"🚨 CRITICAL: Production readiness score {total:.0%} is below 50%. Platform is NOT deployable.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PRE-FLIGHT CHECKS
+# ═══════════════════════════════════════════════════════════════════════════
+
+class PreFlightError(Exception):
+    """Raised when pre-flight checks fail and benchmark cannot proceed."""
+    pass
+
+async def run_preflight_checks(url: str, test_key: str = None) -> dict:
+    """
+    Comprehensive pre-flight diagnostics before running the benchmark.
+    Returns a dict of check results. Raises PreFlightError on critical failures.
+    """
+    results = {}
+    print("\n" + "═"*80)
+    print("  🛫  PRE-FLIGHT CHECKS")
+    print("═"*80)
+
+    # 1. Docker connectivity
+    print("\n  [1/6] Docker daemon ...")
+    try:
+        import subprocess
+        docker_paths = [
+            os.path.expanduser("~/.docker/bin/docker"),
+            "/usr/local/bin/docker",
+            "/opt/homebrew/bin/docker",
+            "docker",
+        ]
+        docker_bin = None
+        for dp in docker_paths:
+            try:
+                r = subprocess.run([dp, "info", "--format", "{{.ServerVersion}}"],
+                                   capture_output=True, text=True, timeout=5)
+                if r.returncode == 0:
+                    docker_bin = dp
+                    break
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+        if docker_bin:
+            version = r.stdout.strip()
+            print(f"       ✅ Docker {version} ({docker_bin})")
+            results["docker"] = True
+        else:
+            print("       ⚠️  Docker not found — container checks skipped")
+            results["docker"] = False
+    except Exception as e:
+        print(f"       ⚠️  Docker check failed: {e}")
+        results["docker"] = False
+
+    # 2. Container health
+    print("  [2/6] Container health ...")
+    if results.get("docker") and docker_bin:
+        try:
+            r = subprocess.run(
+                [docker_bin, "compose", "ps", "--format", "json"],
+                capture_output=True, text=True, timeout=10,
+                cwd=os.environ.get("PROJECT_ROOT", ".")
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                containers = []
+                for line in r.stdout.strip().splitlines():
+                    try:
+                        c = json.loads(line)
+                        containers.append(c)
+                    except json.JSONDecodeError:
+                        continue
+                running = [c for c in containers if c.get("State") == "running"]
+                total = len(containers)
+                print(f"       ✅ {len(running)}/{total} containers running")
+                not_running = [c.get("Name", "?") for c in containers if c.get("State") != "running"]
+                if not_running:
+                    print(f"       ⚠️  Not running: {', '.join(not_running)}")
+                results["containers"] = len(running) == total
+            else:
+                print("       ⚠️  Could not list containers")
+                results["containers"] = None
+        except Exception as e:
+            print(f"       ⚠️  Container check failed: {e}")
+            results["containers"] = None
+    else:
+        results["containers"] = None
+
+    # 3. Backend health endpoint
+    print("  [3/6] Backend health ...")
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get(f"{url}/api/health", timeout=10.0)
+            if res.status_code == 200:
+                data = res.json()
+                status = data.get("status", "unknown")
+                services = data.get("services", {})
+                healthy = [k for k, v in services.items() if v is True]
+                unhealthy = [k for k, v in services.items() if v is not True]
+                print(f"       ✅ Backend status: {status}")
+                print(f"       ✅ Healthy services: {', '.join(healthy) if healthy else 'none'}")
+                if unhealthy:
+                    print(f"       ⚠️  Unhealthy: {', '.join(unhealthy)}")
+                results["backend_health"] = status == "healthy"
+            else:
+                print(f"       ❌ Backend returned HTTP {res.status_code}")
+                results["backend_health"] = False
+        except Exception as e:
+            print(f"       ❌ Backend unreachable: {e}")
+            raise PreFlightError(f"Backend at {url} is unreachable. Is 'make docker-up' running?")
+
+    # 4. Authentication
+    print("  [4/6] Authentication ...")
+    async with httpx.AsyncClient() as client:
+        try:
+            headers = {"X-Test-Key": test_key} if test_key else {}
+            res = await client.post(
+                f"{url}/api/chat",
+                json={"messages": [{"role": "user", "content": "namaste"}], "user_message": "namaste"},
+                headers=headers,
+                timeout=15.0,
+            )
+            if res.status_code == 401:
+                print("       ❌ 401 Unauthorized — chat endpoint requires auth")
+                print("          Pass --test-key <JWT> or set TEST_AUTH_BYPASS=1 on backend")
+                raise PreFlightError(
+                    "Chat endpoint returns 401. Pass a valid --test-key or configure TestAuthStrategy."
+                )
+            elif res.status_code in (200, 422):
+                print(f"       ✅ Chat endpoint accessible (HTTP {res.status_code})")
+                results["auth"] = True
+            else:
+                print(f"       ⚠️  Chat returned HTTP {res.status_code}")
+                results["auth"] = False
+        except PreFlightError:
+            raise
+        except Exception as e:
+            print(f"       ⚠️  Auth check error: {e}")
+            results["auth"] = None
+
+    # 5. Qdrant vector DB collections
+    print("  [5/6] Qdrant collections ...")
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get("http://localhost:6333/collections", timeout=5.0)
+            if res.status_code == 200:
+                collections = res.json().get("result", {}).get("collections", [])
+                names = [c.get("name", "?") for c in collections]
+                if names:
+                    print(f"       ✅ Collections: {', '.join(names)}")
+                    # Check point counts
+                    for name in names:
+                        try:
+                            cr = await client.get(f"http://localhost:6333/collections/{name}", timeout=5.0)
+                            if cr.status_code == 200:
+                                count = cr.json().get("result", {}).get("points_count", 0)
+                                print(f"          • {name}: {count} vectors")
+                                if count == 0:
+                                    print(f"          ⚠️  {name} is EMPTY — RAG queries will return no results")
+                        except Exception:
+                            pass
+                else:
+                    print("       ⚠️  No collections found — RAG will fail")
+                results["qdrant"] = len(names) > 0
+            else:
+                print(f"       ⚠️  Qdrant returned HTTP {res.status_code}")
+                results["qdrant"] = False
+        except Exception as e:
+            print(f"       ⚠️  Qdrant unreachable: {e}")
+            results["qdrant"] = False
+
+    # 6. Environment variables
+    print("  [6/6] Environment variables ...")
+    env_checks = {
+        "SARVAM_API_KEY": os.environ.get("SARVAM_API_KEY"),
+    }
+    for key, val in env_checks.items():
+        if val:
+            print(f"       ✅ {key} is set ({val[:8]}...)")
+        else:
+            print(f"       ⚠️  {key} not set in this shell (may be set in Docker)")
+    results["env"] = True  # Non-blocking
+
+    # Summary
+    print("\n" + "─"*80)
+    critical_failures = []
+    if results.get("backend_health") is False:
+        critical_failures.append("Backend unhealthy")
+    if results.get("auth") is False:
+        critical_failures.append("Authentication failed")
+    if results.get("qdrant") is False:
+        critical_failures.append("Qdrant has no collections")
+
+    if critical_failures:
+        print(f"  🚨 CRITICAL ISSUES: {', '.join(critical_failures)}")
+        print("  ⚠️  Benchmark will run but expect low scores.\n")
+    else:
+        print("  ✅ All pre-flight checks passed. Ready to benchmark.\n")
+
+    return results
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN
@@ -1208,7 +1417,7 @@ def save_json(results, infra, scores, total, url):
 
 async def wait_for_services(url: str, timeout: int = 300):
     import asyncio
-    print(f"\n⏳ Waiting up to {timeout}s for all services to be healthy...")
+    print(f"\n⏳ Waiting up to {timeout}s for backend to become healthy...")
     start_time = time.time()
     async with httpx.AsyncClient() as client:
         while time.time() - start_time < timeout:
@@ -1216,21 +1425,34 @@ async def wait_for_services(url: str, timeout: int = 300):
                 res = await client.get(f"{url}/api/health", timeout=5.0)
                 if res.status_code == 200:
                     data = res.json()
+                    # Only require status=="healthy" — individual service flags
+                    # may include boolean-false flags like lightrag_degraded:false
+                    # which means "degradation is NOT active" (i.e., healthy).
                     if data.get("status") == "healthy":
                         services = data.get("services", {})
-                        if all(v is True for v in services.values()):
-                            print(f"  ✅ All backend services healthy: {services}")
-                            return True
+                        print(f"  ✅ Backend healthy. Services: {services}")
+                        return True
+                    else:
+                        print(f"  ⏳ Backend status: {data.get('status', '?')} — waiting...")
             except Exception:
                 pass
             await asyncio.sleep(5)
-    print("  ❌ Timeout waiting for services to become healthy.")
+    print("  ❌ Timeout waiting for backend to become healthy.")
     return False
 
 async def main(url: str, test_key: str = None):
     if not await wait_for_services(url, timeout=300):
-        import sys
+        print("\n🚨 ABORTING: Backend services did not become healthy in time.")
         sys.exit(1)
+
+    # Run comprehensive pre-flight checks
+    try:
+        preflight = await run_preflight_checks(url, test_key)
+    except PreFlightError as e:
+        print(f"\n🚨 PRE-FLIGHT FAILURE: {e}")
+        print("   Fix the issue above and re-run the benchmark.")
+        sys.exit(2)
+
     print(f"\n🔌 Connecting to {url} ...")
     infra = await check_infra(url)
     down = [r.service for r in infra if not r.reachable]
@@ -1240,7 +1462,6 @@ async def main(url: str, test_key: str = None):
         print("  ✅ All services up\n")
 
     async with httpx.AsyncClient() as client:
-
 
         results: List[SingleResult] = []
         runners = [
@@ -1260,13 +1481,30 @@ async def main(url: str, test_key: str = None):
             ("Admin Telemetry", run_admin_telemetry),
         ]
 
+        failed_suites = []
         for name, runner in runners:
             print(f"  → {name} ...")
-            await runner(results, client, url, test_key)
+            try:
+                await runner(results, client, url, test_key)
+            except Exception as e:
+                print(f"    ❌ {name} CRASHED: {e}")
+                failed_suites.append(name)
+
+        if failed_suites:
+            print(f"\n  ⚠️  {len(failed_suites)} suite(s) crashed: {', '.join(failed_suites)}")
 
         scores = calculate_scores(results, infra)
         total = print_report(results, infra, scores, url)
-        save_json(results, infra, scores, total, url)
+
+        try:
+            save_json(results, infra, scores, total, url)
+        except RuntimeError as e:
+            print(f"\n{e}")
+            sys.exit(3)
+
+        # Exit with non-zero if not production ready
+        if total < 0.70:
+            sys.exit(1)
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="AskMukthiGuru CORRECTED Benchmark")
