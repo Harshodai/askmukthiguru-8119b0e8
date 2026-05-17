@@ -194,16 +194,54 @@ class OllamaService:
         else:
             return "CASUAL"
 
-    async def grade_relevance(self, query: str, document: str) -> bool:
+    async def classify_distress_structured(self, message: str) -> dict:
         """
-        CRAG: Binary relevance grading of a retrieved document.
+        Phase 3: Deterministic JSON outputs via Instructor (replacing Guardrails AI).
+        Uses Instructor to strictly enforce a Pydantic schema for distress classification.
+        """
+        import instructor
+        from openai import AsyncOpenAI
+        from pydantic import BaseModel, Field
         
-        Returns True if the document is relevant to the query.
-        Uses the fast model for speed.
-        """
-        prompt = f"Question: {query}\n\nDocument: {document}"
-        result = await self._generate_fast(GRADE_RELEVANCE_PROMPT, prompt)
-        return "yes" in result.lower()
+        class DistressOutput(BaseModel):
+            is_distress: bool = Field(description="True if the user is in distress, sad, or asking for help with negative emotions")
+            confidence: float = Field(description="Confidence score from 0.0 to 1.0")
+            reason: str = Field(description="Brief reason for the assessment")
+            
+        client = instructor.from_openai(
+            AsyncOpenAI(
+                base_url=f"{settings.ollama_base_url}/v1",
+                api_key="ollama",  # required, but unused
+            ),
+            mode=instructor.Mode.JSON,
+        )
+        
+        prompt = f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
+        
+        try:
+            resp: DistressOutput = await client.chat.completions.create(
+                model=settings.model_for_classification,
+                messages=[
+                    {"role": "system", "content": "You are a psychological safety assessor."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_model=DistressOutput,
+                max_retries=3
+            )
+            return {
+                "is_distress": resp.is_distress,
+                "confidence": resp.confidence,
+                "reason": resp.reason
+            }
+        except Exception as e:
+            logger.warning(f"Instructor structured output failed: {e}")
+            # Fallback to naive parsing if Instructor fails
+            intent = await self.classify_intent(message)
+            return {
+                "is_distress": intent == "DISTRESS",
+                "confidence": 0.5,
+                "reason": f"Fallback naive classification (intent={intent})"
+            }
 
     async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[dict]:
         """

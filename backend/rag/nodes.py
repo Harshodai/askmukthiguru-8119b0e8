@@ -346,6 +346,25 @@ async def retrieve_for_single_query(
         cluster_ids=selected_clusters if selected_clusters else None,
     )
 
+    # Phase 2.5: Parent-Child Resolution (Hierarchical Retrieval)
+    # Replaces the matching child chunk with its full parent context for better reasoning
+    resolved_chunks = []
+    seen_parents = set()
+    for doc in chunk_results:
+        parent_id = doc.get("parent_id")
+        parent_text = doc.get("parent_text")
+        
+        if parent_id and parent_text:
+            if parent_id not in seen_parents:
+                seen_parents.add(parent_id)
+                # Inject the parent text but keep the score and citation metadata from the child
+                doc["text"] = parent_text
+                resolved_chunks.append(doc)
+        else:
+            resolved_chunks.append(doc)
+            
+    chunk_results = resolved_chunks
+
     # Phase 3: Search LightRAG graph
     lightrag_results = []
     if lightrag and intent == "RELATIONAL":
