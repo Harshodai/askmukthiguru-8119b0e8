@@ -87,6 +87,28 @@ class LightRAGService:
             func=embed_func
         )
 
+        # Pre-flight: Verify Neo4j is reachable before attempting LightRAG construction
+        # NOTE: verify_connectivity() is synchronous — must run in thread to avoid blocking event loop
+        def _check_neo4j():
+            from neo4j import GraphDatabase
+            driver = GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password),
+            )
+            driver.verify_connectivity()
+            driver.close()
+
+        try:
+            await asyncio.to_thread(_check_neo4j)
+            logger.info("Neo4j connectivity verified.")
+        except Exception as e:
+            logger.warning(
+                f"⚠️ Neo4j unreachable ({e}). LightRAG will operate in DEGRADED mode — "
+                f"graph enrichment is disabled. Vector-only retrieval remains active."
+            )
+            self._initialized = False
+            return
+
         @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
         def _create_lightrag():
             return LightRAG(

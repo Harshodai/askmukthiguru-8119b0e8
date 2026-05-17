@@ -66,25 +66,38 @@ class RequestCoalescer:
     """
     System Design Pattern 4.1: Coalesce Caching.
     Merges identical concurrent requests to avoid redundant RAG runs.
+    Auto-cleans results after TTL to prevent unbounded memory growth.
     """
-    def __init__(self):
+    def __init__(self, ttl: float = 60.0):
         self._locks = {}
-        self._results = {}
+        self._results = {}  # key -> (result, timestamp)
+        self._ttl = ttl
+
+    def _cleanup(self):
+        """Remove expired entries to prevent memory leak."""
+        now = time.time()
+        expired = [k for k, (_, ts) in self._results.items() if now - ts > self._ttl]
+        for k in expired:
+            self._results.pop(k, None)
+            self._locks.pop(k, None)
 
     async def get_or_run(self, key: str, coro_func):
+        self._cleanup()
+
         if key in self._results:
-            return self._results[key]
+            result, _ = self._results[key]
+            return result
         
         if key not in self._locks:
             self._locks[key] = asyncio.Lock()
         
         async with self._locks[key]:
             if key in self._results:
-                return self._results[key]
+                result, _ = self._results[key]
+                return result
             
             result = await coro_func()
-            self._results[key] = result
-            # Clean up after a short delay (or keep in semantic cache)
+            self._results[key] = (result, time.time())
             return result
 
 coalescer = RequestCoalescer()
@@ -400,6 +413,12 @@ async def chat_endpoint(
     if not user_msg:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
+    if len(user_msg) > settings.max_input_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message too long. Please keep it under {settings.max_input_length} characters."
+        )
+
     # === Response Cache Check (Bypass Guardrails for known safe queries) ===
     cached = container.semantic_cache.get(user_msg)
     if cached is not None:
@@ -416,6 +435,9 @@ async def chat_endpoint(
     user_id = user.get("id", "anonymous")
     stable_session_id = normalize_session_id(chat_body.session_id, user_id)
     chat_history = [m.model_dump() for m in chat_body.messages]
+    # Cap conversation context to prevent OOM/timeouts on long sessions
+    if len(chat_history) > settings.chat_history_max_messages:
+        chat_history = chat_history[-settings.chat_history_max_messages:]
     
     # === NEW: User Profile & Memory ===
     memory_context, distress_history = await _prepare_user_memory(
@@ -476,9 +498,12 @@ async def chat_endpoint(
                 
             return await container.rag_graph.ainvoke(initial_state)
 
-        result = await coalescer.get_or_run(
-            f"{user_msg}:{hashlib.md5(str([m.model_dump() for m in chat_body.messages[-4:]]).encode()).hexdigest()[:8]}",
-            run_pipeline,
+        result = await asyncio.wait_for(
+            coalescer.get_or_run(
+                f"{user_msg}:{hashlib.md5(str([m.model_dump() for m in chat_body.messages[-4:]]).encode()).hexdigest()[:8]}",
+                run_pipeline,
+            ),
+            timeout=settings.llm_timeout + 10,  # Pipeline timeout = LLM timeout + 10s buffer
         )
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
@@ -514,6 +539,16 @@ async def chat_endpoint(
                 meditation_step=med_step
             )
 
+    except asyncio.TimeoutError:
+        logger.error(f"Pipeline timeout after {settings.llm_timeout + 10}s for: {user_msg[:100]}")
+        REQUEST_COUNT.labels(status="timeout").inc()
+        final_answer = (
+            "I apologize, I'm experiencing a moment of stillness. 🙏 "
+            "Please try asking your question again."
+        )
+        intent = "TIMEOUT"
+        med_step = 0
+        citations = []
     except Exception as e:
         citations = []
         from services.sarvam_service import QuotaExceededError
@@ -666,6 +701,11 @@ async def chat_stream_endpoint(
             yield f"event: error\ndata: Message cannot be empty\n\n"
         return StreamingResponse(error_stream(), media_type="text/event-stream")
 
+    if len(user_msg) > settings.max_input_length:
+        async def length_error_stream():
+            yield f"event: error\ndata: Message too long. Please keep it under {settings.max_input_length} characters.\n\n"
+        return StreamingResponse(length_error_stream(), media_type="text/event-stream")
+
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
         try:
@@ -687,6 +727,9 @@ async def chat_stream_endpoint(
             lang_detection = container.language_router.detect(user_msg)
             stable_session_id = normalize_session_id(chat_body.session_id, user_id)
             chat_history = [m.model_dump() for m in chat_body.messages]
+            # Cap conversation context to prevent OOM/timeouts on long sessions
+            if len(chat_history) > settings.chat_history_max_messages:
+                chat_history = chat_history[-settings.chat_history_max_messages:]
             
             # === NEW: User Profile & Memory ===
             memory_context, distress_history = await _prepare_user_memory(
@@ -731,7 +774,10 @@ async def chat_stream_endpoint(
             initial_state["memory_context"] = memory_context
 
             yield f"event: status\ndata: Searching knowledge base...\n\n"
-            result = await container.rag_graph.ainvoke(initial_state)
+            result = await asyncio.wait_for(
+                container.rag_graph.ainvoke(initial_state),
+                timeout=settings.llm_timeout + 10,
+            )
 
             final_answer = result.get("final_answer", "I apologize, something went wrong.")
             intent = result.get("intent", "CASUAL")

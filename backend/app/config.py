@@ -49,9 +49,13 @@ class Settings(BaseSettings):
     sarvam_cloud_model: str = "sarvam-30b"             # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
     sarvam_cloud_classify_model: str = "sarvam-30b"    # Classification model — can be same or different from generation model
     sarvam_base_url: str = "https://api.sarvam.ai/v1"  # Sarvam API base URL (override for proxy/staging)
-    llm_timeout: int = 60                              # HTTP timeout for LLM calls (seconds)
+    llm_timeout: int = 30                              # HTTP timeout for LLM calls (seconds)
     llm_max_retries: int = 3                           # Max retry attempts for failed LLM calls
     serene_mind_enabled: bool = True                    # Enable/disable Serene Mind distress detection engine
+
+    # --- Safety Limits ---
+    chat_history_max_messages: int = 20                 # Cap conversation context to prevent OOM/timeouts
+    max_input_length: int = 2000                        # Max user message length in characters
 
     # --- Guardrails ---
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "disabled"

@@ -125,6 +125,9 @@ class ServiceContainer:
         )
 
         # Layer 6: RAG graph (depends on core services + serene mind)
+        # LightRAG degraded-service flag: if Neo4j was unreachable during
+        # lightrag.initialize(), the graph still builds but without graph
+        # enrichment.  The service itself logs the warning.
         self.rag_graph = build_rag_graph(
             ollama_service=self.ollama,
             embedding_service=self.embedding,
@@ -139,6 +142,11 @@ class ServiceContainer:
             f"Guardrails: {self.guardrails.provider_name}, "
             f"Semantic Cache: {'enabled' if self.semantic_cache.is_available else 'disabled'})"
         )
+
+    @property
+    def lightrag_degraded(self) -> bool:
+        """Dynamic check of LightRAG initialization status."""
+        return not self.lightrag._initialized
 
     async def health_status(self) -> dict:
         """Check health of all services (non-blocking)."""
@@ -161,6 +169,7 @@ class ServiceContainer:
             "guardrails": self.guardrails.is_available,
             "guardrails_provider": self.guardrails.provider_name,
             "semantic_cache": self.semantic_cache.is_available,
+            "lightrag_degraded": self.lightrag_degraded,
             "embedding": True,
             "qdrant_count": qdrant_count,
         }

@@ -286,10 +286,18 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - State: `reflectionStep: 0|1|2|3`, `selectedMood`, `journalText`, `gratitudeText`. All saved to `meditationStorage` via the new `extras` parameter of `completeMeditationSession`.
 - `MeditationSession` type extended with optional `mood`, `reflection`, and `gratitude` fields.
 
-**RAG Benchmarking:**
-- `scripts/benchmark_rag_responses.py`: 10 curated queries across all 4 intents. Scores intent accuracy, keyword relevance, citation presence, latency. Exits non-zero if accuracy < 70% or keyword score < 50%.
+### 14. Consolidated "Ruthless" Benchmark Suite (May 2026)
+- **Problem**: Fragmented testing scripts (`test_latency`, `test_rag_quality`, `test_admin_metrics`) made it difficult to get a single, definitive "Readiness Score."
+- **Solution**: Consolidated all specialized testing modules into `scripts/benchmarks/askmukthiguru_ruthless_benchmark.py`.
+- **Truth-Anchor Library**: Integrated a library of verified spiritual teachings (books, interviews, official sites) as hard validation criteria, separating them from inferred content.
+- **Scoring Weights**: Implemented a weighted scoring system where **Doctrine Accuracy (30%)** and **Safety (20%)** are prioritized over latency or UI telemetry.
+- **Correction Reporting**: The suite now generates a unified `askmukthiguru_corrected_report.json` with a production readiness score (e.g., 0.48), providing a clear map of failure points (Redis connectivity, low doctrine coverage, etc.).
+- **Progress Visibility**: Added granular print statements to long-running asynchronous test runners (RAG queries) to prevent the appearance of "hanging" during deep synthesis.
+- **Cleanup**: Adopted a "Zero-Fragmentation" policy by removing all legacy benchmark scripts once their logic was successfully ported to the ruthless suite.
 
-**Responsive fixes:**
-- Footer chips: `flex-wrap` added so they don't overflow on narrow screens.
-- Messages area padding: `px-3 sm:px-4 md:px-6` for graduated responsiveness.
-- `ChatHeader`: Removed non-functional `PanelLeft` orphan icon from guru title button.
+### 15. Infrastructure & Guardrails Hardening (May 2026)
+- **Non-blocking Pre-flight Checks**: GraphRAG/LightRAG initialization relies on external Neo4j availability. Added a pre-flight connectivity check using `verify_connectivity()`. To prevent blocking the FastAPI main thread (event loop) during startup, this synchronous check is offloaded to a background thread via `asyncio.to_thread()`.
+- **Dynamic Degraded Detection**: In dependency-injection containers (ServiceContainer), service status variables that depend on asynchronous lifespan events (like `lightrag.initialize()`) must not be evaluated statically in `__init__`. Converted `lightrag_degraded` to a dynamic `@property` so it accurately queries `not self.lightrag._initialized` at execution time instead of staying stuck at `True`.
+- **Bidirectional Streaming Protection**: Fast API chat endpoints need symmetric safety controls. Aligned the streaming (`/api/chat/stream`) and non-streaming endpoints by applying identical input character limits (2000 chars), chat history capping (20 messages), and strict execution time limits via `asyncio.wait_for()`.
+- **Regex Context Alignment**: Broad regex rules for medical/violence blocking can easily trigger false positives on domain-specific inputs. Refined overly broad patterns (e.g. `r'\b(cure|remedy)\s+(for|to)\b'`) to require adjacent clinical descriptors (e.g. `disease|cancer|diabetes|illness`), allowing spiritual questions about "remedies for suffering" to pass seamlessly while ensuring absolute safety boundaries.
+

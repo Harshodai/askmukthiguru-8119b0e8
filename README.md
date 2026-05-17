@@ -181,6 +181,6 @@ Private — All rights reserved.
 # Auth + stream checkpoint unit tests
 npx vitest run src/tests/auth.e2e.test.ts
 
-# RAG quality benchmark (requires running Docker stack)
-python scripts/benchmark_rag_responses.py --base-url http://localhost:8000
+# Production-grade "Ruthless" benchmark (requires running Docker stack)
+python3 scripts/benchmarks/askmukthiguru_ruthless_benchmark.py --url http://localhost:8000
 ```
