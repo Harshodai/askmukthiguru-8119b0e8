@@ -44,7 +44,7 @@ This builds and starts **all 6 services**:
 - **Jaeger** on port **16686** — OpenTelemetry trace UI
 
 ### 5. Access the app
- 
+
  | URL | Description |
  |---|---|
  | http://localhost | Main app (landing, chat, practices, profile) |
@@ -53,9 +53,9 @@ This builds and starts **all 6 services**:
  | http://localhost/static-ingest | Content ingestion portal — Admin-only |
  | http://localhost:8000/api/health | Backend health check |
  | http://localhost:16686 | Jaeger trace explorer |
- 
+
  ### 6. Database Setup (Supabase)
- 
+
  For persistent user profiles and admin telemetry, you must run the **[master_schema.sql](master_schema.sql)** in your Supabase SQL Editor. This script creates:
  - **User Profiles**: Persistent spiritual preference storage.
  - **Admin Telemetry**: Auditing for queries, responses, and AI triggers (distress/serene mind).
@@ -112,10 +112,10 @@ Set `LLM_PROVIDER` in `backend/.env`:
 
 ## RAG Pipeline (12 Layers)
 
-1. NeMo Input Rail (guardrails)
+1. Zero-Shot Input Rail (Guardrails via Instructor)
 2. Intent Classification
 3. Query Decomposition
-4. Knowledge Tree Navigation (RAPTOR)
+4. Knowledge Tree Navigation (Parent-Child Retrieval)
 5. Hybrid Retrieval (Qdrant + LightRAG)
 6. Cross-encoder Reranking
 7. CRAG Document Grading
@@ -123,7 +123,7 @@ Set `LLM_PROVIDER` in `backend/.env`:
 9. Context-aware Generation with bounded conversation memory
 10. Self-RAG Faithfulness Check
 11. Chain of Verification (CoVe)
-12. NeMo Output Rail
+12. Zero-Shot Output Rail
 
 Conversation continuity is carried by the active chat `session_id`. The backend
 normalizes local browser conversation ids into stable UUIDs for Supabase memory
@@ -180,6 +180,9 @@ Private — All rights reserved.
 ```bash
 # Auth + stream checkpoint unit tests
 npx vitest run src/tests/auth.e2e.test.ts
+
+# Native Benchmark Evaluation
+python3 backend/tests/eval_ragas_native.py
 
 # Production-grade "Ruthless" benchmark (requires running Docker stack)
 python3 scripts/benchmarks/askmukthiguru_ruthless_benchmark.py --url http://localhost:8000
