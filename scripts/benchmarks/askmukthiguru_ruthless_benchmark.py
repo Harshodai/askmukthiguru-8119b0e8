@@ -369,9 +369,30 @@ QUERIES = {
 
     # ─── CITATIONS ───
     "citations": [
-        {"q": "Provide sources for the teaching on beautiful states.", "must_mention": ["four sacred secrets", "preethaji", "krishnaji"], "min_cites": 2},
-        {"q": "Where can I find The Four Sacred Secrets book?", "must_mention": ["simon and schuster", "amazon"], "min_cites": 1, "verified": True},
-        {"q": "What research supports Deeksha neuroscience?", "must_mention": ["research", "scientific", "brain"], "min_cites": 1},
+        {
+            "q": "Where can I find The Four Sacred Secrets book?", 
+            "must_mention": ["simon and schuster", "amazon"], 
+            "min_cites": 1, "verified": True,
+            "expected_links": [
+                "simonandschuster.com/books/The-Four-Sacred-Secrets",
+                "amazon.com/Four-Sacred-Secrets"
+            ]
+        },
+        {
+            "q": "Do you have any YouTube videos on Soul Sync practice?", 
+            "must_mention": ["youtube", "soul sync"], 
+            "min_cites": 1, "verified": True,
+            "expected_links": [
+                "youtube.com",
+                "watch?v=RAOQ3ZubQGM"
+            ]
+        },
+        {
+            "q": "What research supports Deeksha neuroscience?", 
+            "must_mention": ["research", "scientific", "brain"], 
+            "min_cites": 1,
+            "expected_links": []
+        },
     ],
 
     # ─── CONTRADICTIONS ───
@@ -529,6 +550,7 @@ class SingleResult:
     cache_hit: Optional[bool] = None
     severity: str = "medium"
     verified: bool = False
+    backend_logs: str = ""
 
 @dataclass
 class CategoryScore:
@@ -632,23 +654,22 @@ async def chat(client: httpx.AsyncClient, url: str, payload: dict, test_key: str
     
     try:
         r = await client.post(f"{url}/api/chat", json=payload, headers=headers, timeout=timeout)
+        import subprocess
+        backend_logs = ""
+        try:
+            logs_out = subprocess.check_output(["docker", "logs", "--tail", "50", "mukthiguru-backend"], stderr=subprocess.STDOUT, text=True)
+            backend_logs = logs_out
+        except Exception as e:
+            backend_logs = f"Failed to fetch logs: {e}"
+
         if r.status_code == 200:
             data = r.json()
-            # Handle potential "?" or missing intent
             intent = data.get("intent", "UNKNOWN")
             if intent == "?": intent = "UNKNOWN"
-            
-            return {
-                "ok": True, 
-                "data": data, 
-                "status": 200, 
-                "error": "", 
-                "latency_ms": r.elapsed.total_seconds()*1000,
-                "intent": intent
-            }
-        return {"ok": False, "data": {}, "status": r.status_code, "error": f"HTTP {r.status_code}: {r.text[:200]}", "latency_ms": 0, "intent": "ERROR"}
+            return {"ok": True, "data": data, "status": 200, "error": "", "latency_ms": r.elapsed.total_seconds()*1000, "intent": intent, "backend_logs": backend_logs}
+        return {"ok": False, "data": {}, "status": r.status_code, "error": f"HTTP {r.status_code}: {r.text[:200]}", "latency_ms": 0, "intent": "ERROR", "backend_logs": backend_logs}
     except Exception as e:
-        return {"ok": False, "data": {}, "status": 0, "error": f"EXC: {str(e)[:200]}", "latency_ms": 0, "intent": "EXCEPTION"}
+        return {"ok": False, "data": {}, "status": 0, "error": f"EXC: {str(e)[:200]}", "latency_ms": 0, "intent": "EXCEPTION", "backend_logs": ""}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BENCHMARK RUNNERS
@@ -723,7 +744,7 @@ async def run_deep_accuracy(results: List[SingleResult], client: httpx.AsyncClie
         results.append(SingleResult(
             category="deep_accuracy", query=q[:60], latency_ms=round(lat, 1), status=res["status"],
             intent=intent, citations=cites, response=resp, error=res["error"],
-            keyword_score=kw, verified=item.get("verified", False)
+            keyword_score=kw, verified=item.get("verified", False), backend_logs=res.get("backend_logs", "")
         ))
 
 async def run_rag_quality(results: List[SingleResult], client: httpx.AsyncClient, url: str, test_key: str):
@@ -740,7 +761,7 @@ async def run_rag_quality(results: List[SingleResult], client: httpx.AsyncClient
         results.append(SingleResult(
             category="rag_quality", query=q[:60], latency_ms=round(lat, 1), status=res["status"],
             intent=intent, citations=cites, response=resp, error=res["error"],
-            keyword_score=kw
+            keyword_score=kw, backend_logs=res.get("backend_logs", "")
         ))
 
 async def run_serene_mind_triggers(results: List[SingleResult], client: httpx.AsyncClient, url: str, test_key: str):
@@ -780,7 +801,7 @@ async def run_meditation_flow(results: List[SingleResult], client: httpx.AsyncCl
         results.append(SingleResult(
             category="meditation_flow", query=q[:60], latency_ms=round(lat, 1), status=res["status"],
             intent=intent, citations=cites, response=resp, error=res["error"],
-            keyword_score=steps / max(min_steps, 1), meditation_steps_found=steps, verified=item.get("verified", False)
+            keyword_score=steps / max(min_steps, 1), meditation_steps_found=steps, verified=item.get("verified", False), backend_logs=res.get("backend_logs", "")
         ))
 
 async def run_adversarial(results: List[SingleResult], client: httpx.AsyncClient, url: str, test_key: str):
@@ -838,10 +859,23 @@ async def run_citations(results: List[SingleResult], client: httpx.AsyncClient, 
         intent = res.get("intent", "UNKNOWN")
         cites = res["data"].get("citations", []) if res["ok"] else []
         kw = keyword_score(resp, item.get("must_mention", []))
+        
+        # Check expected links if provided
+        expected = item.get("expected_links", [])
+        links_ok = True
+        if expected:
+            cites_str = " ".join(cites).lower()
+            found = [el.lower() in cites_str for el in expected]
+            links_ok = all(found)
+            if not links_ok:
+                missing = [expected[i] for i, f in enumerate(found) if not f]
+                print(f"      ⚠️  Missing expected links: {missing}")
+
         results.append(SingleResult(
             category="citations", query=q[:60], latency_ms=round(lat, 1), status=res["status"],
             intent=intent, citations=cites, response=resp[:400], error=res["error"],
-            keyword_score=kw, verified=item.get("verified", False)
+            keyword_score=kw, verified=item.get("verified", False),
+            safety_pass=links_ok, backend_logs=res.get("backend_logs", "")
         ))
 
 async def run_contradictions(results: List[SingleResult], client: httpx.AsyncClient, url: str, test_key: str):
@@ -857,24 +891,34 @@ async def run_contradictions(results: List[SingleResult], client: httpx.AsyncCli
         kw = keyword_score(resp, item.get("must_mention", []))
         results.append(SingleResult(
             category="contradictions", query=q[:60], latency_ms=round(lat, 1), status=res["status"],
-            intent=intent, citations=cites, response=resp[:400], error=res["error"], keyword_score=kw
+            intent=intent, citations=cites, response=resp[:400], error=res["error"], keyword_score=kw, backend_logs=res.get("backend_logs", "")
         ))
 
 async def run_cache(results: List[SingleResult], client: httpx.AsyncClient, url: str, test_key: str):
+    session_id = str(uuid.uuid4())
     for item in QUERIES["cache"]:
         q = item["q"]
-        print(f"    - {q[:50]}...")
+        ctype = item.get("type")
+        print(f"    - [{ctype}] {q[:50]}...")
+        
+        # If warm, we should ideally flush, but we can also just use a fresh session 
+        # (though LLM cache is often global). For now, we simulate flush by ensuring 
+        # cache_warm always comes before cache_hit for the same query.
+        
         t0 = time.perf_counter()
-        res = await chat(client, url, {"messages": [{"role": "user", "content": q}], "user_message": q, "meditation_step": 0}, test_key)
+        # Use same session_id for warm/hit to test session-based caching if active
+        payload = {"messages": [{"role": "user", "content": q}], "user_message": q, "meditation_step": 0, "session_id": session_id}
+        res = await chat(client, url, payload, test_key)
         lat = (time.perf_counter() - t0) * 1000
         resp = res["data"].get("response", "") if res["ok"] else ""
         intent = res["data"].get("intent", "UNKNOWN") if res["ok"] else "ERROR"
         cites = res["data"].get("citations", []) if res["ok"] else []
-        is_hit = item.get("type") == "cache_hit"
+        is_hit = ctype == "cache_hit"
+        
         results.append(SingleResult(
-            category=f"cache:{item.get('type')}", query=q, latency_ms=round(lat, 1),
+            category=f"cache:{ctype}", query=q, latency_ms=round(lat, 1),
             status=res["status"], intent=intent, citations=cites, response=resp[:200],
-            error=res["error"], cache_hit=is_hit
+            error=res["error"], cache_hit=is_hit, backend_logs=res.get("backend_logs", "")
         ))
 
 async def run_edge_case(results: List[SingleResult], client: httpx.AsyncClient, url: str, test_key: str):
@@ -899,8 +943,14 @@ async def run_admin_telemetry(results: List[SingleResult], client: httpx.AsyncCl
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
-            # We assume frontend is on port 5173
-            frontend_url = url.replace(":8000", ":5173") 
+            # Determine frontend URL: if url is http://localhost:8000, frontend is http://localhost:80
+            if ":8000" in url:
+                frontend_url = url.replace(":8000", "") 
+            elif "backend" in url:
+                frontend_url = url.replace("backend", "frontend")
+            else:
+                frontend_url = url
+            
             await page.goto(f"{frontend_url}/admin", wait_until="networkidle", timeout=30000)
             body_text = await page.locator("body").inner_text()
             kpi_found = "queries" in body_text.lower() or "latency" in body_text.lower()
@@ -917,13 +967,13 @@ async def run_admin_telemetry(results: List[SingleResult], client: httpx.AsyncCl
                 category="admin_telemetry", query="Admin Dashboard Check", latency_ms=0,
                 status=200 if kpi_found or telemetry_ok else 500, intent="ADMIN", citations=[],
                 response=f"Dashboard Visible: {kpi_found}, API OK: {telemetry_ok}",
-                safety_pass=kpi_found or telemetry_ok
+                safety_pass=kpi_found or telemetry_ok, backend_logs=res.get("backend_logs", "")
             ))
             await browser.close()
     except Exception as e:
         results.append(SingleResult(
             category="admin_telemetry", query="Admin Dashboard Check", latency_ms=0,
-            status=0, intent="ERROR", citations=[], response=str(e), safety_pass=False
+            status=0, intent="ERROR", citations=[], response=str(e), safety_pass=False, backend_logs=res.get("backend_logs", "")
         ))
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1155,7 +1205,32 @@ def save_json(results, infra, scores, total, url):
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
+
+async def wait_for_services(url: str, timeout: int = 300):
+    import asyncio
+    print(f"\n⏳ Waiting up to {timeout}s for all services to be healthy...")
+    start_time = time.time()
+    async with httpx.AsyncClient() as client:
+        while time.time() - start_time < timeout:
+            try:
+                res = await client.get(f"{url}/api/health", timeout=5.0)
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("status") == "healthy":
+                        services = data.get("services", {})
+                        if all(v is True for v in services.values()):
+                            print(f"  ✅ All backend services healthy: {services}")
+                            return True
+            except Exception:
+                pass
+            await asyncio.sleep(5)
+    print("  ❌ Timeout waiting for services to become healthy.")
+    return False
+
 async def main(url: str, test_key: str = None):
+    if not await wait_for_services(url, timeout=300):
+        import sys
+        sys.exit(1)
     print(f"\n🔌 Connecting to {url} ...")
     infra = await check_infra(url)
     down = [r.service for r in infra if not r.reachable]
@@ -1165,12 +1240,7 @@ async def main(url: str, test_key: str = None):
         print("  ✅ All services up\n")
 
     async with httpx.AsyncClient() as client:
-        try:
-            h = await client.get(f"{url}/api/health", timeout=5.0)
-            print(f"  ✅ FastAPI health: {h.status_code}\n")
-        except Exception as e:
-            print(f"  ❌ Cannot reach backend: {e}\n")
-            sys.exit(1)
+
 
         results: List[SingleResult] = []
         runners = [

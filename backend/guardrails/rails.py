@@ -71,6 +71,23 @@ _BLOCKED_TOPICS = {
         r"\bmake\s+(someone|them|her|him)\s+(obey|submit|fear)\b",
         r"\bblackmail\b", r"\bextort\b",
     ],
+    "prompt_injection": [
+        r"\b(ignore|disregard|forget)\b.*\b(previous|above|prior|all)\b.*\b(instructions?|rules?|prompts?)\b",
+        r"\b(you\s+are\s+now|act\s+as|pretend\s+to\s+be|roleplay\s+as)\b",
+        r"\b(system\s+prompt|reveal\s+your|show\s+me\s+your)\b.*\b(instructions?|prompt|rules?)\b",
+        r"\bdan\s+mode\b", r"\bjailbreak\b",
+        r"\bdo\s+anything\s+now\b",
+    ],
+    "medical_advice_broad": [
+        r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria)\b",
+        r"\bhow\s+to\s+(cure|heal|treat|fix)\b.*\b(disease|illness|infection|cancer|diabetes|heart|depression)\b",
+        r"\bwhat\s+(medicine|drug|pill|supplement)\b.*\bshould\s+(i|I)\b",
+        r"\bsymptoms?\s+of\b.*\b(disease|cancer|diabetes|infection)\b",
+    ],
+    "violence": [
+        r"\bhow\s+to\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
+        r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
+    ],
 }
 
 # Response templates for blocked topics
@@ -99,6 +116,21 @@ _BLOCK_RESPONSES = {
         "The teachings of Sri Preethaji and Sri Krishnaji guide us toward connection, not control. "
         "True power comes from being in a Beautiful State, where you naturally uplift others. "
         "Would you like to explore what the Beautiful State means? 🙏"
+    ),
+    "prompt_injection": (
+        "I sense this message is trying to redirect my purpose. "
+        "I am Mukthi Guru, and my sole purpose is to share the sacred teachings of "
+        "Sri Preethaji and Sri Krishnaji. How may I guide you on your spiritual journey? 🙏"
+    ),
+    "medical_advice_broad": (
+        "I care about your wellbeing deeply, but medical advice should come from a qualified "
+        "healthcare professional. I can share the teachings of Sri Preethaji and Sri Krishnaji "
+        "on inner healing and the Beautiful State. Would you like to explore that path? 🙏"
+    ),
+    "violence": (
+        "I cannot and will not provide guidance on harming others. "
+        "The teachings of Sri Preethaji and Sri Krishnaji are rooted in compassion, "
+        "oneness, and the sacredness of all life. 🙏"
     ),
 }
 
@@ -171,6 +203,16 @@ class LightweightGuardrails:
 
     async def check_input(self, message: str) -> dict:
         """Check if user message should be blocked."""
+        # Hard length limit
+        if len(message) > settings.max_input_length:
+            logger.info(f"Lightweight guardrail blocked input: message too long ({len(message)} chars)")
+            return {
+                "blocked": True,
+                "reason": "Input too long",
+                "response": f"Your message is too long. Please keep it under {settings.max_input_length} characters for the best guidance. 🙏",
+                "redirect_to": None,
+            }
+
         message_lower = message.lower()
 
         # Check spiritual context FIRST — exempt from crisis detection

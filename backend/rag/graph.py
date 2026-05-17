@@ -236,6 +236,7 @@ def create_initial_state(
         # Retrieval
         documents=[],
         reranked_docs=[],
+        hyde_text=None,
         # CRAG
         relevant_docs=[],
         grading_reasons=[],
@@ -268,8 +269,12 @@ def create_initial_state(
         # Final
         final_answer=None,
         error=None,
+        # Context Engineering
+        context_layers=None,
         # Explainable Retrieval
         citation_reasoning={},
+        # Metrics
+        metrics={},
         # User & Language
         user_id=None,
         detected_language="en",

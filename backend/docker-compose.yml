@@ -30,6 +30,12 @@ services:
       - NEO4J_PLUGINS=["apoc"]
     volumes:
       - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
   
   # --- Redis Cache ---
@@ -94,7 +100,7 @@ services:
       - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
       - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
       - SARVAM_BASE_URL=${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-180}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-30}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
       - SERENE_MIND_ENABLED=${SERENE_MIND_ENABLED:-true}
       # --- Guardrails ---
@@ -122,7 +128,7 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       # Embedding models (downloaded on first run)
-      - EMBEDDING_MODEL=BAAI/bge-m3
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
       - EMBEDDING_DIMENSION=1024
       - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
       # HuggingFace cache (so models survive container rebuilds)
@@ -155,6 +161,8 @@ services:
     depends_on:
       jaeger:
         condition: service_started
+      neo4j:
+        condition: service_healthy
       qdrant:
         condition: service_healthy
       redis:
