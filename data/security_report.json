@@ -1,0 +1,221 @@
+{
+  "generated_at": "2026-05-17T20:21:29.795736",
+  "findings": [
+    {
+      "category": "Legal",
+      "check": "Privacy policy file exists",
+      "status": "PASS",
+      "detail": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/pages/PrivacyPage.tsx",
+      "fix": ""
+    },
+    {
+      "category": "Legal",
+      "check": "Terms of service file exists",
+      "status": "PASS",
+      "detail": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/pages/TermsPage.tsx",
+      "fix": ""
+    },
+    {
+      "category": "Legal",
+      "check": "User data deletion capability",
+      "status": "PASS",
+      "detail": "Found in 1 location(s)",
+      "fix": ""
+    },
+    {
+      "category": "Legal",
+      "check": "PII not logged",
+      "status": "WARN",
+      "detail": "Possible PII in log statements: ['backend/services/auth_service.py', 'scripts/ingestion/pageindex/page_index.py']",
+      "fix": "Scrub email/token values from log messages"
+    },
+    {
+      "category": "Legal",
+      "check": "Cookie consent mechanism",
+      "status": "PASS",
+      "detail": "Found: src/App.tsx",
+      "fix": ""
+    },
+    {
+      "category": "Security",
+      "check": "CORS not wildcard",
+      "status": "PASS",
+      "detail": "No wildcard CORS detected",
+      "fix": ""
+    },
+    {
+      "category": "Security",
+      "check": "No raw SQL string formatting",
+      "status": "PASS",
+      "detail": "No raw SQL formatting found",
+      "fix": ""
+    },
+    {
+      "category": "Security",
+      "check": "No dangerouslySetInnerHTML",
+      "status": "WARN",
+      "detail": "Found in: ['src/components/ui/chart.tsx']",
+      "fix": "Review each usage \u2014 ensure content is sanitized with DOMPurify before rendering"
+    },
+    {
+      "category": "Security",
+      "check": "Auth dependency on API routes",
+      "status": "PASS",
+      "detail": "Found in 6 route(s)",
+      "fix": ""
+    },
+    {
+      "category": "Security",
+      "check": "JWT secret configured",
+      "status": "PASS",
+      "detail": "JWT secret referenced in config",
+      "fix": ""
+    },
+    {
+      "category": "Security",
+      "check": "HTTPS/HSTS enforcement",
+      "status": "PASS",
+      "detail": "HSTS or redirect found",
+      "fix": ""
+    },
+    {
+      "category": "Security",
+      "check": "Security headers middleware",
+      "status": "PASS",
+      "detail": "Found: backend/app/main.py",
+      "fix": ""
+    },
+    {
+      "category": "Secrets",
+      "check": ".env in .gitignore",
+      "status": "PASS",
+      "detail": ".env is gitignored",
+      "fix": ""
+    },
+    {
+      "category": "Secrets",
+      "check": ".env never committed to git",
+      "status": "PASS",
+      "detail": "No .env in git history",
+      "fix": ""
+    },
+    {
+      "category": "Secrets",
+      "check": "No hardcoded secrets in source",
+      "status": "PASS",
+      "detail": "Clean \u2014 no hardcoded secrets found",
+      "fix": ""
+    },
+    {
+      "category": "Secrets",
+      "check": "No secrets in VITE_ env vars",
+      "status": "PASS",
+      "detail": "No private keys in VITE_ vars",
+      "fix": ""
+    },
+    {
+      "category": "Secrets",
+      "check": "Password not in API responses",
+      "status": "PASS",
+      "detail": "No password field in response schemas",
+      "fix": ""
+    },
+    {
+      "category": "Abuse",
+      "check": "Rate limiting on API endpoints",
+      "status": "PASS",
+      "detail": "Found in 5 location(s)",
+      "fix": ""
+    },
+    {
+      "category": "Abuse",
+      "check": "Input length validation",
+      "status": "PASS",
+      "detail": "Found: backend/app/config.py",
+      "fix": ""
+    },
+    {
+      "category": "Abuse",
+      "check": "API spend cap / budget alert",
+      "status": "PASS",
+      "detail": "Found: backend/app/main.py",
+      "fix": ""
+    },
+    {
+      "category": "Abuse",
+      "check": "Bot protection on auth",
+      "status": "PASS",
+      "detail": "Found: scripts/security_audit.py",
+      "fix": ""
+    },
+    {
+      "category": "Abuse",
+      "check": "Brute-force protection on auth",
+      "status": "PASS",
+      "detail": "Found: backend/app/config.py",
+      "fix": ""
+    },
+    {
+      "category": "Abuse",
+      "check": "File upload size limits",
+      "status": "PASS",
+      "detail": "Upload size validation found",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "Content-Security-Policy set",
+      "status": "PASS",
+      "detail": "Prevents XSS by whitelisting content sources",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "X-Frame-Options set",
+      "status": "PASS",
+      "detail": "Prevents clickjacking (DENY or SAMEORIGIN)",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "X-Content-Type-Options set",
+      "status": "PASS",
+      "detail": "Prevents MIME sniffing (nosniff)",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "Strict-Transport-Security set",
+      "status": "PASS",
+      "detail": "Enforces HTTPS (HSTS)",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "Referrer-Policy set",
+      "status": "PASS",
+      "detail": "Controls referrer information leakage",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "Permissions-Policy set",
+      "status": "PASS",
+      "detail": "Disables unused browser features",
+      "fix": ""
+    },
+    {
+      "category": "Headers",
+      "check": "Nginx config exists",
+      "status": "PASS",
+      "detail": "Found: /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/nginx.conf",
+      "fix": ""
+    }
+  ],
+  "summary": {
+    "total": 30,
+    "pass": 28,
+    "warn": 2,
+    "fail": 0
+  }
+}

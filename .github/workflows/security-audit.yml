@@ -1,0 +1,37 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Run every Monday at 09:00 IST (03:30 UTC) as a standing pre-launch check
+  schedule:
+    - cron: '30 3 * * 1'
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    name: Pre-Launch Security Checklist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Security Audit
+        run: python3 scripts/security_audit.py --report
+        # Fail the CI pipeline on any FAIL finding (exit code 1)
+
+      - name: Upload Security Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-${{ github.run_number }}
+          path: data/security_report.json
+          retention-days: 90
