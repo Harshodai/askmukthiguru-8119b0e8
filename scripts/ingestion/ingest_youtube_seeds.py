@@ -22,7 +22,7 @@ import asyncio
 import time
 
 # Add backend to python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 from app.dependencies import get_container
 
@@ -105,7 +105,7 @@ async def main():
     print("=" * 70)
 
     # Set environment defaults
-    os.environ.setdefault("LLM_PROVIDER", "sarvam_cloud")
+    os.environ.setdefault("LLM_PROVIDER", "ollama")
 
     print("\nInitializing Service Container...")
     container = get_container()

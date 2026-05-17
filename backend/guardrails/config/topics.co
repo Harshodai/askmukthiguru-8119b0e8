@@ -19,12 +19,7 @@ define flow allow spiritual death
 define flow check safety
   """Detect self-harm/suicide and redirect to helpline."""
   user express self harm intent
-    bot provide crisis resources """I'm deeply concerned about what you've shared. Please reach out to a crisis helpline immediately:
-🆘 National Suicide Prevention Lifeline - 988 (US)
-🆘 iCall - 9152987821 (India)
-🆘 Crisis Text Line - Text HOME to 741741
-
-You are not alone. Please talk to someone who can help right now. 💛"""
+    bot provide crisis resources "I have shared crisis helpline info. Please reach out to a crisis helpline immediately. National Suicide Prevention Lifeline is 988, iCall is 9152987821, and Crisis Text Line is Text HOME to 741741. You are not alone."
 
 define flow check output moderation
   """Ensure the bot response doesn't contain harmful content."""

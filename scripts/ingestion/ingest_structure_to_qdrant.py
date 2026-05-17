@@ -8,7 +8,7 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 from app.config import settings
 from services.qdrant_service import QdrantService
@@ -67,7 +67,7 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
 
 
 def main():
-    structure_path = os.path.join(os.path.dirname(__file__), "..", "results", "The_Four_Sacred_Secrets_structure.json")
+    structure_path = os.path.join(os.path.dirname(__file__), "..", "..", "results", "The_Four_Sacred_Secrets_structure.json")
     if not os.path.isfile(structure_path):
         print(f"❌ Structure file not found: {structure_path}")
         sys.exit(1)

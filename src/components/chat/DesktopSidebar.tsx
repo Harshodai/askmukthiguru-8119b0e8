@@ -25,6 +25,7 @@ interface DesktopSidebarProps {
   currentConversationId?: string;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  onDeleteConversation?: (id: string) => void;
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
@@ -35,11 +36,13 @@ export const DesktopSidebar = ({
   currentConversationId,
   isCollapsed,
   onToggleCollapse,
+  onDeleteConversation,
 }: DesktopSidebarProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const reload = useCallback(() => setConversations(loadConversations()), []);
 
@@ -157,6 +160,7 @@ export const DesktopSidebar = ({
           <button
             onClick={onToggleCollapse}
             title="Expand sidebar (⌘B)"
+            data-testid="sidebar-toggle"
             className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-all mb-2"
           >
             <ChevronRight className="w-4 h-4" />
@@ -164,7 +168,7 @@ export const DesktopSidebar = ({
         </div>
       ) : (
         /* ── Full Sidebar ───────────────────────────────────────────── */
-        <div className="flex flex-col h-full min-w-0">
+        <div className="flex flex-col h-full min-w-0 relative">
           {/* Header */}
           <div className="flex items-center gap-2.5 px-3 py-3 border-b border-border/30">
             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-ojas/20 flex-shrink-0">
@@ -178,6 +182,7 @@ export const DesktopSidebar = ({
             <button
               onClick={onToggleCollapse}
               title="Collapse sidebar (⌘B)"
+              data-testid="sidebar-toggle"
               className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted text-muted-foreground transition-all flex-shrink-0"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -245,6 +250,7 @@ export const DesktopSidebar = ({
                     {convs.map(conv => (
                       <div
                         key={conv.id}
+                        data-testid="conversation-item"
                         onClick={() => onSelectConversation?.(conv)}
                         className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
                           conv.id === currentConversationId
@@ -278,13 +284,18 @@ export const DesktopSidebar = ({
                             onClick={e => handleRename(conv, e)}
                             className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                             title="Rename"
+                            aria-label="Rename conversation"
                           >
                             <Edit2 className="w-2.5 h-2.5" />
                           </button>
                           <button
-                            onClick={e => handleDelete(conv.id, e)}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setDeleteConfirmId(conv.id);
+                            }}
                             className="p-1 rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
                             title="Delete"
+                            aria-label="Delete conversation"
                           >
                             <Trash2 className="w-2.5 h-2.5" />
                           </button>
@@ -306,6 +317,44 @@ export const DesktopSidebar = ({
               Back to Home
             </Link>
           </div>
+
+          {/* Delete confirmation overlay modal */}
+          {deleteConfirmId && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 text-center">
+              <div className="bg-card border border-border/50 rounded-2xl p-4 shadow-xl max-w-[240px] space-y-3">
+                <p className="text-xs font-semibold text-foreground">Delete conversation?</p>
+                <p className="text-[10px] text-muted-foreground">This action cannot be undone and your teaching history will be lost.</p>
+                <div className="flex items-center gap-2 justify-center">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirmId(null);
+                    }}
+                    data-testid="delete-cancel"
+                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onDeleteConversation) {
+                        onDeleteConversation(deleteConfirmId);
+                      } else {
+                        deleteConversation(deleteConfirmId);
+                        reload();
+                      }
+                      setDeleteConfirmId(null);
+                    }}
+                    data-testid="delete-confirm"
+                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </motion.aside>

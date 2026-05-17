@@ -24,7 +24,7 @@ import re
 import sys
 
 # Add backend to path for Qdrant/Embedding services
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 from pageindex.utils import (
     get_page_tokens, count_tokens, get_pdf_name,
