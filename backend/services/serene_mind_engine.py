@@ -68,9 +68,10 @@ _EN_PATTERNS = {
         r"\b(depressed|sad|unhappy|miserable|frustrated|angry|furious)\b",
         r"\b(scared|afraid|terrified|worried|fear|nervous)\b",
         r"\b(lonely|isolated|alone|abandoned|rejected)\b",
+        r"\b(burn\s*out|burned\s*out|pointless|crying|don'?t\s*feel\s*like\s*myself)\b",
     ],
     DistressLevel.MILD: [
-        r"\b(tired|exhausted|drained|burnout|burn\s*out)\b",
+        r"\b(tired|exhausted|drained|burnout)\b",
         r"\b(confused|lost|uncertain|stuck|struggling)\b",
         r"\b(uneasy|uncomfortable|restless|unsettled)\b",
     ],
@@ -391,6 +392,11 @@ class SereneMindEngine:
         
         assessment = await self.async_assess_distress(message)
         
+        # If user explicitly states they are burned out/pointless etc, trigger MODERATE
+        if assessment.level == DistressLevel.MILD and assessment.recommended_response_type == "gentle":
+            assessment.level = DistressLevel.MODERATE
+            assessment.recommended_response_type = "meditation"
+
         # Escalate if persistent
         if distress_count >= self.distress_threshold and assessment.level.value >= 1:
             assessment.level = DistressLevel.SEVERE

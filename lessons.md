@@ -79,10 +79,20 @@ Before claiming a feature is "production-ready," verify:
 ## Lessons Learned
 
 ### Docker & Environment
-- **Path Issues**: Always use absolute paths for Docker binaries on host machines (specifically `/Users/harshodaikolluru/.docker/bin/docker`) to avoid "command not found" errors in automated scripts.
+- **Path Issues**: Always use absolute paths for Docker binaries on host machines (specifically `/Users/harshodaikolluru/.docker/bin/docker` or `/Applications/Docker.app/Contents/Resources/bin`) to avoid "command not found" errors in automated scripts.
 - **Volume Persistence**: Critical services (Qdrant, Neo4j, Redis) must use named volumes to ensure data survives container rebuilds.
 - **Nginx Route Priority**: When serving a SPA alongside legacy static files, avoid folder names that conflict with internal application routes. Static assets should be namespaced (e.g., `/static/`) to prevent route hijacking.
 - **Config Persistence**: Changes to `supabase/config.toml` (like adding Google OAuth) require a `supabase stop` and `supabase start` to take effect.
+- **Parallel Local Self-Hosted Stacks (Multi-Tenant Port Remapping)**:
+  - Running multiple local development stacks utilizing complex self-hosted middleware (e.g. Supabase Postgres DB, GoTrue Auth, Realtime, REST, Storage, Kong API Gateway, and specialized Go/Python backend servers) in parallel requires remapping all exposed host ports to prevent bind-conflicts (e.g. mapping DB `54322` to `54326`, Kong Gateway `8000/8443` to `8008/8444`, Supabase Studio `3000` to `3005`, and local Vite frontend `4173` to `4175`).
+  - Isolated Docker networks permit container-to-container communication using internal default service ports (e.g. `db:5432` or `kong:8000`) without collision; only host-exposed port mappings conflict.
+- **Supabase Gotrue Redirect Alignment**:
+  - Local self-hosted Supabase uses Auth/Gotrue to manage OAuth redirects and callbacks. When remapping Kong gateway ports, you must generalize/re-map the URL values (Google/Github redirect URIs, `SUPABASE_PUBLIC_URL`, `API_EXTERNAL_URL`) to use the new port (`http://localhost:8008` instead of `8000`).
+  - Frontend and backend `.env` files must align precisely with the remapped external ports (`VITE_SUPABASE_URL=http://localhost:8008`, `VITE_API_URL=http://localhost:8085/api`, and `FRONTEND_URL=http://localhost:4175` with matching CORS `ALLOWED_ORIGINS`).
+- **Initial Boot Database Migration Latency**:
+  - On the very first startup of a self-hosted Supabase DB instance, the Auth/Gotrue container applies all structural database migrations (typically 60+ migrations), which can take up to 26+ seconds.
+  - If the container's healthcheck timeout rules are too strict (e.g., 3 retries at a 5s interval = 15 seconds), the container is prematurely marked unhealthy, causing Docker Compose to halt startup of dependent services.
+  - **Resolution**: Provide a generous healthcheck grace period or run `docker compose up -d` a second time to start downstream services once migrations finish.
 
 ### Testing & UI
 - **Refactoring for Design**: When UI designs change (e.g., renaming "New Conversation" to "New Chat"), tests must be updated alongside the components. Using stable `data-testid` attributes reduces the brittleness of tests compared to querying by text labels alone.

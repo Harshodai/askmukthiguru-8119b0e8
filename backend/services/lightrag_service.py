@@ -18,15 +18,16 @@ class LightRAGService:
     Orchestrates graph-based extraction and retrieval using Neo4j and Qdrant.
     """
     _instance = None
-    _initialized = False
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(LightRAGService, cls).__new__(cls)
+            cls._instance._initialized = False
+            cls._instance.rag = None
         return cls._instance
 
     def __init__(self):
-        self.rag: Optional[LightRAG] = None
+        pass
 
     async def initialize(self):
         if self._initialized:

@@ -34,7 +34,7 @@ class IngestionCheckpoint:
     def is_processed(self, chunk_id: str) -> bool:
         return chunk_id in self.processed_chunks
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
 from ingest.youtube_loader import (

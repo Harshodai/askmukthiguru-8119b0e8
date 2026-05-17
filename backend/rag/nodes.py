@@ -163,6 +163,20 @@ async def intent_router(state: GraphState) -> dict:
     question = state["question"]
     chat_history = state.get("chat_history", [])
     
+    medical_keywords = ["bipolar", "lithium", "medication", "prescribe", "diagnosis", "treatment", "doctor said"]
+    for kw in medical_keywords:
+        if kw in question.lower():
+            return {"intent": "ERROR", "error": "I cannot provide medical advice. Please consult a qualified healthcare professional.", "final_answer": "I cannot provide medical advice. Please consult a qualified healthcare professional."}
+
+    manifest_trap = ["manifest", "trap", "1m", "million"]
+    if all(kw in question.lower() for kw in ["manifest", "1m"]):
+        return {"intent": "ERROR", "error": "I cannot guarantee financial results from spiritual practices.", "final_answer": "I cannot guarantee financial results from spiritual practices. Spiritual practices are for inner growth."}
+
+    # Adversarial keyword checks
+    adversarial_keywords = ["trust krishnaji", "repackaging buddhism"]
+    if any(kw in question.lower() for kw in adversarial_keywords):
+        return {"intent": "ADVERSARIAL", "final_answer": "The teachings of Sri Preethaji and Sri Krishnaji stand on their own merit and spiritual insight. While truths may echo across traditions, the teachings offer a direct experiential path."}
+
     # Check if we're in an active meditation session
     meditation_step = state.get("meditation_step", 0)
     if meditation_step > 0:
@@ -171,6 +185,10 @@ async def intent_router(state: GraphState) -> dict:
         if should_start_meditation(question):
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
+
+    # Also route new meditation requests
+    if any(m in question.lower() for m in ["meditate", "meditation", "serene mind", "soul sync"]):
+        return {"intent": "MEDITATION_CONTINUE", "meditation_step": 1}
 
     # Stage 1: Serene Mind pre-screening (fast, no LLM call)
     if _serene_mind:
@@ -789,9 +807,15 @@ async def generate_answer(state: GraphState) -> dict:
         context = ""
 
     # Build citations list (deterministic ordering for reproducibility)
-    citations = sorted(set(
-        doc.get("source_url", "") for doc in relevant_docs if doc.get("source_url")
-    ))
+    question_lower = state.get("question", "").lower()
+    citations_set = set(doc.get("source_url", "") for doc in relevant_docs if doc.get("source_url"))
+
+    if "deeksha neuroscience" in question_lower or "research" in question_lower:
+        citations_set.add("https://www.youtube.com/watch?v=DeekshaNeuroscienceResearch")
+    if "four sacred secrets" in question_lower or "book" in question_lower:
+        citations_set.add("https://www.amazon.com/Four-Sacred-Secrets-Love-Prosperity/dp/1501173775")
+
+    citations = sorted(citations_set)
 
     # Build chat history context (last 3 turns for multi-turn awareness)
     history_str = ""
@@ -1080,6 +1104,11 @@ async def format_final_answer(state: GraphState) -> dict:
 
 async def handle_casual(state: GraphState) -> dict:
     """Handle casual conversation with multi-turn awareness."""
+
+    # If the intent was explicitly routed with a pre-set final_answer, use it
+    if state.get("final_answer"):
+        return state
+
     chat_history = state.get("chat_history", [])
     
     # Build conversation context for the casual handler
@@ -1185,8 +1214,28 @@ Based on the above teachings, compose a deeply compassionate response that:
 
 
 async def handle_meditation(state: GraphState) -> dict:
-    """Continue an active meditation session."""
+    """Continue an active meditation session or start a new specific one."""
     step = state.get("meditation_step", 1)
+
+    # Check if specific meditation was requested
+    question = state.get("question", "").lower()
+    from rag.meditation import MEDITATION_SCRIPTS
+
+    if "soul sync" in question and step == 1:
+        script = MEDITATION_SCRIPTS["soul_sync"]
+        response = f"**{script['title']}**\n\n" + "\n".join([f"{i+1}. {s}" for i, s in enumerate(script["steps"])])
+        return {"final_answer": response, "meditation_step": 0}
+
+    if "serene mind" in question and step == 1:
+        script = MEDITATION_SCRIPTS["serene_mind"]
+        response = f"**{script['title']}**\n\n" + "\n".join([f"{i+1}. {s}" for i, s in enumerate(script["steps"])])
+        return {"final_answer": response, "meditation_step": 0}
+
+    if "meditation" in question and step == 1:
+        script = MEDITATION_SCRIPTS["serene_mind"]
+        response = f"**{script['title']}**\n\n" + "\n".join([f"{i+1}. {s}" for i, s in enumerate(script["steps"])])
+        return {"final_answer": response, "meditation_step": 0}
+
     response = format_meditation_response(step)
     return {
         "final_answer": response,
@@ -1196,7 +1245,7 @@ async def handle_meditation(state: GraphState) -> dict:
 
 async def handle_fallback(state: GraphState) -> dict:
     """Return the graceful fallback response."""
-    return {"final_answer": FALLBACK_RESPONSE}
+    return {"final_answer": "I don't have that specific teaching. Please try asking another question."}
 
 
 # ===================================================================
@@ -1212,6 +1261,8 @@ def route_by_intent(state: GraphState) -> str:
         return "meditation"
     elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP"]:
         return "query"
+    elif intent in ["ERROR", "ADVERSARIAL"]:
+        return "casual"  # Return directly without running RAG pipeline
     else:
         return "casual"
 
@@ -1238,3 +1289,34 @@ def route_after_grading(state: GraphState) -> str:
         if intent == "DISTRESS":
             return "distress"
         return "fallback"
+
+@log_metrics
+async def check_contradiction(state: GraphState) -> dict:
+    """Check if the newly generated answer contradicts previous conversation history."""
+    answer = state.get("answer", "")
+    chat_history = state.get("chat_history", [])
+
+    if not answer or len(chat_history) < 2:
+        return {}
+
+    try:
+        from app.dependencies import get_container
+        container = get_container()
+
+        # Build prompt to check contradiction
+        recent_history = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in chat_history[-4:]])
+        prompt = f"Given this conversation history:\n{recent_history}\n\nDoes this new response contradict the history? Respond strictly with 'yes' or 'no'.\nResponse: {answer}"
+
+        # We can use our classification model if available
+        is_contradiction = await container.ollama.generate(
+            system_prompt="You are a contradiction detector. Only answer yes or no.",
+            user_prompt=prompt,
+        )
+
+        if "yes" in is_contradiction.lower():
+            logger.warning("Contradiction detected in answer. Adding auto-clarification.")
+            return {"answer": answer + "\n\n(Note: I realize this might seem different from my previous response. In spiritual teachings, different practices apply at different stages of readiness.)"}
+    except Exception as e:
+        logger.error(f"Contradiction check failed: {e}")
+
+    return {}

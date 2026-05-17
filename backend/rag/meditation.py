@@ -16,6 +16,34 @@ from rag.prompts import MEDITATION_STEPS, DISTRESS_PROMPT
 
 logger = logging.getLogger(__name__)
 
+MEDITATION_SCRIPTS = {
+    "serene_mind": {
+        "title": "Serene Mind Meditation",
+        "steps": [
+            "Find a quiet place and sit comfortably.",
+            "Close your eyes and take a deep breath.",
+            "Acknowledge any thoughts, but let them pass like clouds.",
+            "Focus on the stillness within.",
+            "When you are ready, gently open your eyes."
+        ]
+    },
+    "soul_sync": {
+        "title": "Soul Sync Meditation",
+        "steps": [
+            "Breathe in deeply, counting to 4.",
+            "Hold your breath for a count of 4.",
+            "Exhale slowly, counting to 8.",
+            "Repeat this cycle, imagining a golden light filling you.",
+            "Focus on a deep sense of gratitude.",
+            "Slowly bring your awareness back to the present."
+        ]
+    }
+}
+
+def get_meditation_script(script_name: str) -> dict:
+    return MEDITATION_SCRIPTS.get(script_name, {"title": "Meditation", "steps": []})
+
+
 # Maximum step index
 MAX_STEP = len(MEDITATION_STEPS)
 
