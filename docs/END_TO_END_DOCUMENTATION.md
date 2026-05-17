@@ -202,3 +202,89 @@ OpenTelemetry tracks Request Latency and LLM spans, exporting to a local Jaeger 
 
 ---
 *Created per project specifications and architectural guidelines.*
+## 12. Technical Specifications: APIs and Data Models
+
+### 12.1 Backend API Endpoints (FastAPI)
+
+#### **Chat Endpoints (`app/main.py`)**
+*   `POST /api/chat/stream`: The core conversational streaming endpoint.
+    *   **Input**: JSON payload containing `messages`, `user_message`, `meditation_step`, and `session_id`.
+    *   **Output**: Server-Sent Events (SSE). Streams `event: token`, `event: thinking`, and `event: done` (containing citations and intent).
+    *   **Flow**: Validates request → Maps `session_id` → Loads compact user memory context → Passes through NeMo guardrails → Triggers LangGraph state machine → Yields streaming tokens → Saves conversation memory.
+
+*   `POST /api/chat`: Non-streaming legacy chat endpoint.
+
+#### **Ingestion Endpoints (`app/main.py`)**
+*   `POST /api/ingest`: Submits content for vectorization.
+    *   **Input**: `IngestRequest` (URL, chunk strategy parameters).
+    *   **Output**: `IngestResponse` with a tracking status. Kicks off a BackgroundTask for YouTube extraction, transcription, chunking, and embedding.
+*   `GET /api/ingest/status`: Retrieves the progress of background ingestion tasks.
+
+#### **User & Profile Endpoints (`app/main.py`)**
+*   `GET /api/profile`: Fetches the authenticated user's spiritual profile, language preferences, and meditation level.
+*   `PUT /api/profile`: Updates user metadata.
+
+#### **Admin Endpoints (`routers/admin.py`)**
+*   `GET /admin/traces`: Fetches recent query and response traces for observability.
+*   `GET /admin/kpis`: Retrieves aggregated KPIs (like hallucination rates, distress triggers) over a date range.
+
+#### **Feedback Endpoints (`routers/feedback.py`)**
+*   `POST /feedback/`: Submits user feedback (upvote/downvote and optional text) for a generated answer.
+*   `GET /feedback/history`: Retrieves recent feedback history for the admin dashboard.
+
+### 12.2 Data Models & Schemas
+
+The system uses Pydantic schemas for data validation (`backend/schemas/`):
+
+*   **`FeedbackCreate` & `FeedbackResponse`**: Models user ratings. Includes `query`, `answer`, `rating` (1/-1), `feedback_text`, and `metadata_json`.
+*   **`UserRead`, `UserCreate`, `UserUpdate`**: FastAPI-Users base models defining user structure (UUID, name, email, auth flags).
+*   **`ConversationMemory`** (`services/user_profile_service.py`): Compact historical representation of a user session. Includes `session_id`, `messages`, `key_insights`, `emotional_arc`, and `follow_up_suggestions`.
+
+---
+
+## 13. Technical Specifications: LangGraph State Machine
+
+The orchestration layer (`backend/rag/`) enforces the 12-layer pipeline.
+
+### 13.1 GraphState (`rag/states.py`)
+A `TypedDict` defining the entire state during pipeline execution:
+*   **Input**: `question`, `chat_history`
+*   **Routing**: `intent`
+*   **Retrieval**: `documents`, `reranked_docs`, `hyde_text`
+*   **CRAG**: `relevant_docs`, `grading_reasons`, `rewrite_count`, `rewritten_query`
+*   **Stimulus RAG**: `hints`
+*   **Verification**: `is_faithful`, `needs_correction`, `reflection_feedback`, `confidence_score`
+*   **Generation**: `answer`, `citations`, `final_answer`
+
+### 13.2 Core Nodes (`rag/nodes.py`)
+Each graph step is an async Python function mutating `GraphState`:
+*   `intent_router()`: Classifies the query (`DISTRESS`, `QUERY`, `CASUAL`). Short-circuits the graph if not a query.
+*   `generate_hyde()`: Generates a hypothetical document embedding to improve semantic search matching.
+*   `retrieve_documents()`: Executes vector search on Qdrant using the query (or rewritten query).
+*   `rerank_documents()`: Re-scores documents using a CrossEncoder.
+*   `grade_documents()`: Uses an LLM to evaluate if retrieved chunks are relevant.
+*   `check_context_sufficiency()`: Evaluates the total relevant context. Triggers a `rewrite_query()` loop if insufficient.
+*   `generate_answer()`: Prompts the LLM with the context, hints, and system persona to formulate an answer.
+*   `reflect_on_answer()` & `verify_answer()`: Self-RAG steps where the system verifies if its own generated text hallucinates facts.
+
+---
+
+## 14. Technical Specifications: Frontend Architecture
+
+The frontend is built with React 18 and Vite, located in `src/`.
+
+### 14.1 Key Directories
+*   **`src/pages/`**: React Router top-level views.
+    *   `ChatPage.tsx`: The primary RAG interface.
+    *   `AuthPage.tsx`: Supabase authentication UI.
+    *   `ProfilePage.tsx`: User preference management.
+    *   `PracticesPage.tsx`: Library of spiritual practices.
+*   **`src/components/chat/`**: Complex logic specific to the chat interface.
+    *   `ChatInterface.tsx`: Manages the main chat stream, SSE event processing, and local conversational state.
+    *   `ChatMessage.tsx`: Renders individual Markdown bubbles and citations.
+    *   `DesktopSidebar.tsx`: Session history management.
+    *   `SereneMindModal.tsx`: The interactive 4-step guided meditation UI triggered by a `DISTRESS` intent.
+    *   `DailyTeaching.tsx`: Real-time Supabase subscription component rendering daily wisdom cards.
+*   **`src/hooks/`**: Custom React hooks.
+    *   `useSpeechRecognition.ts`: Interface with the browser Web Speech API for multi-lingual dictation.
+    *   `useTextToSpeech.ts`: Browser-based speech synthesis.
