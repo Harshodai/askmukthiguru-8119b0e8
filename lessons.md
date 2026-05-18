@@ -413,5 +413,11 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Fallback Content Parsing**: Implemented a robust fallback mechanism. If the model returns an empty or whitespace-only `"content"` string, the service automatically parses and returns the text from the `"reasoning_content"` field, preventing data loss.
   - **Strict Keyword Preservation**: Ensured that all public-facing LLM methods (e.g., `generate`, `_generate_fast`) forward `**kwargs` completely to `_call_api` rather than silently dropping custom operational parameters.
 
+### 26. Silencing Optional Startup and Tokenizer Advisory Warnings (May 2026)
+- **Problem**: When initializing the backend RAG services, optional dependency missing warnings (e.g., `Failed to load RAGatouille ColBERTv2: No module named 'ragatouille'`) and Hugging Face tokenizer advisory warnings (e.g., `You're using a XLMRobertaTokenizerFast tokenizer. Please note that...`) cluttered the logs, appearing as critical issues to developers and users.
+- **Solution**:
+  - **Environment-Level Suppression**: Programmatically set `os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"` during `EmbeddingService` initialization. This instructs the Hugging Face `transformers` library to suppress noise and advisory messages.
+  - **Graceful Import Fallbacks**: Refactored the `RAGatouille` try-except block to catch `ImportError`/`ModuleNotFoundError` explicitly and log a clean `INFO` statement explaining that the optional cascaded reranking feature is not installed, reserving scary `WARNING` logs exclusively for actual runtime model loading errors.
+
 
 
