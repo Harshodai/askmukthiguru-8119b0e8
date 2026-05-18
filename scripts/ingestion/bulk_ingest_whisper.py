@@ -25,6 +25,7 @@ import logging
 import json
 import subprocess
 import signal
+import argparse
 
 # ── Force unbuffered stdout for real-time logging ───────────
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -41,10 +42,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
 # Override infrastructure URLs for host-side execution (not Docker-internal)
-os.environ["LLM_PROVIDER"] = "ollama"
-os.environ["OLLAMA_MODEL"] = "deepseek-r1:7b"
-os.environ["OLLAMA_CLASSIFY_MODEL"] = "deepseek-r1:7b"
-os.environ["SARVAM_API_KEY"] = "none"
+os.environ["LLM_PROVIDER"] = "sarvam_cloud"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["NEO4J_USERNAME"] = "neo4j"
@@ -79,15 +77,20 @@ LIGHTRAG_SLEEP_BETWEEN = 3.0  # seconds between chunks (thermal throttling)
 
 
 def chunk_text(text: str, chunk_size: int = LIGHTRAG_CHUNK_SIZE, overlap: int = LIGHTRAG_CHUNK_OVERLAP) -> list[str]:
-    """Split text into overlapping chunks at sentence boundaries."""
+    """Split text into overlapping chunks at sentence boundaries.
+    
+    FIXED: Previous version had a catastrophic 1-char sliding window bug.
+    When sentence boundary search moved 'end' close to 'start', the fallback
+    `start = max(start + 1, end - overlap)` would advance by only 1 character,
+    generating 500+ near-duplicate chunks instead of ~54.
+    """
     chunks = []
     start = 0
     while start < len(text):
         end = min(start + chunk_size, len(text))
 
-        # Try to break at sentence boundary
+        # Try to break at sentence boundary (only if not at end of text)
         if end < len(text):
-            # Look backwards from 'end' for a sentence-ending punctuation
             for boundary_char in ['. ', '.\n', '!\n', '?\n', '! ', '? ']:
                 last_boundary = text.rfind(boundary_char, start + chunk_size // 2, end)
                 if last_boundary != -1:
@@ -98,8 +101,16 @@ def chunk_text(text: str, chunk_size: int = LIGHTRAG_CHUNK_SIZE, overlap: int = 
         if chunk:
             chunks.append(chunk)
 
-        # Move forward, subtracting overlap
-        start = max(start + 1, end - overlap)
+        # Terminal condition: reached end of text
+        if end >= len(text):
+            break
+
+        # Advance window — MUST make meaningful progress
+        next_start = end - overlap
+        if next_start <= start:
+            # Overlap would cause stall/1-char slide — skip overlap entirely
+            next_start = end
+        start = next_start
 
     return chunks
 
@@ -341,8 +352,24 @@ def _signal_handler(signum, frame):
     _shutdown_requested = True
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Mukthi Guru Bulk Ingestion")
+    parser.add_argument("--test-playlist", action="store_true",
+                        help="Test mode: process only the first playlist")
+    parser.add_argument("--playlist-limit", type=int, default=0,
+                        help="Limit number of playlists to process (0=all)")
+    parser.add_argument("--skip-lightrag", action="store_true",
+                        help="Skip LightRAG graph extraction (saves API calls)")
+    parser.add_argument("--skip-book", action="store_true",
+                        help="Skip book ingestion, go straight to YouTube")
+    parser.add_argument("--video-limit", type=int, default=0,
+                        help="Limit total videos to process (0=all)")
+    return parser.parse_args()
+
+
 async def main():
     global _shutdown_requested
+    args = parse_args()
 
     # ── Signal Handlers for graceful shutdown ───────────────
     signal.signal(signal.SIGINT, _signal_handler)
@@ -392,7 +419,9 @@ async def main():
     doc_name = "The_Four_Sacred_Secrets.pdf"
     json_path = os.path.join(BASE_DIR, "results/The_Four_Sacred_Secrets_structure.json")
 
-    if doc_name in state["processed_docs"]:
+    if args.skip_book:
+        logger.info(f"⏭️  --skip-book flag set, skipping book ingestion")
+    elif doc_name in state["processed_docs"]:
         logger.info(f"⏭️  Skipping already processed document: {doc_name}")
     elif not os.path.exists(json_path):
         logger.error(f"❌ Structure JSON not found: {json_path}")
@@ -409,12 +438,13 @@ async def main():
             logger.info("Step 1/2: ✅ PageIndex → Qdrant complete")
 
             # STEP 2: Chunked LightRAG → Neo4j (graph entity extraction)
-            logger.info("Step 2/2: LightRAG → Neo4j (chunked graph extraction)...")
-            if container.lightrag:
+            if args.skip_lightrag:
+                logger.info("Step 2/2: ⏭️  --skip-lightrag flag set, skipping graph extraction")
+            elif container.lightrag:
+                logger.info("Step 2/2: LightRAG → Neo4j (chunked graph extraction)...")
                 with open(json_path, "r") as f:
                     data = json.load(f)
 
-                # Extract full text from structure nodes
                 def get_text_recursive(nodes):
                     t = ""
                     for n in nodes:
@@ -460,19 +490,33 @@ async def main():
     logger.info(f"\n{'='*60}")
     logger.info("RESOLVING YOUTUBE PLAYLISTS & VIDEO IDS")
     logger.info(f"{'='*60}")
+
+    playlists_to_process = PLAYLIST_URLS
+    if args.test_playlist:
+        playlists_to_process = PLAYLIST_URLS[:1]
+        logger.info(f"🧪 TEST MODE: Processing only first playlist")
+    elif args.playlist_limit > 0:
+        playlists_to_process = PLAYLIST_URLS[:args.playlist_limit]
+        logger.info(f"🔢 Processing {len(playlists_to_process)} of {len(PLAYLIST_URLS)} playlists")
+
     all_ids = []
-    for pl in PLAYLIST_URLS:
+    for pl in playlists_to_process:
         if _shutdown_requested:
             break
         logger.info(f"Resolving playlist: {pl}")
         all_ids.extend(get_video_ids_from_playlist(pl))
-        # Small delay between playlist resolutions to avoid rate limits
         time.sleep(1)
 
-    all_ids += CORE_VIDEO_IDS
+    if not args.test_playlist:
+        all_ids += CORE_VIDEO_IDS
 
     seen = set()
     unique_ids = [v for v in all_ids if not (v in seen or seen.add(v))]
+
+    if args.video_limit > 0:
+        unique_ids = unique_ids[:args.video_limit]
+        logger.info(f"🔢 Video limit: processing {len(unique_ids)} videos")
+
     logger.info(f"🎯 Total unique videos queued: {len(unique_ids)}")
 
     for vid in unique_ids:
@@ -511,15 +555,15 @@ async def main():
                 logger.info(f"[Qdrant] ✅ Success | Title: {title} | Chunks: {chunks}")
 
                 # STEP 2: LightRAG/Neo4j (knowledge graph via safe chunked insertion)
-                if container.lightrag:
+                if args.skip_lightrag:
+                    pass  # Silently skip — already logged at startup
+                elif container.lightrag:
                     logger.info(f"[LightRAG] Fetching transcript for video: {vid}...")
                     text = await fetch_transcript_text(vid)
                     if text.strip():
-                        # Correct spelling/domain terms using the pipeline's corrector
                         logger.info(f"[LightRAG] Correcting spelling and domain terminology in transcript...")
                         sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
                         corrected_text = await pipeline._corrector.correct_transcript(sanitized_text, url)
-                        # Prepend clear video details and URL in source name
                         source_name = f"YouTube Video: {title} (URL: {url})"
                         await safe_lightrag_insert(container.lightrag, corrected_text, source_name)
                         logger.info(f"[LightRAG] ✅ Success")
