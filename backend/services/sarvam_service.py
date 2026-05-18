@@ -170,7 +170,7 @@ class SarvamCloudService:
         self,
         messages: list[dict],
         model: str,
-        max_tokens: int = 2048,
+        max_tokens: int = 8192,
         temperature: float = 0.1,
         stream: bool = False,
         operation: str = "generate",
@@ -224,6 +224,14 @@ class SarvamCloudService:
             "stream": stream,
         }
 
+        # Inject reasoning_effort parameter for Sarvam Cloud models to prevent infinite reasoning loops
+        if "reasoning_effort" in kwargs:
+            payload["reasoning_effort"] = kwargs["reasoning_effort"]
+        elif model.startswith("sarvam-"):
+            reasoning_effort = getattr(settings, "sarvam_reasoning_effort", "low")
+            if reasoning_effort in ("low", "medium", "high"):
+                payload["reasoning_effort"] = reasoning_effort
+
         last_error = None
         for attempt in range(1, self._max_retries + 1):
             start_time = time.time()
@@ -244,7 +252,36 @@ class SarvamCloudService:
 
                     if resp.status_code == 200:
                         data = resp.json()
-                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
+                        try:
+                            import json
+                            debug_file = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/data/sarvam_debug.json"
+                            with open(debug_file, "a") as df:
+                                df.write(json.dumps({
+                                    "timestamp": time.time(),
+                                    "operation": operation,
+                                    "max_tokens": max_tokens,
+                                    "temperature": temperature,
+                                    "payload_messages_len": len(payload.get("messages", [])),
+                                    "prompt_example": payload.get("messages", [])[-1].get("content")[:500] if payload.get("messages") else "",
+                                    "choice_0": data.get("choices", [{}])[0],
+                                    "usage": data.get("usage", {})
+                                }, indent=2) + "\n\n")
+                        except Exception as e:
+                            logger.error(f"Failed to write sarvam debug info: {e}")
+
+                        choice_message = data.get("choices", [{}])[0].get("message", {})
+                        content = choice_message.get("content") or ""
+                        reasoning_content = choice_message.get("reasoning_content") or ""
+
+                        # Fallback: if content is empty but reasoning_content exists, use reasoning_content
+                        # This happens if the model gets cut off by max_tokens/context limit during reasoning.
+                        if not content.strip() and reasoning_content.strip():
+                            logger.warning(
+                                f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}). "
+                                "Using reasoning_content as fallback."
+                            )
+                            content = reasoning_content
+
                         usage = data.get("usage", {}) or {}
                         tokens_used = usage.get("total_tokens", 0)
                         self._record_usage(span, usage)
@@ -432,7 +469,7 @@ class SarvamCloudService:
         messages.append({"role": "user", "content": full_prompt})
 
         temperature = kwargs.pop("temperature", 0.1)
-        max_tokens = kwargs.pop("max_tokens", 2048)
+        max_tokens = kwargs.pop("max_tokens", 8192)
 
         return await self._call_api(
             messages=messages,
@@ -440,6 +477,7 @@ class SarvamCloudService:
             max_tokens=max_tokens,
             temperature=temperature,
             operation="generate",
+            **kwargs,
         )
 
     async def _generate_fast(
@@ -460,7 +498,7 @@ class SarvamCloudService:
         ]
 
         temperature = kwargs.pop("temperature", 0.0)
-        max_tokens = kwargs.pop("max_tokens", 512)
+        max_tokens = kwargs.pop("max_tokens", 2048)
 
         try:
             return await self._call_api(
@@ -469,6 +507,7 @@ class SarvamCloudService:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 operation="classification",
+                **kwargs,
             )
         except QuotaExceededError:
             raise
@@ -481,6 +520,7 @@ class SarvamCloudService:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 operation="classification_fallback",
+                **kwargs,
             )
 
     async def generate_stream(
@@ -513,9 +553,17 @@ class SarvamCloudService:
             "model": self._gen_model,
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.1),
-            "max_tokens": kwargs.get("max_tokens", 2048),
+            "max_tokens": kwargs.get("max_tokens", 8192),
             "stream": True,
         }
+
+        # Inject reasoning_effort parameter for Sarvam Cloud models to prevent infinite reasoning loops
+        if "reasoning_effort" in kwargs:
+            payload["reasoning_effort"] = kwargs["reasoning_effort"]
+        elif self._gen_model.startswith("sarvam-"):
+            reasoning_effort = getattr(settings, "sarvam_reasoning_effort", "low")
+            if reasoning_effort in ("low", "medium", "high"):
+                payload["reasoning_effort"] = reasoning_effort
 
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
