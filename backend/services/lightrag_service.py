@@ -85,7 +85,8 @@ class LightRAGService:
         embedding_func = EmbeddingFunc(
             embedding_dim=settings.embedding_dimension,
             max_token_size=8192,
-            func=embed_func
+            func=embed_func,
+            model_name=settings.embedding_model
         )
 
         # Pre-flight: Verify Neo4j is reachable before attempting LightRAG construction
@@ -157,7 +158,7 @@ class LightRAGService:
             logger.error(f"LightRAG query failed: {e}")
             return ""
 
-    async def ainsert(self, text: str):
+    async def ainsert(self, text: str, file_paths: Optional[str | list[str]] = None):
         """Insert new content into the graph asynchronously."""
         if not self._initialized:
             await self.initialize()
@@ -168,17 +169,17 @@ class LightRAGService:
         
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
         try:
-            await self.rag.ainsert(text)
+            await self.rag.ainsert(text, file_paths=file_paths)
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
                 logger.warning("LightRAG storage not initialized during insertion, retrying...")
                 await self.rag.initialize_storages()
-                await self.rag.ainsert(text)
+                await self.rag.ainsert(text, file_paths=file_paths)
             else:
                 raise
 
-    async def ainsert_chunked(self, text: str, max_chunk_size: int = 8000, overlap: int = 500, sleep_between: float = 3.0):
+    async def ainsert_chunked(self, text: str, file_paths: Optional[str | list[str]] = None, max_chunk_size: int = 8000, overlap: int = 500, sleep_between: float = 3.0):
         """Insert large texts into the graph in chunks to prevent SIGSEGV or OOM errors."""
         if not self._initialized:
             await self.initialize()
@@ -211,7 +212,7 @@ class LightRAGService:
         for i, chunk in enumerate(chunks, 1):
             logger.info(f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars)")
             try:
-                await self.ainsert(chunk)
+                await self.ainsert(chunk, file_paths=file_paths)
             except Exception as e:
                 logger.error(f"LightRAG: Chunk {i}/{total} failed: {e}")
             if i < total:

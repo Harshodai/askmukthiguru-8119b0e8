@@ -352,10 +352,11 @@ def init_llm_cache():
         os.makedirs("data/gptcache", exist_ok=True)
         
         def init_gptcache(cache_obj: Cache, llm: str):
+            import re
+            safe_llm_name = re.sub(r"[^a-zA-Z0-9_]", "_", llm)
             data_manager = manager_factory(
-                "sqlite,faiss", 
-                data_dir="data/gptcache",
-                vector_params={"dimension": settings.embedding_dimension},
+                manager="map", 
+                data_dir=f"data/gptcache/{safe_llm_name}",
                 max_size=5000
             )
             cache_obj.init(
