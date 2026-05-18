@@ -17,7 +17,7 @@ const mockRemoveChannel = vi.fn((_ch: unknown) => undefined);
 
 // Auth mock
 const mockUnsubscribe = vi.fn();
-const mockOnAuthStateChange = vi.fn(() => ({
+const mockOnAuthStateChange = vi.fn((_event?: unknown, _callback?: unknown) => ({
   data: {
     subscription: {
       unsubscribe: mockUnsubscribe,
