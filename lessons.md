@@ -390,4 +390,14 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Solution**: Standardized the metadata payload schemas globally. We modified `ingest_four_sacred_secrets.py` to populate identical schema fields:
   - `speaker`: Assigned `"Sri Preethaji & Sri Krishnaji"` as the default authors/speakers.
   - `topic`: Assigned `"Spiritual"` as the primary topic, mirroring the video transcript category labels.
-- **Architectural Lesson**: High data quality in a multi-source RAG system requires a strict data-contract schema. Every ingestion adapter (whether parsing text, video transcripts, or PDF structures) must map a complete and unified set of metadata columns before index insertion to ensure flawless downstream retrieval.
+
+### 22. GPTCache Exact-Match Migration & Concurrency Crash Resolution
+- **Problem**: GPTCache was originally configured with `"sqlite,faiss"` as a semantic vector cache. However, because it was initialized without an explicit `embedding_func`, it defaulted to treating prompt strings directly as float vectors. This caused a fatal `could not convert string to float: np.str_('[{"lc": 1, ...')` crash whenever LangChain intercepted a structured or JSON prompt. Additionally, in highly concurrent multi-threaded extraction pipelines (like LightRAG), concurrent cache initializations led to SQLite locking collisions (`sqlite3.OperationalError: table gptcache_question already exists`).
+- **Solution**: Migrated the LLM caching layer to a persistent, map-based exact match cache manager (`manager="map"`), with directories isolated per LLM instance (`f"data/gptcache/{safe_llm_name}"`).
+
+### 23. Qdrant Workspace Isolation & Suffix Warnings
+- **Problem**: When LightRAG initialized its Qdrant integration, it logged warnings complaining that collections (`lightrag_vdb_entities`, `lightrag_vdb_relationships`, etc.) were missing a sanitized model name suffix. This occurred because `EmbeddingFunc` was initialized without the `model_name` parameter, raising risks of cross-workspace data collisions if multiple models were active on the same Qdrant node.
+- **Solution**: Updated `LightRAGService` in [lightrag_service.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/lightrag_service.py) to explicitly pass `model_name=settings.embedding_model` during the creation of `EmbeddingFunc`.
+- **Architectural Lesson**: Always provide an explicit model name to vector database interface wrappers. Sanitize and append this model name as a suffix to all dynamically created collection names to prevent index bleed and ensure complete tenant/workspace data isolation.
+
+
