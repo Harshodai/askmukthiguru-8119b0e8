@@ -25,13 +25,46 @@ DO NOT retain the original meaning absolutely. DO NOT summarize or rewrite the s
 Important Terms to Correct:
 - "Sri Preethaji" (often misheard as "Sri Pretty Ji", "Preeti Ji")
 - "Sri Krishnaji" (often misheard as "Sri Krishna Ji", "Krishna G")
-- "Ekam" (often misheard as "Acam", "Ecom")
+- "Ekam" (often misheard as "Acam", "Ecom", "Acom", "acom", "acoms", "acome")
 - "Deeksha" (often misheard as "Diksha")
 - "Sadhana"
 - "Limitless Field"
 
 Output ONLY the corrected text. Do not add any conversational filler.
 """
+
+# Hard dictionary corrections for high-fidelity fallback
+FAST_REPLACEMENTS = {
+    r"\bAcom\b": "Ekam",
+    r"\bacom\b": "ekam",
+    r"\bAcoms\b": "Ekam",
+    r"\bacoms\b": "ekam",
+    r"\bEcom\b": "Ekam",
+    r"\becom\b": "ekam",
+    r"\bEcoms\b": "Ekam",
+    r"\becoms\b": "ekam",
+    r"\bacome\b": "ekam",
+    r"\bAcam\b": "Ekam",
+    r"\bacam\b": "ekam",
+    r"\bSri Pretty Ji\b": "Sri Preethaji",
+    r"\bsri pretty ji\b": "sri preethaji",
+    r"\bPretty Ji\b": "Preethaji",
+    r"\bpretty ji\b": "preethaji",
+    r"\bSri Preeti Ji\b": "Sri Preethaji",
+    r"\bsri preeti ji\b": "sri preethaji",
+    r"\bPreeti Ji\b": "Preethaji",
+    r"\bpreeti ji\b": "preethaji",
+    r"\bSri Krishna Ji\b": "Sri Krishnaji",
+    r"\bsri krishna ji\b": "sri krishnaji",
+    r"\bKrishna G\b": "Krishnaji",
+    r"\bkrishna g\b": "krishnaji",
+    r"\bDiksha\b": "Deeksha",
+    r"\bdiksha\b": "deeksha",
+    r"\bsoul sink\b": "Soul Sync",
+    r"\bSoul sink\b": "Soul Sync",
+    r"\bSoulsync\b": "Soul Sync",
+    r"\bsoulsync\b": "Soul Sync",
+}
 
 # Max concurrent correction tasks
 _MAX_CONCURRENT = 3
@@ -119,4 +152,9 @@ class TranscriptCorrector:
         )
 
         full_corrected_text = " ".join(corrected_chunks)
+        
+        # Apply fast regex-based replacements to catch any LLM misses
+        for pattern, replacement in FAST_REPLACEMENTS.items():
+            full_corrected_text = re.sub(pattern, replacement, full_corrected_text)
+            
         return full_corrected_text
