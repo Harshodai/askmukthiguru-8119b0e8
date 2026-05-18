@@ -115,7 +115,7 @@ async def safe_lightrag_insert(lightrag_service, full_text: str, source_name: st
         try:
             # Prepend clear contextual source name header directly to text inserted into knowledge graph
             chunk_with_header = f"[Source: {source_name}]\n{chunk}"
-            await lightrag_service.ainsert(chunk_with_header)
+            await lightrag_service.ainsert(chunk_with_header, file_paths=[source_name])
             logger.info(f"LightRAG: ✅ Chunk {i}/{total} done")
         except Exception as e:
             logger.error(f"LightRAG: ❌ Chunk {i}/{total} failed: {e}")
@@ -515,9 +515,13 @@ async def main():
                     logger.info(f"[LightRAG] Fetching transcript for video: {vid}...")
                     text = await fetch_transcript_text(vid)
                     if text.strip():
+                        # Correct spelling/domain terms using the pipeline's corrector
+                        logger.info(f"[LightRAG] Correcting spelling and domain terminology in transcript...")
+                        sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
+                        corrected_text = await pipeline._corrector.correct_transcript(sanitized_text, url)
                         # Prepend clear video details and URL in source name
                         source_name = f"YouTube Video: {title} (URL: {url})"
-                        await safe_lightrag_insert(container.lightrag, text, source_name)
+                        await safe_lightrag_insert(container.lightrag, corrected_text, source_name)
                         logger.info(f"[LightRAG] ✅ Success")
                     else:
                         logger.warning(f"[LightRAG] ⚠️ No transcript content retrieved")
