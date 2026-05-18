@@ -71,8 +71,10 @@ logger = logging.getLogger("bulk_ingest")
 STATE_FILE = os.path.join(BASE_DIR, "scripts/ingestion_state.json")
 
 # ── Chunked LightRAG Insertion ──────────────────────────────
-LIGHTRAG_CHUNK_SIZE = 8000   # chars per chunk (safe for graph extraction)
-LIGHTRAG_CHUNK_OVERLAP = 500  # overlap to preserve context at boundaries
+# Dynamically bind to config-driven RAG_CHUNK_SIZE, defaulting to a safe 2000 characters (instead of 8000)
+# to prevent token overload and reasoning cutoff for Indian multilingual models.
+LIGHTRAG_CHUNK_SIZE = int(os.environ.get("RAG_CHUNK_SIZE", 2000))
+LIGHTRAG_CHUNK_OVERLAP = int(os.environ.get("RAG_CHUNK_OVERLAP", 200))
 LIGHTRAG_SLEEP_BETWEEN = 3.0  # seconds between chunks (thermal throttling)
 
 

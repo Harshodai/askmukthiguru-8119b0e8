@@ -216,6 +216,14 @@ class SarvamCloudService:
             logger.warning("_call_api: No valid messages to send after validation")
             return ""
 
+        # Proactively cap default max_tokens to prevent HTTP 400 for starter tier
+        if model.startswith("sarvam-") and max_tokens == 8192:
+            if "sarvam-m" in model:
+                max_tokens = 2048
+            else:
+                max_tokens = 4096
+            logger.info(f"_call_api: Proactively capped default max_tokens to {max_tokens} for {model}")
+
         payload = {
             "model": model,
             "messages": validated_messages,
@@ -243,6 +251,28 @@ class SarvamCloudService:
                             headers=headers,
                             json=payload,
                         )
+
+                        # Self-healing for max_tokens limits on starter tier
+                        if resp.status_code == 400:
+                            m = re.search(
+                                r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
+                                resp.text
+                            )
+                            if m:
+                                tier_limit = int(m.group(1))
+                                logger.warning(
+                                    f"Sarvam API max_tokens ({max_tokens}) exceeded subscription tier limit. "
+                                    f"Automatically capping to {tier_limit} and retrying immediately."
+                                )
+                                max_tokens = tier_limit
+                                payload["max_tokens"] = tier_limit
+
+                                # Retry the API call immediately
+                                resp = await client.post(
+                                    f"{self._base_url}/chat/completions",
+                                    headers=headers,
+                                    json=payload,
+                                )
 
                     latency_ms = (time.time() - start_time) * 1000
                     self._set_span_attr(span, "http.status_code", resp.status_code)
@@ -470,10 +500,11 @@ class SarvamCloudService:
 
         temperature = kwargs.pop("temperature", 0.1)
         max_tokens = kwargs.pop("max_tokens", 8192)
+        model = kwargs.pop("model", self._gen_model)
 
         return await self._call_api(
             messages=messages,
-            model=self._gen_model,
+            model=model,
             max_tokens=max_tokens,
             temperature=temperature,
             operation="generate",

@@ -61,6 +61,23 @@ class LightRAGService:
             for msg in history_messages:
                 context += f"\n{msg.get('role', 'user')}: {msg.get('content', '')}"
                 
+            # If using Sarvam Cloud, route extraction tasks specifically to sarvam-m to avoid reasoning runaway
+            if settings.llm_provider == "sarvam_cloud":
+                sys_prompt_str = system_prompt or ""
+                prompt_str = prompt or ""
+                is_extraction = (
+                    "Knowledge Graph" in sys_prompt_str or
+                    "entity" in sys_prompt_str or
+                    "relation" in sys_prompt_str or
+                    "Extract entities" in prompt_str or
+                    "Data to be Processed" in prompt_str
+                )
+                if is_extraction:
+                    kwargs["model"] = "sarvam-m"
+                    # Clamp max_tokens to sarvam-m's subscription tier limit (2048)
+                    kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
+                    logger.info("LightRAG: Routing extraction task to sarvam-m to prevent reasoning runaway and cutoff")
+
             return await container.ollama.generate(
                 system_prompt=system_prompt or "You are a helpful assistant.",
                 user_prompt=prompt,

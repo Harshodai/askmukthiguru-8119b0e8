@@ -413,11 +413,12 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Fallback Content Parsing**: Implemented a robust fallback mechanism. If the model returns an empty or whitespace-only `"content"` string, the service automatically parses and returns the text from the `"reasoning_content"` field, preventing data loss.
   - **Strict Keyword Preservation**: Ensured that all public-facing LLM methods (e.g., `generate`, `_generate_fast`) forward `**kwargs` completely to `_call_api` rather than silently dropping custom operational parameters.
 
-### 26. Silencing Optional Startup and Tokenizer Advisory Warnings (May 2026)
-- **Problem**: When initializing the backend RAG services, optional dependency missing warnings (e.g., `Failed to load RAGatouille ColBERTv2: No module named 'ragatouille'`) and Hugging Face tokenizer advisory warnings (e.g., `You're using a XLMRobertaTokenizerFast tokenizer. Please note that...`) cluttered the logs, appearing as critical issues to developers and users.
-- **Solution**:
-  - **Environment-Level Suppression**: Programmatically set `os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"` during `EmbeddingService` initialization. This instructs the Hugging Face `transformers` library to suppress noise and advisory messages.
-  - **Graceful Import Fallbacks**: Refactored the `RAGatouille` try-except block to catch `ImportError`/`ModuleNotFoundError` explicitly and log a clean `INFO` statement explaining that the optional cascaded reranking feature is not installed, reserving scary `WARNING` logs exclusively for actual runtime model loading errors.
+### 27. Bulk Ingestion Stability, Smart Extraction Routing & Self-Healing Token Capping (May 2026)
+- **The Problem**: Bulk ingestion pipelines often run into hard resource limits or reasoning cutoffs when using advanced reasoning LLMs like `sarvam-30b`. Under massive prompts like LightRAG's entity extraction system prompt, the LLM consumes its entire token allowance on internal reasoning steps, cutting off before outputting the structured entities and the required `<|COMPLETE|>` delimiter. This results in empty knowledge graph insertion failures. Additionally, passing `max_tokens` higher than a subscription tier cap throws a fatal HTTP 400 Bad Request error.
+- **The Solutions**:
+  - **Self-Healing Parameter Capping**: Implemented a regex-powered dynamic parameter auto-healer in the `SarvamCloudService` client. If a request throws an HTTP 400 Bad Request indicating that `max_tokens` exceeds the subscription tier's maximum limit, the client parses the strict limit (e.g. `2048` or `4096`), updates the payload, and instantly retries the request inline.
+  - **Extraction vs. Chat Routing**: Configured the LightRAG LLM bridge to dynamically check prompts for entity extraction tasks. Extraction tasks are automatically routed to `sarvam-m` (capped at `2048` tokens) which executes rapidly and accurately without reasoning runaway, while query/conversational tasks route to `sarvam-30b` to leverage its high-level reasoning and wisdom.
+  - **Dynamic Ingestion Chunking**: Replaced hardcoded constants inside `bulk_ingest_whisper.py` with dynamic bounds checking against the environment variables `RAG_CHUNK_SIZE` and `RAG_CHUNK_OVERLAP` (defaulting to `2000` character bounds instead of a massive `8000`), ensuring comfortable token sizing.
 
 
 
