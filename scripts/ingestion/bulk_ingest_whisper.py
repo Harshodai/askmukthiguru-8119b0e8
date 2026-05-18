@@ -2,15 +2,20 @@
 """
 Mukthi Guru — Bulk Knowledge Ingestion (Hardened)
 
-Scope: The Four Sacred Secrets ONLY.
+Scope: The Four Sacred Secrets + YouTube Playlists.
 Strategy:
-  1. PageIndex → Qdrant (specialized page-aware chunking)
+  1. PageIndex → Qdrant (specialized page-aware chunking, in-process)
   2. Chunked LightRAG → Neo4j (graph entity extraction in safe ~8K segments)
+  3. YouTube → Qdrant + Neo4j (Whisper STT + graph)
 
-Environment: Must be run from the project root with PYTHONPATH set:
-  export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
-  source .venv_host/bin/activate
-  python scripts/bulk_ingest_whisper.py
+Environment: Must be run from the project root:
+  PYTHONUNBUFFERED=1 PYTHONPATH=backend .venv_host/bin/python3 scripts/ingestion/bulk_ingest_whisper.py 2>&1 | tee scripts/bulk_ingest.log
+
+Resilience:
+  - caffeinate -dims prevents sleep even on lid close (AC power)
+  - State file tracks progress — safe to restart after crash
+  - Retries with exponential backoff for YouTube rate limits
+  - Graceful shutdown on SIGINT/SIGTERM saves state
 """
 import sys
 import os
@@ -19,6 +24,10 @@ import time
 import logging
 import json
 import subprocess
+import signal
+
+# ── Force unbuffered stdout for real-time logging ───────────
+os.environ["PYTHONUNBUFFERED"] = "1"
 
 # ── Setup Paths ─────────────────────────────────────────────
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -119,6 +128,137 @@ async def safe_lightrag_insert(lightrag_service, full_text: str, source_name: st
     logger.info(f"LightRAG: ✅ All {total} chunks processed for [{source_name}]")
 
 
+# ── In-Process Book Ingestion (no subprocess spawn) ─────────
+def ingest_book_to_qdrant(json_path: str):
+    """
+    Ingest The Four Sacred Secrets PageIndex structure into Qdrant.
+    Runs IN-PROCESS to share the already-loaded embedding model,
+    avoiding the 2GB model reload that caused the 6-hour hang.
+    """
+    import uuid
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    from services.qdrant_service import QdrantService
+    from services.embedding_service import EmbeddingService
+
+    logger.info("Initializing Qdrant and Embeddings (in-process)...")
+    qdrant = QdrantService()
+    qdrant.init_collection()
+    embeddings = EmbeddingService()
+
+    logger.info(f"Loading PageIndex structure from {json_path}...")
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    structure = data.get("structure", [])
+    if not structure:
+        logger.error("No 'structure' array found in JSON.")
+        return
+
+    # Initialize child text splitter for parent-child hierarchical chunking
+    child_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=400,
+        chunk_overlap=50,
+        length_function=len,
+    )
+
+    def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
+        """Recursively flatten the PageIndex tree structure into chunk items."""
+        chunks = []
+        for node in nodes:
+            title = node.get("title", "")
+            if parent_title and title:
+                context_title = f"{parent_title} > {title}"
+            else:
+                context_title = title or parent_title
+
+            text = node.get("text", "").strip()
+            summary = node.get("summary", "").strip()
+
+            if text:
+                parent_id = str(uuid.uuid4())
+                child_paragraphs = child_splitter.split_text(text)
+                header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
+
+                for child_index, child_text in enumerate(child_paragraphs):
+                    chunks.append({
+                        "text": header + child_text,
+                        "metadata": {
+                            "source_url": "The_Four_Sacred_Secrets.pdf",
+                            "title": context_title,
+                            "speaker": "Sri Preethaji & Sri Krishnaji",
+                            "topic": "Spiritual",
+                            "content_type": "book",
+                            "raptor_level": 0,
+                            "cluster_id": cluster_id,
+                            "node_id": node.get("node_id", ""),
+                            "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
+                            "parent_id": parent_id,
+                            "parent_text": text,
+                            "is_child": True,
+                        }
+                    })
+
+            if summary:
+                header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
+                chunks.append({
+                    "text": header + summary,
+                    "metadata": {
+                        "source_url": "The_Four_Sacred_Secrets.pdf",
+                        "title": f"Summary: {context_title}",
+                        "speaker": "Sri Preethaji & Sri Krishnaji",
+                        "topic": "Spiritual",
+                        "content_type": "summary",
+                        "raptor_level": 1,
+                        "cluster_id": cluster_id,
+                        "node_id": node.get("node_id", "")
+                    }
+                })
+
+            if "nodes" in node and node["nodes"]:
+                children_chunks = flatten_tree(
+                    node["nodes"],
+                    parent_title=context_title,
+                    level=level + 1,
+                    cluster_id=cluster_id
+                )
+                chunks.extend(children_chunks)
+
+            cluster_id += 1
+        return chunks
+
+    logger.info("Flattening tree structure into ingestible chunks...")
+    all_chunks = flatten_tree(structure)
+
+    for i, chunk in enumerate(all_chunks):
+        chunk["metadata"]["chunk_index"] = i
+
+    total = len(all_chunks)
+    logger.info(f"Extracted {total} total chunks (text and summaries).")
+
+    # Upsert chunks in batches
+    batch_size = 20
+    for i in range(0, total, batch_size):
+        batch = all_chunks[i:i + batch_size]
+        texts = [item["text"] for item in batch]
+        metadatas = [item["metadata"] for item in batch]
+
+        encoded = embeddings.encode_batch(texts)
+        dense_vectors = encoded["dense"]
+        sparse_vectors = encoded["sparse"]
+
+        qdrant.upsert_chunks(
+            texts=texts,
+            vectors=dense_vectors,
+            metadatas=metadatas,
+            sparse_vectors=sparse_vectors,
+        )
+        done = min(i + len(batch), total)
+        logger.info(f"  Upserted {done} / {total} chunks...")
+        sys.stdout.flush()
+
+    logger.info(f"✅ Book ingestion complete: {total} chunks indexed in Qdrant")
+
+
 # ── YouTube Ingestion Configuration ─────────────────────────
 PLAYLIST_URLS = [
     "https://www.youtube.com/playlist?list=PLOVU2e0ZosYDt1cdrKnT1AZs4UHpFU5wo",
@@ -155,19 +295,21 @@ INTER_VIDEO_DELAY = 5
 
 
 def get_video_ids_from_playlist(playlist_url: str) -> list[str]:
-    """Resolve playlist URL to video IDs via yt-dlp."""
+    """Resolve playlist URL to video IDs via yt-dlp Python API (not CLI)."""
     try:
-        result = subprocess.run(
-            ["yt-dlp", "--flat-playlist", "--print", "id",
-             "--playlist-items", "1-1000", playlist_url],
-            capture_output=True, text=True, timeout=300
-        )
-        if result.returncode != 0:
-            logger.error(f"yt-dlp error: {result.stderr[:200]}")
-            return []
-        ids = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
-        logger.info(f"Playlist resolved: {len(ids)} videos")
-        return ids
+        import yt_dlp
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': True,
+            'no_warnings': True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(playlist_url, download=False)
+            if result and 'entries' in result:
+                ids = [e.get('id') for e in result['entries'] if e and e.get('id')]
+                logger.info(f"Playlist resolved: {len(ids)} videos")
+                return ids
+        return []
     except Exception as e:
         logger.error(f"Playlist expansion failed: {e}")
         return []
@@ -185,25 +327,39 @@ async def fetch_transcript_text(video_id: str) -> str:
     except Exception as e:
         logger.error(f"fetch_transcript_hybrid failed for {video_id}: {e}")
 
-    # Fallback to youtube_transcript_api
-    try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([item["text"] for item in transcript_list])
-    except Exception as e:
-        logger.warning(f"youtube_transcript_api failed for {video_id}: {e}")
-
     return ""
 
 
+# ── Graceful Shutdown ───────────────────────────────────────
+_shutdown_requested = False
+
+
+def _signal_handler(signum, frame):
+    global _shutdown_requested
+    sig_name = signal.Signals(signum).name
+    logger.warning(f"⚠️  Received {sig_name} — will finish current item and save state before exiting.")
+    _shutdown_requested = True
+
+
 async def main():
+    global _shutdown_requested
+
+    # ── Signal Handlers for graceful shutdown ───────────────
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
     # ── macOS Sleep Prevention ──────────────────────────────
+    # -d: prevent display sleep, -i: prevent idle sleep,
+    # -m: prevent disk sleep, -s: prevent system sleep (AC power)
+    # This combo survives lid close when plugged in.
     caffeinate_proc = None
     if sys.platform == "darwin":
-        logger.info("macOS detected: Spawning 'caffeinate' to prevent system sleep during ingestion...")
+        logger.info("macOS detected: Spawning 'caffeinate -dims' to prevent ALL sleep types...")
         try:
-            caffeinate_proc = subprocess.Popen(["caffeinate", "-w", str(os.getpid())])
-            logger.info("✅ macOS caffeinate is active. Your laptop will not sleep during this ingestion.")
+            caffeinate_proc = subprocess.Popen(
+                ["caffeinate", "-dims", "-w", str(os.getpid())]
+            )
+            logger.info("✅ macOS caffeinate is active (-dims). Safe to close lid on AC power.")
         except Exception as e:
             logger.warning(f"Failed to start caffeinate: {e}")
 
@@ -234,12 +390,12 @@ async def main():
 
     # ── Ingest: The Four Sacred Secrets (Book) ──────────────
     doc_name = "The_Four_Sacred_Secrets.pdf"
-    doc_path = os.path.join(BASE_DIR, doc_name)
+    json_path = os.path.join(BASE_DIR, "results/The_Four_Sacred_Secrets_structure.json")
 
     if doc_name in state["processed_docs"]:
         logger.info(f"⏭️  Skipping already processed document: {doc_name}")
-    elif not os.path.exists(doc_path):
-        logger.error(f"❌ Document not found: {doc_path}")
+    elif not os.path.exists(json_path):
+        logger.error(f"❌ Structure JSON not found: {json_path}")
     else:
         logger.info(f"{'='*60}")
         logger.info(f"INGESTING: {doc_name}")
@@ -247,23 +403,14 @@ async def main():
         start_time = time.time()
 
         try:
-            # STEP 1: PageIndex → Qdrant (specialized page-aware chunking)
-            logger.info("Step 1/2: PageIndex → Qdrant (page-aware vector ingestion)...")
-            ingest_script = os.path.join(BASE_DIR, "scripts", "ingestion", "ingest_four_sacred_secrets.py")
-            if os.path.exists(ingest_script):
-                cmd = [sys.executable, ingest_script]
-                env = os.environ.copy()
-                env["PYTHONPATH"] = f"{BACKEND_DIR}:{env.get('PYTHONPATH', '')}"
-                subprocess.run(cmd, env=env, check=True)
-                logger.info("Step 1/2: ✅ PageIndex → Qdrant complete")
-            else:
-                logger.warning(f"PageIndex script not found: {ingest_script}, using standard ingest")
-                await pipeline.ingest_file(doc_path)
+            # STEP 1: PageIndex → Qdrant (IN-PROCESS, shares loaded model)
+            logger.info("Step 1/2: PageIndex → Qdrant (in-process page-aware vector ingestion)...")
+            ingest_book_to_qdrant(json_path)
+            logger.info("Step 1/2: ✅ PageIndex → Qdrant complete")
 
             # STEP 2: Chunked LightRAG → Neo4j (graph entity extraction)
             logger.info("Step 2/2: LightRAG → Neo4j (chunked graph extraction)...")
-            json_path = os.path.join(BASE_DIR, "results/The_Four_Sacred_Secrets_structure.json")
-            if os.path.exists(json_path) and container.lightrag:
+            if container.lightrag:
                 with open(json_path, "r") as f:
                     data = json.load(f)
 
@@ -283,10 +430,8 @@ async def main():
                     logger.info("Step 2/2: ✅ LightRAG → Neo4j complete")
                 else:
                     logger.warning("No text extracted from structure JSON")
-            elif not container.lightrag:
-                logger.warning("LightRAG not available — skipping graph extraction")
             else:
-                logger.warning(f"Structure JSON not found: {json_path}")
+                logger.warning("LightRAG not available — skipping graph extraction")
 
             latency = time.time() - start_time
             state["processed_docs"].append(doc_name)
@@ -307,14 +452,23 @@ async def main():
             save_state()
             logger.error(f"❌ Document Failed: {doc_name} | {e}", exc_info=True)
 
+    if _shutdown_requested:
+        logger.info("🛑 Shutdown requested after book ingestion. State saved.")
+        return
+
     # ── Ingest: YouTube Playlists & Videos (Dual Ingestion) ──
     logger.info(f"\n{'='*60}")
     logger.info("RESOLVING YOUTUBE PLAYLISTS & VIDEO IDS")
     logger.info(f"{'='*60}")
     all_ids = []
     for pl in PLAYLIST_URLS:
+        if _shutdown_requested:
+            break
         logger.info(f"Resolving playlist: {pl}")
         all_ids.extend(get_video_ids_from_playlist(pl))
+        # Small delay between playlist resolutions to avoid rate limits
+        time.sleep(1)
+
     all_ids += CORE_VIDEO_IDS
 
     seen = set()
@@ -322,28 +476,36 @@ async def main():
     logger.info(f"🎯 Total unique videos queued: {len(unique_ids)}")
 
     for vid in unique_ids:
+        if _shutdown_requested:
+            logger.info("🛑 Shutdown requested. Saving state...")
+            save_state()
+            break
+
         if vid in state["processed_videos"]:
             logger.info(f"⏭️  Skipping already processed video: {vid}")
             continue
 
         url = f"https://www.youtube.com/watch?v={vid}"
         logger.info(f"\n{'='*60}\n[Video Ingestion] {vid}\n{'='*60}")
-        
+
         max_attempts = 3
         retry_delay = 15  # base retry delay in seconds
         success = False
 
         for attempt in range(1, max_attempts + 1):
+            if _shutdown_requested:
+                break
+
             start_video_time = time.time()
             try:
                 # STEP 1: Qdrant (dense+sparse vectors via hybrid pipeline)
                 logger.info(f"[Qdrant] Ingesting video: {url} (Attempt {attempt}/{max_attempts})...")
                 res = await pipeline.ingest_url(url, max_accuracy=True)
-                
+
                 # Check status return to throw error and trigger the retry delays
                 if res.get("status") == "error":
                     raise ValueError(res.get("message", "Ingestion pipeline returned error status"))
-                    
+
                 chunks = res.get("chunks_indexed", 0)
                 title = res.get("title") or res.get("metadata", {}).get("title") or "Unknown"
                 logger.info(f"[Qdrant] ✅ Success | Title: {title} | Chunks: {chunks}")
@@ -390,7 +552,7 @@ async def main():
                     save_state()
                     logger.error(f"❌ Video Failed after {max_attempts} attempts: {vid} | {e}", exc_info=True)
 
-        if vid != unique_ids[-1]:
+        if not _shutdown_requested and vid != unique_ids[-1]:
             logger.info(f"Waiting {INTER_VIDEO_DELAY}s between videos...")
             await asyncio.sleep(INTER_VIDEO_DELAY)
 
@@ -408,6 +570,11 @@ async def main():
         m = state["metrics"].get(vid, {})
         title = m.get('title', 'Unknown')
         logger.info(f"  🎥 {vid} ({title}) — {m.get('status', 'unknown')} ({m.get('latency', 0):.1f}s)")
+
+    failed = [k for k, v in state["metrics"].items() if v.get("status") == "failed"]
+    if failed:
+        logger.warning(f"\n⚠️  {len(failed)} items failed. Re-run this script to retry them.")
+
     logger.info(f"{'='*60}")
 
 
