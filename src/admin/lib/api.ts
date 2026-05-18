@@ -4,13 +4,14 @@ import type {
   QueryFilters, 
   ChatTrace, 
   PromptVersion, 
-  ModelInfo, 
   TriggerEvent, 
   SafetyEvent, 
   TopicCluster, 
   RetrievalHealth, 
   TimeseriesMetric, 
-  DataPoint 
+  DataPoint,
+  QualityData,
+  IngestionHealth,
 } from '@/admin/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
@@ -64,10 +65,10 @@ export async function listPromptVersions(): Promise<PromptVersion[]> {
   return fetchWithAuth('/api/admin/prompts');
 }
 
-export async function listModels(): Promise<ModelInfo[]> {
+export async function listModels(): Promise<string[]> {
   return [
-    { id: 'gpt-4o', name: 'GPT-4o (Production)', provider: 'OpenAI', status: 'active', latency_p50: 1200, cost_per_1k: 0.01 },
-    { id: 'sarvam-2b', name: 'Sarvam 2B (Spiritual)', provider: 'Sarvam', status: 'active', latency_p50: 800, cost_per_1k: 0.002 },
+    'sarvam-30b',
+    'qwen3-30b',
   ];
 }
 
@@ -91,21 +92,27 @@ export async function listTopicClusters(): Promise<TopicCluster[]> {
 
 export async function getRetrievalHealth(filters: QueryFilters): Promise<RetrievalHealth> {
   return {
+    total_retrievals: 0,
     avg_precision: 0.85,
     avg_recall: 0.78,
     hit_rate: 0.92,
+    empty_retrievals: 0,
+    avg_top_score: 0.86,
     miss_rate: 0.08,
     avg_chunks_per_query: 3.5,
-    top_missing_topics: []
+    top_missing_topics: [],
+    sources: [],
   };
 }
 
-export async function getQualityData(filters: QueryFilters) {
+export async function getQualityData(filters: QueryFilters): Promise<QualityData> {
   return {
     faithfulness: 0.92,
     relevancy: 0.88,
     safety_score: 0.99,
-    manual_review_score: 0.85
+    manual_review_score: 0.85,
+    disagreements: [],
+    low_confidence: [],
   };
 }
 
@@ -123,6 +130,18 @@ export async function getTriggerTrend(filters: QueryFilters, buckets: number) { 
 export async function getSimilarityTrend(filters: QueryFilters, buckets: number) { return []; }
 export async function getDeadDocs(filters: QueryFilters) { return []; }
 export async function getEmptyRetrievals(filters: QueryFilters, limit: number) { return []; }
-export async function getIngestionHealth() { return { status: 'healthy', last_run: new Date().toISOString(), indexed_docs: 1250, failed_docs: 0 }; }
+export async function getIngestionHealth(): Promise<IngestionHealth> {
+  return {
+    status: 'healthy',
+    last_run: new Date().toISOString(),
+    indexed_docs: 1250,
+    failed_docs: 0,
+    total_runs: 0,
+    ok: 0,
+    partial: 0,
+    failed: 0,
+    total_chunks: 1250,
+  };
+}
 export async function getPromptMetricsByVersion() { return []; }
 export async function pollLiveFeed() { return listQueries({ from: new Date(), to: new Date(), limit: 10 }); }
