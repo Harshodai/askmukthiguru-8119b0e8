@@ -8,9 +8,7 @@ BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 sys.path.insert(0, BACKEND_DIR)
 
 # Must set environment BEFORE importing dependencies which loads config
-os.environ["LLM_PROVIDER"] = "ollama"
-os.environ["OLLAMA_MODEL"] = "deepseek-r1:7b"
-os.environ["SARVAM_API_KEY"] = "none"
+os.environ["LLM_PROVIDER"] = "sarvam_cloud"
 os.environ["WHISPER_LOCAL_MODEL"] = "mlx-community/whisper-large-v3-turbo"
 os.environ["WHISPER_LOCAL_DEVICE"] = "mps"
 
@@ -51,7 +49,5 @@ async def retry_failed():
             logger.error(f"❌ Error on {url}: {e}")
 
 if __name__ == "__main__":
-    os.environ["LLM_PROVIDER"] = "ollama"
-    os.environ["OLLAMA_MODEL"] = "deepseek-r1:7b"
-    os.environ["SARVAM_API_KEY"] = "none"
+    os.environ["LLM_PROVIDER"] = "sarvam_cloud"
     asyncio.run(retry_failed())

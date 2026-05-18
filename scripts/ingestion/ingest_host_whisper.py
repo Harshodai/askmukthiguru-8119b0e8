@@ -20,14 +20,15 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 sys.path.insert(0, BACKEND_DIR)
 
-os.environ["LLM_PROVIDER"] = "ollama"
-os.environ["OLLAMA_MODEL"] = "deepseek-r1:7b"
-os.environ["SARVAM_API_KEY"] = "none"
+from dotenv import load_dotenv
+load_dotenv(os.path.join(BACKEND_DIR, ".env"))
+
+os.environ["LLM_PROVIDER"] = "sarvam_cloud"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@localhost:6379/0"
 os.environ["SUPABASE_URL"] = "http://localhost:54321"
-os.environ["ENABLE_TRANSCRIPT_COUNCIL"] = "true"
+os.environ["ENABLE_TRANSCRIPT_COUNCIL"] = "false"
 os.environ["WHISPER_ONLY"] = "true"
 
 # 3. Configure Logging

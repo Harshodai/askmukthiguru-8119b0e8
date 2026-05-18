@@ -189,6 +189,7 @@ class LightRAGService:
             return
 
         def chunk_text(t: str, size: int, ov: int) -> list[str]:
+            """FIXED: 1-char sliding window bug. See bulk_ingest_whisper.py."""
             chunks = []
             start = 0
             while start < len(t):
@@ -202,7 +203,13 @@ class LightRAGService:
                 chunk = t[start:end].strip()
                 if chunk:
                     chunks.append(chunk)
-                start = max(start + 1, end - ov)
+                if end >= len(t):
+                    break
+                # Advance window — MUST make meaningful progress
+                next_start = end - ov
+                if next_start <= start:
+                    next_start = end  # Skip overlap to prevent 1-char slide
+                start = next_start
             return chunks
 
         chunks = chunk_text(text, max_chunk_size, overlap)

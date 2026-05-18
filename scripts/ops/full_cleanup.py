@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 # Setup paths to backend
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 sys.path.insert(0, BACKEND_DIR)
 
