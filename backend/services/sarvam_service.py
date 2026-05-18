@@ -152,6 +152,8 @@ class SarvamCloudService:
         self._timeout = getattr(settings, 'llm_timeout', 60)
         self._max_retries = getattr(settings, 'llm_max_retries', 3)
         self._circuit = CircuitBreaker()
+        self._last_request_time = 0.0
+        self._rate_limit_lock = asyncio.Lock()
 
         # Also set env for any code that might use langchain-sarvam internally
         os.environ["SARVAM_API_KEY"] = self._api_key
@@ -242,37 +244,88 @@ class SarvamCloudService:
 
         last_error = None
         for attempt in range(1, self._max_retries + 1):
+            # Enforce rate limiting to stay under subscription/API tier RPM limit (e.g. 60 RPM = 1.0s interval)
+            rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
+            if rpm_limit > 0:
+                min_interval = 60.0 / rpm_limit
+                async with self._rate_limit_lock:
+                    now = time.time()
+                    elapsed = now - self._last_request_time
+                    if elapsed < min_interval:
+                        sleep_time = min_interval - elapsed
+                        logger.info(f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit")
+                        await asyncio.sleep(sleep_time)
+                    self._last_request_time = time.time()
+
             start_time = time.time()
             with self._start_llm_span(model=model, operation=operation, attempt=attempt) as span:
                 try:
                     async with httpx.AsyncClient(timeout=self._timeout) as client:
-                        resp = await client.post(
-                            f"{self._base_url}/chat/completions",
-                            headers=headers,
-                            json=payload,
-                        )
-
-                        # Self-healing for max_tokens limits on starter tier
-                        if resp.status_code == 400:
-                            m = re.search(
-                                r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
-                                resp.text
+                        # We use an adjustment loop (up to 3 total attempts) to dynamically heal parameter mismatches
+                        adjustment_attempts = 0
+                        while adjustment_attempts < 3:
+                            resp = await client.post(
+                                f"{self._base_url}/chat/completions",
+                                headers=headers,
+                                json=payload,
                             )
-                            if m:
-                                tier_limit = int(m.group(1))
-                                logger.warning(
-                                    f"Sarvam API max_tokens ({max_tokens}) exceeded subscription tier limit. "
-                                    f"Automatically capping to {tier_limit} and retrying immediately."
+                            
+                            # Self-healing for max_tokens limits on starter tier (HTTP 400)
+                            if resp.status_code == 400:
+                                m = re.search(
+                                    r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
+                                    resp.text
                                 )
-                                max_tokens = tier_limit
-                                payload["max_tokens"] = tier_limit
-
-                                # Retry the API call immediately
-                                resp = await client.post(
-                                    f"{self._base_url}/chat/completions",
-                                    headers=headers,
-                                    json=payload,
-                                )
+                                if m:
+                                    tier_limit = int(m.group(1))
+                                    logger.warning(
+                                        f"Sarvam API max_tokens ({payload.get('max_tokens')}) exceeded subscription tier limit. "
+                                        f"Automatically capping to {tier_limit} and retrying immediately."
+                                    )
+                                    payload["max_tokens"] = tier_limit
+                                    adjustment_attempts += 1
+                                    continue
+                            
+                            # Self-healing for context window limits (HTTP 422)
+                            if resp.status_code == 422 and "exceeds the model context window" in resp.text:
+                                if payload.get("model") == "sarvam-m":
+                                    logger.warning(
+                                        f"Sarvam API context window exceeded for sarvam-m. "
+                                        f"Automatically upgrading model to sarvam-30b and retrying immediately."
+                                    )
+                                    payload["model"] = "sarvam-30b"
+                                    # Cap to sarvam-30b's subscription tier limit (4096)
+                                    payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
+                                    model = "sarvam-30b"  # Update outer scope model variable for logging
+                                    adjustment_attempts += 1
+                                    continue
+                                else:
+                                    # Try parsing the allowed limit and prompt tokens to dynamically cap max_tokens
+                                    m = re.search(
+                                        r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
+                                        resp.text
+                                    )
+                                    if m:
+                                        prompt_t = int(m.group(1))
+                                        window_t = int(m.group(2))
+                                        allowed_max = window_t - prompt_t - 50  # 50 tokens safety margin
+                                        if allowed_max > 0:
+                                            logger.warning(
+                                                f"Sarvam API context window exceeded for {model}. "
+                                                f"Prompt tokens: {prompt_t}, Context window: {window_t}. "
+                                                f"Automatically reducing max_tokens to {allowed_max} and retrying immediately."
+                                            )
+                                            payload["max_tokens"] = allowed_max
+                                            adjustment_attempts += 1
+                                            continue
+                                        else:
+                                            # Cannot fit the prompt even with minimal max_tokens, stop retrying
+                                            break
+                                    else:
+                                        break
+                            
+                            # If we succeeded or hit a different status code, break out of adjustment loop
+                            break
 
                     latency_ms = (time.time() - start_time) * 1000
                     self._set_span_attr(span, "http.status_code", resp.status_code)
