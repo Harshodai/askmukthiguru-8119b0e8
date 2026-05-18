@@ -11,11 +11,16 @@ languages including all 10 target Indian languages.
 """
 
 import logging
+import os
 from typing import Optional
+
+# Silence Hugging Face tokenizer advisory warnings in logs
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 
 class EmbeddingService:
@@ -69,6 +74,9 @@ class EmbeddingService:
                     # Force CPU execution for ColBERT locally
                     import torch
                     self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
+                except (ImportError, ModuleNotFoundError):
+                    logger.info("ColBERTv2 (RAGatouille) is not installed (optional). Cascaded reranking will fallback to pure CrossEncoder.")
+                    self._colbert = False
                 except Exception as e:
                     logger.warning(f"Failed to load RAGatouille ColBERTv2: {e}")
                     self._colbert = False # mark as failed so we don't retry forever
