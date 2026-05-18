@@ -400,4 +400,9 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Solution**: Updated `LightRAGService` in [lightrag_service.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/lightrag_service.py) to explicitly pass `model_name=settings.embedding_model` during the creation of `EmbeddingFunc`.
 - **Architectural Lesson**: Always provide an explicit model name to vector database interface wrappers. Sanitize and append this model name as a suffix to all dynamically created collection names to prevent index bleed and ensure complete tenant/workspace data isolation.
 
+### 24. LLM Service Interface Alignment & Pipeline Robustness (May 2026)
+- **Problem**: During a comprehensive wiring check (`qa_wiring_check.py`), the meditation flow crashed with a TypeError: `SarvamCloudService.rewrite_query() got an unexpected keyword argument 'reasons'`. This happened because `OllamaService.rewrite_query()` defined the query-expansion reasons parameter as `reasons: list[str] = None` while `SarvamCloudService.rewrite_query()` named it `grading_reasons: list[str] = None`, causing a runtime signature mismatch when executing the CRAG (Corrective RAG) loop under the Sarvam provider.
+- **Solution**: Refactored `SarvamCloudService.rewrite_query` to support both `reasons` and `grading_reasons` as inputs, gracefully mapping them to maintain complete backward compatibility and absolute interface alignment.
+- **Lesson learned**: When maintaining dual/multiple LLM providers in an agentic workflow, ensure interface method signatures (especially keyword arguments) are perfectly identical across all concrete service implementations. A mismatch in parameter naming can pass code compilation but crash at runtime when a specific provider is activated.
+
 

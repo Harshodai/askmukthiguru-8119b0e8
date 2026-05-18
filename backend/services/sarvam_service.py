@@ -706,17 +706,24 @@ class SarvamCloudService:
 
         return hints[:5]  # Cap at 5 hints
 
-    async def rewrite_query(self, original_query: str, grading_reasons: list[str] = None) -> str:
+    async def rewrite_query(
+        self,
+        original_query: str,
+        reasons: list[str] = None,
+        grading_reasons: list[str] = None,
+    ) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
         
         Args:
             original_query: The query that failed to find relevant docs
-            grading_reasons: Explanations from the grader about why retrieval failed
+            reasons: Explanations from the grader about why retrieval failed (standard name)
+            grading_reasons: Explanations from the grader about why retrieval failed (alias name)
         """
         prompt = f"Original query: {original_query}"
-        if grading_reasons:
-            reasons_text = "\n".join([f"- {r}" for r in grading_reasons if r])
+        actual_reasons = reasons or grading_reasons
+        if actual_reasons:
+            reasons_text = "\n".join([f"- {r}" for r in actual_reasons if r])
             prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing and perform a more targeted query expansion."
             
         return await self.generate(QUERY_REWRITE_PROMPT, prompt)
