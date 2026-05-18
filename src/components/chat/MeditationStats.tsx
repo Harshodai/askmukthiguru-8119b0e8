@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
 import { getMeditationStats } from '@/lib/meditationStorage';
 
-export const MeditationStats = () => {
+export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
   const stats = getMeditationStats();
 
   const statItems = [
@@ -41,12 +41,12 @@ export const MeditationStats = () => {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card p-4 mb-4"
+        className={compact ? 'rounded-xl border border-border/40 bg-card/60 p-3' : 'glass-card p-4 mb-4'}
       >
         <div className="text-center">
-          <Flame className="w-8 h-8 text-ojas mx-auto mb-2" />
-          <h3 className="font-semibold text-foreground">Begin Your Journey</h3>
-          <p className="text-sm text-muted-foreground mt-1">
+          <Flame className={compact ? 'w-5 h-5 text-ojas mx-auto mb-1' : 'w-8 h-8 text-ojas mx-auto mb-2'} />
+          <h3 className={compact ? 'text-xs font-semibold text-foreground' : 'font-semibold text-foreground'}>Begin Your Journey</h3>
+          <p className={compact ? 'text-[10px] text-muted-foreground mt-1' : 'text-sm text-muted-foreground mt-1'}>
             Try the Serene Mind meditation to start tracking your progress
           </p>
         </div>
@@ -58,9 +58,9 @@ export const MeditationStats = () => {
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card p-4 mb-4"
+      className={compact ? 'rounded-xl border border-border/40 bg-card/60 p-3' : 'glass-card p-4 mb-4'}
     >
-      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+      <h3 className={compact ? 'text-xs font-semibold text-foreground mb-2 flex items-center gap-2' : 'text-sm font-semibold text-foreground mb-3 flex items-center gap-2'}>
         <Flame className="w-4 h-4 text-ojas" />
         Your Soul Journey
       </h3>
@@ -72,20 +72,20 @@ export const MeditationStats = () => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}
-            className="text-center"
+             className="text-center"
           >
-            <div className={`w-10 h-10 rounded-full ${item.bgColor} flex items-center justify-center mx-auto mb-1`}>
-              <item.icon className={`w-4 h-4 ${item.color}`} />
+            <div className={`${compact ? 'w-7 h-7' : 'w-10 h-10'} rounded-full ${item.bgColor} flex items-center justify-center mx-auto mb-1`}>
+              <item.icon className={`${compact ? 'w-3 h-3' : 'w-4 h-4'} ${item.color}`} />
             </div>
             <motion.p 
-              className="text-lg font-bold text-foreground"
+              className={compact ? 'text-sm font-bold text-foreground' : 'text-lg font-bold text-foreground'}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.1 + 0.2 }}
             >
               {item.value}
             </motion.p>
-            <p className="text-xs text-muted-foreground">{item.label}</p>
+            <p className={compact ? 'text-[9px] text-muted-foreground' : 'text-xs text-muted-foreground'}>{item.label}</p>
           </motion.div>
         ))}
       </div>
