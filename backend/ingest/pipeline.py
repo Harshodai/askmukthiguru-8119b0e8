@@ -382,6 +382,12 @@ class IngestionPipeline:
              return {"status": "error", "message": "Extraction failed", "source_url": url}
 
         raw_text = result["text"]
+
+        # Step 1.2: Correct Transcript (Council Recommendation)
+        self._notify(on_progress, "Correcting transcript (LLM)...", 0.3)
+        sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
+        raw_text = await self._corrector.correct_transcript(sanitized_text, url)
+
         video_title = result.get("title", "")
         
         # 2. Extract key spiritual topics (LLM)
