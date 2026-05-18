@@ -31,7 +31,7 @@ vi.mock('@/integrations/supabase/client', () => ({
     channel: (name: string) => mockChannel(name),
     removeChannel: (ch: unknown) => mockRemoveChannel(ch),
     auth: {
-      onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+      onAuthStateChange: (event: unknown, callback: unknown) => mockOnAuthStateChange(event, callback),
     },
   },
 }));
