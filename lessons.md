@@ -405,4 +405,13 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Solution**: Refactored `SarvamCloudService.rewrite_query` to support both `reasons` and `grading_reasons` as inputs, gracefully mapping them to maintain complete backward compatibility and absolute interface alignment.
 - **Lesson learned**: When maintaining dual/multiple LLM providers in an agentic workflow, ensure interface method signatures (especially keyword arguments) are perfectly identical across all concrete service implementations. A mismatch in parameter naming can pass code compilation but crash at runtime when a specific provider is activated.
 
+### 25. Sarvam Cloud API Reasoning Loops and Token Budgets (May 2026)
+- **Problem**: In long-running RAG pipelines (such as LightRAG entity extraction), deep reasoning models (like `sarvam-30b`) can spend excessive time and tokens on hidden reasoning steps, leading to high response latencies, timeouts, and empty `"content"` fields when total completion tokens exceed `max_tokens`. This resulted in parsing warnings such as `Complete delimiter can not be found in extraction result` and data loss (0 entities/relations extracted).
+- **Solution**:
+  - **Reasoning Effort Control**: Injected the `"reasoning_effort"` parameter into the HTTP POST request payload, defaulting to `"low"` for general tasks. This prevents excessive and circular reasoning cycles.
+  - **Token Ceiling Expansion**: Increased the default `max_tokens` limit from `4096` to `8192` to give the model ample room to generate both deep reasoning thoughts and the final structured response.
+  - **Fallback Content Parsing**: Implemented a robust fallback mechanism. If the model returns an empty or whitespace-only `"content"` string, the service automatically parses and returns the text from the `"reasoning_content"` field, preventing data loss.
+  - **Strict Keyword Preservation**: Ensured that all public-facing LLM methods (e.g., `generate`, `_generate_fast`) forward `**kwargs` completely to `_call_api` rather than silently dropping custom operational parameters.
+
+
 

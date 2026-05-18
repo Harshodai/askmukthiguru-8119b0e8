@@ -64,8 +64,10 @@ class LightRAGService:
             return await container.ollama.generate(
                 system_prompt=system_prompt or "You are a helpful assistant.",
                 user_prompt=prompt,
-                context=context
+                context=context,
+                **kwargs
             )
+
 
         # Use our local BGE-M3 model already loaded in memory instead of calling Ollama API
         import numpy as np
