@@ -420,5 +420,14 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Extraction vs. Chat Routing**: Configured the LightRAG LLM bridge to dynamically check prompts for entity extraction tasks. Extraction tasks are automatically routed to `sarvam-m` (capped at `2048` tokens) which executes rapidly and accurately without reasoning runaway, while query/conversational tasks route to `sarvam-30b` to leverage its high-level reasoning and wisdom.
   - **Dynamic Ingestion Chunking**: Replaced hardcoded constants inside `bulk_ingest_whisper.py` with dynamic bounds checking against the environment variables `RAG_CHUNK_SIZE` and `RAG_CHUNK_OVERLAP` (defaulting to `2000` character bounds instead of a massive `8000`), ensuring comfortable token sizing.
 
+### 28. Robust Sliding-Window API Rate Limiting for Bulk Ingestion (May 2026)
+- **The Problem**: When running highly concurrent bulk ingestion pipelines, developer API subscription keys (like Sarvam Cloud) are often restricted to low requests-per-minute (RPM) limits (e.g., 60 RPM / 1 request per second). Exceeding these limits throws frequent HTTP 429 Too Many Requests errors, causing ingestion failures or slow recovery cycles.
+- **The Solution**: Designed and integrated a thread-safe and async-safe token/interval rate limiter directly inside the `SarvamCloudService` HTTP client wrapper. 
+  - Implemented an `asyncio.Lock()` to serialize access and track the exact `self._last_request_time`.
+  - Added a configurable `SARVAM_RPM_LIMIT` environment variable (defaulting to `60` requests/min).
+  - Dynamically calculates the minimum request spacing (`60.0 / SARVAM_RPM_LIMIT = 1.0` second) and injects a non-blocking `asyncio.sleep()` inline prior to each API call.
+  - This ensures that all concurrent background workers perfectly respect the subscription rate boundaries without requiring slow or brittle retry-cooldown logic.
+
+
 
 
