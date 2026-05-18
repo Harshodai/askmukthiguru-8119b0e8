@@ -17,7 +17,7 @@ const mockRemoveChannel = vi.fn((_ch: unknown) => undefined);
 
 // Auth mock
 const mockUnsubscribe = vi.fn();
-const mockOnAuthStateChange = vi.fn(() => ({
+const mockOnAuthStateChange = vi.fn((_event?: unknown, _callback?: unknown) => ({
   data: {
     subscription: {
       unsubscribe: mockUnsubscribe,
@@ -31,7 +31,7 @@ vi.mock('@/integrations/supabase/client', () => ({
     channel: (name: string) => mockChannel(name),
     removeChannel: (ch: unknown) => mockRemoveChannel(ch),
     auth: {
-      onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+      onAuthStateChange: (event: unknown, callback: unknown) => mockOnAuthStateChange(event, callback),
     },
   },
 }));

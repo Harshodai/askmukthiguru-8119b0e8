@@ -283,3 +283,60 @@ export interface QueryTrace {
   feedback: UserFeedback | null;
   safety: SafetyEvent[];
 }
+
+export type ChatTrace = ChatQuery;
+export type DataPoint = TimeseriesPoint;
+export type TopicCluster = QueryCluster;
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+  status: "active" | "inactive" | "warming";
+  latency_p50: number;
+  cost_per_1k: number;
+}
+
+export interface RetrievalHealth {
+  total_retrievals: number;
+  hit_rate: number;
+  empty_retrievals: number;
+  avg_top_score: number;
+  avg_precision: number;
+  avg_recall: number;
+  miss_rate: number;
+  avg_chunks_per_query: number;
+  top_missing_topics: string[];
+  sources: { source: string; count: number; avgFaith: number }[];
+}
+
+export interface QualityData {
+  faithfulness: number;
+  relevancy: number;
+  safety_score: number;
+  manual_review_score: number;
+  disagreements: Array<{
+    id: string;
+    kind: "judge_good_user_bad" | "judge_bad_user_good";
+    faithfulness: number;
+    response_text: string;
+  }>;
+  low_confidence: Array<{
+    id: string;
+    confidence: number;
+    response_text: string;
+    created_at: ISODate;
+  }>;
+}
+
+export interface IngestionHealth {
+  status: string;
+  last_run: ISODate;
+  indexed_docs: number;
+  failed_docs: number;
+  total_runs: number;
+  ok: number;
+  partial: number;
+  failed: number;
+  total_chunks: number;
+}

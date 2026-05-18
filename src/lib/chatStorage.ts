@@ -137,7 +137,7 @@ export const clearChatHistory = (): void => {
 };
 
 // Multi-conversation functions
-export const saveConversation = (conversation: Conversation): void => {
+export const saveConversation = (conversation: Conversation, notify: boolean = true): void => {
   try {
     const conversations = loadConversations();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);
@@ -152,8 +152,9 @@ export const saveConversation = (conversation: Conversation): void => {
     const trimmed = conversations.slice(0, MAX_CONVERSATIONS);
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(trimmed));
 
-    // Notify sidebar (DesktopSidebar listens for this to reload its list)
-    window.dispatchEvent(new CustomEvent('conversation:updated'));
+    // Notify sidebar (DesktopSidebar listens for this to reload its list).
+    // Streaming checkpoints can opt out to avoid sidebar reload jank every 500ms.
+    if (notify) window.dispatchEvent(new CustomEvent('conversation:updated'));
   } catch (error) {
     console.error('Failed to save conversation:', error);
   }
