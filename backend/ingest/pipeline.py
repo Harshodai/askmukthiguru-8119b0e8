@@ -484,7 +484,9 @@ class IngestionPipeline:
         """Extract top 3-5 spiritual topics from text using LLM."""
         prompt = "Analyze this spiritual teaching and list the top 3-5 distinct topics discussed (e.g., 'Nature of Suffering', 'Power of Observation', 'Relationship with EGO'). Return as a comma-separated list."
         response = await self._llm.generate(prompt, text[:5000], max_tokens=100)
-        return [t.strip() for t in response.split(",")]
+        if not response or not response.strip():
+            return ["Spiritual"]
+        return [t.strip() for t in response.split(",") if t.strip()]
 
     def _topic_partition(self, text: str, topics: list[str]) -> dict[str, str]:
         """Simple partition of text based on topic keyword proximity."""

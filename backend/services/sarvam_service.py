@@ -262,17 +262,19 @@ class SarvamCloudService:
                             content = content_outside_think
                         elif think_match:
                             # Reasoning model put EVERYTHING in think tags
-                            # Extract the last non-empty line as the "answer"
                             think_text = think_match.group(1).strip()
-                            lines = [l.strip() for l in think_text.splitlines() if l.strip()]
-                            if lines:
-                                # For classification: use the last line (usually the final answer)
-                                content = lines[-1]
-                                logger.debug(
-                                    f"Extracted answer from <think> tags: '{content[:100]}'"
-                                )
+                            if operation in ("classification", "classification_fallback"):
+                                lines = [l.strip() for l in think_text.splitlines() if l.strip()]
+                                if lines:
+                                    # For classification: use the last line (usually the final answer)
+                                    content = lines[-1]
+                                    logger.debug(f"Extracted classification from <think> tags: '{content[:100]}'")
+                                else:
+                                    content = ""
                             else:
-                                content = ""
+                                # For generate/extract: Keep the ENTIRE content, otherwise LightRAG extractions are destroyed!
+                                content = think_text
+                                logger.debug("Reasoning model wrapped entire generation in <think>. Using full block.")
                         else:
                             content = content.strip()
 

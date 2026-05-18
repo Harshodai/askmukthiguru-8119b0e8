@@ -142,6 +142,11 @@ class TranscriptCorrector:
                         user_prompt=f"Correct this text:\n\n{chunk}",
                         temperature=0.0,
                     )
+                    # Fallback if LLM returns empty or truncated response
+                    if not response or len(response.strip()) < min(50, len(chunk.strip()) // 2):
+                        logger.warning(f"Chunk {i} correction returned empty/short string. Using original.")
+                        return chunk
+                        
                     return response
                 except Exception as e:
                     logger.error(f"Failed to correct chunk {i}: {e}")
