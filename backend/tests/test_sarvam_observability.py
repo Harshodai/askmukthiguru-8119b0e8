@@ -107,3 +107,103 @@ async def test_sarvam_call_records_otel_span_attributes(monkeypatch):
     assert span.attributes["llm.token_count.completion"] == 5
     assert span.attributes["llm.token_count.total"] == 17
 
+
+@pytest.mark.asyncio
+async def test_sarvam_injects_reasoning_effort(monkeypatch):
+    recorded_payloads = []
+
+    class CapturingResponse:
+        status_code = 200
+        text = ""
+        @staticmethod
+        def json():
+            return {
+                "choices": [{"message": {"content": "Hello"}}],
+                "usage": {"total_tokens": 10}
+            }
+
+    class CapturingAsyncClient:
+        def __init__(self, timeout):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+        async def post(self, url, headers=None, json=None):
+            recorded_payloads.append(json)
+            return CapturingResponse()
+
+    monkeypatch.setattr(sarvam_service, "trace", FakeTrace(FakeTracer()))
+    monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", CapturingAsyncClient)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+    monkeypatch.setattr(settings, "sarvam_reasoning_effort", "medium")
+    monkeypatch.setattr(settings, "llm_max_retries", 1)
+
+    service = SarvamCloudService()
+    
+    # Test setting from settings
+    await service.generate(
+        system_prompt="system",
+        user_prompt="hello",
+        max_tokens=64
+    )
+    
+    assert len(recorded_payloads) == 1
+    assert recorded_payloads[0]["reasoning_effort"] == "medium"
+
+    # Test explicit override in kwargs
+    await service.generate(
+        system_prompt="system",
+        user_prompt="hello",
+        max_tokens=64,
+        reasoning_effort="low"
+    )
+    assert len(recorded_payloads) == 2
+    assert recorded_payloads[1]["reasoning_effort"] == "low"
+
+
+@pytest.mark.asyncio
+async def test_sarvam_reasoning_content_fallback(monkeypatch):
+    class FallbackResponse:
+        status_code = 200
+        text = ""
+        @staticmethod
+        def json():
+            return {
+                "choices": [{
+                    "message": {
+                        "content": "   ",  # empty/whitespace content
+                        "reasoning_content": "This is reasoning that serves as fallback."
+                    }
+                }],
+                "usage": {"total_tokens": 10}
+            }
+
+    class FallbackAsyncClient:
+        def __init__(self, timeout):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+        async def post(self, url, headers=None, json=None):
+            return FallbackResponse()
+
+    monkeypatch.setattr(sarvam_service, "trace", FakeTrace(FakeTracer()))
+    monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", FallbackAsyncClient)
+    monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
+    monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
+    monkeypatch.setattr(settings, "llm_max_retries", 1)
+
+    service = SarvamCloudService()
+    result = await service.generate(
+        system_prompt="system",
+        user_prompt="hello",
+        max_tokens=64
+    )
+
+    # Content should fall back to reasoning_content
+    assert result == "This is reasoning that serves as fallback."
+
+
