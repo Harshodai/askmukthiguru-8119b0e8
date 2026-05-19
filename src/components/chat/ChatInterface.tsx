@@ -15,7 +15,7 @@ import {
   updateConversationSummary,
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, setLanguage as setAILanguage } from '@/lib/aiService';
 import { hashMessages, getCachedResponse, setCachedResponse } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -82,7 +82,7 @@ export const ChatInterface = () => {
   const { open: openSereneMind } = useSereneMind();
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const { profile } = useProfile();
+  const { profile, update: updateProfile } = useProfile();
   const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
@@ -126,10 +126,11 @@ export const ChatInterface = () => {
     ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
   }, []);
 
-  // Sync profile changes into local chat state
+  // Sync profile changes into local chat state + push language to AI service
   useEffect(() => {
     setCurrentLanguage(profile.preferredLanguage);
     setTtsEnabled(profile.ttsEnabled);
+    setAILanguage(profile.preferredLanguage);
   }, [profile.preferredLanguage, profile.ttsEnabled]);
 
   // Text-to-Speech hook
@@ -290,14 +291,16 @@ export const ChatInterface = () => {
     }
   }, [ttsEnabled, ttsSupported, stopSpeaking, toast]);
 
-  // Handle language change
+  // Handle language change — persist to profile, push to AI service, restart STT in new lang
   const handleLanguageChange = useCallback((code: string) => {
-    setCurrentLanguage(code as typeof profile.preferredLanguage);
+    setCurrentLanguage(code);
+    setAILanguage(code);
+    updateProfile({ preferredLanguage: code });
     if (isListening) {
       stopListening();
-      setTimeout(() => startListening(), 100);
+      setTimeout(() => startListening(), 150);
     }
-  }, [isListening, stopListening, startListening]);
+  }, [isListening, stopListening, startListening, updateProfile]);
 
   // Save conversation whenever messages change (use ref to avoid re-render loop)
   const currentConversationRef = useRef(currentConversation);
@@ -992,6 +995,7 @@ export const ChatInterface = () => {
               {/* Secondary controls row */}
               <div className="flex items-center justify-between px-3 pb-2 pt-1">
                 <LanguageSelector
+                  value={currentLanguage}
                   voiceEnabled={voiceEnabled}
                   isListening={isListening}
                   onVoiceToggle={handleVoiceToggle}
@@ -1000,6 +1004,7 @@ export const ChatInterface = () => {
                   onTtsToggle={handleTtsToggle}
                   isSpeaking={isSpeaking}
                 />
+
                 <p className="text-[10px] text-muted-foreground hidden sm:block">
                   AI companion • Not a substitute for professional care
                 </p>
