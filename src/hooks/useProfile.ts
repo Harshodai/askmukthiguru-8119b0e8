@@ -13,14 +13,21 @@ import {
  */
 export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfile>(() => loadProfile());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Initial fetch/sync from server. fetchProfileFromServer may write
     // auth metadata (full_name, avatar_url) to localStorage as a side effect.
     // We always re-read from loadProfile() afterwards to pick up those writes.
     const sync = async () => {
-      await fetchProfileFromServer();
-      setProfile(loadProfile());
+      try {
+        await fetchProfileFromServer();
+        setProfile(loadProfile());
+      } catch (err) {
+        console.error('Error syncing profile on load:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     sync();
 
@@ -44,5 +51,6 @@ export const useProfile = () => {
     setProfile(next);
   }, []);
 
-  return { profile, update, replace };
+  return { profile, loading, update, replace };
 };
+

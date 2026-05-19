@@ -80,6 +80,7 @@ vi.mock('@/lib/aiService', () => ({
   sendMessage: vi.fn().mockResolvedValue({ content: 'Mocked guru response', citations: [] }),
   sendMessageStreaming: vi.fn(),
   generateSummary: vi.fn().mockResolvedValue('Mock summary'),
+  setLanguage: vi.fn(),
 }));
 
 vi.mock('@/lib/responseCache', () => ({

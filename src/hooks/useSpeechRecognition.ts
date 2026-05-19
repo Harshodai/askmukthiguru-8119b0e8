@@ -62,6 +62,8 @@ interface UseSpeechRecognitionOptions {
   continuous?: boolean;
   onTranscript?: (transcript: string, isFinal: boolean) => void;
   onError?: (error: string) => void;
+  useSarvam?: boolean;
+  onLanguageDetected?: (lang: string) => void;
 }
 
 interface UseSpeechRecognitionReturn {
@@ -78,7 +80,14 @@ interface UseSpeechRecognitionReturn {
 export const useSpeechRecognition = (
   options: UseSpeechRecognitionOptions = {}
 ): UseSpeechRecognitionReturn => {
-  const { lang = 'en', continuous = true, onTranscript, onError } = options;
+  const {
+    lang = 'en',
+    continuous = true,
+    onTranscript,
+    onError,
+    useSarvam = true,
+    onLanguageDetected,
+  } = options;
 
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -86,27 +95,39 @@ export const useSpeechRecognition = (
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
 
+  // Native SpeechRecognition refs
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const isListeningRef = useRef(false);
+
+  // Sarvam (MediaRecorder) refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // Keep references updated to avoid closures issue
   const langRef = useRef(lang);
   const onTranscriptRef = useRef(onTranscript);
   const onErrorRef = useRef(onError);
+  const onLanguageDetectedRef = useRef(onLanguageDetected);
+  const useSarvamRef = useRef(useSarvam);
 
-  // Keep callback refs up to date
+  useEffect(() => { langRef.current = lang; }, [lang]);
   useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
+  useEffect(() => { onLanguageDetectedRef.current = onLanguageDetected; }, [onLanguageDetected]);
+  useEffect(() => { useSarvamRef.current = useSarvam; }, [useSarvam]);
 
-  // Update language ref when prop changes
+  // Handle support check and native SpeechRecognition creation
   useEffect(() => {
-    langRef.current = lang;
-    if (recognitionRef.current && isListeningRef.current) {
-      // Restart with new language
-      recognitionRef.current.stop();
+    if (useSarvam) {
+      const supported = !!(navigator.mediaDevices && window.MediaRecorder);
+      setIsSupported(supported);
+      if (!supported) {
+        setError('Audio recording is not supported in this browser');
+      }
+      return;
     }
-  }, [lang]);
 
-  // Initialize speech recognition
-  useEffect(() => {
     const SpeechRecognitionAPI =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -172,7 +193,6 @@ export const useSpeechRecognition = (
 
     recognition.onend = () => {
       setIsListening(false);
-      // Auto-restart if still supposed to be listening (handles silence timeout)
       if (isListeningRef.current) {
         try {
           recognition.lang = languageCodeMap[langRef.current] || 'en-US';
@@ -190,41 +210,147 @@ export const useSpeechRecognition = (
         recognitionRef.current.abort();
       }
     };
-  }, [continuous]);
+  }, [useSarvam, continuous]);
 
-  const startListening = useCallback(() => {
-    if (!recognitionRef.current || !isSupported) {
-      setError('Speech recognition is not supported');
-      return;
-    }
+  const startListening = useCallback(async () => {
+    setError(null);
+    setTranscript('');
+    setInterimTranscript('');
 
-    try {
-      setError(null);
-      setTranscript('');
-      setInterimTranscript('');
-      isListeningRef.current = true;
-      recognitionRef.current.lang = languageCodeMap[langRef.current] || 'en-US';
-      recognitionRef.current.start();
-    } catch (err) {
-      // Handle already started error
-      if ((err as Error).message?.includes('already started')) {
-        recognitionRef.current.stop();
-        setTimeout(() => {
-          recognitionRef.current?.start();
-        }, 100);
-      } else {
-        setError('Failed to start speech recognition');
-        isListeningRef.current = false;
+    if (useSarvamRef.current) {
+      if (!navigator.mediaDevices || !window.MediaRecorder) {
+        setError('Audio recording is not supported in this browser');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        chunksRef.current = [];
+
+        // Check browser-supported mime types
+        const options = { mimeType: 'audio/webm' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+          options.mimeType = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'audio/ogg';
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+              options.mimeType = ''; // Let browser decide
+            }
+          }
+        }
+
+        const mediaRecorder = new MediaRecorder(stream, options);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            chunksRef.current.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          console.log("[STT] mediaRecorder.onstop triggered");
+          const mimeType = mediaRecorder.mimeType || 'audio/webm';
+          const audioBlob = new Blob(chunksRef.current, { type: mimeType });
+          console.log("[STT] audioBlob size:", audioBlob.size, "mimeType:", mimeType);
+          chunksRef.current = [];
+
+          // Upload audio blob to backend
+          try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, `audio.${mimeType.split('/')[1] || 'webm'}`);
+            
+            // Map our selected lang code to standard language code map
+            const targetLang = languageCodeMap[langRef.current] || 'en-IN';
+            formData.append('language_code', targetLang);
+
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+            const targetUrl = `${backendUrl}/api/speech/stt`;
+            console.log("[STT] Fetching:", targetUrl, "with targetLang:", targetLang);
+            const res = await fetch(targetUrl, {
+              method: 'POST',
+              body: formData,
+            });
+
+            console.log("[STT] Fetch response status:", res.status);
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.detail || `Server returned ${res.status}`);
+            }
+
+            const data = await res.json();
+            console.log("[STT] Response data:", JSON.stringify(data));
+            const text = data.transcript || '';
+            const detectedLang = data.language_code || targetLang;
+
+            setTranscript(text);
+            onTranscriptRef.current?.(text, true);
+
+            if (onLanguageDetectedRef.current && detectedLang) {
+              console.log("[STT] Triggering onLanguageDetected with:", detectedLang);
+              onLanguageDetectedRef.current(detectedLang);
+            }
+          } catch (err) {
+            const msg = (err as Error).message || 'Failed to process speech input';
+            console.error("[STT] Error during processing:", msg);
+            setError(msg);
+            onErrorRef.current?.(msg);
+          } finally {
+            // Clean up stream tracks
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach((track) => track.stop());
+              streamRef.current = null;
+            }
+            setIsListening(false);
+          }
+        };
+
+        mediaRecorder.start();
+        setIsListening(true);
+      } catch (err) {
+        const msg = 'Microphone permission denied or microphone not found.';
+        setError(msg);
+        onErrorRef.current?.(msg);
+        setIsListening(false);
+      }
+    } else {
+      // Native SpeechRecognition flow
+      if (!recognitionRef.current || !isSupported) {
+        setError('Speech recognition is not supported');
+        return;
+      }
+
+      try {
+        isListeningRef.current = true;
+        recognitionRef.current.lang = languageCodeMap[langRef.current] || 'en-US';
+        recognitionRef.current.start();
+      } catch (err) {
+        if ((err as Error).message?.includes('already started')) {
+          recognitionRef.current.stop();
+          setTimeout(() => {
+            recognitionRef.current?.start();
+          }, 100);
+        } else {
+          setError('Failed to start speech recognition');
+          isListeningRef.current = false;
+        }
       }
     }
   }, [isSupported]);
 
   const stopListening = useCallback(() => {
-    isListeningRef.current = false;
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+    if (useSarvamRef.current) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } else {
+      isListeningRef.current = false;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
     }
-    setIsListening(false);
   }, []);
 
   const resetTranscript = useCallback(() => {

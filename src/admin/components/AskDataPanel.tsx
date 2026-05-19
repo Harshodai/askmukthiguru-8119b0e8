@@ -50,7 +50,12 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
       });
 
       if (!res.ok) {
-        setError(`Backend returned ${res.status} — is Docker running?`);
+        try {
+          const err = await res.json();
+          setError(err.detail || `Backend returned ${res.status}`);
+        } catch {
+          setError(`Backend returned ${res.status} — is Docker running?`);
+        }
         return;
       }
       const data = await res.json();

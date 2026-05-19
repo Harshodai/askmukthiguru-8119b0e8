@@ -70,6 +70,7 @@ import {
 import { getMeditationStats, loadMeditationSessions } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -92,6 +93,15 @@ const themes: { value: 'light' | 'dark' | 'system'; label: string; icon: typeof 
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
+const mayuraVoices: { value: string; label: string; hint: string }[] = [
+  { value: 'deepika', label: 'Deepika', hint: 'Female · Warm, natural' },
+  { value: 'ananya', label: 'Ananya', hint: 'Female · Calm, soothing' },
+  { value: 'kavya', label: 'Kavya', hint: 'Female · Bright, clear' },
+  { value: 'sangeetha', label: 'Sangeetha', hint: 'Female · Melodic' },
+  { value: 'shubh', label: 'Shubh', hint: 'Male · Clear, composed' },
+  { value: 'arvind', label: 'Arvind', hint: 'Male · Deep, authoritative' },
+];
+
 const formatTime = (mins: number): string => {
   const h = Math.floor(mins / 60).toString().padStart(2, '0');
   const m = (mins % 60).toString().padStart(2, '0');
@@ -111,6 +121,7 @@ const ProfilePage = () => {
   const [tab, setTab] = useState(initialTab);
   const { profile, update } = useProfile();
   const { toast } = useToast();
+  const { setTheme: applyThemeNow } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Local form state — only persists on Save
@@ -143,6 +154,7 @@ const ProfilePage = () => {
       theme: form.theme,
       ttsEnabled: form.ttsEnabled,
       ttsRate: form.ttsRate,
+      preferredVoice: form.preferredVoice,
       meditationReminders: form.meditationReminders,
       reminderTimeMinutes: form.reminderTimeMinutes,
     });
@@ -424,7 +436,10 @@ const ProfilePage = () => {
                     {themes.map(t => (
                       <button
                         key={t.value}
-                        onClick={() => patch('theme', t.value)}
+                        onClick={() => {
+                          patch('theme', t.value);
+                          applyThemeNow(t.value);
+                        }}
                         className={cn(
                           "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all",
                           form.theme === t.value 
@@ -470,6 +485,24 @@ const ProfilePage = () => {
                         step={0.1}
                         onValueChange={([v]) => patch('ttsRate', v)}
                       />
+
+                      <div className="space-y-2 pt-2">
+                        <Label>Guru Voice (Mayura)</Label>
+                        <p className="text-xs text-muted-foreground">Choose the voice personality for Indic language audio.</p>
+                        <Select value={form.preferredVoice || 'deepika'} onValueChange={(v) => patch('preferredVoice', v)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mayuraVoices.map(v => (
+                              <SelectItem key={v.value} value={v.value}>
+                                <span className="font-medium">{v.label}</span>
+                                <span className="ml-2 text-xs text-muted-foreground">{v.hint}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   )}
                 </CardContent>

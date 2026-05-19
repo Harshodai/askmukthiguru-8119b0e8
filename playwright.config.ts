@@ -14,7 +14,7 @@ export default defineConfig({
   use: {
     actionTimeout: 0,
     trace: 'on-first-retry',
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:8080',
   },
   projects: [
     {
@@ -24,7 +24,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    port: 5173,
+    port: 8080,
     reuseExistingServer: !process.env.CI,
   },
 });

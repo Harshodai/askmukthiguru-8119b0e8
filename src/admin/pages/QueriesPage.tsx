@@ -128,11 +128,15 @@ export default function QueriesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All models</SelectItem>
-                {models?.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
+                {models?.map((m) => {
+                  const val = typeof m === 'string' ? m : (m as any).id ?? String(m);
+                  const label = typeof m === 'string' ? m : `${(m as any).name ?? val} (${(m as any).provider ?? ''})`.trim();
+                  return (
+                    <SelectItem key={val} value={val}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

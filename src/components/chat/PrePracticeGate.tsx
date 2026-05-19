@@ -71,6 +71,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
     recordPrePractice(answer);
     sessionStorage.setItem(SESSION_KEY, '1');
     setAsked(true);
+    window.dispatchEvent(new CustomEvent('askmukthiguru:pre_practice_completed'));
     if (answer === 'none') {
       // Gentle invitation rather than a force — open Serene Mind as a soft nudge.
       // The chat still loads beneath; user can dismiss the modal.
@@ -81,6 +82,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
   const handleSkip = () => {
     sessionStorage.setItem(SESSION_KEY, '1');
     setAsked(true);
+    window.dispatchEvent(new CustomEvent('askmukthiguru:pre_practice_completed'));
   };
 
   if (asked) return <>{children}</>;

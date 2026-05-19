@@ -41,6 +41,9 @@ def mock_get_container():
     # Mock Ollama
     mock_container.ollama = AsyncMock()
     mock_container.ollama.health_check.return_value = True
+    async def dummy_translate(text, src, tgt):
+        return f"translated_{text}"
+    mock_container.ollama.translate_text = dummy_translate
     
     # Mock Qdrant and OCR
     mock_container.qdrant = MagicMock()
@@ -64,7 +67,7 @@ def mock_get_container():
     # Mock profile service
     mock_container.profile_service = AsyncMock()
     mock_container.profile_service.get_profile.return_value = {}
-    mock_container.user_profile = {}
+    mock_container.user_profile = None  # None to avoid triggering ConversationMemory save attempt if not needed, or we can leave as is
 
     # Mock health_status
     mock_container.health_status = AsyncMock()
@@ -111,3 +114,21 @@ def test_chat_endpoint_empty_message(mock_log_query_trace):
     }
     response = client.post("/api/chat", json=payload)
     assert response.status_code == 400
+
+@patch('app.main.log_query_trace')
+def test_chat_endpoint_indic_translation(mock_log_query_trace):
+    """Verify that the chat endpoint translates Indic languages to and from English."""
+    payload = {
+        "user_message": "नमस्ते",  # Namaste in Hindi
+        "session_id": "test-session",
+        "messages": [],
+        "language": "hi"
+    }
+    response = client.post("/api/chat", json=payload)
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "response" in data
+    # The pipeline should return the translated final answer
+    assert data["response"] == "translated_This is a mocked response"
+

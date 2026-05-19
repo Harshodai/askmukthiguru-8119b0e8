@@ -6,6 +6,9 @@ from services.cache_service import SemanticCacheAdapter
 
 logging.basicConfig(level=logging.INFO)
 
+import pytest
+
+@pytest.mark.asyncio
 async def test_semantic_cache():
     print("Initializing services for test...")
     embedder = EmbeddingService()
