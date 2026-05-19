@@ -995,6 +995,7 @@ export const ChatInterface = () => {
               {/* Secondary controls row */}
               <div className="flex items-center justify-between px-3 pb-2 pt-1">
                 <LanguageSelector
+                  value={currentLanguage}
                   voiceEnabled={voiceEnabled}
                   isListening={isListening}
                   onVoiceToggle={handleVoiceToggle}
@@ -1003,6 +1004,7 @@ export const ChatInterface = () => {
                   onTtsToggle={handleTtsToggle}
                   isSpeaking={isSpeaking}
                 />
+
                 <p className="text-[10px] text-muted-foreground hidden sm:block">
                   AI companion • Not a substitute for professional care
                 </p>
