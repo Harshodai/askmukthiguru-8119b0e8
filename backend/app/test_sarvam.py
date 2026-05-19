@@ -8,6 +8,11 @@ sys.path.append(os.getcwd())
 from app.dependencies import get_container
 from rag.graph import create_initial_state
 
+import pytest
+
+pytestmark = pytest.mark.skip(reason="Standalone integration test script requiring live Qdrant")
+
+@pytest.mark.asyncio
 async def test_sarvam_graph():
     print(f"Testing Sarvam Cloud via LangGraph RAG Pipeline...")
     

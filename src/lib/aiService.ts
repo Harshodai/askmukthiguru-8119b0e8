@@ -37,10 +37,26 @@ export interface AIResponse {
 // Auto-detect backend URL: VITE_BACKEND_URL for local dev, relative path for production
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
+const getInitialLanguage = (): string => {
+  if (typeof window === 'undefined') return 'en';
+  try {
+    const raw = localStorage.getItem('askmukthiguru_profile');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.preferredLanguage) {
+        return parsed.preferredLanguage;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return 'en';
+};
+
 let currentConfig: AIConfig = {
   provider: 'custom',
   endpoint: `${BACKEND_URL}/api/chat`,
-  language: 'en',
+  language: getInitialLanguage(),
   systemPrompt: `You are a spiritual AI companion embodying the wisdom of Sri Preethaji & Sri Krishnaji. 
 Your purpose is to guide seekers toward their "beautiful state" - a state of consciousness free from suffering.
 You speak with warmth, compassion, and profound insight. You never claim to replace professional mental health support.
@@ -57,6 +73,18 @@ export const getAIConfig = (): AIConfig => {
 
 export const setLanguage = (language: string): void => {
   currentConfig.language = language;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('askmukthiguru_profile');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        parsed.preferredLanguage = language;
+        localStorage.setItem('askmukthiguru_profile', JSON.stringify(parsed));
+      }
+    } catch {
+      // ignore
+    }
+  }
 };
 
 const getPlaceholderResponse = (): string => {

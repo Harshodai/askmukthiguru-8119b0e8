@@ -22,7 +22,7 @@ import { ChatHeader } from './ChatHeader';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
-import { LanguageSelector } from './LanguageSelector';
+import { LanguageSelector, LANGUAGES } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
@@ -82,12 +82,19 @@ export const ChatInterface = () => {
   const { open: openSereneMind } = useSereneMind();
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const { profile, update: updateProfile } = useProfile();
+  const { profile, loading: profileLoading, update: updateProfile } = useProfile();
   const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
   const { isCollapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarCollapsed();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [prevProfileLoading, setPrevProfileLoading] = useState(true);
+  if (prevProfileLoading && !profileLoading) {
+    setPrevProfileLoading(false);
+    setCurrentLanguage(profile.preferredLanguage);
+    setTtsEnabled(profile.ttsEnabled);
+    setAILanguage(profile.preferredLanguage);
+  }
   const [meditationStep, setMeditationStep] = useState(0);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -137,10 +144,20 @@ export const ChatInterface = () => {
   const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTextToSpeech({
     lang: currentLanguage,
     rate: profile.ttsRate,
+    speaker: profile.preferredVoice,
+    onError: (err) => {
+      toast({
+        title: 'Voice Output Notice',
+        description: err,
+        variant: 'destructive',
+        duration: 4000,
+      });
+    },
   });
 
   // Initialize or load conversation on mount
   useEffect(() => {
+    if (profileLoading) return;
     const currentId = getCurrentConversationId();
     let conversation: Conversation | null = null;
 
@@ -201,7 +218,7 @@ export const ChatInterface = () => {
     requestAnimationFrame(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
     });
-  }, []);
+  }, [profileLoading]);
 
   // Auto-speak new guru messages when TTS is enabled
   useEffect(() => {
@@ -226,6 +243,7 @@ export const ChatInterface = () => {
     resetTranscript,
   } = useSpeechRecognition({
     lang: currentLanguage,
+    useSarvam: true,
     onTranscript: (text, isFinal) => {
       if (isFinal) {
         setInputValue(prev => prev + text + ' ');
@@ -239,6 +257,22 @@ export const ChatInterface = () => {
         variant: 'destructive',
       });
       setVoiceEnabled(false);
+    },
+    onLanguageDetected: (detectedLang) => {
+      console.log("[ChatInterface] onLanguageDetected called with:", detectedLang);
+      const detectedLangObj = LANGUAGES.find(
+        (l) => l.bcp47.toLowerCase() === detectedLang.toLowerCase() || l.code.toLowerCase() === detectedLang.toLowerCase()
+      );
+      console.log("[ChatInterface] matched detectedLangObj:", JSON.stringify(detectedLangObj), "currentLanguage:", currentLanguage);
+      if (detectedLangObj && detectedLangObj.code !== currentLanguage) {
+        handleLanguageChange(detectedLangObj.code);
+        console.log("[ChatInterface] handleLanguageChange called, showing toast");
+        toast({
+          title: '🌐 Language Switched',
+          description: `Detected ${detectedLangObj.name}. Switched conversation and speech settings.`,
+          duration: 3500,
+        });
+      }
     },
   });
 
@@ -339,7 +373,11 @@ export const ChatInterface = () => {
   const handleSubmit = async (e: React.FormEvent, overrideText?: string) => {
     e.preventDefault();
     const textToSend = overrideText ?? inputValue;
-    if (!textToSend.trim() || isTyping) return;
+    console.log("[ChatInterface] handleSubmit triggered, textToSend:", textToSend, "isTyping:", isTyping, "inputValue:", inputValue);
+    if (!textToSend.trim() || isTyping) {
+      console.log("[ChatInterface] handleSubmit returned early!");
+      return;
+    }
 
     const userMessage: Message = {
       id: generateId(),
@@ -754,9 +792,6 @@ export const ChatInterface = () => {
           className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
         >
           <div className="max-w-3xl mx-auto space-y-3">
-            {/* Daily Teaching Banner */}
-            <DailyTeaching />
-
             <MessageList messages={messages} streamingId={streamingMessageId} streamingContent={streamingContent} onRegenerate={handleRegenerate} />
 
             {/* Suggested starters */}
@@ -1047,6 +1082,9 @@ export const ChatInterface = () => {
         />,
         document.body
       )}
+
+      {/* Daily Teaching Modal */}
+      <DailyTeaching />
     </div>
   );
 };

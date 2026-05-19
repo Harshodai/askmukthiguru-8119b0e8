@@ -41,6 +41,8 @@ export interface UserProfile {
   theme: ThemePreference;
   ttsEnabled: boolean;
   ttsRate: number; // 0.5–1.5
+  /** Preferred Sarvam Mayura TTS voice */
+  preferredVoice: string;
   meditationReminders: boolean;
   reminderTimeMinutes: number; // minutes since midnight
   prePracticeLog: PrePracticeLog;
@@ -73,6 +75,7 @@ export const createDefaultProfile = (): UserProfile => {
     theme: 'system',
     ttsEnabled: false,
     ttsRate: 0.9,
+    preferredVoice: 'deepika',
     meditationReminders: false,
     reminderTimeMinutes: 7 * 60, // 7:00 AM
     prePracticeLog: { ...EMPTY_PRE_PRACTICE_LOG, counts: { ...EMPTY_PRE_PRACTICE_LOG.counts }, history: [] },
@@ -245,7 +248,8 @@ export const syncProfileToServer = async (profile: UserProfile) => {
 export const fetchProfileFromServer = async () => {
   // ── Step 1: Sync from Supabase auth user_metadata (works without backend) ──
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (user) {
       const meta = user.user_metadata ?? {};
       const metaName: string = meta.full_name || meta.name || '';
@@ -281,10 +285,14 @@ export const fetchProfileFromServer = async () => {
       const serverProfile = await response.json();
       const current = loadProfile();
       
+      // ONLY overwrite if the local language is 'en' (default) or matches the server language,
+      // which preserves any active non-english language choices made by the user or auto-detected.
+      const shouldUpdateLang = current.preferredLanguage === 'en' || current.preferredLanguage === serverProfile.preferred_language;
+      
       // Merge server fields into local profile
       const merged: UserProfile = {
         ...current,
-        preferredLanguage: serverProfile.preferred_language as any,
+        preferredLanguage: shouldUpdateLang ? (serverProfile.preferred_language as any) : current.preferredLanguage,
         // Map other fields as needed
       };
       

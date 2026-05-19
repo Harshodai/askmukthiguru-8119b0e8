@@ -1040,6 +1040,84 @@ class SarvamCloudService:
             
         return compressed.strip()
 
+    async def translate_text(
+        self,
+        text: str,
+        source_language_code: str,
+        target_language_code: str,
+    ) -> str:
+        """
+        Translate text using Sarvam Mayura/Translate API.
+        """
+        if not text.strip():
+            return ""
+        
+        # Normalize code
+        def normalize_code(code: str) -> str:
+            code = code.lower().strip()
+            # If code is already a full bcp47 tag with IN or NP, upper case the regional subtag
+            if "-" in code:
+                parts = code.split("-")
+                return f"{parts[0]}-{parts[1].upper()}"
+            # Standard Indic mappings to BCP-47
+            mapping = {
+                "en": "en-IN",
+                "hi": "hi-IN",
+                "te": "te-IN",
+                "mr": "mr-IN",
+                "ta": "ta-IN",
+                "bn": "bn-IN",
+                "gu": "gu-IN",
+                "kn": "kn-IN",
+                "ml": "ml-IN",
+                "or": "or-IN",
+                "pa": "pa-IN",
+                "ur": "ur-IN",
+                "as": "as-IN",
+                "mai": "mai-IN",
+                "sa": "sa-IN",
+                "ks": "ks-IN",
+                "ne": "ne-NP",
+                "sd": "sd-IN",
+                "kok": "kok-IN",
+                "doi": "doi-IN",
+                "mni": "mni-IN",
+                "sat": "sat-IN",
+                "brx": "brx-IN",
+            }
+            return mapping.get(code, f"{code}-IN")
+
+        src_code = normalize_code(source_language_code)
+        tgt_code = normalize_code(target_language_code)
+
+        if src_code == tgt_code:
+            return text
+
+        url = "https://api.sarvam.ai/translate"
+        headers = {
+            "api-subscription-key": self._api_key,
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "input": text,
+            "source_language_code": src_code,
+            "target_language_code": tgt_code,
+            "model": "mayura:v1"
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("translated_text", text)
+                else:
+                    logger.error(f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}")
+                    return text
+        except Exception as e:
+            logger.error(f"Error calling Sarvam translation: {e}")
+            return text
+
     async def health_check(self) -> bool:
         """Check if Sarvam Cloud API is reachable."""
         try:

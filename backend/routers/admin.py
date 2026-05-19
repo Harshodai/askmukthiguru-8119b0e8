@@ -61,9 +61,10 @@ async def ask_admin_question(
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    api_key = os.environ.get("SARVAM_API_KEY")
-    base_url = os.environ.get("SARVAM_BASE_URL", "https://api.sarvam.ai/v1").rstrip("/")
-    model = os.environ.get("SARVAM_CLOUD_MODEL", "sarvam-30b")
+    from app.config import settings
+    api_key = settings.sarvam_api_key
+    base_url = settings.sarvam_base_url.rstrip("/")
+    model = settings.sarvam_cloud_model
     if not api_key:
         raise HTTPException(status_code=500, detail="SARVAM_API_KEY not configured")
 
@@ -82,7 +83,7 @@ async def ask_admin_question(
             resp = await client.post(
                 f"{base_url}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {api_key}",
+                    "api-subscription-key": api_key,
                     "Content-Type": "application/json"
                 },
                 json={

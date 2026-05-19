@@ -17,6 +17,7 @@ export function useRequireAuth() {
 
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[useRequireAuth] session:', JSON.stringify(session));
       if (cancelled) return;
       if (!session?.user) {
         // Save current path for post-login redirect

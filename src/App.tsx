@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
@@ -105,6 +106,7 @@ const App = () => {
           <SessionExpiredHandler />
           <CookieConsentBanner />
           <SonnerToaster richColors closeButton position="top-right" />
+          <Toaster />
         </BrowserRouter>
       </SereneMindProvider>
     </QueryClientProvider>
