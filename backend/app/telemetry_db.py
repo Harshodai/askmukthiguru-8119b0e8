@@ -231,3 +231,27 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
             "hallucination_rate": 0, "serene_mind_trigger_rate": 0, "thumbs_up_rate": 0,
             "estimated_cost_usd": 0, "error_rate": 0
         }
+
+async def log_ingestion_run(run_data: dict) -> None:
+    """Log an ingestion run attempt and result to Supabase."""
+    client = _get_client()
+    if not client:
+        return
+
+    try:
+        payload = {
+            "id": run_data.get("id"),
+            "source": run_data.get("source"),
+            "chunks_added": run_data.get("chunks_added", 0),
+            "embedding_model": run_data.get("embedding_model"),
+            "duration_ms": run_data.get("duration_ms", 0),
+            "status": run_data.get("status", "ok"),
+            "error_log": run_data.get("error_log"),
+            "created_at": run_data.get("created_at")
+        }
+        # Filter out None values to let Postgres defaults kick in
+        payload = {k: v for k, v in payload.items() if v is not None}
+        client.table("ingestion_runs").insert(payload).execute()
+        logger.info(f"Successfully logged ingestion run {run_data.get('id')} to Supabase")
+    except Exception as e:
+        logger.error(f"Failed to log ingestion run to Supabase: {e}")

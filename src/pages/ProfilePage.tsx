@@ -73,6 +73,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
 const languages: { code: 'en' | 'hi' | 'te' | 'ml'; label: string }[] = [
   { code: 'en', label: 'English' },
@@ -123,6 +124,7 @@ const ProfilePage = () => {
   const { toast } = useToast();
   const { setTheme: applyThemeNow } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { teaching: dailyTeaching } = useDailyTeaching();
 
   // Local form state — only persists on Save
   const [form, setForm] = useState(profile);
@@ -388,6 +390,36 @@ const ProfilePage = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Wisdom of the Day */}
+              {dailyTeaching && (
+                <Card className="overflow-hidden border border-ojas/20 bg-card/80 backdrop-blur-lg">
+                  <div className="flex flex-col sm:flex-row">
+                    <div className="relative w-full sm:w-1/3 aspect-[16/10] sm:aspect-auto sm:min-h-[160px] overflow-hidden bg-muted/20">
+                      <img
+                        src={dailyTeaching.image_url}
+                        alt="Daily wisdom"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-card/70 via-transparent to-transparent pointer-events-none" />
+                    </div>
+                    <div className="flex-1 p-5 flex flex-col justify-center">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Sparkles className="w-3.5 h-3.5 text-ojas" />
+                        <span className="text-[10px] font-semibold text-ojas uppercase tracking-widest">
+                          Wisdom of the Day
+                        </span>
+                      </div>
+                      {dailyTeaching.caption && (
+                        <p className="text-base text-foreground/90 font-serif leading-relaxed italic">
+                          &ldquo;{dailyTeaching.caption}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>

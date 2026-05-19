@@ -38,6 +38,7 @@ import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFl
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { MessageList } from './MessageList';
+import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
 // ── Suggested starter chips ─────────────────────────────────────────
 const STARTER_SUGGESTIONS = [
@@ -102,6 +103,7 @@ export const ChatInterface = () => {
   const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [showPipeline, setShowPipeline] = useState(false);
+  const { teaching: dailyTeaching } = useDailyTeaching();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -800,17 +802,31 @@ export const ChatInterface = () => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="flex flex-wrap justify-center gap-2 pt-4"
+                className="space-y-4 pt-4"
               >
-                {STARTER_SUGGESTIONS.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-4 py-2 rounded-full text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+                {/* Compact daily teaching banner */}
+                {dailyTeaching && dailyTeaching.caption && (
+                  <div className="mx-auto max-w-md rounded-xl border border-ojas/20 bg-ojas/5 backdrop-blur-sm p-4 flex items-start gap-3">
+                    <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5 animate-pulse" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-ojas uppercase tracking-widest mb-1">Today&apos;s Wisdom</p>
+                      <p className="text-sm text-foreground/80 font-serif italic leading-relaxed line-clamp-3">
+                        &ldquo;{dailyTeaching.caption}&rdquo;
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-wrap justify-center gap-2">
+                  {STARTER_SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="px-4 py-2 rounded-full text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </motion.div>
             )}
 

@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { practices, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { cn } from '@/lib/utils';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -84,6 +85,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
 const PracticesPage = () => {
   const { loading: authLoading } = useRequireAuth();
   const { favorites, toggle, isFavorited } = useFavorites();
+  const { teaching: dailyTeaching } = useDailyTeaching();
   const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
   const otherPractices = practices.filter((p) => !favorites.includes(p.slug));
 
@@ -127,6 +129,55 @@ const PracticesPage = () => {
             Sri Preethaji & Sri Krishnaji. Tap the star to pin the ones you return to most.
           </p>
         </motion.header>
+
+        {/* Today's Wisdom — Daily Teaching Card */}
+        {dailyTeaching && (
+          <motion.section
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-10"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-ojas animate-pulse" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Today&apos;s Wisdom
+              </h2>
+            </div>
+            <Card className="overflow-hidden border border-ojas/20 bg-card/80 shadow-xl backdrop-blur-lg">
+              <div className="flex flex-col md:flex-row">
+                {/* Image side */}
+                <div className="relative w-full md:w-2/5 aspect-[16/9] md:aspect-auto md:min-h-[220px] overflow-hidden bg-muted/20">
+                  <img
+                    src={dailyTeaching.image_url}
+                    alt="Today's teaching from the Gurus"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  {/* Gradient overlay to blend image into card */}
+                  <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-card/80 via-transparent to-transparent pointer-events-none" />
+                </div>
+                {/* Text side */}
+                <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Sparkles className="w-3.5 h-3.5 text-ojas" />
+                    <span className="text-[10px] font-semibold text-ojas uppercase tracking-widest">
+                      Wisdom of the Day
+                    </span>
+                  </div>
+                  {dailyTeaching.caption && (
+                    <p className="text-lg sm:text-xl text-foreground/90 font-serif leading-relaxed italic">
+                      &ldquo;{dailyTeaching.caption}&rdquo;
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-4">
+                    — Sri Preethaji &amp; Sri Krishnaji
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </motion.section>
+        )}
 
         {favoritePractices.length > 0 && (
           <section className="mb-10">
