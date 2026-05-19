@@ -181,10 +181,20 @@ export const LanguageSelector = ({
                                 {lang.name}
                               </span>
                             </div>
-                            {!hasVoice && (
+                            {hasVoice ? (
+                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-prana/90 font-medium">
+                                <Volume2 className="w-2.5 h-2.5" />
+                                Local Voice Enabled
+                              </span>
+                            ) : lang.code === 'en' ? (
                               <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
                                 <AlertCircle className="w-2.5 h-2.5" />
                                 Voice not supported in this browser
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-ojas/90 font-medium">
+                                <Volume2 className="w-2.5 h-2.5" />
+                                Cloud Voice Enabled
                               </span>
                             )}
                           </div>
