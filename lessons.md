@@ -461,3 +461,11 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Implemented smart error classification in `whisper_local_service.py` to differentiate between Authentication/Bot errors, DNS resolution failures, and Format errors. Cookie refreshes are now only triggered on genuine Auth/Bot errors, eliminating 200+ wasted keychain unlock operations during network drops.
   - Removed redundant Whisper transcript processing during the LightRAG step by leveraging cached Qdrant transcript text.
   - Hardened security by pulling `KEYCHAIN_PASS` from `.env` instead of source code, and gated debug JSON writes behind a `SARVAM_DEBUG` flag to prevent unbounded disk usage.
+
+### 33. LightRAG Query Extraction Failure and JSON Schema Robustness (May 2026)
+- **Problem**: When querying LightRAG, the graph extraction and query routing engine uses an LLM to generate keywords in a JSON dictionary format. With deep reasoning models like Sarvam Cloud (`sarvam-30b`), the model may output a JSON list (e.g. `[ "keyword1", ... ]` or `[ { "high_level_keywords": [...] } ]`) instead of a flat dictionary. The library parsed this using `json_repair` and then attempted `.get()` on the list, causing a fatal `AttributeError: 'list' object has no attribute 'get'` crash.
+- **Solution**:
+  - Implemented a robust parsing wrapper in `lightrag/operate.py:extract_keywords_only` to check if the parsed result is a `list`. If it is a list of dictionaries, it extracts the first dictionary. If it is a list of strings, it maps them as both high-level and low-level keywords.
+  - Handled `history_messages` in `lightrag_service.py` with robust type checks (handling dicts, strings, and other objects) to guarantee failure-free context formatting.
+  - Gated parsing errors gracefully inside the keyword extractor (returning empty lists `[], []` instead of raising unhandled exceptions), allowing query execution to fallback to general entities or standard vector search without crashing.
+
