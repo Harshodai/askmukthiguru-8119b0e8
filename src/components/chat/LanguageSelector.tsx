@@ -48,6 +48,8 @@ interface LanguageSelectorProps {
   ttsEnabled?: boolean;
   onTtsToggle?: () => void;
   isSpeaking?: boolean;
+  /** Currently selected language code (controlled). */
+  value?: string;
 }
 
 /** Detect which languages have at least one TTS voice available in this browser. */
@@ -76,9 +78,11 @@ export const LanguageSelector = ({
   ttsEnabled,
   onTtsToggle,
   isSpeaking,
+  value,
 }: LanguageSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [internalLang, setInternalLang] = useState('en');
+  const selectedLanguage = value ?? internalLang;
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { toast } = useToast();
 
