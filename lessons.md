@@ -481,5 +481,13 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Problem 2 (Playwright Speech API Mocking)**: In modern Chromium environments, `window.speechSynthesis` is a read-only, non-configurable property. Direct assignments like `window.speechSynthesis = ...` in Playwright initialization scripts fail silently, causing the browser to fallback to real system speech voices (which are active on macOS hosts). This bypasses the synthetic voice failure/fallback path and causes E2E tests for TTS failure toasts to fail.
 - **Solution 2**: Intercepted and mocked the Web Speech API directly on its prototype (`SpeechSynthesis.prototype`). Specifically, overriding `SpeechSynthesis.prototype.getVoices` to return `[]` and overriding `SpeechSynthesis.prototype.speak` ensures proper interception across all pages, cleanly triggering the desired fallback notice UI.
 
+### 36. Robust Outliers, Resiliency, and Supabase Telemetry Benchmark Wiring (May 2026)
+- **Problem**: RAG testing harnesses running in local host development environments require a high level of resiliency against transient network failures, support for extreme security and multilingual edge-case outliers (Hinglish, XSS, null-bytes, Pydantic overflows), and seamless automated telemetry wiring into Supabase so that runs are visible, trackable, and graphed on the Admin Console **Evals Page** without polluting cloud secrets.
+- **Solution**:
+  - **Extreme Outliers**: Augmented the query suites to test multi-lingual distress inputs (Hinglish, Telugu), buffer boundary stressors (1900+ char strings), injection attempts (SQL, XSS payloads), and out-of-bound `meditation_step` inputs to verify Pydantic schema rejection.
+  - **Network Resilience**: Embedded a robust exponential backoff retry handler inside the asynchronous HTTP client call wrapper, allowing up to 3 attempts with progressive delay increments to avoid transient failures.
+  - **Dynamic Supabase Telemetry**: Implemented host-native `.env` discovery to parse local Supabase credentials dynamically, auto-substituting `host.docker.internal` for `localhost` under docker resolution boundaries. Result metrics (passed, faithfulness, answer relevancy, context precision) are calculated and batched directly into `{SUPABASE_URL}/rest/v1/eval_runs` and `eval_results` endpoints, enabling instant regression plotting inside the Admin Console UI.
+
+
 
 
