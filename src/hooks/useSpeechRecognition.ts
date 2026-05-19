@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
-// Language code mapping for Web Speech API
-const languageCodeMap: Record<string, string> = {
-  en: 'en-US',
-  hi: 'hi-IN',
-  te: 'te-IN',
-  ta: 'ta-IN',
-  kn: 'kn-IN',
-  ml: 'ml-IN',
-};
+// Build BCP-47 lookup from the canonical LANGUAGES list (22 Indic + English).
+const languageCodeMap: Record<string, string> = LANGUAGES.reduce(
+  (acc, l) => {
+    acc[l.code] = l.bcp47;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
 
 interface SpeechRecognitionEvent {
   resultIndex: number;
