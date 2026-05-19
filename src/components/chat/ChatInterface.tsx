@@ -30,6 +30,8 @@ import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPi
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
+import { useChatShortcuts } from '@/hooks/useChatShortcuts';
+import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useToast } from '@/hooks/use-toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
