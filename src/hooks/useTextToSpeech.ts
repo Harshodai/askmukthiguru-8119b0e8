@@ -6,6 +6,8 @@ interface UseTextToSpeechOptions {
   rate?: number;
   pitch?: number;
   volume?: number;
+  speaker?: string;
+  onError?: (error: string) => void;
 }
 
 interface UseTextToSpeechReturn {
@@ -18,10 +20,10 @@ interface UseTextToSpeechReturn {
   isSupported: boolean;
   voices: SpeechSynthesisVoice[];
   currentVoice: SpeechSynthesisVoice | null;
+  error: string | null;
 }
 
 // Build language -> preferred BCP-47 tags from canonical LANGUAGES list.
-// English keeps multi-region fallbacks; every other language uses its native BCP-47 plus a bare ISO code.
 const languageMap: Record<string, string[]> = LANGUAGES.reduce(
   (acc, l) => {
     acc[l.code] = l.code === 'en' ? ['en-IN', 'en-US', 'en-GB', 'en-AU'] : [l.bcp47, l.code];
@@ -31,15 +33,23 @@ const languageMap: Record<string, string[]> = LANGUAGES.reduce(
 );
 
 export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechReturn => {
-  const { lang = 'en', rate = 0.9, pitch = 1, volume = 1 } = options;
+  const { lang = 'en', rate = 0.9, pitch = 1, volume = 1, speaker, onError } = options;
   
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [currentVoice, setCurrentVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const sarvamAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   // Load available voices
   useEffect(() => {
@@ -66,7 +76,6 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
     const preferredLangs = languageMap[lang] || languageMap.en;
     
-    // Try to find a voice matching preferred languages in order
     for (const preferredLang of preferredLangs) {
       const matchingVoice = voices.find(
         (voice) => voice.lang.startsWith(preferredLang.split('-')[0]) || voice.lang === preferredLang
@@ -84,77 +93,183 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
   const speak = useCallback(
     (text: string) => {
-      if (!isSupported || !text.trim()) return;
-
-      // Cancel any ongoing speech
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = rate;
-      utterance.pitch = pitch;
-      utterance.volume = volume;
-
-      if (currentVoice) {
-        utterance.voice = currentVoice;
-        utterance.lang = currentVoice.lang;
-      } else {
-        // Set language even without a specific voice
-        const langCode = languageMap[lang]?.[0] || 'en-US';
-        utterance.lang = langCode;
+      setError(null);
+      
+      // Stop any existing Sarvam audio
+      if (sarvamAudioRef.current) {
+        sarvamAudioRef.current.pause();
+        sarvamAudioRef.current = null;
       }
 
-      utterance.onstart = () => {
+      // Stop native speech synthesis
+      if (isSupported) {
+        window.speechSynthesis.cancel();
+      }
+
+      if (!text.trim()) return;
+
+      // Determine if a native browser voice supports the selected language.
+      const preferredLangs = languageMap[lang] || [];
+      const hasLocalVoice = voices.some((voice) => {
+        return preferredLangs.some(
+          (pref) => voice.lang.startsWith(pref.split('-')[0]) || voice.lang === pref
+        );
+      });
+
+      // Fallback to Sarvam TTS if no local voice for Indic languages
+      if (!hasLocalVoice && lang !== 'en') {
         setIsSpeaking(true);
-        setIsPaused(false);
-      };
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+        fetch(`${backendUrl}/api/speech/tts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text,
+            target_language_code: lang,
+            ...(speaker ? { speaker } : {}),
+          }),
+        })
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`TTS API status ${res.status}`);
+            }
+            return res.json();
+          })
+          .then((data) => {
+            if (!data.audio) {
+              throw new Error('No audio payload in response');
+            }
+            
+            const audioUrl = `data:audio/mp3;base64,${data.audio}`;
+            const audio = new Audio(audioUrl);
+            sarvamAudioRef.current = audio;
 
-      utterance.onend = () => {
-        setIsSpeaking(false);
-        setIsPaused(false);
-      };
+            audio.onplay = () => {
+              setIsSpeaking(true);
+              setIsPaused(false);
+            };
 
-      utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event.error);
-        setIsSpeaking(false);
-        setIsPaused(false);
-      };
+            audio.onended = () => {
+              setIsSpeaking(false);
+              setIsPaused(false);
+              sarvamAudioRef.current = null;
+            };
 
-      utterance.onpause = () => {
-        setIsPaused(true);
-      };
+            audio.onerror = () => {
+              const errMsg = `Failed to play generated voice output.`;
+              setError(errMsg);
+              onErrorRef.current?.(errMsg);
+              setIsSpeaking(false);
+              sarvamAudioRef.current = null;
+            };
 
-      utterance.onresume = () => {
-        setIsPaused(false);
-      };
+            audio.play().catch((err) => {
+              const errMsg = `Audio playback blocked or failed.`;
+              setError(errMsg);
+              onErrorRef.current?.(errMsg);
+              setIsSpeaking(false);
+            });
+          })
+          .catch((err) => {
+            const errMsg = `Voice output is not supported for ${lang === 'hi' ? 'Hindi' : lang}. Showing text only.`;
+            setError(errMsg);
+            onErrorRef.current?.(errMsg);
+            setIsSpeaking(false);
+          });
+      } else {
+        // Native SpeechSynthesis fallback/flow
+        if (!isSupported) {
+          const errMsg = 'Speech synthesis not supported in this browser.';
+          setError(errMsg);
+          onErrorRef.current?.(errMsg);
+          return;
+        }
 
-      utteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = rate;
+        utterance.pitch = pitch;
+        utterance.volume = volume;
+
+        if (currentVoice) {
+          utterance.voice = currentVoice;
+          utterance.lang = currentVoice.lang;
+        } else {
+          const langCode = languageMap[lang]?.[0] || 'en-US';
+          utterance.lang = langCode;
+        }
+
+        utterance.onstart = () => {
+          setIsSpeaking(true);
+          setIsPaused(false);
+        };
+
+        utterance.onend = () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+        };
+
+        utterance.onerror = (event) => {
+          console.error('Speech synthesis error:', event.error);
+          setIsSpeaking(false);
+          setIsPaused(false);
+        };
+
+        utterance.onpause = () => {
+          setIsPaused(true);
+        };
+
+        utterance.onresume = () => {
+          setIsPaused(false);
+        };
+
+        utteranceRef.current = utterance;
+        window.speechSynthesis.speak(utterance);
+      }
     },
-    [isSupported, currentVoice, lang, rate, pitch, volume]
+    [isSupported, currentVoice, lang, rate, pitch, volume, voices]
   );
 
   const stop = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.cancel();
+    if (sarvamAudioRef.current) {
+      sarvamAudioRef.current.pause();
+      sarvamAudioRef.current = null;
+    }
+    if (isSupported) {
+      window.speechSynthesis.cancel();
+    }
     setIsSpeaking(false);
     setIsPaused(false);
   }, [isSupported]);
 
   const pause = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.pause();
-    setIsPaused(true);
+    if (sarvamAudioRef.current) {
+      sarvamAudioRef.current.pause();
+      setIsPaused(true);
+    } else if (isSupported) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
   }, [isSupported]);
 
   const resume = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.resume();
-    setIsPaused(false);
+    if (sarvamAudioRef.current) {
+      sarvamAudioRef.current.play().catch(() => {});
+      setIsPaused(false);
+    } else if (isSupported) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+    }
   }, [isSupported]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (sarvamAudioRef.current) {
+        sarvamAudioRef.current.pause();
+        sarvamAudioRef.current = null;
+      }
       if (isSupported) {
         window.speechSynthesis.cancel();
       }
@@ -171,5 +286,6 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     isSupported,
     voices,
     currentVoice,
+    error,
   };
 };

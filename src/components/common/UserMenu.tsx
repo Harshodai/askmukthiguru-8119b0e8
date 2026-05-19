@@ -9,7 +9,6 @@ import {
   Sun,
   Moon,
   Monitor,
-  Heart,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -82,17 +81,14 @@ export const UserMenu = () => {
         <DropdownMenuItem onClick={() => navigate('/profile')}>
           <User className="w-4 h-4 mr-2" /> Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=preferences')}>
-          <Settings className="w-4 h-4 mr-2" /> Preferences
+        <DropdownMenuItem onClick={() => navigate('/profile?tab=settings')}>
+          <Settings className="w-4 h-4 mr-2" /> Settings
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/chat')}>
           <MessageCircle className="w-4 h-4 mr-2" /> Continue chat
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')}>
-          <Flame className="w-4 h-4 mr-2" /> Meditation stats
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/profile?tab=journey')}>
-          <Heart className="w-4 h-4 mr-2" /> Soul Journey
+          <Flame className="w-4 h-4 mr-2" /> Insights & Stats
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>

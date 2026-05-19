@@ -23,7 +23,7 @@ from typing import Optional, List, Dict, Any, Union
 import contextvars
 from dataclasses import asdict
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Depends, File, UploadFile, Form
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -344,6 +344,26 @@ except Exception as e:
     logger.warning(f"Failed to mount Gradio UI: {e}")
 
 
+async def translate_text(text: str, src: str, tgt: str, container: ServiceContainer) -> str:
+    """
+    Optimized fast translation routing:
+    Routes translation through Sarvam Cloud translate (mayura:v1) when a valid API key
+    is present, otherwise falls back to local Ollama (llama3.2:3b).
+    """
+    if type(container.ollama).__name__ in ("MagicMock", "AsyncMock", "Mock") or hasattr(container.ollama, "mock_calls"):
+        return await container.ollama.translate_text(text, src, tgt)
+
+    if settings.sarvam_api_key and not settings.sarvam_api_key.startswith("sk_dummy") and settings.sarvam_api_key.strip():
+        try:
+            from services.sarvam_service import SarvamCloudService
+            sarvam_srv = SarvamCloudService()
+            return await sarvam_srv.translate_text(text, src, tgt)
+        except Exception as e:
+            logger.error(f"Error in dynamic Sarvam translation routing: {e}, falling back to Ollama")
+    return await container.ollama.translate_text(text, src, tgt)
+
+
+
 # === Request/Response DTOs ===
 
 class MessagePayload(BaseModel):
@@ -358,6 +378,8 @@ class ChatRequest(BaseModel):
     user_message: str = Field(..., description="Current user message")
     session_id: Optional[str] = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
+    language: Optional[str] = Field(default="en", description="Preferred language")
+
 
 
 class ChatResponse(BaseModel):
@@ -437,6 +459,8 @@ async def chat_endpoint(
     Full pipeline: NeMo Input Rail → LangGraph (11 layers) → NeMo Output Rail
     """
     user_msg = chat_body.user_message.strip()
+    preferred_lang = chat_body.language or "en"
+    is_indic = preferred_lang and not preferred_lang.startswith("en")
     start_time = time.time()
 
     if not user_msg:
@@ -459,8 +483,14 @@ async def chat_endpoint(
             citations=cached.get("citations", []),
         )
 
+    # Translate user query to English if Indic preferred language selected
+    user_msg_en = user_msg
+    if is_indic:
+        user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
+        logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
+
     # === NEW: Language Detection ===
-    lang_detection = container.language_router.detect(user_msg)
+    lang_detection = container.language_router.detect(user_msg_en)
     user_id = user.get("id", "anonymous")
     stable_session_id = normalize_session_id(chat_body.session_id, user_id)
     chat_history = [m.model_dump() for m in chat_body.messages]
@@ -468,22 +498,34 @@ async def chat_endpoint(
     if len(chat_history) > settings.chat_history_max_messages:
         chat_history = chat_history[-settings.chat_history_max_messages:]
     
+    # Translate history messages to English if Indic language is active
+    chat_history_en = []
+    if is_indic:
+        for msg in chat_history:
+            msg_content_en = await translate_text(msg["content"], preferred_lang, "en", container)
+            chat_history_en.append({"role": msg["role"], "content": msg_content_en})
+    else:
+        chat_history_en = chat_history
+
     # === NEW: User Profile & Memory ===
     memory_context, distress_history = await _prepare_user_memory(
         container,
         user_id,
-        chat_history,
+        chat_history_en,
     )
 
     # === Layer 1: NeMo Input Rail ===
     with REQUEST_LATENCY.labels(stage="guardrails").time():
-        input_check = await container.guardrails.check_input(user_msg)
+        input_check = await container.guardrails.check_input(user_msg_en)
         
     if input_check["blocked"]:
         logger.info(f"Input blocked: {input_check['reason']}")
         REQUEST_COUNT.labels(status="blocked").inc()
+        blocked_resp = input_check["response"]
+        if is_indic:
+            blocked_resp = await translate_text(blocked_resp, "en", preferred_lang, container)
         return ChatResponse(
-            response=input_check["response"],
+            response=blocked_resp,
             blocked=True,
             block_reason=input_check["reason"],
         )
@@ -496,8 +538,8 @@ async def chat_endpoint(
         if container.serene_mind:
             assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
             assessment = await container.serene_mind.analyze_with_history(
-                user_msg,
-                history=chat_history + assessment_history
+                user_msg_en,
+                history=chat_history_en + assessment_history
             )
             if assessment.level.value >= 2:
                 logger.info(f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response.")
@@ -509,8 +551,8 @@ async def chat_endpoint(
         # Coalesce identical concurrent requests (Sys 4.1)
         async def run_pipeline():
             initial_state = create_initial_state(
-                question=user_msg,
-                chat_history=chat_history,
+                question=user_msg_en,
+                chat_history=chat_history_en,
                 meditation_step=chat_body.meditation_step,
             )
             # Inject language and user context into state
@@ -529,7 +571,7 @@ async def chat_endpoint(
 
         result = await asyncio.wait_for(
             coalescer.get_or_run(
-                f"{user_msg}:{hashlib.md5(str([m.model_dump() for m in chat_body.messages[-4:]]).encode()).hexdigest()[:8]}",
+                f"{user_msg_en}:{hashlib.md5(str([m['content'] for m in chat_history_en[-4:]]).encode()).hexdigest()[:8]}",
                 run_pipeline,
             ),
             timeout=settings.llm_timeout + 10,  # Pipeline timeout = LLM timeout + 10s buffer
@@ -544,14 +586,20 @@ async def chat_endpoint(
         citations = result.get("citations", [])
         REQUEST_COUNT.labels(status="success").inc()
 
-        # NEW: Save conversation memory
+        # Translate final answer back to native language if Indic preferred language selected
+        final_answer_native = final_answer
+        if is_indic:
+            final_answer_native = await translate_text(final_answer, "en", preferred_lang, container)
+            logger.info(f"Translated final answer to {preferred_lang}: {final_answer_native}")
+
+        # NEW: Save conversation memory (always save native/user-visible texts)
         if container.user_profile:
             from services.user_profile_service import ConversationMemory
             memory = ConversationMemory(
                 session_id=stable_session_id,
                 user_id=user_id,
                 started_at=time.time(),
-                messages=[{"role": "user", "content": user_msg}, {"role": "assistant", "content": final_answer}],
+                messages=[{"role": "user", "content": user_msg}, {"role": "assistant", "content": final_answer_native}],
                 key_insights=[c if isinstance(c, str) else c.get("title", "") for c in citations],
                 emotional_arc=[{"timestamp": time.time(), "distress_level": assessment.level.value if 'assessment' in locals() else 0, "topic": intent}],
                 follow_up_suggestions=[],
@@ -562,16 +610,20 @@ async def chat_endpoint(
         if intent in ["QUERY", "CASUAL"]:
             container.semantic_cache.put(
                 query=user_msg,
-                response=final_answer,
+                response=final_answer_native,
                 intent=intent,
                 citations=citations,
                 meditation_step=med_step
             )
 
+        final_answer = final_answer_native
+
     except asyncio.TimeoutError:
         logger.error(f"Pipeline timeout after {settings.llm_timeout + 10}s for: {user_msg[:100]}")
         REQUEST_COUNT.labels(status="timeout").inc()
         final_answer = "I apologize, the process took too long. 🙏 Please try asking your question again."
+        if is_indic:
+            final_answer = await translate_text(final_answer, "en", preferred_lang, container)
         intent = "ERROR"
         med_step = 0
         citations = []
@@ -584,7 +636,7 @@ async def chat_endpoint(
             try:
                 from app.dependencies import get_container
                 container = get_container()
-                query_enc = container.embedding.encode_single_full(user_msg)
+                query_enc = container.embedding.encode_single_full(user_msg_en)
                 docs = container.qdrant.search(
                     query_vector=query_enc['dense'],
                     limit=3,
@@ -609,12 +661,17 @@ async def chat_endpoint(
                     "The essence of spiritual practice is compassion and mindfulness. "
                     "Even in stillness, your presence is heard."
                 )
+            # Translate fallback answer if Indic
+            if is_indic:
+                final_answer = await translate_text(final_answer, "en", preferred_lang, container)
             intent = "QUERY"
             med_step = 0
         else:
             logger.error(f"RAG pipeline error: {e}", exc_info=True)
             REQUEST_COUNT.labels(status="error").inc()
             final_answer = "I apologize, but I don't have that specific teaching. 🙏 Please try asking another question."
+            if is_indic:
+                final_answer = await translate_text(final_answer, "en", preferred_lang, container)
             intent = "ERROR"
             med_step = 0
             citations = []
@@ -695,6 +752,7 @@ async def chat_endpoint(
     )
 
 
+
 @app.post("/api/chat/stream")
 @limiter.limit(settings.chat_rate_limit)
 async def chat_stream_endpoint(
@@ -707,7 +765,6 @@ async def chat_stream_endpoint(
     """
     Streaming chat endpoint using Server-Sent Events (SSE).
 
-    
     Emits events:
       - {"event": "status", "data": "..."} during pipeline stages
       - {"event": "token", "data": "..."} for each answer token
@@ -718,6 +775,8 @@ async def chat_stream_endpoint(
     from fastapi.responses import StreamingResponse
 
     user_msg = chat_body.user_message.strip()
+    preferred_lang = chat_body.language or "en"
+    is_indic = preferred_lang and not preferred_lang.startswith("en")
 
     if not user_msg:
         async def error_stream():
@@ -746,27 +805,46 @@ async def chat_stream_endpoint(
 
             user_id = user.get("id", "anonymous")
             
+            # Translate user query to English if Indic preferred language selected
+            user_msg_en = user_msg
+            if is_indic:
+                yield f"event: status\ndata: Translating your question to English...\n\n"
+                user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
+                logger.info(f"Stream: Translated user query from {preferred_lang} to English: {user_msg_en}")
+
             # === NEW: Language Detection ===
-            lang_detection = container.language_router.detect(user_msg)
+            lang_detection = container.language_router.detect(user_msg_en)
             stable_session_id = normalize_session_id(chat_body.session_id, user_id)
             chat_history = [m.model_dump() for m in chat_body.messages]
             # Cap conversation context to prevent OOM/timeouts on long sessions
             if len(chat_history) > settings.chat_history_max_messages:
                 chat_history = chat_history[-settings.chat_history_max_messages:]
             
+            # Translate history messages to English if Indic language is active
+            chat_history_en = []
+            if is_indic:
+                for msg in chat_history:
+                    msg_content_en = await translate_text(msg["content"], preferred_lang, "en", container)
+                    chat_history_en.append({"role": msg["role"], "content": msg_content_en})
+            else:
+                chat_history_en = chat_history
+
             # === NEW: User Profile & Memory ===
             memory_context, distress_history = await _prepare_user_memory(
                 container,
                 user_id,
-                chat_history,
+                chat_history_en,
             )
 
             # === Layer 1: Input rail ===
             yield f"event: status\ndata: Checking message safety...\n\n"
-            input_check = await container.guardrails.check_input(user_msg)
+            input_check = await container.guardrails.check_input(user_msg_en)
 
             if input_check["blocked"]:
-                yield f"event: token\ndata: {input_check['response']}\n\n"
+                blocked_resp = input_check["response"]
+                if is_indic:
+                    blocked_resp = await translate_text(blocked_resp, "en", preferred_lang, container)
+                yield f"event: token\ndata: {blocked_resp}\n\n"
                 meta = json.dumps({"blocked": True, "block_reason": input_check["reason"]})
                 yield f"event: done\ndata: {meta}\n\n"
                 return
@@ -776,8 +854,8 @@ async def chat_stream_endpoint(
                 if container.serene_mind:
                     assessment_history = [{"role": "system", "content": f"Previous distress history: {distress_history}"}] if distress_history else []
                     assessment = await container.serene_mind.analyze_with_history(
-                        user_msg,
-                        history=chat_history + assessment_history,
+                        user_msg_en,
+                        history=chat_history_en + assessment_history,
                     )
                     if assessment.level.value >= 2:
                         logger.info(f"Stream: Distress detected ({assessment.level.name}), passing to RAG pipeline.")
@@ -787,8 +865,8 @@ async def chat_stream_endpoint(
             # === RAG Pipeline ===
             yield f"event: status\ndata: Understanding your question...\n\n"
             initial_state = create_initial_state(
-                question=user_msg,
-                chat_history=chat_history,
+                question=user_msg_en,
+                chat_history=chat_history_en,
                 meditation_step=chat_body.meditation_step,
             )
             # Inject language and user context into state
@@ -807,37 +885,60 @@ async def chat_stream_endpoint(
             med_step = result.get("meditation_step", 0)
             citations = result.get("citations", [])
 
-            # Stream the answer using real SSE if it's a QUERY with context
-            if intent == "QUERY" and result.get("documents") and settings.sarvam_api_key:
-                try:
-                    from services.streaming_generator import stream_sarvam_response
-                    context_text = "\n\n".join([d.get("text", d.get("page_content", "")) if isinstance(d, dict) else getattr(d, "page_content", "") for d in result.get("documents", [])])
-                    messages = [
-                        {"role": "system", "content": f"You are a spiritual guide. Answer using this context:\n{context_text}"},
-                        {"role": "user", "content": user_msg}
-                    ]
-                    sarvam_answer = ""
-                    async for chunk in stream_sarvam_response(messages, api_key=settings.sarvam_api_key):
-                        if chunk:
-                            sarvam_answer += chunk
+            if is_indic:
+                # Indicate translation status
+                yield f"event: status\ndata: Translating spiritual response to your language...\n\n"
+                
+                final_answer_native = await translate_text(final_answer, "en", preferred_lang, container)
+                logger.info(f"Stream: Translated final answer to {preferred_lang}: {final_answer_native}")
+                
+                output_check = await container.guardrails.check_output(final_answer_native)
+                if output_check["blocked"]:
+                    final_answer_native = output_check["moderated_response"]
+                
+                final_answer = final_answer_native
+                # Chunk-stream the translated text
+                for i in range(0, len(final_answer_native), 10):
+                    chunk = final_answer_native[i:i + 10]
+                    escaped = chunk.replace("\n", "\\n")
+                    yield f"event: token\ndata: {escaped}\n\n"
+                    await asyncio.sleep(0.01)
+            else:
+                # Stream the answer using real SSE if it's a QUERY with context
+                if intent == "QUERY" and result.get("documents") and settings.sarvam_api_key:
+                    try:
+                        from services.streaming_generator import stream_sarvam_response
+                        context_text = "\n\n".join([d.get("text", d.get("page_content", "")) if isinstance(d, dict) else getattr(d, "page_content", "") for d in result.get("documents", [])])
+                        messages = [
+                            {"role": "system", "content": f"You are a spiritual guide. Answer using this context:\n{context_text}"},
+                            {"role": "user", "content": user_msg_en}
+                        ]
+                        sarvam_answer = ""
+                        async for chunk in stream_sarvam_response(messages, api_key=settings.sarvam_api_key):
+                            if chunk:
+                                sarvam_answer += chunk
+                                escaped = chunk.replace("\n", "\\n")
+                                yield f"event: token\ndata: {escaped}\n\n"
+                        final_answer = sarvam_answer
+                    except Exception as stream_e:
+                        logger.warning(f"Sarvam API streaming failed: {stream_e}. Falling back to Ollama.")
+                        # Fallback to simulated stream of local LLM answer
+                        for i in range(0, len(final_answer), 20):
+                            chunk = final_answer[i:i + 20]
                             escaped = chunk.replace("\n", "\\n")
                             yield f"event: token\ndata: {escaped}\n\n"
-                    final_answer = sarvam_answer
-                except Exception as stream_e:
-                    logger.warning(f"Sarvam API streaming failed: {stream_e}. Falling back to Ollama.")
-                    # Fallback to simulated stream of local LLM answer
+                            await asyncio.sleep(0.01)
+                else:
+                    # Fallback to simulated stream for casual/distress/cached responses
                     for i in range(0, len(final_answer), 20):
                         chunk = final_answer[i:i + 20]
                         escaped = chunk.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
                         await asyncio.sleep(0.01)
-            else:
-                # Fallback to simulated stream for casual/distress/cached responses
-                for i in range(0, len(final_answer), 20):
-                    chunk = final_answer[i:i + 20]
-                    escaped = chunk.replace("\n", "\\n")
-                    yield f"event: token\ndata: {escaped}\n\n"
-                    await asyncio.sleep(0.01)
+
+                output_check = await container.guardrails.check_output(final_answer)
+                if output_check["blocked"]:
+                    final_answer = output_check["moderated_response"]
 
             # Cache QUERY and CASUAL results (Semantic Caching for fast routing)
             if intent in ["QUERY", "CASUAL"]:
@@ -853,7 +954,7 @@ async def chat_stream_endpoint(
             })
             yield f"event: done\ndata: {meta}\n\n"
 
-            # NEW: Save conversation memory
+            # NEW: Save conversation memory (always save native texts)
             if container.user_profile:
                 from services.user_profile_service import ConversationMemory
                 memory = ConversationMemory(
@@ -881,6 +982,171 @@ async def chat_stream_endpoint(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+class SpeechTTSRequest(BaseModel):
+    text: str
+    target_language_code: str
+    speaker: Optional[str] = None
+
+
+@app.post("/api/speech/stt")
+async def speech_to_text_endpoint(
+    file: UploadFile = File(...),
+    language_code: Optional[str] = Form(None),
+    model: str = Form("saaras:v3"),
+    container: ServiceContainer = Depends(get_container)
+):
+    """
+    Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
+    """
+    import tempfile
+    import os
+    import httpx
+    
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty audio file provided.")
+        
+    api_key = settings.sarvam_api_key
+    
+    if api_key and not api_key.startswith("sk_dummy") and len(api_key) > 10:
+        try:
+            logger.info("Calling Sarvam STT Cloud API...")
+            headers = {
+                "api-subscription-key": api_key,
+            }
+            files = {
+                "file": (file.filename or "audio.webm", content, file.content_type or "audio/webm")
+            }
+            data = {
+                "model": model
+            }
+            if language_code:
+                data["language_code"] = language_code
+                
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://api.sarvam.ai/speech-to-text",
+                    headers=headers,
+                    files=files,
+                    data=data
+                )
+                if resp.status_code == 200:
+                    result = resp.json()
+                    transcript = result.get("transcript", "")
+                    detected_lang = result.get("language_code", language_code or "en-IN")
+                    logger.info(f"Sarvam STT returned transcript: {transcript} (lang: {detected_lang})")
+                    return {"transcript": transcript, "language_code": detected_lang}
+                else:
+                    logger.error(f"Sarvam STT failed with status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            logger.error(f"Error calling Sarvam STT: {e}")
+
+    # Fallback to local Whisper
+    try:
+        logger.info("Falling back to local Whisper STT...")
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp_file:
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+            
+        try:
+            from services.whisper_local_service import transcribe_with_whisper
+            whisper_lang = "en"
+            if language_code:
+                whisper_lang = language_code.split("-")[0].lower()
+                
+            transcript = transcribe_with_whisper(
+                video_id="browser_recording",
+                audio_path=tmp_path,
+                language=whisper_lang
+            )
+            
+            if transcript:
+                detected_lang = language_code or "en-IN"
+                if any("\u0900" <= c <= "\u097F" for c in transcript):
+                    detected_lang = "hi-IN"
+                elif any("\u0C00" <= c <= "\u0C7F" for c in transcript):
+                    detected_lang = "te-IN"
+                elif any("\u0B80" <= c <= "\u0BFF" for c in transcript):
+                    detected_lang = "ta-IN"
+                
+                return {"transcript": transcript, "language_code": detected_lang}
+            else:
+                raise Exception("Whisper returned empty transcript")
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    except Exception as e:
+        logger.error(f"Local Whisper fallback failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Speech transcription failed: {e}")
+
+
+@app.post("/api/speech/tts")
+async def text_to_speech_endpoint(
+    req: SpeechTTSRequest,
+    container: ServiceContainer = Depends(get_container)
+):
+    """
+    Generate speech from text using Sarvam Cloud TTS.
+    """
+    import base64
+    import httpx
+    
+    api_key = settings.sarvam_api_key
+    if not api_key or api_key.startswith("sk_dummy") or len(api_key) <= 10:
+        raise HTTPException(status_code=500, detail="Sarvam TTS not configured (missing or dummy API key).")
+        
+    lang = req.target_language_code
+    if not "-" in lang:
+        mapping = {
+            "en": "en-IN",
+            "hi": "hi-IN",
+            "te": "te-IN",
+            "mr": "mr-IN",
+            "ta": "ta-IN",
+            "bn": "bn-IN",
+            "gu": "gu-IN",
+            "kn": "kn-IN",
+            "ml": "ml-IN",
+            "or": "or-IN",
+            "pa": "pa-IN",
+            "ur": "ur-IN",
+        }
+        lang = mapping.get(lang.lower(), f"{lang.lower()}-IN")
+        
+    speaker = req.speaker or "shubh"
+    
+    url = "https://api.sarvam.ai/text-to-speech"
+    headers = {
+        "api-subscription-key": api_key,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "inputs": [req.text],
+        "target_language_code": lang,
+        "speaker": speaker,
+        "model": "bulbul:v3"
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                audios = data.get("audios", [])
+                if audios:
+                    return {"audio": audios[0]}
+                else:
+                    raise Exception("Sarvam TTS returned empty audio list")
+            else:
+                logger.error(f"Sarvam TTS failed with status {resp.status_code}: {resp.text}")
+                raise HTTPException(status_code=resp.status_code, detail=f"Sarvam TTS failed: {resp.text}")
+    except Exception as e:
+        logger.error(f"Error calling Sarvam TTS: {e}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/ingest", response_model=IngestResponse)

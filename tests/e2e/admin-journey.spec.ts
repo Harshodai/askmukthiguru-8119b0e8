@@ -6,7 +6,7 @@ test.describe('Admin Journey', () => {
     await page.goto('/admin');
     
     // Should be redirected to auth or a specific admin login
-    await expect(page).toHaveURL(/.*\/auth/);
+    await expect(page).toHaveURL(/.*\/admin\/login/);
   });
   
   // NOTE: A full authenticated test would require a seeded user or a test endpoint

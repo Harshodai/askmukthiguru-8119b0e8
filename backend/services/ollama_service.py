@@ -501,6 +501,41 @@ class OllamaService:
             
         return compressed.strip()
 
+    async def translate_text(
+        self,
+        text: str,
+        source_language_code: str,
+        target_language_code: str,
+    ) -> str:
+        """
+        Translate text using the local LLM if source and target differ.
+        """
+        if not text.strip():
+            return ""
+        
+        src_code = source_language_code.lower().split("-")[0]
+        tgt_code = target_language_code.lower().split("-")[0]
+        
+        if src_code == tgt_code:
+            return text
+            
+        # Call the fast model to do the translation to reduce lag
+        prompt = (
+            f"You are a professional translator. Translate the following text from "
+            f"language code '{src_code}' to language code '{tgt_code}'. "
+            f"Provide ONLY the final translation. Do not include any notes, explanations, or quotes.\n\n"
+            f"Text to translate:\n{text}"
+        )
+        try:
+            translated = await self._generate_fast(
+                system_prompt="You are a professional translator. Output only the translated text.",
+                user_prompt=prompt
+            )
+            return translated.strip()
+        except Exception as e:
+            logger.error(f"Ollama translation failed: {e}")
+            return text
+
     async def health_check(self) -> bool:
         """Check if Ollama is reachable (async)."""
         try:

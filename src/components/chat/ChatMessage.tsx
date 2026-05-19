@@ -107,7 +107,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`relative w-full transition-all duration-300 ${
+              className={`message-bubble relative w-full transition-all duration-300 ${
                 isGuru
                   ? 'border-l-[3px] border-ojas/30 pl-4 pr-1 py-1 hover:border-ojas/50'
                   : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm hover:shadow-md'

@@ -15,6 +15,7 @@ const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed_id';
 export const DailyTeaching = () => {
   const [teaching, setTeaching] = useState<DailyTeachingData | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [dismissedId, setDismissedId] = useState<string | null>(
     () => localStorage.getItem(DISMISSED_KEY),
   );
@@ -32,7 +33,6 @@ export const DailyTeaching = () => {
 
     if (error) {
       console.warn('[DailyTeaching] Fetch error:', error.message);
-      // Retry up to 3 times — RLS may reject if auth session isn't ready yet
       if (retryCount.current < 3) {
         retryCount.current += 1;
         setTimeout(() => fetchTeaching(), 2000 * retryCount.current);
@@ -42,7 +42,6 @@ export const DailyTeaching = () => {
 
     if (!data) {
       console.debug('[DailyTeaching] No active teaching found.');
-      // If no data and auth might not be ready, retry once after a delay
       if (retryCount.current < 2) {
         retryCount.current += 1;
         setTimeout(() => fetchTeaching(), 2500);
@@ -66,13 +65,18 @@ export const DailyTeaching = () => {
       imageUrl: data.image_url,
       caption: data.caption ?? undefined,
     });
-  }, []);
 
+    // Automatically open if the pre-practice gate is already completed
+    const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
+    if (prePracticeCompleted && data.id !== oldDismissed) {
+      setIsOpen(true);
+    }
+  }, []);
 
   useEffect(() => {
     fetchTeaching();
 
-    // Re-fetch after auth state changes (login completes after component mount)
+    // Re-fetch after auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         retryCount.current = 0;
@@ -81,7 +85,6 @@ export const DailyTeaching = () => {
     });
 
     // Realtime: when a new daily teaching is uploaded, refetch immediately
-    // so all open chat sessions update without a reload.
     const channel = supabase
       .channel('daily-teachings-feed')
       .on(
@@ -94,6 +97,14 @@ export const DailyTeaching = () => {
       )
       .subscribe();
 
+    const handlePrePracticeCompleted = () => {
+      // Show the teaching modal when the pre-practice gate completes
+      const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
+      if (prePracticeCompleted) {
+        setIsOpen(true);
+      }
+    };
+
     const handleMeditationCompleted = () => {
       localStorage.removeItem(DISMISSED_KEY);
       setDismissedId(null);
@@ -101,11 +112,13 @@ export const DailyTeaching = () => {
       fetchTeaching();
     };
 
+    window.addEventListener('askmukthiguru:pre_practice_completed', handlePrePracticeCompleted);
     window.addEventListener('askmukthiguru:meditation_completed', handleMeditationCompleted);
 
     return () => {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
+      window.removeEventListener('askmukthiguru:pre_practice_completed', handlePrePracticeCompleted);
       window.removeEventListener('askmukthiguru:meditation_completed', handleMeditationCompleted);
     };
   }, [fetchTeaching]);
@@ -114,70 +127,85 @@ export const DailyTeaching = () => {
     if (!teaching) return;
     setDismissedId(teaching.id);
     localStorage.setItem(DISMISSED_KEY, teaching.id);
+    setIsOpen(false);
   };
 
-  if (!teaching || teaching.id === dismissedId) return null;
+  if (!teaching || teaching.id === dismissedId || !isOpen) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -12, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -12, scale: 0.97 }}
-        className="mx-auto max-w-2xl mb-4"
-        data-testid="daily-teaching"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in"
+        onClick={handleDismiss}
+        data-testid="daily-teaching-modal"
       >
-        <div className="relative rounded-2xl overflow-hidden border border-ojas/20 shadow-lg bg-card/90 backdrop-blur-sm">
+        <motion.div
+          initial={{ scale: 0.95, y: 20, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.95, y: 20, opacity: 0 }}
+          transition={{ type: 'spring', duration: 0.5 }}
+          className="relative max-w-md w-full rounded-3xl overflow-hidden border border-ojas/30 bg-card/90 shadow-2xl backdrop-blur-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close button */}
           <button
             onClick={handleDismiss}
-            className="absolute top-2.5 right-2.5 z-10 p-1 rounded-full bg-background/70 backdrop-blur-sm hover:bg-background transition-colors"
-            aria-label="Dismiss teaching"
+            className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/60 hover:bg-background/90 text-foreground transition-all border border-border"
+            aria-label="Close teaching modal"
           >
-            <X className="w-3.5 h-3.5 text-muted-foreground" />
+            <X className="w-4 h-4" />
           </button>
 
-          <div className="relative aspect-[16/7] overflow-hidden bg-muted/20">
+          {/* Image */}
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted/20">
             {imageError ? (
-              <div className="w-full h-full bg-gradient-to-tr from-indigo-950/80 via-purple-900/60 to-amber-900/40 flex items-center justify-center pointer-events-none">
-                <Sparkles className="w-12 h-12 text-amber-500/20 animate-pulse" />
+              <div className="w-full h-full bg-gradient-to-tr from-indigo-950 via-purple-950 to-amber-950/80 flex items-center justify-center pointer-events-none">
+                <Sparkles className="w-16 h-16 text-ojas/30 animate-pulse" />
               </div>
             ) : (
               <picture>
                 <source 
-                  srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=800 800w, ${teaching.imageUrl}?transform=1&format=webp&width=400 400w`} 
+                  srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=600 600w`} 
                   type="image/webp" 
-                  sizes="(max-width: 600px) 400px, 800px" 
+                  sizes="(max-width: 600px) 400px, 600px" 
                 />
                 <img
                   src={teaching.imageUrl}
                   alt="Today's teaching from the Gurus"
                   className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
-                  loading="lazy"
-                  decoding="async"
-                  onError={() => {
-                    console.warn('[DailyTeaching] Image failed to load:', teaching.imageUrl);
-                    setImageError(true);
-                  }}
+                  onError={() => setImageError(true)}
+                  loading="eager"
                 />
               </picture>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-card/90 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />
           </div>
 
-          <div className="px-4 py-3 -mt-8 relative z-10">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-ojas" />
-              <span className="text-[11px] font-medium text-ojas uppercase tracking-wider">
-                Today&apos;s Teaching
+          {/* Content */}
+          <div className="p-6 sm:p-8 -mt-6 relative z-10">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Sparkles className="w-4 h-4 text-ojas animate-pulse" />
+              <span className="text-xs font-semibold text-ojas uppercase tracking-widest">
+                Today&apos;s Wisdom
               </span>
             </div>
             {teaching.caption && (
-              <p className="text-sm text-foreground leading-relaxed line-clamp-2">
-                {teaching.caption}
+              <p className="text-base sm:text-lg text-foreground font-serif leading-relaxed italic mb-6">
+                &ldquo;{teaching.caption}&rdquo;
               </p>
             )}
+            
+            <button
+              onClick={handleDismiss}
+              className="w-full py-3 px-4 rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground font-medium text-sm transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ojas/50"
+            >
+              Receive Wisdom
+            </button>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

@@ -39,6 +39,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 describe('DailyTeaching (database-backed)', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.setItem('askmukthiguru_pre_practice_asked', '1');
     vi.clearAllMocks();
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     mockLimit.mockReturnValue({ maybeSingle: mockMaybeSingle });
@@ -68,9 +69,9 @@ describe('DailyTeaching (database-backed)', () => {
 
     render(<DailyTeaching />);
     await waitFor(() => {
-      expect(screen.getByText('Be in your beautiful state')).toBeInTheDocument();
+      expect(screen.getByText(/Be in your beautiful state/)).toBeInTheDocument();
     });
-    expect(screen.getByTestId('daily-teaching')).toBeInTheDocument();
+    expect(screen.getByTestId('daily-teaching-modal')).toBeInTheDocument();
   });
 
   it('does not render when no active teaching exists', async () => {
@@ -78,7 +79,7 @@ describe('DailyTeaching (database-backed)', () => {
     await waitFor(() => {
       expect(mockSelect).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId('daily-teaching')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('daily-teaching-modal')).not.toBeInTheDocument();
   });
 
   it('does not render when user dismissed this exact teaching id', async () => {
@@ -92,7 +93,7 @@ describe('DailyTeaching (database-backed)', () => {
     await waitFor(() => {
       expect(mockSelect).toHaveBeenCalled();
     });
-    expect(screen.queryByTestId('daily-teaching')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('daily-teaching-modal')).not.toBeInTheDocument();
   });
 
   it('re-shows when a NEW teaching id arrives (different from dismissed)', async () => {
@@ -104,7 +105,7 @@ describe('DailyTeaching (database-backed)', () => {
 
     render(<DailyTeaching />);
     await waitFor(() => {
-      expect(screen.getByText('Fresh wisdom')).toBeInTheDocument();
+      expect(screen.getByText(/Fresh wisdom/)).toBeInTheDocument();
     });
   });
 
