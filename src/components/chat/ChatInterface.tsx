@@ -126,10 +126,11 @@ export const ChatInterface = () => {
     ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
   }, []);
 
-  // Sync profile changes into local chat state
+  // Sync profile changes into local chat state + push language to AI service
   useEffect(() => {
     setCurrentLanguage(profile.preferredLanguage);
     setTtsEnabled(profile.ttsEnabled);
+    setAILanguage(profile.preferredLanguage);
   }, [profile.preferredLanguage, profile.ttsEnabled]);
 
   // Text-to-Speech hook
