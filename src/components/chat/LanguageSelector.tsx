@@ -98,7 +98,7 @@ export const LanguageSelector = ({
 
   const handleLanguageChange = (code: string) => {
     const lang = LANGUAGES.find((l) => l.code === code);
-    setSelectedLanguage(code);
+    setInternalLang(code);
     setLanguage(code);
     onLanguageChange?.(code);
     setIsOpen(false);
