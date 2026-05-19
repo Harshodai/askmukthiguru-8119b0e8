@@ -64,7 +64,9 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 
 - [x] **D16** Inline rename + destructive confirm in conversation sidebar
 - [x] **D17** Persist partial assistant message during stream (debounced 500 ms checkpoint in `sessionStorage`)
-- [x] **D18b** Regenerate button (rerun last user turn) — `handleRegenerate` in `ChatInterface.tsx`
+- [x] **D18b** Regenerate button (rerun last user turn) — reuses the existing user turn, removes only the last guru answer, bypasses cache, and avoids duplicate user messages
+- [x] **D18c** User query controls — copy/edit actions on user bubbles, with edit loading the query back into the composer
+- [x] **D18d** LLM conversation titles — first user turn asynchronously refines the conversation preview
 - [x] **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat, ⌘B sidebar (`useChatShortcuts.ts`)
 - [x] **D20** Mobile swipe-from-left to open sidebar (`useSwipeGesture.ts`, edge-only)
 - [ ] **D21** First-3-sessions tooltip pulse on mic
@@ -126,6 +128,9 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - **Sidebar redesign v2** — Collapsible icon-rail (56px ↔ 280px), `Cmd+B` shortcut, grouped history, auto-refreshes via `conversation:updated` event
 - **D17** Partial-stream persistence — 500ms `sessionStorage` checkpoint, restored on reload with Regenerate nudge
 - **D18b** Regenerate button — `RotateCcw` hover-reveal on last guru message; calls `handleSubmit(fakeEvent, overrideText)` directly (no state race condition)
+- **Language-aware chat cache** — frontend and backend caches include preferred language, preventing stale English/Hindi responses after switching to Telugu or another Indic language
+- **Serene Mind history trigger** — repeated distress signals in conversation history now carry through to `meditation_step=1`, so the guided flow opens reliably
+- **Security audit** — `scripts/security_audit.py --report` is 30/30 with canonical FastAPI security headers and no unsafe HTML injection warning
 - **G26** Per-route SEO — `og:image`, `twitter:image`, `summary_large_image` tags on every route
 - **G28** JSON-LD Organization + FAQPage on `/`; WebApplication JSON-LD on `/chat`
 - **Auth/OAuth** — Full name + avatar from `user_metadata` seeded on first sign-in; `clearProfile()` on sign-out; `useProfile` always re-reads after server sync

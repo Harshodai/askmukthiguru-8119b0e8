@@ -245,6 +245,24 @@ if settings.enable_correlation_ids:
     app.add_middleware(CorrelationIDMiddleware)
 
 # ── Security Headers Middleware (auto-added by security_audit.py) ──
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
+        "frame-ancestors 'none';"
+    ),
+}
+
 class SecurityHeadersMiddleware:
     """Adds OWASP-recommended security headers to every response."""
     def __init__(self, app):
@@ -258,23 +276,10 @@ class SecurityHeadersMiddleware:
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 msg_headers = list(message.get("headers", []))
-                msg_headers.extend([
-                    (b"x-content-type-options", b"nosniff"),
-                    (b"x-frame-options", b"DENY"),
-                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
-                    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
-                    (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
-                    (b"x-xss-protection", b"1; mode=block"),
-                    (b"content-security-policy", (
-                        "default-src 'self'; "
-                        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
-                        "font-src 'self' https://fonts.gstatic.com; "
-                        "img-src 'self' data: https:; "
-                        "connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
-                        "frame-ancestors 'none';"
-                    ).encode("utf-8"))
-                ])
+                msg_headers.extend(
+                    (name.lower().encode("ascii"), value.encode("utf-8"))
+                    for name, value in SECURITY_HEADERS.items()
+                )
                 message["headers"] = msg_headers
             await send(message)
 
@@ -392,6 +397,37 @@ async def translate_text(text: str, src: str, tgt: str, container: ServiceContai
     return await container.ollama.translate_text(text, src, tgt)
 
 
+def _cache_language_key(message: str, language: str) -> str:
+    normalized_lang = (language or "en").lower().strip()
+    return f"{normalized_lang}:{message.strip()}"
+
+
+def _preferred_language_detection(container: ServiceContainer, message: str, preferred_lang: str):
+    normalized_lang = (preferred_lang or "en").lower().split("-")[0]
+    if normalized_lang and normalized_lang != "en":
+        try:
+            from services.language_router import LanguageCode, LanguageDetection
+            return LanguageDetection(
+                primary=LanguageCode(normalized_lang),
+                confidence=1.0,
+                is_codemixed=False,
+                scripts_detected=["preferred"],
+                recommendation=f"sarvam-30b-{normalized_lang}",
+            )
+        except Exception:
+            pass
+    return container.language_router.detect(message)
+
+
+def _should_translate_from_preferred(container: ServiceContainer, text: str, preferred_lang: str) -> bool:
+    normalized_lang = (preferred_lang or "en").lower().split("-")[0]
+    if not normalized_lang or normalized_lang == "en":
+        return False
+    detected = container.language_router.detect(text)
+    if detected.primary.value == normalized_lang:
+        return True
+    return detected.primary.value != "en" or any(ord(char) > 127 for char in text)
+
 
 # === Request/Response DTOs ===
 
@@ -491,6 +527,7 @@ async def chat_endpoint(
     preferred_lang = chat_body.language or "en"
     is_indic = preferred_lang and not preferred_lang.startswith("en")
     start_time = time.time()
+    cache_key = _cache_language_key(user_msg, preferred_lang)
 
     if not user_msg:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -502,7 +539,7 @@ async def chat_endpoint(
         )
 
     # === Response Cache Check (Bypass Guardrails for known safe queries) ===
-    cached = container.semantic_cache.get(user_msg)
+    cached = container.semantic_cache.get(cache_key)
     if cached is not None:
         REQUEST_COUNT.labels(status="cache_hit").inc()
         return ChatResponse(
@@ -514,12 +551,12 @@ async def chat_endpoint(
 
     # Translate user query to English if Indic preferred language selected
     user_msg_en = user_msg
-    if is_indic:
+    if is_indic and _should_translate_from_preferred(container, user_msg, preferred_lang):
         user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
         logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
 
     # === NEW: Language Detection ===
-    lang_detection = container.language_router.detect(user_msg_en)
+    lang_detection = _preferred_language_detection(container, user_msg, preferred_lang)
     user_id = user.get("id", "anonymous")
     stable_session_id = normalize_session_id(chat_body.session_id, user_id)
     chat_history = [m.model_dump() for m in chat_body.messages]
@@ -531,7 +568,11 @@ async def chat_endpoint(
     chat_history_en = []
     if is_indic:
         for msg in chat_history:
-            msg_content_en = await translate_text(msg["content"], preferred_lang, "en", container)
+            msg_content_en = (
+                await translate_text(msg["content"], preferred_lang, "en", container)
+                if _should_translate_from_preferred(container, msg["content"], preferred_lang)
+                else msg["content"]
+            )
             chat_history_en.append({"role": msg["role"], "content": msg_content_en})
     else:
         chat_history_en = chat_history
@@ -600,7 +641,7 @@ async def chat_endpoint(
 
         result = await asyncio.wait_for(
             coalescer.get_or_run(
-                f"{user_msg_en}:{hashlib.md5(str([m['content'] for m in chat_history_en[-4:]]).encode()).hexdigest()[:8]}",
+                f"{preferred_lang}:{user_msg_en}:{hashlib.md5(str([m['content'] for m in chat_history_en[-4:]]).encode()).hexdigest()[:8]}",
                 run_pipeline,
             ),
             timeout=settings.llm_timeout + 10,  # Pipeline timeout = LLM timeout + 10s buffer
@@ -638,7 +679,7 @@ async def chat_endpoint(
         # Populate cache for QUERY and CASUAL intents (Semantic Caching for fast routing)
         if intent in ["QUERY", "CASUAL"]:
             container.semantic_cache.put(
-                query=user_msg,
+                query=cache_key,
                 response=final_answer_native,
                 intent=intent,
                 citations=citations,
@@ -806,6 +847,7 @@ async def chat_stream_endpoint(
     user_msg = chat_body.user_message.strip()
     preferred_lang = chat_body.language or "en"
     is_indic = preferred_lang and not preferred_lang.startswith("en")
+    cache_key = _cache_language_key(user_msg, preferred_lang)
 
     if not user_msg:
         async def error_stream():
@@ -821,7 +863,7 @@ async def chat_stream_endpoint(
         """SSE generator that runs the pipeline and streams results."""
         try:
             # === Cache check (Bypass guardrails for known safe queries) ===
-            cached = container.semantic_cache.get(user_msg)
+            cached = container.semantic_cache.get(cache_key)
             if cached is not None:
                 yield f"event: token\ndata: {cached['response']}\n\n"
                 meta = json.dumps({
@@ -836,13 +878,13 @@ async def chat_stream_endpoint(
             
             # Translate user query to English if Indic preferred language selected
             user_msg_en = user_msg
-            if is_indic:
+            if is_indic and _should_translate_from_preferred(container, user_msg, preferred_lang):
                 yield f"event: status\ndata: Translating your question to English...\n\n"
                 user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
                 logger.info(f"Stream: Translated user query from {preferred_lang} to English: {user_msg_en}")
 
             # === NEW: Language Detection ===
-            lang_detection = container.language_router.detect(user_msg_en)
+            lang_detection = _preferred_language_detection(container, user_msg, preferred_lang)
             stable_session_id = normalize_session_id(chat_body.session_id, user_id)
             chat_history = [m.model_dump() for m in chat_body.messages]
             # Cap conversation context to prevent OOM/timeouts on long sessions
@@ -853,7 +895,11 @@ async def chat_stream_endpoint(
             chat_history_en = []
             if is_indic and chat_history:
                 async def _translate_msg(msg):
-                    translated = await translate_text(msg["content"], preferred_lang, "en", container)
+                    translated = (
+                        await translate_text(msg["content"], preferred_lang, "en", container)
+                        if _should_translate_from_preferred(container, msg["content"], preferred_lang)
+                        else msg["content"]
+                    )
                     return {"role": msg["role"], "content": translated}
                 chat_history_en = await asyncio.gather(*[_translate_msg(m) for m in chat_history])
                 chat_history_en = list(chat_history_en)
@@ -973,7 +1019,7 @@ async def chat_stream_endpoint(
 
             # Cache QUERY and CASUAL results (Semantic Caching for fast routing)
             if intent in ["QUERY", "CASUAL"]:
-                container.semantic_cache.put(user_msg, final_answer, intent, citations, meditation_step=med_step)
+                container.semantic_cache.put(cache_key, final_answer, intent, citations, meditation_step=med_step)
 
             REQUEST_COUNT.labels(status="success").inc()
 

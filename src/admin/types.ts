@@ -255,6 +255,7 @@ export interface KpiSnapshot {
   serene_mind_trigger_rate: number; // 0..1
   thumbs_up_rate: number; // 0..1
   estimated_cost_usd: number;
+  estimated_cost_inr?: number;
   error_rate: number; // 0..1
   retrieval_hit_rate: number; // 0..1
 }

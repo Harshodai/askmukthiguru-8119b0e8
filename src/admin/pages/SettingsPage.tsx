@@ -12,13 +12,69 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  useModelPricing,
   useQueries,
   useEvalRuns,
   useAlertRules,
 } from "@/admin/hooks/useAdminData";
-import { Download } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+const SARVAM_PRICING = [
+  {
+    model: "sarvam-30b",
+    input: "₹2.5",
+    cachedInput: "₹1.5",
+    output: "₹10",
+    unit: "per 1M tokens",
+    tooltip: "Chat completion pricing from Sarvam API docs: input, cached input, and output are billed separately.",
+  },
+  {
+    model: "sarvam-105b",
+    input: "₹4",
+    cachedInput: "₹2.5",
+    output: "₹16",
+    unit: "per 1M tokens",
+    tooltip: "Higher-capability chat model. Use for complex reasoning and agentic workloads.",
+  },
+  {
+    model: "mayura:v1",
+    input: "₹20",
+    cachedInput: "—",
+    output: "—",
+    unit: "per 10K characters",
+    tooltip: "Translation is billed per character and rounded to the nearest character per request.",
+  },
+  {
+    model: "saaras:v3",
+    input: "₹30",
+    cachedInput: "—",
+    output: "—",
+    unit: "per audio hour",
+    tooltip: "Speech-to-text is billed per second of audio, shown here as the hourly equivalent.",
+  },
+  {
+    model: "bulbul:v3",
+    input: "₹30",
+    cachedInput: "—",
+    output: "—",
+    unit: "per 10K characters",
+    tooltip: "Text-to-speech beta pricing. Billed per character and rounded per request.",
+  },
+  {
+    model: "document-digitization",
+    input: "₹0.5",
+    cachedInput: "—",
+    output: "—",
+    unit: "per page",
+    tooltip: "Document digitization API price from Sarvam docs. Maximum page limits can apply by endpoint.",
+  },
+];
 
 function downloadCsv(filename: string, rows: Array<Record<string, unknown>> | unknown[]) {
   rows = rows as Array<Record<string, unknown>>;
@@ -47,10 +103,10 @@ function downloadCsv(filename: string, rows: Array<Record<string, unknown>> | un
 export default function SettingsPage() {
   const [retention, setRetention] = useState([90]);
   const [redactPii, setRedactPii] = useState(true);
-  const { data: pricing } = useModelPricing();
   const { data: queries } = useQueries({ limit: 1000 });
   const { data: runs } = useEvalRuns();
   const { data: rules } = useAlertRules();
+  const pricingRows = SARVAM_PRICING;
 
   return (
     <div className="space-y-4">
@@ -120,7 +176,7 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => downloadCsv("model_pricing.csv", pricing ?? [])}
+            onClick={() => downloadCsv("model_pricing.csv", pricingRows)}
           >
             <Download className="h-4 w-4" /> Model pricing CSV
           </Button>
@@ -128,26 +184,47 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Model pricing (USD per 1k tokens)</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Sarvam pricing (INR)</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Model</TableHead>
-                <TableHead className="text-right">Input</TableHead>
-                <TableHead className="text-right">Output</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pricing?.map((p) => (
-                <TableRow key={p.model}>
-                  <TableCell className="font-mono text-xs">{p.model}</TableCell>
-                  <TableCell className="text-right tabular-nums">${p.input_per_1k.toFixed(4)}</TableCell>
-                  <TableCell className="text-right tabular-nums">${p.output_per_1k.toFixed(4)}</TableCell>
+          <TooltipProvider>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Service</TableHead>
+                  <TableHead className="text-right">Input</TableHead>
+                  <TableHead className="text-right">Cached input</TableHead>
+                  <TableHead className="text-right">Output</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {pricingRows.map((p) => (
+                  <TableRow key={p.model}>
+                    <TableCell className="font-mono text-xs">{p.model}</TableCell>
+                    <TableCell className="text-right tabular-nums">{p.input}</TableCell>
+                    <TableCell className="text-right tabular-nums">{p.cachedInput}</TableCell>
+                    <TableCell className="text-right tabular-nums">{p.output}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.unit}</TableCell>
+                    <TableCell className="text-right">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+                            <Info className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-72">
+                          {p.tooltip}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TooltipProvider>
         </CardContent>
       </Card>
     </div>

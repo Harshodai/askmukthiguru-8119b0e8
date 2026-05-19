@@ -153,7 +153,7 @@ export const LanguageSelector = ({
                 className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
                 role="listbox"
               >
-                <ScrollArea className="max-h-72">
+                <ScrollArea className="max-h-[70vh] sm:max-h-96">
                   <div className="py-1">
                     {LANGUAGES.map((lang) => {
                       const isSelected = selectedLanguage === lang.code;
@@ -199,7 +199,7 @@ export const LanguageSelector = ({
                 <div className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/30">
                   <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-prana animate-pulse" />
-                    <span>22 Indic languages</span>
+                    <span>22 scheduled languages + English</span>
                     <span className="ml-auto px-1.5 py-0.5 rounded bg-ojas/20 text-ojas text-[10px] font-medium">
                       Sarvam-ready
                     </span>

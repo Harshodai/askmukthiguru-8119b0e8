@@ -169,7 +169,7 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         return {
             "total_queries": 0, "total_seekers": 0, "p50_latency_ms": 0, "p95_latency_ms": 0,
             "hallucination_rate": 0, "serene_mind_trigger_rate": 0, "thumbs_up_rate": 0,
-            "estimated_cost_usd": 0, "error_rate": 0
+            "estimated_cost_usd": 0, "estimated_cost_inr": 0, "error_rate": 0
         }
 
     try:
@@ -213,6 +213,10 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         total_triggers = trigger_query.execute().count or 0
         trigger_rate = total_triggers / total_queries if total_queries > 0 else 0
 
+        # Sarvam-30B public pricing: ₹2.5 input + ₹10 output per 1M tokens.
+        # Until token telemetry is populated, use a conservative 800 input / 350 output token estimate.
+        estimated_cost_inr = total_queries * (((800 / 1_000_000) * 2.5) + ((350 / 1_000_000) * 10))
+
         return {
             "total_queries": total_queries,
             "total_seekers": total_seekers,
@@ -221,7 +225,8 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
             "hallucination_rate": hallucination_rate,
             "serene_mind_trigger_rate": trigger_rate,
             "thumbs_up_rate": 0.85, # TODO: implement feedback table query
-            "estimated_cost_usd": total_queries * 0.0012, # Simplified estimate
+            "estimated_cost_usd": 0,
+            "estimated_cost_inr": estimated_cost_inr,
             "error_rate": error_rate
         }
     except Exception as e:
@@ -229,7 +234,7 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         return {
             "total_queries": 0, "total_seekers": 0, "p50_latency_ms": 0, "p95_latency_ms": 0,
             "hallucination_rate": 0, "serene_mind_trigger_rate": 0, "thumbs_up_rate": 0,
-            "estimated_cost_usd": 0, "error_rate": 0
+            "estimated_cost_usd": 0, "estimated_cost_inr": 0, "error_rate": 0
         }
 
 async def log_ingestion_run(run_data: dict) -> None:

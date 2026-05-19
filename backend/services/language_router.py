@@ -18,6 +18,19 @@ class LanguageCode(str, Enum):
     GU = "gu"           # Gujarati
     MR = "mr"           # Marathi
     PA = "pa"           # Punjabi
+    OR = "or"           # Odia
+    UR = "ur"           # Urdu
+    AS = "as"           # Assamese
+    MAI = "mai"         # Maithili
+    SA = "sa"           # Sanskrit
+    KS = "ks"           # Kashmiri
+    NE = "ne"           # Nepali
+    SD = "sd"           # Sindhi
+    KOK = "kok"         # Konkani
+    DOI = "doi"         # Dogri
+    MNI = "mni"         # Manipuri
+    SAT = "sat"         # Santali
+    BRX = "brx"         # Bodo
     HINGLISH = "hinglish"  # Code-mixed Hindi-English
     TANGLISH = "tanglish"  # Code-mixed Tamil-English
 
@@ -185,7 +198,24 @@ class LanguageRouter:
             LanguageCode.TA: "\n\nமுக்கியம்: எப்போதும் தமிழில் பதிலளிக்கவும். சமஸ்கிருத சொற்கள் (தர்மம், கர்மா, மோட்சம்) அப்படியே வைத்திருக்கவும்.",
             LanguageCode.TE: "\n\nముఖ్యం: ఎల్లప్పుడూ తెలుగులో సమాధానం ఇవ్వండి. సంస్కృత పదాలను (ధర్మ, కర్మ, మోక్ష) అలాగే ఉంచండి.",
             LanguageCode.KN: "\n\nಮುಖ್ಯ: ಯಾವಾಗಲೂ ಕನ್ನಡದಲ್ಲಿ ಉತ್ತರಿಸಿ. ಸಂಸ್ಕೃತ ಪದಗಳನ್ನು (ಧರ್ಮ, ಕರ್ಮ, ಮೋಕ್ಷ) ಹಾಗೆಯೇ ಉಳಿಸಿ.",
+            LanguageCode.ML: "\n\nപ്രധാനമാണ്: എല്ലായ്പ്പോഴും മലയാളത്തിൽ മറുപടി നൽകുക. സംസ്കൃത പദങ്ങൾ (ധർമ്മ, കർമ്മ, മോക്ഷ) അതേപടി നിലനിർത്തുക.",
             LanguageCode.BN: "\n\nগুরুত্বপূর্ণ: সবসময় বাংলায় উত্তর দিন। সংস্কৃত শব্দগুলি (ধর্ম, কর্ম, মোক্ষ) অপরিবর্তিত রাখুন।",
+            LanguageCode.GU: "\n\nમહત્વપૂર્ણ: હંમેશા ગુજરાતીમાં જવાબ આપો. સંસ્કૃત શબ્દો (ધર્મ, કર્મ, મોક્ષ) જેમ છે તેમ રાખો.",
+            LanguageCode.MR: "\n\nमहत्त्वाचे: नेहमी मराठीत उत्तर द्या. संस्कृत शब्द (धर्म, कर्म, मोक्ष) तसेच ठेवा.",
+            LanguageCode.PA: "\n\nਮਹੱਤਵਪੂਰਨ: ਹਮੇਸ਼ਾ ਪੰਜਾਬੀ ਵਿੱਚ ਜਵਾਬ ਦਿਓ। ਸੰਸਕ੍ਰਿਤ ਸ਼ਬਦਾਂ (ਧਰਮ, ਕਰਮ, ਮੋਕਸ਼) ਨੂੰ ਜਿਵੇਂ ਹਨ ਤਿਵੇਂ ਰੱਖੋ।",
+            LanguageCode.OR: "\n\nଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ: ସବୁବେଳେ ଓଡ଼ିଆରେ ଉତ୍ତର ଦିଅନ୍ତୁ। ସଂସ୍କୃତ ଶବ୍ଦଗୁଡ଼ିକ (ଧର୍ମ, କର୍ମ, ମୋକ୍ଷ) ଅପରିବର୍ତ୍ତିତ ରଖନ୍ତୁ।",
+            LanguageCode.UR: "\n\nاہم: ہمیشہ اردو میں جواب دیں۔ سنسکرت الفاظ (دھرم، کرم، موکش) کو جوں کا توں رکھیں۔",
+            LanguageCode.AS: "\n\nগুৰুত্বপূর্ণ: সদায় অসমীয়াত উত্তৰ দিয়ক। সংস্কৃত শব্দ (ধর্ম, কর্ম, মোক্ষ) একেদৰে ৰাখক।",
+            LanguageCode.MAI: "\n\nमहत्वपूर्ण: सदिखन मैथिलीमे उत्तर दिअ। संस्कृत शब्द (धर्म, कर्म, मोक्ष) जेकाँ अछि तेकाँ राखू।",
+            LanguageCode.SA: "\n\nमहत्त्वपूर्णम्: सर्वदा संस्कृतेन उत्तरं ददातु। धर्म, कर्म, मोक्ष इत्यादीनि पदानि यथावत् स्थापयतु।",
+            LanguageCode.KS: "\n\nImportant: Always reply in Kashmiri. Preserve Sanskrit spiritual terms such as dharma, karma, and moksha as-is.",
+            LanguageCode.NE: "\n\nमहत्त्वपूर्ण: सधैं नेपालीमा जवाफ दिनुहोस्। संस्कृत शब्दहरू (धर्म, कर्म, मोक्ष) यथावत् राख्नुहोस्।",
+            LanguageCode.SD: "\n\nImportant: Always reply in Sindhi. Preserve Sanskrit spiritual terms such as dharma, karma, and moksha as-is.",
+            LanguageCode.KOK: "\n\nमहत्त्वाचें: सदांच कोंकणींत जाप दिवची. संस्कृत उतरां (धर्म, कर्म, मोक्ष) तशींच दवरचीं.",
+            LanguageCode.DOI: "\n\nImportant: Always reply in Dogri. Preserve Sanskrit spiritual terms such as dharma, karma, and moksha as-is.",
+            LanguageCode.MNI: "\n\nImportant: Always reply in Manipuri. Preserve Sanskrit spiritual terms such as dharma, karma, and moksha as-is.",
+            LanguageCode.SAT: "\n\nImportant: Always reply in Santali. Preserve Sanskrit spiritual terms such as dharma, karma, and moksha as-is.",
+            LanguageCode.BRX: "\n\nImportant: Always reply in Bodo. Preserve Sanskrit spiritual terms such as dharma, karma, and moksha as-is.",
             LanguageCode.HINGLISH: "\n\nIMPORTANT: Reply in Hinglish (Hindi-English mix) using the same style as the user. Spiritual Sanskrit terms ko as-is rakho.",
         }
         return suffixes.get(lang, "")

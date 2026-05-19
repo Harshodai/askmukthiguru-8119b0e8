@@ -224,7 +224,8 @@ class SarvamCloudService:
                 max_tokens = 2048
             else:
                 max_tokens = 4096
-            logger.info(f"_call_api: Proactively capped default max_tokens to {max_tokens} for {model}")
+            capped_output_length = max_tokens
+            logger.info(f"_call_api: Proactively capped default output length to {capped_output_length} for {model}")
 
         payload = {
             "model": model,

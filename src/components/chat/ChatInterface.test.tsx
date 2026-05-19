@@ -80,6 +80,7 @@ vi.mock('@/lib/aiService', () => ({
   sendMessage: vi.fn().mockResolvedValue({ content: 'Mocked guru response', citations: [] }),
   sendMessageStreaming: vi.fn(),
   generateSummary: vi.fn().mockResolvedValue('Mock summary'),
+  generateConversationTitle: vi.fn().mockResolvedValue('Finding Peace'),
   setLanguage: vi.fn(),
 }));
 
@@ -87,6 +88,7 @@ vi.mock('@/lib/responseCache', () => ({
   hashMessages: vi.fn().mockReturnValue('mockhash'),
   getCachedResponse: vi.fn().mockReturnValue(null),
   setCachedResponse: vi.fn(),
+  clearResponseCache: vi.fn(),
 }));
 
 vi.mock('@/components/chat/DesktopSidebar', () => ({

@@ -1,6 +1,6 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
@@ -16,6 +16,7 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   isLastGuru?: boolean;
   onRegenerate?: () => void;
+  onEditUserMessage?: (message: Message) => void;
 }
 
 const getDomain = (url: string): string => {
@@ -29,14 +30,14 @@ const getDomain = (url: string): string => {
 const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
     // Extract any https:// URL from the guru's response as a fallback citation.
     // Covers: YouTube links, source references like "Source: https://...", inline citations.
     const inlineUrls = isGuru
       ? Array.from(new Set(
-          (message.content.match(/https?:\/\/[^\s\)"'<>]+/g) ?? [])
+          (message.content.match(/https?:\/\/[^\s)"'<>]+/g) ?? [])
             .filter(u => { try { new URL(u); return true; } catch { return false; } })
         ))
       : [];
@@ -50,6 +51,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [feedbackComment, setFeedbackComment] = useState('');
+
+    const handleCopy = useCallback(async () => {
+      try {
+        await navigator.clipboard.writeText(message.content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      } catch { /* ignore */ }
+    }, [message.content]);
 
     const handleVote = useCallback((vote: 'up' | 'down') => {
       if (feedback) return;
@@ -208,13 +217,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       <ThumbsDown className="w-3 h-3" />
                     </button>
                     <button
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(message.content);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 1500);
-                        } catch { /* ignore */ }
-                      }}
+                      onClick={handleCopy}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                       title={copied ? 'Copied!' : 'Copy response'}
                     >
@@ -227,6 +230,26 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     >
                       <Share2 className="w-3 h-3" />
                     </button>
+                  </div>
+                )}
+                {!isGuru && message.content && !isStreaming && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button
+                      onClick={handleCopy}
+                      className="p-1 rounded-full hover:bg-primary-foreground/15 text-primary-foreground/70 hover:text-primary-foreground transition-colors"
+                      title={copied ? 'Copied!' : 'Copy question'}
+                    >
+                      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                    {onEditUserMessage && (
+                      <button
+                        onClick={() => onEditUserMessage(message)}
+                        className="p-1 rounded-full hover:bg-primary-foreground/15 text-primary-foreground/70 hover:text-primary-foreground transition-colors"
+                        title="Edit question"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

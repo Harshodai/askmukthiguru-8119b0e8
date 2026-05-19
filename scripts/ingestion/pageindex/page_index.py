@@ -1172,7 +1172,7 @@ def page_index_main(doc, opt=None):
     page_list = get_page_tokens(doc, model=opt.model)
 
     logger.info({'total_page_number': len(page_list)})
-    logger.info({'total_token': sum([page[1] for page in page_list])})
+    logger.info({'total_text_units': sum([page[1] for page in page_list])})
 
     async def page_index_builder():
         structure = await tree_parser(page_list, opt, doc=doc, logger=logger)

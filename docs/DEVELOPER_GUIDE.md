@@ -197,11 +197,18 @@ NeMo Input Rail ─► Depression Detector ─► LangGraph
 Frontend yields StreamChunks → ChatInterface updates message
    - tokens append to current guru bubble (markdown-rendered)
    - "done" event sets citations and triggers Serene Mind if intent==='DISTRESS'
+   - response cache keys include the selected language; language changes clear the in-memory frontend cache
+   - Regenerate removes the last guru bubble and replays the existing user turn without appending a duplicate query
 ```
 
 Memory notes:
 - `ChatInterface` passes the active conversation id as `session_id` on both
   streaming and non-streaming calls.
+- The backend semantic cache prefixes entries with preferred language. This is
+  required so Telugu/Hindi/etc. responses never reuse an English cached answer.
+- If the user selects an Indic output language but types English text, the
+  backend keeps the user query in English and only translates the final answer
+  back to the selected language.
 - `backend/rag/memory.py` maps local non-UUID ids to deterministic UUIDs with
   `uuid5`, preserving browser continuity while satisfying Supabase UUID tables.
 - The generated prompt treats memory as personalization and reference-resolution

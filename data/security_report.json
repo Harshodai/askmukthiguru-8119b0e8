@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-17T20:21:29.795736",
+  "generated_at": "2026-05-20T04:47:08.374421",
   "findings": [
     {
       "category": "Legal",
@@ -25,9 +25,9 @@
     {
       "category": "Legal",
       "check": "PII not logged",
-      "status": "WARN",
-      "detail": "Possible PII in log statements: ['backend/services/auth_service.py', 'scripts/ingestion/pageindex/page_index.py']",
-      "fix": "Scrub email/token values from log messages"
+      "status": "PASS",
+      "detail": "No obvious PII in log statements",
+      "fix": ""
     },
     {
       "category": "Legal",
@@ -53,9 +53,9 @@
     {
       "category": "Security",
       "check": "No dangerouslySetInnerHTML",
-      "status": "WARN",
-      "detail": "Found in: ['src/components/ui/chart.tsx']",
-      "fix": "Review each usage \u2014 ensure content is sanitized with DOMPurify before rendering"
+      "status": "PASS",
+      "detail": "No unsafe HTML injection",
+      "fix": ""
     },
     {
       "category": "Security",
@@ -124,7 +124,7 @@
       "category": "Abuse",
       "check": "Rate limiting on API endpoints",
       "status": "PASS",
-      "detail": "Found in 5 location(s)",
+      "detail": "Found in 6 location(s)",
       "fix": ""
     },
     {
@@ -214,8 +214,8 @@
   ],
   "summary": {
     "total": 30,
-    "pass": 28,
-    "warn": 2,
+    "pass": 30,
+    "warn": 0,
     "fail": 0
   }
 }
