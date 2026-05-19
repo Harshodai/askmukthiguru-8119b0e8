@@ -101,6 +101,15 @@ To enable Google Sign-In during local development:
 2. Configure `supabase/config.toml` with your Google `client_id` and `secret`.
 3. Restart the Supabase stack: `npx supabase stop` followed by `npx supabase start`.
 
+## Environment Variables
+
+Ensure the following variables are configured in `backend/.env` before running the ingestion pipeline or services:
+
+| Variable | Description | Default / Example |
+|---|---|---|
+| `KEYCHAIN_PASS` | Required for macOS keychain unlocking during YouTube ingestion cookie retrieval. | `142000` |
+| `SARVAM_DEBUG` | Set to `true` to enable verbose JSON logging for Sarvam API responses. Helps debug quota/reasoning issues. | `false` |
+
 ## LLM Configuration
 
 Set `LLM_PROVIDER` in `backend/.env`:
