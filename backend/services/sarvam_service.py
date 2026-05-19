@@ -335,22 +335,28 @@ class SarvamCloudService:
 
                     if resp.status_code == 200:
                         data = resp.json()
-                        try:
-                            import json
-                            debug_file = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/data/sarvam_debug.json"
-                            with open(debug_file, "a") as df:
-                                df.write(json.dumps({
-                                    "timestamp": time.time(),
-                                    "operation": operation,
-                                    "max_tokens": max_tokens,
-                                    "temperature": temperature,
-                                    "payload_messages_len": len(payload.get("messages", [])),
-                                    "prompt_example": payload.get("messages", [])[-1].get("content")[:500] if payload.get("messages") else "",
-                                    "choice_0": data.get("choices", [{}])[0],
-                                    "usage": data.get("usage", {})
-                                }, indent=2) + "\n\n")
-                        except Exception as e:
-                            logger.error(f"Failed to write sarvam debug info: {e}")
+                        # Debug logging gated behind SARVAM_DEBUG=true to prevent
+                        # unbounded file growth and avoid logging sensitive prompt content.
+                        if os.environ.get("SARVAM_DEBUG", "false").lower() == "true":
+                            try:
+                                import json as _json
+                                debug_file = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/data/sarvam_debug.json"
+                                # Rotate if file exceeds 50MB
+                                if os.path.exists(debug_file) and os.path.getsize(debug_file) > 50 * 1024 * 1024:
+                                    os.rename(debug_file, debug_file + ".bak")
+                                with open(debug_file, "a") as df:
+                                    df.write(_json.dumps({
+                                        "timestamp": time.time(),
+                                        "operation": operation,
+                                        "max_tokens": max_tokens,
+                                        "temperature": temperature,
+                                        "payload_messages_len": len(payload.get("messages", [])),
+                                        "prompt_example": payload.get("messages", [])[-1].get("content")[:500] if payload.get("messages") else "",
+                                        "choice_0": data.get("choices", [{}])[0],
+                                        "usage": data.get("usage", {})
+                                    }, indent=2) + "\n\n")
+                            except Exception as e:
+                                logger.error(f"Failed to write sarvam debug info: {e}")
 
                         choice_message = data.get("choices", [{}])[0].get("message", {})
                         content = choice_message.get("content") or ""

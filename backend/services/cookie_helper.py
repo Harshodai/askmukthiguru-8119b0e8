@@ -15,7 +15,14 @@ logger = logging.getLogger(__name__)
 
 # Primary location for cookies file
 COOKIES_PATH = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
-KEYCHAIN_PASS = "142000"
+# Keychain password — loaded from env to keep secrets out of source code.
+# Set KEYCHAIN_PASS in backend/.env (gitignored).
+KEYCHAIN_PASS = os.environ.get("KEYCHAIN_PASS", "")
+if not KEYCHAIN_PASS:
+    logger.warning(
+        "KEYCHAIN_PASS env var not set — keychain unlock may fail. "
+        "Add 'KEYCHAIN_PASS=<your_login_password>' to backend/.env"
+    )
 
 
 def unlock_keychain() -> bool:

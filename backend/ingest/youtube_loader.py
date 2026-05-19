@@ -54,6 +54,30 @@ def _get_cookies_opts() -> dict:
     return {'cookiesfrombrowser': ('chrome',)}
 
 
+def _get_js_runtime_opts() -> dict:
+    """
+    Return yt-dlp Python API options for JavaScript runtime support.
+
+    Required to solve YouTube's nsig (n-parameter) signature challenge.
+    Without this, yt-dlp cannot decode download URLs and returns
+    'Requested format is not available'.
+    """
+    import shutil
+    node_path = "/opt/homebrew/bin/node"
+    if not os.path.exists(node_path):
+        node_path = shutil.which("node")
+
+    opts = {
+        'remote_components': ['ejs:github'],
+    }
+    if node_path:
+        opts['js_runtimes'] = {'node': {'path': node_path}}
+        logger.debug(f"JS runtime: node={node_path}")
+    else:
+        logger.warning("JS runtime: node not found — nsig challenge may fail")
+    return opts
+
+
 # ============================================================
 # URL Utilities
 # ============================================================
@@ -108,6 +132,9 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
         'no_warnings': True,
     }
     ydl_opts.update(_get_cookies_opts())
+    # extract_flat=True doesn't need signature solving, but add JS opts for
+    # age-restricted / region-locked playlists that need full info extraction
+    ydl_opts.update(_get_js_runtime_opts())
 
     videos = []
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -234,6 +261,8 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
                 'no_warnings': True,
             }
             ydl_opts.update(_get_cookies_opts())
+            # Fix: solve YouTube nsig challenge so format URLs are valid
+            ydl_opts.update(_get_js_runtime_opts())
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])

@@ -588,8 +588,14 @@ async def main():
                 if args.skip_lightrag:
                     pass  # Silently skip — already logged at startup
                 elif container.lightrag:
-                    logger.info(f"[LightRAG] Fetching transcript for video: {vid}...")
-                    text = await fetch_transcript_text(vid)
+                    # Reuse transcript already fetched in Step 1 to avoid a second
+                    # Whisper run (which would waste 15-30 min per video).
+                    text = res.get("text") or res.get("transcript") or ""
+                    if not text.strip():
+                        logger.info(f"[LightRAG] No text in Qdrant result — re-fetching transcript for video: {vid}...")
+                        text = await fetch_transcript_text(vid)
+                    else:
+                        logger.info(f"[LightRAG] Reusing transcript from Qdrant step ({len(text):,} chars) — skipping second Whisper run")
                     if text.strip():
                         logger.info(f"[LightRAG] Correcting spelling and domain terminology in transcript...")
                         sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
