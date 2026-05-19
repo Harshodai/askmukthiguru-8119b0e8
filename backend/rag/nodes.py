@@ -385,7 +385,7 @@ async def retrieve_for_single_query(
 
     # Phase 3: Search LightRAG graph
     lightrag_results = []
-    if lightrag and intent == "RELATIONAL":
+    if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
         try:
             graph_answer = await lightrag.aquery(query, mode="hybrid")
             if graph_answer:
