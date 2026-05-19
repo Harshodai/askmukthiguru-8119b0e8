@@ -82,7 +82,7 @@ export const ChatInterface = () => {
   const { open: openSereneMind } = useSereneMind();
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const { profile } = useProfile();
+  const { profile, update: updateProfile } = useProfile();
   const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
