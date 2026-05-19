@@ -212,44 +212,73 @@ app.add_middleware(
 )
 
 # Correlation ID middleware — generates UUID per request
-from starlette.middleware.base import BaseHTTPMiddleware
+class CorrelationIDMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-class CorrelationIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        cid = request.headers.get("X-Correlation-ID", str(uuid.uuid4())[:8])
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = scope.get("headers", [])
+        cid = None
+        for k, v in headers:
+            if k.lower() == b"x-correlation-id":
+                cid = v.decode("utf-8")
+                break
+        if not cid:
+            cid = str(uuid.uuid4())[:8]
+
         correlation_id_var.set(cid)
-        response = await call_next(request)
-        response.headers["X-Correlation-ID"] = cid
-        return response
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                msg_headers = list(message.get("headers", []))
+                msg_headers.append((b"x-correlation-id", cid.encode("utf-8")))
+                message["headers"] = msg_headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 if settings.enable_correlation_ids:
     app.add_middleware(CorrelationIDMiddleware)
 
 # ── Security Headers Middleware (auto-added by security_audit.py) ──
-from starlette.middleware.base import BaseHTTPMiddleware as _BaseHTTPMiddleware
-from starlette.requests import Request as _Request
-
-class SecurityHeadersMiddleware(_BaseHTTPMiddleware):
+class SecurityHeadersMiddleware:
     """Adds OWASP-recommended security headers to every response."""
-    async def dispatch(self, request: _Request, call_next):
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        # Spiritual app CSP — allows Supabase, Google Fonts, self
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
-            "frame-ancestors 'none';"
-        )
-        return response
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                msg_headers = list(message.get("headers", []))
+                msg_headers.extend([
+                    (b"x-content-type-options", b"nosniff"),
+                    (b"x-frame-options", b"DENY"),
+                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                    (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+                    (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+                    (b"x-xss-protection", b"1; mode=block"),
+                    (b"content-security-policy", (
+                        "default-src 'self'; "
+                        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+                        "font-src 'self' https://fonts.gstatic.com; "
+                        "img-src 'self' data: https:; "
+                        "connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
+                        "frame-ancestors 'none';"
+                    ).encode("utf-8"))
+                ])
+                message["headers"] = msg_headers
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -822,10 +851,12 @@ async def chat_stream_endpoint(
             
             # Translate history messages to English if Indic language is active
             chat_history_en = []
-            if is_indic:
-                for msg in chat_history:
-                    msg_content_en = await translate_text(msg["content"], preferred_lang, "en", container)
-                    chat_history_en.append({"role": msg["role"], "content": msg_content_en})
+            if is_indic and chat_history:
+                async def _translate_msg(msg):
+                    translated = await translate_text(msg["content"], preferred_lang, "en", container)
+                    return {"role": msg["role"], "content": translated}
+                chat_history_en = await asyncio.gather(*[_translate_msg(m) for m in chat_history])
+                chat_history_en = list(chat_history_en)
             else:
                 chat_history_en = chat_history
 
@@ -1172,6 +1203,16 @@ async def ingest_endpoint(
 
     # Run ingestion in the background for large content
     async def _run_ingestion():
+        import time
+        import uuid
+        from datetime import datetime, timezone
+        from app.telemetry_db import log_ingestion_run
+        
+        start_time = time.time()
+        chunks_added = 0
+        status = "ok"
+        error_log = None
+
         def progress_callback(msg: str, pct: float):
             container.update_progress(url, msg, pct)
 
@@ -1186,15 +1227,36 @@ async def ingest_endpoint(
             )
             logger.info(f"Ingestion complete: {result}")
             container.update_progress(url, "Complete!", 1.0)
+            
+            if isinstance(result, dict):
+                chunks_added = result.get("chunks_indexed", result.get("chunks_added", 0))
+            
             # Invalidate response cache after new content ingestion
             container.semantic_cache.invalidate_all()
             
         except Exception as e:
             logger.error(f"Ingestion failed for {url}: {e}", exc_info=True)
+            status = "failed"
+            error_log = str(e)
             # Mark as error
             if url in container.ingest_status:
                 container.ingest_status[url]["status"] = "error"
                 container.ingest_status[url]["message"] = str(e)
+        finally:
+            duration_ms = int((time.time() - start_time) * 1000)
+            try:
+                await log_ingestion_run({
+                    "id": str(uuid.uuid4()),
+                    "source": url,
+                    "chunks_added": chunks_added,
+                    "embedding_model": settings.embedding_model,
+                    "duration_ms": duration_ms,
+                    "status": status,
+                    "error_log": error_log,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                })
+            except Exception as db_e:
+                logger.error(f"Failed to log ingestion run in background task: {db_e}")
 
     background_tasks.add_task(_run_ingestion)
 

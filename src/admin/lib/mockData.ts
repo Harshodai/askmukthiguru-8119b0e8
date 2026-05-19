@@ -351,7 +351,48 @@ export async function getTriggerTrend(range?: { from?: Date; to?: Date }, bucket
 export async function getSimilarityTrend(range?: { from?: Date; to?: Date }, buckets = 14): Promise<any[]> { return []; }
 export async function getDeadDocs(range?: { from?: Date; to?: Date }): Promise<any[]> { return []; }
 export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, limit = 20): Promise<any[]> { return []; }
-export async function getIngestionHealth(): Promise<any> { return null; }
+export async function getIngestionHealth(): Promise<any> {
+  const { data } = await fromUntyped("ingestion_runs").select("*");
+  const runs = (data || []) as IngestionRun[];
+  
+  let indexed_docs = 0;
+  let failed_docs = 0;
+  let total_runs = runs.length;
+  let ok = 0;
+  let partial = 0;
+  let failed = 0;
+  let total_chunks = 0;
+  let last_run = new Date(0).toISOString();
+
+  runs.forEach(r => {
+    total_chunks += r.chunks_added || 0;
+    if (r.status === "ok") {
+      ok++;
+      indexed_docs++;
+    } else if (r.status === "partial") {
+      partial++;
+      indexed_docs++;
+    } else if (r.status === "failed") {
+      failed++;
+      failed_docs++;
+    }
+    if (r.created_at && r.created_at > last_run) {
+      last_run = r.created_at;
+    }
+  });
+
+  return {
+    status: failed > 0 ? "Degraded" : (total_runs > 0 ? "Healthy" : "Unknown"),
+    last_run: last_run === new Date(0).toISOString() ? new Date().toISOString() : last_run,
+    indexed_docs,
+    failed_docs,
+    total_runs,
+    ok,
+    partial,
+    failed,
+    total_chunks
+  };
+}
 export async function getPromptMetricsByVersion(): Promise<any> { return null; }
 export async function pollLiveFeed(): Promise<ChatQuery[]> {
   return listQueries({ limit: 10 });

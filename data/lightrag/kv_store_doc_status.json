@@ -5756,7 +5756,7 @@
     }
   },
   "doc-29eb5de3144659c00743987c869aa476": {
-    "status": "processing",
+    "status": "processed",
     "chunks_count": 1,
     "chunks_list": [
       "chunk-29eb5de3144659c00743987c869aa476"
@@ -5764,11 +5764,798 @@
     "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\net distorted. You feel you were cheated for having believed in that person's love until then. You in fact imagine that you were manipulated all these years. You feel ...",
     "content_length": 1577,
     "created_at": "2026-05-19T20:27:00.371323+00:00",
-    "updated_at": "2026-05-19T20:27:00.485073+00:00",
+    "updated_at": "2026-05-19T20:27:21.678019+00:00",
     "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
     "track_id": "insert_20260520_015700_a53e735a",
     "metadata": {
-      "processing_start_time": 1779222420
+      "processing_start_time": 1779222420,
+      "processing_end_time": 1779222441
+    }
+  },
+  "doc-1821dd190f52a60ee5308675e2253b71": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-1821dd190f52a60ee5308675e2253b71"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\nhe power of consciousness. If you are in a slippery deep pit. You actually cannot pull yourself out by tugging at your own hair. You need someone who is strong from t...",
+    "content_length": 1443,
+    "created_at": "2026-05-19T20:27:24.971368+00:00",
+    "updated_at": "2026-05-19T20:28:02.031435+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_015724_0f565023",
+    "metadata": {
+      "processing_start_time": 1779222445,
+      "processing_end_time": 1779222482
+    }
+  },
+  "doc-3f7310169ab21a8e9154c264cb6297a9": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-3f7310169ab21a8e9154c264cb6297a9"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\nbut the *errors* are what need fixing).\n        *   DO NOT summarize or rewrite the style. (Again, stick to the corrections).\n        *   ONLY fix errors.\n        *  ...",
+    "content_length": 1400,
+    "created_at": "2026-05-19T20:28:05.356548+00:00",
+    "updated_at": "2026-05-19T20:28:57.706119+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_015805_a69c8fe9",
+    "metadata": {
+      "processing_start_time": 1779222485,
+      "processing_end_time": 1779222537
+    }
+  },
+  "doc-3a9a846ade1fe149a720605b65a5ee72": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-3a9a846ade1fe149a720605b65a5ee72"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\nThe third part is a massive, repeated word: \"The Christian Christian Christian...\". This is clearly a transcription error. The repetition is the key error to fix. The...",
+    "content_length": 1183,
+    "created_at": "2026-05-19T20:29:01.021648+00:00",
+    "updated_at": "2026-05-19T20:29:40.522837+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_015901_810bd56c",
+    "metadata": {
+      "processing_start_time": 1779222541,
+      "processing_end_time": 1779222580
+    }
+  },
+  "doc-2f27f813b0cd20fbf8655bc9f1f8f0e6": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-2f27f813b0cd20fbf8655bc9f1f8f0e6"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\n*   The input text does not contain any of these terms.\n        *   Therefore, this rule doesn't apply to the *content* of the text, but it informs the *type* of erro...",
+    "content_length": 1275,
+    "created_at": "2026-05-19T20:29:43.832207+00:00",
+    "updated_at": "2026-05-19T20:30:09.488891+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_015943_2a0ea9e0",
+    "metadata": {
+      "processing_start_time": 1779222583,
+      "processing_end_time": 1779222609
+    }
+  },
+  "doc-ed0382ebc411ad60ea4424aaf41dfd82": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-ed0382ebc411ad60ea4424aaf41dfd82"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\na concept related to it, but the *error* is the repetition. The prompt says \"fix transcription errors,\" and the repetition is a clear error. The most direct fix is to...",
+    "content_length": 1583,
+    "created_at": "2026-05-19T20:30:12.801035+00:00",
+    "updated_at": "2026-05-19T20:30:26.717725+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020012_1173bf06",
+    "metadata": {
+      "processing_start_time": 1779222612,
+      "processing_end_time": 1779222626
+    }
+  },
+  "doc-7292b068b3cfda3ee3b3c793ebea83c5": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-7292b068b3cfda3ee3b3c793ebea83c5"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\nn Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Chri...",
+    "content_length": 1584,
+    "created_at": "2026-05-19T20:30:30.012910+00:00",
+    "updated_at": "2026-05-19T20:30:55.147574+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020030_dcb4b009",
+    "metadata": {
+      "processing_start_time": 1779222630,
+      "processing_end_time": 1779222655
+    }
+  },
+  "dup-a6252e00abe997ec0d9c7c7ed482583b": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:30:58.381612+00:00",
+    "updated_at": "2026-05-19T20:30:58.381627+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020058_4995f9b7",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-e43f00aef7f621794a66750385f0fc51": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:01.404885+00:00",
+    "updated_at": "2026-05-19T20:31:01.404893+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020101_8881cb5e",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-b6454c2c9d48cb583f30b4dc17343431": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:04.430919+00:00",
+    "updated_at": "2026-05-19T20:31:04.430926+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020104_af416a87",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-fe5e7e2fd19217245b48fe2db7dfae29": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:07.458619+00:00",
+    "updated_at": "2026-05-19T20:31:07.458626+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020107_d780ea30",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-5bdb7b53dd1e0be9b3727931b2a0adef": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:10.489187+00:00",
+    "updated_at": "2026-05-19T20:31:10.489195+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020110_e9f2b333",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-a96d77086ad42f45b7a6de581e605149": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:13.508875+00:00",
+    "updated_at": "2026-05-19T20:31:13.508884+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020113_8133d472",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-9c2dec2540c1a7a17b2ac4ff4623fc24": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:16.538156+00:00",
+    "updated_at": "2026-05-19T20:31:16.538170+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020116_046bf90e",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-7f9ede225c44762261644e6147bb835e": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:19.562425+00:00",
+    "updated_at": "2026-05-19T20:31:19.562452+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020119_517fb378",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-ae29a501da0253c3bb4d390f199640f9": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:22.587734+00:00",
+    "updated_at": "2026-05-19T20:31:22.587745+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020122_6c0af44f",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-7344414e7294833def25796446ee7432": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:25.611452+00:00",
+    "updated_at": "2026-05-19T20:31:25.611467+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020125_2df53e7f",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-bb57f54b5d1ed58c6138f3722bf41f3b": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:28.637845+00:00",
+    "updated_at": "2026-05-19T20:31:28.637866+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020128_da500f79",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-e64728227574cedaa84b0ec8404d526a": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:31.664032+00:00",
+    "updated_at": "2026-05-19T20:31:31.664042+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020131_f382133b",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-f5ffa3e254f5ff48e1facc3a1b9b7e04": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:34.685782+00:00",
+    "updated_at": "2026-05-19T20:31:34.685790+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020134_84fa610a",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-86ca9dd338ffbac7805d132c71fc46ca": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:37.710446+00:00",
+    "updated_at": "2026-05-19T20:31:37.710480+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020137_7d2855c4",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-87ba09e778da58370fe29a6fd83b00e9": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:40.736903+00:00",
+    "updated_at": "2026-05-19T20:31:40.736913+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020140_4435b356",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-8958c8edaea32cd4dbf21b55392f4e1c": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:43.762391+00:00",
+    "updated_at": "2026-05-19T20:31:43.762399+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020143_9c68c48e",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-293fcb946deaad5afef3951f79a6eb0e": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:46.787163+00:00",
+    "updated_at": "2026-05-19T20:31:46.787172+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020146_1b3020d2",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-be196499f7959f85f9db5bfeb4b7fefc": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:49.815081+00:00",
+    "updated_at": "2026-05-19T20:31:49.815089+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020149_103ac7cf",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-428c249e8687481fb301a52992bc9616": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:52.837877+00:00",
+    "updated_at": "2026-05-19T20:31:52.837882+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020152_d6cc3d93",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-70aebadb75930f788c301abbcc119f59": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:55.870669+00:00",
+    "updated_at": "2026-05-19T20:31:55.870687+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020155_e8788c83",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "dup-348be6c5b33727c796d26f389848da21": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-7292b068b3cfda3ee3b3c793ebea83c5",
+    "content_length": 1584,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-05-19T20:31:58.894624+00:00",
+    "updated_at": "2026-05-19T20:31:58.894632+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020158_f7aa6048",
+    "error_msg": "Content already exists. Original doc_id: doc-7292b068b3cfda3ee3b3c793ebea83c5, Status: DocStatus.PROCESSED",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-7292b068b3cfda3ee3b3c793ebea83c5",
+      "original_track_id": "insert_20260520_020030_dcb4b009"
+    }
+  },
+  "doc-60cbd3b9636ef732de6d27262bd1cd12": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-60cbd3b9636ef732de6d27262bd1cd12"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)]\nn Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Christian Chri...",
+    "content_length": 1185,
+    "created_at": "2026-05-19T20:32:01.921902+00:00",
+    "updated_at": "2026-05-19T20:32:08.891756+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=k5RDNv-CH9M)",
+    "track_id": "insert_20260520_020201_d2e0baa7",
+    "metadata": {
+      "processing_start_time": 1779222721,
+      "processing_end_time": 1779222728
+    }
+  },
+  "doc-7969e4168ecd055a3fbcda3d1911b288": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-7969e4168ecd055a3fbcda3d1911b288"
+    ],
+    "content_summary": "the number of battles that come to your doorstep will reduce. You will have very little battles to fight. You will be bringing tremendous amount of value in your life and in everyone's life that's around you. Let me share with you three consciousness...",
+    "content_length": 4241,
+    "created_at": "2026-05-19T20:33:58.962103+00:00",
+    "updated_at": "2026-05-19T20:34:43.378541+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260520_020358_e64145d5",
+    "metadata": {
+      "processing_start_time": 1779222839,
+      "processing_end_time": 1779222883
+    }
+  },
+  "doc-ed4b1e90200c42795c990daf10717426": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-ed4b1e90200c42795c990daf10717426"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\n1.  **Deconstruct the Request:**\n\n    *   **Role:** Text Correction Expert for the 'Mukthi Guru' spiritual platform.\n    *   **Task:** Fix transcription errors.\n    *...",
+    "content_length": 1136,
+    "created_at": "2026-05-19T20:35:24.422318+00:00",
+    "updated_at": "2026-05-19T20:36:00.260529+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020524_d9bcccf8",
+    "metadata": {
+      "processing_start_time": 1779222924,
+      "processing_end_time": 1779222960
+    }
+  },
+  "doc-669447c66f2bd3f92a489ebe05f68fcb": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-669447c66f2bd3f92a489ebe05f68fcb"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nh the text sentence by sentence, looking for the three error types.\n\n    *   **\"the number of battles that come to your doorstep will reduce.\"**\n        *   Homophone...",
+    "content_length": 1399,
+    "created_at": "2026-05-19T20:36:03.584972+00:00",
+    "updated_at": "2026-05-19T20:36:34.990689+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020603_5b0ba66c",
+    "metadata": {
+      "processing_start_time": 1779222963,
+      "processing_end_time": 1779222994
+    }
+  },
+  "doc-dc66320ead9961b0ca8f9f6ef379767d": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-dc66320ead9961b0ca8f9f6ef379767d"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nerror*. Let's look for more definite ones.\n        *   Domain-specific: None.\n        *   Punctuation/Capitalization: \"that's\" should be \"that is\" for better flow and...",
+    "content_length": 1568,
+    "created_at": "2026-05-19T20:36:38.307732+00:00",
+    "updated_at": "2026-05-19T20:37:23.056905+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020638_96fdcd5c",
+    "metadata": {
+      "processing_start_time": 1779222998,
+      "processing_end_time": 1779223043
+    }
+  },
+  "doc-29839d6d7d0e5b2cd1270aaf6c732c38": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-29839d6d7d0e5b2cd1270aaf6c732c38"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\norrect.\n        *   Punctuation/Capitalization: \"The\" is capitalized.\n        *   **Correction:** \"The first consciousness law is that your state is responsible for e...",
+    "content_length": 1142,
+    "created_at": "2026-05-19T20:37:26.362206+00:00",
+    "updated_at": "2026-05-19T20:38:04.104781+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020726_2748cdbd",
+    "metadata": {
+      "processing_start_time": 1779223046,
+      "processing_end_time": 1779223084
+    }
+  },
+  "doc-8f35cfdcddeef4d10f1b5998a3a18b8b": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-8f35cfdcddeef4d10f1b5998a3a18b8b"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\npresent within us, it's present around us and it's present in this world and this entire universe.\"**\n        *   Homophone/Misheard: \"it's\" is a contraction of \"it i...",
+    "content_length": 921,
+    "created_at": "2026-05-19T20:38:07.390264+00:00",
+    "updated_at": "2026-05-19T20:38:30.895700+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020807_596a824d",
+    "metadata": {
+      "processing_start_time": 1779223087,
+      "processing_end_time": 1779223110
+    }
+  },
+  "doc-9c20c8f0dd5caad4ba7b2edbb0325b1f": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-9c20c8f0dd5caad4ba7b2edbb0325b1f"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nnd hence it is opening up doors for chaos in your life.\"**\n        *   Homophone/Misheard: \"not fine\" is a bit informal. \"not well\" or \"not okay\" might be better, but...",
+    "content_length": 1578,
+    "created_at": "2026-05-19T20:38:34.217769+00:00",
+    "updated_at": "2026-05-19T20:39:14.594602+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020834_616e831d",
+    "metadata": {
+      "processing_start_time": 1779223114,
+      "processing_end_time": 1779223154
+    }
+  },
+  "doc-534aa5b1bce760dde6fcebe7d2a8da54": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-534aa5b1bce760dde6fcebe7d2a8da54"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nmpassion, courage and passion, then you are opening up doors for order in your life.\"**\n        *   Homophone/Misheard: \"passion\" is correct.\n        *   Domain-speci...",
+    "content_length": 1439,
+    "created_at": "2026-05-19T20:39:17.873982+00:00",
+    "updated_at": "2026-05-19T20:40:11.559978+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_020917_72c28143",
+    "metadata": {
+      "processing_start_time": 1779223157,
+      "processing_end_time": 1779223211
+    }
+  },
+  "doc-ff56e69789b9f87a6e727c24b67b6e7c": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-ff56e69789b9f87a6e727c24b67b6e7c"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nmophone/Misheard: \"fall in order\" is a bit idiomatic, but not an error.\n        *   Domain-specific: \"consciousness\" is correct.\n        *   Punctuation/Capitalizatio...",
+    "content_length": 973,
+    "created_at": "2026-05-19T20:40:14.859062+00:00",
+    "updated_at": "2026-05-19T20:40:32.225967+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021014_dcb6bd92",
+    "metadata": {
+      "processing_start_time": 1779223214,
+      "processing_end_time": 1779223232
+    }
+  },
+  "doc-1f4c7c24a99c61450ba6af5fa672f0b9": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-1f4c7c24a99c61450ba6af5fa672f0b9"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\n\"Order starts to come into every aspect of your life.\" (Correct).\n\n    *   **\"Where you had problems, they will start to disappear.\"**\n        *   Homophone/Misheard:...",
+    "content_length": 1487,
+    "created_at": "2026-05-19T20:40:35.490070+00:00",
+    "updated_at": "2026-05-19T20:41:25.174660+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021035_bbb54774",
+    "metadata": {
+      "processing_start_time": 1779223235,
+      "processing_end_time": 1779223285
+    }
+  },
+  "doc-ea86eced1dc5f4afd9febcb64617c6b8": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-ea86eced1dc5f4afd9febcb64617c6b8"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nes to your doorstep.\"**\n        *   Homophone/Misheard: \"it's\" again.\n        *   Domain-specific: \"consciousness law\" is correct.\n        *   Punctuation/Capitalizat...",
+    "content_length": 1194,
+    "created_at": "2026-05-19T20:41:28.479891+00:00",
+    "updated_at": "2026-05-19T20:41:47.482553+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021128_bedd4fc5",
+    "metadata": {
+      "processing_start_time": 1779223288,
+      "processing_end_time": 1779223307
+    }
+  },
+  "doc-133536d4556a6179b8f35ae5c660389b": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-133536d4556a6179b8f35ae5c660389b"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nitalization: \"It...\" is a sentence start.\n        *   **Correction:** \"It will bring battles in your relationship. It will bring battles in your wealth creation. It w...",
+    "content_length": 1578,
+    "created_at": "2026-05-19T20:41:50.758936+00:00",
+    "updated_at": "2026-05-19T20:42:13.836920+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021150_9a24be3a",
+    "metadata": {
+      "processing_start_time": 1779223310,
+      "processing_end_time": 1779223333
+    }
+  },
+  "doc-65dfea79d783b0403b775689b17817eb": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-65dfea79d783b0403b775689b17817eb"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nthe other, where you clearly understand that others' joy is also your joy, the number of battles that come to your doorstep will reduce.\" (Correct).\n\n    *   **\"You w...",
+    "content_length": 1519,
+    "created_at": "2026-05-19T20:42:17.120708+00:00",
+    "updated_at": "2026-05-19T20:42:46.511951+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021217_fd698ffe",
+    "metadata": {
+      "processing_start_time": 1779223337,
+      "processing_end_time": 1779223366
+    }
+  },
+  "doc-8c2cc5514a536fb11e09433f01ed2e85": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-8c2cc5514a536fb11e09433f01ed2e85"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\ninto every other aspect of your life.\"\n\n    *   **\"Let's take an example of health.\"**\n        *   Homophone/Misheard: \"Let's\" is correct.\n        *   Domain-specific...",
+    "content_length": 1474,
+    "created_at": "2026-05-19T20:42:49.816378+00:00",
+    "updated_at": "2026-05-19T20:43:27.989510+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021249_2ff60f1b",
+    "metadata": {
+      "processing_start_time": 1779223369,
+      "processing_end_time": 1779223407
+    }
+  },
+  "doc-f1afa41b3519d740bacb88dad54ed44e": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-f1afa41b3519d740bacb88dad54ed44e"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\ny your kidneys function, the way your liver functions, your heart, your brain, your nervous system, everything is functioning beautifully when there is a perfect harm...",
+    "content_length": 1536,
+    "created_at": "2026-05-19T20:43:31.336985+00:00",
+    "updated_at": "2026-05-19T20:44:12.319378+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021331_bead96d7",
+    "metadata": {
+      "processing_start_time": 1779223411,
+      "processing_end_time": 1779223452
+    }
+  },
+  "doc-92de552ab3b343ec94bcf5b612359aba": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-92de552ab3b343ec94bcf5b612359aba"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\n\" is a sentence start.\n        *   **Correction:** \"So diabetes can cause heart disease, it can cause tumors, it can cause kidney failure, it can cause liver failure,...",
+    "content_length": 1523,
+    "created_at": "2026-05-19T20:44:15.621879+00:00",
+    "updated_at": "2026-05-19T20:44:56.394160+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021415_b9fa60d4",
+    "metadata": {
+      "processing_start_time": 1779223455,
+      "processing_end_time": 1779223496
+    }
+  },
+  "doc-edee740a602e9fade69883d02224f2fa": {
+    "status": "processed",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-edee740a602e9fade69883d02224f2fa"
+    ],
+    "content_summary": "[Source: YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)]\nlling your desires, to solving problems, to your business, to everything.\"**\n        *   Homophone/Misheard: \"wealth creation\" is correct.\n        *   Domain-specific...",
+    "content_length": 935,
+    "created_at": "2026-05-19T20:44:59.685051+00:00",
+    "updated_at": "2026-05-19T20:45:18.121257+00:00",
+    "file_path": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=kzRqQOvjRhA)",
+    "track_id": "insert_20260520_021459_2c39bf77",
+    "metadata": {
+      "processing_start_time": 1779223499,
+      "processing_end_time": 1779223518
+    }
+  },
+  "doc-64489d2821522eec89bdc72c90873919": {
+    "status": "processing",
+    "chunks_count": 6,
+    "chunks_list": [
+      "chunk-e6741646544a5c9d654d28992e5be8ef",
+      "chunk-91b4190f855a81f99cd10dbd03ae90db",
+      "chunk-e2bd3f4cf43dab42e9cb72ed41ed496d",
+      "chunk-56660255cfe326fc6be7a56328d05268",
+      "chunk-e0e8ebc81af50683ff8cb49e66607228",
+      "chunk-9ab628f43c9cf36bf1f9602deabc1e12"
+    ],
+    "content_summary": "The user wants me to act as a Text Correction Expert for the 'Mukthi Guru' spiritual platform. My task is to fix transcription errors in the provided text. The focus is on: 1. **Homophones and misheard words:** I need to be on the lookout for words t...",
+    "content_length": 34082,
+    "created_at": "2026-05-19T21:00:59.253674+00:00",
+    "updated_at": "2026-05-19T21:00:59.408344+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260520_023059_519cd39c",
+    "metadata": {
+      "processing_start_time": 1779224459
     }
   }
 }
