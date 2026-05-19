@@ -48,7 +48,20 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
             cmd.extend(["--cookies-from-browser", "chrome"])
             logger.info(f"[{video_id}] Using Chrome cookies-from-browser fallback")
 
+        # Resolve Node path for executing JS signature challenges (nsig/n-parameter)
+        import shutil
+        node_path = "/opt/homebrew/bin/node"
+        if not os.path.exists(node_path):
+            node_path = shutil.which("node")
+
+        if node_path:
+            logger.info(f"[{video_id}] JS runtime: node={node_path}")
+            cmd.extend(["--js-runtimes", f"node:{node_path}"])
+        else:
+            logger.warning(f"[{video_id}] JS runtime: node NOT found — nsig challenge may fail")
+
         cmd.extend([
+            "--remote-components", "ejs:github",
             "-x",                          # Extract audio only
             "--audio-format", "mp3",
             "--audio-quality", "128K",
@@ -61,17 +74,45 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         ])
         return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
+    def _classify_error(stderr: str) -> str:
+        """Classify yt-dlp stderr into an error category for smart retry logic."""
+        if any(k in stderr for k in ("Failed to resolve", "nodename nor servname", "Network is unreachable", "[Errno 8]")):
+            return "dns"
+        if any(k in stderr for k in ("Sign in", "bot", "HTTP Error 403", "403 Forbidden", "This video is private")):
+            return "auth"
+        if "Requested format is not available" in stderr:
+            return "format"
+        return "unknown"
+
     try:
         result = run_ytdlp(cookie_path)
         
         mp3_path = os.path.join(output_dir, f"{video_id}.mp3")
         success = os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 1000
         
-        # If download failed, maybe cookies expired. Force refresh cookies once and retry.
+        # Smart retry: only refresh cookies on auth errors, not DNS/format errors
         if not success:
-            logger.warning(f"[{video_id}] First download attempt failed. Regenerating/Refreshing cookies and retrying...")
-            cookie_path = ensure_cookies_file(force_refresh=True)
-            result = run_ytdlp(cookie_path)
+            err_category = _classify_error(result.stderr)
+            if err_category == "dns":
+                logger.warning(
+                    f"[{video_id}] [NETWORK DOWN] DNS resolution failed — "
+                    f"skipping cookie refresh (cookies are not the problem)"
+                )
+                # Still attempt retry in case network recovered
+                result = run_ytdlp(cookie_path)
+            elif err_category == "format":
+                logger.warning(
+                    f"[{video_id}] Format not available — "
+                    f"skipping cookie refresh (auth is not the problem)"
+                )
+                # Don't retry — format error won't resolve with same config
+            elif err_category in ("auth", "unknown"):
+                logger.warning(
+                    f"[{video_id}] Auth/unknown error ({err_category}) — "
+                    f"refreshing cookies and retrying..."
+                )
+                cookie_path = ensure_cookies_file(force_refresh=True)
+                result = run_ytdlp(cookie_path)
             success = os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 1000
 
         if result.returncode != 0:
