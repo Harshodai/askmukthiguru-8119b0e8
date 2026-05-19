@@ -201,10 +201,10 @@ class SupabaseAuthStrategy(AuthStrategy):
             }
 
         except jwt.ExpiredSignatureError:
-            logger.warning("Supabase token expired")
+            logger.warning("Supabase credential expired")
             raise HTTPException(status_code=401, detail="Token expired. Please sign in again.")
         except (jwt.InvalidTokenError, PyJWKClientError) as e:
-            logger.warning(f"Invalid Supabase token: {e}")
+            logger.warning(f"Invalid Supabase credential: {type(e).__name__}")
             return None
         except Exception as e:
             logger.error(f"Supabase auth bridge error: {type(e).__name__}: {e}")
@@ -226,7 +226,7 @@ class SupabaseAuthStrategy(AuthStrategy):
             base_url = settings.supabase_url.rstrip("/")
             service_key = getattr(settings, 'supabase_service_key', None) or settings.supabase_key
             if not service_key:
-                logger.debug("No Supabase service key — cannot check admin role")
+                logger.debug("Supabase admin credential unavailable; cannot check admin role")
                 return False
 
             async with httpx.AsyncClient() as client:

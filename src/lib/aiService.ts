@@ -336,6 +336,46 @@ export const generateSummary = async (messages: MessagePayload[]): Promise<strin
   }
 };
 
+export const generateConversationTitle = async (firstUserMessage: string): Promise<string> => {
+  const { provider, endpoint } = currentConfig;
+  const fallback = firstUserMessage.trim().slice(0, 48);
+  if (provider !== 'custom' || !endpoint || !fallback) return fallback || 'New conversation';
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'system',
+            content: 'Create a concise chat title. Return only the title, no quotes, no punctuation at the end.',
+          },
+        ],
+        user_message: `Title this conversation in 3 to 6 words: ${firstUserMessage}`,
+        language: 'en',
+      }),
+    });
+
+    if (!response.ok) return fallback;
+    const data = await response.json();
+    const raw = String(data.response || data.choices?.[0]?.message?.content || data.content || fallback);
+    const title = raw
+      .split('\n')[0]
+      .replace(/^["'`]+|["'`.]+$/g, '')
+      .trim();
+    return title.length > 60 ? `${title.slice(0, 57)}...` : title || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 
 export const checkConnection = async (): Promise<{ connected: boolean; mode: string }> => {
   const { provider, endpoint } = currentConfig;

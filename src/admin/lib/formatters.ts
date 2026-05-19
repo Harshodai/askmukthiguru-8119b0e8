@@ -11,6 +11,13 @@ export const fmtUsd = (v: number) =>
       ? `$${v.toFixed(3)}`
       : `$${v.toFixed(5)}`;
 
+export const fmtInr = (v: number) =>
+  v >= 1
+    ? `₹${v.toFixed(2)}`
+    : v >= 0.01
+      ? `₹${v.toFixed(3)}`
+      : `₹${v.toFixed(5)}`;
+
 export const fmtInt = (v: number) => v.toLocaleString();
 
 export const fmtDateTime = (iso: string) => {

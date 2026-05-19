@@ -1154,8 +1154,9 @@ async def handle_distress(state: GraphState) -> dict:
     question = state["question"]
     
     # Get Serene Mind assessment
+    chat_history = state.get("chat_history", [])
     if _serene_mind is not None:
-        assessment = await _serene_mind.async_assess_distress(question)
+        assessment = await _serene_mind.async_assess_distress(question, chat_history)
     else:
         assessment = DistressAssessment(level=DistressLevel.MODERATE, confidence=0.5)
     
