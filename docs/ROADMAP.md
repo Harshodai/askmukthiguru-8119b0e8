@@ -115,11 +115,6 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 
 ## Next up (frontend, deferred from this run)
 
-- **Sidebar redesign v2** — ChatGPT/Claude-style bottom user card, edge-grouped sections (Today/Yesterday/Previous 7 days/Older), 56px icon-rail collapse
-- **D17** Partial-stream persistence (debounced 500 ms save during streaming)
-- **D18b** Regenerate button on last guru message (uses `AbortController` in `aiService.ts`)
-- **D19** Keyboard shortcuts (⌘↵ submit, ⌘/ focus, ⌘B sidebar, ⌘⇧O new chat)
-- **D20** Mobile swipe-from-left to open sidebar
 - **D21** First-3-sessions tooltip pulse on mic
 - **C12** Daily-teaching webp + `srcset` via Supabase Storage transforms
 - **C13** Prefetch `/chat` chunk + warm Supabase auth from landing
