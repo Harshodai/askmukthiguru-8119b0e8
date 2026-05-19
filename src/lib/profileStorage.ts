@@ -35,7 +35,8 @@ export interface UserProfile {
   avatarDataUrl: string | null; // base64 data URL (kept small, validated)
   avatarUrl?: string | null; // Remote URL (e.g. Google profile photo)
   bio: string;
-  preferredLanguage: 'en' | 'hi' | 'te' | 'ml';
+  /** ISO code of one of the 22 scheduled Indic languages + English */
+  preferredLanguage: string;
   guruTone: GuruTone;
   theme: ThemePreference;
   ttsEnabled: boolean;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
 interface UseTextToSpeechOptions {
   lang?: string;
@@ -19,13 +20,15 @@ interface UseTextToSpeechReturn {
   currentVoice: SpeechSynthesisVoice | null;
 }
 
-// Language to voice language code mapping
-const languageMap: Record<string, string[]> = {
-  en: ['en-IN', 'en-US', 'en-GB', 'en-AU'],
-  hi: ['hi-IN', 'hi'],
-  te: ['te-IN', 'te'],
-  ml: ['ml-IN', 'ml'],
-};
+// Build language -> preferred BCP-47 tags from canonical LANGUAGES list.
+// English keeps multi-region fallbacks; every other language uses its native BCP-47 plus a bare ISO code.
+const languageMap: Record<string, string[]> = LANGUAGES.reduce(
+  (acc, l) => {
+    acc[l.code] = l.code === 'en' ? ['en-IN', 'en-US', 'en-GB', 'en-AU'] : [l.bcp47, l.code];
+    return acc;
+  },
+  {} as Record<string, string[]>,
+);
 
 export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechReturn => {
   const { lang = 'en', rate = 0.9, pitch = 1, volume = 1 } = options;
