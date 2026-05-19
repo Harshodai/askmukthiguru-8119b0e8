@@ -691,11 +691,30 @@ export const ChatInterface = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
+
+  // ── Keyboard shortcuts (Ctrl+Enter / Ctrl+Shift+O / Ctrl+/) ──────
+  useChatShortcuts({
+    onSubmit: () => {
+      if (inputValue.trim() && !isTyping && !isStreaming) {
+        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+      }
+    },
+    onNewChat: handleNewConversation,
+    onFocusInput: () => inputRef.current?.focus(),
+  });
+
+  // ── Left-edge swipe opens mobile conversation sheet (D20) ────────
+  useSwipeGesture({
+    edgeOnly: true,
+    onSwipeRight: () => setShowMobileSheet(true),
+    enabled: !showMobileSheet,
+  });
 
   const showStarters = messages.length <= 1 && messages[0]?.role === 'guru';
 
