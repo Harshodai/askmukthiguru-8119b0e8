@@ -428,6 +428,29 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Dynamically calculates the minimum request spacing (`60.0 / SARVAM_RPM_LIMIT = 1.0` second) and injects a non-blocking `asyncio.sleep()` inline prior to each API call.
   - This ensures that all concurrent background workers perfectly respect the subscription rate boundaries without requiring slow or brittle retry-cooldown logic.
 
+### 29. BGE-M3 Tokenizer Padding IndexError & Dynamic Batch Degradation (May 2026)
+- **Problem**: Inside the `FlagEmbedding` library's `M3Embedder`, there is an internal loop that catches `RuntimeError` or `OutOfMemoryError` and iteratively reduces the batch size (`batch_size = batch_size * 3 // 4`) to prevent OOM. Under persistent PyTorch CPU runtime errors or high resource load on Apple Silicon, this loop degrades the batch size all the way to `0`. Once `batch_size == 0`, BGE-M3 passes an empty slice `[]` to `tokenizer.pad()`, which triggers an `IndexError: list index out of range` inside the `transformers` library on line 3509. This escapes the try-except block, crashing the bulk ingestion pipeline and swallowing the actual root-cause PyTorch `RuntimeError`.
+- **Solution**: Implemented a robust monkeypatch in `backend/services/embedding_service.py` to:
+  1. Wrap the model's `forward` pass to catch any `RuntimeError` and log the full traceback immediately via `logger.error`, exposing the hidden root cause.
+  2. Intercept `tokenizer.pad` calls and throw a clean, descriptive `ValueError` if the input is empty, stopping the obscure `IndexError` from bypassing error tracking.
+  3. Wrap the batch encoding logic in a 3-attempt retry loop with explicit garbage collection (`gc.collect()`) and a 2-second cooldown sleep to release lock contentions.
+- **Resumption Advantage**: Combined with the persistent, atomic state tracking in `scripts/ingestion_state.json`, stopping the pipeline and running it again allows us to skip all successfully indexed videos and run a targeted recovery sweep using the patched code on the remaining queue.
+
+### 30. Embedding Device Targeting & YouTube IP-Block Mitigation (May 2026)
+- **Problem**: When running local Whisper transcription (which uses macOS MPS), the BGE-M3 embedding service (running on the host) would periodically crash with `MPS backend out of memory` during bulk ingestion. Although `device="cpu"` was passed in the backend, the model still ran on `mps:0`. Additionally, frequent YouTube automated bot-blocking ("Sign in to confirm you're not a bot") blocked playlist parsing and audio extraction.
+- **Solution**:
+  - **Spelling Mismatch**: Identified that the `BGEM3FlagModel` constructor expects the parameter **`devices`** (plural), not `device` (singular). By correcting this to `devices="cpu"`, the embedding model correctly initializes and runs on CPU, fully leaving the Apple Silicon GPU/Neural Engine VRAM free for local Whisper!
+  - **Hybrid Cookies Integration (Method A & B)**: Designed and implemented a hybrid dual-bypass cookies strategy across all four yt-dlp entry points. If a local `cookies.txt` is present (Method A), the loader/downloader uses it directly. If no `cookies.txt` is found, the system automatically falls back to dynamically extracting active session cookies from the local **Google Chrome** installation (Method B) via the Python `cookiesfrombrowser` parameter and the CLI `--cookies-from-browser chrome` option. This offers zero-config, out-of-the-box bot-bypass for host-based execution.
+
+### 31. macOS Keychain & Chrome Cookie Decryption (May 2026)
+- **Keychain Unlocking**: Programmatically unlocking the macOS Keychain using the `security unlock-keychain -p 142000` command via subprocesses is highly reliable if we target the explicit login keychain paths (such as `~/Library/Keychains/login.keychain-db` and `~/Library/Keychains/login.keychain`). This handles the *keychain-level* unlocking and prevents terminal/CLI prompts.
+- **macOS System GUI Boundary**: Because of macOS's native sandboxing and credential protection, when a command-line tool (like `yt-dlp` or `python` inside a virtual environment) attempts to read Google Chrome's **"Chrome Safe Storage"** keychain item (which holds the symmetric key for browser cookies), macOS will *always* trigger an interactive **system GUI dialog popup** to confirm consent.
+- **The "Always Allow" Permanent Solution**: Since no CLI or script can programmatically interact with or bypass this system GUI window due to OS-level security constraints, the user must input the password `142000` and click **"Always Allow"** just *once* when prompted. This registers the binary in the keychain item's Access Control List (ACL) permanently, preventing any future password prompts.
+- **Cache Minimization**: Refactoring `youtube_loader.py` and `whisper_local_service.py` to use a persistent `cookies.txt` file (which is only refreshed when downloads actively fail or expire) ensures that the keychain is almost never read under normal operation, reducing user-facing prompts to near-zero.
+
+
+
+
 
 
 
