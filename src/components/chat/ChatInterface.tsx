@@ -291,14 +291,16 @@ export const ChatInterface = () => {
     }
   }, [ttsEnabled, ttsSupported, stopSpeaking, toast]);
 
-  // Handle language change
+  // Handle language change — persist to profile, push to AI service, restart STT in new lang
   const handleLanguageChange = useCallback((code: string) => {
-    setCurrentLanguage(code as typeof profile.preferredLanguage);
+    setCurrentLanguage(code);
+    setAILanguage(code);
+    updateProfile({ preferredLanguage: code });
     if (isListening) {
       stopListening();
-      setTimeout(() => startListening(), 100);
+      setTimeout(() => startListening(), 150);
     }
-  }, [isListening, stopListening, startListening]);
+  }, [isListening, stopListening, startListening, updateProfile]);
 
   // Save conversation whenever messages change (use ref to avoid re-render loop)
   const currentConversationRef = useRef(currentConversation);
