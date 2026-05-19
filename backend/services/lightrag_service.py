@@ -157,7 +157,7 @@ class LightRAGService:
         except Exception as e:
             logger.error(f"❌ Failed to initialize LightRAG: {e}", exc_info=True)
 
-    async def aquery(self, query: str, mode: str = "hybrid") -> str:
+    async def aquery(self, query: str, mode: str = "hybrid", only_need_context: bool = False) -> str:
         """
         Execute GraphRAG query async.
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
@@ -171,14 +171,14 @@ class LightRAGService:
             
         from lightrag import QueryParam
         try:
-            logger.info(f"Querying LightRAG graph (mode={mode})...")
-            return await self.rag.aquery(query, param=QueryParam(mode=mode))
+            logger.info(f"Querying LightRAG graph (mode={mode}, only_need_context={only_need_context})...")
+            return await self.rag.aquery(query, param=QueryParam(mode=mode, only_need_context=only_need_context))
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
                 logger.warning("LightRAG storage not initialized, retrying...")
                 await self.rag.initialize_storages()
-                return await self.rag.aquery(query, param=QueryParam(mode=mode))
+                return await self.rag.aquery(query, param=QueryParam(mode=mode, only_need_context=only_need_context))
             logger.error(f"LightRAG query failed: {e}")
             return ""
 

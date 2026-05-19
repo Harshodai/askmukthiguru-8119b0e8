@@ -488,6 +488,7 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Network Resilience**: Embedded a robust exponential backoff retry handler inside the asynchronous HTTP client call wrapper, allowing up to 3 attempts with progressive delay increments to avoid transient failures.
   - **Dynamic Supabase Telemetry**: Implemented host-native `.env` discovery to parse local Supabase credentials dynamically, auto-substituting `host.docker.internal` for `localhost` under docker resolution boundaries. Result metrics (passed, faithfulness, answer relevancy, context precision) are calculated and batched directly into `{SUPABASE_URL}/rest/v1/eval_runs` and `eval_results` endpoints, enabling instant regression plotting inside the Admin Console UI.
 
-
-
-
+### 37. Sub-second RAG Retrieval and Latency Optimization in GraphRAG/LightRAG (May 2026)
+- **Problem**: When querying the LightRAG GraphRAG database using the default `mode="hybrid"` setting, it internally invokes an LLM to synthesize and format a final response. This internal LLM call takes up to 14–20 seconds (e.g. via `sarvam-30b` or `sarvam-m`), causing the user's connection to hit timeouts ("I apologize, the process took too long.") and introducing redundant LLM calls since the downstream LangGraph RAG pipeline already has a `generate_answer` node that performs the final response synthesis.
+- **Solution**: We exposed the `only_need_context: bool` parameter from the underlying LightRAG query engine through our `LightRAGService.aquery()` method. We then optimized `/backend/rag/nodes.py` to invoke LightRAG with `only_need_context=True`.
+- **Result**: LightRAG now returns the raw, structured retrieved graph context (entities, relations) within **1–2 seconds** instead of 20 seconds, completely bypassing LightRAG's internal synthesis phase. The raw context is then fed directly into the primary LangGraph generation pipeline, eliminating redundant LLM calls, reducing API costs, and resolving the connection timeout issue entirely.

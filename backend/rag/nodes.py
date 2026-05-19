@@ -387,7 +387,7 @@ async def retrieve_for_single_query(
     lightrag_results = []
     if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
         try:
-            graph_answer = await lightrag.aquery(query, mode="hybrid")
+            graph_answer = await lightrag.aquery(query, mode="hybrid", only_need_context=True)
             if graph_answer:
                 lightrag_results.append({
                     "text": graph_answer,
