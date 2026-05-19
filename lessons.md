@@ -454,3 +454,10 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 
 
 
+### 32. Systemic yt-dlp "n challenge" Failures and Smart Error Handling (May 2026)
+- **Problem**: The ingestion pipeline encountered a 99% failure rate with `yt-dlp` throwing "Requested format is not available" errors. This was caused by YouTube's "nsig" challenge, which requires a JavaScript runtime to execute obfuscated JS code dynamically.
+- **Solution**: 
+  - Injected explicit `--js-runtimes` and `--remote-components` configuration flags into all `yt-dlp` API calls (both subprocess downloads and Python API usage) to force the use of `node` to resolve the challenges.
+  - Implemented smart error classification in `whisper_local_service.py` to differentiate between Authentication/Bot errors, DNS resolution failures, and Format errors. Cookie refreshes are now only triggered on genuine Auth/Bot errors, eliminating 200+ wasted keychain unlock operations during network drops.
+  - Removed redundant Whisper transcript processing during the LightRAG step by leveraging cached Qdrant transcript text.
+  - Hardened security by pulling `KEYCHAIN_PASS` from `.env` instead of source code, and gated debug JSON writes behind a `SARVAM_DEBUG` flag to prevent unbounded disk usage.
