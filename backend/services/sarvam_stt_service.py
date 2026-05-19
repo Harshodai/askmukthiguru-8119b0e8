@@ -39,8 +39,29 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
     url = f"https://www.youtube.com/watch?v={video_id}"
     output_template = os.path.join(output_dir, f"{video_id}.%(ext)s")
 
+    # Search for cookies.txt in standard workspace locations
+    possible_paths = [
+        os.path.join(os.getcwd(), "cookies.txt"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cookies.txt"),
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+    ]
+    cookie_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            cookie_path = path
+            break
+
     cmd = [
         "yt-dlp",
+    ]
+    if cookie_path:
+        cmd.extend(["--cookies", cookie_path])
+        logger.info(f"[{video_id}] Using cookies from: {cookie_path}")
+    else:
+        cmd.extend(["--cookies-from-browser", "chrome"])
+        logger.info(f"[{video_id}] Using Chrome cookies-from-browser fallback")
+
+    cmd.extend([
         "-x",                          # Extract audio only
         "--audio-format", "mp3",
         "--audio-quality", "128K",
@@ -50,7 +71,7 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         "--no-warnings",
         "-o", output_template,
         url,
-    ]
+    ])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)

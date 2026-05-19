@@ -31,6 +31,29 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _get_cookies_opts() -> dict:
+    """Get yt-dlp cookie options. Falls back to Chrome cookies if cookies.txt is not found."""
+    import os
+    try:
+        from services.cookie_helper import ensure_cookies_file
+        cookie_path = ensure_cookies_file()
+        if cookie_path and os.path.exists(cookie_path):
+            return {'cookiefile': cookie_path}
+    except Exception as e:
+        logger.warning(f"Failed to use automated cookie_helper in youtube_loader: {e}")
+
+    possible_paths = [
+        os.path.join(os.getcwd(), "cookies.txt"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cookies.txt"),
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return {'cookiefile': path}
+    # Fallback to direct Chrome cookie extraction
+    return {'cookiesfrombrowser': ('chrome',)}
+
+
 # ============================================================
 # URL Utilities
 # ============================================================
@@ -84,6 +107,7 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
         'extract_flat': True,
         'no_warnings': True,
     }
+    ydl_opts.update(_get_cookies_opts())
 
     videos = []
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -197,35 +221,50 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
 
     url = f"https://www.youtube.com/watch?v={video_id}"
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        ydl_opts = {
-            'skip_download': True,
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitleslangs': languages,
-            'subtitlesformat': 'vtt/srt/best',
-            'outtmpl': f"{tmp_dir}/subs",
-            'quiet': True,
-            'no_warnings': True,
-        }
+    def run_download():
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            ydl_opts = {
+                'skip_download': True,
+                'writesubtitles': True,
+                'writeautomaticsub': True,
+                'subtitleslangs': languages,
+                'subtitlesformat': 'vtt/srt/best',
+                'outtmpl': f"{tmp_dir}/subs",
+                'quiet': True,
+                'no_warnings': True,
+            }
+            ydl_opts.update(_get_cookies_opts())
 
-        try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-        except Exception as e:
-            logger.warning(f"[{video_id}] Tier 3 yt-dlp download failed: {e}")
+
+            sub_files = glob.glob(f"{tmp_dir}/subs*.vtt") + glob.glob(f"{tmp_dir}/subs*.srt")
+            if sub_files:
+                return _parse_subtitle_file(sub_files[0])
             return None
 
-        sub_files = glob.glob(f"{tmp_dir}/subs*.vtt") + glob.glob(f"{tmp_dir}/subs*.srt")
-
-        if not sub_files:
-            logger.debug(f"[{video_id}] Tier 3: No subtitle files downloaded")
-            return None
-
-        text = _parse_subtitle_file(sub_files[0])
+    try:
+        text = run_download()
         if text and text.strip():
             logger.info(f"[{video_id}] ✅ Tier 3 yt-dlp subtitles: {len(text)} chars")
             return text.strip()
+
+        # If failed, refresh cookies once and retry
+        logger.warning(f"[{video_id}] Tier 3 yt-dlp download failed or yielded no files. Refreshing cookies and retrying...")
+        try:
+            from services.cookie_helper import ensure_cookies_file
+            ensure_cookies_file(force_refresh=True)
+        except Exception as e:
+            logger.warning(f"Failed to refresh cookies: {e}")
+
+        text = run_download()
+        if text and text.strip():
+            logger.info(f"[{video_id}] ✅ Tier 3 yt-dlp subtitles (retry): {len(text)} chars")
+            return text.strip()
+
+        return None
+    except Exception as e:
+        logger.warning(f"[{video_id}] Tier 3 yt-dlp download failed: {e}")
         return None
 
 
@@ -305,6 +344,18 @@ def fetch_transcript_hybrid(
     if settings.enable_transcript_council or os.environ.get("WHISPER_ONLY", "false").lower() == "true":
         logger.info(f"[{video_id}] Running local Whisper large-v3-turbo STT...")
         whisper_text = _run_whisper_stt(video_id)
+
+        # Fallback: if Whisper STT fails (e.g. audio download blocked) and we skipped YouTube captions,
+        # fetch YouTube captions now so we don't fail the ingestion entirely.
+        if not whisper_text and os.environ.get("WHISPER_ONLY", "false").lower() == "true":
+            logger.warning(
+                f"[{video_id}] ⚠️ Local Whisper STT failed/blocked. "
+                f"Falling back to YouTube captions API..."
+            )
+            youtube_text = _fetch_youtube_captions(video_id, languages, allow_auto=True)
+            if not youtube_text:
+                logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download as final fallback...")
+                youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
 
         from services.whisper_local_service import council_pick_best
         council_result = council_pick_best(youtube_text, whisper_text, video_id)

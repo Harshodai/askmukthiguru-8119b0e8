@@ -29,29 +29,55 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
     Download YouTube audio as mono 16kHz MP3 using yt-dlp.
     Returns the path to the downloaded file, or None on failure.
     """
+    from services.cookie_helper import ensure_cookies_file
+
     url = f"https://www.youtube.com/watch?v={video_id}"
     output_template = os.path.join(output_dir, f"{video_id}.%(ext)s")
 
-    cmd = [
-        "yt-dlp",
-        "-x",                          # Extract audio only
-        "--audio-format", "mp3",
-        "--audio-quality", "128K",
-        "--postprocessor-args", "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono for STT
-        "--no-playlist",
-        "--quiet",
-        "--no-warnings",
-        "-o", output_template,
-        url,
-    ]
+    # Ensure we have a valid cookies.txt file (will unlock keychain and extract if missing)
+    cookie_path = ensure_cookies_file()
+
+    def run_ytdlp(c_path):
+        cmd = [
+            "yt-dlp",
+        ]
+        if c_path:
+            cmd.extend(["--cookies", c_path])
+            logger.info(f"[{video_id}] Using cookies from: {c_path}")
+        else:
+            cmd.extend(["--cookies-from-browser", "chrome"])
+            logger.info(f"[{video_id}] Using Chrome cookies-from-browser fallback")
+
+        cmd.extend([
+            "-x",                          # Extract audio only
+            "--audio-format", "mp3",
+            "--audio-quality", "128K",
+            "--postprocessor-args", "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono for STT
+            "--no-playlist",
+            "--quiet",
+            "--no-warnings",
+            "-o", output_template,
+            url,
+        ])
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = run_ytdlp(cookie_path)
+        
+        mp3_path = os.path.join(output_dir, f"{video_id}.mp3")
+        success = os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 1000
+        
+        # If download failed, maybe cookies expired. Force refresh cookies once and retry.
+        if not success:
+            logger.warning(f"[{video_id}] First download attempt failed. Regenerating/Refreshing cookies and retrying...")
+            cookie_path = ensure_cookies_file(force_refresh=True)
+            result = run_ytdlp(cookie_path)
+            success = os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 1000
+
         if result.returncode != 0:
             logger.warning(f"[{video_id}] yt-dlp warning: {result.stderr[:300]}")
 
-        mp3_path = os.path.join(output_dir, f"{video_id}.mp3")
-        if os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 1000:
+        if success:
             size_mb = os.path.getsize(mp3_path) / (1024 * 1024)
             logger.info(f"[{video_id}] Audio downloaded: {size_mb:.1f} MB")
             return mp3_path
