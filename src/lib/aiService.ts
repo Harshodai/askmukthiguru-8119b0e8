@@ -234,6 +234,7 @@ export const sendMessage = async (
           user_message: userMessage,
           meditation_step: meditationStep,
           session_id: sessionId,
+          language: currentConfig.language || 'en',
         }),
       });
 
