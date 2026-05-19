@@ -63,10 +63,10 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 ## P4 — UX delight (1 sprint)
 
 - [x] **D16** Inline rename + destructive confirm in conversation sidebar
-- [ ] **D17** Persist partial assistant message during stream (debounced 500 ms)
-- [ ] **D18b** Regenerate button (rerun last user turn)
-- [ ] **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus, ⌘B sidebar
-- [ ] **D20** Mobile swipe-from-left to open sidebar
+- [x] **D17** Persist partial assistant message during stream (debounced 500 ms checkpoint in `sessionStorage`)
+- [x] **D18b** Regenerate button (rerun last user turn) — `handleRegenerate` in `ChatInterface.tsx`
+- [x] **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat, ⌘B sidebar (`useChatShortcuts.ts`)
+- [x] **D20** Mobile swipe-from-left to open sidebar (`useSwipeGesture.ts`, edge-only)
 - [ ] **D21** First-3-sessions tooltip pulse on mic
 - [ ] **E22** Web-push notifications for new daily teaching (VAPID + `pg_net`)
 - [ ] **E23** `/teachings` archive page
