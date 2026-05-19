@@ -469,3 +469,10 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Handled `history_messages` in `lightrag_service.py` with robust type checks (handling dicts, strings, and other objects) to guarantee failure-free context formatting.
   - Gated parsing errors gracefully inside the keyword extractor (returning empty lists `[], []` instead of raising unhandled exceptions), allowing query execution to fallback to general entities or standard vector search without crashing.
 
+### 34. Dynamic Book Citations and RAG Knowledge Source Filtering (May 2026)
+- **Problem**: When presenting citations for deep spiritual queries, the RAG response initially enriched answers with generic Amazon.com book links (e.g. `amazon.com/dp/1982112102` or `amazon.com/dp/1501173775`). Since these were hardcoded in the answer enrichment layer (`backend/rag/nodes.py`), they routed Indian users to US-based product pages, which is a suboptimal UX. Additionally, the user requested clarification on why individual YouTube video URLs were not appearing in the citations for certain queries.
+- **Solution**:
+  - Updated `backend/rag/nodes.py` to point to the correct regional book listing on Amazon India (`https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319`).
+  - Documented that the RAG engine's citation generator is *strictly data-driven*. For video-derived text chunks, the original YouTube watch URLs (`https://www.youtube.com/watch?v={video_id}`) are dynamically added to the citation list if and only if those specific chunks are retrieved by the vector/graph database and pass the CrossEncoder reranking layer. If a query matches only print-based sources (like `The_Four_Sacred_Secrets.pdf`), the individual video URLs are omitted, with the official channel link acting as a generalized fallback.
+
+

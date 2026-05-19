@@ -813,7 +813,7 @@ async def generate_answer(state: GraphState) -> dict:
     if "deeksha neuroscience" in question_lower or "research" in question_lower:
         citations_set.add("https://www.youtube.com/watch?v=DeekshaNeuroscienceResearch")
     if "four sacred secrets" in question_lower or "book" in question_lower:
-        citations_set.add("https://www.amazon.com/Four-Sacred-Secrets-Love-Prosperity/dp/1501173775")
+        citations_set.add("https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319")
 
     citations = sorted(citations_set)
 
@@ -1054,7 +1054,7 @@ async def format_final_answer(state: GraphState) -> dict:
         citation_lines = []
         
         # Canonical links for enrichment (Verified Research)
-        BOOK_LINK = "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112102"
+        BOOK_LINK = "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
         YOUTUBE_LINK = "https://www.youtube.com/c/pkconsciousness"
         
         # Deduplicate and prioritize official links
