@@ -12,6 +12,7 @@ import {
   fmtInt,
   fmtMs,
   fmtPct,
+  fmtInr,
   fmtUsd,
   truncate,
   fmtDateTime,
@@ -66,7 +67,7 @@ export default function OverviewPage() {
         />
         <KpiCard
           label="Estimated cost"
-          value={isLoading ? "…" : fmtUsd(kpis?.estimated_cost_usd ?? 0)}
+          value={isLoading ? "…" : fmtInr(kpis?.estimated_cost_inr ?? kpis?.estimated_cost_usd ?? 0)}
         />
         <KpiCard
           label="Error rate"
@@ -95,7 +96,7 @@ export default function OverviewPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-base">Cost (USD)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Cost</CardTitle></CardHeader>
           <CardContent>
             <TimeseriesChart data={costTs} formatter={fmtUsd} color="hsl(var(--secondary))" />
           </CardContent>
@@ -141,7 +142,7 @@ export default function OverviewPage() {
             `Hallucination rate: ${((kpis.hallucination_rate ?? 0) * 100).toFixed(1)}%`,
             `Serene Mind trigger rate: ${((kpis.serene_mind_trigger_rate ?? 0) * 100).toFixed(1)}%`,
             `Thumbs up rate: ${((kpis.thumbs_up_rate ?? 0) * 100).toFixed(1)}%`,
-            `Estimated cost: $${(kpis.estimated_cost_usd ?? 0).toFixed(4)} USD`,
+            `Estimated cost: ₹${(kpis.estimated_cost_inr ?? kpis.estimated_cost_usd ?? 0).toFixed(4)} INR`,
             `Error rate: ${((kpis.error_rate ?? 0) * 100).toFixed(2)}%`,
           ].join('\n') : undefined} />
         </TabsContent>
@@ -150,7 +151,7 @@ export default function OverviewPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Top retrieved sources</CardTitle></CardHeader>
             <CardContent className="space-y-1.5">
-              {retr?.sources ? retr.sources.slice(0, 10).map((s: any) => (
+              {retr?.sources ? retr.sources.slice(0, 10).map((s: { source: string; count: number; avgFaith: number }) => (
                 <div key={s.source} className="flex items-center justify-between text-sm border-b border-border/40 pb-1.5 last:border-0">
                   <span className="font-mono text-xs truncate flex-1">{s.source}</span>
                   <span className="tabular-nums text-xs text-muted-foreground w-20 text-right">{fmtInt(s.count)}</span>

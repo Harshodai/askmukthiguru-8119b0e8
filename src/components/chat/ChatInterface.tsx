@@ -15,8 +15,8 @@ import {
   updateConversationSummary,
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, setLanguage as setAILanguage } from '@/lib/aiService';
-import { hashMessages, getCachedResponse, setCachedResponse } from '@/lib/responseCache';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage } from '@/lib/aiService';
+import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
@@ -109,6 +109,7 @@ export const ChatInterface = () => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
+  const titleGenerationRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   // ── Scroll tracking ──────────────────────────────────────────────
@@ -331,6 +332,7 @@ export const ChatInterface = () => {
   const handleLanguageChange = useCallback((code: string) => {
     setCurrentLanguage(code);
     setAILanguage(code);
+    clearResponseCache();
     updateProfile({ preferredLanguage: code });
     if (isListening) {
       stopListening();
@@ -349,7 +351,9 @@ export const ChatInterface = () => {
         ...conv,
         messages,
         messageCount: messages.length,
-        preview: getConversationPreview(messages),
+        preview: conv.preview && conv.preview !== 'New conversation'
+          ? conv.preview
+          : getConversationPreview(messages),
         updatedAt: new Date(),
         summary: conv.summary,
       };
@@ -357,7 +361,6 @@ export const ChatInterface = () => {
       setCurrentConversation(updatedConversation);
       setRefreshTrigger(prev => prev + 1);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   // Scroll to bottom when new messages arrive (only if near bottom)
@@ -372,14 +375,26 @@ export const ChatInterface = () => {
     }
   }, [messages, isTyping, scrollToBottom]);
 
-  const handleSubmit = async (e: React.FormEvent, overrideText?: string) => {
+  const handleSubmit = async (
+    e: React.FormEvent,
+    overrideText?: string,
+    options: {
+      appendUser?: boolean;
+      baseMessages?: Message[];
+      historyMessages?: Message[];
+      bypassCache?: boolean;
+    } = {},
+  ) => {
     e.preventDefault();
     const textToSend = overrideText ?? inputValue;
-    console.log("[ChatInterface] handleSubmit triggered, textToSend:", textToSend, "isTyping:", isTyping, "inputValue:", inputValue);
     if (!textToSend.trim() || isTyping) {
-      console.log("[ChatInterface] handleSubmit returned early!");
       return;
     }
+
+    const appendUser = options.appendUser ?? true;
+    const baseMessages = options.baseMessages ?? messages;
+    const historyMessages = options.historyMessages ?? baseMessages;
+    const isFirstUserMessage = appendUser && baseMessages.every((m) => m.role !== 'user');
 
     const userMessage: Message = {
       id: generateId(),
@@ -388,7 +403,11 @@ export const ChatInterface = () => {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    if (appendUser) {
+      setMessages((prev) => [...prev, userMessage]);
+    } else if (options.baseMessages) {
+      setMessages(options.baseMessages);
+    }
     if (!overrideText) setInputValue('');
     
     // Reset textarea height
@@ -401,15 +420,15 @@ export const ChatInterface = () => {
     setIsTyping(true);
 
     // Convert messages to API format
-    const messageHistory: MessagePayload[] = messages.map((m) => ({
+    const messageHistory: MessagePayload[] = historyMessages.map((m) => ({
       role: m.role === 'guru' ? 'assistant' : 'user',
       content: m.content,
     }));
 
     // Check cache first
     const allMsgs = [...messageHistory, { role: 'user' as const, content: userMessage.content }];
-    const cacheKey = hashMessages(allMsgs);
-    const cached = getCachedResponse(cacheKey);
+    const cacheKey = `${currentLanguage}:${hashMessages(allMsgs)}`;
+    const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
 
     if (cached) {
       const guruMessage: Message = {
@@ -422,6 +441,21 @@ export const ChatInterface = () => {
       setMessages((prev) => [...prev, guruMessage]);
       setIsTyping(false);
       return;
+    }
+
+    if (isFirstUserMessage && currentConversation?.id && !titleGenerationRef.current.has(currentConversation.id)) {
+      titleGenerationRef.current.add(currentConversation.id);
+      generateConversationTitle(userMessage.content).then((title) => {
+        setCurrentConversation((prev) => {
+          if (!prev || prev.id !== currentConversation.id) return prev;
+          const updated = { ...prev, preview: title, updatedAt: new Date() };
+          saveConversation(updated);
+          return updated;
+        });
+        setRefreshTrigger((prev) => prev + 1);
+      }).catch(() => {
+        titleGenerationRef.current.delete(currentConversation.id);
+      });
     }
 
     // Summary helper — fire-and-forget after every ~6 user messages
@@ -589,7 +623,11 @@ export const ChatInterface = () => {
       setShowPipeline(false);
       setPipelineSteps([]);
       // Clear stream checkpoint on completion
-      try { sessionStorage.removeItem('askmukthiguru_stream_checkpoint'); } catch {}
+      try {
+        sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+      } catch {
+        // Storage can be unavailable in hardened browser modes.
+      }
     }
 
     if (streamingWorked) {
@@ -685,21 +723,45 @@ export const ChatInterface = () => {
   const handleRegenerate = useCallback(() => {
     if (isStreaming || isTyping) return;
     // Capture last user text BEFORE mutating messages state
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    const lastUserIdx = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') return i;
+      }
+      return -1;
+    })();
+    const lastUserMsg = lastUserIdx >= 0 ? messages[lastUserIdx] : undefined;
     if (!lastUserMsg) return;
-    // Remove the last guru message
-    setMessages(prev => {
-      const lastGuruIdx = [...prev].reverse().findIndex(m => m.role === 'guru');
-      if (lastGuruIdx === -1) return prev;
-      const realIdx = prev.length - 1 - lastGuruIdx;
-      return prev.filter((_, i) => i !== realIdx);
-    });
-    // Call handleSubmit with overrideText — zero state timing dependency
+    const lastGuruIdx = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'guru') return i;
+      }
+      return -1;
+    })();
+    const baseMessages = lastGuruIdx >= 0
+      ? messages.filter((_, i) => i !== lastGuruIdx)
+      : messages;
+    const historyMessages = baseMessages.slice(0, lastUserIdx);
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, lastUserMsg.content);
+    handleSubmit(fakeEvent, lastUserMsg.content, {
+      appendUser: false,
+      baseMessages,
+      historyMessages,
+      bypassCache: true,
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isTyping, messages]);
+  }, [isStreaming, isTyping, messages, currentLanguage]);
   // ─────────────────────────────────────────────────────────────────
+
+  const handleEditUserMessage = useCallback((message: Message) => {
+    setInputValue(message.content);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 128)}px`;
+      }
+    });
+  }, []);
 
   const handleNewConversation = () => {
     stopSpeaking();
@@ -794,7 +856,13 @@ export const ChatInterface = () => {
           className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
         >
           <div className="max-w-3xl mx-auto space-y-3">
-            <MessageList messages={messages} streamingId={streamingMessageId} streamingContent={streamingContent} onRegenerate={handleRegenerate} />
+            <MessageList
+              messages={messages}
+              streamingId={streamingMessageId}
+              streamingContent={streamingContent}
+              onRegenerate={handleRegenerate}
+              onEditUserMessage={handleEditUserMessage}
+            />
 
             {/* Suggested starters */}
             {showStarters && (

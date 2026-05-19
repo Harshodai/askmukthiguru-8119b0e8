@@ -17,7 +17,19 @@ const formatDateLabel = (date: Date): string => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export const MessageList = React.memo(({ messages, streamingId, streamingContent, onRegenerate }: { messages: Message[]; streamingId?: string; streamingContent?: string; onRegenerate?: () => void }) => {
+export const MessageList = React.memo(({
+  messages,
+  streamingId,
+  streamingContent,
+  onRegenerate,
+  onEditUserMessage,
+}: {
+  messages: Message[];
+  streamingId?: string;
+  streamingContent?: string;
+  onRegenerate?: () => void;
+  onEditUserMessage?: (message: Message) => void;
+}) => {
   // Find the ID of the last guru message for the regenerate button
   let lastGuruId: string | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -70,6 +82,7 @@ export const MessageList = React.memo(({ messages, streamingId, streamingContent
                 isStreaming={message.id === streamingId && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
                 isLastGuru={message.id === lastGuruId && !streamingId}
                 onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
+                onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
               />
             );
           })}
