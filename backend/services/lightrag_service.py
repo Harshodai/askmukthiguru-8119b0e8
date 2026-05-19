@@ -59,7 +59,12 @@ class LightRAGService:
             # Format history (lightrag provides dicts like {"role": "user", "content": "..."})
             context = ""
             for msg in history_messages:
-                context += f"\n{msg.get('role', 'user')}: {msg.get('content', '')}"
+                if isinstance(msg, dict):
+                    context += f"\n{msg.get('role', 'user')}: {msg.get('content', '')}"
+                elif isinstance(msg, str):
+                    context += f"\n{msg}"
+                else:
+                    context += f"\n{str(msg)}"
                 
             # If using Sarvam Cloud, route extraction tasks specifically to sarvam-m to avoid reasoning runaway
             if settings.llm_provider == "sarvam_cloud":
