@@ -74,13 +74,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
-
-const languages: { code: 'en' | 'hi' | 'te' | 'ml'; label: string }[] = [
-  { code: 'en', label: 'English' },
-  { code: 'hi', label: 'हिंदी (Hindi)' },
-  { code: 'te', label: 'తెలుగు (Telugu)' },
-  { code: 'ml', label: 'മലയാളം (Malayalam)' },
-];
+import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
 const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'gentle', label: 'Gentle', hint: 'Soft, nurturing replies' },
@@ -307,9 +301,11 @@ const ProfilePage = () => {
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          {languages.map(l => (
-                            <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>
+                        <SelectContent className="max-h-80">
+                          {LANGUAGES.map(l => (
+                            <SelectItem key={l.code} value={l.code}>
+                              {l.native} ({l.name})
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
