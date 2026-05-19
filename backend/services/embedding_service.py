@@ -58,8 +58,33 @@ class EmbeddingService:
                 self._encoder = BGEM3FlagModel(
                     settings.embedding_model,
                     use_fp16=False,   # FP16 requires CUDA; use False for CPU/Mac Docker
-                    device="cpu",
+                    devices="cpu",
                 )
+                
+                # Monkeypatch to catch and diagnose PyTorch model forward pass crashes
+                try:
+                    original_forward = self._encoder.model.forward
+                    def custom_forward(*args, **kwargs):
+                        try:
+                            return original_forward(*args, **kwargs)
+                        except Exception as e:
+                            logger.error(f"❌ ROOT CAUSE: BGE-M3 model forward pass failed: {e}", exc_info=True)
+                            raise e
+                    self._encoder.model.forward = custom_forward
+                    
+                    original_pad = self._encoder.tokenizer.pad
+                    def custom_pad(encoded_inputs, *args, **kwargs):
+                        if not encoded_inputs:
+                            raise ValueError(
+                                "tokenizer.pad received empty encoded_inputs. This is caused by the BGE-M3 "
+                                "batch_size loop degrading to 0 because of persistent model forward pass failures."
+                            )
+                        return original_pad(encoded_inputs, *args, **kwargs)
+                    self._encoder.tokenizer.pad = custom_pad
+                    logger.info("Successfully monkeypatched BGEM3FlagModel for robust error tracing.")
+                except Exception as e:
+                    logger.warning(f"Failed to apply BGEM3FlagModel monkeypatch: {e}")
+
             if self._reranker is None:
                 from sentence_transformers import CrossEncoder
                 logger.info(f"Loading reranker: {settings.reranker_model}")
@@ -94,14 +119,35 @@ class EmbeddingService:
         Returns:
             List of dense embedding vectors (1024 dims each)
         """
+        if not texts:
+            return []
+
         self._ensure_models()
-        output = self._encoder.encode(
-            texts,
-            return_dense=True,
-            return_sparse=False,
-            return_colbert_vecs=False,
-        )
-        return output['dense_vecs'].tolist()
+        
+        max_retries = 3
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                output = self._encoder.encode(
+                    texts,
+                    return_dense=True,
+                    return_sparse=False,
+                    return_colbert_vecs=False,
+                )
+                return output['dense_vecs'].tolist()
+            except Exception as e:
+                last_err = e
+                logger.warning(
+                    f"Dense embedding failed on attempt {attempt}/{max_retries}: {e}. "
+                    f"Performing garbage collection and retrying in 2 seconds..."
+                )
+                import gc
+                import time
+                gc.collect()
+                time.sleep(2)
+                
+        logger.error(f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}")
+        raise last_err
 
     def encode_single(self, text: str) -> list[float]:
         """Encode a single text into a dense vector."""
@@ -118,17 +164,38 @@ class EmbeddingService:
               - 'dense': list of dense vectors (1024d each)
               - 'sparse': list of sparse dicts {token_id: weight}
         """
+        if not texts:
+            return {'dense': [], 'sparse': []}
+
         self._ensure_models()
-        output = self._encoder.encode(
-            texts,
-            return_dense=True,
-            return_sparse=True,
-            return_colbert_vecs=False,
-        )
-        return {
-            'dense': output['dense_vecs'].tolist(),
-            'sparse': output['lexical_weights'],
-        }
+        
+        max_retries = 3
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                output = self._encoder.encode(
+                    texts,
+                    return_dense=True,
+                    return_sparse=True,
+                    return_colbert_vecs=False,
+                )
+                return {
+                    'dense': output['dense_vecs'].tolist(),
+                    'sparse': output['lexical_weights'],
+                }
+            except Exception as e:
+                last_err = e
+                logger.warning(
+                    f"Embedding failed on attempt {attempt}/{max_retries}: {e}. "
+                    f"Performing garbage collection and retrying in 2 seconds..."
+                )
+                import gc
+                import time
+                gc.collect()
+                time.sleep(2)
+                
+        logger.error(f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}")
+        raise last_err
 
     def encode_single_full(self, text: str) -> dict:
         """

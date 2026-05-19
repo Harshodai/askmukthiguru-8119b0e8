@@ -311,11 +311,30 @@ def get_video_ids_from_playlist(playlist_url: str) -> list[str]:
     """Resolve playlist URL to video IDs via yt-dlp Python API (not CLI)."""
     try:
         import yt_dlp
+        import os
+        possible_paths = [
+            os.path.join(os.getcwd(), "cookies.txt"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cookies.txt"),
+            "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+        ]
+        cookie_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                cookie_path = path
+                break
+
         ydl_opts = {
             'quiet': True,
             'extract_flat': True,
             'no_warnings': True,
         }
+        if cookie_path:
+            ydl_opts['cookiefile'] = cookie_path
+            logger.info(f"Using cookies from: {cookie_path}")
+        else:
+            ydl_opts['cookiesfrombrowser'] = ('chrome',)
+            logger.info("Using Chrome cookies-from-browser fallback")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info(playlist_url, download=False)
             if result and 'entries' in result:
@@ -514,6 +533,15 @@ async def main():
 
     seen = set()
     unique_ids = [v for v in all_ids if not (v in seen or seen.add(v))]
+
+    # Prioritize previously failed videos by moving them to the beginning of the queue
+    failed_ids = [
+        vid for vid, metric in state.get("metrics", {}).items()
+        if isinstance(metric, dict) and metric.get("status") == "failed" and vid not in state["processed_videos"]
+    ]
+    if failed_ids:
+        logger.info(f"🔄 Found {len(failed_ids)} previously failed videos. Prioritizing them at the beginning of the queue: {failed_ids}")
+        unique_ids = failed_ids + [v for v in unique_ids if v not in failed_ids]
 
     if args.video_limit > 0:
         unique_ids = unique_ids[:args.video_limit]
