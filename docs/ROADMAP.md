@@ -138,6 +138,7 @@ Pain points and upgrades, ranked into shippable phases. Imported from the
 - **DailyTeaching** — `expires_at` TTL filter + broken-image `onError` fallback
 - **Auth tests** — 10 passing unit tests in `src/tests/auth.e2e.test.ts`
 - **RAG benchmark** — `scripts/benchmark_rag_responses.py` with 10 curated spiritual queries
+- **Concurrent Ingestion & Scraper Optimization** — verified the lock-isolated multi-worker async ingestion pipeline (`bulk_ingest_async.py`) under concurrent Neo4j graph operations and Qdrant ingestion, and reduced batch size parameters in `extract_transcripts.py` to mitigate Apify platform timeouts.
 
 ### Still to do
 - **K35** Full Playwright E2E (signup → chat → meditation → admin)

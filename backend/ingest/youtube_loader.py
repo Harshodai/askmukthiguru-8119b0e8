@@ -344,13 +344,80 @@ def fetch_transcript_hybrid(
 ) -> dict:
     """
     Robust transcript fetcher with optional Transcript Council.
-    ...
+
+    Tries 3 distinct tiers:
+    1. Direct API manual captions
+    2. Direct API auto-generated captions
+    3. Final fallback: yt-dlp subtitle download (VTT)
+
+    If Transcript Council is enabled:
+    - ALSO runs local Whisper large-v3-turbo STT
+    - Compares Quality (using punctuations, lengths)
+    - Returns the best transcript (winner)
+
     Returns:
         Dict with 'text', 'source_url', 'title', 'speaker', 'topic', 'method', optionally 'error'
         and 'council' info (youtube_score, sarvam_score, winner)
     """
+    import json
     source_url = f"https://www.youtube.com/watch?v={video_id}"
     languages = settings.transcript_languages_list
+
+    # ── Step 0: Check Pre-extracted Transcripts (Tier 0) ──
+    # Check transcripts/transcripts.json
+    transcripts_json_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "transcripts",
+        "transcripts.json"
+    )
+    if os.path.exists(transcripts_json_path):
+        try:
+            with open(transcripts_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if video_id in data and data[video_id].get("captions"):
+                    logger.info(f"[{video_id}] Found pre-extracted transcript in transcripts.json!")
+                    return {
+                        "text": data[video_id]["captions"],
+                        "source_url": source_url,
+                        "title": data[video_id].get("title") or data[video_id].get("videoId") or title,
+                        "speaker": speaker,
+                        "topic": topic,
+                        "method": "pre_extracted_json",
+                    }
+        except Exception as e:
+            logger.warning(f"[{video_id}] Error reading transcripts.json: {e}")
+
+    # Check transcripts/{video_id}.md
+    transcript_md_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "transcripts",
+        f"{video_id}.md"
+    )
+    if os.path.exists(transcript_md_path):
+        try:
+            with open(transcript_md_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                if "## Transcript" in content:
+                    parts = content.split("## Transcript")
+                    transcript_text = parts[1].strip()
+                    if transcript_text:
+                        logger.info(f"[{video_id}] Found pre-extracted transcript in {video_id}.md!")
+                        # extract title if possible
+                        parsed_title = title
+                        for line in content.split("\n"):
+                            if line.startswith("# "):
+                                parsed_title = line[2:].strip()
+                                break
+                        return {
+                            "text": transcript_text,
+                            "source_url": source_url,
+                            "title": parsed_title,
+                            "speaker": speaker,
+                            "topic": topic,
+                            "method": "pre_extracted_md",
+                        }
+        except Exception as e:
+            logger.warning(f"[{video_id}] Error reading {video_id}.md: {e}")
 
     # ── Step 1: YouTube Captions (Tier 1 + Tier 2) ──
     youtube_text = None

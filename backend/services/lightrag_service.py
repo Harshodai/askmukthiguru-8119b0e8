@@ -194,8 +194,15 @@ class LightRAGService:
             logger.error(f"LightRAG query failed: {e}")
             return ""
 
-    async def ainsert(self, text: str, file_paths: Optional[str | list[str]] = None):
-        """Insert new content into the graph asynchronously."""
+    async def ainsert(self, text: str, file_paths: Optional[str | list[str]] = None, timeout: float = 180.0):
+        """Insert new content into the graph asynchronously.
+        
+        Args:
+            text: Text to extract entities from and insert into graph.
+            file_paths: Optional source file paths for provenance tracking.
+            timeout: Maximum seconds to wait for LightRAG internal extraction + merging.
+                     Default 180s prevents runaway Sarvam API retry storms from blocking indefinitely.
+        """
         if not self._initialized:
             await self.initialize()
 
@@ -205,15 +212,36 @@ class LightRAGService:
         
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
         try:
-            await self.rag.ainsert(text, file_paths=file_paths)
+            await asyncio.wait_for(self.rag.ainsert(text, file_paths=file_paths), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"LightRAG ainsert timed out after {timeout:.0f}s for text ({len(text)} chars). "
+                f"Skipping this chunk — Qdrant vectors are already indexed."
+            )
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
                 logger.warning("LightRAG storage not initialized during insertion, retrying...")
                 await self.rag.initialize_storages()
-                await self.rag.ainsert(text, file_paths=file_paths)
+                try:
+                    await asyncio.wait_for(self.rag.ainsert(text, file_paths=file_paths), timeout=timeout)
+                except asyncio.TimeoutError:
+                    logger.warning(f"LightRAG ainsert timed out after retry ({timeout:.0f}s). Skipping.")
             else:
                 raise
+
+    async def safe_ainsert(self, text: str, file_paths: Optional[str | list[str]] = None, timeout: float = 180.0) -> bool:
+        """Insert into graph with full error suppression. Returns True on success, False on failure.
+        
+        Used by ingestion scripts where LightRAG is enrichment (not critical path).
+        Qdrant vector ingestion is the primary store — graph extraction is bonus.
+        """
+        try:
+            await self.ainsert(text, file_paths=file_paths, timeout=timeout)
+            return True
+        except Exception as e:
+            logger.error(f"LightRAG safe_ainsert failed (non-fatal): {e}")
+            return False
 
     async def ainsert_chunked(self, text: str, file_paths: Optional[str | list[str]] = None, max_chunk_size: int = 8000, overlap: int = 500, sleep_between: float = 3.0):
         """Insert large texts into the graph in chunks to prevent SIGSEGV or OOM errors."""
