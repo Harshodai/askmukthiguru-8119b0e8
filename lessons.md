@@ -521,3 +521,13 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Hardened `_extract_topics` in `pipeline.py` by increasing `max_tokens` to `1024`, lowering `reasoning_effort` to `low`, and adding a resilient `try-except` fallback block returning `["Spiritual"]`.
   - Replaced the Radix `<ScrollArea>` inside the language selector with a native, robust, scrollable `div` using `overflow-y-auto max-h-[60vh] sm:max-h-80 scrollbar-thin` to guarantee layout stability across all viewports and support all 23 languages perfectly.
 - **Lesson learned**: Never trust a reasoning model to output valid structure under token constraints without explicit structured retry blocks on the client. For popover overlays containing dozens of elements, prioritize native browser scrolling over complex Radix viewport wrappers to ensure responsive, unbreakable user interfaces.
+
+### 42. YouTube Transcript Bulk Extractor with Resumable JSON State (May 2026)
+- **Problem**: When processing hundreds of YouTube video IDs via the Apify extractor script, the script only wrote state (`processed` and `failed` IDs list) to `_state.json` at the end of each batch, but did not compile the successfully extracted transcript data into a structured single file. Furthermore, if a run got interrupted or had pre-existing `.md` files, there was no automated synchronization back to the compiled dataset, requiring users to repeatedly start from scratch or manually curate their progress.
+- **Solution**:
+  - Implemented a unified, persistent `transcripts.json` dictionary that stores full transcript dictionaries (including video ID, title, channel name, published date, description, captions, and URL) for all successfully extracted videos.
+  - Added `sync_existing_md_to_json()` to scan the `transcripts` output directory on startup and dynamically reconstruct and restore missing video transcripts from existing `.md` files.
+  - Extended the `already_done` check to include the keys of `transcripts.json`, ensuring the script seamlessly skips already extracted videos and resumes exactly from pending ones on subsequent runs.
+  - Saved both `_state.json` and `transcripts.json` incrementally at the end of every batch execution.
+- **Lesson learned**: When writing data harvesting scripts that interact with rate-limited, paid, or flaky external APIs, always keep a consolidated, high-fidelity JSON catalog alongside individual raw outputs, and implement bidirectional sync on startup to guarantee seamless execution resuming.
+
