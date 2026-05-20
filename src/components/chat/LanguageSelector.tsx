@@ -3,7 +3,7 @@ import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { setLanguage } from '@/lib/aiService';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// ScrollArea removed in favor of native scrollable div to prevent Radix popover collapsing
 
 interface Language {
   code: string;
@@ -153,7 +153,7 @@ export const LanguageSelector = ({
                 className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
                 role="listbox"
               >
-                <ScrollArea className="max-h-[70vh] sm:max-h-96">
+                <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
                     {LANGUAGES.map((lang) => {
                       const isSelected = selectedLanguage === lang.code;
@@ -205,7 +205,7 @@ export const LanguageSelector = ({
                       );
                     })}
                   </div>
-                </ScrollArea>
+                </div>
                 <div className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/30">
                   <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-prana animate-pulse" />

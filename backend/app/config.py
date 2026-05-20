@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     whisper_local_device: str = "mps"
 
     # --- Transcript Extraction ---
-    transcript_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa"  # 10 Indian languages
+    transcript_languages: str = "en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx"
     transcript_max_retries: int = 3            # Retry per tier before falling to next
     transcript_concurrent_workers: int = 1     # Kept at 1 to avoid YouTube 429 rate limits
 
