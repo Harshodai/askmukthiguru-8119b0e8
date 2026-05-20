@@ -596,7 +596,7 @@ def main():
     print("✅ Already processed    : {}".format(len(already_done)))
     print("⏳ Remaining to fetch   : {}".format(len(remaining)))
     print("💰 Estimated cost       : ~${:.4f} USD".format(len(remaining) * 0.00012))
-    print("🔤 Punctuation restore  : {}".format("ON" if USE_PUNCT else "OFF"))
+    print("🔤 Punctuation restore  : {}".format("ON ({})".format(PUNCT_MODE) if PUNCT_MODE != "none" else "OFF"))
     print("─" * 60 + "\n")
 
     if not remaining:
