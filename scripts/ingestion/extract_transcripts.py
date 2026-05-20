@@ -73,6 +73,7 @@ except Exception as e:
 # ─────────────────────────────────────────────
 APIFY_TOKEN     = os.environ.get("APIFY_API_TOKEN", "")
 ANTHROPIC_KEY   = os.environ.get("ANTHROPIC_API_KEY", "")
+NVIDIA_KEY      = os.environ.get("NVIDIA_API_KEY", "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")
 ACTOR_ID        = "johnvc/YoutubeTranscripts"   # ✅ tested, confirmed working
 BATCH_SIZE      = 50                             # videos per Apify run
 SLEEP_BETWEEN   = 3                              # seconds between batches
@@ -82,11 +83,12 @@ FAILED_FILE     = OUTPUT_DIR / "_failed.txt"
 JSON_FILE       = OUTPUT_DIR / "transcripts.json"
 
 # Punctuation mode:
+#   "nvidia" → NVIDIA API (Llama-3.1-70b-instruct) always (best quality, custom rate limits)
 #   "auto"   → BERT if available, Claude API if not  (default)
 #   "bert"   → BERT only (skip if unavailable)
 #   "claude" → Claude API always (best quality for Sanskrit/spiritual terms)
 #   "none"   → skip punctuation entirely
-PUNCT_MODE = "auto"
+PUNCT_MODE = "nvidia"
 
 # ─────────────────────────────────────────────
 # VIDEO IDs
@@ -267,10 +269,68 @@ def _claude_restore(text, video_id=""):
         return text
 
 
+def _nvidia_restore(text, video_id=""):
+    # type: (str, str) -> str
+    """
+    Restore punctuation via NVIDIA API (meta/llama-3.1-70b-instruct).
+    Best quality, supports streaming, with exponential backoff on rate limits.
+    """
+    if not NVIDIA_KEY:
+        print("    ⚠️  NVIDIA_API_KEY not set — skipping NVIDIA punctuation.")
+        return text
+    try:
+        from openai import OpenAI
+    except ImportError:
+        print("    ⚠️  openai library not installed — skipping NVIDIA punctuation.")
+        return text
+
+    prompt = (
+        "Add proper punctuation, capitalization, and paragraph breaks to the following "
+        "raw YouTube transcript. Fix sentence boundaries. Do NOT change any words, "
+        "remove content, or add explanations. Return only the corrected transcript text.\n\n"
+        "TRANSCRIPT:\n{}\n\nCORRECTED TRANSCRIPT:".format(text)
+    )
+
+    max_retries = 5
+    backoff_factor = 2.0
+    initial_delay = 1.0
+
+    for attempt in range(max_retries):
+        try:
+            client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=NVIDIA_KEY
+            )
+            completion = client.chat.completions.create(
+                model="meta/llama-3.1-70b-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                top_p=0.7,
+                max_tokens=2048,
+                stream=True
+            )
+            restored = []
+            for chunk in completion:
+                if chunk.choices and chunk.choices[0].delta.content is not None:
+                    restored.append(chunk.choices[0].delta.content)
+            return "".join(restored).strip()
+        except Exception as e:
+            delay = initial_delay * (backoff_factor ** attempt)
+            print("    ⚠️  NVIDIA API attempt {}/{} failed for {}: {} — retrying in {:.1f}s...".format(
+                attempt + 1, max_retries, video_id, e, delay))
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+            else:
+                print("    ❌ All {} NVIDIA API attempts failed for {} — using raw text".format(max_retries, video_id))
+                return text
+    return text
+
+
 def restore_punctuation(text, video_id=""):
     # type: (str, str) -> str
     """
-    Two-tier punctuation restoration:
+    Three-tier punctuation restoration:
+      PUNCT_MODE = "nvidia" → NVIDIA API (Llama-3.1-70b-instruct)
       PUNCT_MODE = "auto"   → BERT → Claude fallback
       PUNCT_MODE = "bert"   → BERT only
       PUNCT_MODE = "claude" → Claude API always
@@ -278,6 +338,10 @@ def restore_punctuation(text, video_id=""):
     """
     if not text or PUNCT_MODE == "none":
         return text
+
+    if PUNCT_MODE == "nvidia":
+        print("    🤖 Restoring punctuation via NVIDIA API...")
+        return _nvidia_restore(text, video_id)
 
     if PUNCT_MODE == "claude":
         print("    🤖 Restoring punctuation via Claude API...")
