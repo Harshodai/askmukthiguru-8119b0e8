@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
+import { supabase } from '@/integrations/supabase/client';
 
 // Build BCP-47 lookup from the canonical LANGUAGES list (22 Indic + English).
 const languageCodeMap: Record<string, string> = LANGUAGES.reduce(
