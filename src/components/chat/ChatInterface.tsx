@@ -33,6 +33,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useChatShortcuts } from '@/hooks/useChatShortcuts';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
 import React from 'react';
