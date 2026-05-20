@@ -276,13 +276,13 @@ export const ChatInterface = () => {
         description: `Switch conversation language to ${detectedLangObj.native}?`,
         duration: 8000,
         action: (
-          <button
+          <ToastAction
+            altText={`Switch to ${detectedLangObj.name}`}
             onClick={() => handleLanguageChange(detectedLangObj.code)}
-            className="px-3 py-1.5 rounded-md bg-ojas text-white text-xs font-medium hover:bg-ojas/90"
           >
             Switch
-          </button>
-        ) as unknown as undefined,
+          </ToastAction>
+        ),
       });
       // Mark this detection as seen for the session if user ignores it
       sessionStorage.setItem(dismissKey, '1');
