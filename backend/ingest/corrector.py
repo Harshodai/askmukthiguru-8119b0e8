@@ -141,6 +141,8 @@ class TranscriptCorrector:
                         system_prompt=CORRECTION_SYSTEM_PROMPT,
                         user_prompt=f"Correct this text:\n\n{chunk}",
                         temperature=0.0,
+                        operation="correction",
+                        is_structured=True,
                     )
                     # Fallback if LLM returns empty or truncated response
                     if not response or len(response.strip()) < min(50, len(chunk.strip()) // 2):
