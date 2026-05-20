@@ -83,12 +83,13 @@ FAILED_FILE     = OUTPUT_DIR / "_failed.txt"
 JSON_FILE       = OUTPUT_DIR / "transcripts.json"
 
 # Punctuation mode:
-#   "nvidia" → NVIDIA API (Llama-3.1-70b-instruct) always (best quality, custom rate limits)
-#   "auto"   → BERT if available, Claude API if not  (default)
-#   "bert"   → BERT only (skip if unavailable)
-#   "claude" → Claude API always (best quality for Sanskrit/spiritual terms)
-#   "none"   → skip punctuation entirely
-PUNCT_MODE = "nvidia"
+#   "council" → Two-pass Council mode: BERT first (local), then NVIDIA API refinement (best quality & cost-effective)
+#   "nvidia"  → NVIDIA API (Llama-3.1-70b-instruct) always
+#   "auto"    → BERT if available, NVIDIA API if not  (default fallback)
+#   "bert"    → BERT only (skip if unavailable)
+#   "claude"  → Claude API always
+#   "none"    → skip punctuation entirely
+PUNCT_MODE = "council"
 
 # ─────────────────────────────────────────────
 # VIDEO IDs
@@ -286,7 +287,9 @@ def _nvidia_restore(text, video_id=""):
 
     prompt = (
         "Add proper punctuation, capitalization, and paragraph breaks to the following "
-        "raw YouTube transcript. Fix sentence boundaries. Do NOT change any words, "
+        "raw YouTube transcript. Fix sentence boundaries. Pay special attention to "
+        "properly capitalizing proper nouns, names, spiritual, Sanskrit, and Indic philosophical "
+        "terms (e.g., Guru, Mukthi, Brahman, etc.). Do NOT change any words, "
         "remove content, or add explanations. Return only the corrected transcript text.\n\n"
         "TRANSCRIPT:\n{}\n\nCORRECTED TRANSCRIPT:".format(text)
     )
@@ -329,15 +332,31 @@ def _nvidia_restore(text, video_id=""):
 def restore_punctuation(text, video_id=""):
     # type: (str, str) -> str
     """
-    Three-tier punctuation restoration:
-      PUNCT_MODE = "nvidia" → NVIDIA API (Llama-3.1-70b-instruct)
-      PUNCT_MODE = "auto"   → BERT → Claude fallback
-      PUNCT_MODE = "bert"   → BERT only
-      PUNCT_MODE = "claude" → Claude API always
-      PUNCT_MODE = "none"   → return as-is
+    Council-based multi-tier punctuation restoration:
+      PUNCT_MODE = "council" → Two-pass Council mode: BERT first (local), then NVIDIA API refinement (best quality & cost-effective)
+      PUNCT_MODE = "nvidia"  → NVIDIA API (Llama-3.1-70b-instruct) always
+      PUNCT_MODE = "auto"    → BERT if available, NVIDIA API if not (fallback)
+      PUNCT_MODE = "bert"    → BERT only (skip if unavailable)
+      PUNCT_MODE = "claude"  → Claude API always
+      PUNCT_MODE = "none"    → return as-is
     """
     if not text or PUNCT_MODE == "none":
         return text
+
+    if PUNCT_MODE == "council":
+        print("    🤖 Restoring punctuation via Council (BERT -> NVIDIA)...")
+        # Step 1: Run BERT if available
+        if BERT_PUNCT_AVAILABLE:
+            print("      ↳ Step 1: Running local BERT model...")
+            first_pass = _bert_restore(text)
+        else:
+            print("      ↳ Step 1: BERT unavailable — skipping to NVIDIA...")
+            first_pass = text
+        
+        # Step 2: Run NVIDIA API on the first-pass result
+        print("      ↳ Step 2: Refining with NVIDIA API (Llama-3.1-70b-instruct)...")
+        refined = _nvidia_restore(first_pass, video_id)
+        return refined
 
     if PUNCT_MODE == "nvidia":
         print("    🤖 Restoring punctuation via NVIDIA API...")
@@ -353,12 +372,12 @@ def restore_punctuation(text, video_id=""):
             return text
         return _bert_restore(text)
 
-    # PUNCT_MODE == "auto" (default)
+    # PUNCT_MODE == "auto" (default fallback)
     if BERT_PUNCT_AVAILABLE:
         return _bert_restore(text)
     else:
-        print("    🤖 BERT unavailable — restoring punctuation via Claude API...")
-        return _claude_restore(text, video_id)
+        print("    🤖 BERT unavailable — restoring punctuation via NVIDIA API...")
+        return _nvidia_restore(text, video_id)
 
 
 # ── Noise patterns to strip from raw captions ─────────────────────────────────
