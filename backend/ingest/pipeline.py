@@ -483,10 +483,21 @@ class IngestionPipeline:
     async def _extract_topics(self, text: str) -> list[str]:
         """Extract top 3-5 spiritual topics from text using LLM."""
         prompt = "Analyze this spiritual teaching and list the top 3-5 distinct topics discussed (e.g., 'Nature of Suffering', 'Power of Observation', 'Relationship with EGO'). Return as a comma-separated list."
-        response = await self._llm.generate(prompt, text[:5000], max_tokens=100)
-        if not response or not response.strip():
+        try:
+            response = await self._llm.generate(
+                prompt,
+                text[:5000],
+                max_tokens=1024,
+                reasoning_effort="low",
+                operation="extraction",
+                is_structured=True,
+            )
+            if not response or not response.strip():
+                return ["Spiritual"]
+            return [t.strip() for t in response.split(",") if t.strip()]
+        except Exception as e:
+            logger.error(f"Error in _extract_topics: {e}. Falling back to ['Spiritual']")
             return ["Spiritual"]
-        return [t.strip() for t in response.split(",") if t.strip()]
 
     def _topic_partition(self, text: str, topics: list[str]) -> dict[str, str]:
         """Simple partition of text based on topic keyword proximity."""

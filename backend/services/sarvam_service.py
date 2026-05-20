@@ -363,14 +363,28 @@ class SarvamCloudService:
                         content = choice_message.get("content") or ""
                         reasoning_content = choice_message.get("reasoning_content") or ""
 
+                        # Check if the current call is a structured operation
+                        is_structured = kwargs.get("is_structured", False)
+                        structured_ops = {"extraction", "grading", "classification", "classification_fallback", "correction", "translation", "extract"}
+
                         # Fallback: if content is empty but reasoning_content exists, use reasoning_content
                         # This happens if the model gets cut off by max_tokens/context limit during reasoning.
                         if not content.strip() and reasoning_content.strip():
-                            logger.warning(
-                                f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}). "
-                                "Using reasoning_content as fallback."
-                            )
-                            content = reasoning_content
+                            if is_structured or operation in structured_ops:
+                                logger.warning(
+                                    f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}) "
+                                    f"for structured operation '{operation}'. Raising retryable exception to prevent database pollution."
+                                )
+                                raise Exception(
+                                    f"Structured task '{operation}' failed to output main content. "
+                                    f"Got reasoning_content (len={len(reasoning_content)}) but empty content."
+                                )
+                            else:
+                                logger.warning(
+                                    f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}). "
+                                    "Using reasoning_content as fallback."
+                                )
+                                content = reasoning_content
 
                         usage = data.get("usage", {}) or {}
                         tokens_used = usage.get("total_tokens", 0)
@@ -561,13 +575,14 @@ class SarvamCloudService:
         temperature = kwargs.pop("temperature", 0.1)
         max_tokens = kwargs.pop("max_tokens", 8192)
         model = kwargs.pop("model", self._gen_model)
+        operation = kwargs.pop("operation", "generate")
 
         return await self._call_api(
             messages=messages,
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
-            operation="generate",
+            operation=operation,
             **kwargs,
         )
 

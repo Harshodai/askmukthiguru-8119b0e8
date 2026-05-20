@@ -139,7 +139,7 @@ services:
       - WHISPER_MODEL=large-v3
       - WHISPER_BACKEND=faster-whisper
       - WHISPER_COMPUTE_TYPE=float16
-      - TRANSCRIPT_LANGUAGES=en,hi,te,ta,kn,ml,bn,gu,mr,pa
+      - TRANSCRIPT_LANGUAGES=en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx
       - TRANSCRIPT_CONCURRENT_WORKERS=4
       - OCR_LANGUAGES=en,hi
       # Redis cache
