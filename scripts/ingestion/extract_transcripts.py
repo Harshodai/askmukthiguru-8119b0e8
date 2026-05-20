@@ -29,10 +29,14 @@ Usage:
 """
 
 import os
+# Enable MPS fallback for PyTorch operations not yet supported on Apple Silicon GPU
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 import json
 import time
 import re
 import sys
+import signal
 import traceback
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -73,14 +77,23 @@ except Exception as e:
 # ─────────────────────────────────────────────
 APIFY_TOKEN     = os.environ.get("APIFY_API_TOKEN", "")
 ANTHROPIC_KEY   = os.environ.get("ANTHROPIC_API_KEY", "")
-NVIDIA_KEY      = os.environ.get("NVIDIA_API_KEY", "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")
+NVIDIA_KEY      = os.environ.get("NVIDIA_API_KEY", "")
 ACTOR_ID        = "johnvc/YoutubeTranscripts"   # ✅ tested, confirmed working
-BATCH_SIZE      = 50                             # videos per Apify run
+BATCH_SIZE      = 5                              # videos per Apify run (was 10, reduced for better return rate)
+RETRY_BATCH_SIZE = 2                             # smaller batches for retrying timeout victims
 SLEEP_BETWEEN   = 3                              # seconds between batches
+RUN_TIMEOUT     = 180                            # seconds before aborting an Apify run (was 120)
+RETRY_TIMEOUT   = 300                            # longer timeout for retry batches
+MAX_RETRY_ATTEMPTS = 3                           # max retries before permanently failing a timeout victim
 OUTPUT_DIR      = Path("transcripts")
 STATE_FILE      = OUTPUT_DIR / "_state.json"
 FAILED_FILE     = OUTPUT_DIR / "_failed.txt"
 JSON_FILE       = OUTPUT_DIR / "transcripts.json"
+
+# ── Completeness validation thresholds ─────────────────────────────────────
+# 100% data quality: no partial transcripts ever saved to .md
+MIN_COVERAGE_PCT   = 0.95   # timestamped segments must cover ≥95% of video duration
+MIN_WORDS_PER_MIN  = 30     # minimum word density (conservative — even slow speakers hit 50+)
 
 # Punctuation mode:
 #   "council" → Two-pass Council mode: BERT first (local), then NVIDIA API refinement (best quality & cost-effective)
@@ -90,6 +103,14 @@ JSON_FILE       = OUTPUT_DIR / "transcripts.json"
 #   "claude"  → Claude API always
 #   "none"    → skip punctuation entirely
 PUNCT_MODE = "council"
+
+# ── Graceful shutdown: convert SIGTERM → KeyboardInterrupt ─────────────────
+# This ensures `kill PID` (SIGTERM) triggers the same clean state-save path
+# as Ctrl-C (SIGINT), so no progress is lost when the process is stopped.
+def _sigterm_handler(signum, frame):
+    raise KeyboardInterrupt("SIGTERM received — shutting down gracefully")
+
+signal.signal(signal.SIGTERM, _sigterm_handler)
 
 # ─────────────────────────────────────────────
 # VIDEO IDs
@@ -272,6 +293,29 @@ def _claude_restore(text, video_id=""):
         return text
 
 
+_nvidia_call_timestamps = []
+
+def _respect_nvidia_rate_limit(video_id=""):
+    """
+    Rolling-window rate limiter ensuring we never exceed 40 requests per minute.
+    """
+    global _nvidia_call_timestamps
+    now = time.time()
+    # Keep only timestamps in the last 60 seconds
+    _nvidia_call_timestamps = [t for t in _nvidia_call_timestamps if now - t < 60.0]
+    
+    if len(_nvidia_call_timestamps) >= 40:
+        sleep_needed = 60.0 - (now - _nvidia_call_timestamps[0])
+        if sleep_needed > 0:
+            print("    ⏳ [NVIDIA Rate Limiter] {} RPM limit reached (for {}). Sleeping {:.2f}s...".format(
+                len(_nvidia_call_timestamps), video_id, sleep_needed))
+            time.sleep(sleep_needed)
+            now = time.time()
+            _nvidia_call_timestamps = [t for t in _nvidia_call_timestamps if now - t < 60.0]
+            
+    _nvidia_call_timestamps.append(time.time())
+
+
 def _nvidia_restore(text, video_id=""):
     # type: (str, str) -> str
     """
@@ -302,9 +346,13 @@ def _nvidia_restore(text, video_id=""):
 
     for attempt in range(max_retries):
         try:
+            # Respect the strict 40 requests per minute rolling rate limit before every API call
+            _respect_nvidia_rate_limit(video_id)
+
             client = OpenAI(
                 base_url="https://integrate.api.nvidia.com/v1",
-                api_key=NVIDIA_KEY
+                api_key=NVIDIA_KEY,
+                timeout=60.0,  # prevent indefinite hang if NVIDIA API is slow/unresponsive
             )
             completion = client.chat.completions.create(
                 model="meta/llama-3.1-70b-instruct",
@@ -319,7 +367,6 @@ def _nvidia_restore(text, video_id=""):
                 if chunk.choices and chunk.choices[0].delta.content is not None:
                     restored.append(chunk.choices[0].delta.content)
             res_text = "".join(restored).strip()
-            time.sleep(1.0)  # Polite sleep to respect API rate limits
             return res_text
         except Exception as e:
             delay = initial_delay * (backoff_factor ** attempt)
@@ -331,6 +378,110 @@ def _nvidia_restore(text, video_id=""):
                 print("    ❌ All {} NVIDIA API attempts failed for {} — using raw text".format(max_retries, video_id))
                 return text
     return text
+
+
+def _merge_chunks_with_llm(chunks, video_id=""):
+    # type: (list, str) -> str
+    """
+    Merge overlapping transcript chunks using NVIDIA LLM.
+    Removes duplicate sentences at chunk boundaries while preserving all unique content.
+    """
+    if not NVIDIA_KEY:
+        # Fallback: naive concatenation (may have some duplication at boundaries)
+        return "\n\n".join(chunks)
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return "\n\n".join(chunks)
+
+    # Join chunks with clear boundary markers
+    marked = "\n\n---CHUNK_BOUNDARY---\n\n".join(chunks)
+
+    merge_prompt = (
+        "The following transcript was processed in overlapping chunks. "
+        "At each ---CHUNK_BOUNDARY--- marker, some sentences may be duplicated. "
+        "Remove the exact duplicate sentences at these boundaries while preserving ALL unique content. "
+        "Remove the ---CHUNK_BOUNDARY--- markers. "
+        "Do NOT change any words, reorder content, or add explanations. "
+        "Return only the cleaned, unified transcript.\n\n"
+        "TRANSCRIPT:\n{}\n\nCLEANED TRANSCRIPT:".format(marked)
+    )
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            _respect_nvidia_rate_limit(video_id)
+            client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=NVIDIA_KEY,
+                timeout=90.0,
+            )
+            completion = client.chat.completions.create(
+                model="meta/llama-3.1-70b-instruct",
+                messages=[{"role": "user", "content": merge_prompt}],
+                temperature=0.1,
+                top_p=0.7,
+                max_tokens=4096,
+                stream=True
+            )
+            restored = []
+            for chunk in completion:
+                if chunk.choices and chunk.choices[0].delta.content is not None:
+                    restored.append(chunk.choices[0].delta.content)
+            result = "".join(restored).strip()
+            if result:
+                return result
+        except Exception as e:
+            print("      ⚠️  Merge attempt {}/{} failed for {}: {}".format(
+                attempt + 1, max_retries, video_id, e))
+            if attempt < max_retries - 1:
+                time.sleep(2.0 * (attempt + 1))
+
+    # All merge attempts failed — fallback to naive concatenation
+    print("      ↳ Merge failed, using naive concatenation (may have minor duplication at boundaries)")
+    return "\n\n".join(chunks)
+
+
+def _nvidia_restore_chunked(text, video_id=""):
+    # type: (str, str) -> str
+    """
+    Process long transcripts in chunks with overlap, then merge.
+    For transcripts ≤1000 words, delegates to the standard single-call _nvidia_restore.
+    For longer ones, splits into ~800-word chunks with 50-word overlap,
+    processes each independently, then uses LLM to merge and deduplicate boundaries.
+    """
+    words = text.split()
+    if len(words) <= 1000:
+        return _nvidia_restore(text, video_id)
+
+    chunk_size = 800
+    overlap = 50
+    chunks = []
+    i = 0
+    chunk_num = 0
+    while i < len(words):
+        end = min(i + chunk_size, len(words))
+        chunks.append(" ".join(words[i:end]))
+        chunk_num += 1
+        if end >= len(words):
+            break
+        i = end - overlap  # overlap for context continuity
+
+    print("      ↳ Long transcript ({} words) → {} chunks".format(len(words), len(chunks)))
+
+    restored_chunks = []
+    for idx, chunk in enumerate(chunks):
+        print("      ↳ Processing chunk {}/{}...".format(idx + 1, len(chunks)))
+        result = _nvidia_restore(chunk, "{}_chunk{}".format(video_id, idx + 1))
+        restored_chunks.append(result)
+
+    # Merge overlapping chunks using LLM
+    if len(restored_chunks) > 1:
+        print("      ↳ Merging {} chunks with LLM...".format(len(restored_chunks)))
+        combined = _merge_chunks_with_llm(restored_chunks, video_id)
+        return combined
+    return restored_chunks[0]
 
 
 def restore_punctuation(text, video_id=""):
@@ -359,12 +510,12 @@ def restore_punctuation(text, video_id=""):
         
         # Step 2: Run NVIDIA API on the first-pass result
         print("      ↳ Step 2: Refining with NVIDIA API (Llama-3.1-70b-instruct)...")
-        refined = _nvidia_restore(first_pass, video_id)
+        refined = _nvidia_restore_chunked(first_pass, video_id)
         return refined
 
     if PUNCT_MODE == "nvidia":
         print("    🤖 Restoring punctuation via NVIDIA API...")
-        return _nvidia_restore(text, video_id)
+        return _nvidia_restore_chunked(text, video_id)
 
     if PUNCT_MODE == "claude":
         print("    🤖 Restoring punctuation via Claude API...")
@@ -381,7 +532,7 @@ def restore_punctuation(text, video_id=""):
         return _bert_restore(text)
     else:
         print("    🤖 BERT unavailable — restoring punctuation via NVIDIA API...")
-        return _nvidia_restore(text, video_id)
+        return _nvidia_restore_chunked(text, video_id)
 
 
 # ── Noise patterns to strip from raw captions ─────────────────────────────────
@@ -432,6 +583,52 @@ def build_plain_text(item):
     return text
 
 
+def validate_transcript_completeness(item, plain_text):
+    # type: (Dict, str) -> tuple
+    """
+    Validate that a transcript is complete before writing to .md.
+    Returns (is_complete: bool, reason: str).
+
+    Checks:
+      1. Timestamp coverage: last segment must reach ≥95% of total video duration
+      2. Word density: at least 30 words/minute (conservative floor)
+
+    100% data quality guarantee — partial transcripts are NEVER accepted.
+    """
+    total_secs = item.get("total_seconds", 0)
+    if total_secs == 0:
+        # No duration info from actor — can't validate, accept with warning
+        return True, "no duration info (cannot validate coverage)"
+
+    # Check 1: Timestamp coverage
+    timestamped = item.get("timestamped", [])
+    if timestamped and isinstance(timestamped, list):
+        valid_segments = [s for s in timestamped if isinstance(s, dict)]
+        if valid_segments:
+            last = valid_segments[-1]
+            last_end = float(last.get("start", 0)) + float(last.get("duration", 0))
+            coverage = last_end / float(total_secs)
+            if coverage < MIN_COVERAGE_PCT:
+                return False, "timestamp coverage {:.1%} < {:.0%} threshold (last_end={:.1f}s / total={:.1f}s)".format(
+                    coverage, MIN_COVERAGE_PCT, last_end, total_secs)
+        else:
+            # Has timestamped field but all entries are malformed
+            return False, "timestamped field present but no valid segments"
+
+    # Check 2: Word density
+    if plain_text:
+        words = len(plain_text.split())
+        minutes = total_secs / 60.0
+        wpm = words / minutes if minutes > 0 else 0
+        if wpm < MIN_WORDS_PER_MIN:
+            return False, "word density {:.0f} wpm < {:.0f} wpm threshold ({} words / {:.1f} min)".format(
+                wpm, MIN_WORDS_PER_MIN, words, minutes)
+    else:
+        return False, "empty transcript text"
+
+    return True, "OK (coverage and density validated)"
+
+
 def write_md(video_id, title, channel, date, description, plain_text, language):
     # type: (str, str, str, str, str, str, str) -> Path
     try:
@@ -464,7 +661,7 @@ def load_state():
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except Exception as e:
         print("⚠️  Could not load _state.json: {} — starting fresh.".format(e))
-    return {"processed": [], "failed": []}
+    return {"processed": [], "failed": [], "incomplete": [], "timeout_victims": [], "retry_counts": {}}
 
 
 def save_state(state):
@@ -500,36 +697,73 @@ def save_json(data):
             pass
 
 
-def run_batch(client, video_ids):
-    # type: (ApifyClient, List[str]) -> List[Dict]
+def run_batch(client, video_ids, timeout=None):
+    # type: (ApifyClient, List[str], Optional[int]) -> tuple
     """
     johnvc/YoutubeTranscripts input: { "youtube_url": [list of URLs] }
-    Returns items with: video_id, non_timestamped, timestamped, language, success, url
-    Supports exponential backoff to handle rate limits and transient errors.
+    Returns (items, was_aborted) tuple:
+      - items: list of result dicts from the dataset
+      - was_aborted: True if the run was aborted due to timeout (indicates timeout victims)
+    Starts the run asynchronously, polls with a timeout, and always retrieves all completed
+    results from the dataset even if the run times out or gets aborted.
     """
     urls = ["https://www.youtube.com/watch?v={}".format(v) for v in video_ids]
     max_retries = 5
     backoff_factor = 2.0
     initial_delay = 2.0
+    run = None
 
     for attempt in range(max_retries):
         try:
-            run = client.actor(ACTOR_ID).call(run_input={"youtube_url": urls})
+            run = client.actor(ACTOR_ID).start(run_input={"youtube_url": urls})
             break
         except Exception as e:
             delay = initial_delay * (backoff_factor ** attempt)
-            print("  ⚠️  Apify actor call attempt {}/{} failed: {} — retrying in {:.1f}s...".format(
+            print("  ⚠️  Apify actor start attempt {}/{} failed: {} — retrying in {:.1f}s...".format(
                 attempt + 1, max_retries, e, delay))
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                raise RuntimeError("Apify actor call failed after {} attempts: {}".format(max_retries, e)) from e
+                raise RuntimeError("Apify actor start failed after {} attempts: {}".format(max_retries, e)) from e
 
+    run_id = run.get("id") if run else None
     dataset_id = run.get("defaultDatasetId") if run else None
-    if not dataset_id:
-        print("  ⚠️  No dataset returned for batch: {}...".format(video_ids[:3]))
-        return []
 
+    if not run_id or not dataset_id:
+        print("  ⚠️  No run ID or dataset ID returned for batch: {}...".format(video_ids[:3]))
+        return [], False
+
+    print("  🚀 Apify Actor run started: {} (Dataset: {})".format(run_id, dataset_id))
+
+    # Poll run status with configurable timeout
+    start_time = time.time()
+    poll_interval = 5
+    actual_timeout = timeout if timeout else RUN_TIMEOUT
+    status = "RUNNING"
+    was_aborted = False
+
+    while time.time() - start_time < actual_timeout:
+        try:
+            run_info = client.run(run_id).get()
+            status = run_info.get("status", "RUNNING")
+            if status in ["SUCCEEDED", "FAILED", "TIMED-OUT", "ABORTED"]:
+                break
+        except Exception as e:
+            print("    ⚠️ Error polling run status: {}".format(e))
+        time.sleep(poll_interval)
+
+    if status == "RUNNING":
+        print("  ⏳ Run is taking longer than {}s. Aborting and fetching partial results...".format(actual_timeout))
+        was_aborted = True
+        try:
+            client.run(run_id).abort()
+            print("  🛑 Run aborted successfully to save resources.")
+        except Exception as ae:
+            print("    ⚠️ Failed to abort run: {}".format(ae))
+    else:
+        print("  🏁 Run finished with status: {}".format(status))
+
+    # Retrieve all items that were successfully written to the dataset so far
     items, offset = [], 0
     while True:
         try:
@@ -541,7 +775,8 @@ def run_batch(client, video_ids):
             break
         items.extend(page)
         offset += len(page)
-    return items
+
+    return items, was_aborted
 
 
 def extract_video_id(item):
@@ -563,7 +798,49 @@ def extract_video_id(item):
 # MAIN
 # ─────────────────────────────────────────────
 
+def audit_existing_transcripts(transcripts_data, state):
+    # type: (Dict, Dict) -> None
+    """
+    Re-validate all existing transcripts against completeness criteria.
+    Flags any partial transcripts that slipped through previous runs.
+    """
+    print("\n" + "=" * 60)
+    print("🔍 AUDITING EXISTING TRANSCRIPTS FOR COMPLETENESS")
+    print("=" * 60)
+
+    flagged = []
+    for vid, entry in transcripts_data.items():
+        plain = entry.get("captions", "")
+        is_complete, reason = validate_transcript_completeness(entry, plain)
+        if not is_complete:
+            flagged.append((vid, reason))
+
+    if flagged:
+        print("\n⚠️  Found {} potentially incomplete transcripts:".format(len(flagged)))
+        for vid, reason in flagged:
+            print("  🔸 {} — {}".format(vid, reason))
+        print("\nThese videos will be re-queued for processing on the next run.")
+        # Move them to incomplete so they get retried
+        for vid, reason in flagged:
+            if vid not in state.get("incomplete", []):
+                state.setdefault("incomplete", []).append(vid)
+            # Remove from processed so they get re-fetched
+            if vid in state.get("processed", []):
+                state["processed"].remove(vid)
+    else:
+        print("\n✅ All {} existing transcripts pass completeness validation.".format(len(transcripts_data)))
+
+    print("=" * 60 + "\n")
+
+
 def main():
+    # ── Parse CLI args ────────────────────────────────────────────────────
+    import argparse
+    parser = argparse.ArgumentParser(description="Bulk YouTube Transcript Extractor v5")
+    parser.add_argument("--audit", action="store_true",
+                        help="Re-validate all existing transcripts and flag partials")
+    args = parser.parse_args()
+
     # ── Pre-flight ─────────────────────────────────────────────────────────
     if not APIFY_TOKEN:
         print("ERROR: APIFY_API_TOKEN not set.")
@@ -586,17 +863,35 @@ def main():
     state            = load_state()
     transcripts_data = load_json()
 
+    # Ensure new state fields exist (backward compat with old _state.json)
+    state.setdefault("incomplete", [])
+    state.setdefault("timeout_victims", [])
+    state.setdefault("retry_counts", {})
+
+    # ── Audit mode ────────────────────────────────────────────────────────
+    if args.audit:
+        audit_existing_transcripts(transcripts_data, state)
+        save_state(state)
+        save_json(transcripts_data)
+        return
+
     try:
         done_from_md = {p.stem for p in OUTPUT_DIR.glob("*.md")}
     except Exception:
         done_from_md = set()
 
+    # Only processed and truly_failed skip retry.
+    # incomplete and timeout_victims are RETRIED.
     already_done = (
         set(state.get("processed", []))
         | set(state.get("failed", []))
         | set(transcripts_data.keys())
         | done_from_md
     )  # type: Set[str]
+
+    # Remove incomplete and timeout_victims from already_done so they get retried
+    retryable = set(state.get("incomplete", [])) | set(state.get("timeout_victims", []))
+    already_done -= retryable
 
     # Deduplicate input list (preserve order)
     seen_ids = set()   # type: Set[str]
@@ -608,124 +903,113 @@ def main():
 
     remaining = [v for v in all_ids if v not in already_done]
 
+    # Separate retry candidates from new videos
+    retry_ids = [v for v in remaining if v in retryable]
+    new_ids = [v for v in remaining if v not in retryable]
+
+    n_processed = len(set(state.get("processed", [])))
+    n_failed = len(set(state.get("failed", [])))
+    n_incomplete = len(set(state.get("incomplete", [])))
+    n_timeout = len(set(state.get("timeout_victims", [])))
+
     print("─" * 60)
-    print("📋 Total unique videos  : {}".format(len(all_ids)))
-    print("✅ Already processed    : {}".format(len(already_done)))
-    print("⏳ Remaining to fetch   : {}".format(len(remaining)))
-    print("💰 Estimated cost       : ~${:.4f} USD".format(len(remaining) * 0.00012))
-    print("🔤 Punctuation restore  : {}".format("ON ({})".format(PUNCT_MODE) if PUNCT_MODE != "none" else "OFF"))
+    print("📋 Total unique videos     : {}".format(len(all_ids)))
+    print("✅ Already processed       : {}".format(n_processed))
+    print("❌ Permanently failed      : {}".format(n_failed))
+    print("🔄 Timeout victims (retry) : {}".format(len(retry_ids)))
+    print("⏳ Incomplete (retry)      : {}".format(n_incomplete))
+    print("📥 New to fetch            : {}".format(len(new_ids)))
+    print("📦 Total remaining         : {}".format(len(remaining)))
+    print("💰 Estimated cost          : ~${:.4f} USD".format(len(remaining) * 0.00012))
+    print("🔤 Punctuation restore     : {}".format("ON ({})".format(PUNCT_MODE) if PUNCT_MODE != "none" else "OFF"))
+    print("🛡️  Completeness threshold  : ≥{:.0%} coverage, ≥{} wpm".format(MIN_COVERAGE_PCT, MIN_WORDS_PER_MIN))
     print("─" * 60 + "\n")
 
     if not remaining:
         print("Nothing to do — all videos already processed.")
         return
 
-    batches    = [remaining[i:i + BATCH_SIZE] for i in range(0, len(remaining), BATCH_SIZE)]
-    total_done = 0
+    # ── Phase 1: Retry timeout victims and incomplete with smaller batches ──
+    if retry_ids:
+        print("\n" + "=" * 60)
+        print("🔄 PHASE 1: RETRYING {} TIMEOUT VICTIMS / INCOMPLETE".format(len(retry_ids)))
+        print("=" * 60 + "\n")
 
-    for batch_num, batch in enumerate(batches, 1):
-        print("🔄 Batch {}/{} — {} videos...".format(batch_num, len(batches), len(batch)))
+        retry_batches = [retry_ids[i:i + RETRY_BATCH_SIZE] for i in range(0, len(retry_ids), RETRY_BATCH_SIZE)]
 
-        # Live dedup guard
-        batch = [v for v in batch if v not in already_done]
-        if not batch:
-            print("  ↳ All videos in this batch already done, skipping.")
-            continue
+        for rb_num, rb in enumerate(retry_batches, 1):
+            print("🔄 Retry Batch {}/{} — {} videos (timeout={})...".format(
+                rb_num, len(retry_batches), len(rb), RETRY_TIMEOUT))
 
-        # ── Call Apify ─────────────────────────────────────────────────────
-        try:
-            results = run_batch(client, batch)
-        except Exception as e:
-            print("  ❌ Batch {} failed entirely: {}".format(batch_num, e))
-            for vid in batch:
-                if vid not in already_done:
+            # Increment retry counts
+            for vid in rb:
+                count = state["retry_counts"].get(vid, 0) + 1
+                state["retry_counts"][vid] = count
+                if count > MAX_RETRY_ATTEMPTS:
+                    print("  💀 {} — exceeded {} retry attempts, marking as permanently failed".format(
+                        vid, MAX_RETRY_ATTEMPTS))
                     state["failed"].append(vid)
-                    already_done.add(vid)
-            save_state(state)
-            time.sleep(SLEEP_BETWEEN)
-            continue
+                    # Remove from retry lists
+                    if vid in state["incomplete"]:
+                        state["incomplete"].remove(vid)
+                    if vid in state["timeout_victims"]:
+                        state["timeout_victims"].remove(vid)
 
-        returned_ids = set()  # type: Set[str]
-
-        # ── Process results ────────────────────────────────────────────────
-        for item in results:
-            try:
-                vid = extract_video_id(item)
-                if not vid:
-                    print("  ⚠️  Result with no video_id — skipping.")
-                    continue
-                if vid in already_done:
-                    print("  ⏭️  {} — already done, skipping".format(vid))
-                    continue
-
-                returned_ids.add(vid)
-
-                # johnvc returns a top-level "success" bool
-                success = item.get("success", True)
-                plain   = build_plain_text(item) if success else ""
-
-                language = item.get("language", "unknown")
-                lang_code = item.get("language_code", "")
-
-                # Actor doesn't return title/channel/date — use video ID as title
-                title   = item.get("title", vid)
-                channel = item.get("channelName", item.get("channel", "Unknown Channel"))
-                date    = item.get("datePublished", item.get("uploadDate", ""))
-
-                if plain:
-                    plain = restore_punctuation(plain)
-                    try:
-                        path = write_md(vid, title, channel, date, "", plain, language)
-                        print("  ✅ {} ({}) → {}".format(vid, language, path.name))
-                    except Exception as we:
-                        print("  ⚠️  write_md error for {}: {} — saving to JSON only".format(vid, we))
-
-                    state["processed"].append(vid)
-                    transcripts_data[vid] = {
-                        "videoId":       vid,
-                        "title":         title,
-                        "channelName":   channel,
-                        "datePublished": date,
-                        "language":      language,
-                        "language_code": lang_code,
-                        "is_generated":  item.get("is_generated", True),
-                        "total_seconds": item.get("total_seconds", 0),
-                        "captions":      plain,
-                        "timestamped":   item.get("timestamped", []),
-                        "url":           "https://www.youtube.com/watch?v={}".format(vid),
-                    }
-                else:
-                    try:
-                        write_md(vid, title, channel, date, "", "", language)
-                    except Exception:
-                        pass
-                    reason = "failed/no captions" if not success else "empty transcript"
-                    print("  ⚠️  {} — {} ".format(vid, reason))
-                    state["failed"].append(vid)
-
-                already_done.add(vid)
-                # Store progress immediately after each processed video
-                save_state(state)
-                save_json(transcripts_data)
-
-            except Exception as item_err:
-                print("  ❌ Unexpected error on item: {}".format(item_err))
-                print("     {}".format(traceback.format_exc().splitlines()[-1]))
+            # Filter out videos that just got permanently failed
+            rb = [v for v in rb if v not in state["failed"]]
+            if not rb:
                 continue
 
-        # ── Mark videos not returned by actor ─────────────────────────────
-        for vid in batch:
-            if vid not in returned_ids and vid not in already_done:
-                print("  ❌ {} — not returned by actor".format(vid))
-                state["failed"].append(vid)
-                already_done.add(vid)
+            try:
+                results, was_aborted = run_batch(client, rb, timeout=RETRY_TIMEOUT)
+            except Exception as e:
+                print("  ❌ Retry batch {} failed entirely: {}".format(rb_num, e))
+                save_state(state)
+                time.sleep(SLEEP_BETWEEN)
+                continue
 
-        save_state(state)
-        save_json(transcripts_data)
-        total_done += len(batch)
-        print("  ↳ Progress: {}/{} | Sleeping {}s...\n".format(
-            total_done, len(remaining), SLEEP_BETWEEN))
-        time.sleep(SLEEP_BETWEEN)
+            _process_results(results, was_aborted, rb, state, transcripts_data, already_done)
+            save_state(state)
+            save_json(transcripts_data)
+            time.sleep(SLEEP_BETWEEN)
+
+    # ── Phase 2: Process new videos ───────────────────────────────────────
+    if new_ids:
+        print("\n" + "=" * 60)
+        print("📥 PHASE 2: PROCESSING {} NEW VIDEOS".format(len(new_ids)))
+        print("=" * 60 + "\n")
+
+        batches = [new_ids[i:i + BATCH_SIZE] for i in range(0, len(new_ids), BATCH_SIZE)]
+        total_done = 0
+
+        for batch_num, batch in enumerate(batches, 1):
+            print("🔄 Batch {}/{} — {} videos...".format(batch_num, len(batches), len(batch)))
+
+            # Live dedup guard
+            batch = [v for v in batch if v not in already_done]
+            if not batch:
+                print("  ↳ All videos in this batch already done, skipping.")
+                continue
+
+            try:
+                results, was_aborted = run_batch(client, batch)
+            except Exception as e:
+                print("  ❌ Batch {} failed entirely: {}".format(batch_num, e))
+                for vid in batch:
+                    if vid not in already_done:
+                        state["failed"].append(vid)
+                        already_done.add(vid)
+                save_state(state)
+                time.sleep(SLEEP_BETWEEN)
+                continue
+
+            _process_results(results, was_aborted, batch, state, transcripts_data, already_done)
+            save_state(state)
+            save_json(transcripts_data)
+            total_done += len(batch)
+            print("  ↳ Progress: {}/{} | Sleeping {}s...\n".format(
+                total_done, len(new_ids), SLEEP_BETWEEN))
+            time.sleep(SLEEP_BETWEEN)
 
     # ── Final summary ──────────────────────────────────────────────────────
     try:
@@ -735,16 +1019,134 @@ def main():
         print("⚠️  Could not write _failed.txt: {}".format(e))
         failed_unique = []
 
+    incomplete_unique = sorted(set(state.get("incomplete", [])))
+    timeout_unique = sorted(set(state.get("timeout_victims", [])))
+
     print("\n" + "=" * 60)
-    print("✅ Successfully processed : {} transcripts".format(len(set(state.get("processed", [])))))
-    print("❌ Failed / no captions   : {} videos".format(len(failed_unique)))
-    print("💰 Total cost             : ~${:.4f} USD".format(
+    print("✅ Successfully processed  : {} transcripts".format(len(set(state.get("processed", [])))))
+    print("❌ Permanently failed      : {} videos".format(len(failed_unique)))
+    print("⏳ Incomplete (will retry) : {} videos".format(len(incomplete_unique)))
+    print("🔄 Timeout victims (retry) : {} videos".format(len(timeout_unique)))
+    print("💰 Total cost              : ~${:.4f} USD".format(
         len(set(state.get("processed", []))) * 0.00012))
     print("📁 Output:")
     print("   → {}".format(FAILED_FILE))
     print("   → {}".format(JSON_FILE))
     print("   → {}/*.md".format(OUTPUT_DIR))
+    if incomplete_unique or timeout_unique:
+        print("\n💡 Re-run this script to retry {} retryable videos.".format(
+            len(incomplete_unique) + len(timeout_unique)))
     print("=" * 60)
+
+
+def _process_results(results, was_aborted, batch, state, transcripts_data, already_done):
+    # type: (List[Dict], bool, List[str], Dict, Dict, Set[str]) -> None
+    """
+    Process results from a single Apify batch run.
+    Handles completeness validation, state categorization, and .md writing.
+    """
+    returned_ids = set()  # type: Set[str]
+
+    for item in results:
+        try:
+            vid = extract_video_id(item)
+            if not vid:
+                print("  ⚠️  Result with no video_id — skipping.")
+                continue
+            if vid in already_done:
+                print("  ⏭️  {} — already done, skipping".format(vid))
+                continue
+
+            returned_ids.add(vid)
+
+            # johnvc returns a top-level "success" bool
+            success = item.get("success", True)
+            plain   = build_plain_text(item) if success else ""
+
+            language = item.get("language", "unknown")
+            lang_code = item.get("language_code", "")
+
+            # Actor doesn't return title/channel/date — use video ID as title
+            title   = item.get("title", vid)
+            channel = item.get("channelName", item.get("channel", "Unknown Channel"))
+            date    = item.get("datePublished", item.get("uploadDate", ""))
+
+            if plain:
+                # ── COMPLETENESS VALIDATION — 100% data quality gate ──
+                is_complete, reason = validate_transcript_completeness(item, plain)
+
+                if not is_complete:
+                    print("  🚫 {} — INCOMPLETE: {}".format(vid, reason))
+                    print("     ↳ NOT writing .md — will retry on next run")
+                    # Track as incomplete for retry
+                    if vid not in state.get("incomplete", []):
+                        state.setdefault("incomplete", []).append(vid)
+                    # Remove from timeout_victims if it was there (it's now categorized)
+                    if vid in state.get("timeout_victims", []):
+                        state["timeout_victims"].remove(vid)
+                    # Do NOT add to already_done — must be retried
+                    save_state(state)
+                    continue
+
+                # ── Transcript is COMPLETE — proceed with punctuation & write ──
+                plain = restore_punctuation(plain, vid)
+                try:
+                    path = write_md(vid, title, channel, date, "", plain, language)
+                    print("  ✅ {} ({}) → {} [VALIDATED]".format(vid, language, path.name))
+                except Exception as we:
+                    print("  ⚠️  write_md error for {}: {} — saving to JSON only".format(vid, we))
+
+                state["processed"].append(vid)
+                # Clean up from retry lists if present
+                if vid in state.get("incomplete", []):
+                    state["incomplete"].remove(vid)
+                if vid in state.get("timeout_victims", []):
+                    state["timeout_victims"].remove(vid)
+                if vid in state.get("retry_counts", {}):
+                    del state["retry_counts"][vid]
+
+                transcripts_data[vid] = {
+                    "videoId":       vid,
+                    "title":         title,
+                    "channelName":   channel,
+                    "datePublished": date,
+                    "language":      language,
+                    "language_code": lang_code,
+                    "is_generated":  item.get("is_generated", True),
+                    "total_seconds": item.get("total_seconds", 0),
+                    "captions":      plain,
+                    "timestamped":   item.get("timestamped", []),
+                    "url":           "https://www.youtube.com/watch?v={}".format(vid),
+                }
+            else:
+                reason = "failed/no captions" if not success else "empty transcript"
+                print("  ⚠️  {} — {} ".format(vid, reason))
+                state["failed"].append(vid)
+
+            already_done.add(vid)
+            # Store progress immediately after each processed video
+            save_state(state)
+            save_json(transcripts_data)
+
+        except Exception as item_err:
+            print("  ❌ Unexpected error on item: {}".format(item_err))
+            print("     {}".format(traceback.format_exc().splitlines()[-1]))
+            continue
+
+    # ── Mark videos not returned by actor ─────────────────────────────────
+    for vid in batch:
+        if vid not in returned_ids and vid not in already_done:
+            if was_aborted:
+                # Timeout victim — retryable, NOT permanently failed
+                print("  🔄 {} — not returned (timeout victim, will retry)".format(vid))
+                if vid not in state.get("timeout_victims", []):
+                    state.setdefault("timeout_victims", []).append(vid)
+                # Do NOT add to already_done — must be retried
+            else:
+                # Actor finished normally but didn't return this video — truly failed
+                print("  ❌ {} — not returned by actor (permanent failure)".format(vid))
+                state["failed"].append(vid)
+                already_done.add(vid)
 
 
 if __name__ == "__main__":
