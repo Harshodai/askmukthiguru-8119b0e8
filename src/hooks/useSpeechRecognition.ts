@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
+import { supabase } from '@/integrations/supabase/client';
 
 // Build BCP-47 lookup from the canonical LANGUAGES list (22 Indic + English).
 const languageCodeMap: Record<string, string> = LANGUAGES.reduce(
@@ -256,44 +257,42 @@ export const useSpeechRecognition = (
           console.log("[STT] audioBlob size:", audioBlob.size, "mimeType:", mimeType);
           chunksRef.current = [];
 
-          // Upload audio blob to backend
+          // Upload audio blob to Sarvam STT edge function
           try {
             const formData = new FormData();
             formData.append('file', audioBlob, `audio.${mimeType.split('/')[1] || 'webm'}`);
-            
+
             // Map our selected lang code to standard language code map
             const targetLang = languageCodeMap[langRef.current] || 'en-IN';
             formData.append('language_code', targetLang);
 
-            const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-            const targetUrl = `${backendUrl}/api/speech/stt`;
-            console.log("[STT] Fetching:", targetUrl, "with targetLang:", targetLang);
-            const res = await fetch(targetUrl, {
-              method: 'POST',
+            console.log('[STT] Invoking sarvam-stt edge function with lang:', targetLang);
+            const { data, error: fnError } = await supabase.functions.invoke('sarvam-stt', {
               body: formData,
             });
 
-            console.log("[STT] Fetch response status:", res.status);
-            if (!res.ok) {
-              const errData = await res.json().catch(() => ({}));
-              throw new Error(errData.detail || `Server returned ${res.status}`);
+            if (fnError) {
+              throw new Error(fnError.message || 'STT edge function failed');
             }
 
-            const data = await res.json();
-            console.log("[STT] Response data:", JSON.stringify(data));
-            const text = data.transcript || '';
-            const detectedLang = data.language_code || targetLang;
+            console.log('[STT] Response data:', JSON.stringify(data));
+            const text = data?.transcript || '';
+            const detectedLang = data?.language_code || targetLang;
+
+            if (!text) {
+              throw new Error('No speech detected. Please try again.');
+            }
 
             setTranscript(text);
             onTranscriptRef.current?.(text, true);
 
             if (onLanguageDetectedRef.current && detectedLang) {
-              console.log("[STT] Triggering onLanguageDetected with:", detectedLang);
+              console.log('[STT] Triggering onLanguageDetected with:', detectedLang);
               onLanguageDetectedRef.current(detectedLang);
             }
           } catch (err) {
             const msg = (err as Error).message || 'Failed to process speech input';
-            console.error("[STT] Error during processing:", msg);
+            console.error('[STT] Error during processing:', msg);
             setError(msg);
             onErrorRef.current?.(msg);
           } finally {
