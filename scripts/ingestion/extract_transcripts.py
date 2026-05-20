@@ -264,7 +264,9 @@ def _claude_restore(text, video_id=""):
         )
         with _urllib_req.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read().decode("utf-8"))
-        return result["content"][0]["text"].strip()
+        res_text = result["content"][0]["text"].strip()
+        time.sleep(1.0)  # Polite sleep to respect API rate limits
+        return res_text
     except Exception as e:
         print("    ⚠️  Claude API restore failed for {}: {} — using raw text".format(video_id, e))
         return text
@@ -316,7 +318,9 @@ def _nvidia_restore(text, video_id=""):
             for chunk in completion:
                 if chunk.choices and chunk.choices[0].delta.content is not None:
                     restored.append(chunk.choices[0].delta.content)
-            return "".join(restored).strip()
+            res_text = "".join(restored).strip()
+            time.sleep(1.0)  # Polite sleep to respect API rate limits
+            return res_text
         except Exception as e:
             delay = initial_delay * (backoff_factor ** attempt)
             print("    ⚠️  NVIDIA API attempt {}/{} failed for {}: {} — retrying in {:.1f}s...".format(
@@ -501,12 +505,25 @@ def run_batch(client, video_ids):
     """
     johnvc/YoutubeTranscripts input: { "youtube_url": [list of URLs] }
     Returns items with: video_id, non_timestamped, timestamped, language, success, url
+    Supports exponential backoff to handle rate limits and transient errors.
     """
     urls = ["https://www.youtube.com/watch?v={}".format(v) for v in video_ids]
-    try:
-        run = client.actor(ACTOR_ID).call(run_input={"youtube_url": urls})
-    except Exception as e:
-        raise RuntimeError("Apify actor call failed: {}".format(e)) from e
+    max_retries = 5
+    backoff_factor = 2.0
+    initial_delay = 2.0
+
+    for attempt in range(max_retries):
+        try:
+            run = client.actor(ACTOR_ID).call(run_input={"youtube_url": urls})
+            break
+        except Exception as e:
+            delay = initial_delay * (backoff_factor ** attempt)
+            print("  ⚠️  Apify actor call attempt {}/{} failed: {} — retrying in {:.1f}s...".format(
+                attempt + 1, max_retries, e, delay))
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+            else:
+                raise RuntimeError("Apify actor call failed after {} attempts: {}".format(max_retries, e)) from e
 
     dataset_id = run.get("defaultDatasetId") if run else None
     if not dataset_id:
@@ -687,6 +704,9 @@ def main():
                     state["failed"].append(vid)
 
                 already_done.add(vid)
+                # Store progress immediately after each processed video
+                save_state(state)
+                save_json(transcripts_data)
 
             except Exception as item_err:
                 print("  ❌ Unexpected error on item: {}".format(item_err))

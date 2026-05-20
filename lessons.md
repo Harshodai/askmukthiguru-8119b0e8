@@ -531,3 +531,12 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Saved both `_state.json` and `transcripts.json` incrementally at the end of every batch execution.
 - **Lesson learned**: When writing data harvesting scripts that interact with rate-limited, paid, or flaky external APIs, always keep a consolidated, high-fidelity JSON catalog alongside individual raw outputs, and implement bidirectional sync on startup to guarantee seamless execution resuming.
 
+### 43. Multi-tier Resilient Ingestion with Rate Limits and Per-Video JSON Serialization (May 2026)
+- **Problem**: In high-throughput, multi-tier data ingestion setups (using external Apify actors, local BERT models, and remote NVIDIA/Claude refinement APIs), the ingestion loop is highly vulnerable to rate limits (HTTP 429) and transient network disconnects. Additionally, serializing state *only at the end of a batch* introduces severe progress loss if the script crashes or is interrupted mid-batch.
+- **Solution**:
+  - Implemented robust **exponential backoff retry handlers** in the Apify actor batching module (`run_batch`), dynamically stepping back on failures up to 5 times.
+  - Added strict, polite **API rate-limiting sleep delays** (e.g. 1.0s) immediately after successful remote punctuation restoration calls (NVIDIA/Claude) to respect RPM constraints and avoid API bans.
+  - Hardened state persistence by serializing and saving progress to `_state.json` and `transcripts.json` **per each video processed** inside the batch iteration loop, ensuring zero progress loss under any interruption.
+- **Lesson learned**: In pipeline processes that mix remote web scrapers, local models, and remote LLM correction steps, rate limits and hardware boundaries must be policed proactively via inline throttle delays and exponential backoffs. Always write state instantly ("per-item") when the items take seconds to process, as the disk serialization overhead is negligible compared to the cost of re-processing lost items.
+
+
