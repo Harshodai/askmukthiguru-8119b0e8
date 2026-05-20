@@ -117,32 +117,21 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         );
       });
 
-      // Fallback to Sarvam TTS if no local voice for Indic languages
+      // Fallback to Sarvam TTS edge function if no local voice for Indic languages
       if (!hasLocalVoice && lang !== 'en') {
         setIsSpeaking(true);
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
-        fetch(`${backendUrl}/api/speech/tts`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text,
-            target_language_code: lang,
-            ...(speaker ? { speaker } : {}),
-          }),
-        })
-          .then((res) => {
-            if (!res.ok) {
-              throw new Error(`TTS API status ${res.status}`);
-            }
-            return res.json();
+        supabase.functions
+          .invoke('sarvam-tts', {
+            body: {
+              text,
+              target_language_code: lang,
+              ...(speaker ? { speaker } : {}),
+            },
           })
-          .then((data) => {
-            if (!data.audio) {
-              throw new Error('No audio payload in response');
-            }
-            
+          .then(({ data, error }) => {
+            if (error) throw error;
+            if (!data?.audio) throw new Error('No audio payload in response');
+
             const audioUrl = `data:audio/mp3;base64,${data.audio}`;
             const audio = new Audio(audioUrl);
             sarvamAudioRef.current = audio;
@@ -166,7 +155,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
               sarvamAudioRef.current = null;
             };
 
-            audio.play().catch((err) => {
+            audio.play().catch(() => {
               const errMsg = `Audio playback blocked or failed.`;
               setError(errMsg);
               onErrorRef.current?.(errMsg);
@@ -174,10 +163,12 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
             });
           })
           .catch((err) => {
-            const errMsg = `Voice output is not supported for ${lang === 'hi' ? 'Hindi' : lang}. Showing text only.`;
+            const langName = LANGUAGES.find((l) => l.code === lang)?.name ?? lang;
+            const errMsg = `Voice output isn't available for ${langName} right now. Showing text only.`;
             setError(errMsg);
             onErrorRef.current?.(errMsg);
             setIsSpeaking(false);
+            console.warn('Sarvam TTS failed:', err);
           });
       } else {
         // Native SpeechSynthesis fallback/flow
