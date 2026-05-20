@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UseTextToSpeechOptions {
   lang?: string;
