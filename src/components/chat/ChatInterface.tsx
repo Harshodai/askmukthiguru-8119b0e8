@@ -262,20 +262,29 @@ export const ChatInterface = () => {
       setVoiceEnabled(false);
     },
     onLanguageDetected: (detectedLang) => {
-      console.log("[ChatInterface] onLanguageDetected called with:", detectedLang);
       const detectedLangObj = LANGUAGES.find(
         (l) => l.bcp47.toLowerCase() === detectedLang.toLowerCase() || l.code.toLowerCase() === detectedLang.toLowerCase()
       );
-      console.log("[ChatInterface] matched detectedLangObj:", JSON.stringify(detectedLangObj), "currentLanguage:", currentLanguage);
-      if (detectedLangObj && detectedLangObj.code !== currentLanguage) {
-        handleLanguageChange(detectedLangObj.code);
-        console.log("[ChatInterface] handleLanguageChange called, showing toast");
-        toast({
-          title: '🌐 Language Switched',
-          description: `Detected ${detectedLangObj.name}. Switched conversation and speech settings.`,
-          duration: 3500,
-        });
-      }
+      if (!detectedLangObj || detectedLangObj.code === currentLanguage) return;
+      // Don't re-prompt for the same language in the same session
+      const dismissKey = `lang_dismiss_${detectedLangObj.code}`;
+      if (sessionStorage.getItem(dismissKey)) return;
+
+      toast({
+        title: `🌐 Detected ${detectedLangObj.name}`,
+        description: `Switch conversation language to ${detectedLangObj.native}?`,
+        duration: 8000,
+        action: (
+          <button
+            onClick={() => handleLanguageChange(detectedLangObj.code)}
+            className="px-3 py-1.5 rounded-md bg-ojas text-white text-xs font-medium hover:bg-ojas/90"
+          >
+            Switch
+          </button>
+        ) as unknown as undefined,
+      });
+      // Mark this detection as seen for the session if user ignores it
+      sessionStorage.setItem(dismissKey, '1');
     },
   });
 
