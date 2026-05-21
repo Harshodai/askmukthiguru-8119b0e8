@@ -810,7 +810,40 @@ async def main():
     def save_state():
         _atomic_save_state(state, STATE_FILE)
 
-    # ── Handle --clean-state (remove permanently failed entries) ──
+    # ── Pre-flight Health Checks ─────────────────────────────
+    # Verify critical infrastructure is reachable before processing any videos.
+    # Fail fast here instead of burning 300+ API calls with identical errors.
+    _preflight_ok = True
+
+    # 1. Qdrant health check
+    try:
+        import urllib.request
+        with urllib.request.urlopen("http://localhost:6333/healthz", timeout=5) as resp:
+            if resp.status == 200:
+                logger.info("✅ Pre-flight: Qdrant is healthy (localhost:6333)")
+            else:
+                logger.error(f"❌ Pre-flight: Qdrant returned HTTP {resp.status}")
+                _preflight_ok = False
+    except Exception as e:
+        logger.error(f"❌ Pre-flight: Qdrant unreachable — {e}")
+        _preflight_ok = False
+
+    # 2. Neo4j bolt health check (lightweight ping, no auth needed for reachability)
+    try:
+        import socket
+        with socket.create_connection(("localhost", 7687), timeout=5):
+            logger.info("✅ Pre-flight: Neo4j bolt port is open (localhost:7687)")
+    except Exception as e:
+        logger.warning(f"⚠️  Pre-flight: Neo4j bolt unreachable — {e}. "
+                       f"LightRAG graph extraction will be degraded/skipped.")
+        # Not fatal — LightRAG gracefully degrades; Qdrant ingestion can still proceed.
+
+    if not _preflight_ok:
+        logger.error("❌ Pre-flight failed. Fix infrastructure issues before running ingestion.")
+        logger.error("   Qdrant: docker ps | grep qdrant — ensure container is running")
+        return
+
+
     if args.clean_state:
         before = len(state["dead_letter_queue"])
         state["dead_letter_queue"] = [
