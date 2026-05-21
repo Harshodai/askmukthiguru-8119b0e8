@@ -26,6 +26,7 @@ import json
 import subprocess
 import signal
 import argparse
+from typing import Optional
 
 # ── Force unbuffered stdout for real-time logging ───────────
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -117,28 +118,87 @@ def chunk_text(text: str, chunk_size: int = LIGHTRAG_CHUNK_SIZE, overlap: int = 
     return chunks
 
 
-async def safe_lightrag_insert(lightrag_service, full_text: str, source_name: str):
-    """Insert text into LightRAG in safe, chunked segments to prevent SIGSEGV."""
+async def safe_lightrag_insert(
+    lightrag_service,
+    full_text: str,
+    source_name: str,
+    state: Optional[dict] = None,
+    save_state_fn = None,
+    video_id: Optional[str] = None
+):
+    """Insert text into LightRAG in safe, chunked segments with retry & exponential backoff.
+    
+    If a chunk fails after retries, it is persistently recorded in the state.
+    """
     chunks = chunk_text(full_text)
     total = len(chunks)
     logger.info(f"LightRAG: Splitting {len(full_text):,} chars into {total} chunks (~{LIGHTRAG_CHUNK_SIZE} chars each)")
 
+    success_count = 0
+    max_chunk_attempts = 3
+    base_chunk_delay = 5.0  # seconds
+
     for i, chunk in enumerate(chunks, 1):
         logger.info(f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars) for [{source_name}]")
-        try:
-            # Prepend clear contextual source name header directly to text inserted into knowledge graph
-            chunk_with_header = f"[Source: {source_name}]\n{chunk}"
-            await lightrag_service.ainsert(chunk_with_header, file_paths=[source_name])
+        chunk_with_header = f"[Source: {source_name}]\n{chunk}"
+        
+        success = False
+        last_error = ""
+
+        for attempt in range(1, max_chunk_attempts + 1):
+            try:
+                # Call LightRAG directly to raise exceptions on failures
+                await lightrag_service.ainsert(chunk_with_header, file_paths=[source_name], timeout=180.0)
+                success = True
+                break
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(
+                    f"LightRAG: Chunk {i}/{total} Attempt {attempt}/{max_chunk_attempts} failed: {e}"
+                )
+                if attempt < max_chunk_attempts:
+                    sleep_time = base_chunk_delay * (2 ** (attempt - 1))
+                    logger.info(f"LightRAG: Retrying chunk {i}/{total} in {sleep_time:.1f}s...")
+                    await asyncio.sleep(sleep_time)
+
+        if success:
+            success_count += 1
             logger.info(f"LightRAG: ✅ Chunk {i}/{total} done")
-        except Exception as e:
-            logger.error(f"LightRAG: ❌ Chunk {i}/{total} failed: {e}")
-            # Continue with remaining chunks — partial graph is better than none
+        else:
+            logger.error(f"LightRAG: ❌ Chunk {i}/{total} completely failed after {max_chunk_attempts} attempts.")
+            
+            # Record failed chunk in state if provided
+            if state is not None:
+                if "failed_lightrag_chunks" not in state:
+                    state["failed_lightrag_chunks"] = []
+                
+                # Check if this chunk is already tracked to avoid duplicates
+                already_tracked = any(
+                    c.get("source_name") == source_name and c.get("chunk_index") == i
+                    for c in state["failed_lightrag_chunks"]
+                )
+                
+                if not already_tracked:
+                    failed_chunk_record = {
+                        "source_name": source_name,
+                        "video_id": video_id,
+                        "chunk_index": i,
+                        "total_chunks": total,
+                        "chunk_content": chunk,
+                        "error": last_error,
+                        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "attempts": max_chunk_attempts
+                    }
+                    state["failed_lightrag_chunks"].append(failed_chunk_record)
+                    logger.info(f"LightRAG: Stored failed chunk {i}/{total} in state.")
+                    if save_state_fn:
+                        save_state_fn()
 
         if i < total:
             logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
             await asyncio.sleep(LIGHTRAG_SLEEP_BETWEEN)
 
-    logger.info(f"LightRAG: ✅ All {total} chunks processed for [{source_name}]")
+    logger.info(f"LightRAG: ✅ {success_count}/{total} chunks processed successfully for [{source_name}]")
 
 
 # ── In-Process Book Ingestion (no subprocess spawn) ─────────
@@ -385,6 +445,8 @@ def parse_args():
                         help="Skip book ingestion, go straight to YouTube")
     parser.add_argument("--video-limit", type=int, default=0,
                         help="Limit total videos to process (0=all)")
+    parser.add_argument("--retry-failed-lightrag", action="store_true",
+                        help="Retry only the failed LightRAG chunks stored in state, then exit")
     return parser.parse_args()
 
 
@@ -431,10 +493,69 @@ async def main():
         state["processed_videos"] = []
     if "processed_docs" not in state:
         state["processed_docs"] = []
+    if "failed_lightrag_chunks" not in state:
+        state["failed_lightrag_chunks"] = []
 
     def save_state():
         with open(STATE_FILE, "w") as f:
             json.dump(state, f, indent=2)
+
+    # ── Handle Retry of Failed LightRAG Chunks Directly ───────
+    if args.retry_failed_lightrag:
+        failed_chunks = state.get("failed_lightrag_chunks", [])
+        if not failed_chunks:
+            logger.info("🎉 No failed LightRAG chunks stored in state. Nothing to retry!")
+            return
+        
+        logger.info(f"🔄 Retrying {len(failed_chunks)} failed LightRAG chunk(s)...")
+        # Copy to avoid mutation issues during iteration
+        chunks_to_retry = list(failed_chunks)
+        success_count = 0
+        
+        for idx, item in enumerate(chunks_to_retry, 1):
+            source_name = item.get("source_name", "Unknown Source")
+            chunk_content = item.get("chunk_content", "")
+            chunk_idx = item.get("chunk_index", 0)
+            total_chunks = item.get("total_chunks", 0)
+            
+            logger.info(f"[{idx}/{len(chunks_to_retry)}] Retrying chunk {chunk_idx}/{total_chunks} for [{source_name}]")
+            chunk_with_header = f"[Source: {source_name}]\n{chunk_content}"
+            
+            success = False
+            max_attempts = 3
+            base_delay = 5.0
+            
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    await container.lightrag.ainsert(chunk_with_header, file_paths=[source_name], timeout=180.0)
+                    success = True
+                    break
+                except Exception as e:
+                    logger.warning(f"  Attempt {attempt}/{max_attempts} failed: {e}")
+                    if attempt < max_attempts:
+                        sleep_time = base_delay * (2 ** (attempt - 1))
+                        await asyncio.sleep(sleep_time)
+            
+            if success:
+                logger.info(f"  ✅ Chunk ingestion succeeded! Removing from failed queue.")
+                success_count += 1
+                state["failed_lightrag_chunks"] = [
+                    c for c in state["failed_lightrag_chunks"]
+                    if not (c.get("source_name") == source_name and c.get("chunk_index") == chunk_idx)
+                ]
+                save_state()
+            else:
+                logger.error(f"  ❌ Chunk ingestion failed again after {max_attempts} attempts.")
+                item["attempts"] = item.get("attempts", 3) + max_attempts
+                item["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                save_state()
+            
+            if idx < len(chunks_to_retry):
+                logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
+                await asyncio.sleep(LIGHTRAG_SLEEP_BETWEEN)
+                
+        logger.info(f"🎉 Failed LightRAG retry complete: {success_count} chunks successfully ingested. {len(state['failed_lightrag_chunks'])} remaining.")
+        return
 
     # ── Ingest: The Four Sacred Secrets (Book) ──────────────
     doc_name = "The_Four_Sacred_Secrets.pdf"
@@ -477,7 +598,14 @@ async def main():
 
                 full_text = get_text_recursive(data.get("structure", []))
                 if full_text.strip():
-                    await safe_lightrag_insert(container.lightrag, full_text, doc_name)
+                    await safe_lightrag_insert(
+                        lightrag_service=container.lightrag,
+                        full_text=full_text,
+                        source_name=doc_name,
+                        state=state,
+                        save_state_fn=save_state,
+                        video_id=None
+                    )
                     logger.info("Step 2/2: ✅ LightRAG → Neo4j complete")
                 else:
                     logger.warning("No text extracted from structure JSON")
@@ -601,7 +729,14 @@ async def main():
                         sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
                         corrected_text = await pipeline._corrector.correct_transcript(sanitized_text, url)
                         source_name = f"YouTube Video: {title} (URL: {url})"
-                        await safe_lightrag_insert(container.lightrag, corrected_text, source_name)
+                        await safe_lightrag_insert(
+                            lightrag_service=container.lightrag,
+                            full_text=corrected_text,
+                            source_name=source_name,
+                            state=state,
+                            save_state_fn=save_state,
+                            video_id=vid
+                        )
                         logger.info(f"[LightRAG] ✅ Success")
                     else:
                         logger.warning(f"[LightRAG] ⚠️ No transcript content retrieved")
