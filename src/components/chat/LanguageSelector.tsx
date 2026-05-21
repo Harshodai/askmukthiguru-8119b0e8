@@ -82,6 +82,7 @@ export const LanguageSelector = ({
 }: LanguageSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [internalLang, setInternalLang] = useState('en');
+  const [search, setSearch] = useState('');
   const selectedLanguage = value ?? internalLang;
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { toast } = useToast();
