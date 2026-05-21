@@ -81,6 +81,8 @@ graph LR
 | `cleaner.py` | Strip filler/timestamps | Unit test with dirty transcript |
 | `raptor.py` | Cluster → summarize → tree | Verify summary quality + Qdrant storage |
 | `pipeline.py` | Orchestrator | E2E: URL → chunks in Qdrant |
+| ✅ `bulk_ingest_async.py` | SDLC-hardened async ingestion | Circuit breaker, DLQ, ETA, dual-DB tracking |
+| ✅ `extract_transcripts.py` | Batch Apify extraction (359 videos) | `transcripts/_state.json` |
 
 **Trade-offs considered**:
 - ✅ 3-tier transcript (manual → whisper → auto-captions) — maximum coverage
@@ -92,7 +94,18 @@ graph LR
 
 **Risk**: Whisper on CPU is slow (~2x realtime). Mitigation: Use captions first; Whisper is fallback only.
 
+**Current Status** (May 2026):
+- 359 videos extracted, 75 ingested (Qdrant + KG), **357 remaining**
+- 29 permanently failed (no transcript / deleted videos) — classified in DLQ
+- 72 videos need LightRAG KG backfill (`--retry-lightrag-missing`)
+
+**Tech Debt**:
+- [ ] Run `--retry-lightrag-missing` sweep for 72 Qdrant-only videos
+- [ ] Complete remaining 357-video ingestion run
+- [ ] Validate ingestion quality via `scripts/benchmarks/askmukthiguru_ruthless_benchmark.py`
+
 ---
+
 
 ## Phase 4: LangGraph RAG (The Brain) — **Critical Path**
 **Goal**: 11-layer pipeline produces zero-hallucination, cited answers.
