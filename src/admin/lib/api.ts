@@ -1,14 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { 
-  KpiSnapshot, 
-  QueryFilters, 
-  ChatTrace, 
-  PromptVersion, 
-  TriggerEvent, 
-  SafetyEvent, 
-  TopicCluster, 
-  RetrievalHealth, 
-  TimeseriesMetric, 
+import type {
+  KpiSnapshot,
+  QueryFilters,
+  ChatTrace,
+  PromptVersion,
+  TriggerEvent,
+  SafetyEvent,
+  TopicCluster,
+  RetrievalHealth,
+  TimeseriesMetric,
   DataPoint,
   QualityData,
   IngestionHealth,
@@ -17,6 +17,10 @@ import * as db from './mockData';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
+/* ── Explicit NODE_ENV check for mock-data guard ─────────────────────────── */
+const ALLOW_MOCK = import.meta.env.DEV;
+
+/* ── Auth helper ─────────────────────────────────────────────────────────── */
 async function fetchWithAuth(path: string, options: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
@@ -34,207 +38,255 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
     if (response.status === 401 || response.status === 403) {
       throw new Error('Admin access required or session expired');
     }
-    throw new Error(`API error: ${response.statusText}`);
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
 
   return response.json();
 }
 
-// ── KPIs ──────────────────────────────────────────────────────────────────────
-export async function getKpis(filters: QueryFilters): Promise<KpiSnapshot> {
-  // Try backend first, fall back to Supabase direct
-  try {
-    const params = new URLSearchParams({
-      from_date: filters.from.toISOString(),
-      to_date: filters.to.toISOString(),
-    });
-    return await fetchWithAuth(`/api/admin/kpis?${params}`);
-  } catch {
-    return db.getKpis({ from: filters.from, to: filters.to });
-  }
+/* ── Helper: backend-first with dev-only mock fallback ───────────────────── */
+function withDevFallback<T>(
+  label: string,
+  backendFn: () => Promise<T>,
+  mockFn: () => T | Promise<T>,
+): Promise<T> {
+  return backendFn().catch((err) => {
+    if (ALLOW_MOCK) {
+      console.warn(`[api] ${label} backend failed, using DEV mock fallback`);
+      return Promise.resolve(mockFn());
+    }
+    throw err;
+  });
 }
 
-// ── Queries & Traces ──────────────────────────────────────────────────────────
-export async function listQueries(filters: QueryFilters & { limit?: number; offset?: number }): Promise<ChatTrace[]> {
-  try {
-    const params = new URLSearchParams({ limit: String(filters.limit || 50) });
-    return await fetchWithAuth(`/api/admin/traces?${params}`);
-  } catch {
-    return db.listQueries(filters) as any;
+/* ── Helper: throw in production, allow mock only in dev ───────────────── */
+function prodRequired<T>(label: string, mockFn: () => T | Promise<T>): Promise<T> {
+  if (ALLOW_MOCK) {
+    return Promise.resolve(mockFn());
   }
+  throw new Error(`${label}: backend endpoint not implemented. Mock data is disallowed in production.`);
+}
+
+// ── KPIs ────────────────────────────────────────────────────────────────────
+export async function getKpis(filters: QueryFilters): Promise<KpiSnapshot> {
+  return withDevFallback(
+    'getKpis',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+      });
+      return await fetchWithAuth(`/api/admin/kpis?${params}`);
+    },
+    () => db.getKpis({ from: filters.from, to: filters.to }),
+  );
+}
+
+// ── Queries & Traces ────────────────────────────────────────────────────────
+export async function listQueries(
+  filters: QueryFilters & { limit?: number; offset?: number },
+): Promise<ChatTrace[]> {
+  return withDevFallback(
+    'listQueries',
+    async () => {
+      const params = new URLSearchParams({ limit: String(filters.limit || 50) });
+      return await fetchWithAuth(`/api/admin/traces?${params}`);
+    },
+    () => db.listQueries(filters) as any,
+  );
 }
 
 export async function getQueryTrace(id: string): Promise<ChatTrace> {
-  const trace = await db.getQueryTrace(id);
-  if (trace) return trace as any;
-  const traces = await listQueries({ from: new Date(), to: new Date(), limit: 100 });
-  return traces.find(t => t.id === id) || traces[0];
+  return withDevFallback(
+    'getQueryTrace',
+    async () => {
+      const traces = await listQueries({ from: new Date(), to: new Date(), limit: 100 });
+      const trace = traces.find((t) => t.id === id);
+      if (!trace) throw new Error(`Trace ${id} not found`);
+      return trace;
+    },
+    () => {
+      const trace = db.getQueryTrace(id);
+      if (trace) return trace as any;
+      throw new Error(`Trace ${id} not found in mock data`);
+    },
+  );
 }
 
-// ── Prompt Versions ───────────────────────────────────────────────────────────
+// ── Prompt Versions ─────────────────────────────────────────────────────────
 export async function listPromptVersions(): Promise<PromptVersion[]> {
-  try {
-    return await fetchWithAuth('/api/admin/prompts');
-  } catch {
-    return db.listPromptVersions();
-  }
+  return withDevFallback(
+    'listPromptVersions',
+    () => fetchWithAuth('/api/admin/prompts'),
+    () => db.listPromptVersions(),
+  );
 }
 
-// ── Models ────────────────────────────────────────────────────────────────────
+// ── Models ─────────────────────────────────────────────────────────────────
 export async function listModels(): Promise<string[]> {
-  return db.listModels();
+  return prodRequired('listModels', () => db.listModels());
 }
 
-// ── Timeseries ────────────────────────────────────────────────────────────────
-export async function getTimeseries(options: { metric: TimeseriesMetric; from: Date; to: Date; buckets: number }): Promise<DataPoint[]> {
-  return db.getTimeseries(options);
+// ── Timeseries ──────────────────────────────────────────────────────────────
+export async function getTimeseries(options: {
+  metric: TimeseriesMetric;
+  from: Date;
+  to: Date;
+  buckets: number;
+}): Promise<DataPoint[]> {
+  return prodRequired('getTimeseries', () => db.getTimeseries(options));
 }
 
-// ── Triggers ──────────────────────────────────────────────────────────────────
+// ── Triggers ────────────────────────────────────────────────────────────────
 export async function listTriggers(filters: QueryFilters): Promise<TriggerEvent[]> {
-  return db.listTriggers({ from: filters.from, to: filters.to });
+  return prodRequired('listTriggers', () => db.listTriggers({ from: filters.from, to: filters.to }));
 }
 
-// ── Safety Events ─────────────────────────────────────────────────────────────
+// ── Safety Events ───────────────────────────────────────────────────────────
 export async function listSafetyEvents(filters: QueryFilters): Promise<SafetyEvent[]> {
-  return db.listSafetyEvents({ from: filters.from, to: filters.to });
+  return prodRequired('listSafetyEvents', () => db.listSafetyEvents({ from: filters.from, to: filters.to }));
 }
 
-// ── Topics ────────────────────────────────────────────────────────────────────
+// ── Topics ──────────────────────────────────────────────────────────────────
 export async function listTopicClusters(): Promise<TopicCluster[]> {
-  return db.listTopicClusters() as any;
+  return prodRequired('listTopicClusters', () => db.listTopicClusters() as any);
 }
 
-// ── Retrieval Health ──────────────────────────────────────────────────────────
+// ── Retrieval Health ────────────────────────────────────────────────────────
 export async function getRetrievalHealth(filters: QueryFilters): Promise<RetrievalHealth> {
-  const data = await db.getRetrievalHealth({ from: filters.from, to: filters.to });
-  // Merge defaults for fields the DB wrapper may not return
-  return {
-    total_retrievals: 0,
-    avg_precision: 0.85,
-    avg_recall: 0.78,
-    hit_rate: 0.92,
-    empty_retrievals: 0,
-    avg_top_score: 0.86,
-    miss_rate: 0.08,
-    avg_chunks_per_query: 3.5,
-    top_missing_topics: [],
-    sources: [],
-    ...data,
-  };
+  return prodRequired('getRetrievalHealth', async () => {
+    const data = await db.getRetrievalHealth({ from: filters.from, to: filters.to });
+    return {
+      total_retrievals: 0,
+      avg_precision: 0.85,
+      avg_recall: 0.78,
+      hit_rate: 0.92,
+      empty_retrievals: 0,
+      avg_top_score: 0.86,
+      miss_rate: 0.08,
+      avg_chunks_per_query: 3.5,
+      top_missing_topics: [],
+      sources: [],
+      ...data,
+    };
+  });
 }
 
-// ── Quality Data ──────────────────────────────────────────────────────────────
+// ── Quality Data ────────────────────────────────────────────────────────────
 export async function getQualityData(filters: QueryFilters): Promise<QualityData> {
-  const data = await db.getQualityData({ from: filters.from, to: filters.to });
-  return {
-    faithfulness: 0.92,
-    relevancy: 0.88,
-    safety_score: 0.99,
-    manual_review_score: 0.85,
-    disagreements: [],
-    low_confidence: [],
-    ...data,
-  };
+  return prodRequired('getQualityData', async () => {
+    const data = await db.getQualityData({ from: filters.from, to: filters.to });
+    return {
+      faithfulness: 0.92,
+      relevancy: 0.88,
+      safety_score: 0.99,
+      manual_review_score: 0.85,
+      disagreements: [],
+      low_confidence: [],
+      ...data,
+    };
+  });
 }
 
-// ── Eval Runs ─────────────────────────────────────────────────────────────────
+// ── Eval Runs ───────────────────────────────────────────────────────────────
 export async function listEvalRuns() {
-  return db.listEvalRuns();
+  return prodRequired('listEvalRuns', () => db.listEvalRuns());
 }
 
-// ── Golden Questions ──────────────────────────────────────────────────────────
+// ── Golden Questions ────────────────────────────────────────────────────────
 export async function listGoldenQuestions() {
-  return db.listGoldenQuestions();
+  return prodRequired('listGoldenQuestions', () => db.listGoldenQuestions());
 }
 
-// ── Ingestion Runs ────────────────────────────────────────────────────────────
+// ── Ingestion Runs ──────────────────────────────────────────────────────────
 export async function listIngestionRuns() {
-  return db.listIngestionRuns();
+  return prodRequired('listIngestionRuns', () => db.listIngestionRuns());
 }
 
 // ── Alert Rules & Events ──────────────────────────────────────────────────────
 export async function listAlertRules() {
-  return db.listAlertRules();
+  return prodRequired('listAlertRules', () => db.listAlertRules());
 }
 
 export async function listAlertEvents() {
-  return db.listAlertEvents();
+  return prodRequired('listAlertEvents', () => db.listAlertEvents());
 }
 
-// ── Annotations ───────────────────────────────────────────────────────────────
+// ── Annotations ─────────────────────────────────────────────────────────────
 export async function listAnnotations() {
-  return db.listAnnotations();
+  return prodRequired('listAnnotations', () => db.listAnnotations());
 }
 
 // ── Admins ────────────────────────────────────────────────────────────────────
 export async function listAdmins() {
-  return db.listAdmins();
+  return prodRequired('listAdmins', () => db.listAdmins());
 }
 
-// ── Model Pricing ─────────────────────────────────────────────────────────────
+// ── Model Pricing ───────────────────────────────────────────────────────────
 export async function listModelPricing() {
-  return db.listModelPricing();
+  return prodRequired('listModelPricing', () => db.listModelPricing());
 }
 
 // ── Top Failures ──────────────────────────────────────────────────────────────
 export async function getTopFailures(filters: QueryFilters, limit: number) {
-  return db.getTopFailures({ from: filters.from, to: filters.to }, limit);
+  return prodRequired('getTopFailures', () => db.getTopFailures({ from: filters.from, to: filters.to }, limit));
 }
 
-// ── RAGAS Heatmap ─────────────────────────────────────────────────────────────
+// ── RAGAS Heatmap ───────────────────────────────────────────────────────────
 export async function getRagasHeatmap(filters: QueryFilters, buckets: number) {
-  return db.getRagasHeatmap({ from: filters.from, to: filters.to }, buckets);
+  return prodRequired('getRagasHeatmap', () => db.getRagasHeatmap({ from: filters.from, to: filters.to }, buckets));
 }
 
-// ── Trigger Trend ─────────────────────────────────────────────────────────────
+// ── Trigger Trend ───────────────────────────────────────────────────────────
 export async function getTriggerTrend(filters: QueryFilters, buckets: number) {
-  return db.getTriggerTrend({ from: filters.from, to: filters.to }, buckets);
+  return prodRequired('getTriggerTrend', () => db.getTriggerTrend({ from: filters.from, to: filters.to }, buckets));
 }
 
-// ── Similarity Trend ──────────────────────────────────────────────────────────
+// ── Similarity Trend ────────────────────────────────────────────────────────
 export async function getSimilarityTrend(filters: QueryFilters, buckets: number) {
-  return db.getSimilarityTrend({ from: filters.from, to: filters.to }, buckets);
+  return prodRequired('getSimilarityTrend', () => db.getSimilarityTrend({ from: filters.from, to: filters.to }, buckets));
 }
 
 // ── Dead Docs ─────────────────────────────────────────────────────────────────
 export async function getDeadDocs(filters: QueryFilters) {
-  return db.getDeadDocs({ from: filters.from, to: filters.to });
+  return prodRequired('getDeadDocs', () => db.getDeadDocs({ from: filters.from, to: filters.to }));
 }
 
-// ── Empty Retrievals ──────────────────────────────────────────────────────────
+// ── Empty Retrievals ────────────────────────────────────────────────────────
 export async function getEmptyRetrievals(filters: QueryFilters, limit: number) {
-  return db.getEmptyRetrievals({ from: filters.from, to: filters.to }, limit);
+  return prodRequired('getEmptyRetrievals', () => db.getEmptyRetrievals({ from: filters.from, to: filters.to }, limit));
 }
 
 // ── Ingestion Health ──────────────────────────────────────────────────────────
 export async function getIngestionHealth(): Promise<IngestionHealth> {
-  const data = await db.getIngestionHealth();
-  if (data) return data;
-  return {
-    status: 'healthy',
-    last_run: new Date().toISOString(),
-    indexed_docs: 0,
-    failed_docs: 0,
-    total_runs: 0,
-    ok: 0,
-    partial: 0,
-    failed: 0,
-    total_chunks: 0,
-  };
+  return prodRequired('getIngestionHealth', async () => {
+    const data = await db.getIngestionHealth();
+    if (data) return data;
+    return {
+      status: 'healthy',
+      last_run: new Date().toISOString(),
+      indexed_docs: 0,
+      failed_docs: 0,
+      total_runs: 0,
+      ok: 0,
+      partial: 0,
+      failed: 0,
+      total_chunks: 0,
+    };
+  });
 }
 
 // ── Prompt Metrics ────────────────────────────────────────────────────────────
 export async function getPromptMetricsByVersion() {
-  return db.getPromptMetricsByVersion();
+  return prodRequired('getPromptMetricsByVersion', () => db.getPromptMetricsByVersion());
 }
 
 // ── Live Feed ─────────────────────────────────────────────────────────────────
 export async function pollLiveFeed() {
-  return db.pollLiveFeed() as any;
+  return prodRequired('pollLiveFeed', () => db.pollLiveFeed() as any);
 }
 
-// ── Ingestion Submit (wired to backend) ───────────────────────────────────────
+// ── Ingestion Submit (wired to backend) ─────────────────────────────────────
 export async function submitIngestion(url: string, maxAccuracy: boolean = false) {
   return fetchWithAuth('/api/ingest', {
     method: 'POST',

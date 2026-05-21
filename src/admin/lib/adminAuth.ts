@@ -29,7 +29,8 @@ export async function verifyAdminSession(): Promise<{
     _role: 'admin',
   });
 
-  if (!roleOk) {
+  // Type guard: RPC must return boolean true, not truthy/undefined/null
+  if (roleOk !== true) {
     localStorage.removeItem(STORAGE_KEY);
     return { authenticated: false, session: null };
   }
@@ -61,7 +62,7 @@ export async function loginAdmin(
     _role: 'admin',
   });
 
-  if (!roleOk) {
+  if (roleOk !== true) {
     await supabase.auth.signOut();
     return { ok: false, error: 'Not an admin. Access denied.' };
   }
@@ -90,9 +91,4 @@ export function getAdminSession(): AdminSession | null {
   } catch {
     return null;
   }
-}
-
-/** @deprecated Use verifyAdminSession() for security. */
-export function isAdminAuthenticated(): boolean {
-  return getAdminSession() !== null;
 }

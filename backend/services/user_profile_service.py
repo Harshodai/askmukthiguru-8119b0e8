@@ -8,8 +8,8 @@ from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict
 from enum import Enum
 from app.config import settings
+from app.security_utils import validate_user_id, validate_session_id
 
-logger = logging.getLogger(__name__)
 
 class SpiritualLevel(str, Enum):
     BEGINNER = "beginner"       # New to spirituality

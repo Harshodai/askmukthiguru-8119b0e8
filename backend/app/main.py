@@ -318,7 +318,7 @@ app.include_router(feedback_router, prefix="/api")
 from app.trace_dashboard import router as trace_router
 app.include_router(trace_router)
 
-@app.get("/metrics")
+@app.get("/metrics", tags=["Observability"])
 async def get_metrics(user: Dict = Depends(get_current_user_from_supabase)):
     """Prometheus metrics endpoint."""
     from fastapi.responses import Response
@@ -509,7 +509,7 @@ async def _prepare_user_memory(
 
     return memory_context, distress_history
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
 @limiter.limit(settings.chat_rate_limit)
 async def chat_endpoint(
     request: Request,
@@ -624,19 +624,20 @@ async def chat_endpoint(
                 question=user_msg_en,
                 chat_history=chat_history_en,
                 meditation_step=chat_body.meditation_step,
+                request_id=correlation_id_var.get(),
             )
             # Inject language and user context into state
             initial_state["detected_language"] = lang_detection.primary.value
             initial_state["user_id"] = user_id
             initial_state["memory_context"] = memory_context
-            
+
             # A/B Testing Logic
             import random
             if settings.ab_testing_enabled and random.random() < settings.ab_testing_ratio:
                 initial_state["ab_model"] = "krutrim"
             else:
                 initial_state["ab_model"] = "primary"
-                
+
             return await container.rag_graph.ainvoke(initial_state)
 
         result = await asyncio.wait_for(
@@ -823,7 +824,7 @@ async def chat_endpoint(
 
 
 
-@app.post("/api/chat/stream")
+@app.post("/api/chat/stream", tags=["Chat"])
 @limiter.limit(settings.chat_rate_limit)
 async def chat_stream_endpoint(
     request: Request,
@@ -945,6 +946,7 @@ async def chat_stream_endpoint(
                 question=user_msg_en,
                 chat_history=chat_history_en,
                 meditation_step=chat_body.meditation_step,
+                request_id=correlation_id_var.get(),
             )
             # Inject language and user context into state
             initial_state["detected_language"] = lang_detection.primary.value
@@ -1067,7 +1069,7 @@ class SpeechTTSRequest(BaseModel):
     speaker: Optional[str] = None
 
 
-@app.post("/api/speech/stt")
+@app.post("/api/speech/stt", tags=["Speech"])
 async def speech_to_text_endpoint(
     file: UploadFile = File(...),
     language_code: Optional[str] = Form(None),
@@ -1159,7 +1161,7 @@ async def speech_to_text_endpoint(
         raise HTTPException(status_code=500, detail=f"Speech transcription failed: {e}")
 
 
-@app.post("/api/speech/tts")
+@app.post("/api/speech/tts", tags=["Speech"])
 async def text_to_speech_endpoint(
     req: SpeechTTSRequest,
     container: ServiceContainer = Depends(get_container)
@@ -1237,7 +1239,7 @@ async def text_to_speech_endpoint(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/ingest", response_model=IngestResponse)
+@app.post("/api/ingest", response_model=IngestResponse, tags=["Ingestion"])
 @limiter.limit("5/minute")
 async def ingest_endpoint(
     request: Request,
@@ -1324,7 +1326,7 @@ async def ingest_endpoint(
     )
 
 
-@app.get("/api/profile")
+@app.get("/api/profile", tags=["Profile"])
 async def get_profile_endpoint(
     user: Dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container)
@@ -1337,7 +1339,7 @@ async def get_profile_endpoint(
     return asdict(profile)
 
 
-@app.put("/api/profile")
+@app.put("/api/profile", tags=["Profile"])
 async def update_profile_endpoint(
     profile_data: Dict,
     user: Dict = Depends(get_current_user_from_supabase),
@@ -1373,7 +1375,7 @@ async def update_profile_endpoint(
     return asdict(profile)
 
 
-@app.get("/api/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 async def health_endpoint(container: ServiceContainer = Depends(get_container)) -> HealthResponse:
     """
     Health check endpoint.
@@ -1400,7 +1402,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     )
 
 
-@app.get("/api/ready")
+@app.get("/api/ready", tags=["Health"])
 async def readiness_endpoint(container: ServiceContainer = Depends(get_container)) -> dict:
     """
     Kubernetes readiness probe endpoint.
@@ -1432,7 +1434,7 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
     }
 
 
-@app.get("/api/ingest/status")
+@app.get("/api/ingest/status", tags=["Ingestion"])
 async def ingest_status_endpoint(user: Dict = Depends(get_current_user_from_supabase), container: ServiceContainer = Depends(get_container)) -> dict:
     """
     Get the status of active/recent ingestion jobs (Admin only).

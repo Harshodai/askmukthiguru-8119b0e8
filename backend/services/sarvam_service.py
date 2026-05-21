@@ -164,6 +164,81 @@ class SarvamCloudService:
             f"base_url={self._base_url}"
         )
 
+    def _extract_structured_content(self, text: str, operation: str) -> Optional[str]:
+        """
+        Attempt to extract structured data (JSON, markdown code blocks, tab-separated entity tables)
+        from reasoning_content when the main content field is returned empty.
+        """
+        if not text:
+            return None
+
+        # 1. Try to find markdown code blocks (e.g., ```json ... ```, ```csv ... ```, ``` ... ```)
+        blocks = re.findall(r"```[a-zA-Z0-9_-]*\n(.*?)\n```", text, re.DOTALL)
+        for block in blocks:
+            block_strip = block.strip()
+            if not block_strip:
+                continue
+            
+            # If JSON-based operation, check if block is valid JSON
+            if operation in ("grading", "combined_verify", "verify_claims", "classification", "classification_fallback"):
+                try:
+                    json.loads(block_strip)
+                    return block_strip
+                except Exception:
+                    pass
+            else:
+                # For non-JSON operations, check if the block is appropriate
+                if operation == "extraction":
+                    block_lower = block_strip.lower()
+                    if (
+                        "<|#|>" in block_strip or
+                        "entity" in block_lower or
+                        "relation" in block_lower or
+                        "\t" in block_strip
+                    ):
+                        return block_strip
+                else:
+                    return block_strip
+
+        # 2. Try regex-based JSON block extraction (matching first/last braces or brackets)
+        first_brace = text.find('{')
+        last_brace = text.rfind('}')
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            potential_json = text[first_brace:last_brace+1]
+            try:
+                json.loads(potential_json)
+                return potential_json
+            except Exception:
+                pass
+
+        first_bracket = text.find('[')
+        last_bracket = text.rfind(']')
+        if first_bracket != -1 and last_bracket != -1 and last_bracket > first_bracket:
+            potential_json = text[first_bracket:last_bracket+1]
+            try:
+                json.loads(potential_json)
+                return potential_json
+            except Exception:
+                pass
+
+        # 3. For LightRAG extraction, search for lines that look like entity or relationship records
+        if operation == "extraction":
+            lines = text.splitlines()
+            extracted_lines = []
+            for line in lines:
+                l_strip = line.strip()
+                l_lower = l_strip.lower()
+                is_record = (
+                    "<|#|>" in l_strip or
+                    (l_strip.count('"') >= 4 and ("entity" in l_lower or "relation" in l_lower or "\t" in l_strip))
+                )
+                if is_record:
+                    extracted_lines.append(l_strip)
+            if extracted_lines:
+                return "\n".join(extracted_lines)
+
+        return None
+
     # -----------------------------------------------------------------------
     # Core HTTP API call — ALL LLM calls go through here
     # -----------------------------------------------------------------------
@@ -365,20 +440,26 @@ class SarvamCloudService:
 
                         # Check if the current call is a structured operation
                         is_structured = kwargs.get("is_structured", False)
-                        structured_ops = {"extraction", "grading", "classification", "classification_fallback", "correction", "translation", "extract"}
+                        structured_ops = {"extraction", "grading", "classification", "classification_fallback", "correction", "translation", "extract", "summarize"}
 
                         # Fallback: if content is empty but reasoning_content exists, use reasoning_content
                         # This happens if the model gets cut off by max_tokens/context limit during reasoning.
                         if not content.strip() and reasoning_content.strip():
                             if is_structured or operation in structured_ops:
-                                logger.warning(
-                                    f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}) "
-                                    f"for structured operation '{operation}'. Raising retryable exception to prevent database pollution."
-                                )
-                                raise Exception(
-                                    f"Structured task '{operation}' failed to output main content. "
-                                    f"Got reasoning_content (len={len(reasoning_content)}) but empty content."
-                                )
+                                recovered = self._extract_structured_content(reasoning_content, operation)
+                                if recovered:
+                                    logger.info(
+                                        f"Sarvam API: Successfully recovered structured output from reasoning_content "
+                                        f"(len={len(recovered)}) for operation '{operation}'."
+                                    )
+                                    content = recovered
+                                else:
+                                    logger.warning(
+                                        f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}) "
+                                        f"for structured operation '{operation}'. Unable to extract clean structure. "
+                                        f"Falling back to raw reasoning_content."
+                                    )
+                                    content = reasoning_content
                             else:
                                 logger.warning(
                                     f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}). "

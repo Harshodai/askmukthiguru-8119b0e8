@@ -83,17 +83,17 @@ class LightRAGService:
                     kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
                     logger.info("LightRAG: Routing extraction task to sarvam-m to prevent reasoning runaway and cutoff")
 
-                # Set is_structured = True and operation = "extraction" for structured operations
-                is_structured_op = (
-                    is_extraction or
+                if is_extraction:
+                    kwargs["is_structured"] = True
+                    kwargs["operation"] = "extraction"
+                elif (
                     "summary" in sys_prompt_str.lower() or
                     "merge" in sys_prompt_str.lower() or
                     "summary" in prompt_str.lower() or
                     "merge" in prompt_str.lower()
-                )
-                if is_structured_op:
+                ):
                     kwargs["is_structured"] = True
-                    kwargs["operation"] = "extraction"
+                    kwargs["operation"] = "summarize"
 
             return await container.ollama.generate(
                 system_prompt=system_prompt or "You are a helpful assistant.",

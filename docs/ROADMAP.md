@@ -1,148 +1,234 @@
-# AskMukthiGuru — Roadmap
+# ROADMAP.md — Mukthi Guru: Execution Strategy
 
-Pain points and upgrades, ranked into shippable phases. Imported from the
-"Excellence & Benchmarks" plan addendum. Items already shipped are crossed off.
+> **If SPEC_DEV.md is the WHAT, this is the HOW.** This document defines the exact sequence, dependencies, and trade-offs for every execution phase. No code is written until this is locked.
 
-## Shipped
+---
 
-- [x] Auth gate on `/chat` (`useRequireAuth`)
-- [x] Streaming `done` event → citations + Serene Mind trigger
-- [x] Newline unescape in token chunks
-- [x] Sidebar `PanelLeft` toggle in chat header
-- [x] ThinkingPills glassmorphism
-- [x] Admin login cleanup + Role Verified badge
-- [x] Daily Teaching realtime + dismiss-by-id
-- [x] HIBP password protection enabled
-- [x] `/reset-password`, `/privacy`, `/terms`
-- [x] Forgot-password link on AuthPage
-- [x] Copy button on guru responses
-- [x] End-to-end Spiritual Profile sync (Supabase + localStorage)
-- [x] Admin dashboard seeker auditing (Total Seeker counts)
-- [x] Enhanced telemetry (Triggers, Retrieval, Context events)
-- [x] OpenTelemetry + Jaeger tracing for chat and LangGraph observability
-- [x] Master SQL Schema for production database initialization
-- [x] Fixed Nginx route shadowing for protected auth paths
-- [x] Three-stage distress detection (Keyword, LLM, Semantic)
-- [x] Compassionate distress routing (RAG-integrated)
-- [x] Qdrant retry-with-backoff resilience
-- [x] Spiritual guardrail false-positive protection
-- [x] Onboarding gate (Redirect new users to Profile setup)
-- [x] Visible sidebar management (Direct Rename/Delete icons)
-- [x] Stable conversational memory continuity (`session_id` + compact context injection)
-- [x] **Fix published-link white screen** — Supabase client now boots with safe fallback URL+anon key when env is missing; added top-level `RootErrorBoundary` so future render crashes never blank the page. **Republish required** to ship the fix to `askmukthiguru.lovable.app`.
-- [x] **Google sign-in dedup** — new `ensure_profile_and_role()` RPC + `onAuthStateChange` hook in `AuthPage.tsx` guarantees every signed-in user has exactly one profile + default `user` role. Backfill applied to historical users.
+## Execution Philosophy
+- **Radical simplicity**: The simplest robust solution for each phase
+- **Zero re-work**: Solve friction in markdown before it hits the compiler
+- **Atomic phases**: Each phase is independently testable and commit-worthy
+- **Dependency-first**: Build foundations before features
 
-## P1 — Trust (1 sprint)
+---
 
-- [ ] **A2** Edge function `chat-rate-limit` (sliding window, auth=20/min) — *edge fn shipped at `supabase/functions/chat-rate-limit`; backend wiring still pending*
-- [ ] **A3** PII redaction middleware in FastAPI logs
-- [x] **A5** Global session-expired toast + redirect (`SessionExpiredHandler`)
-- [x] **M42** Cookie/consent banner (DPDP + GDPR) — `CookieConsentBanner`
-- [x] **M43** Edge functions: `export-my-data`, `delete-my-account` + Profile UI hooks
-- [x] **NEW** `/auth/diagnostics` self-test page + `whoami_diagnostics` RPC + auto user-role seed on signup
+## Phase Map
 
-## P2 — Quality gate (1 sprint)
+```mermaid
+graph LR
+    P1[1. Infrastructure] --> P2[2. Services]
+    P2 --> P3[3. Ingestion]
+    P2 --> P4[4. RAG Pipeline]
+    P3 --> P4
+    P4 --> P5[5. NeMo Guardrails]
+    P5 --> P6[6. FastAPI Server]
+    P6 --> P7[7. Colab Notebook]
+    P7 --> P8[8. Verification]
+```
 
-- [ ] **B6** RAGAS thresholds wired into `make eval`; CI fails below cut-offs
-- [ ] **B7** Citation grounding: drop URLs absent from retrieved chunk metadata
-- [ ] **B8** Semantic-cache hit-rate KPI on admin Overview
-- [ ] **B9** A/B prompt shadow mode in admin Prompts page
-- [ ] **J34** Down-vote → `golden_questions` clustering nightly job
-- [ ] **K35** Playwright e2e: signup → chat → stream → meditation → admin upload → realtime
-- [ ] **B10** Memory eval set: follow-up resolution, persona continuity, and grounding regression checks
+---
 
-## P3 — Performance (1 sprint)
+## Phase 1: Infrastructure (Foundation)
+**Goal**: Zero-to-runnable project skeleton
 
-- [ ] **C10** TTFT / total-latency / tok-s metrics on `/api/chat/stream` (target TTFT p50 < 800 ms)
-- [ ] **C11** Lazy-load `AdminShell` (`React.lazy`) — *already lazy in `App.tsx`*
-- [x] **C12** Daily-teaching image transforms (webp, srcset)
-- [ ] **C13** Prefetch `/chat` chunk + warm Supabase auth on landing
-- [x] **C14** `React.memo` on `<ChatMessage>` markdown render (custom prop comparator)
-- [ ] **H30** PWA via `vite-plugin-pwa` (with `/~oauth` denylist)
+| Task | Output | Verify |
+|------|--------|--------|
+| Create `backend/` directory tree | All `__init__.py` files exist | `find backend -name __init__.py` |
+| Write `requirements.txt` | Pinned dependencies | `pip install -r requirements.txt` succeeds |
+| Write `docker-compose.yml` | Qdrant + Backend on Docker | `docker compose up -d && curl :6333/healthz` |
+| Write `.env.example` + `config.py` | Pydantic Settings | `python -c "from app.config import settings"` |
+| Update `.gitignore` | Python artifacts excluded | `git status` clean |
 
-## P4 — UX delight (1 sprint)
+**Trade-offs considered**:
+- ✅ **Local dev**: Docker Compose (Qdrant + Backend containers, Ollama on host) — chosen for reproducibility
+- ✅ **Colab**: Qdrant local mode (no Docker needed) — chosen for zero-infra on Colab
+- ✅ Pydantic Settings (type-safe, validation) — chosen over raw os.environ
+- ❌ python-decouple — less type safety
 
-- [x] **D16** Inline rename + destructive confirm in conversation sidebar
-- [x] **D17** Persist partial assistant message during stream (debounced 500 ms checkpoint in `sessionStorage`)
-- [x] **D18b** Regenerate button (rerun last user turn) — reuses the existing user turn, removes only the last guru answer, bypasses cache, and avoids duplicate user messages
-- [x] **D18c** User query controls — copy/edit actions on user bubbles, with edit loading the query back into the composer
-- [x] **D18d** LLM conversation titles — first user turn asynchronously refines the conversation preview
-- [x] **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat, ⌘B sidebar (`useChatShortcuts.ts`)
-- [x] **D20** Mobile swipe-from-left to open sidebar (`useSwipeGesture.ts`, edge-only)
-- [ ] **D21** First-3-sessions tooltip pulse on mic
-- [ ] **E22** Web-push notifications for new daily teaching (VAPID + `pg_net`)
-- [ ] **E23** `/teachings` archive page
-- [ ] **E24** `daily_teaching_events` engagement heatmap
+**Risk**: None. Pure scaffolding.
 
-## P5 — Reach (1 sprint)
+---
 
-- [ ] **F25** axe-core in CI; fix focus rings, `aria-live`, contrast
-- [ ] **G26** `react-helmet-async` per-route SEO + branded OG image
-- [ ] **G28** JSON-LD Organization + FAQPage on landing
-- [ ] **G29** Pre-rendered landing page (vite-plugin-prerender)
-- [ ] **I31** `i18next` with en/hi/te/ml resource bundles, auto-detect from profile
+## Phase 2: Services Layer (Building Blocks)
+**Goal**: Each service works independently. No coupling between services.
 
-## Continuous
+| Task | Output | Verify |
+|------|--------|--------|
+| `qdrant_service.py` | init, upsert, search | Unit test: create collection, insert, retrieve |
+| `embedding_service.py` | encode + CrossEncoder rerank | Unit test: embed text, rerank pairs |
+| `ollama_service.py` | generate, classify, grade, verify | Integration test: Ollama responds |
+| `ocr_service.py` | extract text from URL/file | Unit test: OCR on sample image |
 
-- [ ] **J32** Sentry + PostHog (requires user-supplied keys)
-- [ ] **J33** Propagate `trace_id` into SSE `done` event for admin Trace Drawer deep-links
-- [ ] **K36** Visual regression snapshots
-- [ ] **K37** Backend pytest coverage gate ≥ 80 %
-- [ ] **L38** Token-budget guard with map-reduce summarization
-- [ ] **L39** Embedding cache keyed by file hash
-- [ ] **L40** Ollama warmup on boot
+**Trade-offs considered**:
+- ✅ all-MiniLM-L6-v2 (80MB, CPU) — chosen for low resources
+- ❌ BGE-M3 (multilingual, ~2GB model size on disk/RAM; CPU inference viable) — deferred due to resource footprint, not VRAM limitation
+- ✅ CrossEncoder ms-marco (90MB, CPU) — chosen for precision
+- ❌ ColBERT (multi-vector) — overkill for our corpus size
+- ✅ EasyOCR (3-line API, 80+ languages) — chosen for simplicity
+- ❌ PaddleOCR (faster) — harder to install on Windows
 
-## Out-of-scope (Lovable Cloud limits)
+**Risk**: Ollama may not be installed. Mitigation: health check + clear error messages.
 
-- Meta/Facebook OAuth — not supported. Use Google + Email.
+---
 
-## Backend repo (cannot ship from Lovable sandbox)
+## Phase 3: Ingestion Pipeline (The Body)
+**Goal**: YouTube URL → indexed knowledge. Image URL → indexed knowledge.
 
-> These items require the FastAPI / Qdrant / Ollama / CI stack and must be implemented in the backend repository, not in Lovable.
+| Task | Output | Verify |
+|------|--------|--------|
+| `youtube_loader.py` | 3-tier transcript fallback | Test with real YouTube URL |
+| `image_loader.py` | URL download + OCR | Test with sample image URL |
+| `cleaner.py` | Strip filler/timestamps | Unit test with dirty transcript |
+| `raptor.py` | Cluster → summarize → tree | Verify summary quality + Qdrant storage |
+| `pipeline.py` | Orchestrator | E2E: URL → chunks in Qdrant |
 
-- **A2** Wire `chat-rate-limit` edge function call site into Python `/api/chat/stream`
-- **A3** PII redaction middleware in FastAPI logs
-- **B6** RAGAS thresholds in `make eval` + CI gate
-- **B7** Citation grounding — drop URLs absent from retrieved chunk metadata (`rag/nodes.py`)
-- **B8** Semantic-cache hit-rate KPI feed for admin Overview
-- **B9** A/B prompt shadow mode
-- **B10** Memory eval set
-- **C10** TTFT / total-latency / tok-s metrics on `/api/chat/stream`
-- **J33** `trace_id` propagation into SSE `done` event
-- **J34** Down-vote → `golden_questions` nightly job
-- **K35** Playwright e2e (signup → chat → meditation → admin)
-- **K37** Backend pytest coverage gate ≥ 80%
-- **L38–L40** Token-budget guard, embedding cache, Ollama warmup
-- **J32** Sentry + PostHog (needs user-supplied DSN/keys)
+**Trade-offs considered**:
+- ✅ 3-tier transcript (manual → whisper → auto-captions) — maximum coverage
+- ❌ Whisper-only — slower, unnecessary when captions exist
+- ✅ RAPTOR 2-level tree (leaves + summaries) — covers specific + thematic
+- ❌ RAPTOR 3+ levels — diminishing returns for our corpus size
+- ✅ RecursiveCharacterTextSplitter(500, 50) — proven chunk size
+- ❌ Semantic chunking — adds complexity, marginal gain
 
-## Next up (frontend, deferred from this run)
+**Risk**: Whisper on CPU is slow (~2x realtime). Mitigation: Use captions first; Whisper is fallback only.
 
-- **D21** First-3-sessions tooltip pulse on mic
-- **C12** Daily-teaching webp + `srcset` via Supabase Storage transforms
-- **C13** Prefetch `/chat` chunk + warm Supabase auth from landing
-- **G26** `react-helmet-async` per-route SEO + branded OG image
-- **G28** JSON-LD Organization + FAQPage on landing
+---
 
-## ✅ Completed (May 2026 Production Hardening Sprint)
+## Phase 4: LangGraph RAG (The Brain) — **Critical Path**
+**Goal**: 11-layer pipeline produces zero-hallucination, cited answers.
 
-- **Sidebar redesign v2** — Collapsible icon-rail (56px ↔ 280px), `Cmd+B` shortcut, grouped history, auto-refreshes via `conversation:updated` event
-- **D17** Partial-stream persistence — 500ms `sessionStorage` checkpoint, restored on reload with Regenerate nudge
-- **D18b** Regenerate button — `RotateCcw` hover-reveal on last guru message; calls `handleSubmit(fakeEvent, overrideText)` directly (no state race condition)
-- **Language-aware chat cache** — frontend and backend caches include preferred language, preventing stale English/Hindi responses after switching to Telugu or another Indic language
-- **Serene Mind history trigger** — repeated distress signals in conversation history now carry through to `meditation_step=1`, so the guided flow opens reliably
-- **Security audit** — `scripts/security_audit.py --report` is 30/30 with canonical FastAPI security headers and no unsafe HTML injection warning
-- **G26** Per-route SEO — `og:image`, `twitter:image`, `summary_large_image` tags on every route
-- **G28** JSON-LD Organization + FAQPage on `/`; WebApplication JSON-LD on `/chat`
-- **Auth/OAuth** — Full name + avatar from `user_metadata` seeded on first sign-in; `clearProfile()` on sign-out; `useProfile` always re-reads after server sync
-- **Post-meditation reflection** — 3-step flow (mood → journal → gratitude) saved to `meditationStorage`
-- **DailyTeaching** — `expires_at` TTL filter + broken-image `onError` fallback
-- **Auth tests** — 10 passing unit tests in `src/tests/auth.e2e.test.ts`
-- **RAG benchmark** — `scripts/benchmark_rag_responses.py` with 10 curated spiritual queries
-- **Concurrent Ingestion & Scraper Optimization** — verified the lock-isolated multi-worker async ingestion pipeline (`bulk_ingest_async.py`) under concurrent Neo4j graph operations and Qdrant ingestion, and reduced batch size parameters in `extract_transcripts.py` to mitigate Apify platform timeouts.
+| Task | Output | Verify |
+|------|--------|--------|
+| `states.py` | GraphState TypedDict | Type checks pass |
+| `prompts.py` | All templates with guardrail instructions | Review: each prompt constrains output |
+| `meditation.py` | 4-step Serene Mind | Unit test: step progression |
+| `nodes.py` — intent_router | Classify DISTRESS/QUERY/CASUAL | Test: "I'm stressed" → DISTRESS |
+| `nodes.py` — retrieve + rerank | Top-20 → CrossEncoder → Top-3 | Test: relevant docs scored higher |
+| `nodes.py` — grade + rewrite | CRAG loop (3x max) | Test: irrelevant docs trigger rewrite |
+| `nodes.py` — extract_hints | Stimulus RAG hint extraction | Test: hints contain key terms |
+| `nodes.py` — generate | Answer with citations | Test: response cites sources |
+| `nodes.py` — check_faithfulness | Self-RAG output check | Test: fabricated answer → rejected |
+| `nodes.py` — verify_answer | CoVe verification questions | Test: subtle error → caught |
+| `nodes.py` — decompose_query | Split complex queries | Test: multi-part → sub-queries |
+| `graph.py` | Full LangGraph wiring | E2E: question → grounded answer |
 
-### Still to do
-- **K35** Full Playwright E2E (signup → chat → meditation → admin)
-- **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat
-- **D20** Mobile swipe-from-left to open sidebar
-- **C12** Daily-teaching webp + `srcset` via Supabase Storage transforms
-- **B6** RAGAS thresholds in `make eval` + CI gate (requires Docker)
+**Trade-offs considered**:
+- ✅ Stimulus RAG (1 LLM call) — chosen over fine-tuning (hours + GPU)
+- ❌ Fine-tuning — higher cost, stale knowledge, hallucination risk
+- ✅ CoVe (1 LLM call) — final safety net
+- ❌ Full FLARE — needs token-level confidence, complex with Ollama
+- ✅ Query decomposition (1 conditional LLM call) — handles "compare X and Y"
+- ❌ Always decompose — adds latency for simple queries
+
+**Risk**: Too many LLM calls → exceeds 3s latency.
+
+**Latency Profiling Plan**:
+- Sequential stages: Intent → Retrieve → Rerank → Grade → [CRAG loop ×3 max] → Hints → Generate → Faithfulness → CoVe → Guardrails
+- Parallelizable: Retrieve + Rerank can overlap; Guardrails input can run concurrently with intent
+- **Action**: Run early benchmarks on target hardware (Llama 3.2 on CPU/shared GPU), measure per-stage p95, update targets
+- **Target**: p95 < 3s for happy path (no CRAG rewrites); p95 < 8s worst case (3× CRAG). CoVe is skippable if faithfulness passes with high confidence.
+
+---
+
+## Phase 5: NeMo Guardrails (Safety Layer)
+**Goal**: Input blocking + output moderation
+
+| Task | Output | Verify |
+|------|--------|--------|
+| `config/config.yml` | NeMo config with Ollama | Config loads without error |
+| `config/topics.co` | Colang flows for blocked topics | "Bitcoin?" → blocked |
+| `rails.py` | check_input, check_output | "Kill myself" → blocked + helpline |
+
+**Trade-offs considered**:
+- ✅ NeMo Guardrails (Colang DSL) — chosen for production-grade, declarative rules
+- ❌ Custom Python checks — fragile, hard to maintain
+- ❌ Guardrails AI (guardrails-ai) — heavier, more enterprise-focused
+
+**Risk**: NeMo + Ollama integration may have quirks. Mitigation: Test early, fallback to custom checks if needed.
+
+---
+
+## Phase 6: FastAPI Server (The Interface)
+**Goal**: 3 endpoints that connect frontend to backend
+
+| Task | Output | Verify |
+|------|--------|--------|
+| `main.py` | CORS, 3 routes | `curl /api/health` returns ok |
+| `dependencies.py` | Singleton DI | Services initialized once |
+| `/api/chat` | Full pipeline | E2E: message → response |
+| `/api/ingest` | Background ingestion | URL → chunks in Qdrant |
+| `/api/health` | Component status | JSON with all service statuses |
+
+**Risk**: None. Standard FastAPI patterns.
+
+---
+
+## Phase 7: Colab Notebook
+**Goal**: One-click setup on Google Colab
+
+| Task | Output | Verify |
+|------|--------|--------|
+| Cell 1: Install deps | pip install | No errors |
+| Cell 2: Mount Drive | Persistence path | Drive accessible |
+| Cell 3: Init Qdrant | Local mode on Drive | Collection created |
+| Cell 4: Ingestion | Paste URL → process | Chunks in Qdrant |
+| Cell 5: Load model | Ollama or Unsloth load | Model responds |
+| Cell 6: LangGraph | All nodes | Query works |
+| Cell 7: FastAPI + ngrok | Public URL | Frontend can connect |
+
+**Risk**: Colab 12-hour limit. Mitigation: Drive persistence means no re-ingestion needed.
+
+---
+
+## Phase 8: Verification (Ship It)
+**Goal**: Prove every SPEC_DEV.md criterion is met
+
+| Test | Method | Expected |
+|------|--------|----------|
+| Hallucination rate < 1% | 20 test queries | All grounded or fallback (CRAG + Self-RAG + CoVe pipeline) |
+| Response time < 3s | Benchmark 50 queries | p95 < 3s |
+| Distress detection > 90% | 10 distress + 10 non-distress | ≥ 18/20 correct |
+| Safety blocking | 5 harmful prompts | All blocked |
+| Citation enforcement | 20 queries | All cite sources |
+| Frontend E2E | Custom endpoint → chat | Messages display correctly |
+
+---
+
+## Dependency Graph
+```
+requirements.txt (no deps)
+  └→ config.py (no deps)
+      └→ qdrant_service.py (needs Qdrant running)
+      └→ embedding_service.py (needs sentence-transformers pip)
+      └→ ollama_service.py (needs Ollama running)
+      └→ ocr_service.py (needs easyocr pip)
+          └→ youtube_loader.py (needs yt-dlp, whisper)
+          └→ image_loader.py (needs ocr_service)
+          └→ cleaner.py (no deps)
+          └→ raptor.py (needs embedding_service, ollama_service)
+          └→ pipeline.py (needs all above)
+              └→ states.py (no deps)
+              └→ prompts.py (no deps)
+              └→ meditation.py (no deps)
+              └→ nodes.py (needs services + states + prompts)
+              └→ graph.py (needs nodes)
+                  └→ rails.py (needs NeMo)
+                      └→ main.py (needs everything)
+                          └→ AskMukthiGuru.ipynb (needs main.py)
+```
+
+---
+
+## Timeline Estimate
+| Phase | Estimated Effort | Cumulative |
+|-------|-----------------|------------|
+| 1. Infrastructure | 30 min | 30 min |
+| 2. Services | 1 hour | 1.5 hours |
+| 3. Ingestion | 1.5 hours | 3 hours |
+| 4. RAG Pipeline | 2 hours | 5 hours |
+| 5. Guardrails | 30 min | 5.5 hours |
+| 6. FastAPI | 30 min | 6 hours |
+| 7. Colab | 1 hour | 7 hours |
+| 8. Verification | 1 hour | **8 hours total** |
+
+> **3 months of engineering compressed into 1 day of high-leverage execution.**

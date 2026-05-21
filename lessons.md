@@ -566,6 +566,15 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **RPM Compliance**: Enforced `LIGHTRAG_SLEEP_BETWEEN = 2.0s` cooldown between chunk insertions during both standard and recovery execution to ensure strict compliance with the 60 RPM API limit.
 - **Lesson learned**: When integrating large-scale graph databases with rate-limited downstream LLM APIs, insulate the pipeline by isolating failures at the chunk level, persisting exact error states, and providing targeted CLI recovery endpoints to replay skipped work efficiently.
 
+### 47. LightRAG Delimiter Extraction Repair, LLM Reasoning Runaway Recovery & CLI Parameter Alignment (May 2026)
+- **Problem**: During high-throughput graph entity and relationship extraction, deep reasoning models (like `sarvam-30b` and `sarvam-m`) routinely consume their entire completion budget generating `<think>` blocks. This leaves 0 tokens for the main `content` string, triggering fatal parsing crashes (e.g. `Complete delimiter can not be found in extraction result`) in LightRAG's entity extraction and description summaries/merging pipelines. Furthermore, the previous regex fallback parser failed to match LightRAG's default tuple separator (`"<|#|>"`), and `bulk_ingest_whisper.py` lacked the targeted `--video-ids` command-line argument, preventing developers from manually running recovery or targeted ingestion.
+- **Solution**:
+  - **Structured LLM Operation Expansion**: Centralized both extraction (`operation="extraction"`) and merging (`operation="summarize"`) operations under the LLM service structure safeguards.
+  - **Delimiter-Aware Text Recovery Parser**: Hardened `_extract_structured_content` in `sarvam_service.py` to match the exact `"<|#|>"` delimiter and parse entity/relationship entries robustly, even when formatting deviates, eliminating database pollution and preventing fatal pipeline termination.
+  - **CLI Parametric Parity**: Added the `--video-ids` argument to `bulk_ingest_whisper.py` to match `bulk_ingest_async.py`, allowing targeted and resumed ingestion sweeps.
+- **Lesson learned**: When interfacing reasoning models with highly structured parsing engines, design the client-side API layer to parse, isolate, and recover raw markdown/text representations directly from the `<think>` or `reasoning_content` blocks. Always expose targeted item CLI flags across both concurrent and sequential run scripts to allow precise testing and error recovery.
+
+
 
 
 

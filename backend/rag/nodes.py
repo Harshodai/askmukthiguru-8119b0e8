@@ -118,26 +118,28 @@ def log_metrics(func):
         start = time.time()
         result = await func(state, *args, **kwargs)
         duration = time.time() - start
-        
+
         node_name = func.__name__
-        logger.info(f"Node '{node_name}' finished in {duration:.4f}s")
-        
+        request_id = state.get("request_id")
+        log_extra = {"request_id": request_id} if request_id else {}
+        logger.info(f"Node '{node_name}' finished in {duration:.4f}s", extra=log_extra)
+
         # Record to Prometheus
         try:
             PIPELINE_STAGE_LATENCY.labels(stage=node_name).observe(duration)
         except Exception:
             pass
-        
+
         # Merge metrics into state
         metrics = state.get("metrics") or {}
         metrics[node_name] = duration
-        
+
         # If result merges into state, ensure we preserve/update metrics
         if isinstance(result, dict):
             existing_metrics = result.get("metrics", {})
             existing_metrics.update(metrics)
             result["metrics"] = existing_metrics
-            
+
         return result
     return wrapper
 

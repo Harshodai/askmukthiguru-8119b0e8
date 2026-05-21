@@ -24,10 +24,29 @@
 │  │   distilroberta-finetuned-depression → fast-path        │    │
 │  └────────────────────────────────────────────────────────┘    │
 │  ┌── Layers 3–11: LangGraph Pipeline (rag/graph.py) ──────┐    │
-│  │   intent_router → decompose → retrieve → rerank →       │    │
-│  │   grade (CRAG loop) → extract_hints (Stimulus RAG) →    │    │
-│  │   generate → check_faithfulness (Self-RAG) →             │    │
-│  │   verify_answer (CoVe) → format_final_answer             │    │
+│  │   Entry: intent_router                                   │    │
+│  │   ├─ DISTRESS → handle_distress → END                    │    │
+│  │   ├─ MEDITATION_CONTINUE → handle_meditation → END       │    │
+│  │   ├─ CASUAL → handle_casual → END                        │    │
+│  │   └─ QUERY → resolve_followup → decompose_query          │    │
+│  │         ├─ navigate_knowledge_tree (parallel)             │    │
+│  │         ├─ generate_hyde (parallel)                      │    │
+│  │         ├─ retrieve_documents                            │    │
+│  │         ├─ rerank_documents                              │    │
+│  │         ├─ grade_documents                               │    │
+│  │         ├─ check_context_sufficiency                     │    │
+│  │         │    ├─ relevant → enrich_context                │    │
+│  │         │    │    → context_engineer                     │    │
+│  │         │    │    → generate_answer                      │    │
+│  │         │    │    → reflect_on_answer                   │    │
+│  │         │    │    ├─ needs_correction → rewrite_query    │    │
+│  │         │    │    │    (max 3x) → retrieve_documents     │    │
+│  │         │    │    └─ valid → verify_answer               │    │
+│  │         │    │                   → check_contradiction    │    │
+│  │         │    │                   → explain_retrieval       │    │
+│  │         │    │                   → format_final_answer     │    │
+│  │         │    └─ fallback (≥3x) → handle_fallback → END    │    │
+│  │         └─ rewrite (<3x) → rewrite_query → retrieve_documents (loop) │    │
 │  └────────────────────────────────────────────────────────┘    │
 │  ┌── Layer 12: NeMo Output Rail ──────────────────────────┐    │
 │  │   Moderates generated output                            │    │
