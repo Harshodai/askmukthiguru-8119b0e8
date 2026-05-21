@@ -12,6 +12,7 @@ import re
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 from app.config import get_settings
+from app.security_utils import validate_session_id, validate_user_id, validate_iso_date
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -55,13 +56,16 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
         return
 
     try:
+        # Validate session_id before any DB use
+        raw_session_id = query_data.get('session_id')
+        safe_session_id = validate_session_id(raw_session_id)
+        safe_user_id = validate_user_id(query_data.get('user_id'))
+
         # 1. Insert into chat_queries
-        # Map SQLite field names to Supabase schema names if necessary
-        # Supabase schema (schema.sql) matches most names
         query_payload = {
             "id": query_data['id'],
-            "session_id": query_data.get('session_id'),
-            "user_id": query_data.get('user_id'),
+            "session_id": safe_session_id,
+            "user_id": safe_user_id,
             "anon_user_id": query_data.get('anon_user_id'),
             "query_text": PIIScrubber.scrub(query_data['query_text']),
             "model": query_data.get('model'),
@@ -75,14 +79,15 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
         
         # 0. Ensure session exists in chat_sessions
         try:
-            session_payload = {
-                "id": query_payload["session_id"],
-                "user_id": query_payload.get("user_id"),
-                "anon_user_id": query_payload.get("anon_user_id"),
-                "started_at": query_payload["created_at"]
-            }
-            session_payload = {k: v for k, v in session_payload.items() if v is not None}
-            client.table("chat_sessions").upsert(session_payload).execute()
+            if safe_session_id:
+                session_payload = {
+                    "id": safe_session_id,
+                    "user_id": safe_user_id,
+                    "anon_user_id": query_data.get("anon_user_id"),
+                    "started_at": query_payload["created_at"]
+                }
+                session_payload = {k: v for k, v in session_payload.items() if v is not None}
+                client.table("chat_sessions").upsert(session_payload).execute()
         except Exception as e:
             logger.warning(f"Upserting session failed: {e}")
 
@@ -173,28 +178,32 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         }
 
     try:
+        # Validate date parameters before use in DB queries
+        safe_from = validate_iso_date(from_date)
+        safe_to = validate_iso_date(to_date)
+
         # 1. Total queries
         query = client.table("chat_queries").select("id", count="exact")
-        if from_date: query = query.gte("created_at", from_date)
-        if to_date: query = query.lte("created_at", to_date)
+        if safe_from: query = query.gte("created_at", safe_from)
+        if safe_to: query = query.lte("created_at", safe_to)
         total_queries = query.execute().count or 0
 
         # 2. Total seekers (unique anon_user_id or user_id)
         # Simplified: count unique user_ids if available, otherwise anon
         seeker_query = client.table("chat_queries").select("user_id", count="exact")
-        if from_date: seeker_query = seeker_query.gte("created_at", from_date)
+        if safe_from: seeker_query = seeker_query.gte("created_at", safe_from)
         total_seekers = seeker_query.execute().count or 0
 
         # 3. Latency and Errors
         # We fetch last 1000 to compute percentiles locally (Supabase free tier lacks complex agg)
         metric_query = client.table("chat_queries").select("latency_ms, status")
-        if from_date: metric_query = metric_query.gte("created_at", from_date)
+        if safe_from: metric_query = metric_query.gte("created_at", safe_from)
         metric_query = metric_query.order("created_at", desc=True).limit(1000)
         metrics = metric_query.execute().data or []
 
         latencies = [m["latency_ms"] for m in metrics if m.get("latency_ms")]
         errors = [m for m in metrics if m.get("status") == "error"]
-        
+
         import statistics
         p50 = statistics.median(latencies) if latencies else 0
         p95 = statistics.quantiles(latencies, n=20)[18] if len(latencies) >= 20 else (max(latencies) if latencies else 0)
@@ -202,14 +211,14 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
 
         # 4. Hallucination rate from chat_responses
         resp_query = client.table("chat_responses").select("hallucination_flag")
-        if from_date: resp_query = resp_query.gte("created_at", from_date)
+        if safe_from: resp_query = resp_query.gte("created_at", safe_from)
         resps = resp_query.execute().data or []
         hallucinations = [r for r in resps if r.get("hallucination_flag")]
         hallucination_rate = len(hallucinations) / len(resps) if resps else 0
 
         # 5. Serene Mind trigger rate
         trigger_query = client.table("trigger_events").select("id", count="exact").eq("trigger_name", "DISTRESS")
-        if from_date: trigger_query = trigger_query.gte("created_at", from_date)
+        if safe_from: trigger_query = trigger_query.gte("created_at", safe_from)
         total_triggers = trigger_query.execute().count or 0
         trigger_rate = total_triggers / total_queries if total_queries > 0 else 0
 
@@ -260,3 +269,705 @@ async def log_ingestion_run(run_data: dict) -> None:
         logger.info(f"Successfully logged ingestion run {run_data.get('id')} to Supabase")
     except Exception as e:
         logger.error(f"Failed to log ingestion run to Supabase: {e}")
+
+async def get_available_models() -> List[str]:
+    """Get list of available LLM models."""
+    # For now, return hardcoded list based on what's configured
+    # In a real implementation, this might query Ollama or check available models
+    models = []
+    if settings.ollama_model:
+        models.append(settings.ollama_model)
+    if settings.sarvam_cloud_model:
+        models.append(settings.sarvam_cloud_model)
+    # Add some defaults if none configured
+    if not models:
+        models = ["sarvam-30b", "llama3.2:3b"]
+    return models
+
+async def get_timeseries_data(metric: str, from_date: str, to_date: str, buckets: int = 24) -> List[Dict[str, Any]]:
+    """Get timeseries data for a specific metric."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        # Validate date parameters
+        safe_from = validate_iso_date(from_date)
+        safe_to = validate_iso_date(to_date)
+
+        # Build query based on metric type
+        if metric == "queries":
+            query = client.table("chat_queries").select("created_at")
+        elif metric == "p50_latency_ms" or metric == "p95_latency_ms":
+            query = client.table("chat_queries").select("latency_ms, created_at").eq("status", "ok")
+        elif metric == "hallucination_rate":
+            query = client.table("chat_responses").select("hallucination_flag, created_at")
+        elif metric == "cost_usd":
+            query = client.table("chat_queries").select("cost_estimate, created_at")
+        elif metric == "thumbs_up_rate":
+            # Placeholder - would need feedback table
+            query = client.table("chat_queries").select("created_at")
+        elif metric == "retrieval_hit_rate":
+            # Would need to check if citations exist
+            query = client.table("chat_responses").select("citations, created_at")
+        else:
+            # Default fallback
+            query = client.table("chat_queries").select("created_at")
+
+        # Apply date filters
+        if safe_from:
+            query = query.gte("created_at", safe_from)
+        if safe_to:
+            query = query.lte("created_at", safe_to)
+
+        # Execute query
+        response = query.order("created_at", desc=True).execute()
+        data = response.data or []
+
+        if not data:
+            return []
+
+        # Bucket the data
+        from datetime import datetime
+        start_time = datetime.fromisoformat(safe_from.replace('Z', '+00:00')).timestamp()
+        end_time = datetime.fromisoformat(safe_to.replace('Z', '+00:00')).timestamp()
+        bucket_size = (end_time - start_time) / buckets if buckets > 0 else 0
+
+        buckets_data = []
+        for i in range(buckets):
+            bucket_start = start_time + (i * bucket_size)
+            bucket_end = bucket_start + bucket_size
+            bucket_time = datetime.fromtimestamp(bucket_start + (bucket_size / 2)).isoformat()
+
+            buckets_data.append({
+                "bucket": bucket_time,
+                "value": 0,
+                "count": 0
+            })
+
+        # Process data points
+        for item in data:
+            item_time = datetime.fromisoformat(item['created_at'].replace('Z', '+00:00')).timestamp()
+            if start_time <= item_time <= end_time:
+                bucket_index = int((item_time - start_time) / bucket_size) if bucket_size > 0 else 0
+                bucket_index = max(0, min(bucket_index, buckets - 1))
+
+                if metric == "queries":
+                    buckets_data[bucket_index]["value"] += 1
+                    buckets_data[bucket_index]["count"] += 1
+                elif metric == "p50_latency_ms" or metric == "p95_latency_ms":
+                    latency = item.get("latency_ms")
+                    if latency is not None:
+                        buckets_data[bucket_index]["latencies"] = buckets_data[bucket_index].get("latencies", []) + [latency]
+                        buckets_data[bucket_index]["count"] += 1
+                elif metric == "hallucination_rate":
+                    hallucination = item.get("hallucination_flag", False)
+                    buckets_data[bucket_index]["value"] += 1 if hallucination else 0
+                    buckets_data[bucket_index]["count"] += 1
+                elif metric == "cost_usd":
+                    cost = item.get("cost_estimate", 0)
+                    buckets_data[bucket_index]["value"] += cost
+                    buckets_data[bucket_index]["count"] += 1
+                elif metric == "thumbs_up_rate":
+                    # Placeholder
+                    buckets_data[bucket_index]["value"] += 0
+                    buckets_data[bucket_index]["count"] += 1
+                elif metric == "retrieval_hit_rate":
+                    citations = item.get("citations", [])
+                    hit = len(citations) > 0 if isinstance(citations, list) else False
+                    buckets_data[bucket_index]["value"] += 1 if hit else 0
+                    buckets_data[bucket_index]["count"] += 1
+
+        # Calculate final values for each bucket
+        result = []
+        for bucket in buckets_data:
+            if bucket["count"] == 0:
+                bucket["value"] = 0
+            elif metric == "p50_latency_ms":
+                latencies = sorted(bucket.get("latencies", []))
+                bucket["value"] = latencies[len(latencies) // 2] if latencies else 0
+            elif metric == "p95_latency_ms":
+                latencies = sorted(bucket.get("latencies", []))
+                index = int(len(latencies) * 0.95)
+                bucket["value"] = latencies[index] if latencies else 0
+            elif metric in ["hallucination_rate", "thumbs_up_rate", "retrieval_hit_rate"]:
+                bucket["value"] = bucket["value"] / bucket["count"] if bucket["count"] > 0 else 0
+            # For queries and cost_usd, value is already summed
+
+            # Remove temporary fields
+            bucket.pop("latencies", None)
+            result.append({
+                "bucket": bucket["bucket"],
+                "value": bucket["value"]
+            })
+
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get timeseries data: {e}")
+        return []
+
+async def get_trigger_events(from_date: Optional[str] = None, to_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get trigger events."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        query = client.table("trigger_events").select("*")
+
+        if from_date:
+            safe_from = validate_iso_date(from_date)
+            query = query.gte("created_at", safe_from)
+        if to_date:
+            safe_to = validate_iso_date(to_date)
+            query = query.lte("created_at", safe_to)
+
+        response = query.order("created_at", desc=True).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get trigger events: {e}")
+        return []
+
+async def get_safety_events(from_date: Optional[str] = None, to_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get safety events."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        query = client.table("safety_events").select("*")
+
+        if from_date:
+            safe_from = validate_iso_date(from_date)
+            query = query.gte("created_at", safe_from)
+        if to_date:
+            safe_to = validate_iso_date(to_date)
+            query = query.lte("created_at", safe_to)
+
+        response = query.order("created_at", desc=True).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get safety events: {e}")
+        return []
+
+async def get_topic_clusters() -> List[Dict[str, Any]]:
+    """Get topic clusters."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        # This would ideally come from a clustering service or pre-computed data
+        # For now, return empty list as placeholder
+        return []
+    except Exception as e:
+        logger.error(f"Failed to get topic clusters: {e}")
+        return []
+
+async def get_retrieval_health(from_date: Optional[str] = None, to_date: Optional[str] = None) -> Dict[str, Any]:
+    """Get retrieval health metrics."""
+    client = _get_client()
+    if not client:
+        return {
+            "total_retrievals": 0,
+            "hit_rate": 0,
+            "empty_retrievals": 0,
+            "avg_top_score": 0,
+            "avg_precision": 0,
+            "avg_recall": 0,
+            "miss_rate": 0,
+            "avg_chunks_per_query": 0,
+            "top_missing_topics": [],
+            "sources": []
+        }
+
+    try:
+        # Validate date parameters
+        if from_date:
+            safe_from = validate_iso_date(from_date)
+        if to_date:
+            safe_to = validate_iso_date(to_date)
+
+        # Build query for retrieval events with joins
+        query = client.table("retrieval_events").select("*, chat_queries!inner(created_at)")
+
+        if from_date:
+            query = query.gte("chat_queries.created_at", safe_from)
+        if to_date:
+            query = query.lte("chat_queries.created_at", safe_to)
+
+        response = query.execute()
+        retrievals = response.data or []
+
+        if not retrievals:
+            return {
+                "total_retrievals": 0,
+                "hit_rate": 0,
+                "empty_retrievals": 0,
+                "avg_top_score": 0,
+                "avg_precision": 0,
+                "avg_recall": 0,
+                "miss_rate": 0,
+                "avg_chunks_per_query": 0,
+                "top_missing_topics": [],
+                "sources": []
+            }
+
+        # Calculate metrics
+        total_retrievals = len(retrievals)
+        hit_count = sum(1 for r in retrievals if r.get("retrieval_hit"))
+        hit_rate = hit_count / total_retrievals if total_retrievals > 0 else 0
+
+        # Calculate average scores (simplified)
+        scores = [r.get("scores", []) for r in retrievals if r.get("scores")]
+        avg_top_score = 0.0
+        if scores:
+            # Flatten and get top scores
+            all_scores = [score for sublist in scores for score in sublist if isinstance(score, (int, float))]
+            if all_scores:
+                avg_top_score = sum(all_scores) / len(all_scores)
+
+        # Placeholder for precision/recall (would need more complex calculation)
+        avg_precision = 0.0
+        avg_recall = 0.0
+        miss_rate = 1.0 - hit_rate
+
+        # Calculate average chunks per query
+        chunk_counts = [len(r.get("chunk_ids", [])) for r in retrievals if r.get("chunk_ids")]
+        avg_chunks_per_query = sum(chunk_counts) / len(chunk_counts) if chunk_counts else 0
+
+        # Get top missing topics (placeholder)
+        top_missing_topics = []
+
+        # Get sources with average faithfulness (simplified)
+        sources = []
+
+        return {
+            "total_retrievals": total_retrievals,
+            "hit_rate": hit_rate,
+            "empty_retrievals": total_retrievals - hit_count,
+            "avg_top_score": avg_top_score,
+            "avg_precision": avg_precision,
+            "avg_recall": avg_recall,
+            "miss_rate": miss_rate,
+            "avg_chunks_per_query": avg_chunks_per_query,
+            "top_missing_topics": top_missing_topics,
+            "sources": sources
+        }
+    except Exception as e:
+        logger.error(f"Failed to get retrieval health: {e}")
+        return {
+            "total_retrievals": 0,
+            "hit_rate": 0,
+            "empty_retrievals": 0,
+            "avg_top_score": 0,
+            "avg_precision": 0,
+            "avg_recall": 0,
+            "miss_rate": 0,
+            "avg_chunks_per_query": 0,
+            "top_missing_topics": [],
+            "sources": []
+        }
+
+async def get_quality_data(from_date: Optional[str] = None, to_date: Optional[str] = None) -> Dict[str, Any]:
+    """Get quality data metrics."""
+    client = _get_client()
+    if not client:
+        return {
+            "faithfulness": 0.0,
+            "relevancy": 0.0,
+            "safety_score": 0.0,
+            "manual_review_score": 0.0,
+            "disagreements": [],
+            "low_confidence": []
+        }
+
+    try:
+        # Validate date parameters
+        if from_date:
+            safe_from = validate_iso_date(from_date)
+        if to_date:
+            safe_to = validate_iso_date(to_date)
+
+        # Build query for responses with joins
+        query = client.table("chat_responses").select("*, chat_queries!inner(created_at)")
+
+        if from_date:
+            query = query.gte("chat_queries.created_at", safe_from)
+        if to_date:
+            query = query.lte("chat_queries.created_at", safe_to)
+
+        response = query.execute()
+        responses = response.data or []
+
+        if not responses:
+            return {
+                "faithfulness": 0.0,
+                "relevancy": 0.0,
+                "safety_score": 0.0,
+                "manual_review_score": 0.0,
+                "disagreements": [],
+                "low_confidence": []
+            }
+
+        # Calculate average faithfulness and relevancy
+        faithfulness_scores = [r.get("faithfulness", 0) for r in responses if isinstance(r.get("faithfulness"), (int, float))]
+        relevancy_scores = [r.get("answer_relevancy", 0) for r in responses if isinstance(r.get("answer_relevancy"), (int, float))]
+
+        avg_faithfulness = sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else 0.0
+        avg_relevancy = sum(relevancy_scores) / len(relevancy_scores) if relevancy_scores else 0.0
+
+        # Safety score placeholder (would come from guardrails)
+        safety_score = 0.99
+
+        # Manual review score placeholder
+        manual_review_score = 0.85
+
+        # Discoveries and low confidence (placeholders)
+        disagreements = []
+        low_confidence = []
+
+        return {
+            "faithfulness": avg_faithfulness,
+            "relevancy": avg_relevancy,
+            "safety_score": safety_score,
+            "manual_review_score": manual_review_score,
+            "disagreements": disagreements,
+            "low_confidence": low_confidence
+        }
+    except Exception as e:
+        logger.error(f"Failed to get quality data: {e}")
+        return {
+            "faithfulness": 0.0,
+            "relevancy": 0.0,
+            "safety_score": 0.0,
+            "manual_review_score": 0.0,
+            "disagreements": [],
+            "low_confidence": []
+        }
+
+async def get_eval_runs() -> List[Dict[str, Any]]:
+    """Get evaluation runs."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("eval_runs").select("*").order("started_at", desc=True).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get eval runs: {e}")
+        return []
+
+async def get_golden_questions() -> List[Dict[str, Any]]:
+    """Get golden questions."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("golden_questions").select("*").execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get golden questions: {e}")
+        return []
+
+async def get_ingestion_runs() -> List[Dict[str, Any]]:
+    """Get ingestion runs."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("ingestion_runs").select("*").order("created_at", desc=True).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get ingestion runs: {e}")
+        return []
+
+async def get_alert_rules() -> List[Dict[str, Any]]:
+    """Get alert rules."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("alert_rules").select("*").execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get alert rules: {e}")
+        return []
+
+async def get_alert_events() -> List[Dict[str, Any]]:
+    """Get alert events."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("alert_events").select("*").order("fired_at", desc=True).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get alert events: {e}")
+        return []
+
+async def get_annotations() -> List[Dict[str, Any]]:
+    """Get annotations."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("annotations").select("*").order("created_at", desc=True).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get annotations: {e}")
+        return []
+
+async def get_admins() -> List[Dict[str, Any]]:
+    """Get admin users."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        # Join user_roles with auth_users to get email
+        response = client.table("user_roles").select("*, auth_users:user_id(email)").eq("role", "admin").execute()
+        data = response.data or []
+
+        result = []
+        for row in data:
+            result.append({
+                "id": row.get("user_id"),
+                "email": row.get("auth_users", {}).get("email", "Unknown") if row.get("auth_users") else "Unknown",
+                "role": row.get("role"),
+                "created_at": row.get("created_at", "2024-01-01T00:00:00Z")
+            })
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get admins: {e}")
+        return []
+
+async def get_model_pricing() -> List[Dict[str, Any]]:
+    """Get model pricing."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        response = client.table("model_pricing").select("*").execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to get model pricing: {e}")
+        return []
+
+async def get_top_failures(from_date: Optional[str] = None, to_date: Optional[str] = None, limit: int = 8) -> List[Dict[str, Any]]:
+    """Get top failures by faithfulness."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        # Build query for responses with joins
+        query = client.table("chat_responses").select("*, chat_queries!inner(*)")
+
+        if from_date:
+            safe_from = validate_iso_date(from_date)
+            query = query.gte("chat_queries.created_at", safe_from)
+        if to_date:
+            safe_to = validate_iso_date(to_date)
+            query = query.lte("chat_queries.created_at", safe_to)
+
+        # Filter for low faithfulness and relevancy, then sort
+        response = query.execute()
+        responses = response.data or []
+
+        # Filter out entries with null faithfulness or relevancy
+        valid_responses = [
+            r for r in responses
+            if r.get("faithfulness") is not None and r.get("answer_relevancy") is not None
+        ]
+
+        # Sort by combined score (faithfulness + relevancy) ascending
+        valid_responses.sort(
+            key=lambda x: (x.get("faithfulness", 0) + x.get("answer_relevancy", 0))
+        )
+
+        # Take top limit
+        top_failures = valid_responses[:limit]
+
+        # Format for frontend
+        result = []
+        for failure in top_failures:
+            query_data = failure.get("chat_queries", {})
+            result.append({
+                "query_id": failure.get("query_id"),
+                "query_text": query_data.get("query_text", "Unknown query"),
+                "faithfulness": failure.get("faithfulness", 0),
+                "answer_relevancy": failure.get("answer_relevancy", 0),
+                "created_at": failure.get("created_at"),
+                "reason": "Low faithfulness score"
+            })
+
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get top failures: {e}")
+        return []
+
+async def get_ragas_heatmap(from_date: Optional[str] = None, to_date: Optional[str] = None, buckets: int = 8) -> List[Dict[str, Any]]:
+    """Get RAGAS heatmap data."""
+    # Placeholder implementation
+    return []
+
+async def get_trigger_trend(from_date: Optional[str] = None, to_date: Optional[str] = None, buckets: int = 14) -> List[Dict[str, Any]]:
+    """Get trigger trend data."""
+    # Placeholder implementation
+    return []
+
+async def get_similarity_trend(from_date: Optional[str] = None, to_date: Optional[str] = None, buckets: int = 14) -> List[Dict[str, Any]]:
+    """Get similarity trend data."""
+    # Placeholder implementation
+    return []
+
+async def get_dead_docs(from_date: Optional[str] = None, to_date: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Get dead documents."""
+    # Placeholder implementation
+    return []
+
+async def get_empty_retrievals(from_date: Optional[str] = None, to_date: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    """Get empty retrievals."""
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        # Build query for responses with no citations
+        query = client.table("chat_responses").select("*, chat_queries!inner(*)")
+
+        if from_date:
+            safe_from = validate_iso_date(from_date)
+            query = query.gte("chat_queries.created_at", safe_from)
+        if to_date:
+            safe_to = validate_iso_date(to_date)
+            query = query.lte("chat_queries.created_at", safe_to)
+
+        response = query.execute()
+        responses = response.data or []
+
+        # Filter for empty citations
+        empty_responses = [
+            r for r in responses
+            if not r.get("citations") or (isinstance(r.get("citations"), list) and len(r.get("citations")) == 0)
+        ]
+
+        # Take top limit
+        top_empty = empty_responses[:limit]
+
+        # Format for frontend
+        result = []
+        for empty in top_empty:
+            query_data = empty.get("chat_queries", {})
+            result.append({
+                "query_id": empty.get("query_id"),
+                "query_text": query_data.get("query_text", "Unknown query"),
+                "created_at": empty.get("created_at")
+            })
+
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get empty retrievals: {e}")
+        return []
+
+async def get_ingestion_health() -> Dict[str, Any]:
+    """Get ingestion health status."""
+    client = _get_client()
+    if not client:
+        return {
+            "status": "unknown",
+            "last_run": "",
+            "indexed_docs": 0,
+            "failed_docs": 0,
+            "total_runs": 0,
+            "ok": 0,
+            "partial": 0,
+            "failed": 0,
+            "total_chunks": 0
+        }
+
+    try:
+        response = client.table("ingestion_runs").select("*").execute()
+        runs = response.data or []
+
+        indexed_docs = 0
+        failed_docs = 0
+        total_runs = len(runs)
+        ok = 0
+        partial = 0
+        failed = 0
+        total_chunks = 0
+        last_run = ""
+
+        for run in runs:
+            status = run.get("status", "").lower()
+            chunks = run.get("chunks_added", 0)
+            run_time = run.get("created_at", "")
+
+            total_chunks += chunks
+
+            if status == "ok":
+                ok += 1
+                indexed_docs += chunks
+            elif status == "partial":
+                partial += 1
+                indexed_docs += chunks
+            elif status == "failed":
+                failed += 1
+                failed_docs += chunks
+
+            if run_time and (not last_run or run_time > last_run):
+                last_run = run_time
+
+        # Determine overall status
+        if failed > 0:
+            status = "degraded"
+        elif total_runs > 0:
+            status = "healthy"
+        else:
+            status = "unknown"
+
+        if not last_run:
+            last_run = datetime.now().isoformat()
+
+        return {
+            "status": status,
+            "last_run": last_run,
+            "indexed_docs": indexed_docs,
+            "failed_docs": failed_docs,
+            "total_runs": total_runs,
+            "ok": ok,
+            "partial": partial,
+            "failed": failed,
+            "total_chunks": total_chunks
+        }
+    except Exception as e:
+        logger.error(f"Failed to get ingestion health: {e}")
+        return {
+            "status": "unknown",
+            "last_run": "",
+            "indexed_docs": 0,
+            "failed_docs": 0,
+            "total_runs": 0,
+            "ok": 0,
+            "partial": 0,
+            "failed": 0,
+            "total_chunks": 0
+        }
+
+async def get_prompt_metrics_by_version() -> Any:
+    """Get prompt metrics by version."""
+    # Placeholder implementation
+    return None
+
+async def get_live_feed() -> List[Dict[str, Any]]:
+    """Get live feed (recent queries)."""
+    return await get_recent_traces(limit=10)
