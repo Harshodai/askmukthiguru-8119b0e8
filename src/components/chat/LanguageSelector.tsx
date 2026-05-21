@@ -154,9 +154,27 @@ export const LanguageSelector = ({
                 className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
                 role="listbox"
               >
-                <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
+                <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search 23 languages…"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
-                    {LANGUAGES.map((lang) => {
+                    {LANGUAGES.filter((l) => {
+                      if (!search.trim()) return true;
+                      const q = search.toLowerCase();
+                      return (
+                        l.name.toLowerCase().includes(q) ||
+                        l.native.toLowerCase().includes(q) ||
+                        l.code.toLowerCase().includes(q)
+                      );
+                    }).map((lang) => {
                       const isSelected = selectedLanguage === lang.code;
                       const hasVoice = voiceCapable.has(lang.code);
                       return (
@@ -195,7 +213,7 @@ export const LanguageSelector = ({
                             ) : (
                               <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-ojas/90 font-medium">
                                 <Volume2 className="w-2.5 h-2.5" />
-                                Cloud Voice Enabled
+                                Cloud Voice (Sarvam)
                               </span>
                             )}
                           </div>
@@ -205,6 +223,19 @@ export const LanguageSelector = ({
                         </button>
                       );
                     })}
+                    {LANGUAGES.filter((l) => {
+                      if (!search.trim()) return true;
+                      const q = search.toLowerCase();
+                      return (
+                        l.name.toLowerCase().includes(q) ||
+                        l.native.toLowerCase().includes(q) ||
+                        l.code.toLowerCase().includes(q)
+                      );
+                    }).length === 0 && (
+                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                        No language matches "{search}"
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/30">
