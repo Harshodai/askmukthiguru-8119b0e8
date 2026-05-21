@@ -2,14 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ?? 'https://fynkjimvuimakgtidvuq.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5bmtqaW12dWltYWtndGlkdnVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNDQyMDIsImV4cCI6MjA5MzYyMDIwMn0.l0mmx5BJ_AWEWq7d6IAeOz4inWuvm139EVeushiecto';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!import.meta.env.VITE_SUPABASE_URL) {
-  console.warn('[supabase] VITE_SUPABASE_URL missing from build env — using fallback. Republish after env is restored.');
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    '[supabase] Missing required environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be defined at build time.'
+  );
 }
 
 // Import the supabase client like this:
@@ -20,5 +19,41 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+  }
+});
+
+// Periodic token refresh as a safety net (autoRefreshToken handles most cases)
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+if (!import.meta.env.TEST) {
+  setInterval(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.warn('[supabase] Token refresh failed:', error.message);
+          if (
+            error.message?.includes('401') ||
+            error.message?.includes('invalid') ||
+            error.message?.includes('expired')
+          ) {
+            await supabase.auth.signOut();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[supabase] Unexpected error during token refresh:', err);
+    }
+  }, REFRESH_INTERVAL_MS);
+}
+
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'TOKEN_REFRESHED') {
+    console.info('[supabase] Token refreshed successfully');
+  }
+  if (event === 'SIGNED_OUT') {
+    // Clear any stale localStorage admin session
+    localStorage.removeItem('admin_session');
   }
 });

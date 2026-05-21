@@ -1,0 +1,111 @@
+# ============================================================
+# Mukthi Guru — Lint & Test Workflow
+# Runs on every PR and push to main. Both frontend and backend
+# must pass before merge.
+# ============================================================
+
+name: Lint & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # --- Frontend ---
+  frontend-lint-test:
+    name: Frontend Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Vitest tests
+        run: npm test
+
+  # --- Backend ---
+  backend-lint-test:
+    name: Backend Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Ruff linter
+        run: ruff check . --output-format=github
+
+      - name: Run Ruff formatter check
+        run: ruff format --check .
+
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+
+  # --- Pre-commit validation ---
+  pre-commit-check:
+    name: Validate Pre-commit Hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Install backend deps (for hooks)
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Install frontend deps (for eslint hook)
+        run: npm ci
+
+      - name: Run pre-commit on all files
+        run: pre-commit run --all-files --show-diff-on-failure

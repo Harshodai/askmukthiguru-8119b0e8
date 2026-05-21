@@ -1,0 +1,148 @@
+# AskMukthiGuru — Roadmap
+
+Pain points and upgrades, ranked into shippable phases. Imported from the
+"Excellence & Benchmarks" plan addendum. Items already shipped are crossed off.
+
+## Shipped
+
+- [x] Auth gate on `/chat` (`useRequireAuth`)
+- [x] Streaming `done` event → citations + Serene Mind trigger
+- [x] Newline unescape in token chunks
+- [x] Sidebar `PanelLeft` toggle in chat header
+- [x] ThinkingPills glassmorphism
+- [x] Admin login cleanup + Role Verified badge
+- [x] Daily Teaching realtime + dismiss-by-id
+- [x] HIBP password protection enabled
+- [x] `/reset-password`, `/privacy`, `/terms`
+- [x] Forgot-password link on AuthPage
+- [x] Copy button on guru responses
+- [x] End-to-end Spiritual Profile sync (Supabase + localStorage)
+- [x] Admin dashboard seeker auditing (Total Seeker counts)
+- [x] Enhanced telemetry (Triggers, Retrieval, Context events)
+- [x] OpenTelemetry + Jaeger tracing for chat and LangGraph observability
+- [x] Master SQL Schema for production database initialization
+- [x] Fixed Nginx route shadowing for protected auth paths
+- [x] Three-stage distress detection (Keyword, LLM, Semantic)
+- [x] Compassionate distress routing (RAG-integrated)
+- [x] Qdrant retry-with-backoff resilience
+- [x] Spiritual guardrail false-positive protection
+- [x] Onboarding gate (Redirect new users to Profile setup)
+- [x] Visible sidebar management (Direct Rename/Delete icons)
+- [x] Stable conversational memory continuity (`session_id` + compact context injection)
+- [x] **Fix published-link white screen** — Supabase client now boots with safe fallback URL+anon key when env is missing; added top-level `RootErrorBoundary` so future render crashes never blank the page. **Republish required** to ship the fix to `askmukthiguru.lovable.app`.
+- [x] **Google sign-in dedup** — new `ensure_profile_and_role()` RPC + `onAuthStateChange` hook in `AuthPage.tsx` guarantees every signed-in user has exactly one profile + default `user` role. Backfill applied to historical users.
+
+## P1 — Trust (1 sprint)
+
+- [ ] **A2** Edge function `chat-rate-limit` (sliding window, auth=20/min) — *edge fn shipped at `supabase/functions/chat-rate-limit`; backend wiring still pending*
+- [ ] **A3** PII redaction middleware in FastAPI logs
+- [x] **A5** Global session-expired toast + redirect (`SessionExpiredHandler`)
+- [x] **M42** Cookie/consent banner (DPDP + GDPR) — `CookieConsentBanner`
+- [x] **M43** Edge functions: `export-my-data`, `delete-my-account` + Profile UI hooks
+- [x] **NEW** `/auth/diagnostics` self-test page + `whoami_diagnostics` RPC + auto user-role seed on signup
+
+## P2 — Quality gate (1 sprint)
+
+- [ ] **B6** RAGAS thresholds wired into `make eval`; CI fails below cut-offs
+- [ ] **B7** Citation grounding: drop URLs absent from retrieved chunk metadata
+- [ ] **B8** Semantic-cache hit-rate KPI on admin Overview
+- [ ] **B9** A/B prompt shadow mode in admin Prompts page
+- [ ] **J34** Down-vote → `golden_questions` clustering nightly job
+- [ ] **K35** Playwright e2e: signup → chat → stream → meditation → admin upload → realtime
+- [ ] **B10** Memory eval set: follow-up resolution, persona continuity, and grounding regression checks
+
+## P3 — Performance (1 sprint)
+
+- [ ] **C10** TTFT / total-latency / tok-s metrics on `/api/chat/stream` (target TTFT p50 < 800 ms)
+- [ ] **C11** Lazy-load `AdminShell` (`React.lazy`) — *already lazy in `App.tsx`*
+- [x] **C12** Daily-teaching image transforms (webp, srcset)
+- [ ] **C13** Prefetch `/chat` chunk + warm Supabase auth on landing
+- [x] **C14** `React.memo` on `<ChatMessage>` markdown render (custom prop comparator)
+- [ ] **H30** PWA via `vite-plugin-pwa` (with `/~oauth` denylist)
+
+## P4 — UX delight (1 sprint)
+
+- [x] **D16** Inline rename + destructive confirm in conversation sidebar
+- [x] **D17** Persist partial assistant message during stream (debounced 500 ms checkpoint in `sessionStorage`)
+- [x] **D18b** Regenerate button (rerun last user turn) — reuses the existing user turn, removes only the last guru answer, bypasses cache, and avoids duplicate user messages
+- [x] **D18c** User query controls — copy/edit actions on user bubbles, with edit loading the query back into the composer
+- [x] **D18d** LLM conversation titles — first user turn asynchronously refines the conversation preview
+- [x] **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat, ⌘B sidebar (`useChatShortcuts.ts`)
+- [x] **D20** Mobile swipe-from-left to open sidebar (`useSwipeGesture.ts`, edge-only)
+- [ ] **D21** First-3-sessions tooltip pulse on mic
+- [ ] **E22** Web-push notifications for new daily teaching (VAPID + `pg_net`)
+- [ ] **E23** `/teachings` archive page
+- [ ] **E24** `daily_teaching_events` engagement heatmap
+
+## P5 — Reach (1 sprint)
+
+- [ ] **F25** axe-core in CI; fix focus rings, `aria-live`, contrast
+- [ ] **G26** `react-helmet-async` per-route SEO + branded OG image
+- [ ] **G28** JSON-LD Organization + FAQPage on landing
+- [ ] **G29** Pre-rendered landing page (vite-plugin-prerender)
+- [ ] **I31** `i18next` with en/hi/te/ml resource bundles, auto-detect from profile
+
+## Continuous
+
+- [ ] **J32** Sentry + PostHog (requires user-supplied keys)
+- [ ] **J33** Propagate `trace_id` into SSE `done` event for admin Trace Drawer deep-links
+- [ ] **K36** Visual regression snapshots
+- [ ] **K37** Backend pytest coverage gate ≥ 80 %
+- [ ] **L38** Token-budget guard with map-reduce summarization
+- [ ] **L39** Embedding cache keyed by file hash
+- [ ] **L40** Ollama warmup on boot
+
+## Out-of-scope (Lovable Cloud limits)
+
+- Meta/Facebook OAuth — not supported. Use Google + Email.
+
+## Backend repo (cannot ship from Lovable sandbox)
+
+> These items require the FastAPI / Qdrant / Ollama / CI stack and must be implemented in the backend repository, not in Lovable.
+
+- **A2** Wire `chat-rate-limit` edge function call site into Python `/api/chat/stream`
+- **A3** PII redaction middleware in FastAPI logs
+- **B6** RAGAS thresholds in `make eval` + CI gate
+- **B7** Citation grounding — drop URLs absent from retrieved chunk metadata (`rag/nodes.py`)
+- **B8** Semantic-cache hit-rate KPI feed for admin Overview
+- **B9** A/B prompt shadow mode
+- **B10** Memory eval set
+- **C10** TTFT / total-latency / tok-s metrics on `/api/chat/stream`
+- **J33** `trace_id` propagation into SSE `done` event
+- **J34** Down-vote → `golden_questions` nightly job
+- **K35** Playwright e2e (signup → chat → meditation → admin)
+- **K37** Backend pytest coverage gate ≥ 80%
+- **L38–L40** Token-budget guard, embedding cache, Ollama warmup
+- **J32** Sentry + PostHog (needs user-supplied DSN/keys)
+
+## Next up (frontend, deferred from this run)
+
+- **D21** First-3-sessions tooltip pulse on mic
+- **C12** Daily-teaching webp + `srcset` via Supabase Storage transforms
+- **C13** Prefetch `/chat` chunk + warm Supabase auth from landing
+- **G26** `react-helmet-async` per-route SEO + branded OG image
+- **G28** JSON-LD Organization + FAQPage on landing
+
+## ✅ Completed (May 2026 Production Hardening Sprint)
+
+- **Sidebar redesign v2** — Collapsible icon-rail (56px ↔ 280px), `Cmd+B` shortcut, grouped history, auto-refreshes via `conversation:updated` event
+- **D17** Partial-stream persistence — 500ms `sessionStorage` checkpoint, restored on reload with Regenerate nudge
+- **D18b** Regenerate button — `RotateCcw` hover-reveal on last guru message; calls `handleSubmit(fakeEvent, overrideText)` directly (no state race condition)
+- **Language-aware chat cache** — frontend and backend caches include preferred language, preventing stale English/Hindi responses after switching to Telugu or another Indic language
+- **Serene Mind history trigger** — repeated distress signals in conversation history now carry through to `meditation_step=1`, so the guided flow opens reliably
+- **Security audit** — `scripts/security_audit.py --report` is 30/30 with canonical FastAPI security headers and no unsafe HTML injection warning
+- **G26** Per-route SEO — `og:image`, `twitter:image`, `summary_large_image` tags on every route
+- **G28** JSON-LD Organization + FAQPage on `/`; WebApplication JSON-LD on `/chat`
+- **Auth/OAuth** — Full name + avatar from `user_metadata` seeded on first sign-in; `clearProfile()` on sign-out; `useProfile` always re-reads after server sync
+- **Post-meditation reflection** — 3-step flow (mood → journal → gratitude) saved to `meditationStorage`
+- **DailyTeaching** — `expires_at` TTL filter + broken-image `onError` fallback
+- **Auth tests** — 10 passing unit tests in `src/tests/auth.e2e.test.ts`
+- **RAG benchmark** — `scripts/benchmark_rag_responses.py` with 10 curated spiritual queries
+- **Concurrent Ingestion & Scraper Optimization** — verified the lock-isolated multi-worker async ingestion pipeline (`bulk_ingest_async.py`) under concurrent Neo4j graph operations and Qdrant ingestion, and reduced batch size parameters in `extract_transcripts.py` to mitigate Apify platform timeouts.
+
+### Still to do
+- **K35** Full Playwright E2E (signup → chat → meditation → admin)
+- **D19** Keyboard shortcuts: ⌘↵ submit, ⌘/ focus input, ⌘⇧O new chat
+- **D20** Mobile swipe-from-left to open sidebar
+- **C12** Daily-teaching webp + `srcset` via Supabase Storage transforms
+- **B6** RAGAS thresholds in `make eval` + CI gate (requires Docker)

@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # --- Guardrails ---
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "disabled"
     guardrails_provider: str = "nemo"                   # Falls back to lightweight if NeMo unavailable
+    guardrails_audit_enabled: bool = True               # Structured audit logging for blocked requests
 
     # --- Ollama (local mode) ---
     ollama_base_url: str = "http://localhost:11434"
@@ -125,6 +126,12 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"
+    # --- Security ---
+    csrf_secret: Optional[str] = None                      # Secret for CSRF token signing (generate with secrets.token_hex(32))
+    csrf_token_ttl: int = 3600                            # CSRF token lifetime in seconds
+    correlation_id_max_length: int = 64                   # Max length for X-Correlation-ID header
+    allowed_hosts: str = "localhost,127.0.0.1"            # Trusted hosts for Origin/Referer validation
+
     # --- Auth & Rate Limiting ---
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI

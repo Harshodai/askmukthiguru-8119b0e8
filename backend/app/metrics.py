@@ -1,3 +1,4 @@
+
 """
 Mukthi Guru — Prometheus Metrics (Production Observability)
 
@@ -28,6 +29,37 @@ REQUEST_COUNT = Counter(
     "guru_requests_total",
     "Total requests by status",
     ["status"],
+)
+
+# ===================================================================
+# Service-Level Prometheus Metrics (Unit 13)
+# ===================================================================
+
+RAG_LATENCY = Histogram(
+    "rag_latency_seconds",
+    "RAG pipeline node latency per node (P99 observability)",
+    ["node"],
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60],
+)
+
+LLM_REQUEST_DURATION = Histogram(
+    "llm_request_duration_seconds",
+    "LLM request duration per provider (sarvam / ollama / krutrim)",
+    ["provider"],
+    buckets=[0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120],
+)
+
+RETRIEVAL_LATENCY = Histogram(
+    "retrieval_latency_seconds",
+    "Vector DB retrieval latency",
+    ["source"],  # qdrant, lightrag, fallback
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
+)
+
+GUARDRAILS_BLOCKED = Counter(
+    "guardrails_blocked_total",
+    "Messages blocked by guardrails",
+    ["rail"],  # input / output
 )
 
 # ===================================================================
