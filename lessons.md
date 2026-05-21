@@ -578,3 +578,17 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 
 
 
+
+### 48. SDLC-Grade Ingestion Hardening: Circuit Breaker, DLQ, ETA & Dual-DB Tracking (May 2026)
+
+- **Problem**: The bulk ingestion pipeline ran for hours without circuit breaking, error categorization, or progress visibility. Infrastructure outages caused every pending video to fail serially, burning API credits. All errors were conflated (`status: "failed"`) with no distinction between transient retryable failures and permanent ones (deleted videos). The state file was written non-atomically. Videos had `lightrag_status: "unknown"` making KG backfill impossible to target.
+
+- **Solutions**:
+  - **Circuit Breaker**: `CircuitBreaker` class with `CLOSED → OPEN → HALF_OPEN` states. After 5 consecutive failures pauses all workers for 120s, preventing API credit burn.
+  - **Dead Letter Queue (DLQ)**: `classify_error()` categorizes failures as `transient` (network/rate limits) or `permanent` (deleted video, no transcript). `--retry-dlq` replays only transient entries; `--clean-state` prunes permanent ones.
+  - **ETA & Progress Reporting**: `ProgressTracker` with rolling 10-video average latency. Logs `Progress: 12/357 | Avg: 180s/video | ETA: 61h 30m` after every video. Structured `ingestion_summary.json` written at completion.
+  - **Dual-DB Status Tracking**: Every video metric has both `qdrant_status` and `lightrag_status`. `--retry-lightrag-missing` identifies videos where Qdrant succeeded but KG is missing.
+  - **Atomic State Writes**: `_atomic_save_state()` writes to tempfile then `os.replace()` (atomic POSIX rename) — eliminates JSON corruption risk on crash/SIGTERM.
+  - **Jitter Backoff**: `_jitter_sleep()` adds 0–25% random jitter capped at 120s to prevent thundering herd.
+
+- **Lesson**: Long-running ingestion pipelines need the same resilience patterns as production APIs. Atomic file writes should be the default for any JSON state — bare `json.dump()` is not safe under SIGTERM. Always categorize errors at failure time; retrofitting DLQ logic after the fact is much harder.

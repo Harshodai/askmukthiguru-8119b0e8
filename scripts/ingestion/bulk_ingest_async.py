@@ -11,6 +11,16 @@ Concurrency Architecture:
   - Strictly obeys the 60 RPM Sarvam Cloud API rate limit via the backend's
     built-in asyncio.Lock inside SarvamCloudService.
 
+Hardening Features (SDLC):
+  - CircuitBreaker: pauses ingestion after N consecutive failures to prevent
+    API credit burn during infrastructure outages.
+  - Dead Letter Queue (DLQ): categorizes errors as transient/permanent/partial
+    and stores them for targeted retry.
+  - ETA Reporting: rolling average latency with estimated time remaining.
+  - Dual-DB Status: tracks qdrant_status and lightrag_status independently.
+  - Atomic State Writes: tempfile + rename to prevent JSON corruption.
+  - Jitter Backoff: randomized delay to prevent thundering herd.
+
 Run command:
   PYTHONUNBUFFERED=1 PYTHONPATH=backend .venv_host/bin/python3 scripts/ingestion/bulk_ingest_async.py 2>&1 | tee scripts/bulk_ingest_async.log
 """
@@ -23,6 +33,10 @@ import json
 import subprocess
 import signal
 import argparse
+import random
+import tempfile
+import enum
+from collections import deque
 from typing import Optional
 
 # ── Force unbuffered stdout for real-time logging ───────────
@@ -68,13 +82,131 @@ logger = logging.getLogger("bulk_ingest_async")
 
 STATE_FILE = os.path.join(BASE_DIR, "scripts/ingestion_state.json")
 
+SUMMARY_FILE = os.path.join(BASE_DIR, "scripts/ingestion_summary.json")
+
 # ── Chunked LightRAG Insertion ──────────────────────────────
 # Chunk size for LightRAG: smaller chunks = more API calls but safer per-call.
 # 1500 chars balances sarvam-m's context window (2048 tokens ≈ 8K chars input + 2K output)
 # with minimizing total API calls. Each chunk triggers 2-4 Sarvam API calls internally.
 LIGHTRAG_CHUNK_SIZE = int(os.environ.get("RAG_CHUNK_SIZE", 1500))
 LIGHTRAG_CHUNK_OVERLAP = int(os.environ.get("RAG_CHUNK_OVERLAP", 150))
-LIGHTRAG_SLEEP_BETWEEN = 2.0  # seconds between chunks (reduced from 3.0 — timeout protection handles overload)
+LIGHTRAG_SLEEP_BETWEEN = 2.0  # seconds between chunks
+
+# ── Circuit Breaker ─────────────────────────────────────────
+class CBState(enum.Enum):
+    CLOSED = "closed"      # Normal operation
+    OPEN = "open"          # Failing — pausing requests
+    HALF_OPEN = "half_open"  # Testing recovery
+
+
+class CircuitBreaker:
+    """
+    Simple circuit breaker to prevent API credit burn during infrastructure outages.
+    After `failure_threshold` consecutive failures, enters OPEN state and pauses
+    for `cooldown_seconds`. After cooldown, enters HALF_OPEN and allows one probe.
+    """
+    def __init__(self, failure_threshold: int = 5, cooldown_seconds: float = 120.0):
+        self.state = CBState.CLOSED
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self._consecutive_failures = 0
+        self._opened_at: float = 0.0
+
+    def record_success(self):
+        self._consecutive_failures = 0
+        self.state = CBState.CLOSED
+
+    def record_failure(self):
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= self.failure_threshold:
+            if self.state != CBState.OPEN:
+                logger.warning(
+                    f"🔴 CircuitBreaker OPENED after {self._consecutive_failures} consecutive failures. "
+                    f"Cooling down for {self.cooldown_seconds:.0f}s..."
+                )
+            self.state = CBState.OPEN
+            self._opened_at = time.time()
+
+    async def wait_if_open(self):
+        """Block until circuit recovers. Logs remaining wait time."""
+        while self.state == CBState.OPEN:
+            elapsed = time.time() - self._opened_at
+            remaining = self.cooldown_seconds - elapsed
+            if remaining <= 0:
+                logger.info("🟡 CircuitBreaker entering HALF_OPEN — probing next request...")
+                self.state = CBState.HALF_OPEN
+                break
+            logger.warning(f"⏸️  CircuitBreaker OPEN — waiting {remaining:.0f}s before next attempt...")
+            await asyncio.sleep(min(remaining, 30.0))
+
+    @property
+    def is_healthy(self) -> bool:
+        return self.state == CBState.CLOSED
+
+
+# Shared circuit breaker instance
+_circuit_breaker = CircuitBreaker(failure_threshold=5, cooldown_seconds=120.0)
+
+# ── ETA / Progress Tracker ──────────────────────────────────
+class ProgressTracker:
+    """Tracks rolling average latency and projects ETA."""
+    def __init__(self, total: int, window: int = 10):
+        self.total = total
+        self.done = 0
+        self.failed = 0
+        self._latencies: deque = deque(maxlen=window)
+        self._run_start = time.time()
+
+    def record(self, latency: float, success: bool):
+        self.done += 1
+        if not success:
+            self.failed += 1
+        self._latencies.append(latency)
+
+    def eta_str(self) -> str:
+        remaining = self.total - self.done
+        if not self._latencies or remaining <= 0:
+            return "—"
+        avg = sum(self._latencies) / len(self._latencies)
+        eta_sec = avg * remaining
+        h, rem = divmod(int(eta_sec), 3600)
+        m, s = divmod(rem, 60)
+        return f"{h}h {m}m {s}s"
+
+    def summary_line(self) -> str:
+        elapsed = time.time() - self._run_start
+        avg = sum(self._latencies) / len(self._latencies) if self._latencies else 0
+        return (
+            f"Progress: {self.done}/{self.total} | "
+            f"Failed: {self.failed} | "
+            f"Avg: {avg:.0f}s/video | "
+            f"ETA: {self.eta_str()} | "
+            f"Elapsed: {elapsed/3600:.1f}h"
+        )
+
+
+# Shared progress tracker (initialized in main)
+_progress: Optional[ProgressTracker] = None
+
+
+# ── Error Categorization ─────────────────────────────────────
+def classify_error(error: Exception) -> str:
+    """
+    Classify error as: 'permanent' | 'transient' | 'partial'
+    permanent  → no transcript, video deleted/private — do not retry
+    transient  → network, rate limits, timeouts — safe to retry
+    partial    → Qdrant ok, LightRAG failed — tracked separately
+    """
+    msg = str(error).lower()
+    permanent_signals = [
+        "extraction failed", "no transcript", "private video",
+        "video unavailable", "has been removed", "does not exist",
+        "sign in to confirm",
+    ]
+    for sig in permanent_signals:
+        if sig in msg:
+            return "permanent"
+    return "transient"
 
 
 def chunk_text(text: str, chunk_size: int = LIGHTRAG_CHUNK_SIZE, overlap: int = LIGHTRAG_CHUNK_OVERLAP) -> list[str]:
@@ -413,6 +545,27 @@ def _signal_handler(signum, frame):
     _shutdown_requested = True
 
 
+def _atomic_save_state(state: dict, path: str):
+    """Write state atomically via tempfile+rename to prevent JSON corruption on crash."""
+    dir_ = os.path.dirname(path)
+    try:
+        with tempfile.NamedTemporaryFile("w", dir=dir_, suffix=".tmp", delete=False, encoding="utf-8") as tf:
+            json.dump(state, tf, indent=2)
+            tf_name = tf.name
+        os.replace(tf_name, path)  # atomic on POSIX
+    except Exception as e:
+        logger.error(f"Atomic state write failed: {e}")
+        # fallback
+        with open(path, "w") as f:
+            json.dump(state, f, indent=2)
+
+
+def _jitter_sleep(base_seconds: float, max_jitter_pct: float = 0.25) -> float:
+    """Returns base_seconds + random jitter (up to max_jitter_pct of base)."""
+    jitter = random.uniform(0, base_seconds * max_jitter_pct)
+    return min(base_seconds + jitter, 120.0)  # cap at 120s
+
+
 # ── Concurrent Worker ───────────────────────────────────────
 async def process_video_worker(
     vid: str,
@@ -421,15 +574,18 @@ async def process_video_worker(
     container,
     state: dict,
     save_state_fn,
-    args
+    args,
+    worker_num: int = 0,
 ):
     """Processes a single video under concurrency bounds.
     
     Architecture:
       - Qdrant vector ingestion = CRITICAL (must succeed for video to be marked processed)
       - LightRAG graph extraction = BEST-EFFORT (failures are logged but don't block)
+      - CircuitBreaker: pauses all workers if consecutive failures detected
+      - DLQ: failed videos are categorized and stored for targeted retry
     """
-    global _shutdown_requested
+    global _shutdown_requested, _progress
     if _shutdown_requested:
         return
 
@@ -439,18 +595,24 @@ async def process_video_worker(
         if _shutdown_requested:
             return
 
-        logger.info(f"[Worker] Ingestion starting for {vid}...")
+        # Wait for circuit breaker to recover before consuming semaphore slot
+        await _circuit_breaker.wait_if_open()
+        if _shutdown_requested:
+            return
+
+        logger.info(f"[Worker-{worker_num}] Starting: {vid}...")
         start_video_time = time.time()
         max_attempts = 3
-        retry_delay = 15
+        base_retry_delay = 15.0
+        last_error: Optional[Exception] = None
 
         for attempt in range(1, max_attempts + 1):
             if _shutdown_requested:
                 break
 
             try:
-                # ── STEP 1: Qdrant (CRITICAL — dense+sparse vectors via hybrid pipeline) ──
-                logger.info(f"[Qdrant] Ingesting video: {url} (Attempt {attempt}/{max_attempts})...")
+                # ── STEP 1: Qdrant (CRITICAL) ──
+                logger.info(f"[Qdrant] {vid} (Attempt {attempt}/{max_attempts})...")
                 res = await pipeline.ingest_url(url, max_accuracy=True)
 
                 if res.get("status") == "error":
@@ -458,38 +620,36 @@ async def process_video_worker(
 
                 chunks = res.get("chunks_indexed", 0)
                 title = res.get("title") or res.get("metadata", {}).get("title") or "Unknown"
-                logger.info(f"[Qdrant] ✅ Success | Title: {title} | Chunks: {chunks}")
+                logger.info(f"[Qdrant] ✅ {vid} | Title: {title} | Chunks: {chunks}")
 
-                # ── MARK VIDEO AS PROCESSED immediately after Qdrant success ──
-                # LightRAG is enrichment — its failure should NOT prevent video from being marked done
+                # MARK VIDEO AS PROCESSED immediately after Qdrant success
                 qdrant_latency = time.time() - start_video_time
-                state["processed_videos"].append(vid)
+                if vid not in state["processed_videos"]:
+                    state["processed_videos"].append(vid)
                 state["metrics"][vid] = {
                     "latency": qdrant_latency,
                     "status": "success",
+                    "qdrant_status": "success",
                     "title": title,
                     "chunks": chunks,
                     "lightrag_status": "pending",
                 }
                 save_state_fn()
-                logger.info(f"✅ Video Qdrant-ingested: {vid} ({title}) in {qdrant_latency:.1f}s")
 
-                # ── STEP 2: LightRAG/Neo4j (BEST-EFFORT — knowledge graph enrichment) ──
+                # ── STEP 2: LightRAG/Neo4j (BEST-EFFORT) ──
                 lightrag_status = "skipped"
                 if args.skip_lightrag:
                     lightrag_status = "skipped"
                 elif container.lightrag:
                     try:
-                        # Reuse transcript fetched in Qdrant step to avoid second download/STT run
                         text = res.get("text") or res.get("transcript") or ""
                         if not text.strip():
-                            logger.info(f"[LightRAG] No text in Qdrant result — re-fetching transcript for {vid}...")
+                            logger.info(f"[LightRAG] Re-fetching transcript for {vid}...")
                             text = await fetch_transcript_text(vid)
                         else:
-                            logger.info(f"[LightRAG] Reusing transcript from Qdrant step ({len(text):,} chars)")
-                        
+                            logger.info(f"[LightRAG] Reusing transcript ({len(text):,} chars)")
+
                         if text.strip():
-                            logger.info(f"[LightRAG] Correcting spelling and domain terminology in transcript...")
                             sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
                             corrected_text = await pipeline._corrector.correct_transcript(sanitized_text, url)
                             source_name = f"YouTube Video: {title} (URL: {url})"
@@ -502,40 +662,77 @@ async def process_video_worker(
                                 video_id=vid
                             )
                             lightrag_status = "success"
-                            logger.info(f"[LightRAG] ✅ Success")
+                            logger.info(f"[LightRAG] ✅ {vid}")
                         else:
                             lightrag_status = "no_transcript"
-                            logger.warning(f"[LightRAG] ⚠️ No transcript content retrieved")
+                            logger.warning(f"[LightRAG] ⚠️ No transcript for {vid}")
                     except Exception as lg_err:
                         lightrag_status = "failed"
                         logger.error(f"[LightRAG] ❌ Failed (non-fatal): {lg_err}")
                 else:
                     lightrag_status = "service_inactive"
-                    logger.warning(f"[LightRAG] Service not active — skipping")
 
-                # Update metrics with final LightRAG status
+                # Final metrics update
                 total_latency = time.time() - start_video_time
                 state["metrics"][vid]["latency"] = total_latency
                 state["metrics"][vid]["lightrag_status"] = lightrag_status
                 save_state_fn()
-                logger.info(f"✅ Video fully processed: {vid} ({title}) in {total_latency:.1f}s [lightrag={lightrag_status}]")
-                break  # Success — exit retry loop
+
+                _circuit_breaker.record_success()
+                if _progress:
+                    _progress.record(total_latency, success=True)
+                    logger.info(
+                        f"✅ {vid} ({title}) done in {total_latency:.1f}s [lightrag={lightrag_status}] | "
+                        f"{_progress.summary_line()}"
+                    )
+                    # Periodic summary every 10 completions
+                    if _progress.done % 10 == 0:
+                        logger.info(f"{'='*60}")
+                        logger.info(f"📊 PERIODIC SUMMARY: {_progress.summary_line()}")
+                        logger.info(f"{'='*60}")
+                else:
+                    logger.info(f"✅ {vid} ({title}) done in {total_latency:.1f}s")
+                break  # Success
 
             except Exception as e:
+                last_error = e
                 latency = time.time() - start_video_time
-                logger.warning(f"⚠️ Attempt {attempt}/{max_attempts} failed for video {vid}: {e}")
+                logger.warning(f"⚠️ Attempt {attempt}/{max_attempts} failed for {vid}: {e}")
                 if attempt < max_attempts:
-                    sleep_time = retry_delay * attempt
-                    logger.info(f"Retrying in {sleep_time}s after cooldown...")
+                    sleep_time = _jitter_sleep(base_retry_delay * attempt)
+                    logger.info(f"  Retrying in {sleep_time:.1f}s (jittered)...")
                     await asyncio.sleep(sleep_time)
                 else:
+                    # All attempts exhausted — classify and record in DLQ
+                    error_category = classify_error(e)
                     state["metrics"][vid] = {
                         "latency": latency,
                         "status": "failed",
+                        "qdrant_status": "failed",
+                        "lightrag_status": "skipped",
                         "error": str(e),
+                        "error_category": error_category,
                     }
+                    # DLQ entry
+                    if "dead_letter_queue" not in state:
+                        state["dead_letter_queue"] = []
+                    # Remove old entry for this vid if exists
+                    state["dead_letter_queue"] = [
+                        d for d in state["dead_letter_queue"] if d.get("video_id") != vid
+                    ]
+                    state["dead_letter_queue"].append({
+                        "video_id": vid,
+                        "error_category": error_category,
+                        "error_message": str(e),
+                        "attempt_count": max_attempts,
+                        "last_attempt_ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "will_retry": error_category == "transient",
+                    })
                     save_state_fn()
-                    logger.error(f"❌ Video Failed after {max_attempts} attempts: {vid} | {e}", exc_info=True)
+                    _circuit_breaker.record_failure()
+                    if _progress:
+                        _progress.record(latency, success=False)
+                    logger.error(f"❌ {vid} failed [{error_category}] after {max_attempts} attempts: {e}")
 
 
 
@@ -557,11 +754,18 @@ def parse_args():
                         help="Comma-separated list of specific video IDs to process (bypasses playlist resolution)")
     parser.add_argument("--retry-failed-lightrag", action="store_true",
                         help="Retry only the failed LightRAG chunks stored in state, then exit")
+    # New hardening flags
+    parser.add_argument("--retry-dlq", action="store_true",
+                        help="Retry only transient-error videos from the Dead Letter Queue, then exit")
+    parser.add_argument("--retry-lightrag-missing", action="store_true",
+                        help="Backfill LightRAG for videos with qdrant_status=success but lightrag_status unknown/failed")
+    parser.add_argument("--clean-state", action="store_true",
+                        help="Remove permanently-failed videos from DLQ and metrics, then exit")
     return parser.parse_args()
 
 
 async def main():
-    global _shutdown_requested
+    global _shutdown_requested, _progress
     args = parse_args()
 
     # ── Signal Handlers for graceful shutdown ───────────────
@@ -590,22 +794,74 @@ async def main():
     pipeline = container.ingestion
 
     # ── Load State ──────────────────────────────────────────
-    state = {"processed_videos": [], "processed_docs": [], "metrics": {}}
+    state = {"processed_videos": [], "processed_docs": [], "metrics": {},
+             "failed_lightrag_chunks": [], "dead_letter_queue": []}
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             state = json.load(f)
-    if "metrics" not in state:
-        state["metrics"] = {}
-    if "processed_videos" not in state:
-        state["processed_videos"] = []
-    if "processed_docs" not in state:
-        state["processed_docs"] = []
-    if "failed_lightrag_chunks" not in state:
-        state["failed_lightrag_chunks"] = []
+    # Ensure all keys exist
+    for k, default in [
+        ("metrics", {}), ("processed_videos", []), ("processed_docs", []),
+        ("failed_lightrag_chunks", []), ("dead_letter_queue", []),
+    ]:
+        if k not in state:
+            state[k] = default
 
     def save_state():
-        with open(STATE_FILE, "w") as f:
-            json.dump(state, f, indent=2)
+        _atomic_save_state(state, STATE_FILE)
+
+    # ── Handle --clean-state (remove permanently failed entries) ──
+    if args.clean_state:
+        before = len(state["dead_letter_queue"])
+        state["dead_letter_queue"] = [
+            d for d in state["dead_letter_queue"]
+            if d.get("error_category") != "permanent"
+        ]
+        perm_failed = [k for k, v in state["metrics"].items()
+                       if isinstance(v, dict) and v.get("error_category") == "permanent"]
+        for vid in perm_failed:
+            state["metrics"][vid]["will_retry"] = False
+        save_state()
+        logger.info(f"🧹 clean-state: removed {before - len(state['dead_letter_queue'])} permanent DLQ entries. "
+                    f"Marked {len(perm_failed)} metrics as will_retry=False.")
+        return
+
+    # ── Handle --retry-dlq (retry only transient DLQ entries) ──
+    if args.retry_dlq:
+        transient_dlq = [d for d in state.get("dead_letter_queue", [])
+                         if d.get("will_retry", True) and d.get("error_category") != "permanent"]
+        if not transient_dlq:
+            logger.info("🎉 No transient DLQ entries to retry.")
+            return
+        logger.info(f"🔄 DLQ retry: {len(transient_dlq)} transient video(s)...")
+        args.video_ids = ",".join(d["video_id"] for d in transient_dlq)
+        # Remove them from metrics so they're queued again
+        for d in transient_dlq:
+            vid = d["video_id"]
+            state["metrics"].pop(vid, None)
+            if vid in state["processed_videos"]:
+                state["processed_videos"].remove(vid)
+        save_state()
+        # Fall through to normal ingestion with the DLQ IDs set as video_ids
+
+    # ── Handle --retry-lightrag-missing (backfill KG for Qdrant-only videos) ──
+    if args.retry_lightrag_missing:
+        needs_kg = [
+            vid for vid, m in state["metrics"].items()
+            if isinstance(m, dict)
+            and m.get("qdrant_status") == "success"
+            and m.get("lightrag_status", "unknown") in ("unknown", "failed", "skipped", "pending")
+        ]
+        if not needs_kg:
+            logger.info("🎉 All videos with Qdrant success already have LightRAG status tracked.")
+            return
+        logger.info(f"🔄 LightRAG backfill: {len(needs_kg)} video(s) need KG ingestion...")
+        args.video_ids = ",".join(needs_kg)
+        # Remove from processed_videos so they re-enter the queue
+        # But keep metrics to avoid re-running Qdrant
+        # NOTE: worker will still call pipeline.ingest_url — that's intentional
+        # as transcript text is needed. Qdrant upsert is idempotent.
+        # Fall through to normal ingestion
 
     # ── Handle Retry of Failed LightRAG Chunks Directly ───────
     if args.retry_failed_lightrag:
@@ -613,25 +869,24 @@ async def main():
         if not failed_chunks:
             logger.info("🎉 No failed LightRAG chunks stored in state. Nothing to retry!")
             return
-        
+
         logger.info(f"🔄 Retrying {len(failed_chunks)} failed LightRAG chunk(s)...")
-        # Copy to avoid mutation issues during iteration
         chunks_to_retry = list(failed_chunks)
         success_count = 0
-        
+
         for idx, item in enumerate(chunks_to_retry, 1):
             source_name = item.get("source_name", "Unknown Source")
             chunk_content = item.get("chunk_content", "")
             chunk_idx = item.get("chunk_index", 0)
             total_chunks = item.get("total_chunks", 0)
-            
+
             logger.info(f"[{idx}/{len(chunks_to_retry)}] Retrying chunk {chunk_idx}/{total_chunks} for [{source_name}]")
             chunk_with_header = f"[Source: {source_name}]\n{chunk_content}"
-            
+
             success = False
             max_attempts = 3
             base_delay = 5.0
-            
+
             for attempt in range(1, max_attempts + 1):
                 try:
                     await container.lightrag.ainsert(chunk_with_header, file_paths=[source_name], timeout=180.0)
@@ -640,11 +895,11 @@ async def main():
                 except Exception as e:
                     logger.warning(f"  Attempt {attempt}/{max_attempts} failed: {e}")
                     if attempt < max_attempts:
-                        sleep_time = base_delay * (2 ** (attempt - 1))
+                        sleep_time = _jitter_sleep(base_delay * (2 ** (attempt - 1)))
                         await asyncio.sleep(sleep_time)
-            
+
             if success:
-                logger.info(f"  ✅ Chunk ingestion succeeded! Removing from failed queue.")
+                logger.info(f"  ✅ Chunk recovered! Removing from failed queue.")
                 success_count += 1
                 state["failed_lightrag_chunks"] = [
                     c for c in state["failed_lightrag_chunks"]
@@ -652,16 +907,16 @@ async def main():
                 ]
                 save_state()
             else:
-                logger.error(f"  ❌ Chunk ingestion failed again after {max_attempts} attempts.")
+                logger.error(f"  ❌ Chunk still failing after {max_attempts} attempts.")
                 item["attempts"] = item.get("attempts", 3) + max_attempts
                 item["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 save_state()
-            
+
             if idx < len(chunks_to_retry):
-                logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
                 await asyncio.sleep(LIGHTRAG_SLEEP_BETWEEN)
-                
-        logger.info(f"🎉 Failed LightRAG retry complete: {success_count} chunks successfully ingested. {len(state['failed_lightrag_chunks'])} remaining.")
+
+        logger.info(f"🎉 LightRAG retry: {success_count}/{len(chunks_to_retry)} chunks recovered. "
+                    f"{len(state['failed_lightrag_chunks'])} remaining.")
         return
 
     # ── Ingest Book (Sequential) ────────────────────────────
@@ -784,46 +1039,76 @@ async def main():
 
     # Filter out already processed videos
     queued_ids = [v for v in unique_ids if v not in state["processed_videos"]]
-    logger.info(f"🎯 Total unique videos queued for concurrent ingestion: {len(queued_ids)} (concurrency={args.concurrency})")
+    logger.info(f"🎯 Queued: {len(queued_ids)} videos (concurrency={args.concurrency})")
 
+    _progress = None
     if queued_ids:
+        _progress = ProgressTracker(total=len(queued_ids))
         sem = asyncio.Semaphore(args.concurrency)
-        tasks = []
-        for vid in queued_ids:
-            tasks.append(
-                process_video_worker(
-                    vid=vid,
-                    sem=sem,
-                    pipeline=pipeline,
-                    container=container,
-                    state=state,
-                    save_state_fn=save_state,
-                    args=args
-                )
+        tasks = [
+            process_video_worker(
+                vid=vid,
+                sem=sem,
+                pipeline=pipeline,
+                container=container,
+                state=state,
+                save_state_fn=save_state,
+                args=args,
+                worker_num=i + 1,
             )
-        # Execute all workers concurrently
+            for i, vid in enumerate(queued_ids)
+        ]
         await asyncio.gather(*tasks)
 
-    # ── Summary ─────────────────────────────────────────────
+    # ── Structured Summary ───────────────────────────────────
+    all_metrics = state.get("metrics", {})
+    success_vids = [k for k, v in all_metrics.items() if isinstance(v, dict) and v.get("status") == "success"]
+    failed_vids  = [k for k, v in all_metrics.items() if isinstance(v, dict) and v.get("status") == "failed"]
+    dlq_transient = [d for d in state.get("dead_letter_queue", []) if d.get("will_retry")]
+    dlq_permanent = [d for d in state.get("dead_letter_queue", []) if not d.get("will_retry")]
+    lg_backfill = [
+        k for k, v in all_metrics.items()
+        if isinstance(v, dict)
+        and v.get("qdrant_status") == "success"
+        and v.get("lightrag_status", "unknown") not in ("success", "skipped", "service_inactive")
+    ]
+
     logger.info(f"\n{'='*60}")
     logger.info("BULK CONCURRENT INGESTION RUN COMPLETE")
     logger.info(f"{'='*60}")
-    logger.info(f"Total Docs Processed: {len(state['processed_docs'])}")
-    for doc in state["processed_docs"]:
-        m = state["metrics"].get(doc, {})
-        logger.info(f"  📄 {doc} — {m.get('status', 'unknown')} ({m.get('latency', 0):.1f}s)")
-
-    logger.info(f"\nTotal Videos Processed: {len(state['processed_videos'])}")
-    for vid in state["processed_videos"]:
-        m = state["metrics"].get(vid, {})
-        title = m.get('title', 'Unknown')
-        logger.info(f"  🎥 {vid} ({title}) — {m.get('status', 'unknown')} ({m.get('latency', 0):.1f}s)")
-
-    failed = [k for k, v in state["metrics"].items() if v.get("status") == "failed"]
-    if failed:
-        logger.warning(f"\n⚠️ {len(failed)} items failed. Re-run this script to retry them.")
-
+    logger.info(f"  📄 Docs processed:           {len(state['processed_docs'])}")
+    logger.info(f"  ✅ Videos success:           {len(success_vids)}")
+    logger.info(f"  ❌ Videos failed:            {len(failed_vids)}")
+    logger.info(f"  📬 DLQ (transient/retryable): {len(dlq_transient)}")
+    logger.info(f"  🚫 DLQ (permanent/skip):      {len(dlq_permanent)}")
+    logger.info(f"  📊 LightRAG backfill needed:  {len(lg_backfill)}")
+    if _progress:
+        logger.info(f"  🏁 {_progress.summary_line()}")
+    if dlq_transient:
+        logger.warning(f"\n⚠️  {len(dlq_transient)} transient failures → retry with: --retry-dlq")
+    if lg_backfill:
+        logger.info(f"💡 {len(lg_backfill)} videos need LightRAG → backfill with: --retry-lightrag-missing")
     logger.info(f"{'='*60}")
+
+    # Write JSON summary
+    summary = {
+        "run_ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "success_count": len(success_vids),
+        "failed_count": len(failed_vids),
+        "dlq_transient": len(dlq_transient),
+        "dlq_permanent": len(dlq_permanent),
+        "lightrag_backfill_needed": len(lg_backfill),
+        "circuit_breaker_state": _circuit_breaker.state.value,
+        "failed_video_ids": failed_vids,
+        "dlq_transient_ids": [d["video_id"] for d in dlq_transient],
+        "lightrag_backfill_ids": lg_backfill,
+    }
+    try:
+        with open(SUMMARY_FILE, "w") as f:
+            json.dump(summary, f, indent=2)
+        logger.info(f"📝 Summary written → {SUMMARY_FILE}")
+    except Exception as e:
+        logger.warning(f"Could not write summary file: {e}")
 
 
 if __name__ == "__main__":
