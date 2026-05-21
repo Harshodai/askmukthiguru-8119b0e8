@@ -857,11 +857,16 @@ async def main():
             return
         logger.info(f"🔄 LightRAG backfill: {len(needs_kg)} video(s) need KG ingestion...")
         args.video_ids = ",".join(needs_kg)
-        # Remove from processed_videos so they re-enter the queue
-        # But keep metrics to avoid re-running Qdrant
-        # NOTE: worker will still call pipeline.ingest_url — that's intentional
-        # as transcript text is needed. Qdrant upsert is idempotent.
+        # CRITICAL: Must remove from processed_videos so they pass the queue filter.
+        # Without this, line 1041 silently drops all of them and nothing gets re-queued.
+        # Keeping metrics intact — Qdrant upsert is idempotent if the worker re-runs it.
+        for vid in needs_kg:
+            if vid in state["processed_videos"]:
+                state["processed_videos"].remove(vid)
+        save_state()
+        logger.info(f"  Removed {len(needs_kg)} video(s) from processed_videos for KG backfill queue.")
         # Fall through to normal ingestion
+
 
     # ── Handle Retry of Failed LightRAG Chunks Directly ───────
     if args.retry_failed_lightrag:
