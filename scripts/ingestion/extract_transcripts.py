@@ -839,6 +839,8 @@ def main():
     parser = argparse.ArgumentParser(description="Bulk YouTube Transcript Extractor v5")
     parser.add_argument("--audit", action="store_true",
                         help="Re-validate all existing transcripts and flag partials")
+    parser.add_argument("--retry-only", action="store_true",
+                        help="Only run Phase 1 (retry incomplete and timeout victims) and exit")
     args = parser.parse_args()
 
     # ── Pre-flight ─────────────────────────────────────────────────────────
@@ -974,7 +976,9 @@ def main():
             time.sleep(SLEEP_BETWEEN)
 
     # ── Phase 2: Process new videos ───────────────────────────────────────
-    if new_ids:
+    if args.retry_only:
+        print("\nℹ️  --retry-only flag is active. Skipping Phase 2 (new videos).")
+    elif new_ids:
         print("\n" + "=" * 60)
         print("📥 PHASE 2: PROCESSING {} NEW VIDEOS".format(len(new_ids)))
         print("=" * 60 + "\n")

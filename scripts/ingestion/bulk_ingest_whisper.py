@@ -445,6 +445,8 @@ def parse_args():
                         help="Skip book ingestion, go straight to YouTube")
     parser.add_argument("--video-limit", type=int, default=0,
                         help="Limit total videos to process (0=all)")
+    parser.add_argument("--video-ids", type=str, default="",
+                        help="Comma-separated list of specific video IDs to ingest. If provided, playlist URLs are ignored.")
     parser.add_argument("--retry-failed-lightrag", action="store_true",
                         help="Retry only the failed LightRAG chunks stored in state, then exit")
     return parser.parse_args()
@@ -640,36 +642,41 @@ async def main():
     logger.info("RESOLVING YOUTUBE PLAYLISTS & VIDEO IDS")
     logger.info(f"{'='*60}")
 
-    playlists_to_process = PLAYLIST_URLS
-    if args.test_playlist:
-        playlists_to_process = PLAYLIST_URLS[:1]
-        logger.info(f"🧪 TEST MODE: Processing only first playlist")
-    elif args.playlist_limit > 0:
-        playlists_to_process = PLAYLIST_URLS[:args.playlist_limit]
-        logger.info(f"🔢 Processing {len(playlists_to_process)} of {len(PLAYLIST_URLS)} playlists")
+    if args.video_ids:
+        # User explicitly passed video ids
+        unique_ids = [vid.strip() for vid in args.video_ids.split(",") if vid.strip()]
+        logger.info(f"Targeting {len(unique_ids)} explicit video IDs: {unique_ids}")
+    else:
+        playlists_to_process = PLAYLIST_URLS
+        if args.test_playlist:
+            playlists_to_process = PLAYLIST_URLS[:1]
+            logger.info(f"🧪 TEST MODE: Processing only first playlist")
+        elif args.playlist_limit > 0:
+            playlists_to_process = PLAYLIST_URLS[:args.playlist_limit]
+            logger.info(f"🔢 Processing {len(playlists_to_process)} of {len(PLAYLIST_URLS)} playlists")
 
-    all_ids = []
-    for pl in playlists_to_process:
-        if _shutdown_requested:
-            break
-        logger.info(f"Resolving playlist: {pl}")
-        all_ids.extend(get_video_ids_from_playlist(pl))
-        time.sleep(1)
+        all_ids = []
+        for pl in playlists_to_process:
+            if _shutdown_requested:
+                break
+            logger.info(f"Resolving playlist: {pl}")
+            all_ids.extend(get_video_ids_from_playlist(pl))
+            time.sleep(1)
 
-    if not args.test_playlist:
-        all_ids += CORE_VIDEO_IDS
+        if not args.test_playlist:
+            all_ids += CORE_VIDEO_IDS
 
-    seen = set()
-    unique_ids = [v for v in all_ids if not (v in seen or seen.add(v))]
+        seen = set()
+        unique_ids = [v for v in all_ids if not (v in seen or seen.add(v))]
 
-    # Prioritize previously failed videos by moving them to the beginning of the queue
-    failed_ids = [
-        vid for vid, metric in state.get("metrics", {}).items()
-        if isinstance(metric, dict) and metric.get("status") == "failed" and vid not in state["processed_videos"]
-    ]
-    if failed_ids:
-        logger.info(f"🔄 Found {len(failed_ids)} previously failed videos. Prioritizing them at the beginning of the queue: {failed_ids}")
-        unique_ids = failed_ids + [v for v in unique_ids if v not in failed_ids]
+        # Prioritize previously failed videos by moving them to the beginning of the queue
+        failed_ids = [
+            vid for vid, metric in state.get("metrics", {}).items()
+            if isinstance(metric, dict) and metric.get("status") == "failed" and vid not in state["processed_videos"]
+        ]
+        if failed_ids:
+            logger.info(f"🔄 Found {len(failed_ids)} previously failed videos. Prioritizing them at the beginning of the queue: {failed_ids}")
+            unique_ids = failed_ids + [v for v in unique_ids if v not in failed_ids]
 
     if args.video_limit > 0:
         unique_ids = unique_ids[:args.video_limit]

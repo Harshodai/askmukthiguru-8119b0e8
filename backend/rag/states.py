@@ -77,6 +77,9 @@ class GraphState(TypedDict):
     question: str
     chat_history: list[dict]
 
+    # Request correlation ID ( propagated through every node for log correlation )
+    request_id: Optional[str]
+
     # Routing
     intent: Optional[str]
 

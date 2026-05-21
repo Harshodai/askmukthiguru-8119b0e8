@@ -223,10 +223,11 @@ def create_initial_state(
     question: str,
     chat_history: Optional[list[dict]] = None,
     meditation_step: int = 0,
+    request_id: Optional[str] = None,
 ) -> GraphState:
     """
     Create the initial state for a pipeline invocation.
-    
+
     All fields initialized to safe defaults.
     The question and chat_history are the only required inputs.
     """
@@ -240,6 +241,7 @@ def create_initial_state(
         # Input
         question=question,
         chat_history=capped_history,
+        request_id=request_id,
         # Routing
         intent=None,
         # Retrieval

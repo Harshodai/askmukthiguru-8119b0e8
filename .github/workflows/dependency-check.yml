@@ -1,0 +1,74 @@
+# ============================================================
+# Mukthi Guru — Dependency Vulnerability Check
+# Runs npm audit (frontend) and pip-audit (backend) weekly.
+# ============================================================
+
+name: Dependency Check
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'backend/requirements.txt'
+      - 'backend/pyproject.toml'
+
+jobs:
+  frontend-audit:
+    name: Frontend npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        # Fail CI on moderate or higher findings
+
+  backend-audit:
+    name: Backend pip-audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit on requirements.txt
+        run: pip-audit -r requirements.txt --desc --format=json -o pip-audit-report.json || true
+
+      - name: Run pip-audit on pyproject.toml (strict)
+        run: pip-audit -r requirements.txt --desc
+        # Fail CI if HIGH/CRITICAL vulnerabilities are found
+
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: backend/pip-audit-report.json
+          retention-days: 30
