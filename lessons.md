@@ -557,5 +557,15 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Git push Protection Secret Removal**: Safely removed hardcoded tokens using a Git soft-reset, squashing 5 commits into a single high-quality commit with zero secrets in its history, completely resolving GitHub's Push Protection block.
 - **Lesson learned**: Scraping scripts must treat data quality as a first-class citizen using strict structural/density validation thresholds prior to serialization. In large-scale, asynchronous ingestion runs that touch local databases (Neo4j, Qdrant) and external APIs, serialize locks globally to prevent graph deadlocks, and use squashed commit rebases to cleanly remove unintended secrets from your git history.
 
+### 46. Layer 3 LightRAG Ingestion Retry with Exponential Backoff & CLI Recovery Mode (May 2026)
+- **Problem**: During bulk ingestion, extracting entities and relations into the LightRAG Knowledge Graph (Layer 3) represents the most fragile phase of the pipeline due to strict external LLM API rate limits (e.g. 60 RPM on Sarvam Cloud). If a single chunk insertion failed due to rate limits or transient network drops, the entire video ingestion would either crash or skip that chunk permanently, leading to incomplete knowledge graphs. There was also no lightweight recovery path to retry failed chunks without re-running full time-consuming Qdrant/Whisper pipelines from scratch.
+- **Solution**:
+  - **Chunk-Level Exponential Backoff**: Enhanced `safe_lightrag_insert` in both `bulk_ingest_async.py` and `bulk_ingest_whisper.py` to retry failed chunk insertions up to 3 times, introducing progressive backoff delays (5s, 10s, 20s) between attempts.
+  - **Persistent Failed Chunk Tracking**: When a chunk completely fails all 3 attempts, it is persistently serialized into `scripts/ingestion_state.json` under a `failed_lightrag_chunks` array, preserving the exact source name, video ID (if applicable), chunk index, total chunks, actual chunk text, error details, and attempt counts.
+  - **Direct CLI Recovery Command**: Implemented a `--retry-failed-lightrag` flag in both ingestion scripts. On execution, it bypasses book and playlist resolution entirely and sequentially processes only the failed chunks loaded from the state file, cleanly removing successfully recovered chunks from the queue and updating attempt counts for others.
+  - **RPM Compliance**: Enforced `LIGHTRAG_SLEEP_BETWEEN = 2.0s` cooldown between chunk insertions during both standard and recovery execution to ensure strict compliance with the 60 RPM API limit.
+- **Lesson learned**: When integrating large-scale graph databases with rate-limited downstream LLM APIs, insulate the pipeline by isolating failures at the chunk level, persisting exact error states, and providing targeted CLI recovery endpoints to replay skipped work efficiently.
+
+
 
 
