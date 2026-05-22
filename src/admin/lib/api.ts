@@ -3,6 +3,7 @@ import type {
   KpiSnapshot,
   QueryFilters,
   ChatTrace,
+  QueryTrace,
   PromptVersion,
   TriggerEvent,
   SafetyEvent,
@@ -73,8 +74,8 @@ export async function getKpis(filters: QueryFilters): Promise<KpiSnapshot> {
     'getKpis',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/kpis?${params}`);
     },
@@ -96,18 +97,18 @@ export async function listQueries(
   );
 }
 
-export async function getQueryTrace(id: string): Promise<ChatTrace> {
+export async function getQueryTrace(id: string): Promise<QueryTrace> {
   return withDevFallback(
     'getQueryTrace',
     async () => {
       const traces = await listQueries({ from: new Date(), to: new Date(), limit: 100 });
       const trace = traces.find((t) => t.id === id);
       if (!trace) throw new Error(`Trace ${id} not found`);
-      return trace;
+      return trace as unknown as QueryTrace;
     },
     () => {
       const trace = db.getQueryTrace(id);
-      if (trace) return trace as any;
+      if (trace) return trace as unknown as QueryTrace;
       throw new Error(`Trace ${id} not found in mock data`);
     },
   );

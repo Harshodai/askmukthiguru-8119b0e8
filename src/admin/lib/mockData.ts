@@ -76,7 +76,7 @@ export async function getQueryTrace(queryId: string): Promise<QueryTrace | null>
   
   return {
     query: query as ChatQuery,
-    prompt: null,
+    prompt: null as unknown as import('@/admin/types').PromptVersion,
     retrieval: retrieval as any || null,
     response: response as any || null,
     spans: (spans || []) as any,
