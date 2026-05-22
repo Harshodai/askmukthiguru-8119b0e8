@@ -76,3 +76,8 @@ supabase_status.json
 cookies.txt
 scripts/ingestion_state.json
 data/lightrag/kv_store_*.json
+.worktrees/
+
+# Large raw transcript outputs
+transcripts/
+

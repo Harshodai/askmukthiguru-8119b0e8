@@ -173,6 +173,11 @@ class Settings(BaseSettings):
     # --- Observability ---
     enable_correlation_ids: bool = True                  # Add UUID correlation IDs to all logs/traces
 
+    # --- HTTP Connection Pooling ---
+    http_max_connections: int = 100                      # Maximum number of HTTP connections in the pool
+    http_max_keepalive_connections: int = 20             # Maximum number of keepalive connections
+    http_keepalive_expiry: float = 30.0                  # Keepalive expiry time in seconds
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""

@@ -57,7 +57,7 @@ The first secret is to live in a beautiful state. A beautiful state is a state o
 """
 
 async def main():
-    settings.sarvam_api_key = "sk_1vs9h6bw_jxQqNsliSQo878qbr7SBq1H1"
+    settings.sarvam_api_key = "sk_j2hvqcbz_J3hrGVe6VlKoDxl47Kxmr3V0"
     service = SarvamCloudService()
     # Temporarily set gen_model to sarvam-m for the test
     service._gen_model = "sarvam-m"

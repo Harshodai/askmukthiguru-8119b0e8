@@ -11,17 +11,41 @@ Each node function:
   2. Performs ONE operation (SRP)
   3. Returns a partial dict that LangGraph merges into state
 
-The 12-Layer Anti-Hallucination Pipeline (optimized — 5-6 LLM calls):
+The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with additional quality gates):
   Layer 1:  NeMo Input Rail (handled externally in main.py)
   Layer 2:  intent_router — classify DISTRESS/QUERY/CASUAL
-  Layer 3:  decompose_query — always decompose (eliminates is_complex_query call)
-  Layer 4:  retrieve_documents — Qdrant + RAPTOR (parallel sub-query retrieval)
-  Layer 5:  rerank_documents — CrossEncoder (precise top-5)
-  Layer 6:  grade_documents — CRAG batch relevance check (single LLM call)
-  Layer 7:  rewrite_query — CRAG self-correcting loop (3x)
-  Layer 8+9: generate_answer — Inline hint extraction + context-only generation
-  Layer 10+11: verify_answer — Combined Self-RAG + CoVe verification
-  Layer 12: NeMo Output Rail (handled externally in main.py)
+  Layer 3:  resolve_followup — resolve pronouns/references from conversation history
+  Layer 4:  decompose_query — always decompose into sub-queries
+  Layer 5:  navigate_knowledge_tree — PageIndex-inspired cluster selection (parallel)
+  Layer 6:  generate_hyde — Hypothetical Document Embedding generation (parallel)
+  Layer 7:  retrieve_documents — Two-phase hybrid retrieval from Qdrant (RAPTOR + leaf chunks)
+  Layer 8:  rerank_documents — Cascaded ColBERT + CrossEncoder re-ranking
+  Layer 9:  grade_documents — CRAG batch relevance check (single LLM call)
+  Layer 10: check_context_sufficiency — Iterative sufficiency check; clears cluster filters if insufficient
+  Layer 11: enrich_context — Fetch neighbor chunks for broader context (RAG Made Simple)
+  Layer 12: context_engineer — Structure prompt layers (Persona, Knowledge, Instructions, User State)
+  Layer 13: generate_answer — Context-only generation with inline hint extraction (Stimulus RAG)
+  Layer 14: reflect_on_answer — Self-Reflection RAG: evaluate answer for hallucinations
+  Layer 15: verify_answer — Combined Self-RAG + CoVe verification (faithfulness + claim verification)
+  Layer 16: check_contradiction — Multi-turn contradiction detection against conversation history
+  Layer 17: explain_retrieval — Generate 1-sentence reasoning for each top citation (explainable retrieval)
+  Layer 18: format_final_answer — Confidence-based graduated response with citation formatting
+  Layer 19: NeMo Output Rail (handled externally in main.py)
+
+  QUERY path flow:
+    intent_router → resolve_followup → decompose_query → [navigate_knowledge_tree + generate_hyde] →
+    retrieve_documents → rerank_documents → grade_documents → check_context_sufficiency →
+    [relevant: enrich_context → context_engineer → generate_answer → reflect_on_answer →
+      (needs_correction: rewrite_query → retrieve_documents loop [max 3x]) |
+      (valid: verify_answer → check_contradiction → explain_retrieval → format_final_answer → END)] |
+    [rewrite: rewrite_query → retrieve_documents loop [max 3x]] |
+    [fallback ≥3x: handle_fallback → END]
+
+  Short-circuit paths:
+    DISTRESS → handle_distress → END
+    MEDITATION_CONTINUE → handle_meditation → END
+    CASUAL → handle_casual → END
+    CASUAL (from rewritten query) → handle_casual → END
 """
 
 import logging

@@ -27,26 +27,8 @@ CONFIG_DIR = Path(__file__).parent / "config"
 
 
 # ===================================================================
-_HARMFUL_PATTERNS = [
-    r"ignore previous instructions",
-    r"ignore all previous",
-    r"forget previous instructions",
-    r"system prompt",
-    r"you are a (?!spiritual)",
-    r"hack (a )?compu",
-    r"sql injection",
-    r"insult the user",
-    r"translate to.*stupid",
-    r"bipolar disorder",
-    r"lithium",
-    r"stop.*medication",
-    r"prescribe",
-]
-
+# Harmful patterns that should always be blocked
 # ===================================================================
-# Off-Topic / Safety Detection Patterns
-# ===================================================================
-
 _HARMFUL_PATTERNS = [
     r"ignore previous instructions",
     r"ignore all previous",
@@ -456,6 +438,7 @@ class GuardrailsService:
         self._lightweight = LightweightGuardrails()
         self._nemo: Optional[NeMoGuardrailsWrapper] = None
         self._provider_name = "disabled"
+        self._audit_logger = logging.getLogger("guardrails.audit")
 
         if provider == "disabled":
             logger.info("Guardrails DISABLED via config (not recommended for production)")
@@ -480,11 +463,15 @@ class GuardrailsService:
         # Always run lightweight first (fast, no API call)
         result = await self._lightweight.check_input(message)
         if result["blocked"]:
+            self._audit_logger.info(f"Input blocked by lightweight: {result.get('reason')} - message: {message[:100]}")
             return result
 
         # Then run NeMo if available (more nuanced, uses LLM)
         if self._nemo and self._nemo.is_available:
-            return await self._nemo.check_input(message)
+            result = await self._nemo.check_input(message)
+            if result["blocked"]:
+                self._audit_logger.info(f"Input blocked by nemo: {result.get('reason')} - message: {message[:100]}")
+            return result
 
         return {"blocked": False, "reason": None, "response": None}
 
@@ -496,11 +483,15 @@ class GuardrailsService:
         # Lightweight output check first
         result = await self._lightweight.check_output(answer)
         if result["blocked"]:
+            self._audit_logger.info(f"Output blocked by lightweight: {result.get('reason')} - answer: {answer[:100]}")
             return result
 
         # NeMo output check if available
         if self._nemo and self._nemo.is_available:
-            return await self._nemo.check_output(answer)
+            result = await self._nemo.check_output(answer)
+            if result["blocked"]:
+                self._audit_logger.info(f"Output blocked by nemo: {result.get('reason')} - answer: {answer[:100]}")
+            return result
 
         return {"blocked": False, "reason": None, "moderated_response": None}
 

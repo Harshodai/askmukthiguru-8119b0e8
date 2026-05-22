@@ -592,3 +592,12 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Jitter Backoff**: `_jitter_sleep()` adds 0–25% random jitter capped at 120s to prevent thundering herd.
 
 - **Lesson**: Long-running ingestion pipelines need the same resilience patterns as production APIs. Atomic file writes should be the default for any JSON state — bare `json.dump()` is not safe under SIGTERM. Always categorize errors at failure time; retrofitting DLQ logic after the fact is much harder.
+
+### 49. Two-Stage Sequential Ingestion Execution & Pre-flight Validation (May 2026)
+- **Problem**: When running bulk ingestion, the execution queue mixed retries/backfills (e.g., Qdrant failures, DLQ items, or missing LightRAG status) and new videos in the same queue under a single concurrent `asyncio.Semaphore`. This allowed new videos to start concurrently with retries, which increased API rate limit pressure and delayed the recovery of missing indices.
+- **Solution**:
+  - **Sequential Queue Segmentation**: Split the ingestion execution into two distinct, awaited `asyncio.gather` blocks. Phase 1 processes all retries, backfills, and transient DLQ items to completion first. Phase 2 processes new videos only after Phase 1 is fully finished.
+  - **Graceful Shutdown Gate**: Added checks for SIGINT/SIGTERM (`_shutdown_requested`) between Phase 1 and Phase 2, ensuring that a shutdown request cleanly halts execution before new resources are consumed.
+  - **Pre-flight Health Checks**: Added checks for Qdrant and Neo4j connectivity before launching the processing loop, ensuring that the script fails fast rather than burning API calls or processing time when critical infrastructure is down.
+- **Lesson**: High-volume ingestion architectures should prioritize state recovery (retries and backfills) over processing new records. Segmenting work queues into discrete execution phases with graceful checkpoints ensures pipeline predictability, controls API consumption, and simplifies troubleshooting.
+

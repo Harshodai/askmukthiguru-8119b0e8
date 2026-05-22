@@ -1,6 +1,6 @@
 # Architecture Overview
 
-**Mukthi Guru** is a privacy-first, zero-hallucination AI spiritual guide grounded in Sri Preethaji & Sri Krishnaji's teachings. It uses a React frontend + Python FastAPI backend with a 12-layer RAG pipeline. All processing runs locally with a $0 budget constraint.
+**Mukthi Guru** is a privacy-first, zero-hallucination AI spiritual guide grounded in Sri Preethaji & Sri Krishnaji's teachings. It uses a React frontend + Python FastAPI backend with an expanded anti-hallucination RAG pipeline. All processing runs locally with a $0 budget constraint.
 
 ## System Diagram
 
@@ -23,7 +23,7 @@
 │  ┌── Layer 2: Depression Detector (depression_detector.py) ┐    │
 │  │   distilroberta-finetuned-depression → fast-path        │    │
 │  └────────────────────────────────────────────────────────┘    │
-│  ┌── Layers 3–11: LangGraph Pipeline (rag/graph.py) ──────┐    │
+│  ┌── Layers 3–19: Expanded LangGraph Pipeline (rag/graph.py) ──────┐    │
 │  │   Entry: intent_router                                   │    │
 │  │   ├─ DISTRESS → handle_distress → END                    │    │
 │  │   ├─ MEDITATION_CONTINUE → handle_meditation → END       │    │
@@ -48,7 +48,7 @@
 │  │         │    └─ fallback (≥3x) → handle_fallback → END    │    │
 │  │         └─ rewrite (<3x) → rewrite_query → retrieve_documents (loop) │    │
 │  └────────────────────────────────────────────────────────┘    │
-│  ┌── Layer 12: NeMo Output Rail ──────────────────────────┐    │
+│  ┌── Layer 20: NeMo Output Rail ──────────────────────────┐    │
 │  │   Moderates generated output                            │    │
 │  └────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
@@ -199,17 +199,23 @@ All services import:
 1. **NeMo Input Rail** (`guardrails/rails.py`) — blocks harmful/off-topic input
 2. **Depression Detector** (`services/depression_detector.py`) — fast-path to meditation if distress score > 0.6
 3. **Intent Router** (`rag/nodes.py`) — classifies as DISTRESS / CASUAL / QUERY / MEDITATION_CONTINUE
-4. **Decompose Query** — splits complex questions into 2-3 sub-queries
-5. **Retrieve Documents** — embeds query (optionally with HyDE), searches Qdrant (hybrid dense+BM25)
-6. **Rerank Documents** — CrossEncoder re-scoring, returns top-3
-7. **Grade Documents** (CRAG) — LLM binary relevance check per document
-8. **CRAG Loop** — if docs irrelevant, rewrite query and re-retrieve (max 3 iterations)
-9. **Extract Hints** (Stimulus RAG) — pulls 3-5 key evidence phrases from docs
-10. **Generate Answer** — LLM generates grounded answer using context + hints
-11. **Check Faithfulness** (Self-RAG) — LLM verifies answer against context
-12. **Verify Answer** (CoVe) — generates sub-questions to fact-check; PASS/FAIL verdict
-13. **Format Final Answer** — appends citations, handles unfaithful fallback
-14. **NeMo Output Rail** — moderates generated output
+4. **Resolve Follow-up** — resolves pronouns/references from conversation history
+5. **Decompose Query** — splits complex questions into atomic sub-queries
+6. **Navigate Knowledge Tree** (parallel with generate_hyde) — PageIndex-inspired cluster selection
+7. **Generate HyDE** (parallel with navigate_knowledge_tree) — Hypothetical Document Embedding generation
+8. **Retrieve Documents** — Two-phase hybrid retrieval from Qdrant (RAPTOR summaries + leaf chunks)
+9. **Rerank Documents** — Cascaded ColBERT + CrossEncoder re-scoring, returns top-5
+10. **Grade Documents** (CRAG) — Batch relevance grading of all documents in one LLM call
+11. **Check Context Sufficiency** — Iterative sufficiency check; clears cluster filters if insufficient
+12. **Enrich Context** — Fetch neighbor chunks for broader context (RAG Made Simple Ch 8)
+13. **Context Engineer** — Structure prompt layers (Persona, Knowledge, Instructions, User State)
+14. **Generate Answer** — Context-only generation with inline hint extraction (merged Stimulus RAG + generation)
+15. **Reflect on Answer** — Self-Reflection RAG: LLM evaluates answer for hallucinations against context
+16. **Verify Answer** — Combined Self-RAG + CoVe verification (faithfulness + claim verification + confidence score)
+17. **Check Contradiction** — Multi-turn contradiction detection against conversation history
+18. **Explain Retrieval** (parallel) — Generate 1-sentence reasoning for each top citation
+19. **Format Final Answer** — Confidence-based graduated response with citation formatting and caveats
+20. **NeMo Output Rail** — moderates generated output
 
 ## Ingestion Pipeline Detail (POST /api/ingest)
 

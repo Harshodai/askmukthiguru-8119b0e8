@@ -262,6 +262,11 @@ async def safe_lightrag_insert(
     base_chunk_delay = 5.0  # seconds
 
     for i, chunk in enumerate(chunks, 1):
+        global _shutdown_requested
+        if _shutdown_requested:
+            logger.warning(f"LightRAG: Shutdown requested. Aborting remaining {total - i + 1} chunks for [{source_name}]")
+            raise Exception("Shutdown requested during LightRAG insertion")
+
         logger.info(f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars) for [{source_name}]")
         chunk_with_header = f"[Source: {source_name}]\n{chunk}"
         
@@ -602,6 +607,73 @@ async def process_video_worker(
 
         logger.info(f"[Worker-{worker_num}] Starting: {vid}...")
         start_video_time = time.time()
+
+        # Check if Qdrant already succeeded for this video (LightRAG backfill only)
+        qdrant_already_success = False
+        vid_metrics = state.get("metrics", {}).get(vid, {})
+        if isinstance(vid_metrics, dict) and vid_metrics.get("qdrant_status") == "success":
+            qdrant_already_success = True
+
+        if qdrant_already_success:
+            logger.info(f"[Worker-{worker_num}] Qdrant already success for {vid}. Bypassing Step 1 (Qdrant) and doing LightRAG backfill.")
+            title = vid_metrics.get("title") or "Unknown"
+            chunks = vid_metrics.get("chunks") or 0
+            
+            lightrag_status = "skipped"
+            if args.skip_lightrag:
+                lightrag_status = "skipped"
+            elif container.lightrag:
+                try:
+                    logger.info(f"[LightRAG] Fetching transcript for backfill: {vid}...")
+                    text = await fetch_transcript_text(vid)
+                    if text.strip():
+                        sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
+                        corrected_text = await pipeline._corrector.correct_transcript(sanitized_text, url)
+                        source_name = f"YouTube Video: {title} (URL: {url})"
+                        await safe_lightrag_insert(
+                            lightrag_service=container.lightrag,
+                            full_text=corrected_text,
+                            source_name=source_name,
+                            state=state,
+                            save_state_fn=save_state_fn,
+                            video_id=vid
+                        )
+                        lightrag_status = "success"
+                        logger.info(f"[LightRAG] ✅ {vid} (backfill)")
+                    else:
+                        lightrag_status = "no_transcript"
+                        logger.warning(f"[LightRAG] ⚠️ No transcript for {vid}")
+                except Exception as lg_err:
+                    lightrag_status = "failed"
+                    logger.error(f"[LightRAG] ❌ Failed (non-fatal backfill): {lg_err}")
+            else:
+                lightrag_status = "service_inactive"
+
+            # Final metrics update
+            total_latency = time.time() - start_video_time
+            state["metrics"][vid]["latency"] = total_latency
+            state["metrics"][vid]["lightrag_status"] = lightrag_status
+            
+            # Remove from DLQ if it was in there
+            if "dead_letter_queue" in state:
+                state["dead_letter_queue"] = [
+                    d for d in state["dead_letter_queue"] if d.get("video_id") != vid
+                ]
+            
+            # Ensure it is in processed_videos
+            if vid not in state["processed_videos"]:
+                state["processed_videos"].append(vid)
+                
+            save_state_fn()
+            _circuit_breaker.record_success()
+            if _progress:
+                _progress.record(total_latency, success=True)
+                logger.info(
+                    f"✅ {vid} ({title}) backfilled in {total_latency:.1f}s | "
+                    f"{_progress.summary_line()}"
+                )
+            return
+
         max_attempts = 3
         base_retry_delay = 15.0
         last_error: Optional[Exception] = None
@@ -676,6 +748,13 @@ async def process_video_worker(
                 total_latency = time.time() - start_video_time
                 state["metrics"][vid]["latency"] = total_latency
                 state["metrics"][vid]["lightrag_status"] = lightrag_status
+                
+                # Remove from DLQ if it was in there
+                if "dead_letter_queue" in state:
+                    state["dead_letter_queue"] = [
+                        d for d in state["dead_letter_queue"] if d.get("video_id") != vid
+                    ]
+                
                 save_state_fn()
 
                 _circuit_breaker.record_success()
@@ -1060,43 +1139,115 @@ async def main():
     seen = set()
     unique_ids = [v for v in all_ids if not (v in seen or seen.add(v))]
 
-    # Prioritize failed videos (only in bulk playlist mode, not when video-ids are explicitly targeted)
-    if not args.video_ids:
-        failed_ids = [
-            vid for vid, metric in state.get("metrics", {}).items()
-            if isinstance(metric, dict) and metric.get("status") == "failed" and vid not in state["processed_videos"]
-        ]
-        if failed_ids:
-            logger.info(f"🔄 Found {len(failed_ids)} failed videos. Prioritizing: {failed_ids}")
-            unique_ids = failed_ids + [v for v in unique_ids if v not in failed_ids]
+    # ── Primary Check: Prioritize Retries & Backfills ─────────
+    primary_retry_ids = []
+
+    # 1. Identify LightRAG backfills (Qdrant success but LightRAG failed/unknown/skipped)
+    lightrag_backfill_ids = [
+        vid for vid, m in state.get("metrics", {}).items()
+        if isinstance(m, dict)
+        and m.get("qdrant_status") == "success"
+        and m.get("lightrag_status", "unknown") not in ("success", "skipped", "service_inactive")
+    ]
+    if lightrag_backfill_ids:
+        logger.info(f"🔄 Primary Check: Found {len(lightrag_backfill_ids)} videos needing LightRAG backfill. Processing first: {lightrag_backfill_ids}")
+        for vid in lightrag_backfill_ids:
+            if vid in state["processed_videos"]:
+                state["processed_videos"].remove(vid)
+        primary_retry_ids.extend(lightrag_backfill_ids)
+
+    # 2. Identify Qdrant/general failures to retry (excluding permanent errors)
+    qdrant_retry_ids = []
+    for vid, m in state.get("metrics", {}).items():
+        if isinstance(m, dict) and (m.get("status") == "failed" or m.get("qdrant_status") == "failed"):
+            if m.get("error_category") != "permanent" and m.get("will_retry") != False:
+                qdrant_retry_ids.append(vid)
+
+    for entry in state.get("dead_letter_queue", []):
+        vid = entry.get("video_id")
+        if vid and entry.get("will_retry", True) and entry.get("error_category") != "permanent":
+            qdrant_retry_ids.append(vid)
+
+    qdrant_retry_ids = list(dict.fromkeys(qdrant_retry_ids))
+    if qdrant_retry_ids:
+        logger.info(f"🔄 Primary Check: Found {len(qdrant_retry_ids)} videos needing Qdrant/general retry. Processing first: {qdrant_retry_ids}")
+        for vid in qdrant_retry_ids:
+            if vid in state["processed_videos"]:
+                state["processed_videos"].remove(vid)
+            state["metrics"].pop(vid, None)
+        primary_retry_ids.extend(qdrant_retry_ids)
+
+    if lightrag_backfill_ids or qdrant_retry_ids:
+        save_state()
+
+    # Deduplicate primary_retry_ids to preserve order
+    primary_retry_ids = list(dict.fromkeys(primary_retry_ids))
+
+    # Prepend the primary_retry_ids to the unique_ids list, maintaining order and uniqueness
+    seen_ids = set()
+    unique_ids = [v for v in (primary_retry_ids + unique_ids) if not (v in seen_ids or seen_ids.add(v))]
 
     # Apply video limit
     if args.video_limit > 0:
         unique_ids = unique_ids[:args.video_limit]
         logger.info(f"🔢 Video limit: processing {len(unique_ids)} videos")
 
-    # Filter out already processed videos
-    queued_ids = [v for v in unique_ids if v not in state["processed_videos"]]
-    logger.info(f"🎯 Queued: {len(queued_ids)} videos (concurrency={args.concurrency})")
+    # Filter out already processed videos, separating into two phases
+    retry_queued_ids = [v for v in unique_ids if v in primary_retry_ids and v not in state["processed_videos"]]
+    new_queued_ids = [v for v in unique_ids if v not in primary_retry_ids and v not in state["processed_videos"]]
+
+    total_queued = len(retry_queued_ids) + len(new_queued_ids)
+    logger.info(f"🎯 Total queued: {total_queued} videos (concurrency={args.concurrency})")
+    if retry_queued_ids:
+        logger.info(f"👉 Phase 1 (Retries & Backfills): {len(retry_queued_ids)} videos")
+    if new_queued_ids:
+        logger.info(f"👉 Phase 2 (New Ingestions): {len(new_queued_ids)} videos")
 
     _progress = None
-    if queued_ids:
-        _progress = ProgressTracker(total=len(queued_ids))
+    if total_queued:
+        _progress = ProgressTracker(total=total_queued)
         sem = asyncio.Semaphore(args.concurrency)
-        tasks = [
-            process_video_worker(
-                vid=vid,
-                sem=sem,
-                pipeline=pipeline,
-                container=container,
-                state=state,
-                save_state_fn=save_state,
-                args=args,
-                worker_num=i + 1,
-            )
-            for i, vid in enumerate(queued_ids)
-        ]
-        await asyncio.gather(*tasks)
+
+        # ── PHASE 1: Process and complete all retries/backfills ──
+        if retry_queued_ids:
+            logger.info(f"\n🚀 STARTING PHASE 1: Processing {len(retry_queued_ids)} retries/backfills...")
+            retry_tasks = [
+                process_video_worker(
+                    vid=vid,
+                    sem=sem,
+                    pipeline=pipeline,
+                    container=container,
+                    state=state,
+                    save_state_fn=save_state,
+                    args=args,
+                    worker_num=i + 1,
+                )
+                for i, vid in enumerate(retry_queued_ids)
+            ]
+            await asyncio.gather(*retry_tasks)
+            logger.info("✅ Phase 1 complete. All retries/backfills processed.")
+
+        # ── PHASE 2: Process remaining new videos ──
+        if new_queued_ids:
+            if _shutdown_requested:
+                logger.info("🛑 Shutdown requested before Phase 2. Exiting.")
+                return
+            logger.info(f"\n🚀 STARTING PHASE 2: Processing {len(new_queued_ids)} new videos...")
+            new_tasks = [
+                process_video_worker(
+                    vid=vid,
+                    sem=sem,
+                    pipeline=pipeline,
+                    container=container,
+                    state=state,
+                    save_state_fn=save_state,
+                    args=args,
+                    worker_num=i + 1,
+                )
+                for i, vid in enumerate(new_queued_ids)
+            ]
+            await asyncio.gather(*new_tasks)
+            logger.info("✅ Phase 2 complete. All new videos processed.")
 
     # ── Structured Summary ───────────────────────────────────
     all_metrics = state.get("metrics", {})
