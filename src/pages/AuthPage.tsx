@@ -8,6 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
+import {
+  startAuthRun,
+  recordStep,
+  timeStep,
+  endAuthRun,
+  getActiveRun,
+} from '@/lib/authTelemetry';
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
@@ -85,6 +92,14 @@ const AuthPage = () => {
       setGoogleStep('finalizing');
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
 
+      // If this session is the tail end of a Google round-trip, record it.
+      const active = getActiveRun();
+      if (active && !active.steps.some((s) => s.name === 'provider_return')) {
+        recordStep('provider_return', 'ok', Date.now() - active.startedAt, {
+          meta: { user_id: session.user.id },
+        });
+      }
+      const hydrateT0 = performance.now();
 
       // ── Seed local profile from OAuth metadata synchronously (localStorage only) ──
       const meta = session.user.user_metadata ?? {};
@@ -104,11 +119,14 @@ const AuthPage = () => {
           updateProfile(patch as Parameters<typeof updateProfile>[0]);
         }
       } catch { /* non-fatal */ }
+      recordStep('session_hydrate', 'ok', Math.round(performance.now() - hydrateT0));
 
       const redirectPath = sessionStorage.getItem('auth_redirect_path');
       if (redirectPath) {
         sessionStorage.removeItem('auth_redirect_path');
+        recordStep('navigate', 'ok', 0, { meta: { to: redirectPath } });
         navigate(redirectPath, { replace: true });
+        endAuthRun('ok');
         ensureInBackground();
         return;
       }
@@ -118,7 +136,9 @@ const AuthPage = () => {
       // server-side ensure + profile fetch run in the background.
       const onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1';
       if (onboardedCached) {
+        recordStep('navigate', 'ok', 0, { meta: { to: '/chat', cached: true } });
         navigate('/chat', { replace: true });
+        endAuthRun('ok');
         ensureInBackground();
         // Refresh server profile lazily in the background.
         import('@/lib/profileStorage').then(({ fetchProfileFromServer }) => {
@@ -129,26 +149,29 @@ const AuthPage = () => {
 
       // Slow path: run ensure + profile fetch in parallel, then decide.
       const [, serverProfile] = await Promise.all([
-        ensureInBackground(),
-        (async () => {
+        timeStep('profile_ensure', ensureInBackground),
+        timeStep('profile_fetch', async () => {
           try {
             const { fetchProfileFromServer } = await import('@/lib/profileStorage');
             return await fetchProfileFromServer();
           } catch {
             return null;
           }
-        })(),
+        }),
       ]);
 
       const { loadProfile } = await import('@/lib/profileStorage');
       const profile = serverProfile || loadProfile();
 
       if (profile.displayName === 'Seeker' || !profile.bio) {
+        recordStep('navigate', 'ok', 0, { meta: { to: '/profile?onboarding=true' } });
         navigate('/profile?onboarding=true', { replace: true });
       } else {
         localStorage.setItem(ONBOARDED_FLAG_KEY, '1');
+        recordStep('navigate', 'ok', 0, { meta: { to: '/chat' } });
         navigate('/chat', { replace: true });
       }
+      endAuthRun('ok');
     };
 
     // Set up auth listener FIRST, then check existing session.
@@ -170,6 +193,7 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    startAuthRun('email');
     try {
       if (isSignUp) {
         const trimmedName = fullName.trim();
@@ -179,6 +203,7 @@ const AuthPage = () => {
           return;
         }
         console.info('[Auth] signUp start', { email, hasName: true });
+        const signUpT0 = performance.now();
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -186,6 +211,9 @@ const AuthPage = () => {
             emailRedirectTo: window.location.origin,
             data: { full_name: trimmedName },
           },
+        });
+        recordStep('email_signup', signUpError ? 'error' : 'ok', Math.round(performance.now() - signUpT0), {
+          error: signUpError?.message,
         });
         if (signUpError) {
           console.error('[Auth] signUp failed', { code: (signUpError as { code?: string }).code, status: (signUpError as { status?: number }).status, message: signUpError.message });
@@ -206,9 +234,14 @@ const AuthPage = () => {
           title: 'Check your email',
           description: 'We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup.',
         });
+        endAuthRun('ok');
       } else {
         console.info('[Auth] signIn start', { email });
+        const signInT0 = performance.now();
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        recordStep('email_signin', signInError ? 'error' : 'ok', Math.round(performance.now() - signInT0), {
+          error: signInError?.message,
+        });
         if (signInError) {
           console.error('[Auth] signIn failed', { code: (signInError as { code?: string }).code, status: (signInError as { status?: number }).status, message: signInError.message });
           throw signInError;
@@ -220,6 +253,7 @@ const AuthPage = () => {
       const message = friendlyError(err as Error);
       setError(message);
       console.error('[Auth Error]', err);
+      endAuthRun('error', message);
     } finally {
       setLoading(false);
     }
@@ -230,6 +264,10 @@ const AuthPage = () => {
     setError(null);
     // Optimistic: show "Connecting…" the instant the user clicks.
     setGoogleStep('connecting');
+    // Start a fresh telemetry run for this Google attempt.
+    startAuthRun('google');
+    const clickT0 = performance.now();
+    recordStep('click_google', 'ok', 0);
     // Promote to "Redirecting…" shortly after, so even slow networks feel responsive.
     const redirectTimer = window.setTimeout(() => {
       setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
@@ -242,18 +280,29 @@ const AuthPage = () => {
       sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
 
       if (useNativeOAuth) {
+        const initT0 = performance.now();
         const { error: supabaseError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: window.location.href, // Return here to process saved redirect path
           },
         });
+        recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+          error: supabaseError?.message,
+          meta: { mode: 'native' },
+        });
         if (supabaseError) throw supabaseError;
+        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
         return;
       }
 
+      const initT0 = performance.now();
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
+      });
+      recordStep('oauth_init', result.error ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+        error: result.error instanceof Error ? result.error.message : undefined,
+        meta: { mode: 'lovable', redirected: !!result.redirected },
       });
 
       if (result.error) {
@@ -261,18 +310,24 @@ const AuthPage = () => {
         setError(message);
         sessionStorage.removeItem(GOOGLE_STEP_KEY);
         setGoogleStep('idle');
+        endAuthRun('error', message);
         return;
       }
-      if (result.redirected) return;
+      if (result.redirected) {
+        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+        return;
+      }
 
       // No redirect needed (tokens already returned): show finalizing while
       // onAuthStateChange handles navigation.
       setGoogleStep('finalizing');
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not connect to Google.';
       console.error('[Google Auth Error]', err);
       setError('Could not connect to Google. Please try again.');
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
       setGoogleStep('idle');
+      endAuthRun('error', message);
     } finally {
       window.clearTimeout(redirectTimer);
       setLoading(false);
