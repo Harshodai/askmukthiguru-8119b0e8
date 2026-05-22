@@ -1,5 +1,6 @@
 """Krutrim AI integration as alternative/fallback LLM provider."""
 
+import asyncio
 import httpx
 import logging
 from app.config import settings
