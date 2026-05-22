@@ -76,8 +76,8 @@ const SARVAM_PRICING = [
   },
 ];
 
-function downloadCsv(filename: string, rows: Array<Record<string, unknown>> | unknown[]) {
-  rows = rows as Array<Record<string, unknown>>;
+function downloadCsv(filename: string, rowsIn: Array<Record<string, unknown>> | unknown[]) {
+  const rows = rowsIn as Array<Record<string, unknown>>;
   if (!rows.length) {
     toast.error("Nothing to export");
     return;
@@ -89,7 +89,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, unknown>> | un
   };
   const csv = [
     headers.join(","),
-    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+    ...rows.map((r: Record<string, unknown>) => headers.map((h) => escape(r[h])).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
