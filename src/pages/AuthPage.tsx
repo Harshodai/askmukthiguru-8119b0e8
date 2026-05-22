@@ -81,6 +81,10 @@ const AuthPage = () => {
     const handleSession = async (session: import('@supabase/supabase-js').Session) => {
       if (redirectingRef.current) return;
       redirectingRef.current = true;
+      // Visible progress while we hydrate profile + decide destination.
+      setGoogleStep('finalizing');
+      sessionStorage.removeItem(GOOGLE_STEP_KEY);
+
 
       // ── Seed local profile from OAuth metadata synchronously (localStorage only) ──
       const meta = session.user.user_metadata ?? {};
