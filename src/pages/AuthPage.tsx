@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon } from 'lucide-react';
+import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
@@ -30,6 +30,9 @@ const friendlyError = (err: Error | { message: string }): string => {
 };
 
 const ONBOARDED_FLAG_KEY = 'askmukthiguru_onboarded';
+const GOOGLE_STEP_KEY = 'askmukthiguru_google_step'; // survives redirect roundtrip
+
+type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -39,9 +42,17 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // If we're coming back from a Google OAuth redirect, jump straight to "returning"
+  // so the user sees an immediate spinner instead of the bare auth form.
+  const [googleStep, setGoogleStep] = useState<GoogleStep>(() =>
+    typeof window !== 'undefined' && sessionStorage.getItem(GOOGLE_STEP_KEY) === '1'
+      ? 'returning'
+      : 'idle',
+  );
   const navigate = useNavigate();
   const { toast } = useToast();
   const redirectingRef = useRef(false);
+
 
   useEffect(() => {
     // Background profile + role provisioning. Runs after navigation so it never
@@ -70,6 +81,10 @@ const AuthPage = () => {
     const handleSession = async (session: import('@supabase/supabase-js').Session) => {
       if (redirectingRef.current) return;
       redirectingRef.current = true;
+      // Visible progress while we hydrate profile + decide destination.
+      setGoogleStep('finalizing');
+      sessionStorage.removeItem(GOOGLE_STEP_KEY);
+
 
       // ── Seed local profile from OAuth metadata synchronously (localStorage only) ──
       const meta = session.user.user_metadata ?? {};
@@ -213,8 +228,18 @@ const AuthPage = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
+    // Optimistic: show "Connecting…" the instant the user clicks.
+    setGoogleStep('connecting');
+    // Promote to "Redirecting…" shortly after, so even slow networks feel responsive.
+    const redirectTimer = window.setTimeout(() => {
+      setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
+    }, 400);
     try {
       const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
+
+      // Mark that we initiated Google OAuth so that after the redirect roundtrip
+      // we can show "Returning from Google…" immediately on mount.
+      sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
 
       if (useNativeOAuth) {
         const { error: supabaseError } = await supabase.auth.signInWithOAuth({
@@ -230,22 +255,46 @@ const AuthPage = () => {
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
-      
+
       if (result.error) {
         const message = result.error instanceof Error ? result.error.message : 'Google sign-in failed. Please try again.';
         setError(message);
+        sessionStorage.removeItem(GOOGLE_STEP_KEY);
+        setGoogleStep('idle');
         return;
       }
       if (result.redirected) return;
-      
-      // onAuthStateChange will handle navigation
+
+      // No redirect needed (tokens already returned): show finalizing while
+      // onAuthStateChange handles navigation.
+      setGoogleStep('finalizing');
     } catch (err) {
       console.error('[Google Auth Error]', err);
       setError('Could not connect to Google. Please try again.');
+      sessionStorage.removeItem(GOOGLE_STEP_KEY);
+      setGoogleStep('idle');
     } finally {
+      window.clearTimeout(redirectTimer);
       setLoading(false);
     }
   };
+
+  const googleBusy = googleStep !== 'idle';
+  const googleStepLabel: Record<GoogleStep, string> = {
+    idle: 'Continue with Google',
+    connecting: 'Connecting to Google…',
+    redirecting: 'Redirecting to Google…',
+    returning: 'Returning from Google…',
+    finalizing: 'Signing you in…',
+  };
+  const googleProgressSteps: Array<{ key: GoogleStep; label: string }> = [
+    { key: 'connecting', label: 'Connect' },
+    { key: 'redirecting', label: 'Authorize' },
+    { key: 'finalizing', label: 'Sign in' },
+  ];
+  const stepOrder: GoogleStep[] = ['idle', 'connecting', 'redirecting', 'returning', 'finalizing'];
+  const currentStepIdx = stepOrder.indexOf(googleStep);
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -267,32 +316,68 @@ const AuthPage = () => {
           </Alert>
         )}
 
-        <Button
-          variant="outline"
-          className="w-full h-11 gap-2"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24">
-            <path
-              fill="currentColor"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
-            />
-            <path
-              fill="currentColor"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-              fill="currentColor"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-            />
-            <path
-              fill="currentColor"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            />
-          </svg>
-          Continue with Google
-        </Button>
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            className="w-full h-11 gap-2 relative overflow-hidden"
+            onClick={handleGoogleSignIn}
+            disabled={loading || googleBusy}
+            aria-live="polite"
+          >
+            {googleBusy ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+            )}
+            <span className="text-sm">{googleStepLabel[googleStep]}</span>
+            {googleBusy && (
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 left-0 h-0.5 bg-ojas/70 transition-all duration-500 ease-out"
+                style={{ width: `${Math.max(15, currentStepIdx * 25)}%` }}
+              />
+            )}
+          </Button>
+
+          {googleBusy && (
+            <ol
+              className="flex items-center justify-between text-[11px] text-muted-foreground px-1"
+              aria-label="Sign-in progress"
+            >
+              {googleProgressSteps.map((step) => {
+                const stepIdx = stepOrder.indexOf(step.key);
+                const done = currentStepIdx > stepIdx;
+                const active = currentStepIdx === stepIdx || (step.key === 'redirecting' && googleStep === 'returning');
+                return (
+                  <li key={step.key} className="flex items-center gap-1.5">
+                    <span
+                      className={`flex items-center justify-center w-4 h-4 rounded-full border transition-colors ${
+                        done
+                          ? 'bg-ojas border-ojas text-primary-foreground'
+                          : active
+                          ? 'border-ojas text-ojas'
+                          : 'border-border/60'
+                      }`}
+                    >
+                      {done ? (
+                        <Check className="w-2.5 h-2.5" />
+                      ) : active ? (
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                      ) : null}
+                    </span>
+                    <span className={active || done ? 'text-foreground' : ''}>{step.label}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -360,7 +445,7 @@ const AuthPage = () => {
               </button>
             </div>
           </div>
-          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading}>
+          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy}>
             {loading ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
           </Button>
         </form>
