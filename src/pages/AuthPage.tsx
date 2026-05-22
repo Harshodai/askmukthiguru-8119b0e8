@@ -193,6 +193,7 @@ const AuthPage = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    startAuthRun('email');
     try {
       if (isSignUp) {
         const trimmedName = fullName.trim();
@@ -202,6 +203,7 @@ const AuthPage = () => {
           return;
         }
         console.info('[Auth] signUp start', { email, hasName: true });
+        const signUpT0 = performance.now();
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -209,6 +211,9 @@ const AuthPage = () => {
             emailRedirectTo: window.location.origin,
             data: { full_name: trimmedName },
           },
+        });
+        recordStep('email_signup', signUpError ? 'error' : 'ok', Math.round(performance.now() - signUpT0), {
+          error: signUpError?.message,
         });
         if (signUpError) {
           console.error('[Auth] signUp failed', { code: (signUpError as { code?: string }).code, status: (signUpError as { status?: number }).status, message: signUpError.message });
@@ -229,9 +234,14 @@ const AuthPage = () => {
           title: 'Check your email',
           description: 'We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup.',
         });
+        endAuthRun('ok');
       } else {
         console.info('[Auth] signIn start', { email });
+        const signInT0 = performance.now();
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        recordStep('email_signin', signInError ? 'error' : 'ok', Math.round(performance.now() - signInT0), {
+          error: signInError?.message,
+        });
         if (signInError) {
           console.error('[Auth] signIn failed', { code: (signInError as { code?: string }).code, status: (signInError as { status?: number }).status, message: signInError.message });
           throw signInError;
@@ -243,6 +253,7 @@ const AuthPage = () => {
       const message = friendlyError(err as Error);
       setError(message);
       console.error('[Auth Error]', err);
+      endAuthRun('error', message);
     } finally {
       setLoading(false);
     }
