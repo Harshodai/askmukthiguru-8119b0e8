@@ -97,18 +97,18 @@ export async function listQueries(
   );
 }
 
-export async function getQueryTrace(id: string): Promise<ChatTrace> {
+export async function getQueryTrace(id: string): Promise<QueryTrace> {
   return withDevFallback(
     'getQueryTrace',
     async () => {
       const traces = await listQueries({ from: new Date(), to: new Date(), limit: 100 });
       const trace = traces.find((t) => t.id === id);
       if (!trace) throw new Error(`Trace ${id} not found`);
-      return trace;
+      return trace as unknown as QueryTrace;
     },
     () => {
       const trace = db.getQueryTrace(id);
-      if (trace) return trace as any;
+      if (trace) return trace as unknown as QueryTrace;
       throw new Error(`Trace ${id} not found in mock data`);
     },
   );
