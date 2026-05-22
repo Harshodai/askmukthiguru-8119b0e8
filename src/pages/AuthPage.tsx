@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
@@ -29,6 +29,8 @@ const friendlyError = (err: Error | { message: string }): string => {
   return err.message || 'Something went wrong. Please try again.';
 };
 
+const ONBOARDED_FLAG_KEY = 'askmukthiguru_onboarded';
+
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -39,92 +41,115 @@ const AuthPage = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const redirectingRef = useRef(false);
 
   useEffect(() => {
-    const handleRedirect = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Check for saved redirect path
-        const redirectPath = sessionStorage.getItem('auth_redirect_path');
-        if (redirectPath) {
-          sessionStorage.removeItem('auth_redirect_path');
-          navigate(redirectPath, { replace: true });
-          return;
-        }
-
-        // ── OAuth / email signup name sync ─────────────────────────
-        // Seed local profile from Supabase user_metadata so Google OAuth users
-        // never get stuck with the default 'Seeker' display name.
-        const meta = session.user.user_metadata ?? {};
-        const metaName: string = meta.full_name || meta.name || '';
-        const metaAvatar: string = meta.avatar_url || meta.picture || '';
-        try {
-          const { loadProfile, updateProfile } = await import('@/lib/profileStorage');
-          const local = loadProfile();
-          const patch: Record<string, string> = {};
-          if (metaName && (local.displayName === 'Seeker' || local.displayName === '')) {
-            patch.displayName = metaName.trim().slice(0, 40);
+    // Background profile + role provisioning. Runs after navigation so it never
+    // blocks the post-OAuth render. Safe to call multiple times.
+    const ensureInBackground = async () => {
+      try {
+        const { data: ensured, error: ensureErr } = await (supabase.rpc as unknown as (
+          fn: string,
+        ) => Promise<{ data: { ok: boolean; profile_created: boolean; role_created: boolean } | null; error: { message: string; code?: string } | null }>)(
+          'ensure_profile_and_role',
+        );
+        if (ensureErr) {
+          const msg = (ensureErr.message ?? '').toLowerCase();
+          const isSchemaGap = msg.includes('404') || msg.includes('does not exist') || msg.includes('could not find') || msg.includes('function');
+          if (!isSchemaGap) {
+            console.error('[Auth] ensure_profile_and_role failed', ensureErr);
           }
-          if (metaAvatar && !local.avatarDataUrl) {
-            // Store avatar URL directly (Google serves HTTPS URLs)
-            patch.avatarUrl = metaAvatar;
-          }
-          if (Object.keys(patch).length > 0) {
-            updateProfile(patch as Parameters<typeof updateProfile>[0]);
-          }
-        } catch { /* non-fatal */ }
-        // ─────────────────────────────────────────────────────────────
-
-        // Fetch profile to see if it's default
-        const { loadProfile, fetchProfileFromServer } = await import('@/lib/profileStorage');
-        const serverProfile = await fetchProfileFromServer();
-        const profile = serverProfile || loadProfile();
-        
-        // If it's the default 'Seeker' or empty bio, assume onboarding is needed
-        if (profile.displayName === 'Seeker' || !profile.bio) {
-          navigate('/profile?onboarding=true', { replace: true });
         } else {
-          navigate('/chat', { replace: true });
+          console.info('[Auth] ensure_profile_and_role', ensured);
         }
+      } catch (rpcErr) {
+        console.error('[Auth] ensure_profile_and_role threw', rpcErr);
       }
     };
 
-    handleRedirect();
+    const handleSession = async (session: import('@supabase/supabase-js').Session) => {
+      if (redirectingRef.current) return;
+      redirectingRef.current = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && event === 'SIGNED_IN') {
-        // Guarantee profile + default role exist (covers Google, email, and any user the trigger missed)
-        try {
-          const { data: ensured, error: ensureErr } = await (supabase.rpc as unknown as (
-            fn: string,
-          ) => Promise<{ data: { ok: boolean; profile_created: boolean; role_created: boolean } | null; error: { message: string; code?: string } | null }>)(
-            'ensure_profile_and_role',
-          );
-          if (ensureErr) {
-            console.error('[Auth] ensure_profile_and_role failed', ensureErr);
-            // 404 / "function does not exist" = migration not applied yet — NOT a user-facing error.
-            // Only show destructive toast for real auth or server failures.
-            const msg = (ensureErr.message ?? '').toLowerCase();
-            const isSchemaGap = msg.includes('404') || msg.includes('does not exist') || msg.includes('could not find') || msg.includes('function');
-            if (!isSchemaGap) {
-              toast({
-                title: 'Account setup issue',
-                description: 'We could not finish setting up your account. Visit /auth/diagnostics for details.',
-                variant: 'destructive',
-              });
-            }
-          } else {
-            console.info('[Auth] ensure_profile_and_role', ensured);
-          }
-        } catch (rpcErr) {
-          console.error('[Auth] ensure_profile_and_role threw', rpcErr);
+      // ── Seed local profile from OAuth metadata synchronously (localStorage only) ──
+      const meta = session.user.user_metadata ?? {};
+      const metaName: string = meta.full_name || meta.name || '';
+      const metaAvatar: string = meta.avatar_url || meta.picture || '';
+      try {
+        const { loadProfile, updateProfile } = await import('@/lib/profileStorage');
+        const local = loadProfile();
+        const patch: Record<string, string> = {};
+        if (metaName && (local.displayName === 'Seeker' || local.displayName === '')) {
+          patch.displayName = metaName.trim().slice(0, 40);
         }
-        handleRedirect();
+        if (metaAvatar && !local.avatarDataUrl) {
+          patch.avatarUrl = metaAvatar;
+        }
+        if (Object.keys(patch).length > 0) {
+          updateProfile(patch as Parameters<typeof updateProfile>[0]);
+        }
+      } catch { /* non-fatal */ }
+
+      const redirectPath = sessionStorage.getItem('auth_redirect_path');
+      if (redirectPath) {
+        sessionStorage.removeItem('auth_redirect_path');
+        navigate(redirectPath, { replace: true });
+        ensureInBackground();
+        return;
+      }
+
+      // Fast path: if this user has previously completed onboarding, navigate
+      // immediately to /chat without waiting on a server profile fetch. The
+      // server-side ensure + profile fetch run in the background.
+      const onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1';
+      if (onboardedCached) {
+        navigate('/chat', { replace: true });
+        ensureInBackground();
+        // Refresh server profile lazily in the background.
+        import('@/lib/profileStorage').then(({ fetchProfileFromServer }) => {
+          fetchProfileFromServer().catch(() => {});
+        });
+        return;
+      }
+
+      // Slow path: run ensure + profile fetch in parallel, then decide.
+      const [, serverProfile] = await Promise.all([
+        ensureInBackground(),
+        (async () => {
+          try {
+            const { fetchProfileFromServer } = await import('@/lib/profileStorage');
+            return await fetchProfileFromServer();
+          } catch {
+            return null;
+          }
+        })(),
+      ]);
+
+      const { loadProfile } = await import('@/lib/profileStorage');
+      const profile = serverProfile || loadProfile();
+
+      if (profile.displayName === 'Seeker' || !profile.bio) {
+        navigate('/profile?onboarding=true', { replace: true });
+      } else {
+        localStorage.setItem(ONBOARDED_FLAG_KEY, '1');
+        navigate('/chat', { replace: true });
+      }
+    };
+
+    // Set up auth listener FIRST, then check existing session.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+        handleSession(session);
       }
     });
 
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) handleSession(session);
+    });
+
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
+
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
