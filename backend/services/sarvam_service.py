@@ -373,27 +373,27 @@ class SarvamCloudService:
                     # We use an adjustment loop (up to 3 total attempts) to dynamically heal parameter mismatches
                     adjustment_attempts = 0
                     while adjustment_attempts < 3:
-                            resp = await client.post(
-                                f"{self._base_url}/chat/completions",
-                                headers=headers,
-                                json=payload,
+                        resp = await client.post(
+                            f"{self._base_url}/chat/completions",
+                            headers=headers,
+                            json=payload,
+                        )
+
+                        # Self-healing for max_tokens limits on starter tier (HTTP 400)
+                        if resp.status_code == 400:
+                            m = re.search(
+                                r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
+                                resp.text
                             )
-                            
-                            # Self-healing for max_tokens limits on starter tier (HTTP 400)
-                            if resp.status_code == 400:
-                                m = re.search(
-                                    r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
-                                    resp.text
+                            if m:
+                                tier_limit = int(m.group(1))
+                                logger.warning(
+                                    f"Sarvam API max_tokens ({payload.get('max_tokens')}) exceeded subscription tier limit. "
+                                    f"Automatically capping to {tier_limit} and retrying immediately."
                                 )
-                                if m:
-                                    tier_limit = int(m.group(1))
-                                    logger.warning(
-                                        f"Sarvam API max_tokens ({payload.get('max_tokens')}) exceeded subscription tier limit. "
-                                        f"Automatically capping to {tier_limit} and retrying immediately."
-                                    )
-                                    payload["max_tokens"] = tier_limit
-                                    adjustment_attempts += 1
-                                    continue
+                                payload["max_tokens"] = tier_limit
+                                adjustment_attempts += 1
+                                continue
                             
                             # Self-healing for context window limits (HTTP 422)
                             if resp.status_code == 422 and "exceeds the model context window" in resp.text:
