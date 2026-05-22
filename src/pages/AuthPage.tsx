@@ -445,7 +445,7 @@ const AuthPage = () => {
               </button>
             </div>
           </div>
-          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading}>
+          <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy}>
             {loading ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
           </Button>
         </form>
