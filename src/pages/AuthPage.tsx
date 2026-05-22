@@ -92,6 +92,14 @@ const AuthPage = () => {
       setGoogleStep('finalizing');
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
 
+      // If this session is the tail end of a Google round-trip, record it.
+      const active = getActiveRun();
+      if (active && !active.steps.some((s) => s.name === 'provider_return')) {
+        recordStep('provider_return', 'ok', Date.now() - active.startedAt, {
+          meta: { user_id: session.user.id },
+        });
+      }
+      const hydrateT0 = performance.now();
 
       // ── Seed local profile from OAuth metadata synchronously (localStorage only) ──
       const meta = session.user.user_metadata ?? {};
@@ -111,11 +119,14 @@ const AuthPage = () => {
           updateProfile(patch as Parameters<typeof updateProfile>[0]);
         }
       } catch { /* non-fatal */ }
+      recordStep('session_hydrate', 'ok', Math.round(performance.now() - hydrateT0));
 
       const redirectPath = sessionStorage.getItem('auth_redirect_path');
       if (redirectPath) {
         sessionStorage.removeItem('auth_redirect_path');
+        recordStep('navigate', 'ok', 0, { meta: { to: redirectPath } });
         navigate(redirectPath, { replace: true });
+        endAuthRun('ok');
         ensureInBackground();
         return;
       }
@@ -125,7 +136,9 @@ const AuthPage = () => {
       // server-side ensure + profile fetch run in the background.
       const onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1';
       if (onboardedCached) {
+        recordStep('navigate', 'ok', 0, { meta: { to: '/chat', cached: true } });
         navigate('/chat', { replace: true });
+        endAuthRun('ok');
         ensureInBackground();
         // Refresh server profile lazily in the background.
         import('@/lib/profileStorage').then(({ fetchProfileFromServer }) => {
@@ -136,26 +149,29 @@ const AuthPage = () => {
 
       // Slow path: run ensure + profile fetch in parallel, then decide.
       const [, serverProfile] = await Promise.all([
-        ensureInBackground(),
-        (async () => {
+        timeStep('profile_ensure', ensureInBackground),
+        timeStep('profile_fetch', async () => {
           try {
             const { fetchProfileFromServer } = await import('@/lib/profileStorage');
             return await fetchProfileFromServer();
           } catch {
             return null;
           }
-        })(),
+        }),
       ]);
 
       const { loadProfile } = await import('@/lib/profileStorage');
       const profile = serverProfile || loadProfile();
 
       if (profile.displayName === 'Seeker' || !profile.bio) {
+        recordStep('navigate', 'ok', 0, { meta: { to: '/profile?onboarding=true' } });
         navigate('/profile?onboarding=true', { replace: true });
       } else {
         localStorage.setItem(ONBOARDED_FLAG_KEY, '1');
+        recordStep('navigate', 'ok', 0, { meta: { to: '/chat' } });
         navigate('/chat', { replace: true });
       }
+      endAuthRun('ok');
     };
 
     // Set up auth listener FIRST, then check existing session.
