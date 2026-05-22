@@ -15,6 +15,7 @@ This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 import logging
 from typing import Optional, AsyncIterator
 
+import httpx
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -71,6 +72,10 @@ class OllamaService:
             num_predict=256,  # Classification outputs are short
         )
         logger.info(f"Ollama fast model ready: {cls_model}")
+
+        # Connection pooling: Create a singleton httpx.AsyncClient for health checks and direct HTTP calls
+        self._http_client = None
+        self._http_client_lock = asyncio.Lock()
 
     async def generate(
         self,
@@ -536,14 +541,42 @@ class OllamaService:
             logger.error(f"Ollama translation failed: {e}")
             return text
 
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """Get or create the singleton HTTP client with connection pooling."""
+        async with self._http_client_lock:
+            if self._http_client is None:
+                # Configure connection pool limits from settings
+                limits = httpx.Limits(
+                    max_connections=getattr(settings, 'http_max_connections', 100),
+                    max_keepalive_connections=getattr(settings, 'http_max_keepalive_connections', 20),
+                    keepalive_expiry=getattr(settings, 'http_keepalive_expiry', 30.0)
+                )
+                self._http_client = httpx.AsyncClient(
+                    timeout=getattr(settings, 'llm_timeout', 60),
+                    limits=limits
+                )
+                logger.info(
+                    f"Ollama HTTP client initialized with pool limits: "
+                    f"max_connections={limits.max_connections}, "
+                    f"max_keepalive_connections={limits.max_keepalive_connections}"
+                )
+            return self._http_client
+
     async def health_check(self) -> bool:
         """Check if Ollama is reachable (async)."""
         try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{settings.ollama_base_url}/api/tags", timeout=5
-                )
+            client = await self._get_http_client()
+            resp = await client.get(
+                f"{settings.ollama_base_url}/api/tags", timeout=5
+            )
             return resp.status_code == 200
         except Exception:
             return False
+
+    async def close(self) -> None:
+        """Close the HTTP client and release resources."""
+        async with self._http_client_lock:
+            if self._http_client is not None:
+                await self._http_client.aclose()
+                self._http_client = None
+                logger.info("Ollama HTTP client closed")

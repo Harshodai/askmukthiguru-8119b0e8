@@ -188,15 +188,15 @@ class ServiceContainer:
     def close(self) -> None:
         """
         Explicitly release resources held by services.
-        
+
         Calls cleanup methods on services that implement them.
         Errors are logged but do not prevent other services from closing.
-        
+
         Iteration order is LIFO (reverse of initialization) so that
         dependent services are released before their dependencies.
         """
         # LIFO order: rag_graph → ingestion → guardrails → ocr → ollama → embedding → qdrant
-        for name in ("rag_graph", "ingestion", "guardrails", "ocr", "ollama", "embedding", "qdrant", "user_profile"):
+        for name in ("rag_graph", "ingestion", "guardrails", "ocr", "ollama", "embedding", "qdrant", "user_profile", "krutrim"):
             svc = getattr(self, name, None)
             if svc is None:
                 continue

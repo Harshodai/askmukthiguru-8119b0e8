@@ -37,6 +37,7 @@ from app.config import settings
 from app.dependencies import get_container, startup, shutdown, ServiceContainer
 from app.observability import init_observability
 from app.telemetry_db import init_telemetry_db, log_query_trace
+from app.language_utils import detect_and_prepare_language_info
 from rag.graph import create_initial_state
 from rag.memory import build_memory_context, normalize_session_id
 import time
@@ -402,31 +403,7 @@ def _cache_language_key(message: str, language: str) -> str:
     return f"{normalized_lang}:{message.strip()}"
 
 
-def _preferred_language_detection(container: ServiceContainer, message: str, preferred_lang: str):
-    normalized_lang = (preferred_lang or "en").lower().split("-")[0]
-    if normalized_lang and normalized_lang != "en":
-        try:
-            from services.language_router import LanguageCode, LanguageDetection
-            return LanguageDetection(
-                primary=LanguageCode(normalized_lang),
-                confidence=1.0,
-                is_codemixed=False,
-                scripts_detected=["preferred"],
-                recommendation=f"sarvam-30b-{normalized_lang}",
-            )
-        except Exception:
-            pass
-    return container.language_router.detect(message)
-
-
-def _should_translate_from_preferred(container: ServiceContainer, text: str, preferred_lang: str) -> bool:
-    normalized_lang = (preferred_lang or "en").lower().split("-")[0]
-    if not normalized_lang or normalized_lang == "en":
-        return False
-    detected = container.language_router.detect(text)
-    if detected.primary.value == normalized_lang:
-        return True
-    return detected.primary.value != "en" or any(ord(char) > 127 for char in text)
+# Language detection and translation utilities are now in language_utils.py
 
 
 # === Request/Response DTOs ===
@@ -509,6 +486,81 @@ async def _prepare_user_memory(
 
     return memory_context, distress_history
 
+
+async def _prepare_request_state(
+    container: ServiceContainer,
+    chat_body: ChatRequest,
+    preferred_lang: str,
+) -> dict:
+    """
+    Prepare the common state for both chat endpoints.
+    Returns a dictionary with:
+        - user_msg_en: the user message in English (if translation needed)
+        - is_indic: bool indicating if preferred language is Indic
+        - preferred_lang: the normalized preferred language
+        - user_id: the user ID from auth
+        - stable_session_id: normalized session ID
+        - chat_history_en: chat history in English (if translation needed)
+        - memory_context: string from user profile memories
+        - distress_history: list of distress indicators from recent memories
+        - lang_detection: LanguageDetection object
+        - original_user_msg: the original user message (for memory saving)
+        - original_chat_history: original chat history (for memory saving)
+    """
+    user_msg = chat_body.user_message.strip()
+    is_indic = preferred_lang and not preferred_lang.startswith("en")
+    cache_key = _cache_language_key(user_msg, preferred_lang)
+
+    # Language detection and translation setup
+    lang_detection, normalized_lang, is_indic, should_translate = detect_and_prepare_language_info(
+        container, user_msg, preferred_lang
+    )
+    user_id = user.get("id", "anonymous") if 'user' in locals() else "anonymous"
+    stable_session_id = normalize_session_id(chat_body.session_id, user_id)
+    chat_history = [m.model_dump() for m in chat_body.messages]
+    # Cap conversation context to prevent OOM/timeouts on long sessions
+    if len(chat_history) > settings.chat_history_max_messages:
+        chat_history = chat_history[-settings.chat_history_max_messages:]
+
+    # Translate user query to English if Indic preferred language selected
+    user_msg_en = user_msg
+    if should_translate:
+        user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
+        logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
+
+    # Translate history messages to English if Indic language is active
+    chat_history_en = []
+    if is_indic and should_translate:
+        for msg in chat_history:
+            msg_content_en = await translate_text(
+                msg["content"], preferred_lang, "en", container
+            )
+            chat_history_en.append({"role": msg["role"], "content": msg_content_en})
+    else:
+        chat_history_en = chat_history
+
+    # User profile and memory preparation
+    memory_context, distress_history = await _prepare_user_memory(
+        container,
+        user_id,
+        chat_history_en,
+    )
+
+    return {
+        "user_msg_en": user_msg_en,
+        "is_indic": is_indic,
+        "preferred_lang": preferred_lang,
+        "user_id": user_id,
+        "stable_session_id": stable_session_id,
+        "chat_history_en": chat_history_en,
+        "memory_context": memory_context,
+        "distress_history": distress_history,
+        "lang_detection": lang_detection,
+        "original_user_msg": chat_body.user_message,  # Keep original for memory saving
+        "original_chat_history": chat_body.messages,  # Keep original for memory saving
+        "cache_key": cache_key,
+    }
+
 @app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
 @limiter.limit(settings.chat_rate_limit)
 async def chat_endpoint(
@@ -538,51 +590,38 @@ async def chat_endpoint(
             detail=f"Message too long. Please keep it under {settings.max_input_length} characters."
         )
 
-    # === Response Cache Check (Bypass Guardrails for known safe queries) ===
+    # === Response Cache Check (Run output rail before returning cached responses) ===
     cached = container.semantic_cache.get(cache_key)
     if cached is not None:
         REQUEST_COUNT.labels(status="cache_hit").inc()
+        # Run cached response through output guardrails to prevent bypass
+        cached_response = cached["response"]
+        output_check = await container.guardrails.check_output(cached_response)
+        final_response = output_check["moderated_response"] if output_check["blocked"] else cached_response
+
+        # Translate back to native language if needed
+        if is_indic and final_response != cached_response:
+            final_response = await translate_text(final_response, "en", preferred_lang, container)
+
         return ChatResponse(
-            response=cached["response"],
+            response=final_response,
             intent=cached.get("intent"),
             meditation_step=cached.get("meditation_step", 0),
             citations=cached.get("citations", []),
         )
 
-    # Translate user query to English if Indic preferred language selected
-    user_msg_en = user_msg
-    if is_indic and _should_translate_from_preferred(container, user_msg, preferred_lang):
-        user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
-        logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
-
-    # === NEW: Language Detection ===
-    lang_detection = _preferred_language_detection(container, user_msg, preferred_lang)
-    user_id = user.get("id", "anonymous")
-    stable_session_id = normalize_session_id(chat_body.session_id, user_id)
+    # Prepare request state (language detection, translation, memory preparation)
+    state = await _prepare_request_state(container, chat_body, preferred_lang)
+    user_msg_en = state["user_msg_en"]
+    is_indic = state["is_indic"]
+    preferred_lang = state["preferred_lang"]
+    user_id = state["user_id"]
+    stable_session_id = state["stable_session_id"]
     chat_history = [m.model_dump() for m in chat_body.messages]
-    # Cap conversation context to prevent OOM/timeouts on long sessions
-    if len(chat_history) > settings.chat_history_max_messages:
-        chat_history = chat_history[-settings.chat_history_max_messages:]
-    
-    # Translate history messages to English if Indic language is active
-    chat_history_en = []
-    if is_indic:
-        for msg in chat_history:
-            msg_content_en = (
-                await translate_text(msg["content"], preferred_lang, "en", container)
-                if _should_translate_from_preferred(container, msg["content"], preferred_lang)
-                else msg["content"]
-            )
-            chat_history_en.append({"role": msg["role"], "content": msg_content_en})
-    else:
-        chat_history_en = chat_history
-
-    # === NEW: User Profile & Memory ===
-    memory_context, distress_history = await _prepare_user_memory(
-        container,
-        user_id,
-        chat_history_en,
-    )
+    chat_history_en = state["chat_history_en"]
+    memory_context = state["memory_context"]
+    distress_history = state["distress_history"]
+    lang_detection = state["lang_detection"]
 
     # === Layer 1: NeMo Input Rail ===
     with REQUEST_LATENCY.labels(stage="guardrails").time():
@@ -877,31 +916,30 @@ async def chat_stream_endpoint(
 
             user_id = user.get("id", "anonymous")
             
-            # Translate user query to English if Indic preferred language selected
-            user_msg_en = user_msg
-            if is_indic and _should_translate_from_preferred(container, user_msg, preferred_lang):
-                yield f"event: status\ndata: Translating your question to English...\n\n"
-                user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
-                logger.info(f"Stream: Translated user query from {preferred_lang} to English: {user_msg_en}")
-
-            # === NEW: Language Detection ===
-            lang_detection = _preferred_language_detection(container, user_msg, preferred_lang)
+            # === Language Detection and Translation Setup ===
+            lang_detection, normalized_lang, is_indic, should_translate = detect_and_prepare_language_info(
+                container, user_msg, preferred_lang
+            )
             stable_session_id = normalize_session_id(chat_body.session_id, user_id)
             chat_history = [m.model_dump() for m in chat_body.messages]
             # Cap conversation context to prevent OOM/timeouts on long sessions
             if len(chat_history) > settings.chat_history_max_messages:
                 chat_history = chat_history[-settings.chat_history_max_messages:]
-            
+
+            # Translate user query to English if Indic preferred language selected
+            user_msg_en = user_msg
+            if should_translate:
+                yield f"event: status\ndata: Translating your question to English...\n\n"
+                user_msg_en = await translate_text(user_msg, preferred_lang, "en", container)
+                logger.info(f"Stream: Translated user query from {preferred_lang} to English: {user_msg_en}")
+
             # Translate history messages to English if Indic language is active
             chat_history_en = []
-            if is_indic and chat_history:
+            if is_indic and should_translate:
                 async def _translate_msg(msg):
-                    translated = (
-                        await translate_text(msg["content"], preferred_lang, "en", container)
-                        if _should_translate_from_preferred(container, msg["content"], preferred_lang)
-                        else msg["content"]
+                    return await translate_text(
+                        msg["content"], preferred_lang, "en", container
                     )
-                    return {"role": msg["role"], "content": translated}
                 chat_history_en = await asyncio.gather(*[_translate_msg(m) for m in chat_history])
                 chat_history_en = list(chat_history_en)
             else:

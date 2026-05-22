@@ -155,6 +155,10 @@ class SarvamCloudService:
         self._last_request_time = 0.0
         self._rate_limit_lock = asyncio.Lock()
 
+        # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
+        self._http_client = None
+        self._http_client_lock = asyncio.Lock()
+
         # Also set env for any code that might use langchain-sarvam internally
         os.environ["SARVAM_API_KEY"] = self._api_key
 
@@ -163,6 +167,35 @@ class SarvamCloudService:
             f"gen_model={self._gen_model}, cls_model={self._cls_model}, "
             f"base_url={self._base_url}"
         )
+
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """Get or create the singleton HTTP client with connection pooling."""
+        async with self._http_client_lock:
+            if self._http_client is None:
+                # Configure connection pool limits from settings
+                limits = httpx.Limits(
+                    max_connections=getattr(settings, 'http_max_connections', 100),
+                    max_keepalive_connections=getattr(settings, 'http_max_keepalive_connections', 20),
+                    keepalive_expiry=getattr(settings, 'http_keepalive_expiry', 30.0)
+                )
+                self._http_client = httpx.AsyncClient(
+                    timeout=self._timeout,
+                    limits=limits
+                )
+                logger.info(
+                    f"HTTP client initialized with pool limits: "
+                    f"max_connections={limits.max_connections}, "
+                    f"max_keepalive_connections={limits.max_keepalive_connections}"
+                )
+            return self._http_client
+
+    async def close(self) -> None:
+        """Close the HTTP client and release resources."""
+        async with self._http_client_lock:
+            if self._http_client is not None:
+                await self._http_client.aclose()
+                self._http_client = None
+                logger.info("HTTP client closed")
 
     def _extract_structured_content(self, text: str, operation: str) -> Optional[str]:
         """
@@ -336,10 +369,10 @@ class SarvamCloudService:
             start_time = time.time()
             with self._start_llm_span(model=model, operation=operation, attempt=attempt) as span:
                 try:
-                    async with httpx.AsyncClient(timeout=self._timeout) as client:
-                        # We use an adjustment loop (up to 3 total attempts) to dynamically heal parameter mismatches
-                        adjustment_attempts = 0
-                        while adjustment_attempts < 3:
+                    client = await self._get_http_client()
+                    # We use an adjustment loop (up to 3 total attempts) to dynamically heal parameter mismatches
+                    adjustment_attempts = 0
+                    while adjustment_attempts < 3:
                             resp = await client.post(
                                 f"{self._base_url}/chat/completions",
                                 headers=headers,
