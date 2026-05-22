@@ -253,6 +253,10 @@ const AuthPage = () => {
     setError(null);
     // Optimistic: show "Connecting…" the instant the user clicks.
     setGoogleStep('connecting');
+    // Start a fresh telemetry run for this Google attempt.
+    startAuthRun('google');
+    const clickT0 = performance.now();
+    recordStep('click_google', 'ok', 0);
     // Promote to "Redirecting…" shortly after, so even slow networks feel responsive.
     const redirectTimer = window.setTimeout(() => {
       setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
@@ -265,18 +269,29 @@ const AuthPage = () => {
       sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
 
       if (useNativeOAuth) {
+        const initT0 = performance.now();
         const { error: supabaseError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: window.location.href, // Return here to process saved redirect path
           },
         });
+        recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+          error: supabaseError?.message,
+          meta: { mode: 'native' },
+        });
         if (supabaseError) throw supabaseError;
+        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
         return;
       }
 
+      const initT0 = performance.now();
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
+      });
+      recordStep('oauth_init', result.error ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+        error: result.error instanceof Error ? result.error.message : undefined,
+        meta: { mode: 'lovable', redirected: !!result.redirected },
       });
 
       if (result.error) {
@@ -284,18 +299,24 @@ const AuthPage = () => {
         setError(message);
         sessionStorage.removeItem(GOOGLE_STEP_KEY);
         setGoogleStep('idle');
+        endAuthRun('error', message);
         return;
       }
-      if (result.redirected) return;
+      if (result.redirected) {
+        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+        return;
+      }
 
       // No redirect needed (tokens already returned): show finalizing while
       // onAuthStateChange handles navigation.
       setGoogleStep('finalizing');
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not connect to Google.';
       console.error('[Google Auth Error]', err);
       setError('Could not connect to Google. Please try again.');
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
       setGoogleStep('idle');
+      endAuthRun('error', message);
     } finally {
       window.clearTimeout(redirectTimer);
       setLoading(false);
