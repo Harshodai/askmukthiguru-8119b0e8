@@ -228,8 +228,18 @@ const AuthPage = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
+    // Optimistic: show "Connecting…" the instant the user clicks.
+    setGoogleStep('connecting');
+    // Promote to "Redirecting…" shortly after, so even slow networks feel responsive.
+    const redirectTimer = window.setTimeout(() => {
+      setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
+    }, 400);
     try {
       const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
+
+      // Mark that we initiated Google OAuth so that after the redirect roundtrip
+      // we can show "Returning from Google…" immediately on mount.
+      sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
 
       if (useNativeOAuth) {
         const { error: supabaseError } = await supabase.auth.signInWithOAuth({
@@ -245,22 +255,46 @@ const AuthPage = () => {
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
-      
+
       if (result.error) {
         const message = result.error instanceof Error ? result.error.message : 'Google sign-in failed. Please try again.';
         setError(message);
+        sessionStorage.removeItem(GOOGLE_STEP_KEY);
+        setGoogleStep('idle');
         return;
       }
       if (result.redirected) return;
-      
-      // onAuthStateChange will handle navigation
+
+      // No redirect needed (tokens already returned): show finalizing while
+      // onAuthStateChange handles navigation.
+      setGoogleStep('finalizing');
     } catch (err) {
       console.error('[Google Auth Error]', err);
       setError('Could not connect to Google. Please try again.');
+      sessionStorage.removeItem(GOOGLE_STEP_KEY);
+      setGoogleStep('idle');
     } finally {
+      window.clearTimeout(redirectTimer);
       setLoading(false);
     }
   };
+
+  const googleBusy = googleStep !== 'idle';
+  const googleStepLabel: Record<GoogleStep, string> = {
+    idle: 'Continue with Google',
+    connecting: 'Connecting to Google…',
+    redirecting: 'Redirecting to Google…',
+    returning: 'Returning from Google…',
+    finalizing: 'Signing you in…',
+  };
+  const googleProgressSteps: Array<{ key: GoogleStep; label: string }> = [
+    { key: 'connecting', label: 'Connect' },
+    { key: 'redirecting', label: 'Authorize' },
+    { key: 'finalizing', label: 'Sign in' },
+  ];
+  const stepOrder: GoogleStep[] = ['idle', 'connecting', 'redirecting', 'returning', 'finalizing'];
+  const currentStepIdx = stepOrder.indexOf(googleStep);
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
