@@ -3,6 +3,7 @@ import type {
   KpiSnapshot,
   QueryFilters,
   ChatTrace,
+  QueryTrace,
   PromptVersion,
   TriggerEvent,
   SafetyEvent,
