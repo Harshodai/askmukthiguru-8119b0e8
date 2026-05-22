@@ -30,6 +30,9 @@ const friendlyError = (err: Error | { message: string }): string => {
 };
 
 const ONBOARDED_FLAG_KEY = 'askmukthiguru_onboarded';
+const GOOGLE_STEP_KEY = 'askmukthiguru_google_step'; // survives redirect roundtrip
+
+type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -39,9 +42,17 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // If we're coming back from a Google OAuth redirect, jump straight to "returning"
+  // so the user sees an immediate spinner instead of the bare auth form.
+  const [googleStep, setGoogleStep] = useState<GoogleStep>(() =>
+    typeof window !== 'undefined' && sessionStorage.getItem(GOOGLE_STEP_KEY) === '1'
+      ? 'returning'
+      : 'idle',
+  );
   const navigate = useNavigate();
   const { toast } = useToast();
   const redirectingRef = useRef(false);
+
 
   useEffect(() => {
     // Background profile + role provisioning. Runs after navigation so it never
