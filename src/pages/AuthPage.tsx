@@ -8,6 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
+import {
+  startAuthRun,
+  recordStep,
+  timeStep,
+  endAuthRun,
+  getActiveRun,
+} from '@/lib/authTelemetry';
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
