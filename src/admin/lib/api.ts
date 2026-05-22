@@ -74,8 +74,8 @@ export async function getKpis(filters: QueryFilters): Promise<KpiSnapshot> {
     'getKpis',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/kpis?${params}`);
     },
