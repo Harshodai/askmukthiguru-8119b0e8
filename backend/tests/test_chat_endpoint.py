@@ -97,7 +97,7 @@ def test_chat_endpoint_success(mock_log_query_trace):
         "messages": []
     }
     response = client.post("/api/chat", json=payload)
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "response" in data
@@ -125,10 +125,106 @@ def test_chat_endpoint_indic_translation(mock_log_query_trace):
         "language": "hi"
     }
     response = client.post("/api/chat", json=payload)
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "response" in data
     # The pipeline should return the translated final answer
     assert data["response"] == "translated_This is a mocked response"
+
+
+@patch('app.main.log_query_trace')
+def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
+    """Verify that cached responses are checked by output guardrails before returning."""
+    # Setup mock container with a cached response that would be blocked by guardrails
+    mock_container = MagicMock(spec=ServiceContainer)
+    mock_container.guardrails = AsyncMock()
+    mock_container.guardrails.check_input.return_value = {"blocked": False, "reason": None}
+    # Mock guardrails output check to block the response
+    mock_container.guardrails.check_output.return_value = {
+        "blocked": True,
+        "reason": "Output moderated: medical_advice",
+        "moderated_response": "I want to keep our conversation focused on spiritual wisdom. Let me share the teachings instead. 🙏"
+    }
+    mock_container.guardrails.is_available = True
+    mock_container.guardrails.provider_name = "mock_provider"
+
+    # Mock other dependencies
+    mock_container.serene_mind = AsyncMock()
+    mock_assessment = MagicMock()
+    mock_assessment.level.value = 1
+    mock_container.serene_mind.analyze_with_history.return_value = mock_assessment
+
+    mock_container.rag_graph = AsyncMock()
+    mock_container.rag_graph.ainvoke.return_value = {
+        "final_answer": "This is a mocked response",
+        "meditation_step": 0,
+        "citations": [],
+        "intent": "general"
+    }
+
+    # Mock semantic cache to return a cached response
+    mock_container.semantic_cache = MagicMock()
+    mock_container.semantic_cache.get.return_value = {
+        "response": "Take 2 aspirin and call me in the morning.",  # This would be blocked by medical advice guardrails
+        "intent": "general",
+        "meditation_step": 0,
+        "citations": []
+    }
+    mock_container.semantic_cache.is_available = True
+
+    mock_container.ollama = AsyncMock()
+    mock_container.ollama.health_check.return_value = True
+    async def dummy_translate(text, src, tgt):
+        return f"translated_{text}"
+    mock_container.ollama.translate_text = dummy_translate
+
+    mock_container.qdrant = MagicMock()
+    mock_container.qdrant.health_check = lambda: True
+    mock_container.qdrant.count = lambda: 100
+    mock_container.ocr = MagicMock()
+    mock_container.ocr.health_check = lambda: True
+
+    from services.language_router import LanguageDetection, LanguageCode
+    mock_lang = LanguageDetection(
+        primary=LanguageCode.EN,
+        confidence=0.9,
+        is_codemixed=False,
+        scripts_detected=["Latin"],
+        recommendation="sarvam-30b"
+    )
+    mock_container.language_router = MagicMock()
+    mock_container.language_router.detect.return_value = mock_lang
+
+    mock_container.user_profile = None
+    mock_container.health_status = AsyncMock()
+    mock_container.health_status.return_value = {
+        "qdrant": True,
+        "ollama": True,
+        "embedding": True,
+        "ocr": True,
+        "guardrails": True,
+        "semantic_cache": True,
+        "total_chunks": 100
+    }
+
+    # Temporarily override the container dependency
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    payload = {
+        "user_message": "Hello Mukthi Guru",
+        "session_id": "test-session",
+        "messages": []
+    }
+    response = client.post("/api/chat", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "response" in data
+    # The response should be the moderated version from guardrails, not the original cached response
+    assert data["response"] == "I want to keep our conversation focused on spiritual wisdom. Let me share the teachings instead. 🙏"
+    assert data.get("blocked") is not True  # blocked field indicates if the endpoint blocked input, not output moderation
+
+    # Restore original mock
+    app.dependency_overrides[get_container] = mock_get_container
 
