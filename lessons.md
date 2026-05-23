@@ -637,3 +637,10 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Excluded Jupyter notebooks (`*.ipynb` and `colab/**`) from Ruff checks in `pyproject.toml` to prevent experiment notebook warnings from blocking web-app lint quality gates.
   - Manually fixed all remaining Ruff linter warnings (e.g. renaming ambiguous loop variables `l` to `lang`/`line`, removing unused `NoTranscriptFound` and `torch` imports).
 - **Lesson learned**: Always use standard library typing objects (like `typing.Callable` or `collections.abc.Callable`) for union type hinting rather than the built-in function `callable` which does not support the `|` operator across Python versions. Ensure build dependencies only reflect actual active runtime imports to prevent CI/CD environments from breaking on heavy or incompatible transitive packages.
+
+### 54. Pytest Test Collection RuntimeError Mitigation in CI/CD (May 2026)
+- **Problem**: In a fresh CI/CD runner environment where configuration secrets (like `.env`) are excluded from repository tracking, files that run validation logic at the module import level (such as `backend/services/auth_service.py` checking `settings.jwt_secret`) raise a fatal `RuntimeError` during pytest test collection. This halts test suite initialization even when none of the executed tests require the secret.
+- **Solution**:
+  - Injected a fallback `JWT_SECRET` environment variable under the `env:` block of the `Run pytest` step in `.github/workflows/lint-test.yml` (e.g., `JWT_SECRET: dummy-jwt-secret-key-for-ci-runs`). This allows successful test collection and runner execution without exposing sensitive secrets.
+- **Lesson learned**: Ensure that CI/CD test runners always specify safe fallback values for any configuration fields validated at import time to prevent test collection crashes.
+
