@@ -581,7 +581,7 @@ async def get_retrieval_health(
         if scores:
             # Flatten and get top scores
             all_scores = [
-                score for sublist in scores for score in sublist if isinstance(score, (int, float))
+                score for sublist in scores for score in sublist if isinstance(score, int | float)
             ]
             if all_scores:
                 avg_top_score = sum(all_scores) / len(all_scores)
@@ -676,12 +676,12 @@ async def get_quality_data(
         faithfulness_scores = [
             r.get("faithfulness", 0)
             for r in responses
-            if isinstance(r.get("faithfulness"), (int, float))
+            if isinstance(r.get("faithfulness"), int | float)
         ]
         relevancy_scores = [
             r.get("answer_relevancy", 0)
             for r in responses
-            if isinstance(r.get("answer_relevancy"), (int, float))
+            if isinstance(r.get("answer_relevancy"), int | float)
         ]
 
         avg_faithfulness = (

@@ -107,7 +107,6 @@ ignore = [
     "B905",  # zip() strict= parameter (breaks compatibility with Python < 3.10)
     "B008",  # Depends function calls in FastAPI defaults
     "B904",  # exception chaining (raise from)
-    "UP038", # Use X | Y in isinstance call (optional)
 ]
 
 [tool.mypy]
