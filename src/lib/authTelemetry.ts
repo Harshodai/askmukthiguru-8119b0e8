@@ -23,7 +23,9 @@ export type AuthStepName =
   | 'profile_fetch'        // fetchProfileFromServer
   | 'navigate'             // navigate(/chat or /profile)
   | 'email_signin'
-  | 'email_signup';
+  | 'email_signup'
+  | 'run_error';           // terminal failure attached to the run
+
 
 export type AuthStepStatus = 'ok' | 'error' | 'pending';
 
