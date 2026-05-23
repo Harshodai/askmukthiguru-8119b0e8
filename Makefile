@@ -39,15 +39,24 @@ test: ## Run backend unit tests
 
 # --- Docker Deployment ---
 
+# Clean Docker config path (no credential helper – avoids macOS keychain -25293)
+DOCKER_CONFIG_CLEAN = /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean
+DOCKER_BIN = /Users/harshodaikolluru/.docker/bin
+
+# Use scripts/docker-safe.sh for any target that builds/pulls images (avoids keychain errors)
+# The script temporarily strips 'credsStore' from ~/.docker/config.json to avoid
+# Docker Desktop's macOS keychain "The user name or passphrase you entered is
+# not correct. (-25293)" error during image pulls.
+
 docker-up: ## Build and start the full Docker stack in detached mode
 	@echo "${GREEN}Starting full Docker stack...${NC}"
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --build
+	@cd backend && bash ../scripts/docker-safe.sh docker compose up -d --build
 
 docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs up and restores data!)
 	@echo "${YELLOW}Taking protective snapshot of all databases before rebuilding...${NC}"
 	@python3 scripts/backup/snapshot_manager.py backup || true
 	@echo "${GREEN}Rebuilding full Docker stack without cache...${NC}"
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose build --no-cache && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --force-recreate
+	@cd backend && bash ../scripts/docker-safe.sh docker compose build --no-cache && bash ../scripts/docker-safe.sh docker compose up -d --force-recreate
 	@echo "${YELLOW}Waiting 15 seconds for database containers to boot...${NC}"
 	@sleep 15
 	@echo "${GREEN}Restoring database state from protective snapshot...${NC}"
@@ -55,17 +64,17 @@ docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs
 
 docker-rebuild-web: ## Rebuild and restart only the stateless frontend and backend services (no data loss!)
 	@echo "${GREEN}Rebuilding and starting frontend and backend services...${NC}"
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --build frontend backend
+	@cd backend && bash ../scripts/docker-safe.sh docker compose up -d --build frontend backend
 
 docker-down: ## Stop and remove all Docker containers
 	@echo "${GREEN}Stopping Docker stack...${NC}"
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose down
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose down
 
 clean: ## Stop Docker, remove volumes, and clean local caches (automatically backs up first!)
 	@echo "${YELLOW}Taking protective snapshot of all databases before clean...${NC}"
 	@python3 scripts/backup/snapshot_manager.py backup || true
 	@echo "${YELLOW}Cleaning up volumes and caches...${NC}"
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose down -v
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose down -v
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	@find . -type d -name ".ruff_cache" -exec rm -rf {} +
@@ -79,10 +88,10 @@ restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
 	@python3 scripts/backup/snapshot_manager.py restore
 
 logs: ## Tail the logs of all Docker services
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose logs -f
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f
 
 shell: ## Open a shell inside the running backend container
-	@cd backend && DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose exec backend /bin/bash || DOCKER_CONFIG=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose exec backend /bin/sh
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec backend /bin/bash || DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec backend /bin/sh
 
 deploy: ## Build production images and prepare for remote deployment
 	@chmod +x deploy.sh
