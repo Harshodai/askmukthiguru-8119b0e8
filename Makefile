@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format test docker-up docker-down clean logs shell
+.PHONY: help install dev lint format test docker-up docker-rebuild-web docker-down clean logs shell
 
 # Colors for terminal output
 YELLOW=\033[1;33m
@@ -52,6 +52,10 @@ docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs
 	@sleep 15
 	@echo "${GREEN}Restoring database state from protective snapshot...${NC}"
 	@python3 scripts/backup/snapshot_manager.py restore || true
+
+docker-rebuild-web: ## Rebuild and restart only the stateless frontend and backend services (no data loss!)
+	@echo "${GREEN}Rebuilding and starting frontend and backend services...${NC}"
+	@cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --build frontend backend
 
 docker-down: ## Stop and remove all Docker containers
 	@echo "${GREEN}Stopping Docker stack...${NC}"
