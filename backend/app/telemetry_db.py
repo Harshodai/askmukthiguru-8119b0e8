@@ -971,3 +971,51 @@ async def get_prompt_metrics_by_version() -> Any:
 async def get_live_feed() -> List[Dict[str, Any]]:
     """Get live feed (recent queries)."""
     return await get_recent_traces(limit=10)
+
+async def get_query_trace(query_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch a complete query trace by query_id from Supabase."""
+    client = _get_client()
+    if not client:
+        return None
+
+    try:
+        # Fetch the query
+        query_resp = client.table("chat_queries").select("*").eq("id", query_id).execute()
+        if not query_resp.data:
+            return None
+        query = query_resp.data[0]
+
+        # Fetch corresponding response
+        response_resp = client.table("chat_responses").select("*").eq("query_id", query_id).execute()
+        response = response_resp.data[0] if response_resp.data else None
+
+        # Fetch retrieval events
+        retrieval_resp = client.table("retrieval_events").select("*").eq("query_id", query_id).execute()
+        retrieval = retrieval_resp.data[0] if retrieval_resp.data else None
+
+        # Fetch spans
+        spans_resp = client.table("trace_spans").select("*").eq("query_id", query_id).order("start_ms").execute()
+        spans = spans_resp.data or []
+
+        # Fetch triggers
+        triggers_resp = client.table("trigger_events").select("*").eq("query_id", query_id).execute()
+        triggers = triggers_resp.data or []
+
+        # Fetch safety events
+        safety_resp = client.table("safety_events").select("*").eq("query_id", query_id).execute()
+        safety = safety_resp.data or []
+
+        return {
+            "query": query,
+            "prompt": None,
+            "retrieval": retrieval,
+            "response": response,
+            "spans": spans,
+            "triggers": triggers,
+            "feedback": None,
+            "safety": safety
+        }
+    except Exception as e:
+        logger.error(f"Failed to get query trace {query_id}: {e}")
+        return None
+
