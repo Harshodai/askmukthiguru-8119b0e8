@@ -1,6 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any, Optional
-from app.telemetry_db import get_recent_traces, get_kpis, get_available_models, get_timeseries_data, get_trigger_events, get_safety_events, get_topic_clusters, get_retrieval_health, get_quality_data, get_eval_runs, get_golden_questions, get_ingestion_runs, get_alert_rules, get_alert_events, get_annotations, get_admins, get_model_pricing, get_top_failures, get_ragas_heatmap, get_trigger_trend, get_similarity_trend, get_dead_docs, get_empty_retrievals, get_ingestion_health, get_prompt_metrics_by_version, get_live_feed
+from app.telemetry_db import (
+    get_recent_traces, get_kpis, get_available_models, get_timeseries_data,
+    get_trigger_events, get_safety_events, get_topic_clusters, get_retrieval_health,
+    get_quality_data, get_eval_runs, get_golden_questions, get_ingestion_runs,
+    get_alert_rules, get_alert_events, get_annotations, get_admins,
+    get_model_pricing, get_top_failures, get_ragas_heatmap, get_trigger_trend,
+    get_similarity_trend, get_dead_docs, get_empty_retrievals, get_ingestion_health,
+    get_prompt_metrics_by_version, get_live_feed, get_query_trace
+)
 from services.auth_service import get_current_user_from_supabase
 
 admin_router = APIRouter(
@@ -16,6 +24,19 @@ async def fetch_telemetry_traces(
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     return await get_recent_traces(min(limit, 200))
+
+@admin_router.get("/traces/{trace_id}")
+async def fetch_query_trace(
+    trace_id: str,
+    user: Dict = Depends(get_current_user_from_supabase),
+) -> Dict[str, Any]:
+    """Fetch a single detailed trace by query ID. Requires admin authentication."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    trace = await get_query_trace(trace_id)
+    if not trace:
+        raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
+    return trace
 
 @admin_router.get("/prompts")
 async def fetch_prompts(
