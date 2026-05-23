@@ -612,4 +612,13 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - Hardened test mock clients (`FakeAsyncClient`, `CapturingAsyncClient`, `FallbackAsyncClient`) in `test_sarvam_observability.py` by configuring them to accept generic arguments (`*args, **kwargs`) in their constructors.
 - **Lesson learned**: When writing adjustment loops that process HTTP requests, always ensure that successful status code paths (such as HTTP 200) explicitly exit the loop via correct control flow indentation. Ensure test mocks match or fallback safely on standard client constructors (e.g. using `*args, **kwargs`) to prevent test breakage when constructor parameters evolve.
 
+### 51. Multi-Agent Custom Skills Provisioning & Sandboxed Git Keyring Mitigation (May 2026)
+- **Problem**: When expanding the cognitive capabilities of multiple local and global AI agents (such as Hermes and standard workspaces), skills often need to be imported dynamically from scattered community GitHub repositories. Furthermore, in non-interactive background agent sandboxes, running standard `git push` on newly provisioned files fails because the macOS Keychain helper (`osxkeychain`) fails with authorization errors (`errSecAuthFailed -25293`) without a GUI session to prompt for user authentication, and the SSH agent has no active identities.
+- **Solution**:
+  - **Single-Run Parallel Downloader & Transpiler**: Created an idempotent Python script that clones relevant skill repositories concurrently, standardizes directories, and validates/injects YAML frontmatter (with descriptive details parsed from first-paragraph descriptions) directly into `SKILL.md` documents.
+  - **Dual-Configuration Deploys**: Automatically clones and structures the compiled skills to both the workspace `.agent/skills/` directory and the respective categorized subfolders (`software-development/`, `productivity/`, `research/`) within `/Users/harshodaikolluru/.hermes/skills/`, ensuring compatibility across different agent runtimes.
+  - **Git Forced-Stage Resolution**: Committed the newly updated/added agent files directly using `git add -f` to bypass global gitignore filters for the `.agent/` folder without breaking parent folder exclusions.
+- **Lesson learned**: When provisioning multi-agent system skills from public repositories, write standalone download-and-standardize scripts that enforce standard frontmatter and run locally. Since keychain helpers fail in sandboxed background shells, stage ignored/parent-ignored directories directly via `git add -f` and direct users to run the final push in their interactive terminals where secure keychains can be unlocked.
+
+
 

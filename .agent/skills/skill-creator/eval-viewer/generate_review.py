@@ -14,7 +14,6 @@ No dependencies beyond the Python stdlib are required.
 
 import argparse
 import base64
-import contextlib
 import json
 import mimetypes
 import os
@@ -25,7 +24,7 @@ import sys
 import time
 import webbrowser
 from functools import partial
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
 # Files to exclude from output listings
@@ -131,8 +130,10 @@ def build_run(root: Path, run_dir: Path) -> dict | None:
     grading = None
     for candidate in [run_dir / "grading.json", run_dir.parent / "grading.json"]:
         if candidate.exists():
-            with contextlib.suppress(json.JSONDecodeError, OSError):
+            try:
                 grading = json.loads(candidate.read_text())
+            except (json.JSONDecodeError, OSError):
+                pass
             if grading:
                 break
 
@@ -293,8 +294,10 @@ def _kill_port(port: int) -> None:
         )
         for pid_str in result.stdout.strip().split("\n"):
             if pid_str.strip():
-                with contextlib.suppress(ProcessLookupError, ValueError):
+                try:
                     os.kill(int(pid_str.strip()), signal.SIGTERM)
+                except (ProcessLookupError, ValueError):
+                    pass
         if result.stdout.strip():
             time.sleep(0.5)
     except subprocess.TimeoutExpired:
@@ -332,8 +335,10 @@ class ReviewHandler(BaseHTTPRequestHandler):
             runs = find_runs(self.workspace)
             benchmark = None
             if self.benchmark_path and self.benchmark_path.exists():
-                with contextlib.suppress(json.JSONDecodeError, OSError):
+                try:
                     benchmark = json.loads(self.benchmark_path.read_text())
+                except (json.JSONDecodeError, OSError):
+                    pass
             html = generate_html(runs, self.skill_name, self.previous, benchmark)
             content = html.encode("utf-8")
             self.send_response(200)
@@ -418,8 +423,10 @@ def main() -> None:
     benchmark_path = args.benchmark.resolve() if args.benchmark else None
     benchmark = None
     if benchmark_path and benchmark_path.exists():
-        with contextlib.suppress(json.JSONDecodeError, OSError):
+        try:
             benchmark = json.loads(benchmark_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
 
     if args.static:
         html = generate_html(runs, skill_name, previous, benchmark)
@@ -440,8 +447,8 @@ def main() -> None:
         port = server.server_address[1]
 
     url = f"http://localhost:{port}"
-    print("\n  Eval Viewer")
-    print("  ─────────────────────────────────")
+    print(f"\n  Eval Viewer")
+    print(f"  ─────────────────────────────────")
     print(f"  URL:       {url}")
     print(f"  Workspace: {workspace}")
     print(f"  Feedback:  {feedback_path}")
@@ -449,7 +456,7 @@ def main() -> None:
         print(f"  Previous:  {args.previous_workspace} ({len(previous)} runs)")
     if benchmark_path:
         print(f"  Benchmark: {benchmark_path}")
-    print("\n  Press Ctrl+C to stop.\n")
+    print(f"\n  Press Ctrl+C to stop.\n")
 
     webbrowser.open(url)
 
