@@ -74,9 +74,9 @@ export const MessageList = React.memo(({
               }
             }
             return (
-              <ChatMessage 
-                key={message.id} 
-                message={message.id === streamingId && streamingContent !== undefined ? { ...message, content: streamingContent } : message} 
+              <ChatMessage
+                key={message.id}
+                message={message.id === streamingId && streamingContent !== undefined ? { ...message, content: streamingContent } : message}
                 queryText={queryText}
                 index={index}
                 isStreaming={message.id === streamingId && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}

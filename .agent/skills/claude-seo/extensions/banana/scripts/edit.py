@@ -36,8 +36,13 @@ def edit_image(image_path, prompt, model, api_key):
 
     # Determine MIME type
     suffix = image_path.suffix.lower()
-    mime_types = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-                  ".webp": "image/webp", ".gif": "image/gif"}
+    mime_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+    }
     mime_type = mime_types.get(suffix, "image/png")
 
     url = f"{API_BASE}/{model}:generateContent?key={api_key}"
@@ -79,7 +84,14 @@ def edit_image(image_path, prompt, model, api_key):
     candidates = result.get("candidates", [])
     if not candidates:
         finish_reason = result.get("promptFeedback", {}).get("blockReason", "UNKNOWN")
-        print(json.dumps({"error": True, "message": f"No candidates returned. Reason: {finish_reason}"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": f"No candidates returned. Reason: {finish_reason}",
+                }
+            )
+        )
         sys.exit(1)
 
     parts = candidates[0].get("content", {}).get("parts", [])
@@ -94,7 +106,14 @@ def edit_image(image_path, prompt, model, api_key):
 
     if not image_data:
         finish_reason = candidates[0].get("finishReason", "UNKNOWN")
-        print(json.dumps({"error": True, "message": f"No image in response. finishReason: {finish_reason}"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": f"No image in response. finishReason: {finish_reason}",
+                }
+            )
+        )
         sys.exit(1)
 
     # Save image
@@ -118,14 +137,31 @@ def main():
     parser = argparse.ArgumentParser(description="Edit images via Gemini REST API")
     parser.add_argument("--image", required=True, help="Path to input image")
     parser.add_argument("--prompt", required=True, help="Edit instruction")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model ID (default: {DEFAULT_MODEL})")
-    parser.add_argument("--api-key", default=None, help="Google AI API key (or set GOOGLE_AI_API_KEY env)")
+    parser.add_argument(
+        "--model", default=DEFAULT_MODEL, help=f"Model ID (default: {DEFAULT_MODEL})"
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Google AI API key (or set GOOGLE_AI_API_KEY env)",
+    )
 
     args = parser.parse_args()
 
-    api_key = args.api_key or os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    api_key = (
+        args.api_key
+        or os.environ.get("GOOGLE_AI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
     if not api_key:
-        print(json.dumps({"error": True, "message": "No API key. Set GOOGLE_AI_API_KEY env or pass --api-key"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": "No API key. Set GOOGLE_AI_API_KEY env or pass --api-key",
+                }
+            )
+        )
         sys.exit(1)
 
     result = edit_image(

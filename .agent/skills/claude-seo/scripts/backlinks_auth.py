@@ -29,16 +29,23 @@ except ImportError:
     # Fallback: basic URL validation if google_auth not available
     def validate_url(url: str) -> bool:
         from urllib.parse import urlparse
+
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
             return False
         if not parsed.hostname:
             return False
-        blocked = ["localhost", "127.0.0.1", "0.0.0.0", "::1",
-                    "metadata.google.internal"]
+        blocked = [
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            "::1",
+            "metadata.google.internal",
+        ]
         if parsed.hostname in blocked:
             return False
         return True
+
 
 CONFIG_PATH = os.path.expanduser("~/.config/claude-seo/backlinks-api.json")
 CACHE_DIR = os.path.expanduser("~/.cache/claude-seo/commoncrawl")
@@ -280,7 +287,8 @@ def get_cache_dir() -> str:
 
 def print_setup_instructions():
     """Print step-by-step setup instructions for all backlink APIs."""
-    print("""
+    print(
+        """
 Backlink API Setup Instructions
 ================================
 
@@ -305,7 +313,9 @@ TIER 1: MOZ API (free signup, 2,500 rows/month)
   Configure:
     export MOZ_API_KEY="mozscape-xxxxxxxx"
 
-  Or save to """ + CONFIG_PATH + """:
+  Or save to """
+        + CONFIG_PATH
+        + """:
     {
       "moz_api_key": "mozscape-xxxxxxxx"
     }
@@ -322,7 +332,9 @@ TIER 2: + BING WEBMASTER TOOLS API (free, verified sites)
   4. Go to Settings > API access > API key
   5. Copy your API key
 
-  Add to """ + CONFIG_PATH + """:
+  Add to """
+        + CONFIG_PATH
+        + """:
     {
       "moz_api_key": "mozscape-xxxxxxxx",
       "bing_api_key": "your-bing-api-key",
@@ -347,7 +359,8 @@ PREMIUM: DATAFORSEO EXTENSION (paid, most comprehensive)
 VERIFY CONFIGURATION:
   python scripts/backlinks_auth.py --check
   python scripts/backlinks_auth.py --tier
-""")
+"""
+    )
 
 
 def main():
@@ -396,11 +409,7 @@ def main():
         return
 
     if args.check:
-        services = (
-            list(SERVICE_AUTH.keys())
-            if args.check == "all"
-            else [args.check]
-        )
+        services = list(SERVICE_AUTH.keys()) if args.check == "all" else [args.check]
 
         results = {}
         for svc in services:
@@ -423,7 +432,9 @@ def main():
                 if result.get("error"):
                     print(f"         {result['error']}")
                 if result.get("verified_sites"):
-                    print(f"         Verified sites: {', '.join(result['verified_sites'])}")
+                    print(
+                        f"         Verified sites: {', '.join(result['verified_sites'])}"
+                    )
                 if result.get("note"):
                     print(f"         Note: {result['note']}")
                 if result.get("cached_domains") is not None:

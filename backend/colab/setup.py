@@ -334,11 +334,11 @@ def expose_with_ngrok(auth_token: str = ""):
     if "google.colab" in sys.modules:
         html_content = f"""
         <div style="
-            border: 2px solid #4CAF50; 
-            padding: 20px; 
-            border-radius: 10px; 
-            background: #1e1e1e; 
-            color: white; 
+            border: 2px solid #4CAF50;
+            padding: 20px;
+            border-radius: 10px;
+            background: #1e1e1e;
+            color: white;
             font-family: sans-serif;
             margin-top: 10px;">
             <h2 style="margin-top:0; color: #4CAF50;">🚀 Mukthi Guru is Live!</h2>

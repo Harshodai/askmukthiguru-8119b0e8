@@ -197,7 +197,7 @@ export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true
     const next = { ...profile, updatedAt: new Date() };
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
     window.dispatchEvent(new CustomEvent('profile:updated', { detail: next }));
-    
+
     if (syncWithServer) {
       syncProfileToServer(next);
     }
@@ -231,7 +231,7 @@ export const syncProfileToServer = async (profile: UserProfile) => {
         topics_of_interest: profile.prePracticeLog?.history?.map(h => h.answer).filter(a => a !== 'none') || []
       })
     });
-    
+
     if (!response.ok) {
       console.warn('Backend profile sync failed');
     }
@@ -279,23 +279,23 @@ export const fetchProfileFromServer = async () => {
         'Authorization': `Bearer ${session.access_token}`
       }
     });
-    
+
     const contentType = response.headers.get('content-type') ?? '';
     if (response.ok && contentType.includes('application/json')) {
       const serverProfile = await response.json();
       const current = loadProfile();
-      
+
       // ONLY overwrite if the local language is 'en' (default) or matches the server language,
       // which preserves any active non-english language choices made by the user or auto-detected.
       const shouldUpdateLang = current.preferredLanguage === 'en' || current.preferredLanguage === serverProfile.preferred_language;
-      
+
       // Merge server fields into local profile
       const merged: UserProfile = {
         ...current,
         preferredLanguage: shouldUpdateLang ? (serverProfile.preferred_language as string) : current.preferredLanguage,
         // Map other fields as needed
       };
-      
+
       saveProfile(merged, false); // Save locally but don't loop back to server
       return merged;
     }

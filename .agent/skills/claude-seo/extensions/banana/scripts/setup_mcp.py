@@ -95,8 +95,8 @@ def setup_mcp(api_key: str) -> None:
     print(f"\nMCP server '{MCP_NAME}' configured successfully!")
     print(f"  Package: {MCP_PACKAGE}")
     print(f"  Model:   {DEFAULT_MODEL}")
-    print(f"\nRestart Claude Code for changes to take effect.")
-    print(f"Generated images will be saved to: ~/Documents/nanobanana_generated/")
+    print("\nRestart Claude Code for changes to take effect.")
+    print("Generated images will be saved to: ~/Documents/nanobanana_generated/")
 
 
 def main() -> None:
@@ -136,12 +136,14 @@ def main() -> None:
     if not api_key:
         print("Claude Banana - MCP Setup")
         print("=" * 40)
-        print(f"\nGet your free API key at: https://aistudio.google.com/apikey")
+        print("\nGet your free API key at: https://aistudio.google.com/apikey")
         print()
         try:
             api_key = input("Enter your Google AI API key: ")
         except (EOFError, KeyboardInterrupt):
-            print("\nError: No input received. Provide a key with --key or set GOOGLE_AI_API_KEY env var.")
+            print(
+                "\nError: No input received. Provide a key with --key or set GOOGLE_AI_API_KEY env var."
+            )
             sys.exit(1)
 
     setup_mcp(api_key)

@@ -12,7 +12,7 @@ const mockGetVoices = vi.fn();
 describe('useTextToSpeech', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock SpeechSynthesisUtterance
     global.SpeechSynthesisUtterance = vi.fn().mockImplementation(() => ({
       text: '',
@@ -67,7 +67,7 @@ describe('useTextToSpeech', () => {
 
   it('should call speechSynthesis.speak when speak is invoked', () => {
     const { result } = renderHook(() => useTextToSpeech());
-    
+
     act(() => {
       result.current.speak('Hello world');
     });
@@ -78,7 +78,7 @@ describe('useTextToSpeech', () => {
 
   it('should not speak empty text', () => {
     const { result } = renderHook(() => useTextToSpeech());
-    
+
     act(() => {
       result.current.speak('   ');
     });
@@ -88,7 +88,7 @@ describe('useTextToSpeech', () => {
 
   it('should call speechSynthesis.cancel when stop is invoked', () => {
     const { result } = renderHook(() => useTextToSpeech());
-    
+
     act(() => {
       result.current.stop();
     });
@@ -98,7 +98,7 @@ describe('useTextToSpeech', () => {
 
   it('should call speechSynthesis.pause when pause is invoked', () => {
     const { result } = renderHook(() => useTextToSpeech());
-    
+
     act(() => {
       result.current.pause();
     });
@@ -108,7 +108,7 @@ describe('useTextToSpeech', () => {
 
   it('should call speechSynthesis.resume when resume is invoked', () => {
     const { result } = renderHook(() => useTextToSpeech());
-    
+
     act(() => {
       result.current.resume();
     });
@@ -123,9 +123,9 @@ describe('useTextToSpeech', () => {
 
   it('should cancel speech on unmount', () => {
     const { unmount } = renderHook(() => useTextToSpeech());
-    
+
     unmount();
-    
+
     expect(mockCancel).toHaveBeenCalled();
   });
 });

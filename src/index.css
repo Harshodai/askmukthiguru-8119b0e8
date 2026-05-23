@@ -14,19 +14,19 @@
     --ojas-gold: 43 96% 56%;
     --ojas-gold-light: 45 100% 70%;
     --ojas-gold-dark: 40 90% 45%;
-    
+
     --tejas-white: 35 30% 25%;
     --tejas-glow: 40 40% 35%;
-    
+
     --prana-blue: 200 60% 55%;
     --prana-blue-light: 195 65% 70%;
     --prana-blue-dark: 205 55% 45%;
-    
+
     /* Warm Light Backgrounds - Golden Hour Palette */
     --spiritual-gradient-start: 40 40% 97%;
     --spiritual-gradient-mid: 45 50% 95%;
     --spiritual-gradient-end: 35 60% 93%;
-    
+
     /* Core Design Tokens - Light Sanctuary Theme */
     --background: 40 30% 96%;
     --foreground: 25 25% 20%;
@@ -62,12 +62,12 @@
     --glass-bg: 40 40% 100% / 0.7;
     --glass-border: 40 30% 70% / 0.4;
     --glass-blur: 16px;
-    
+
     /* Glow Effects - Softer for Light Theme */
     --glow-gold: 0 4px 30px hsl(43 96% 56% / 0.25);
     --glow-blue: 0 4px 30px hsl(200 60% 55% / 0.2);
     --glow-white: 0 4px 20px hsl(40 30% 50% / 0.15);
-    
+
     /* Gradients - Warm & Uplifting */
     --gradient-spiritual: linear-gradient(135deg, hsl(40 40% 97%), hsl(45 50% 95%), hsl(35 60% 93%));
     --gradient-gold: linear-gradient(135deg, hsl(43 96% 56%), hsl(45 100% 70%));
@@ -182,76 +182,76 @@
   .dark .glass-card {
     box-shadow: 0 2px 16px hsl(25 20% 5% / 0.3), inset 0 1px 0 hsl(40 30% 40% / 0.06);
   }
-  
+
   .glass-card-hover {
     @apply glass-card transition-all duration-300;
   }
-  
+
   .glass-card-hover:hover {
     border-color: hsl(var(--ojas-gold) / 0.5);
     box-shadow: var(--glow-gold);
   }
-  
+
   /* Spiritual Glow Effects */
   .glow-gold {
     box-shadow: var(--glow-gold);
   }
-  
+
   .glow-blue {
     box-shadow: var(--glow-blue);
   }
-  
+
   .glow-white {
     box-shadow: var(--glow-white);
   }
-  
+
   /* Animated Gradient Background */
   .bg-spiritual-gradient {
     background: var(--gradient-spiritual);
   }
-  
+
   .bg-celestial-gradient {
     background: var(--gradient-celestial);
   }
-  
+
   /* Text Gradients */
   .text-gradient-gold {
     @apply bg-clip-text text-transparent;
     background-image: var(--gradient-gold);
   }
-  
+
   /* Floating Animation */
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   .animate-float-slow {
     animation: float 8s ease-in-out infinite;
   }
-  
+
   .animate-float-delayed {
     animation: float 6s ease-in-out infinite 2s;
   }
-  
+
   /* Pulse Glow Animation */
   .animate-pulse-glow {
     animation: pulse-glow 3s ease-in-out infinite;
   }
-  
+
   /* Particle Animation */
   .animate-particle {
     animation: particle-rise 10s ease-in-out infinite;
   }
-  
+
   /* Breathing Animation */
   .animate-breathe-in {
     animation: breathe-in 4s ease-in-out forwards;
   }
-  
+
   .animate-breathe-out {
     animation: breathe-out 6s ease-in-out forwards;
   }
-  
+
   /* Flame Flicker */
   .animate-flame {
     animation: flame-flicker 2s ease-in-out infinite;
@@ -263,7 +263,7 @@
   .scrollbar-spiritual::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .scrollbar-spiritual::-webkit-scrollbar-track {
     background: hsl(40 20% 90%);
     border-radius: 3px;
@@ -272,12 +272,12 @@
   .dark .scrollbar-spiritual::-webkit-scrollbar-track {
     background: hsl(25 15% 12%);
   }
-  
+
   .scrollbar-spiritual::-webkit-scrollbar-thumb {
     background: hsl(var(--ojas-gold) / 0.4);
     border-radius: 3px;
   }
-  
+
   .scrollbar-spiritual::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--ojas-gold) / 0.6);
   }
@@ -291,7 +291,7 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  
+
   .h-safe-area-inset-bottom {
     height: env(safe-area-inset-bottom, 0);
   }

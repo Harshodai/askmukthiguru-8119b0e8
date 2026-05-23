@@ -16,7 +16,7 @@ export const AboutMeditationSection = React.forwardRef<HTMLElement>(
       <section ref={ref} id="meditation" className="py-24 relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-celestial-gradient" />
-        
+
         <div className="relative z-10 container mx-auto px-6">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -33,16 +33,16 @@ export const AboutMeditationSection = React.forwardRef<HTMLElement>(
                   <br />
                   <span className="text-foreground">Meditation</span>
                 </h2>
-                
+
                 <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-                  When stress overwhelms you, our AI companion can guide you through the 
+                  When stress overwhelms you, our AI companion can guide you through the
                   Serene Mind meditation—a powerful 3-minute practice that brings immediate calm.
                 </p>
 
                 <p className="text-muted-foreground leading-relaxed mb-8">
-                  This technique, rooted in the teachings of Sri Preethaji & Sri Krishnaji, 
-                  uses focused breathing and visualization to shift your consciousness from 
-                  agitation to peace. A tiny flame visualization at your eyebrow center 
+                  This technique, rooted in the teachings of Sri Preethaji & Sri Krishnaji,
+                  uses focused breathing and visualization to shift your consciousness from
+                  agitation to peace. A tiny flame visualization at your eyebrow center
                   becomes your anchor to the present moment.
                 </p>
 
@@ -104,7 +104,7 @@ export const AboutMeditationSection = React.forwardRef<HTMLElement>(
 
                     {/* Central Flame */}
                     <motion.div
-                      animate={{ 
+                      animate={{
                         scale: [1, 1.05, 0.98, 1.02, 1],
                         rotate: [-1, 1, -0.5, 0.5, -1]
                       }}

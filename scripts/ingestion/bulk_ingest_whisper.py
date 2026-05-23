@@ -17,16 +17,16 @@ Resilience:
   - Retries with exponential backoff for YouTube rate limits
   - Graceful shutdown on SIGINT/SIGTERM saves state
 """
-import sys
-import os
-import asyncio
-import time
-import logging
-import json
-import subprocess
-import signal
+
 import argparse
-from typing import Optional
+import asyncio
+import json
+import logging
+import os
+import signal
+import subprocess
+import sys
+import time
 
 # ── Force unbuffered stdout for real-time logging ───────────
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -48,7 +48,9 @@ os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["NEO4J_USERNAME"] = "neo4j"
 os.environ["NEO4J_PASSWORD"] = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
-os.environ["REDIS_URL"] = f"redis://:{os.environ.get('REDIS_PASSWORD', 'mukthiguru_redis_pass')}@localhost:6379/0"
+os.environ["REDIS_URL"] = (
+    f"redis://:{os.environ.get('REDIS_PASSWORD', 'mukthiguru_redis_pass')}@localhost:6379/0"
+)
 os.environ["SUPABASE_URL"] = "http://localhost:54321"
 os.environ["WHISPER_ONLY"] = "true"
 
@@ -56,7 +58,7 @@ os.environ["WHISPER_ONLY"] = "true"
 VENV_BIN = os.path.abspath(os.path.join(BASE_DIR, ".venv_host/bin"))
 os.environ["PATH"] = f"{VENV_BIN}:/opt/homebrew/bin:/usr/local/bin:{os.environ['PATH']}"
 
-log_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+log_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 log_file = os.path.join(BASE_DIR, "scripts/ingestion_status.log")
 
 logging.basicConfig(
@@ -64,8 +66,8 @@ logging.basicConfig(
     format=log_format,
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(log_file, mode='a', encoding='utf-8')
-    ]
+        logging.FileHandler(log_file, mode="a", encoding="utf-8"),
+    ],
 )
 logger = logging.getLogger("bulk_ingest")
 
@@ -79,9 +81,13 @@ LIGHTRAG_CHUNK_OVERLAP = int(os.environ.get("RAG_CHUNK_OVERLAP", 200))
 LIGHTRAG_SLEEP_BETWEEN = 3.0  # seconds between chunks (thermal throttling)
 
 
-def chunk_text(text: str, chunk_size: int = LIGHTRAG_CHUNK_SIZE, overlap: int = LIGHTRAG_CHUNK_OVERLAP) -> list[str]:
+def chunk_text(
+    text: str,
+    chunk_size: int = LIGHTRAG_CHUNK_SIZE,
+    overlap: int = LIGHTRAG_CHUNK_OVERLAP,
+) -> list[str]:
     """Split text into overlapping chunks at sentence boundaries.
-    
+
     FIXED: Previous version had a catastrophic 1-char sliding window bug.
     When sentence boundary search moved 'end' close to 'start', the fallback
     `start = max(start + 1, end - overlap)` would advance by only 1 character,
@@ -94,7 +100,7 @@ def chunk_text(text: str, chunk_size: int = LIGHTRAG_CHUNK_SIZE, overlap: int = 
 
         # Try to break at sentence boundary (only if not at end of text)
         if end < len(text):
-            for boundary_char in ['. ', '.\n', '!\n', '?\n', '! ', '? ']:
+            for boundary_char in [". ", ".\n", "!\n", "?\n", "! ", "? "]:
                 last_boundary = text.rfind(boundary_char, start + chunk_size // 2, end)
                 if last_boundary != -1:
                     end = last_boundary + len(boundary_char)
@@ -122,33 +128,39 @@ async def safe_lightrag_insert(
     lightrag_service,
     full_text: str,
     source_name: str,
-    state: Optional[dict] = None,
-    save_state_fn = None,
-    video_id: Optional[str] = None
+    state: dict | None = None,
+    save_state_fn=None,
+    video_id: str | None = None,
 ):
     """Insert text into LightRAG in safe, chunked segments with retry & exponential backoff.
-    
+
     If a chunk fails after retries, it is persistently recorded in the state.
     """
     chunks = chunk_text(full_text)
     total = len(chunks)
-    logger.info(f"LightRAG: Splitting {len(full_text):,} chars into {total} chunks (~{LIGHTRAG_CHUNK_SIZE} chars each)")
+    logger.info(
+        f"LightRAG: Splitting {len(full_text):,} chars into {total} chunks (~{LIGHTRAG_CHUNK_SIZE} chars each)"
+    )
 
     success_count = 0
     max_chunk_attempts = 3
     base_chunk_delay = 5.0  # seconds
 
     for i, chunk in enumerate(chunks, 1):
-        logger.info(f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars) for [{source_name}]")
+        logger.info(
+            f"LightRAG: Inserting chunk {i}/{total} ({len(chunk):,} chars) for [{source_name}]"
+        )
         chunk_with_header = f"[Source: {source_name}]\n{chunk}"
-        
+
         success = False
         last_error = ""
 
         for attempt in range(1, max_chunk_attempts + 1):
             try:
                 # Call LightRAG directly to raise exceptions on failures
-                await lightrag_service.ainsert(chunk_with_header, file_paths=[source_name], timeout=180.0)
+                await lightrag_service.ainsert(
+                    chunk_with_header, file_paths=[source_name], timeout=180.0
+                )
                 success = True
                 break
             except Exception as e:
@@ -165,19 +177,21 @@ async def safe_lightrag_insert(
             success_count += 1
             logger.info(f"LightRAG: ✅ Chunk {i}/{total} done")
         else:
-            logger.error(f"LightRAG: ❌ Chunk {i}/{total} completely failed after {max_chunk_attempts} attempts.")
-            
+            logger.error(
+                f"LightRAG: ❌ Chunk {i}/{total} completely failed after {max_chunk_attempts} attempts."
+            )
+
             # Record failed chunk in state if provided
             if state is not None:
                 if "failed_lightrag_chunks" not in state:
                     state["failed_lightrag_chunks"] = []
-                
+
                 # Check if this chunk is already tracked to avoid duplicates
                 already_tracked = any(
                     c.get("source_name") == source_name and c.get("chunk_index") == i
                     for c in state["failed_lightrag_chunks"]
                 )
-                
+
                 if not already_tracked:
                     failed_chunk_record = {
                         "source_name": source_name,
@@ -187,7 +201,7 @@ async def safe_lightrag_insert(
                         "chunk_content": chunk,
                         "error": last_error,
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                        "attempts": max_chunk_attempts
+                        "attempts": max_chunk_attempts,
                     }
                     state["failed_lightrag_chunks"].append(failed_chunk_record)
                     logger.info(f"LightRAG: Stored failed chunk {i}/{total} in state.")
@@ -198,7 +212,9 @@ async def safe_lightrag_insert(
             logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
             await asyncio.sleep(LIGHTRAG_SLEEP_BETWEEN)
 
-    logger.info(f"LightRAG: ✅ {success_count}/{total} chunks processed successfully for [{source_name}]")
+    logger.info(
+        f"LightRAG: ✅ {success_count}/{total} chunks processed successfully for [{source_name}]"
+    )
 
 
 # ── In-Process Book Ingestion (no subprocess spawn) ─────────
@@ -209,9 +225,10 @@ def ingest_book_to_qdrant(json_path: str):
     avoiding the 2GB model reload that caused the 6-hour hang.
     """
     import uuid
+
     from langchain_text_splitters import RecursiveCharacterTextSplitter
-    from services.qdrant_service import QdrantService
     from services.embedding_service import EmbeddingService
+    from services.qdrant_service import QdrantService
 
     logger.info("Initializing Qdrant and Embeddings (in-process)...")
     qdrant = QdrantService()
@@ -219,7 +236,7 @@ def ingest_book_to_qdrant(json_path: str):
     embeddings = EmbeddingService()
 
     logger.info(f"Loading PageIndex structure from {json_path}...")
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
 
     structure = data.get("structure", [])
@@ -253,46 +270,52 @@ def ingest_book_to_qdrant(json_path: str):
                 header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
 
                 for child_index, child_text in enumerate(child_paragraphs):
-                    chunks.append({
-                        "text": header + child_text,
-                        "metadata": {
-                            "source_url": "The_Four_Sacred_Secrets.pdf",
-                            "title": context_title,
-                            "speaker": "Sri Preethaji & Sri Krishnaji",
-                            "topic": "Spiritual",
-                            "content_type": "book",
-                            "raptor_level": 0,
-                            "cluster_id": cluster_id,
-                            "node_id": node.get("node_id", ""),
-                            "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
-                            "parent_id": parent_id,
-                            "parent_text": text,
-                            "is_child": True,
+                    chunks.append(
+                        {
+                            "text": header + child_text,
+                            "metadata": {
+                                "source_url": "The_Four_Sacred_Secrets.pdf",
+                                "title": context_title,
+                                "speaker": "Sri Preethaji & Sri Krishnaji",
+                                "topic": "Spiritual",
+                                "content_type": "book",
+                                "raptor_level": 0,
+                                "cluster_id": cluster_id,
+                                "node_id": node.get("node_id", ""),
+                                "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
+                                "parent_id": parent_id,
+                                "parent_text": text,
+                                "is_child": True,
+                            },
                         }
-                    })
+                    )
 
             if summary:
-                header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
-                chunks.append({
-                    "text": header + summary,
-                    "metadata": {
-                        "source_url": "The_Four_Sacred_Secrets.pdf",
-                        "title": f"Summary: {context_title}",
-                        "speaker": "Sri Preethaji & Sri Krishnaji",
-                        "topic": "Spiritual",
-                        "content_type": "summary",
-                        "raptor_level": 1,
-                        "cluster_id": cluster_id,
-                        "node_id": node.get("node_id", "")
+                header = (
+                    f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
+                )
+                chunks.append(
+                    {
+                        "text": header + summary,
+                        "metadata": {
+                            "source_url": "The_Four_Sacred_Secrets.pdf",
+                            "title": f"Summary: {context_title}",
+                            "speaker": "Sri Preethaji & Sri Krishnaji",
+                            "topic": "Spiritual",
+                            "content_type": "summary",
+                            "raptor_level": 1,
+                            "cluster_id": cluster_id,
+                            "node_id": node.get("node_id", ""),
+                        },
                     }
-                })
+                )
 
             if "nodes" in node and node["nodes"]:
                 children_chunks = flatten_tree(
                     node["nodes"],
                     parent_title=context_title,
                     level=level + 1,
-                    cluster_id=cluster_id
+                    cluster_id=cluster_id,
                 )
                 chunks.extend(children_chunks)
 
@@ -311,7 +334,7 @@ def ingest_book_to_qdrant(json_path: str):
     # Upsert chunks in batches
     batch_size = 20
     for i in range(0, total, batch_size):
-        batch = all_chunks[i:i + batch_size]
+        batch = all_chunks[i : i + batch_size]
         texts = [item["text"] for item in batch]
         metadatas = [item["metadata"] for item in batch]
 
@@ -370,12 +393,17 @@ INTER_VIDEO_DELAY = 5
 def get_video_ids_from_playlist(playlist_url: str) -> list[str]:
     """Resolve playlist URL to video IDs via yt-dlp Python API (not CLI)."""
     try:
-        import yt_dlp
         import os
+
+        import yt_dlp
+
         possible_paths = [
             os.path.join(os.getcwd(), "cookies.txt"),
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cookies.txt"),
-            "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "cookies.txt",
+            ),
+            "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt",
         ]
         cookie_path = None
         for path in possible_paths:
@@ -384,21 +412,21 @@ def get_video_ids_from_playlist(playlist_url: str) -> list[str]:
                 break
 
         ydl_opts = {
-            'quiet': True,
-            'extract_flat': True,
-            'no_warnings': True,
+            "quiet": True,
+            "extract_flat": True,
+            "no_warnings": True,
         }
         if cookie_path:
-            ydl_opts['cookiefile'] = cookie_path
+            ydl_opts["cookiefile"] = cookie_path
             logger.info(f"Using cookies from: {cookie_path}")
         else:
-            ydl_opts['cookiesfrombrowser'] = ('chrome',)
+            ydl_opts["cookiesfrombrowser"] = ("chrome",)
             logger.info("Using Chrome cookies-from-browser fallback")
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info(playlist_url, download=False)
-            if result and 'entries' in result:
-                ids = [e.get('id') for e in result['entries'] if e and e.get('id')]
+            if result and "entries" in result:
+                ids = [e.get("id") for e in result["entries"] if e and e.get("id")]
                 logger.info(f"Playlist resolved: {len(ids)} videos")
                 return ids
         return []
@@ -411,9 +439,12 @@ async def fetch_transcript_text(video_id: str) -> str:
     """Fetch transcript text using the backend's hybrid loader (which triggers local Whisper if configured)."""
     try:
         from ingest.youtube_loader import fetch_transcript_hybrid
+
         # Run in executor because fetch_transcript_hybrid is sync and contains downloads/Whisper calls
         loop = asyncio.get_running_loop()
-        res = await loop.run_in_executor(None, lambda: fetch_transcript_hybrid(video_id, max_accuracy=True))
+        res = await loop.run_in_executor(
+            None, lambda: fetch_transcript_hybrid(video_id, max_accuracy=True)
+        )
         if res and res.get("text"):
             return res["text"]
     except Exception as e:
@@ -429,26 +460,52 @@ _shutdown_requested = False
 def _signal_handler(signum, frame):
     global _shutdown_requested
     sig_name = signal.Signals(signum).name
-    logger.warning(f"⚠️  Received {sig_name} — will finish current item and save state before exiting.")
+    logger.warning(
+        f"⚠️  Received {sig_name} — will finish current item and save state before exiting."
+    )
     _shutdown_requested = True
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Mukthi Guru Bulk Ingestion")
-    parser.add_argument("--test-playlist", action="store_true",
-                        help="Test mode: process only the first playlist")
-    parser.add_argument("--playlist-limit", type=int, default=0,
-                        help="Limit number of playlists to process (0=all)")
-    parser.add_argument("--skip-lightrag", action="store_true",
-                        help="Skip LightRAG graph extraction (saves API calls)")
-    parser.add_argument("--skip-book", action="store_true",
-                        help="Skip book ingestion, go straight to YouTube")
-    parser.add_argument("--video-limit", type=int, default=0,
-                        help="Limit total videos to process (0=all)")
-    parser.add_argument("--video-ids", type=str, default="",
-                        help="Comma-separated list of specific video IDs to ingest. If provided, playlist URLs are ignored.")
-    parser.add_argument("--retry-failed-lightrag", action="store_true",
-                        help="Retry only the failed LightRAG chunks stored in state, then exit")
+    parser.add_argument(
+        "--test-playlist",
+        action="store_true",
+        help="Test mode: process only the first playlist",
+    )
+    parser.add_argument(
+        "--playlist-limit",
+        type=int,
+        default=0,
+        help="Limit number of playlists to process (0=all)",
+    )
+    parser.add_argument(
+        "--skip-lightrag",
+        action="store_true",
+        help="Skip LightRAG graph extraction (saves API calls)",
+    )
+    parser.add_argument(
+        "--skip-book",
+        action="store_true",
+        help="Skip book ingestion, go straight to YouTube",
+    )
+    parser.add_argument(
+        "--video-limit",
+        type=int,
+        default=0,
+        help="Limit total videos to process (0=all)",
+    )
+    parser.add_argument(
+        "--video-ids",
+        type=str,
+        default="",
+        help="Comma-separated list of specific video IDs to ingest. If provided, playlist URLs are ignored.",
+    )
+    parser.add_argument(
+        "--retry-failed-lightrag",
+        action="store_true",
+        help="Retry only the failed LightRAG chunks stored in state, then exit",
+    )
     return parser.parse_args()
 
 
@@ -468,14 +525,13 @@ async def main():
     if sys.platform == "darwin":
         logger.info("macOS detected: Spawning 'caffeinate -dims' to prevent ALL sleep types...")
         try:
-            caffeinate_proc = subprocess.Popen(
-                ["caffeinate", "-dims", "-w", str(os.getpid())]
-            )
+            caffeinate_proc = subprocess.Popen(["caffeinate", "-dims", "-w", str(os.getpid())])
             logger.info("✅ macOS caffeinate is active (-dims). Safe to close lid on AC power.")
         except Exception as e:
             logger.warning(f"Failed to start caffeinate: {e}")
 
     from app.dependencies import get_container
+
     container = get_container()
 
     # Initialize LightRAG for Knowledge Graph extraction
@@ -487,7 +543,7 @@ async def main():
     # ── Load State ──────────────────────────────────────────
     state = {"processed_videos": [], "processed_docs": [], "metrics": {}}
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE) as f:
             state = json.load(f)
     if "metrics" not in state:
         state["metrics"] = {}
@@ -508,28 +564,32 @@ async def main():
         if not failed_chunks:
             logger.info("🎉 No failed LightRAG chunks stored in state. Nothing to retry!")
             return
-        
+
         logger.info(f"🔄 Retrying {len(failed_chunks)} failed LightRAG chunk(s)...")
         # Copy to avoid mutation issues during iteration
         chunks_to_retry = list(failed_chunks)
         success_count = 0
-        
+
         for idx, item in enumerate(chunks_to_retry, 1):
             source_name = item.get("source_name", "Unknown Source")
             chunk_content = item.get("chunk_content", "")
             chunk_idx = item.get("chunk_index", 0)
             total_chunks = item.get("total_chunks", 0)
-            
-            logger.info(f"[{idx}/{len(chunks_to_retry)}] Retrying chunk {chunk_idx}/{total_chunks} for [{source_name}]")
+
+            logger.info(
+                f"[{idx}/{len(chunks_to_retry)}] Retrying chunk {chunk_idx}/{total_chunks} for [{source_name}]"
+            )
             chunk_with_header = f"[Source: {source_name}]\n{chunk_content}"
-            
+
             success = False
             max_attempts = 3
             base_delay = 5.0
-            
+
             for attempt in range(1, max_attempts + 1):
                 try:
-                    await container.lightrag.ainsert(chunk_with_header, file_paths=[source_name], timeout=180.0)
+                    await container.lightrag.ainsert(
+                        chunk_with_header, file_paths=[source_name], timeout=180.0
+                    )
                     success = True
                     break
                 except Exception as e:
@@ -537,13 +597,16 @@ async def main():
                     if attempt < max_attempts:
                         sleep_time = base_delay * (2 ** (attempt - 1))
                         await asyncio.sleep(sleep_time)
-            
+
             if success:
-                logger.info(f"  ✅ Chunk ingestion succeeded! Removing from failed queue.")
+                logger.info("  ✅ Chunk ingestion succeeded! Removing from failed queue.")
                 success_count += 1
                 state["failed_lightrag_chunks"] = [
-                    c for c in state["failed_lightrag_chunks"]
-                    if not (c.get("source_name") == source_name and c.get("chunk_index") == chunk_idx)
+                    c
+                    for c in state["failed_lightrag_chunks"]
+                    if not (
+                        c.get("source_name") == source_name and c.get("chunk_index") == chunk_idx
+                    )
                 ]
                 save_state()
             else:
@@ -551,12 +614,14 @@ async def main():
                 item["attempts"] = item.get("attempts", 3) + max_attempts
                 item["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 save_state()
-            
+
             if idx < len(chunks_to_retry):
                 logger.info(f"LightRAG: Cooling down {LIGHTRAG_SLEEP_BETWEEN}s...")
                 await asyncio.sleep(LIGHTRAG_SLEEP_BETWEEN)
-                
-        logger.info(f"🎉 Failed LightRAG retry complete: {success_count} chunks successfully ingested. {len(state['failed_lightrag_chunks'])} remaining.")
+
+        logger.info(
+            f"🎉 Failed LightRAG retry complete: {success_count} chunks successfully ingested. {len(state['failed_lightrag_chunks'])} remaining."
+        )
         return
 
     # ── Ingest: The Four Sacred Secrets (Book) ──────────────
@@ -564,7 +629,7 @@ async def main():
     json_path = os.path.join(BASE_DIR, "results/The_Four_Sacred_Secrets_structure.json")
 
     if args.skip_book:
-        logger.info(f"⏭️  --skip-book flag set, skipping book ingestion")
+        logger.info("⏭️  --skip-book flag set, skipping book ingestion")
     elif doc_name in state["processed_docs"]:
         logger.info(f"⏭️  Skipping already processed document: {doc_name}")
     elif not os.path.exists(json_path):
@@ -586,7 +651,7 @@ async def main():
                 logger.info("Step 2/2: ⏭️  --skip-lightrag flag set, skipping graph extraction")
             elif container.lightrag:
                 logger.info("Step 2/2: LightRAG → Neo4j (chunked graph extraction)...")
-                with open(json_path, "r") as f:
+                with open(json_path) as f:
                     data = json.load(f)
 
                 def get_text_recursive(nodes):
@@ -606,7 +671,7 @@ async def main():
                         source_name=doc_name,
                         state=state,
                         save_state_fn=save_state,
-                        video_id=None
+                        video_id=None,
                     )
                     logger.info("Step 2/2: ✅ LightRAG → Neo4j complete")
                 else:
@@ -650,10 +715,12 @@ async def main():
         playlists_to_process = PLAYLIST_URLS
         if args.test_playlist:
             playlists_to_process = PLAYLIST_URLS[:1]
-            logger.info(f"🧪 TEST MODE: Processing only first playlist")
+            logger.info("🧪 TEST MODE: Processing only first playlist")
         elif args.playlist_limit > 0:
-            playlists_to_process = PLAYLIST_URLS[:args.playlist_limit]
-            logger.info(f"🔢 Processing {len(playlists_to_process)} of {len(PLAYLIST_URLS)} playlists")
+            playlists_to_process = PLAYLIST_URLS[: args.playlist_limit]
+            logger.info(
+                f"🔢 Processing {len(playlists_to_process)} of {len(PLAYLIST_URLS)} playlists"
+            )
 
         all_ids = []
         for pl in playlists_to_process:
@@ -671,15 +738,20 @@ async def main():
 
         # Prioritize previously failed videos by moving them to the beginning of the queue
         failed_ids = [
-            vid for vid, metric in state.get("metrics", {}).items()
-            if isinstance(metric, dict) and metric.get("status") == "failed" and vid not in state["processed_videos"]
+            vid
+            for vid, metric in state.get("metrics", {}).items()
+            if isinstance(metric, dict)
+            and metric.get("status") == "failed"
+            and vid not in state["processed_videos"]
         ]
         if failed_ids:
-            logger.info(f"🔄 Found {len(failed_ids)} previously failed videos. Prioritizing them at the beginning of the queue: {failed_ids}")
+            logger.info(
+                f"🔄 Found {len(failed_ids)} previously failed videos. Prioritizing them at the beginning of the queue: {failed_ids}"
+            )
             unique_ids = failed_ids + [v for v in unique_ids if v not in failed_ids]
 
     if args.video_limit > 0:
-        unique_ids = unique_ids[:args.video_limit]
+        unique_ids = unique_ids[: args.video_limit]
         logger.info(f"🔢 Video limit: processing {len(unique_ids)} videos")
 
     logger.info(f"🎯 Total unique videos queued: {len(unique_ids)}")
@@ -708,7 +780,9 @@ async def main():
             start_video_time = time.time()
             try:
                 # STEP 1: Qdrant (dense+sparse vectors via hybrid pipeline)
-                logger.info(f"[Qdrant] Ingesting video: {url} (Attempt {attempt}/{max_attempts})...")
+                logger.info(
+                    f"[Qdrant] Ingesting video: {url} (Attempt {attempt}/{max_attempts})..."
+                )
                 res = await pipeline.ingest_url(url, max_accuracy=True)
 
                 # Check status return to throw error and trigger the retry delays
@@ -727,14 +801,24 @@ async def main():
                     # Whisper run (which would waste 15-30 min per video).
                     text = res.get("text") or res.get("transcript") or ""
                     if not text.strip():
-                        logger.info(f"[LightRAG] No text in Qdrant result — re-fetching transcript for video: {vid}...")
+                        logger.info(
+                            f"[LightRAG] No text in Qdrant result — re-fetching transcript for video: {vid}..."
+                        )
                         text = await fetch_transcript_text(vid)
                     else:
-                        logger.info(f"[LightRAG] Reusing transcript from Qdrant step ({len(text):,} chars) — skipping second Whisper run")
+                        logger.info(
+                            f"[LightRAG] Reusing transcript from Qdrant step ({len(text):,} chars) — skipping second Whisper run"
+                        )
                     if text.strip():
-                        logger.info(f"[LightRAG] Correcting spelling and domain terminology in transcript...")
-                        sanitized_text = text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
-                        corrected_text = await pipeline._corrector.correct_transcript(sanitized_text, url)
+                        logger.info(
+                            "[LightRAG] Correcting spelling and domain terminology in transcript..."
+                        )
+                        sanitized_text = text.replace("<|begin_of_text|>", "").replace(
+                            "<|eot_id|>", ""
+                        )
+                        corrected_text = await pipeline._corrector.correct_transcript(
+                            sanitized_text, url
+                        )
                         source_name = f"YouTube Video: {title} (URL: {url})"
                         await safe_lightrag_insert(
                             lightrag_service=container.lightrag,
@@ -742,20 +826,20 @@ async def main():
                             source_name=source_name,
                             state=state,
                             save_state_fn=save_state,
-                            video_id=vid
+                            video_id=vid,
                         )
-                        logger.info(f"[LightRAG] ✅ Success")
+                        logger.info("[LightRAG] ✅ Success")
                     else:
-                        logger.warning(f"[LightRAG] ⚠️ No transcript content retrieved")
+                        logger.warning("[LightRAG] ⚠️ No transcript content retrieved")
                 else:
-                    logger.warning(f"[LightRAG] Service not active — skipping")
+                    logger.warning("[LightRAG] Service not active — skipping")
 
                 latency = time.time() - start_video_time
                 state["processed_videos"].append(vid)
                 state["metrics"][vid] = {
                     "latency": latency,
                     "status": "success",
-                    "title": title
+                    "title": title,
                 }
                 save_state()
                 logger.info(f"✅ Video Ingested: {vid} ({title}) in {latency:.1f}s")
@@ -776,7 +860,10 @@ async def main():
                         "error": str(e),
                     }
                     save_state()
-                    logger.error(f"❌ Video Failed after {max_attempts} attempts: {vid} | {e}", exc_info=True)
+                    logger.error(
+                        f"❌ Video Failed after {max_attempts} attempts: {vid} | {e}",
+                        exc_info=True,
+                    )
 
         if not _shutdown_requested and vid != unique_ids[-1]:
             logger.info(f"Waiting {INTER_VIDEO_DELAY}s between videos...")
@@ -794,8 +881,10 @@ async def main():
     logger.info(f"\nTotal Videos Processed: {len(state['processed_videos'])}")
     for vid in state["processed_videos"]:
         m = state["metrics"].get(vid, {})
-        title = m.get('title', 'Unknown')
-        logger.info(f"  🎥 {vid} ({title}) — {m.get('status', 'unknown')} ({m.get('latency', 0):.1f}s)")
+        title = m.get("title", "Unknown")
+        logger.info(
+            f"  🎥 {vid} ({title}) — {m.get('status', 'unknown')} ({m.get('latency', 0):.1f}s)"
+        )
 
     failed = [k for k, v in state["metrics"].items() if v.get("status") == "failed"]
     if failed:

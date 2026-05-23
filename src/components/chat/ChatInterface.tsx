@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Flame, AlertCircle, Sparkles, Share2 } from 'lucide-react';
-import { 
-  Message, 
+import {
+  Message,
   Conversation,
-  generateId, 
+  generateId,
   saveConversation,
   loadConversation,
   loadConversations,
@@ -179,7 +179,7 @@ export const ChatInterface = () => {
     }
 
     setCurrentConversation(conversation);
-    
+
     if (conversation.messages.length > 0) {
       setMessages(conversation.messages);
     } else {
@@ -227,7 +227,7 @@ export const ChatInterface = () => {
   // Auto-speak new guru messages when TTS is enabled
   useEffect(() => {
     if (!ttsEnabled || messages.length === 0) return;
-    
+
     const lastMessage = messages[messages.length - 1];
     if (lastMessage.role === 'guru' && lastMessage.content !== lastGuruMessageRef.current) {
       lastGuruMessageRef.current = lastMessage.content;
@@ -419,7 +419,7 @@ export const ChatInterface = () => {
       setMessages(options.baseMessages);
     }
     if (!overrideText) setInputValue('');
-    
+
     // Reset textarea height
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
@@ -491,13 +491,13 @@ export const ChatInterface = () => {
 
     try {
       const stream = sendMessageStreaming(
-        messageHistory, 
-        userMessage.content, 
+        messageHistory,
+        userMessage.content,
         meditationStep,
         currentConversation?.summary,
         currentConversation?.id
       );
-      
+
       // Show pipeline thinking pills
       setPipelineSteps([]);
       setShowPipeline(true);
@@ -585,7 +585,7 @@ export const ChatInterface = () => {
         setMessages((prev) =>
           prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined } : m))
         );
-        
+
         setStreamingMessageId(undefined);
         setStreamingContent('');
 
@@ -651,8 +651,8 @@ export const ChatInterface = () => {
 
     try {
       const response = await sendMessage(
-        messageHistory, 
-        userMessage.content, 
+        messageHistory,
+        userMessage.content,
         meditationStep,
         currentConversation?.summary,
         currentConversation?.id
@@ -776,18 +776,18 @@ export const ChatInterface = () => {
   const handleNewConversation = () => {
     stopSpeaking();
     const newConversation = createNewConversation();
-    
+
     const welcomeMessage: Message = {
       id: generateId(),
       role: 'guru',
       content: 'The slate is clean, dear one. Let us begin anew. What would you like to explore?',
       timestamp: new Date(),
     };
-    
+
     newConversation.messages = [welcomeMessage];
     newConversation.preview = getConversationPreview([welcomeMessage]);
     saveConversation(newConversation);
-    
+
     setCurrentConversation(newConversation);
     setCurrentConversationId(newConversation.id);
     setMessages([welcomeMessage]);
@@ -852,7 +852,7 @@ export const ChatInterface = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
-        <ChatHeader 
+        <ChatHeader
           onClearChat={handleNewConversation}
           onOpenMobileMenu={() => setShowMobileSheet(true)}
           sidebarCollapsed={sidebarCollapsed}
@@ -941,7 +941,7 @@ export const ChatInterface = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="flex items-start gap-3"
                 >
-                  <motion.div 
+                  <motion.div
                     className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30"
                     animate={{ scale: [1, 1.1, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
@@ -953,14 +953,14 @@ export const ChatInterface = () => {
                       {[0, 0.15, 0.3].map((delay, i) => (
                         <motion.div
                           key={i}
-                          animate={{ 
+                          animate={{
                             y: [0, -6, 0],
-                            opacity: [0.4, 1, 0.4] 
+                            opacity: [0.4, 1, 0.4]
                           }}
-                          transition={{ 
-                            duration: 0.8, 
-                            repeat: Infinity, 
-                            delay 
+                          transition={{
+                            duration: 0.8,
+                            repeat: Infinity,
+                            delay
                           }}
                           className="w-2 h-2 rounded-full bg-ojas"
                         />

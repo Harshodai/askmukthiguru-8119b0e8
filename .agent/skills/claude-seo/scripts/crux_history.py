@@ -27,17 +27,40 @@ try:
     from google_auth import get_api_key, validate_url
 except ImportError:
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import get_api_key, validate_url
 
-CRUX_HISTORY_ENDPOINT = "https://chromeuxreport.googleapis.com/v1/records:queryHistoryRecord"
+CRUX_HISTORY_ENDPOINT = (
+    "https://chromeuxreport.googleapis.com/v1/records:queryHistoryRecord"
+)
 
 CWV_THRESHOLDS = {
-    "largest_contentful_paint": {"good": 2500, "poor": 4000, "label": "LCP", "unit": "ms"},
-    "interaction_to_next_paint": {"good": 200, "poor": 500, "label": "INP", "unit": "ms"},
+    "largest_contentful_paint": {
+        "good": 2500,
+        "poor": 4000,
+        "label": "LCP",
+        "unit": "ms",
+    },
+    "interaction_to_next_paint": {
+        "good": 200,
+        "poor": 500,
+        "label": "INP",
+        "unit": "ms",
+    },
     "cumulative_layout_shift": {"good": 0.1, "poor": 0.25, "label": "CLS", "unit": ""},
-    "first_contentful_paint": {"good": 1800, "poor": 3000, "label": "FCP", "unit": "ms"},
-    "experimental_time_to_first_byte": {"good": 800, "poor": 1800, "label": "TTFB", "unit": "ms"},
+    "first_contentful_paint": {
+        "good": 1800,
+        "poor": 3000,
+        "label": "FCP",
+        "unit": "ms",
+    },
+    "experimental_time_to_first_byte": {
+        "good": 800,
+        "poor": 1800,
+        "label": "TTFB",
+        "unit": "ms",
+    },
 }
 
 
@@ -67,7 +90,9 @@ def query_history(
     }
 
     if not validate_url(url_or_origin):
-        result["error"] = "Invalid URL. Only http/https URLs to public hosts are accepted."
+        result["error"] = (
+            "Invalid URL. Only http/https URLs to public hosts are accepted."
+        )
         return result
 
     parsed = urlparse(url_or_origin)
@@ -98,7 +123,9 @@ def query_history(
             return result
 
         if resp.status_code == 429:
-            result["error"] = "CrUX API rate limit exceeded (150 QPM shared). Wait and retry."
+            result["error"] = (
+                "CrUX API rate limit exceeded (150 QPM shared). Wait and retry."
+            )
             return result
 
         resp.raise_for_status()
@@ -114,10 +141,12 @@ def query_history(
     for period in periods:
         first = period.get("firstDate", {})
         last = period.get("lastDate", {})
-        result["collection_periods"].append({
-            "first": f"{first.get('year')}-{first.get('month', 0):02d}-{first.get('day', 0):02d}",
-            "last": f"{last.get('year')}-{last.get('month', 0):02d}-{last.get('day', 0):02d}",
-        })
+        result["collection_periods"].append(
+            {
+                "first": f"{first.get('year')}-{first.get('month', 0):02d}-{first.get('day', 0):02d}",
+                "last": f"{last.get('year')}-{last.get('month', 0):02d}-{last.get('day', 0):02d}",
+            }
+        )
 
     # Metrics timeseries
     for metric_name, metric_data in record.get("metrics", {}).items():
@@ -240,8 +269,12 @@ def detect_trends(metrics: dict) -> dict:
         trends[metric_name] = {
             "direction": direction,
             "change_pct": round(change_pct, 1),
-            "earliest_avg": round(avg_first, 3) if data.get("unit") == "" else round(avg_first),
-            "latest_avg": round(avg_last, 3) if data.get("unit") == "" else round(avg_last),
+            "earliest_avg": round(avg_first, 3)
+            if data.get("unit") == ""
+            else round(avg_first),
+            "latest_avg": round(avg_last, 3)
+            if data.get("unit") == ""
+            else round(avg_last),
             "label": data.get("label", metric_name),
             "data_points": len(valid),
         }
@@ -269,7 +302,8 @@ def main():
         help="Force origin-level query (strip path/query)",
     )
     parser.add_argument(
-        "--json", "-j",
+        "--json",
+        "-j",
         action="store_true",
         help="Output as JSON",
     )
@@ -278,7 +312,10 @@ def main():
 
     api_key = args.api_key or get_api_key()
     if not api_key:
-        print("Error: API key required. Use --api-key or configure GOOGLE_API_KEY.", file=sys.stderr)
+        print(
+            "Error: API key required. Use --api-key or configure GOOGLE_API_KEY.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     target = args.url
@@ -300,7 +337,9 @@ def main():
 
         periods = result.get("collection_periods", [])
         if periods:
-            print(f"Range: {periods[0]['first']} to {periods[-1]['last']} ({len(periods)} weeks)")
+            print(
+                f"Range: {periods[0]['first']} to {periods[-1]['last']} ({len(periods)} weeks)"
+            )
 
         print("\nTrend Analysis:")
         for name, trend in result.get("trends", {}).items():
@@ -310,7 +349,11 @@ def main():
                 print(f"  {label}: Insufficient data")
                 continue
 
-            arrow = {"improving": "IMPROVING", "stable": "STABLE", "degrading": "DEGRADING"}.get(direction, "?")
+            arrow = {
+                "improving": "IMPROVING",
+                "stable": "STABLE",
+                "degrading": "DEGRADING",
+            }.get(direction, "?")
             change = trend.get("change_pct", 0)
             earliest = trend.get("earliest_avg")
             latest = trend.get("latest_avg")

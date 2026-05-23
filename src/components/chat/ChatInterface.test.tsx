@@ -123,7 +123,7 @@ describe('ChatInterface', () => {
         <ChatInterface />
       </BrowserRouter>
     );
-    
+
     expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('message-list')).toBeInTheDocument();
   });

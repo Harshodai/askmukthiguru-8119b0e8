@@ -27,9 +27,12 @@ def _ensure_dir():
 def _sanitize_name(name):
     """Sanitize preset name to prevent path traversal."""
     # Strip path separators and keep only safe characters
-    safe = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
+    safe = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
     if not safe:
-        print("Error: Preset name must contain only letters, numbers, hyphens, and underscores.", file=sys.stderr)
+        print(
+            "Error: Preset name must contain only letters, numbers, hyphens, and underscores.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     return safe
 
@@ -55,7 +58,7 @@ def cmd_list(args):
     _ensure_dir()
     presets = sorted(PRESETS_DIR.glob("*.json"))
     if not presets:
-        print("No presets found. Create one with: presets.py create NAME --style \"...\"")
+        print('No presets found. Create one with: presets.py create NAME --style "..."')
         return
     print(f"Available presets ({len(presets)}):\n")
     for p in presets:
@@ -79,7 +82,10 @@ def cmd_create(args):
     _ensure_dir()
     path = _preset_path(args.name)
     if path.exists():
-        print(f"Error: Preset '{args.name}' already exists. Use a different name.", file=sys.stderr)
+        print(
+            f"Error: Preset '{args.name}' already exists. Use a different name.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     colors = [c.strip() for c in args.colors.split(",")] if args.colors else []
@@ -145,7 +151,12 @@ def main():
     p_delete.add_argument("--confirm", action="store_true", help="Confirm deletion")
 
     args = parser.parse_args()
-    cmds = {"list": cmd_list, "show": cmd_show, "create": cmd_create, "delete": cmd_delete}
+    cmds = {
+        "list": cmd_list,
+        "show": cmd_show,
+        "create": cmd_create,
+        "delete": cmd_delete,
+    }
     cmds[args.command](args)
 
 

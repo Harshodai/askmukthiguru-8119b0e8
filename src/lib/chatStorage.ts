@@ -141,13 +141,13 @@ export const saveConversation = (conversation: Conversation, notify: boolean = t
   try {
     const conversations = loadConversations();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);
-    
+
     if (existingIndex >= 0) {
       conversations[existingIndex] = conversation;
     } else {
       conversations.unshift(conversation);
     }
-    
+
     // Keep only the last MAX_CONVERSATIONS
     const trimmed = conversations.slice(0, MAX_CONVERSATIONS);
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(trimmed));
@@ -271,7 +271,7 @@ export const formatRelativeTime = (date: Date): string => {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;

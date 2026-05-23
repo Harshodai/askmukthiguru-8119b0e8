@@ -228,7 +228,7 @@ const ProfilePage = () => {
               <TabsTrigger value="stats">Insights</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="profile" className="space-y-6 mt-0">
               <Card>
                 <CardHeader>
@@ -246,24 +246,24 @@ const ProfilePage = () => {
                           {getInitials(profile.displayName)}
                         </AvatarFallback>
                       </Avatar>
-                      <button 
+                      <button
                         onClick={() => fileInputRef.current?.click()}
                         className="absolute bottom-0 right-0 p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 transition-transform"
                       >
                         <Camera className="w-4 h-4" />
                       </button>
-                      <input 
+                      <input
                         ref={fileInputRef}
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
                         onChange={handleAvatarPick}
                       />
                     </div>
                     <div className="flex-1 space-y-3 w-full">
                       <div className="space-y-1.5">
                         <Label htmlFor="displayName">Display Name</Label>
-                        <Input 
+                        <Input
                           id="displayName"
                           value={form.displayName}
                           onChange={(e) => patch('displayName', e.target.value)}
@@ -278,10 +278,10 @@ const ProfilePage = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="bio">Your Path & Intention</Label>
-                    <Textarea 
+                    <Textarea
                       id="bio"
                       value={form.bio}
                       onChange={(e) => patch('bio', e.target.value)}
@@ -334,8 +334,8 @@ const ProfilePage = () => {
                 <div className="hidden sm:block">
                   {dirty && <p className="text-xs text-ojas font-medium animate-pulse">Unsaved changes...</p>}
                 </div>
-                <Button 
-                  onClick={handleSave} 
+                <Button
+                  onClick={handleSave}
                   disabled={!dirty}
                   className="w-full sm:w-auto h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-lg shadow-ojas/20 gap-2"
                 >
@@ -470,8 +470,8 @@ const ProfilePage = () => {
                         }}
                         className={cn(
                           "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all",
-                          form.theme === t.value 
-                            ? "bg-ojas/5 border-ojas text-ojas ring-1 ring-ojas/30" 
+                          form.theme === t.value
+                            ? "bg-ojas/5 border-ojas text-ojas ring-1 ring-ojas/30"
                             : "bg-card border-border hover:border-border-hover text-muted-foreground"
                         )}
                       >
@@ -494,19 +494,19 @@ const ProfilePage = () => {
                       <Label>Enable Guru Voice</Label>
                       <p className="text-xs text-muted-foreground">Read teachings aloud automatically</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={form.ttsEnabled}
                       onCheckedChange={(v) => patch('ttsEnabled', v)}
                     />
                   </div>
-                  
+
                   {form.ttsEnabled && (
                     <div className="space-y-4 pt-2">
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <Label>Speech Rate</Label>
                         <span>{form.ttsRate}x</span>
                       </div>
-                      <Slider 
+                      <Slider
                         value={[form.ttsRate]}
                         min={0.5}
                         max={1.5}
@@ -550,14 +550,14 @@ const ProfilePage = () => {
                       </Label>
                       <p className="text-xs text-muted-foreground">Daily notification to find your center</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={form.meditationReminders}
                       onCheckedChange={async (v) => {
                         if (v) {
                           const ok = await requestNotificationPermission();
                           if (!ok) {
-                            toast({ 
-                              title: "Permissions required", 
+                            toast({
+                              title: "Permissions required",
                               description: "Please enable notifications in your browser settings to use reminders.",
                               variant: "destructive"
                             });
@@ -577,7 +577,7 @@ const ProfilePage = () => {
                           {formatTime(form.reminderTimeMinutes)}
                         </Badge>
                       </div>
-                      <Slider 
+                      <Slider
                         value={[form.reminderTimeMinutes]}
                         min={0}
                         max={1439}
@@ -585,9 +585,9 @@ const ProfilePage = () => {
                         onValueChange={([v]) => patch('reminderTimeMinutes', v)}
                       />
                       <div className="flex justify-end pt-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="h-8 text-[11px] gap-2"
                           onClick={() => fireTestReminder(toast)}
                         >

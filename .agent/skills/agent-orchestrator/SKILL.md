@@ -64,4 +64,4 @@ Seal the process:
 - `finishing-a-development-branch`: Squashing, commit messaging, and cleanup.
 
 ### Instructions
-Whenever a prompt is broad or represents an epic level feature, invoke this orchestrator framework to sequentially route to the correct skills above. 
+Whenever a prompt is broad or represents an epic level feature, invoke this orchestrator framework to sequentially route to the correct skills above.

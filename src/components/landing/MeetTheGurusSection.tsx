@@ -7,7 +7,7 @@ export const MeetTheGurusSection = () => {
     <section id="gurus" className="py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-celestial-gradient" />
-      
+
       <div className="relative z-10 container mx-auto px-6">
         {/* Section Header */}
         <motion.div
@@ -22,7 +22,7 @@ export const MeetTheGurusSection = () => {
             <span className="text-gradient-gold">Spiritual Guides</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            The wisdom of Sri Preethaji & Sri Krishnaji, founders of the Oneness Movement, 
+            The wisdom of Sri Preethaji & Sri Krishnaji, founders of the Oneness Movement,
             now accessible through a compassionate AI companion.
           </p>
         </motion.div>
@@ -38,7 +38,7 @@ export const MeetTheGurusSection = () => {
           <div className="glass-card-hover p-8 md:p-12 shadow-lg">
             <div className="flex flex-col md:flex-row gap-8 items-center">
               {/* Guru Photo */}
-              <motion.div 
+              <motion.div
                 className="relative"
                 whileHover={{ scale: 1.02 }}
                 transition={{ duration: 0.3 }}
@@ -66,12 +66,12 @@ export const MeetTheGurusSection = () => {
                   Founders of Ekam & The Oneness Movement
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  For over three decades, Sri Preethaji and Sri Krishnaji have guided millions 
-                  toward inner transformation. Their teachings focus on moving from a "suffering state" 
-                  to a "beautiful state" through consciousness technology that blends ancient yogic 
+                  For over three decades, Sri Preethaji and Sri Krishnaji have guided millions
+                  toward inner transformation. Their teachings focus on moving from a "suffering state"
+                  to a "beautiful state" through consciousness technology that blends ancient yogic
                   wisdom with modern neuroscience.
                 </p>
-                
+
                 {/* Key Teachings */}
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                   {['Beautiful State', 'Consciousness', 'Inner Peace', 'Oneness'].map((tag) => (
@@ -91,7 +91,7 @@ export const MeetTheGurusSection = () => {
               <div className="flex items-start gap-4">
                 <Sparkles className="w-6 h-6 text-ojas flex-shrink-0 mt-1" />
                 <blockquote className="text-lg italic text-foreground">
-                  "When you are in a beautiful state, you become a blessing to everyone around you. 
+                  "When you are in a beautiful state, you become a blessing to everyone around you.
                   Your very presence heals, your words inspire, and your actions create ripples of transformation."
                 </blockquote>
               </div>

@@ -30,19 +30,40 @@ try:
 except ImportError:
     # Fallback: try relative import from scripts/
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from google_auth import get_api_key, load_config, validate_url
+    from google_auth import get_api_key, validate_url
 
 PSI_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 CRUX_ENDPOINT = "https://chromeuxreport.googleapis.com/v1/records:queryRecord"
 
 # Core Web Vitals thresholds (March 2026)
 CWV_THRESHOLDS = {
-    "largest_contentful_paint": {"good": 2500, "poor": 4000, "unit": "ms", "label": "LCP"},
-    "interaction_to_next_paint": {"good": 200, "poor": 500, "unit": "ms", "label": "INP"},
+    "largest_contentful_paint": {
+        "good": 2500,
+        "poor": 4000,
+        "unit": "ms",
+        "label": "LCP",
+    },
+    "interaction_to_next_paint": {
+        "good": 200,
+        "poor": 500,
+        "unit": "ms",
+        "label": "INP",
+    },
     "cumulative_layout_shift": {"good": 0.1, "poor": 0.25, "unit": "", "label": "CLS"},
-    "first_contentful_paint": {"good": 1800, "poor": 3000, "unit": "ms", "label": "FCP"},
-    "experimental_time_to_first_byte": {"good": 800, "poor": 1800, "unit": "ms", "label": "TTFB"},
+    "first_contentful_paint": {
+        "good": 1800,
+        "poor": 3000,
+        "unit": "ms",
+        "label": "FCP",
+    },
+    "experimental_time_to_first_byte": {
+        "good": 800,
+        "poor": 1800,
+        "unit": "ms",
+        "label": "TTFB",
+    },
 }
 
 PSI_METRIC_MAP = {
@@ -104,7 +125,9 @@ def run_pagespeed(
     }
 
     if not validate_url(url):
-        result["error"] = "Invalid URL. Only http/https URLs to public hosts are accepted."
+        result["error"] = (
+            "Invalid URL. Only http/https URLs to public hosts are accepted."
+        )
         return result
 
     if categories is None:
@@ -127,11 +150,15 @@ def run_pagespeed(
         resp.raise_for_status()
         data = resp.json()
     except requests.exceptions.Timeout:
-        result["error"] = "PageSpeed Insights request timed out (120s). The target page may be very slow."
+        result["error"] = (
+            "PageSpeed Insights request timed out (120s). The target page may be very slow."
+        )
         return result
     except requests.exceptions.HTTPError as e:
         if resp.status_code == 429:
-            result["error"] = "PSI rate limit exceeded (240 QPM / 25,000 QPD). Wait and retry."
+            result["error"] = (
+                "PSI rate limit exceeded (240 QPM / 25,000 QPD). Wait and retry."
+            )
         elif resp.status_code == 400:
             result["error"] = f"Invalid URL or parameters: {resp.text}"
         else:
@@ -151,9 +178,12 @@ def run_pagespeed(
     # Lab metrics from Lighthouse audits
     audits = lr.get("audits", {})
     lab_audit_ids = [
-        "first-contentful-paint", "largest-contentful-paint",
-        "total-blocking-time", "cumulative-layout-shift",
-        "speed-index", "interactive",
+        "first-contentful-paint",
+        "largest-contentful-paint",
+        "total-blocking-time",
+        "cumulative-layout-shift",
+        "speed-index",
+        "interactive",
     ]
     for audit_id in lab_audit_ids:
         audit = audits.get(audit_id, {})
@@ -192,34 +222,48 @@ def run_pagespeed(
         if audit.get("details", {}).get("type") == "opportunity":
             savings = audit.get("details", {}).get("overallSavingsMs")
             if savings and savings > 0:
-                result["opportunities"].append({
-                    "id": audit_id,
-                    "title": audit.get("title", audit_id),
-                    "savings_ms": savings,
-                    "description": audit.get("description", ""),
-                })
+                result["opportunities"].append(
+                    {
+                        "id": audit_id,
+                        "title": audit.get("title", audit_id),
+                        "savings_ms": savings,
+                        "description": audit.get("description", ""),
+                    }
+                )
 
     result["opportunities"].sort(key=lambda x: x["savings_ms"], reverse=True)
 
     # Diagnostics (performance bottlenecks)
     diagnostic_ids = [
-        "dom-size", "render-blocking-resources", "uses-long-cache-ttl",
-        "total-byte-weight", "mainthread-work-breakdown", "bootup-time",
-        "font-display", "third-party-summary", "largest-contentful-paint-element",
-        "layout-shifts", "long-tasks", "duplicated-javascript",
-        "legacy-javascript", "unused-javascript", "unused-css-rules",
+        "dom-size",
+        "render-blocking-resources",
+        "uses-long-cache-ttl",
+        "total-byte-weight",
+        "mainthread-work-breakdown",
+        "bootup-time",
+        "font-display",
+        "third-party-summary",
+        "largest-contentful-paint-element",
+        "layout-shifts",
+        "long-tasks",
+        "duplicated-javascript",
+        "legacy-javascript",
+        "unused-javascript",
+        "unused-css-rules",
     ]
     for diag_id in diagnostic_ids:
         audit = audits.get(diag_id, {})
         if audit:
             score = audit.get("score")
-            result["diagnostics"].append({
-                "id": diag_id,
-                "title": audit.get("title", diag_id),
-                "display": audit.get("displayValue", ""),
-                "score": score,
-                "description": audit.get("description", ""),
-            })
+            result["diagnostics"].append(
+                {
+                    "id": diag_id,
+                    "title": audit.get("title", diag_id),
+                    "display": audit.get("displayValue", ""),
+                    "score": score,
+                    "description": audit.get("description", ""),
+                }
+            )
 
     # Failed and warning audits (score < 0.9, excluding opportunities already captured)
     opportunity_ids = {o["id"] for o in result["opportunities"]}
@@ -233,13 +277,15 @@ def run_pagespeed(
             continue
         if audit_id in opportunity_ids:
             continue
-        result["failed_audits"].append({
-            "id": audit_id,
-            "title": audit.get("title", audit_id),
-            "score": score,
-            "display": audit.get("displayValue", ""),
-            "description": audit.get("description", ""),
-        })
+        result["failed_audits"].append(
+            {
+                "id": audit_id,
+                "title": audit.get("title", audit_id),
+                "score": score,
+                "display": audit.get("displayValue", ""),
+                "description": audit.get("description", ""),
+            }
+        )
     result["passed_audits_count"] = passed_count
     result["failed_audits"].sort(key=lambda x: x.get("score", 1))
 
@@ -248,24 +294,28 @@ def run_pagespeed(
     for ref in seo_cat.get("auditRefs", []):
         audit = audits.get(ref.get("id"), {})
         if audit and audit.get("score") is not None:
-            result["seo_audits"].append({
-                "id": ref["id"],
-                "title": audit.get("title", ref["id"]),
-                "score": audit["score"],
-                "pass": audit["score"] >= 0.9,
-            })
+            result["seo_audits"].append(
+                {
+                    "id": ref["id"],
+                    "title": audit.get("title", ref["id"]),
+                    "score": audit["score"],
+                    "pass": audit["score"] >= 0.9,
+                }
+            )
 
     # Accessibility audits from the accessibility category
     a11y_cat = lr.get("categories", {}).get("accessibility", {})
     for ref in a11y_cat.get("auditRefs", []):
         audit = audits.get(ref.get("id"), {})
         if audit and audit.get("score") is not None and audit["score"] < 0.9:
-            result["accessibility_audits"].append({
-                "id": ref["id"],
-                "title": audit.get("title", ref["id"]),
-                "score": audit["score"],
-                "display": audit.get("displayValue", ""),
-            })
+            result["accessibility_audits"].append(
+                {
+                    "id": ref["id"],
+                    "title": audit.get("title", ref["id"]),
+                    "score": audit["score"],
+                    "display": audit.get("displayValue", ""),
+                }
+            )
 
     # Audit details: extract top items from audits with details.items[]
     # This captures WHICH specific resources are problems (e.g., "hero.jpg is 2MB")
@@ -323,7 +373,9 @@ def query_crux(
     }
 
     if not validate_url(url_or_origin):
-        result["error"] = "Invalid URL. Only http/https URLs to public hosts are accepted."
+        result["error"] = (
+            "Invalid URL. Only http/https URLs to public hosts are accepted."
+        )
         return result
 
     parsed = urlparse(url_or_origin)
@@ -355,7 +407,9 @@ def query_crux(
             return result
 
         if resp.status_code == 429:
-            result["error"] = "CrUX API rate limit exceeded (150 QPM shared with History API). Wait and retry."
+            result["error"] = (
+                "CrUX API rate limit exceeded (150 QPM shared with History API). Wait and retry."
+            )
             return result
 
         resp.raise_for_status()
@@ -466,7 +520,9 @@ def combined_check(
             origin_result = query_crux(origin, api_key)
             if not origin_result.get("error"):
                 result["crux"] = origin_result
-                result["crux"]["note"] = "URL-level data unavailable; showing origin-level data"
+                result["crux"]["note"] = (
+                    "URL-level data unavailable; showing origin-level data"
+                )
 
     return result
 
@@ -477,7 +533,8 @@ def main():
     )
     parser.add_argument("url", help="URL to analyze")
     parser.add_argument(
-        "--strategy", "-s",
+        "--strategy",
+        "-s",
         choices=["mobile", "desktop", "both"],
         default="both",
         help="Analysis strategy (default: both)",
@@ -502,7 +559,8 @@ def main():
         help="CrUX form factor filter",
     )
     parser.add_argument(
-        "--json", "-j",
+        "--json",
+        "-j",
         action="store_true",
         help="Output as JSON",
     )
@@ -513,14 +571,21 @@ def main():
 
     if args.crux_only:
         if not api_key:
-            print("Error: CrUX API requires an API key. Use --api-key or configure GOOGLE_API_KEY.", file=sys.stderr)
+            print(
+                "Error: CrUX API requires an API key. Use --api-key or configure GOOGLE_API_KEY.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         result = query_crux(args.url, api_key, form_factor=args.form_factor)
     elif args.psi_only:
-        strategies = ["mobile", "desktop"] if args.strategy == "both" else [args.strategy]
+        strategies = (
+            ["mobile", "desktop"] if args.strategy == "both" else [args.strategy]
+        )
         result = {"psi": {}}
         for strat in strategies:
-            result["psi"][strat] = run_pagespeed(args.url, strategy=strat, api_key=api_key)
+            result["psi"][strat] = run_pagespeed(
+                args.url, strategy=strat, api_key=api_key
+            )
     else:
         result = combined_check(args.url, api_key=api_key, strategy=args.strategy)
 
@@ -577,15 +642,17 @@ def _print_psi_summary(psi: dict):
     if failed:
         print(f"\nFailed/Warning Audits ({len(failed)}):")
         for a in failed[:10]:
-            score_pct = f"{a['score']:.0%}" if a['score'] is not None else "?"
+            score_pct = f"{a['score']:.0%}" if a["score"] is not None else "?"
             print(f"  [{score_pct}] {a['title']} {a.get('display', '')}")
 
     diags = psi.get("diagnostics", [])
-    notable_diags = [d for d in diags if d.get("score") is not None and d["score"] < 0.9]
+    notable_diags = [
+        d for d in diags if d.get("score") is not None and d["score"] < 0.9
+    ]
     if notable_diags:
-        print(f"\nDiagnostics (needs attention):")
+        print("\nDiagnostics (needs attention):")
         for d in notable_diags[:5]:
-            score_pct = f"{d['score']:.0%}" if d['score'] is not None else "info"
+            score_pct = f"{d['score']:.0%}" if d["score"] is not None else "info"
             print(f"  [{score_pct}] {d['title']}: {d.get('display', '')}")
 
     seo = psi.get("seo_audits", [])
@@ -634,16 +701,24 @@ def _print_crux_summary(crux: dict):
             rating = data.get("rating", "?")
             good = data.get("good_threshold")
 
-            rating_icon = {"good": "GOOD", "needs-improvement": "NEEDS IMPROVEMENT", "poor": "POOR"}.get(rating, "?")
+            rating_icon = {
+                "good": "GOOD",
+                "needs-improvement": "NEEDS IMPROVEMENT",
+                "poor": "POOR",
+            }.get(rating, "?")
 
             if name == "cumulative_layout_shift":
                 print(f"  {label}: {p75:.3f} [{rating_icon}] (threshold: <={good})")
             else:
-                print(f"  {label}: {p75}{unit} [{rating_icon}] (threshold: <={good}{unit})")
+                print(
+                    f"  {label}: {p75}{unit} [{rating_icon}] (threshold: <={good}{unit})"
+                )
 
             dist = data.get("distribution")
             if dist:
-                print(f"       Good: {dist['good']}% | NI: {dist['needs_improvement']}% | Poor: {dist['poor']}%")
+                print(
+                    f"       Good: {dist['good']}% | NI: {dist['needs_improvement']}% | Poor: {dist['poor']}%"
+                )
 
 
 if __name__ == "__main__":

@@ -15,7 +15,6 @@ import argparse
 import json
 import sys
 import time
-from typing import Optional
 
 try:
     from googleapiclient.discovery import build
@@ -31,6 +30,7 @@ try:
     from google_auth import get_oauth_credentials, load_config
 except ImportError:
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import get_oauth_credentials, load_config
 
@@ -84,7 +84,9 @@ def inspect_url(
 
     service = _build_inspection_service()
     if not service:
-        result["error"] = "Could not build GSC service. Check service account credentials."
+        result["error"] = (
+            "Could not build GSC service. Check service account credentials."
+        )
         return result
 
     body = {
@@ -136,7 +138,8 @@ def inspect_url(
         "google_canonical": idx.get("googleCanonical"),
         "user_canonical": idx.get("userCanonical"),
         "match": idx.get("googleCanonical") == idx.get("userCanonical")
-        if idx.get("googleCanonical") and idx.get("userCanonical") else None,
+        if idx.get("googleCanonical") and idx.get("userCanonical")
+        else None,
     }
 
     # Mobile usability (deprecated April 2023 but may still return data)
@@ -241,11 +244,13 @@ def main():
     )
     parser.add_argument("url", nargs="?", help="URL to inspect")
     parser.add_argument(
-        "--site-url", "-s",
+        "--site-url",
+        "-s",
         help="GSC property (e.g., sc-domain:example.com). Uses default from config if not specified.",
     )
     parser.add_argument(
-        "--batch", "-b",
+        "--batch",
+        "-b",
         help="File with URLs to inspect (one per line)",
     )
     parser.add_argument(
@@ -264,7 +269,10 @@ def main():
         config = load_config()
         site_url = config.get("default_property")
     if not site_url:
-        print("Error: No site URL specified. Use --site-url or set default_property in config.", file=sys.stderr)
+        print(
+            "Error: No site URL specified. Use --site-url or set default_property in config.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.batch:
@@ -288,19 +296,25 @@ def main():
     else:
         if args.batch:
             summary = result.get("summary", {})
-            print(f"=== URL Inspection Batch Results ===")
+            print("=== URL Inspection Batch Results ===")
             print(f"Property: {site_url}")
-            print(f"Total: {result.get('total', 0)} | Pass: {summary.get('pass', 0)} | Fail: {summary.get('fail', 0)} | Errors: {summary.get('error', 0)}")
+            print(
+                f"Total: {result.get('total', 0)} | Pass: {summary.get('pass', 0)} | Fail: {summary.get('fail', 0)} | Errors: {summary.get('error', 0)}"
+            )
             print()
             for r in result.get("results", []):
                 verdict = r.get("verdict", "?")
-                status = {"PASS": "OK", "FAIL": "FAIL", "NEUTRAL": "--"}.get(verdict, "ERR")
+                status = {"PASS": "OK", "FAIL": "FAIL", "NEUTRAL": "--"}.get(
+                    verdict, "ERR"
+                )
                 print(f"  [{status}] {r.get('url')}")
                 if r.get("error"):
                     print(f"       Error: {r['error']}")
                 elif verdict == "FAIL":
                     idx = r.get("index_status", {})
-                    print(f"       Coverage: {idx.get('coverage_state')} | Fetch: {idx.get('page_fetch_state')}")
+                    print(
+                        f"       Coverage: {idx.get('coverage_state')} | Fetch: {idx.get('page_fetch_state')}"
+                    )
         else:
             if result.get("error"):
                 print(f"Error: {result['error']}", file=sys.stderr)
@@ -312,7 +326,7 @@ def main():
 
             idx = result.get("index_status", {})
             if idx:
-                print(f"\nIndex Status:")
+                print("\nIndex Status:")
                 print(f"  Coverage: {idx.get('coverage_state')}")
                 print(f"  Robots.txt: {idx.get('robots_txt_state')}")
                 print(f"  Indexing: {idx.get('indexing_state')}")
@@ -322,7 +336,7 @@ def main():
 
             canon = result.get("canonical", {})
             if canon:
-                print(f"\nCanonical:")
+                print("\nCanonical:")
                 print(f"  Google: {canon.get('google_canonical', 'N/A')}")
                 print(f"  User: {canon.get('user_canonical', 'N/A')}")
                 match = canon.get("match")

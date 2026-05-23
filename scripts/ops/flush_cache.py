@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
+import logging
 import os
 import shutil
-import logging
 from pathlib import Path
 
 # Basic logging without external dependencies
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def flush_gptcache():
     """Delete the GPTCache SQLite database and data directory."""
@@ -22,13 +23,14 @@ def flush_gptcache():
         else:
             logger.info(f"ℹ️ GPTCache directory '{cache_dir}' not found.")
 
+
 def main():
-    print("\n" + "═"*50)
+    print("\n" + "═" * 50)
     print("  🧹  AskMukthiGuru Cache Flusher (Minimal)")
-    print("═"*50 + "\n")
-    
+    print("═" * 50 + "\n")
+
     flush_gptcache()
-    
+
     # Try to flush redis if available via shell
     try:
         os.system("redis-cli flushall")
@@ -36,9 +38,10 @@ def main():
     except:
         pass
 
-    print("\n" + "═"*50)
+    print("\n" + "═" * 50)
     print("  ✨  Core caches flushed.")
-    print("═"*50 + "\n")
+    print("═" * 50 + "\n")
+
 
 if __name__ == "__main__":
     main()

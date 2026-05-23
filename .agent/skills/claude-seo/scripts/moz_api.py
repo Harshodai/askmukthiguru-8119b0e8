@@ -17,7 +17,6 @@ import argparse
 import json
 import sys
 import time
-from typing import Optional
 
 try:
     import requests
@@ -27,13 +26,17 @@ except ImportError:
 
 # Import credential helpers (same directory)
 import os
+
 _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _SCRIPTS_DIR)
 try:
     from backlinks_auth import get_moz_api_key, load_config
     from google_auth import validate_url
 except ImportError:
-    print("Error: backlinks_auth.py and google_auth.py required in scripts/", file=sys.stderr)
+    print(
+        "Error: backlinks_auth.py and google_auth.py required in scripts/",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 MOZ_BASE = "https://api.moz.com"
@@ -57,6 +60,7 @@ def _rate_limit():
         with open(RATE_LIMIT_FILE, "a+") as f:
             try:
                 import fcntl
+
                 fcntl.flock(f, fcntl.LOCK_EX)
             except (ImportError, OSError):
                 pass  # Windows or lock unavailable — skip locking
@@ -133,7 +137,9 @@ def _moz_request(path: str, body: dict, api_key: str) -> dict:
         if response.status_code >= 400:
             try:
                 err_body = response.json()
-                err_msg = err_body.get("error") or err_body.get("message") or response.text
+                err_msg = (
+                    err_body.get("error") or err_body.get("message") or response.text
+                )
             except ValueError:
                 err_msg = response.text or f"HTTP {response.status_code}"
             return {
@@ -230,13 +236,15 @@ def get_linking_domains(url: str, api_key: str, limit: int = 50) -> dict:
         domains = []
         for item in results_list:
             to_target = item.get("to_target", {}) or {}
-            domains.append({
-                "domain": item.get("root_domain", ""),
-                "domain_authority": item.get("domain_authority"),
-                "page_authority": None,
-                "spam_score": item.get("spam_score"),
-                "links_to_target": to_target.get("pages", 1),
-            })
+            domains.append(
+                {
+                    "domain": item.get("root_domain", ""),
+                    "domain_authority": item.get("domain_authority"),
+                    "page_authority": None,
+                    "spam_score": item.get("spam_score"),
+                    "links_to_target": to_target.get("pages", 1),
+                }
+            )
         result["data"] = {
             "target": url,
             "total_returned": len(domains),
@@ -270,11 +278,13 @@ def get_anchor_text(url: str, api_key: str, limit: int = 50) -> dict:
         results_list = result["data"].get("results") or []
         anchors = []
         for item in results_list:
-            anchors.append({
-                "anchor_text": item.get("anchor_text", ""),
-                "external_links": item.get("external_pages", 0),
-                "linking_domains": item.get("external_root_domains", 0),
-            })
+            anchors.append(
+                {
+                    "anchor_text": item.get("anchor_text", ""),
+                    "external_links": item.get("external_pages", 0),
+                    "linking_domains": item.get("external_root_domains", 0),
+                }
+            )
         result["data"] = {
             "target": url,
             "total_returned": len(anchors),
@@ -308,12 +318,14 @@ def get_top_pages(domain: str, api_key: str, limit: int = 50) -> dict:
         results_list = result["data"].get("results") or []
         pages = []
         for item in results_list:
-            pages.append({
-                "url": item.get("page", ""),
-                "page_authority": item.get("page_authority"),
-                "links": item.get("external_pages_to_page", 0),
-                "linking_domains": item.get("root_domains_to_page", 0),
-            })
+            pages.append(
+                {
+                    "url": item.get("page", ""),
+                    "page_authority": item.get("page_authority"),
+                    "links": item.get("external_pages_to_page", 0),
+                    "linking_domains": item.get("root_domains_to_page", 0),
+                }
+            )
         result["data"] = {
             "domain": domain,
             "total_returned": len(pages),
@@ -391,7 +403,11 @@ def main():
     elif args.command == "pages":
         result = get_top_pages(target, api_key, limit=args.limit)
     else:
-        result = {"status": "error", "data": None, "error": f"Unknown command: {args.command}"}
+        result = {
+            "status": "error",
+            "data": None,
+            "error": f"Unknown command: {args.command}",
+        }
 
     # Output
     if args.json:
@@ -407,17 +423,29 @@ def main():
                 print(f"  Linking Domains:  {data.get('linking_root_domains', 'N/A')}")
                 print(f"  External Links:   {data.get('external_links', 'N/A')}")
             elif args.command == "domains":
-                print(f"Referring Domains for: {data.get('target', target)} ({data.get('total_returned', 0)} returned)")
+                print(
+                    f"Referring Domains for: {data.get('target', target)} ({data.get('total_returned', 0)} returned)"
+                )
                 for d in data.get("referring_domains", [])[:20]:
-                    print(f"  {d.get('domain', '?'):40s} DA={d.get('domain_authority', '?'):>5} links={d.get('links_to_target', '?')}")
+                    print(
+                        f"  {d.get('domain', '?'):40s} DA={d.get('domain_authority', '?'):>5} links={d.get('links_to_target', '?')}"
+                    )
             elif args.command == "anchors":
-                print(f"Anchor Text for: {data.get('target', target)} ({data.get('total_returned', 0)} returned)")
+                print(
+                    f"Anchor Text for: {data.get('target', target)} ({data.get('total_returned', 0)} returned)"
+                )
                 for a in data.get("anchor_texts", [])[:20]:
-                    print(f"  {a.get('anchor_text', '?'):50s} links={a.get('external_links', '?')} domains={a.get('linking_domains', '?')}")
+                    print(
+                        f"  {a.get('anchor_text', '?'):50s} links={a.get('external_links', '?')} domains={a.get('linking_domains', '?')}"
+                    )
             elif args.command == "pages":
-                print(f"Top Pages for: {data.get('domain', target)} ({data.get('total_returned', 0)} returned)")
+                print(
+                    f"Top Pages for: {data.get('domain', target)} ({data.get('total_returned', 0)} returned)"
+                )
                 for p in data.get("top_pages", [])[:20]:
-                    print(f"  PA={p.get('page_authority', '?'):>5} links={p.get('links', '?'):>6} {p.get('url', '?')}")
+                    print(
+                        f"  PA={p.get('page_authority', '?'):>5} links={p.get('links', '?'):>6} {p.get('url', '?')}"
+                    )
         elif result["error"]:
             print(f"Error: {result['error']}", file=sys.stderr)
         else:

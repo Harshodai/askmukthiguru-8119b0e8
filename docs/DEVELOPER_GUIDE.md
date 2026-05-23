@@ -346,6 +346,6 @@ import os
 # Spawns caffeinate bound to the Python process PID
 caffeinate_proc = subprocess.Popen(["caffeinate", "-w", str(os.getpid())])
 ```
-This forces the host system to maintain full CPU, disk, and network activity exactly for the lifespan of the parent ingestion process. 
+This forces the host system to maintain full CPU, disk, and network activity exactly for the lifespan of the parent ingestion process.
 
 Additionally, the pipeline writes successful step signatures to `scripts/ingestion_state.json`. If execution is manually aborted or interrupted by network dropouts, running the script again will resume exactly where it left off, avoiding redundant compute.

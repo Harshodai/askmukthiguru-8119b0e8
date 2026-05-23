@@ -32,6 +32,7 @@ try:
     from google_auth import get_oauth_credentials, load_config
 except ImportError:
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import get_oauth_credentials, load_config
 
@@ -87,7 +88,9 @@ def query_search_analytics(
 
     service = _build_gsc_service()
     if not service:
-        result["error"] = "Could not build GSC service. Check service account credentials."
+        result["error"] = (
+            "Could not build GSC service. Check service account credentials."
+        )
         return result
 
     if not start_date:
@@ -121,9 +124,9 @@ def query_search_analytics(
             body["startRow"] = start_row
             body["rowLimit"] = page_size
 
-            response = service.searchanalytics().query(
-                siteUrl=site_url, body=body
-            ).execute()
+            response = (
+                service.searchanalytics().query(siteUrl=site_url, body=body).execute()
+            )
 
             rows = response.get("rows", [])
             all_rows.extend(rows)
@@ -191,18 +194,22 @@ def query_search_analytics(
 
     # Quick wins: position 4-10 with high impressions
     if "query" in dimensions:
-        sorted_by_impressions = sorted(all_rows, key=lambda r: r.get("impressions", 0), reverse=True)
+        sorted_by_impressions = sorted(
+            all_rows, key=lambda r: r.get("impressions", 0), reverse=True
+        )
         for row in sorted_by_impressions[:200]:
             pos = row.get("position", 0)
             if 4 <= pos <= 10 and row.get("impressions", 0) > 50:
-                result["quick_wins"].append({
-                    "keys": row.get("keys", []),
-                    "position": round(pos, 1),
-                    "impressions": row.get("impressions", 0),
-                    "clicks": row.get("clicks", 0),
-                    "ctr": round(row.get("ctr", 0) * 100, 2),
-                    "opportunity": "Position 4-10 with high impressions -- small ranking improvement yields significant traffic gain",
-                })
+                result["quick_wins"].append(
+                    {
+                        "keys": row.get("keys", []),
+                        "position": round(pos, 1),
+                        "impressions": row.get("impressions", 0),
+                        "clicks": row.get("clicks", 0),
+                        "ctr": round(row.get("ctr", 0) * 100, 2),
+                        "opportunity": "Position 4-10 with high impressions -- small ranking improvement yields significant traffic gain",
+                    }
+                )
 
         result["quick_wins"] = result["quick_wins"][:20]
 
@@ -229,16 +236,18 @@ def list_sitemaps(site_url: str) -> dict:
     try:
         response = service.sitemaps().list(siteUrl=site_url).execute()
         for sm in response.get("sitemap", []):
-            result["sitemaps"].append({
-                "path": sm.get("path"),
-                "last_submitted": sm.get("lastSubmitted"),
-                "is_pending": sm.get("isPending"),
-                "is_index": sm.get("isSitemapsIndex"),
-                "type": sm.get("type"),
-                "warnings": sm.get("warnings", 0),
-                "errors": sm.get("errors", 0),
-                "contents": sm.get("contents", []),
-            })
+            result["sitemaps"].append(
+                {
+                    "path": sm.get("path"),
+                    "last_submitted": sm.get("lastSubmitted"),
+                    "is_pending": sm.get("isPending"),
+                    "is_index": sm.get("isSitemapsIndex"),
+                    "type": sm.get("type"),
+                    "warnings": sm.get("warnings", 0),
+                    "errors": sm.get("errors", 0),
+                    "contents": sm.get("contents", []),
+                }
+            )
     except Exception as e:
         result["error"] = f"Error listing sitemaps: {e}"
 
@@ -262,10 +271,12 @@ def list_sites() -> dict:
     try:
         response = service.sites().list().execute()
         for site in response.get("siteEntry", []):
-            result["sites"].append({
-                "url": site.get("siteUrl"),
-                "permission": site.get("permissionLevel"),
-            })
+            result["sites"].append(
+                {
+                    "url": site.get("siteUrl"),
+                    "permission": site.get("permissionLevel"),
+                }
+            )
     except Exception as e:
         result["error"] = f"Error listing sites: {e}"
 
@@ -284,10 +295,13 @@ def main():
         help="Command: query (default), sitemaps, sites",
     )
     parser.add_argument(
-        "--property", "-p",
+        "--property",
+        "-p",
         help="GSC property (e.g., sc-domain:example.com). Uses default from config if not specified.",
     )
-    parser.add_argument("--days", "-d", type=int, default=28, help="Number of days (default: 28)")
+    parser.add_argument(
+        "--days", "-d", type=int, default=28, help="Number of days (default: 28)"
+    )
     parser.add_argument("--start-date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date (YYYY-MM-DD)")
     parser.add_argument(
@@ -296,13 +310,17 @@ def main():
         help="Comma-separated dimensions (default: query,page)",
     )
     parser.add_argument("--type", default="web", help="Search type (default: web)")
-    parser.add_argument("--limit", type=int, default=1000, help="Row limit (default: 1000)")
+    parser.add_argument(
+        "--limit", type=int, default=1000, help="Row limit (default: 1000)"
+    )
     parser.add_argument(
         "--device",
         choices=["desktop", "mobile", "tablet"],
         help="Filter by device type",
     )
-    parser.add_argument("--country", help="Filter by country (ISO 3166-1 alpha-3, e.g., USA)")
+    parser.add_argument(
+        "--country", help="Filter by country (ISO 3166-1 alpha-3, e.g., USA)"
+    )
     parser.add_argument("--json", "-j", action="store_true", help="Output as JSON")
 
     args = parser.parse_args()
@@ -313,7 +331,10 @@ def main():
         config = load_config()
         prop = config.get("default_property")
     if not prop and args.command != "sites":
-        print("Error: No property specified. Use --property or set default_property in config.", file=sys.stderr)
+        print(
+            "Error: No property specified. Use --property or set default_property in config.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.command == "sites":
@@ -321,25 +342,35 @@ def main():
     elif args.command == "sitemaps":
         result = list_sitemaps(prop)
     else:
-        start = args.start_date or (datetime.now() - timedelta(days=args.days)).strftime("%Y-%m-%d")
+        start = args.start_date or (
+            datetime.now() - timedelta(days=args.days)
+        ).strftime("%Y-%m-%d")
         end = args.end_date or (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
         dims = [d.strip() for d in args.dimensions.split(",")]
         filters = []
         if args.device:
-            filters.append({
-                "dimension": "device",
-                "operator": "equals",
-                "expression": args.device.upper(),
-            })
+            filters.append(
+                {
+                    "dimension": "device",
+                    "operator": "equals",
+                    "expression": args.device.upper(),
+                }
+            )
         if args.country:
-            filters.append({
-                "dimension": "country",
-                "operator": "equals",
-                "expression": args.country.upper(),
-            })
+            filters.append(
+                {
+                    "dimension": "country",
+                    "operator": "equals",
+                    "expression": args.country.upper(),
+                }
+            )
         result = query_search_analytics(
-            prop, start_date=start, end_date=end,
-            dimensions=dims, search_type=args.type, row_limit=args.limit,
+            prop,
+            start_date=start,
+            end_date=end,
+            dimensions=dims,
+            search_type=args.type,
+            row_limit=args.limit,
             filters=filters if filters else None,
         )
 
@@ -359,19 +390,27 @@ def main():
             print(f"=== Sitemaps for {prop} ===")
             for sm in result.get("sitemaps", []):
                 status = "pending" if sm.get("is_pending") else "processed"
-                print(f"  {sm['path']} [{status}] errors={sm.get('errors', 0)} warnings={sm.get('warnings', 0)}")
+                print(
+                    f"  {sm['path']} [{status}] errors={sm.get('errors', 0)} warnings={sm.get('warnings', 0)}"
+                )
         else:
             totals = result.get("totals", {})
             print(f"=== Search Analytics: {prop} ===")
-            print(f"Period: {result.get('date_range', {}).get('start')} to {result.get('date_range', {}).get('end')}")
-            print(f"Clicks: {totals.get('clicks', 0):,} | Impressions: {totals.get('impressions', 0):,} | CTR: {totals.get('ctr', 0)}% | Rows: {result.get('row_count', 0)}")
+            print(
+                f"Period: {result.get('date_range', {}).get('start')} to {result.get('date_range', {}).get('end')}"
+            )
+            print(
+                f"Clicks: {totals.get('clicks', 0):,} | Impressions: {totals.get('impressions', 0):,} | CTR: {totals.get('ctr', 0)}% | Rows: {result.get('row_count', 0)}"
+            )
 
             qw = result.get("quick_wins", [])
             if qw:
                 print(f"\nQuick Wins ({len(qw)} found):")
                 for w in qw[:10]:
                     keys = " | ".join(w.get("keys", []))
-                    print(f"  Pos {w['position']} | {w['impressions']:,} imp | {w['clicks']} clicks | {keys}")
+                    print(
+                        f"  Pos {w['position']} | {w['impressions']:,} imp | {w['clicks']} clicks | {keys}"
+                    )
 
 
 if __name__ == "__main__":

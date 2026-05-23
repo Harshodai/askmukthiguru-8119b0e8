@@ -16,9 +16,9 @@ Or from host:
     docker exec mukthiguru-backend python3 scripts/ingest_youtube_seeds.py
 """
 
-import sys
-import os
 import asyncio
+import os
+import sys
 import time
 
 # Add backend to python path
@@ -136,7 +136,7 @@ async def main():
     # Summary
     elapsed = time.time() - start_time
     print(f"\n{'='*70}")
-    print(f"INGESTION COMPLETE")
+    print("INGESTION COMPLETE")
     print(f"{'='*70}")
     print(f"  Playlists processed: {results['playlists_done']}/{len(PLAYLIST_URLS)}")
     print(f"  Videos succeeded:    {results['total_videos_ok']}")

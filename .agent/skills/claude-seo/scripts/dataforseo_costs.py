@@ -26,7 +26,6 @@ Security fixes: config path corrected to ~/.config/claude-seo/
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -185,10 +184,7 @@ def _today_str():
 def _today_spend(ledger):
     """Calculate today's total spend."""
     today = _today_str()
-    return sum(
-        e["cost"] for e in ledger["entries"]
-        if e["timestamp"].startswith(today)
-    )
+    return sum(e["cost"] for e in ledger["entries"] if e["timestamp"].startswith(today))
 
 
 def cmd_estimate(args):
@@ -205,13 +201,13 @@ def cmd_estimate(args):
                 "status": "unknown_endpoint",
                 "endpoint": endpoint,
                 "suggestions": matches,
-                "message": f"Unknown endpoint '{endpoint}'. Did you mean: {', '.join(matches)}?"
+                "message": f"Unknown endpoint '{endpoint}'. Did you mean: {', '.join(matches)}?",
             }
         else:
             result = {
                 "status": "unknown_endpoint",
                 "endpoint": endpoint,
-                "message": f"Unknown endpoint '{endpoint}'. Cost not in database."
+                "message": f"Unknown endpoint '{endpoint}'. Cost not in database.",
             }
         json.dump(result, sys.stdout, indent=2)
         return
@@ -258,7 +254,7 @@ def cmd_check(args):
             "today_spend_usd": round(today_total, 4),
             "this_call_usd": round(total, 4),
             "daily_limit_usd": daily_limit,
-            "message": f"Daily limit ${daily_limit:.2f} would be exceeded. Today's spend: ${today_total:.2f}, this call: ${total:.2f}."
+            "message": f"Daily limit ${daily_limit:.2f} would be exceeded. Today's spend: ${today_total:.2f}, this call: ${total:.2f}.",
         }
         json.dump(result, sys.stdout, indent=2)
         return
@@ -374,7 +370,10 @@ def cmd_today(args):
         "daily_limit_usd": daily_limit,
         "remaining_usd": round(daily_limit - total, 4),
         "calls": len(today_entries),
-        "by_endpoint": {k: {"cost_usd": round(v["cost"], 4), "calls": v["calls"]} for k, v in by_endpoint.items()},
+        "by_endpoint": {
+            k: {"cost_usd": round(v["cost"], 4), "calls": v["calls"]}
+            for k, v in by_endpoint.items()
+        },
     }
     json.dump(result, sys.stdout, indent=2)
 
@@ -386,7 +385,14 @@ def cmd_config(args):
     changed = False
     if args.mode:
         if args.mode not in ("always", "threshold", "none"):
-            print(json.dumps({"status": "error", "message": "Mode must be: always, threshold, or none"}))
+            print(
+                json.dumps(
+                    {
+                        "status": "error",
+                        "message": "Mode must be: always, threshold, or none",
+                    }
+                )
+            )
             sys.exit(1)
         cfg["mode"] = args.mode
         changed = True
@@ -423,15 +429,19 @@ def cmd_reset(args):
     removed_total = sum(e["cost"] for e in today_entries)
     removed_count = len(today_entries)
 
-    ledger["entries"] = [e for e in ledger["entries"] if not e["timestamp"].startswith(today)]
+    ledger["entries"] = [
+        e for e in ledger["entries"] if not e["timestamp"].startswith(today)
+    ]
 
     # Immutable audit entry for the reset itself
-    ledger["entries"].append({
-        "timestamp": datetime.now().isoformat(),
-        "endpoint": "_audit_reset",
-        "cost": 0,
-        "note": f"Reset cleared {removed_count} entries totaling ${removed_total:.4f}",
-    })
+    ledger["entries"].append(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "endpoint": "_audit_reset",
+            "cost": 0,
+            "note": f"Reset cleared {removed_count} entries totaling ${removed_total:.4f}",
+        }
+    )
 
     _save_ledger(ledger)
 
@@ -481,7 +491,9 @@ def main():
 
     # reset
     p_reset = sub.add_parser("reset", help="Reset today's ledger entries")
-    p_reset.add_argument("--confirm", action="store_true", help="Confirm reset (required)")
+    p_reset.add_argument(
+        "--confirm", action="store_true", help="Confirm reset (required)"
+    )
 
     args = parser.parse_args()
     dispatch = {

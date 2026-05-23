@@ -24,13 +24,34 @@ DEFAULT_RATIO = "1:1"
 OUTPUT_DIR = Path.home() / "Documents" / "nanobanana_generated"
 API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
-VALID_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2",
-                "4:5", "5:4", "1:4", "4:1", "1:8", "8:1", "21:9"}
+VALID_RATIOS = {
+    "1:1",
+    "16:9",
+    "9:16",
+    "4:3",
+    "3:4",
+    "2:3",
+    "3:2",
+    "4:5",
+    "5:4",
+    "1:4",
+    "4:1",
+    "1:8",
+    "8:1",
+    "21:9",
+}
 VALID_RESOLUTIONS = {"512", "1K", "2K", "4K"}
 
 
-def generate_image(prompt, model, aspect_ratio, resolution, api_key,
-                   thinking_level=None, image_only=False):
+def generate_image(
+    prompt,
+    model,
+    aspect_ratio,
+    resolution,
+    api_key,
+    thinking_level=None,
+    image_only=False,
+):
     """Call Gemini API to generate an image."""
     url = f"{API_BASE}/{model}:generateContent?key={api_key}"
 
@@ -72,7 +93,14 @@ def generate_image(prompt, model, aspect_ratio, resolution, api_key,
     candidates = result.get("candidates", [])
     if not candidates:
         finish_reason = result.get("promptFeedback", {}).get("blockReason", "UNKNOWN")
-        print(json.dumps({"error": True, "message": f"No candidates returned. Reason: {finish_reason}"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": f"No candidates returned. Reason: {finish_reason}",
+                }
+            )
+        )
         sys.exit(1)
 
     parts = candidates[0].get("content", {}).get("parts", [])
@@ -87,7 +115,14 @@ def generate_image(prompt, model, aspect_ratio, resolution, api_key,
 
     if not image_data:
         finish_reason = candidates[0].get("finishReason", "UNKNOWN")
-        print(json.dumps({"error": True, "message": f"No image in response. finishReason: {finish_reason}"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": f"No image in response. finishReason: {finish_reason}",
+                }
+            )
+        )
         sys.exit(1)
 
     # Save image
@@ -111,26 +146,72 @@ def generate_image(prompt, model, aspect_ratio, resolution, api_key,
 def main():
     parser = argparse.ArgumentParser(description="Generate images via Gemini REST API")
     parser.add_argument("--prompt", required=True, help="Image generation prompt")
-    parser.add_argument("--aspect-ratio", default=DEFAULT_RATIO, help=f"Aspect ratio (default: {DEFAULT_RATIO})")
-    parser.add_argument("--resolution", default=DEFAULT_RESOLUTION, help=f"Resolution: 512, 1K, 2K, 4K (default: {DEFAULT_RESOLUTION})")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model ID (default: {DEFAULT_MODEL})")
-    parser.add_argument("--api-key", default=None, help="Google AI API key (or set GOOGLE_AI_API_KEY env)")
-    parser.add_argument("--thinking", default=None, choices=["minimal", "low", "medium", "high"], help="Thinking level")
-    parser.add_argument("--image-only", action="store_true", help="Return image only (no text)")
+    parser.add_argument(
+        "--aspect-ratio",
+        default=DEFAULT_RATIO,
+        help=f"Aspect ratio (default: {DEFAULT_RATIO})",
+    )
+    parser.add_argument(
+        "--resolution",
+        default=DEFAULT_RESOLUTION,
+        help=f"Resolution: 512, 1K, 2K, 4K (default: {DEFAULT_RESOLUTION})",
+    )
+    parser.add_argument(
+        "--model", default=DEFAULT_MODEL, help=f"Model ID (default: {DEFAULT_MODEL})"
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Google AI API key (or set GOOGLE_AI_API_KEY env)",
+    )
+    parser.add_argument(
+        "--thinking",
+        default=None,
+        choices=["minimal", "low", "medium", "high"],
+        help="Thinking level",
+    )
+    parser.add_argument(
+        "--image-only", action="store_true", help="Return image only (no text)"
+    )
 
     args = parser.parse_args()
 
     if args.aspect_ratio not in VALID_RATIOS:
-        print(json.dumps({"error": True, "message": f"Invalid aspect ratio '{args.aspect_ratio}'. Valid: {sorted(VALID_RATIOS)}"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": f"Invalid aspect ratio '{args.aspect_ratio}'. Valid: {sorted(VALID_RATIOS)}",
+                }
+            )
+        )
         sys.exit(1)
 
     if args.resolution not in VALID_RESOLUTIONS:
-        print(json.dumps({"error": True, "message": f"Invalid resolution '{args.resolution}'. Valid: {sorted(VALID_RESOLUTIONS)}"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": f"Invalid resolution '{args.resolution}'. Valid: {sorted(VALID_RESOLUTIONS)}",
+                }
+            )
+        )
         sys.exit(1)
 
-    api_key = args.api_key or os.environ.get("GOOGLE_AI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    api_key = (
+        args.api_key
+        or os.environ.get("GOOGLE_AI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
     if not api_key:
-        print(json.dumps({"error": True, "message": "No API key. Set GOOGLE_AI_API_KEY env or pass --api-key"}))
+        print(
+            json.dumps(
+                {
+                    "error": True,
+                    "message": "No API key. Set GOOGLE_AI_API_KEY env or pass --api-key",
+                }
+            )
+        )
         sys.exit(1)
 
     result = generate_image(

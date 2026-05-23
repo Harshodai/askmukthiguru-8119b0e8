@@ -30,6 +30,7 @@ try:
     from google_auth import get_api_key
 except ImportError:
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import get_api_key
 
@@ -78,13 +79,17 @@ def search_videos(
         return result
 
     try:
-        response = service.search().list(
-            q=query,
-            part="snippet",
-            type="video",
-            maxResults=min(max_results, 50),
-            order=order,
-        ).execute()
+        response = (
+            service.search()
+            .list(
+                q=query,
+                part="snippet",
+                type="video",
+                maxResults=min(max_results, 50),
+                order=order,
+            )
+            .execute()
+        )
 
         result["total_results"] = response.get("pageInfo", {}).get("totalResults", 0)
 
@@ -99,10 +104,14 @@ def search_videos(
 
         # Fetch statistics for all videos in one call (1 unit)
         if video_ids:
-            stats_response = service.videos().list(
-                id=",".join(video_ids),
-                part="statistics,contentDetails",
-            ).execute()
+            stats_response = (
+                service.videos()
+                .list(
+                    id=",".join(video_ids),
+                    part="statistics,contentDetails",
+                )
+                .execute()
+            )
 
             stats_map = {}
             for item in stats_response.get("items", []):
@@ -116,20 +125,24 @@ def search_videos(
             for vid in video_ids:
                 snip = snippets.get(vid, {})
                 stats = stats_map.get(vid, {})
-                result["videos"].append({
-                    "video_id": vid,
-                    "title": snip.get("title", ""),
-                    "channel": snip.get("channelTitle", ""),
-                    "channel_id": snip.get("channelId", ""),
-                    "published": snip.get("publishedAt", ""),
-                    "description": snip.get("description", "")[:300],
-                    "thumbnail": snip.get("thumbnails", {}).get("high", {}).get("url", ""),
-                    "views": stats.get("views", 0),
-                    "likes": stats.get("likes", 0),
-                    "comments": stats.get("comments", 0),
-                    "duration": stats.get("duration", ""),
-                    "url": f"https://www.youtube.com/watch?v={vid}",
-                })
+                result["videos"].append(
+                    {
+                        "video_id": vid,
+                        "title": snip.get("title", ""),
+                        "channel": snip.get("channelTitle", ""),
+                        "channel_id": snip.get("channelId", ""),
+                        "published": snip.get("publishedAt", ""),
+                        "description": snip.get("description", "")[:300],
+                        "thumbnail": snip.get("thumbnails", {})
+                        .get("high", {})
+                        .get("url", ""),
+                        "views": stats.get("views", 0),
+                        "likes": stats.get("likes", 0),
+                        "comments": stats.get("comments", 0),
+                        "duration": stats.get("duration", ""),
+                        "url": f"https://www.youtube.com/watch?v={vid}",
+                    }
+                )
 
     except Exception as e:
         error_str = str(e)
@@ -139,7 +152,9 @@ def search_videos(
                 "in your GCP project (APIs & Services > Library > YouTube Data API v3)."
             )
         elif "429" in error_str:
-            result["error"] = "YouTube API quota exceeded (10,000 units/day). Search costs 100 units."
+            result["error"] = (
+                "YouTube API quota exceeded (10,000 units/day). Search costs 100 units."
+            )
         else:
             result["error"] = f"YouTube API error: {e}"
 
@@ -169,10 +184,14 @@ def get_video_details(
 
     try:
         # Video details (1 unit)
-        response = service.videos().list(
-            id=video_id,
-            part="snippet,statistics,contentDetails,topicDetails",
-        ).execute()
+        response = (
+            service.videos()
+            .list(
+                id=video_id,
+                part="snippet,statistics,contentDetails,topicDetails",
+            )
+            .execute()
+        )
 
         items = response.get("items", [])
         if not items:
@@ -206,22 +225,32 @@ def get_video_details(
 
         # Top comments (1 unit)
         try:
-            comments_response = service.commentThreads().list(
-                videoId=video_id,
-                part="snippet",
-                maxResults=10,
-                order="relevance",
-                textFormat="plainText",
-            ).execute()
+            comments_response = (
+                service.commentThreads()
+                .list(
+                    videoId=video_id,
+                    part="snippet",
+                    maxResults=10,
+                    order="relevance",
+                    textFormat="plainText",
+                )
+                .execute()
+            )
 
             for thread in comments_response.get("items", []):
-                comment = thread.get("snippet", {}).get("topLevelComment", {}).get("snippet", {})
-                result["comments"].append({
-                    "author": comment.get("authorDisplayName", ""),
-                    "text": comment.get("textDisplay", "")[:500],
-                    "likes": comment.get("likeCount", 0),
-                    "published": comment.get("publishedAt", ""),
-                })
+                comment = (
+                    thread.get("snippet", {})
+                    .get("topLevelComment", {})
+                    .get("snippet", {})
+                )
+                result["comments"].append(
+                    {
+                        "author": comment.get("authorDisplayName", ""),
+                        "text": comment.get("textDisplay", "")[:500],
+                        "likes": comment.get("likeCount", 0),
+                        "published": comment.get("publishedAt", ""),
+                    }
+                )
         except Exception:
             pass  # Comments may be disabled
 
@@ -253,10 +282,14 @@ def get_channel_info(
         return result
 
     try:
-        response = service.channels().list(
-            id=channel_id,
-            part="snippet,statistics,brandingSettings",
-        ).execute()
+        response = (
+            service.channels()
+            .list(
+                id=channel_id,
+                part="snippet,statistics,brandingSettings",
+            )
+            .execute()
+        )
 
         items = response.get("items", [])
         if not items:
@@ -295,7 +328,9 @@ def main():
         help="Command: search, video (details), channel (info)",
     )
     parser.add_argument("query", help="Search query, video ID, or channel ID")
-    parser.add_argument("--limit", type=int, default=10, help="Max results for search (default: 10)")
+    parser.add_argument(
+        "--limit", type=int, default=10, help="Max results for search (default: 10)"
+    )
     parser.add_argument(
         "--order",
         choices=["relevance", "date", "rating", "viewCount", "title"],
@@ -308,7 +343,9 @@ def main():
     args = parser.parse_args()
 
     if args.command == "search":
-        result = search_videos(args.query, max_results=args.limit, order=args.order, api_key=args.api_key)
+        result = search_videos(
+            args.query, max_results=args.limit, order=args.order, api_key=args.api_key
+        )
     elif args.command == "video":
         result = get_video_details(args.query, api_key=args.api_key)
     elif args.command == "channel":
@@ -327,15 +364,21 @@ def main():
             print(f"Results: {result.get('total_results', 0):,}")
             for i, v in enumerate(result.get("videos", []), 1):
                 print(f"\n  {i}. {v['title']}")
-                print(f"     {v['channel']} | {v['views']:,} views | {v['likes']:,} likes | {v['duration']}")
+                print(
+                    f"     {v['channel']} | {v['views']:,} views | {v['likes']:,} likes | {v['duration']}"
+                )
                 print(f"     {v['url']}")
         elif args.command == "video":
             d = result.get("details", {})
             if d:
                 print(f"=== {d.get('title')} ===")
                 print(f"Channel: {d.get('channel')}")
-                print(f"Views: {d.get('views', 0):,} | Likes: {d.get('likes', 0):,} | Comments: {d.get('comments_count', 0):,}")
-                print(f"Published: {d.get('published', '')[:10]} | Duration: {d.get('duration')}")
+                print(
+                    f"Views: {d.get('views', 0):,} | Likes: {d.get('likes', 0):,} | Comments: {d.get('comments_count', 0):,}"
+                )
+                print(
+                    f"Published: {d.get('published', '')[:10]} | Duration: {d.get('duration')}"
+                )
                 tags = d.get("tags", [])
                 if tags:
                     print(f"Tags: {', '.join(tags[:10])}")
@@ -343,12 +386,16 @@ def main():
                 if comments:
                     print(f"\nTop Comments ({len(comments)}):")
                     for c in comments[:5]:
-                        print(f"  [{c['likes']} likes] {c['author']}: {c['text'][:100]}")
+                        print(
+                            f"  [{c['likes']} likes] {c['author']}: {c['text'][:100]}"
+                        )
         elif args.command == "channel":
             ch = result.get("channel", {})
             if ch:
                 print(f"=== {ch.get('title')} ===")
-                print(f"Subscribers: {ch.get('subscribers', 0):,} | Videos: {ch.get('videos', 0):,} | Views: {ch.get('views', 0):,}")
+                print(
+                    f"Subscribers: {ch.get('subscribers', 0):,} | Videos: {ch.get('videos', 0):,} | Views: {ch.get('views', 0):,}"
+                )
 
 
 if __name__ == "__main__":

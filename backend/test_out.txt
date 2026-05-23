@@ -20,13 +20,13 @@ __________________________ test_chat_endpoint_success __________________________
             "messages": []
         }
         response = client.post("/api/chat", json=payload)
-    
+
         assert response.status_code == 200
         data = response.json()
         assert "response" in data
 >       assert data["response"] == "This is a mocked response"
 E       AssertionError: assert 'I apologize, something went wrong.' == 'This is a mocked response'
-E         
+E
 E         - This is a mocked response
 E         + I apologize, something went wrong.
 
@@ -58,7 +58,7 @@ tests/test_chat_endpoint.py::test_chat_endpoint_success
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =========================== short test summary info ============================
 FAILED tests/test_chat_endpoint.py::test_chat_endpoint_success - AssertionError: assert 'I apologize, something went wrong.' == 'This is a mocked response'
-  
+
   - This is a mocked response
   + I apologize, something went wrong.
 ======================== 1 failed, 5 warnings in 4.80s =========================

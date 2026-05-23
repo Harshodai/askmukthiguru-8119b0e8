@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -27,41 +28,43 @@ import numpy as np
 # --- Brand ---
 
 BRAND = {
-    "bg":        "#0A0A0A",
-    "card":      "#111111",
-    "card_inner":"#1A1A1A",
-    "border":    "#2D2D2D",
-    "text":      "#F5F5F0",
-    "text_sec":  "#888888",
-    "accent":    "#E07850",
-    "green":     "#4ADE80",
-    "amber":     "#f59e0b",
-    "blue":      "#60A5FA",
-    "muted":     "#888888",
+    "bg": "#0A0A0A",
+    "card": "#111111",
+    "card_inner": "#1A1A1A",
+    "border": "#2D2D2D",
+    "text": "#F5F5F0",
+    "text_sec": "#888888",
+    "accent": "#E07850",
+    "green": "#4ADE80",
+    "amber": "#f59e0b",
+    "blue": "#60A5FA",
+    "muted": "#888888",
 }
 
 SCREENSHOTS_DIR = str(Path.home() / "Downloads" / "pro-hub-challenge-march-screenshots")
 
 
 def _setup_matplotlib():
-    plt.rcParams.update({
-        "font.family":       "sans-serif",
-        "font.sans-serif":   ["Space Grotesk", "DejaVu Sans", "Arial", "Helvetica"],
-        "font.size":         11,
-        "axes.titlesize":    14,
-        "axes.titleweight":  "bold",
-        "axes.facecolor":    BRAND["card"],
-        "figure.facecolor":  BRAND["bg"],
-        "text.color":        BRAND["text"],
-        "axes.labelcolor":   BRAND["text"],
-        "axes.titlecolor":   BRAND["text"],
-        "xtick.color":       BRAND["text_sec"],
-        "ytick.color":       BRAND["text_sec"],
-        "axes.edgecolor":    BRAND["border"],
-        "axes.grid":         True,
-        "axes.spines.top":   False,
-        "axes.spines.right": False,
-    })
+    plt.rcParams.update(
+        {
+            "font.family": "sans-serif",
+            "font.sans-serif": ["Space Grotesk", "DejaVu Sans", "Arial", "Helvetica"],
+            "font.size": 11,
+            "axes.titlesize": 14,
+            "axes.titleweight": "bold",
+            "axes.facecolor": BRAND["card"],
+            "figure.facecolor": BRAND["bg"],
+            "text.color": BRAND["text"],
+            "axes.labelcolor": BRAND["text"],
+            "axes.titlecolor": BRAND["text"],
+            "xtick.color": BRAND["text_sec"],
+            "ytick.color": BRAND["text_sec"],
+            "axes.edgecolor": BRAND["border"],
+            "axes.grid": True,
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+        }
+    )
 
 
 _setup_matplotlib()
@@ -69,17 +72,18 @@ _setup_matplotlib()
 
 # --- Chart Functions ---
 
+
 def chart_contribution_flow(charts_dir: Path) -> str:
     entries = [
-        ("Lutfiya Miller",   "/seo cluster",   "new",      "New Skill"),
-        ("Florian Schmitz",  "/seo sxo",       "new",      "New Skill"),
-        ("Dan Colta",        "/seo drift",     "new",      "New Skill"),
-        ("Matej Marjanovic", "/seo ecommerce", "new",      "New Skill"),
-        ("Chris Muller",     "/seo hreflang",  "enhanced", "Enhancement"),
-        ("Benjamin",         "claude-blog",    "deferred", "Out of Scope"),
+        ("Lutfiya Miller", "/seo cluster", "new", "New Skill"),
+        ("Florian Schmitz", "/seo sxo", "new", "New Skill"),
+        ("Dan Colta", "/seo drift", "new", "New Skill"),
+        ("Matej Marjanovic", "/seo ecommerce", "new", "New Skill"),
+        ("Chris Muller", "/seo hreflang", "enhanced", "Enhancement"),
+        ("Benjamin", "claude-blog", "deferred", "Out of Scope"),
     ]
     status_colors = {
-        "new":      BRAND["green"],
+        "new": BRAND["green"],
         "enhanced": BRAND["accent"],
         "deferred": BRAND["muted"],
     }
@@ -90,50 +94,91 @@ def chart_contribution_flow(charts_dir: Path) -> str:
     ax.set_xlim(-0.2, 10.5)
     ax.set_ylim(-0.8, len(entries) - 0.2)
     ax.axis("off")
-    ax.set_title("Pro Hub Challenge: Contribution Pipeline", fontsize=14,
-                 fontweight="bold", color=BRAND["text"], pad=12)
+    ax.set_title(
+        "Pro Hub Challenge: Contribution Pipeline",
+        fontsize=14,
+        fontweight="bold",
+        color=BRAND["text"],
+        pad=12,
+    )
 
     for i, (name, skill, status, label) in enumerate(entries):
         y = len(entries) - 1 - i
         color = status_colors[status]
 
         left = mpatches.FancyBboxPatch(
-            (0.05, y - 0.33), 2.9, 0.66,
+            (0.05, y - 0.33),
+            2.9,
+            0.66,
             boxstyle="round,pad=0.04",
-            linewidth=1.2, edgecolor=BRAND["border"], facecolor=BRAND["card_inner"]
+            linewidth=1.2,
+            edgecolor=BRAND["border"],
+            facecolor=BRAND["card_inner"],
         )
         ax.add_patch(left)
-        ax.text(1.5, y, name, ha="center", va="center", fontsize=9.5,
-                color=BRAND["text"], fontweight="bold")
+        ax.text(
+            1.5,
+            y,
+            name,
+            ha="center",
+            va="center",
+            fontsize=9.5,
+            color=BRAND["text"],
+            fontweight="bold",
+        )
 
-        ax.annotate("", xy=(3.15, y), xytext=(2.95, y),
-                    arrowprops=dict(arrowstyle="-|>", color=color, lw=2.0, mutation_scale=14))
+        ax.annotate(
+            "",
+            xy=(3.15, y),
+            xytext=(2.95, y),
+            arrowprops=dict(arrowstyle="-|>", color=color, lw=2.0, mutation_scale=14),
+        )
 
         right = mpatches.FancyBboxPatch(
-            (3.2, y - 0.33), 5.6, 0.66,
+            (3.2, y - 0.33),
+            5.6,
+            0.66,
             boxstyle="round,pad=0.04",
-            linewidth=1.2, edgecolor=BRAND["border"], facecolor=BRAND["card_inner"]
+            linewidth=1.2,
+            edgecolor=BRAND["border"],
+            facecolor=BRAND["card_inner"],
         )
         ax.add_patch(right)
         ax.text(3.45, y, skill, ha="left", va="center", fontsize=9, color=BRAND["text"])
 
         badge = mpatches.FancyBboxPatch(
-            (7.2, y - 0.23), 1.85, 0.46,
+            (7.2, y - 0.23),
+            1.85,
+            0.46,
             boxstyle="round,pad=0.03",
-            linewidth=0, facecolor=color
+            linewidth=0,
+            facecolor=color,
         )
         ax.add_patch(badge)
         txt_color = BRAND["bg"] if color != BRAND["muted"] else BRAND["text"]
-        ax.text(8.12, y, label, ha="center", va="center", fontsize=8,
-                color=txt_color, fontweight="bold")
+        ax.text(
+            8.12,
+            y,
+            label,
+            ha="center",
+            va="center",
+            fontsize=8,
+            color=txt_color,
+            fontweight="bold",
+        )
 
     legend_elements = [
-        mpatches.Patch(facecolor=BRAND["green"],  label="New Skill"),
+        mpatches.Patch(facecolor=BRAND["green"], label="New Skill"),
         mpatches.Patch(facecolor=BRAND["accent"], label="Enhancement"),
-        mpatches.Patch(facecolor=BRAND["muted"],  label="Out of Scope"),
+        mpatches.Patch(facecolor=BRAND["muted"], label="Out of Scope"),
     ]
-    legend = ax.legend(handles=legend_elements, loc="lower right", fontsize=9,
-                       framealpha=0.9, edgecolor=BRAND["border"])
+    legend = ax.legend(
+        handles=legend_elements,
+        loc="lower right",
+        fontsize=9,
+        framealpha=0.9,
+        edgecolor=BRAND["border"],
+    )
     legend.get_frame().set_facecolor(BRAND["card"])
     for t in legend.get_texts():
         t.set_color(BRAND["text"])
@@ -158,7 +203,7 @@ def chart_skill_architecture(charts_dir: Path) -> str:
         "Extensions",
     ]
     existing = [1, 4, 4, 2, 5, 0, 0, 2, 2]
-    new_v190  = [0, 0, 0, 0, 0, 3, 1, 0, 0]
+    new_v190 = [0, 0, 0, 0, 0, 3, 1, 0, 0]
 
     y = np.arange(len(categories))
     h = 0.32
@@ -167,16 +212,28 @@ def chart_skill_architecture(charts_dir: Path) -> str:
     ax.set_facecolor(BRAND["card"])
     fig.patch.set_facecolor(BRAND["bg"])
 
-    bars_e = ax.barh(y + h / 2, existing, h, label="Existing (v1.8.x)",
-                     color=BRAND["blue"], alpha=0.85)
-    bars_n = ax.barh(y - h / 2, new_v190, h, label="New in v1.9.0",
-                     color=BRAND["accent"], alpha=0.95)
+    bars_e = ax.barh(
+        y + h / 2,
+        existing,
+        h,
+        label="Existing (v1.8.x)",
+        color=BRAND["blue"],
+        alpha=0.85,
+    )
+    bars_n = ax.barh(
+        y - h / 2, new_v190, h, label="New in v1.9.0", color=BRAND["accent"], alpha=0.95
+    )
 
     ax.set_yticks(y)
     ax.set_yticklabels(categories, fontsize=10, color=BRAND["text"])
     ax.set_xlabel("Number of Skills", fontsize=10)
-    ax.set_title("Claude SEO Skill Architecture: v1.9.0 (23 Total Skills)",
-                 fontsize=14, fontweight="bold", color=BRAND["text"], pad=12)
+    ax.set_title(
+        "Claude SEO Skill Architecture: v1.9.0 (23 Total Skills)",
+        fontsize=14,
+        fontweight="bold",
+        color=BRAND["text"],
+        pad=12,
+    )
     ax.set_xlim(0, 7.5)
     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax.tick_params(colors=BRAND["text_sec"])
@@ -190,8 +247,14 @@ def chart_skill_architecture(charts_dir: Path) -> str:
         w = bar.get_width()
         if w > 0:
             c = BRAND["blue"] if bar in bars_e else BRAND["accent"]
-            ax.text(w + 0.08, bar.get_y() + bar.get_height() / 2,
-                    str(int(w)), va="center", fontsize=9, color=c)
+            ax.text(
+                w + 0.08,
+                bar.get_y() + bar.get_height() / 2,
+                str(int(w)),
+                va="center",
+                fontsize=9,
+                color=c,
+            )
 
     legend = ax.legend(fontsize=10, framealpha=0.9, edgecolor=BRAND["border"])
     legend.get_frame().set_facecolor(BRAND["card"])
@@ -206,8 +269,12 @@ def chart_skill_architecture(charts_dir: Path) -> str:
 
 
 def chart_review_scores(charts_dir: Path) -> str:
-    labels = ["Round 1\nCode Review", "Round 2\nRe-Review",
-              "Round 3\nMax-Effort", "Round 4\nSecurity Audit"]
+    labels = [
+        "Round 1\nCode Review",
+        "Round 2\nRe-Review",
+        "Round 3\nMax-Effort",
+        "Round 4\nSecurity Audit",
+    ]
     scores = [87, 93, 97, 85]
     dot_colors = [BRAND["amber"], BRAND["amber"], BRAND["green"], BRAND["amber"]]
 
@@ -218,24 +285,43 @@ def chart_review_scores(charts_dir: Path) -> str:
     x = np.arange(len(labels))
     ax.plot(x, scores, color=BRAND["accent"], linewidth=2.5, zorder=2)
     for xi, (yi, ci) in enumerate(zip(scores, dot_colors)):
-        ax.scatter([xi], [yi], color=ci, s=130, zorder=3,
-                   edgecolors=BRAND["accent"], linewidth=1.5)
-        ax.annotate(f"{yi}/100", (xi, yi),
-                    textcoords="offset points", xytext=(0, 13),
-                    ha="center", fontsize=11, fontweight="bold", color=BRAND["text"])
+        ax.scatter(
+            [xi],
+            [yi],
+            color=ci,
+            s=130,
+            zorder=3,
+            edgecolors=BRAND["accent"],
+            linewidth=1.5,
+        )
+        ax.annotate(
+            f"{yi}/100",
+            (xi, yi),
+            textcoords="offset points",
+            xytext=(0, 13),
+            ha="center",
+            fontsize=11,
+            fontweight="bold",
+            color=BRAND["text"],
+        )
 
     ax.axhline(y=90, color=BRAND["green"], linestyle="--", alpha=0.4, linewidth=1)
     ax.axhline(y=80, color=BRAND["amber"], linestyle="--", alpha=0.4, linewidth=1)
     ax.text(3.55, 90.8, "Excellent (90+)", fontsize=8, color=BRAND["green"], alpha=0.8)
-    ax.text(3.55, 80.8, "Good (80+)",      fontsize=8, color=BRAND["amber"], alpha=0.8)
+    ax.text(3.55, 80.8, "Good (80+)", fontsize=8, color=BRAND["amber"], alpha=0.8)
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9.5, color=BRAND["text"])
     ax.set_xlim(-0.4, 3.8)
     ax.set_ylim(76, 107)
     ax.set_ylabel("Score / 100", fontsize=10)
-    ax.set_title("v1.9.0 Review Score Progression: 4 Rounds",
-                 fontsize=14, fontweight="bold", color=BRAND["text"], pad=12)
+    ax.set_title(
+        "v1.9.0 Review Score Progression: 4 Rounds",
+        fontsize=14,
+        fontweight="bold",
+        color=BRAND["text"],
+        pad=12,
+    )
     ax.tick_params(colors=BRAND["text_sec"])
     ax.spines["left"].set_color(BRAND["border"])
     ax.spines["bottom"].set_color(BRAND["border"])
@@ -251,7 +337,7 @@ def chart_review_scores(charts_dir: Path) -> str:
 
 def chart_security_matrix(charts_dir: Path) -> str:
     severities = ["HIGH", "MEDIUM", "LOW"]
-    fixed    = [2, 2, 0]
+    fixed = [2, 2, 0]
     deferred = [2, 4, 5]
 
     x = np.arange(len(severities))
@@ -261,23 +347,49 @@ def chart_security_matrix(charts_dir: Path) -> str:
     ax.set_facecolor(BRAND["card"])
     fig.patch.set_facecolor(BRAND["bg"])
 
-    b1 = ax.bar(x - w / 2, fixed,    w, label="Fixed in v1.9.0",
-                color=BRAND["green"], alpha=0.9, edgecolor=BRAND["bg"])
-    b2 = ax.bar(x + w / 2, deferred, w, label="Deferred to v1.9.1",
-                color=BRAND["amber"], alpha=0.9, edgecolor=BRAND["bg"])
+    b1 = ax.bar(
+        x - w / 2,
+        fixed,
+        w,
+        label="Fixed in v1.9.0",
+        color=BRAND["green"],
+        alpha=0.9,
+        edgecolor=BRAND["bg"],
+    )
+    b2 = ax.bar(
+        x + w / 2,
+        deferred,
+        w,
+        label="Deferred to v1.9.1",
+        color=BRAND["amber"],
+        alpha=0.9,
+        edgecolor=BRAND["bg"],
+    )
 
     for bar in list(b1) + list(b2):
         h = bar.get_height()
         if h > 0:
-            ax.text(bar.get_x() + bar.get_width() / 2, h + 0.1,
-                    str(int(h)), ha="center", va="bottom",
-                    fontsize=11, fontweight="bold", color=BRAND["text"])
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                h + 0.1,
+                str(int(h)),
+                ha="center",
+                va="bottom",
+                fontsize=11,
+                fontweight="bold",
+                color=BRAND["text"],
+            )
 
     ax.set_xticks(x)
     ax.set_xticklabels(severities, fontsize=12, color=BRAND["text"])
     ax.set_ylabel("Number of Findings", fontsize=10)
-    ax.set_title("Security Audit: 15 Findings, Score 85/100",
-                 fontsize=14, fontweight="bold", color=BRAND["text"], pad=12)
+    ax.set_title(
+        "Security Audit: 15 Findings, Score 85/100",
+        fontsize=14,
+        fontweight="bold",
+        color=BRAND["text"],
+        pad=12,
+    )
     ax.set_ylim(0, 8.5)
     ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax.tick_params(colors=BRAND["text_sec"])
@@ -289,9 +401,17 @@ def chart_security_matrix(charts_dir: Path) -> str:
     ax.spines["bottom"].set_color(BRAND["border"])
     ax.set_axisbelow(True)
     ax.yaxis.grid(True, color=BRAND["border"], linewidth=0.5)
-    ax.text(0.98, 0.96, "0 CRITICAL  |  4 Fixed  |  11 Deferred",
-            transform=ax.transAxes, ha="right", va="top",
-            fontsize=9, color=BRAND["text_sec"], style="italic")
+    ax.text(
+        0.98,
+        0.96,
+        "0 CRITICAL  |  4 Fixed  |  11 Deferred",
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=9,
+        color=BRAND["text_sec"],
+        style="italic",
+    )
 
     plt.tight_layout()
     path = charts_dir / "security_matrix.png"
@@ -301,6 +421,7 @@ def chart_security_matrix(charts_dir: Path) -> str:
 
 
 # --- CSS ---
+
 
 def _build_css() -> str:
     return """<style>
@@ -507,6 +628,7 @@ def _build_css() -> str:
 
 # --- HTML Helpers ---
 
+
 def _chart_html(path: str, caption: str, fig_num: int) -> str:
     if not path:
         return ""
@@ -514,7 +636,7 @@ def _chart_html(path: str, caption: str, fig_num: int) -> str:
         f'<div class="chart-container">\n'
         f'  <img src="{_file_url(path)}" style="width:90%;" alt="{caption}">\n'
         f'  <div class="chart-caption">Figure {fig_num}: {caption}</div>\n'
-        f'</div>\n'
+        f"</div>\n"
     )
 
 
@@ -524,8 +646,8 @@ def _mc(value: str, label: str, delta: str = "") -> str:
         f'<div class="metric-card">'
         f'<div class="value">{value}</div>'
         f'<div class="label">{label}</div>'
-        f'{delta_html}'
-        f'</div>'
+        f"{delta_html}"
+        f"</div>"
     )
 
 
@@ -541,11 +663,12 @@ def _screenshot_html(abs_path: str, caption: str, max_h: str = "72mm") -> str:
         f'<div class="sshot">\n'
         f'  <img src="{_file_url(abs_path)}" style="max-height:{max_h}; max-width:100%; height:auto;" alt="{caption}">\n'
         f'  <div class="sshot-cap">{caption}</div>\n'
-        f'</div>\n'
+        f"</div>\n"
     )
 
 
 # --- Section Builders ---
+
 
 def _build_title_page(logo_path: str = "") -> str:
     date = datetime.now().strftime("%B %Y")
@@ -554,7 +677,7 @@ def _build_title_page(logo_path: str = "") -> str:
         logo_html = (
             f'<div style="margin-bottom:8mm;">'
             f'<img src="{_file_url(logo_path)}" style="max-height:28mm; max-width:160mm;" alt="AI Marketing Hub Pro">'
-            f'</div>\n'
+            f"</div>\n"
         )
     return f"""
 <div class="title-page">
@@ -598,20 +721,24 @@ def _build_title_page(logo_path: str = "") -> str:
 
 def _build_toc() -> str:
     rows = [
-        ("1", "Executive Summary",          "",                                  ""),
-        ("2", "Pro Hub Challenge",           "Community, $600 Prize Pool",        ""),
-        ("3", "Community Contributions",     "5 Integrations, 4 New Skills",      ""),
-        ("4", "Architecture Evolution",      "19 to 23 Skills",                   ""),
-        ("5", "Review Process",              "4 Rounds, Peak 97/100",             "green"),
-        ("6", "Security Audit",              "85/100, 4 Fixes Applied",           ""),
-        ("7", "DataForSEO Cost Guardrails",  "Technical Deep-Dive",               "muted"),
-        ("8", "What's Next",                 "v1.9.1 Priorities",                 "muted"),
+        ("1", "Executive Summary", "", ""),
+        ("2", "Pro Hub Challenge", "Community, $600 Prize Pool", ""),
+        ("3", "Community Contributions", "5 Integrations, 4 New Skills", ""),
+        ("4", "Architecture Evolution", "19 to 23 Skills", ""),
+        ("5", "Review Process", "4 Rounds, Peak 97/100", "green"),
+        ("6", "Security Audit", "85/100, 4 Fixes Applied", ""),
+        ("7", "DataForSEO Cost Guardrails", "Technical Deep-Dive", "muted"),
+        ("8", "What's Next", "v1.9.1 Priorities", "muted"),
     ]
     items = ""
     for num, title, desc, badge_cls in rows:
         badge = f'<span class="toc-badge {badge_cls}">{num}</span>'
-        sub = f'<span style="color:#888888; font-size:8.5pt;"> &ndash; {desc}</span>' if desc else ""
-        items += f'<li>{badge} <strong>{title}</strong>{sub}</li>\n'
+        sub = (
+            f'<span style="color:#888888; font-size:8.5pt;"> &ndash; {desc}</span>'
+            if desc
+            else ""
+        )
+        items += f"<li>{badge} <strong>{title}</strong>{sub}</li>\n"
 
     return f"""
 <div class="toc-page">
@@ -677,14 +804,22 @@ def _build_executive_summary() -> str:
 
 
 def _build_challenge_section(chart_path: str, fig_num: int, ss: Path = None) -> tuple:
-    chart = _chart_html(chart_path,
-                        "Pro Hub Challenge: 6 submissions through review to integration outcomes",
-                        fig_num)
+    chart = _chart_html(
+        chart_path,
+        "Pro Hub Challenge: 6 submissions through review to integration outcomes",
+        fig_num,
+    )
     ss = ss or Path(SCREENSHOTS_DIR)
-    post_img   = _screenshot_html(str(ss / "Pro hub challenge post.png"),
-                                  "Original challenge announcement post", max_h="62mm")
-    winner_img = _screenshot_html(str(ss / "Pro hub challenge post winner.png"),
-                                  "Winner announcement in AI Marketing Hub Pro", max_h="62mm")
+    post_img = _screenshot_html(
+        str(ss / "Pro hub challenge post.png"),
+        "Original challenge announcement post",
+        max_h="62mm",
+    )
+    winner_img = _screenshot_html(
+        str(ss / "Pro hub challenge post winner.png"),
+        "Winner announcement in AI Marketing Hub Pro",
+        max_h="62mm",
+    )
     html = f"""
 <div class="section">
   <div class="section-header">
@@ -723,11 +858,11 @@ def _build_contributions_section(ss: Path = None) -> str:
     ss = ss or Path(SCREENSHOTS_DIR)
     contributors = [
         {
-            "name":  "Lutfiya Miller",
+            "name": "Lutfiya Miller",
             "skill": "/seo cluster",
-            "type":  "New Skill",
-            "img":   str(ss / "Lutfiya.png"),
-            "desc":  "SERP-based semantic topic clustering. Groups keywords by Google result overlap: 7-10 shared results is the same post, 4-6 is a hub cluster, 2-3 are interlink candidates.",
+            "type": "New Skill",
+            "img": str(ss / "Lutfiya.png"),
+            "desc": "SERP-based semantic topic clustering. Groups keywords by Google result overlap: 7-10 shared results is the same post, 4-6 is a hub cluster, 2-3 are interlink candidates.",
             "points": [
                 "Interactive SVG cluster-map.html visualization (hub-spoke layout)",
                 "No paid API required: uses SERP overlap algorithm",
@@ -736,11 +871,11 @@ def _build_contributions_section(ss: Path = None) -> str:
             ],
         },
         {
-            "name":  "Florian Schmitz",
+            "name": "Florian Schmitz",
             "skill": "/seo sxo",
-            "type":  "New Skill",
-            "img":   str(ss / "florian.png"),
-            "desc":  "Search Experience Optimization. Analyzes page-type mismatch between what Google serves and what the page delivers. Surfaces intent gaps that kill rankings despite strong technical SEO.",
+            "type": "New Skill",
+            "img": str(ss / "florian.png"),
+            "desc": "Search Experience Optimization. Analyzes page-type mismatch between what Google serves and what the page delivers. Surfaces intent gaps that kill rankings despite strong technical SEO.",
             "points": [
                 "Page-type taxonomy: informational, transactional, navigational, commercial",
                 "Persona scoring: visitor intent vs. page intent alignment",
@@ -748,11 +883,11 @@ def _build_contributions_section(ss: Path = None) -> str:
             ],
         },
         {
-            "name":  "Dan Colta",
+            "name": "Dan Colta",
             "skill": "/seo drift",
-            "type":  "New Skill",
-            "img":   str(ss / "dan.png"),
-            "desc":  "Git for SEO. Captures baselines of SEO-critical page elements, then diffs against current state to catch regressions before they impact rankings.",
+            "type": "New Skill",
+            "img": str(ss / "dan.png"),
+            "desc": "Git for SEO. Captures baselines of SEO-critical page elements, then diffs against current state to catch regressions before they impact rankings.",
             "points": [
                 "17 comparison rules across 3 severity levels (CRITICAL, WARNING, INFO)",
                 "SQLite persistence at ~/.cache/claude-seo/drift/baselines.db",
@@ -760,11 +895,11 @@ def _build_contributions_section(ss: Path = None) -> str:
             ],
         },
         {
-            "name":  "Matej Marjanovic",
+            "name": "Matej Marjanovic",
             "skill": "/seo ecommerce",
-            "type":  "New Skill",
-            "img":   str(ss / "Matej.png"),
-            "desc":  "E-commerce SEO covering product schema, marketplace intelligence via DataForSEO Merchant API (Google Shopping and Amazon), and category page optimization.",
+            "type": "New Skill",
+            "img": str(ss / "Matej.png"),
+            "desc": "E-commerce SEO covering product schema, marketplace intelligence via DataForSEO Merchant API (Google Shopping and Amazon), and category page optimization.",
             "points": [
                 "Product and ItemList schema templates added to schema/templates.json",
                 "DataForSEO Merchant API integration for live competitive pricing",
@@ -772,11 +907,11 @@ def _build_contributions_section(ss: Path = None) -> str:
             ],
         },
         {
-            "name":  "Chris Muller",
+            "name": "Chris Muller",
             "skill": "/seo hreflang",
-            "type":  "Enhancement",
-            "img":   str(ss / "chris.png"),
-            "desc":  "Extended seo-hreflang with Cultural Adaptation Profiles for DACH, French, Spanish, and Japanese markets. Covers number formats, date conventions, currency display, and content parity.",
+            "type": "Enhancement",
+            "img": str(ss / "chris.png"),
+            "desc": "Extended seo-hreflang with Cultural Adaptation Profiles for DACH, French, Spanish, and Japanese markets. Covers number formats, date conventions, currency display, and content parity.",
             "points": [
                 "4 cultural profiles: DACH (de-AT/CH/DE), fr-FR, es-ES/MX, ja-JP",
                 "Locale format reference: number, date, currency conventions per region",
@@ -789,7 +924,9 @@ def _build_contributions_section(ss: Path = None) -> str:
     for c in contributors:
         points = "".join(f"<li>{p}</li>" for p in c["points"])
         type_color = "#E07850" if c["type"] == "New Skill" else "#4ADE80"
-        sshot = _screenshot_html(c["img"], f"{c['name']}'s submission post", max_h="52mm")
+        sshot = _screenshot_html(
+            c["img"], f"{c['name']}'s submission post", max_h="52mm"
+        )
         cards += f"""<div class="ccard">
   <h4>{c["name"]} &ndash; <span style="color:#60A5FA;">{c["skill"]}</span>
     <span style="float:right; font-size:8pt; color:{type_color}; font-weight:bold;">{c["type"]}</span>
@@ -816,9 +953,11 @@ def _build_contributions_section(ss: Path = None) -> str:
 
 
 def _build_architecture_section(chart_path: str, fig_num: int) -> tuple:
-    chart = _chart_html(chart_path,
-                        "Claude SEO skill architecture: 23 skills by category (orange = v1.9.0 additions)",
-                        fig_num)
+    chart = _chart_html(
+        chart_path,
+        "Claude SEO skill architecture: 23 skills by category (orange = v1.9.0 additions)",
+        fig_num,
+    )
     html = f"""
 <div class="section">
   <div class="section-header">
@@ -850,9 +989,11 @@ def _build_architecture_section(chart_path: str, fig_num: int) -> tuple:
 
 
 def _build_review_section(chart_path: str, fig_num: int) -> tuple:
-    chart = _chart_html(chart_path,
-                        "Review score progression across 4 rounds: peak 97/100, security audit 85/100",
-                        fig_num)
+    chart = _chart_html(
+        chart_path,
+        "Review score progression across 4 rounds: peak 97/100, security audit 85/100",
+        fig_num,
+    )
     html = f"""
 <div class="section">
   <div class="section-header">
@@ -893,9 +1034,11 @@ def _build_review_section(chart_path: str, fig_num: int) -> tuple:
 
 
 def _build_security_section(chart_path: str, fig_num: int) -> tuple:
-    chart = _chart_html(chart_path,
-                        "Security findings by severity: 4 fixed in v1.9.0, 11 deferred to v1.9.1",
-                        fig_num)
+    chart = _chart_html(
+        chart_path,
+        "Security findings by severity: 4 fixed in v1.9.0, 11 deferred to v1.9.1",
+        fig_num,
+    )
     html = f"""
 <div class="section">
   <div class="section-header">
@@ -1034,6 +1177,7 @@ def _build_next_section() -> str:
 
 # --- PDF Review ---
 
+
 def _review_pdf(pdf_path: Path, html_content: str) -> dict:
     issues = []
     result: dict = {"status": "PASS", "issues": []}
@@ -1056,6 +1200,7 @@ def _review_pdf(pdf_path: Path, html_content: str) -> dict:
         issues.append(f"Only {chart_count} charts (expected 4)")
 
     from urllib.parse import unquote
+
     for img_path_raw in re.findall(r'src="file://([^"]+)"', html_content):
         img_path = unquote(img_path_raw)
         if not Path(img_path).exists():
@@ -1063,6 +1208,7 @@ def _review_pdf(pdf_path: Path, html_content: str) -> dict:
 
     try:
         import pypdf
+
         reader = pypdf.PdfReader(str(pdf_path))
         result["page_count"] = len(reader.pages)
         if len(reader.pages) < 10:
@@ -1078,6 +1224,7 @@ def _review_pdf(pdf_path: Path, html_content: str) -> dict:
 
 # --- Report Generation ---
 
+
 def generate_report(output_dir: str, screenshots_dir: str = SCREENSHOTS_DIR) -> str:
     out = Path(output_dir).expanduser().resolve()
     charts_dir = out / "claude-seo-v190-charts"
@@ -1092,22 +1239,24 @@ def generate_report(output_dir: str, screenshots_dir: str = SCREENSHOTS_DIR) -> 
     pdf_path = out / "Claude-SEO-v1.9.0-Release-Report.pdf"
 
     print("Generating charts...")
-    flow_path   = chart_contribution_flow(charts_dir)
-    arch_path   = chart_skill_architecture(charts_dir)
+    flow_path = chart_contribution_flow(charts_dir)
+    arch_path = chart_skill_architecture(charts_dir)
     review_path = chart_review_scores(charts_dir)
-    sec_path    = chart_security_matrix(charts_dir)
+    sec_path = chart_security_matrix(charts_dir)
     print(f"  4 charts saved to {charts_dir}")
 
     fig_n = [1]
 
     def nf() -> int:
-        n = fig_n[0]; fig_n[0] += 1; return n
+        n = fig_n[0]
+        fig_n[0] += 1
+        return n
 
     print("Building HTML sections...")
     challenge_html, _ = _build_challenge_section(flow_path, nf(), ss)
-    arch_html, _      = _build_architecture_section(arch_path, nf())
-    review_html, _    = _build_review_section(review_path, nf())
-    sec_html, _       = _build_security_section(sec_path, nf())
+    arch_html, _ = _build_architecture_section(arch_path, nf())
+    review_html, _ = _build_review_section(review_path, nf())
+    sec_html, _ = _build_security_section(sec_path, nf())
 
     sections = [
         _build_title_page(logo_path),
@@ -1127,6 +1276,7 @@ def generate_report(output_dir: str, screenshots_dir: str = SCREENSHOTS_DIR) -> 
     print("Rendering PDF via WeasyPrint...")
     try:
         from weasyprint import HTML
+
         HTML(string=full_html).write_pdf(str(pdf_path))
     except ImportError:
         html_out = out / "Claude-SEO-v1.9.0-Release-Report.html"
@@ -1148,22 +1298,32 @@ def generate_report(output_dir: str, screenshots_dir: str = SCREENSHOTS_DIR) -> 
 
 # --- CLI ---
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate Claude SEO v1.9.0 Pro Hub Challenge Release Report"
     )
-    parser.add_argument("--output", "-o", default="~/Desktop",
-                        help="Output directory (default: ~/Desktop)")
-    parser.add_argument("--screenshots", default=SCREENSHOTS_DIR,
-                        help=f"Screenshots directory (default: {SCREENSHOTS_DIR})")
+    parser.add_argument(
+        "--output",
+        "-o",
+        default="~/Desktop",
+        help="Output directory (default: ~/Desktop)",
+    )
+    parser.add_argument(
+        "--screenshots",
+        default=SCREENSHOTS_DIR,
+        help=f"Screenshots directory (default: {SCREENSHOTS_DIR})",
+    )
     args = parser.parse_args()
 
     try:
         path = generate_report(args.output, args.screenshots)
         print(json.dumps({"status": "success", "path": path}, indent=2))
     except Exception as exc:
-        print(json.dumps({"status": "error", "message": str(exc)}, indent=2),
-              file=sys.stderr)
+        print(
+            json.dumps({"status": "error", "message": str(exc)}, indent=2),
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 

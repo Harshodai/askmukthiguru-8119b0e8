@@ -25,7 +25,12 @@ from pathlib import Path
 
 # Inline pricing for estimates
 PRICING = {
-    "gemini-3.1-flash-image-preview": {"512": 0.020, "1K": 0.039, "2K": 0.078, "4K": 0.156},
+    "gemini-3.1-flash-image-preview": {
+        "512": 0.020,
+        "1K": 0.039,
+        "2K": 0.078,
+        "4K": 0.156,
+    },
     "gemini-2.5-flash-image": {"512": 0.020, "1K": 0.039},
 }
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
@@ -40,7 +45,9 @@ def estimate_cost(model, resolution):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Parse CSV batch and output generation plan")
+    parser = argparse.ArgumentParser(
+        description="Parse CSV batch and output generation plan"
+    )
     parser.add_argument("--csv", required=True, help="Path to CSV file")
     args = parser.parse_args()
 
@@ -56,7 +63,14 @@ def main():
         with open(csv_path, "r", newline="") as f:
             reader = csv.DictReader(f)
             if not reader.fieldnames or "prompt" not in reader.fieldnames:
-                print(json.dumps({"error": True, "message": "CSV must have a 'prompt' column header"}))
+                print(
+                    json.dumps(
+                        {
+                            "error": True,
+                            "message": "CSV must have a 'prompt' column header",
+                        }
+                    )
+                )
                 sys.exit(1)
             for i, row in enumerate(reader, start=2):  # Line 2+ (1 is header)
                 prompt = row.get("prompt", "").strip()
@@ -64,14 +78,17 @@ def main():
                     errors.append(f"Row {i}: missing prompt")
                     continue
 
-                rows.append({
-                    "row": i,
-                    "prompt": prompt,
-                    "ratio": row.get("ratio", "").strip() or DEFAULT_RATIO,
-                    "resolution": row.get("resolution", "").strip() or DEFAULT_RESOLUTION,
-                    "model": row.get("model", "").strip() or DEFAULT_MODEL,
-                    "preset": row.get("preset", "").strip() or None,
-                })
+                rows.append(
+                    {
+                        "row": i,
+                        "prompt": prompt,
+                        "ratio": row.get("ratio", "").strip() or DEFAULT_RATIO,
+                        "resolution": row.get("resolution", "").strip()
+                        or DEFAULT_RESOLUTION,
+                        "model": row.get("model", "").strip() or DEFAULT_MODEL,
+                        "preset": row.get("preset", "").strip() or None,
+                    }
+                )
     except (csv.Error, UnicodeDecodeError) as e:
         print(json.dumps({"error": True, "message": f"Failed to parse CSV: {e}"}))
         sys.exit(1)
@@ -88,9 +105,17 @@ def main():
     total_cost = sum(estimate_cost(r["model"], r["resolution"]) for r in rows)
 
     # Output structured JSON for Claude to consume
-    print(json.dumps({"rows": rows, "total_count": len(rows),
-                       "estimated_cost": round(total_cost, 3),
-                       "errors": errors}, indent=2))
+    print(
+        json.dumps(
+            {
+                "rows": rows,
+                "total_count": len(rows),
+                "estimated_cost": round(total_cost, 3),
+                "errors": errors,
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

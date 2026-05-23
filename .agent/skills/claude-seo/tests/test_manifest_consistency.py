@@ -10,6 +10,7 @@ locked in Phase A was not re-run. v1.9.8 closes the systemic gap.
 
 Tests run via `pytest tests/` and are wired into `.github/workflows/ci.yml`.
 """
+
 import json
 import re
 from pathlib import Path
@@ -24,8 +25,7 @@ def _count_skill_dirs() -> int:
     """Count subdirectories of skills/ that contain a SKILL.md."""
     skills_dir = REPO_ROOT / "skills"
     return sum(
-        1 for d in skills_dir.iterdir()
-        if d.is_dir() and (d / "SKILL.md").is_file()
+        1 for d in skills_dir.iterdir() if d.is_dir() and (d / "SKILL.md").is_file()
     )
 
 
@@ -33,7 +33,8 @@ def _count_agent_files() -> int:
     """Count agents/seo-*.md files."""
     agents_dir = REPO_ROOT / "agents"
     return sum(
-        1 for f in agents_dir.iterdir()
+        1
+        for f in agents_dir.iterdir()
         if f.is_file() and f.suffix == ".md" and f.name.startswith("seo-")
     )
 
@@ -161,9 +162,7 @@ def test_install_scripts_default_tag_matches_plugin_version():
     expected_tag = f"v{plugin['version']}"
 
     sh_text = (REPO_ROOT / "install.sh").read_text()
-    sh_match = re.search(
-        r'REPO_TAG="\$\{CLAUDE_SEO_TAG:-([^}]+)\}"', sh_text
-    )
+    sh_match = re.search(r'REPO_TAG="\$\{CLAUDE_SEO_TAG:-([^}]+)\}"', sh_text)
     assert sh_match, "install.sh has no recognizable REPO_TAG default"
     sh_tag = sh_match.group(1)
     assert sh_tag == expected_tag, (
@@ -207,7 +206,8 @@ def test_orchestrator_sub_skills_list_matches_disk():
     )
     listed = set(listed_list)
     on_disk = {
-        d.name for d in (REPO_ROOT / "skills").iterdir()
+        d.name
+        for d in (REPO_ROOT / "skills").iterdir()
         if d.is_dir() and (d / "SKILL.md").is_file()
     }
     # The orchestrator (`seo`) does not list itself.
@@ -237,7 +237,8 @@ def test_orchestrator_subagents_list_matches_disk():
     )
     listed = set(listed_list)
     on_disk = {
-        p.stem for p in (REPO_ROOT / "agents").iterdir()
+        p.stem
+        for p in (REPO_ROOT / "agents").iterdir()
         if p.is_file() and p.suffix == ".md" and p.name.startswith("seo-")
     }
     assert listed == on_disk, (
@@ -289,9 +290,7 @@ def test_skill_metadata_versions_match_plugin_json():
             errors.append(f"{rel} has no YAML frontmatter block")
             continue
         # metadata.version is nested under `metadata:` and indented by 2 spaces
-        match = re.search(
-            r'^  version:\s*"([^"]+)"', frontmatter, re.MULTILINE
-        )
+        match = re.search(r'^  version:\s*"([^"]+)"', frontmatter, re.MULTILINE)
         if not match:
             errors.append(f"{rel} has no metadata.version in frontmatter")
             continue
@@ -317,12 +316,12 @@ def test_marketplace_metadata_and_author_parity():
     desc = mp["metadata"]["description"]
     desc_sub_skills = re.search(r"(\d+)\s+sub-skills", desc)
     desc_sub_agents = re.search(r"(\d+)\s+sub-agents", desc)
-    assert desc_sub_skills, (
-        f"marketplace.json metadata.description missing sub-skills count: {desc!r}"
-    )
-    assert desc_sub_agents, (
-        f"marketplace.json metadata.description missing sub-agents count: {desc!r}"
-    )
+    assert (
+        desc_sub_skills
+    ), f"marketplace.json metadata.description missing sub-skills count: {desc!r}"
+    assert (
+        desc_sub_agents
+    ), f"marketplace.json metadata.description missing sub-agents count: {desc!r}"
 
     plugin_desc = plugin["description"]
     plugin_sub_skills_match = re.search(r"(\d+)\s+sub-skills", plugin_desc)
@@ -340,9 +339,9 @@ def test_marketplace_metadata_and_author_parity():
     )
 
     plugin_entry = mp["plugins"][0]
-    assert "author" in plugin_entry, (
-        "marketplace.json plugin entry must have an author object"
-    )
+    assert (
+        "author" in plugin_entry
+    ), "marketplace.json plugin entry must have an author object"
     p_author = plugin["author"]
     m_author = plugin_entry["author"]
     # Exact parity for all 3 fields (name, email, url) — drift in any field
@@ -368,7 +367,12 @@ def test_canonical_math_adds_up():
     )
     headline = int(headline_match.group(1))
     breakdown = headline_match.group(2)
-    parts = [int(n) for n in re.findall(r"(\d+)\s+(?:core|orchestrator|framework|extension)", breakdown)]
+    parts = [
+        int(n)
+        for n in re.findall(
+            r"(\d+)\s+(?:core|orchestrator|framework|extension)", breakdown
+        )
+    ]
     assert sum(parts) == headline, (
         f"plugin.json canonical phrasing breakdown {breakdown!r} sums to "
         f"{sum(parts)} but headline claims {headline}. Math must add up."

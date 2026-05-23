@@ -20,7 +20,6 @@ import argparse
 import json
 import sys
 import time
-from typing import Optional
 
 try:
     from googleapiclient.discovery import build
@@ -37,6 +36,7 @@ try:
     from google_auth import get_oauth_credentials
 except ImportError:
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import get_oauth_credentials
 
@@ -243,7 +243,8 @@ def main():
     )
     parser.add_argument("url", nargs="?", help="URL to notify")
     parser.add_argument(
-        "--action", "-a",
+        "--action",
+        "-a",
         choices=["URL_UPDATED", "URL_DELETED"],
         default="URL_UPDATED",
         help="Notification type (default: URL_UPDATED)",
@@ -289,22 +290,32 @@ def main():
             update = result.get("latest_update")
             remove = result.get("latest_remove")
             if update:
-                print(f"  Latest Update: {update.get('notify_time')} ({update.get('type')})")
+                print(
+                    f"  Latest Update: {update.get('notify_time')} ({update.get('type')})"
+                )
             if remove:
-                print(f"  Latest Remove: {remove.get('notify_time')} ({remove.get('type')})")
+                print(
+                    f"  Latest Remove: {remove.get('notify_time')} ({remove.get('type')})"
+                )
             if not update and not remove and not result.get("error"):
                 print("  No notifications found.")
         elif args.batch:
             summary = result.get("summary", {})
-            print(f"=== Batch Indexing Notification ===")
+            print("=== Batch Indexing Notification ===")
             print(f"Action: {args.action}")
-            print(f"Total: {result.get('total', 0)} | Success: {summary.get('success', 0)} | Errors: {summary.get('error', 0)}")
-            print(f"Estimated remaining daily quota: {result.get('estimated_remaining_quota', '?')}")
+            print(
+                f"Total: {result.get('total', 0)} | Success: {summary.get('success', 0)} | Errors: {summary.get('error', 0)}"
+            )
+            print(
+                f"Estimated remaining daily quota: {result.get('estimated_remaining_quota', '?')}"
+            )
             if result.get("quota_warning"):
                 print(f"Warning: {result['quota_warning']}")
         else:
             if result.get("notify_time"):
-                print(f"Notified: {result['url']} ({result['action']}) at {result['notify_time']}")
+                print(
+                    f"Notified: {result['url']} ({result['action']}) at {result['notify_time']}"
+                )
             elif not result.get("error"):
                 print(f"Notification sent for: {result['url']} ({result['action']})")
 

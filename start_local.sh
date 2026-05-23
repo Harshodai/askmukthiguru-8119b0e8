@@ -35,9 +35,9 @@ err()  { echo -e "${RED}[✗]${NC} $1"; }
 
 check_prereqs() {
     log "Checking prerequisites..."
-    
+
     local missing=0
-    
+
     if ! command -v docker &>/dev/null; then
         err "Docker not found. Install Docker Desktop: https://www.docker.com/products/docker-desktop/"
         missing=1
@@ -78,35 +78,35 @@ check_prereqs() {
 start_infra() {
     log "Starting infrastructure (Qdrant, Redis, Neo4j)..."
     cd "$BACKEND_DIR"
-    
+
     # Only start the databases, not the backend/frontend Docker services
     docker compose up -d qdrant redis neo4j
-    
+
     # Wait for services to be healthy
     log "Waiting for services to be healthy..."
     sleep 5
-    
+
     # Check Qdrant
     if curl -sf http://localhost:6333/healthz &>/dev/null; then
         ok "Qdrant is running on port 6333"
     else
         warn "Qdrant may still be starting up..."
     fi
-    
+
     # Check Redis
     if docker exec mukthiguru-redis redis-cli -a mukthiguru_redis_secret_123 ping 2>/dev/null | grep -q PONG; then
         ok "Redis is running on port 6379"
     else
         warn "Redis may still be starting up..."
     fi
-    
+
     # Check Neo4j
     if curl -sf http://localhost:7474 &>/dev/null; then
         ok "Neo4j is running on port 7474"
     else
         warn "Neo4j may still be starting up (can take 30-60s)..."
     fi
-    
+
     echo ""
     cd "$ROOT_DIR"
 }
@@ -195,21 +195,21 @@ case "${1:-all}" in
     all|"")
         check_prereqs
         start_infra
-        
+
         log "Starting backend in background..."
         start_backend &
         BACKEND_PID=$!
-        
+
         # Give backend a moment to start
         sleep 3
-        
+
         log "Starting frontend..."
         start_frontend &
         FRONTEND_PID=$!
-        
+
         # Trap to clean up on exit
         trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT TERM
-        
+
         wait
         ;;
     *)

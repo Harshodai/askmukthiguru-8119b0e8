@@ -24,15 +24,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import os
 import subprocess
 import sys
-import tarfile
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -42,7 +38,9 @@ NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
 NEO4J_CONTAINER = os.environ.get("NEO4J_CONTAINER", "mukthiguru-neo4j")
 NEO4J_DB_NAME = os.environ.get("NEO4J_DB_NAME", "neo4j")  # default database
 
-BACKUP_BASE_DIR = Path(os.environ.get("BACKUP_BASE_DIR", Path(__file__).resolve().parents[2] / "backups" / "neo4j"))
+BACKUP_BASE_DIR = Path(
+    os.environ.get("BACKUP_BASE_DIR", Path(__file__).resolve().parents[2] / "backups" / "neo4j")
+)
 DEFAULT_RETENTION = 7
 DEFAULT_FORMAT = "dump"  # "dump" or "cypher"
 
@@ -70,7 +68,7 @@ def _write_checksum(path: Path, checksum: str) -> None:
     print(f"  [+] Checksum written: {sidecar}")
 
 
-def _read_checksum(path: Path) -> Optional[str]:
+def _read_checksum(path: Path) -> str | None:
     """Read checksum from sidecar file if it exists."""
     sidecar = path.with_suffix(path.suffix + ".sha256")
     if not sidecar.exists():
@@ -79,9 +77,18 @@ def _read_checksum(path: Path) -> Optional[str]:
     return parts[0] if parts else None
 
 
-def _run(cmd: list[str], input_text: Optional[str] = None, timeout: int = 120) -> subprocess.CompletedProcess:
+def _run(
+    cmd: list[str], input_text: str | None = None, timeout: int = 120
+) -> subprocess.CompletedProcess:
     """Run a shell command and return the result."""
-    return subprocess.run(cmd, capture_output=True, text=True, check=True, input=input_text, timeout=timeout)
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        check=True,
+        input=input_text,
+        timeout=timeout,
+    )
 
 
 def _container_exists(name: str) -> bool:
@@ -95,10 +102,11 @@ def _container_exists(name: str) -> bool:
 
 # ─── Dump Backup (neo4j-admin) ───────────────────────────────────────────────
 
+
 def backup_dump(retention: int) -> bool:
     """Use neo4j-admin database dump inside the Docker container."""
     print("=" * 70)
-    print(f"  Neo4j Backup — Format: dump (neo4j-admin)")
+    print("  Neo4j Backup — Format: dump (neo4j-admin)")
     print("=" * 70)
 
     BACKUP_BASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -107,19 +115,23 @@ def backup_dump(retention: int) -> bool:
         print(f"[-] Neo4j container '{NEO4J_CONTAINER}' not found. Is Docker Compose running?")
         return False
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     dump_filename = f"{NEO4J_DB_NAME}_{ts}.dump"
     host_dest = BACKUP_BASE_DIR / dump_filename
     container_tmp = f"/tmp/{dump_filename}"
 
     try:
         # 1. Run neo4j-admin dump inside container
-        print(f"[*] Running neo4j-admin database dump ...")
+        print("[*] Running neo4j-admin database dump ...")
         cmd = [
-            "docker", "exec", NEO4J_CONTAINER,
-            "neo4j-admin", "database", "dump",
+            "docker",
+            "exec",
+            NEO4J_CONTAINER,
+            "neo4j-admin",
+            "database",
+            "dump",
             NEO4J_DB_NAME,
-            f"--to-path=/tmp",
+            "--to-path=/tmp",
             "--overwrite-destination=true",
         ]
         _run(cmd, timeout=300)
@@ -127,7 +139,8 @@ def backup_dump(retention: int) -> bool:
 
         # 2. Copy dump from container to host
         cp_cmd = [
-            "docker", "cp",
+            "docker",
+            "cp",
             f"{NEO4J_CONTAINER}:{container_tmp}",
             str(host_dest),
         ]
@@ -136,7 +149,10 @@ def backup_dump(retention: int) -> bool:
 
         # 3. Remove temp dump from container
         try:
-            _run(["docker", "exec", NEO4J_CONTAINER, "rm", "-f", container_tmp], timeout=10)
+            _run(
+                ["docker", "exec", NEO4J_CONTAINER, "rm", "-f", container_tmp],
+                timeout=10,
+            )
         except subprocess.CalledProcessError:
             pass
 
@@ -177,7 +193,7 @@ def verify_dump(path: Path) -> bool:
     if expected:
         actual = _sha256_file(path)
         if actual != expected:
-            print(f"  [-] FAIL: Checksum mismatch!")
+            print("  [-] FAIL: Checksum mismatch!")
             return False
         print("  [+] Checksum OK")
     else:
@@ -198,10 +214,11 @@ def verify_dump(path: Path) -> bool:
 
 # ─── Cypher Backup (APOC) ────────────────────────────────────────────────────
 
+
 def backup_cypher(retention: int) -> bool:
     """Use APOC export cypher stream for a human-readable backup."""
     print("=" * 70)
-    print(f"  Neo4j Backup — Format: cypher (APOC export)")
+    print("  Neo4j Backup — Format: cypher (APOC export)")
     print("=" * 70)
 
     BACKUP_BASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -210,19 +227,25 @@ def backup_cypher(retention: int) -> bool:
         print(f"[-] Neo4j container '{NEO4J_CONTAINER}' not found.")
         return False
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     cypher_filename = f"neo4j_{ts}.cypher"
     host_dest = BACKUP_BASE_DIR / cypher_filename
 
     try:
-        print(f"[*] Running APOC Cypher export ...")
+        print("[*] Running APOC Cypher export ...")
         cypher_query = (
             "CALL apoc.export.cypher.all(null, {stream: true, format: 'plain'}) "
             "YIELD cypherStatements RETURN cypherStatements"
         )
         cmd = [
-            "docker", "exec", NEO4J_CONTAINER,
-            "cypher-shell", "-u", NEO4J_USER, "-p", NEO4J_PASSWORD,
+            "docker",
+            "exec",
+            NEO4J_CONTAINER,
+            "cypher-shell",
+            "-u",
+            NEO4J_USER,
+            "-p",
+            NEO4J_PASSWORD,
             cypher_query,
         ]
         result = _run(cmd, timeout=300)
@@ -237,7 +260,7 @@ def backup_cypher(retention: int) -> bool:
         for line in lines[1:]:
             if line.startswith('"') and line.endswith('"'):
                 line = line[1:-1]
-            cypher_text += line.replace('\\"', '"').replace('\\n', '\n') + "\n"
+            cypher_text += line.replace('\\"', '"').replace("\\n", "\n") + "\n"
 
         host_dest.write_text(cypher_text, encoding="utf-8")
         print(f"[+] Cypher backup saved: {host_dest} ({len(cypher_text.splitlines())} lines)")
@@ -285,6 +308,7 @@ def verify_cypher(path: Path) -> bool:
 
 # ─── Shared Utilities ─────────────────────────────────────────────────────────
 
+
 def cleanup_old_backups(pattern: str, retention: int) -> None:
     """Remove local backups older than the retention count."""
     files = sorted(BACKUP_BASE_DIR.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -298,12 +322,24 @@ def cleanup_old_backups(pattern: str, retention: int) -> None:
 
 # ─── Main Entry Point ─────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mukthi Guru — Neo4j Backup & Verification")
-    parser.add_argument("--format", choices=["dump", "cypher"], default=DEFAULT_FORMAT,
-                        help="Backup format: 'dump' (neo4j-admin binary) or 'cypher' (plain text)")
-    parser.add_argument("--retention", type=int, default=DEFAULT_RETENTION, help="Backups to retain")
-    parser.add_argument("--verify-only", type=Path, metavar="PATH", help="Verify an existing backup file")
+    parser.add_argument(
+        "--format",
+        choices=["dump", "cypher"],
+        default=DEFAULT_FORMAT,
+        help="Backup format: 'dump' (neo4j-admin binary) or 'cypher' (plain text)",
+    )
+    parser.add_argument(
+        "--retention", type=int, default=DEFAULT_RETENTION, help="Backups to retain"
+    )
+    parser.add_argument(
+        "--verify-only",
+        type=Path,
+        metavar="PATH",
+        help="Verify an existing backup file",
+    )
     args = parser.parse_args()
 
     _enforce_docker_path()

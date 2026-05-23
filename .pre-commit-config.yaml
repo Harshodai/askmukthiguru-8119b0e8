@@ -1,6 +1,4 @@
-# .pre-commit-config.yaml
-# Modern pre-commit configuration for AskMukthiGuru
-# To install hooks: `pip install pre-commit && pre-commit install`
+exclude: '^(\.agent|\.agents|node_modules|playwright-report|dist)/'
 
 repos:
   # --- Standard File Checks ---

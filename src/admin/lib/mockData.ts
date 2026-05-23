@@ -74,7 +74,7 @@ export async function getQueryTrace(queryId: string): Promise<QueryTrace | null>
   ]);
 
   if (!query) return null;
-  
+
   return {
     query: query as ChatQuery,
     prompt: null as unknown as import('@/admin/types').PromptVersion,
@@ -100,10 +100,10 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
   const { data: queries } = await q;
   const rows = (queries || []) as any[];
   const total = rows.length;
-  
+
   const ok = rows.filter((x) => x.status === "ok");
   const errors = rows.filter((x) => x.status === "error");
-  
+
   const latencies = ok.map((x: any) => x.latency_ms).filter(x => typeof x === 'number').sort((a: number, b: number) => a - b);
   const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : 0;
   const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : 0;
@@ -112,14 +112,14 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
   let retrievalHitCount = 0;
   let sereneMindTriggerCount = 0;
   let totalCost = 0;
-  
+
   rows.forEach(row => {
     // Check responses for hallucination and retrieval hits
     const responses = row.chat_responses || [];
     if (responses.length > 0) {
        const res = responses[0];
        if (res.hallucination_flag) hallucinationCount++;
-       
+
        // A retrieval hit means it cited at least one document
        let citations = res.citations || [];
        if (typeof citations === "string") {
@@ -129,13 +129,13 @@ export async function getKpis(range: { from?: Date; to?: Date }): Promise<KpiSna
           retrievalHitCount++;
        }
     }
-    
+
     // Check triggers for DISTRESS/Serene Mind
     const triggers = row.trigger_events || [];
     if (triggers.length > 0 && triggers.some((t: any) => t.trigger_type === 'DISTRESS' || t.trigger_type === 'meditation')) {
        sereneMindTriggerCount++;
     }
-    
+
     if (row.cost_estimate) {
        totalCost += Number(row.cost_estimate);
     }
@@ -170,7 +170,7 @@ export async function getTimeseries(opts: {
 
   const { data } = await q;
   const queries = (data || []) as ChatQuery[];
-  
+
   // If no date range provided, we can't cleanly bucket
   if (queries.length === 0 || !opts.from || !opts.to) return [];
 
@@ -190,7 +190,7 @@ export async function getTimeseries(opts: {
     let bIdx = Math.floor((qTime - startTime) / bucketMs);
     if (bIdx >= numBuckets) bIdx = numBuckets - 1;
     if (bIdx < 0) bIdx = 0;
-    
+
     buckets[bIdx].count++;
     if (opts.metric === "queries") {
       buckets[bIdx].value++;
@@ -313,7 +313,7 @@ export async function upsertModelPricing(p: ModelPricing): Promise<void> {}
 export async function askData(query: string): Promise<string> { return "AskData is not yet wired."; }
 
 export async function listModels(): Promise<string[]> {
-  return ["sarvam-30b", "qwen3-30b"]; 
+  return ["sarvam-30b", "qwen3-30b"];
 }
 
 export async function listTriggers(range?: { from?: Date; to?: Date }): Promise<TriggerEvent[]> {
@@ -328,11 +328,11 @@ export async function getTopFailures(range?: { from?: Date; to?: Date }, limit =
   let q = fromUntyped("chat_responses").select("*, chat_queries(*)");
   if (range?.from) q = q.gte("created_at", range.from.toISOString());
   if (range?.to) q = q.lte("created_at", range.to.toISOString());
-  
+
   // Sort by lowest faithfulness + relevancy
   const { data } = await q;
   if (!data) return [];
-  
+
   return data
     .filter((r: any) => r.faithfulness !== null && r.answer_relevancy !== null)
     .sort((a: any, b: any) => (a.faithfulness + a.answer_relevancy) - (b.faithfulness + b.answer_relevancy))
@@ -355,7 +355,7 @@ export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, lim
 export async function getIngestionHealth(): Promise<any> {
   const { data } = await fromUntyped("ingestion_runs").select("*");
   const runs = (data || []) as IngestionRun[];
-  
+
   let indexed_docs = 0;
   let failed_docs = 0;
   let total_runs = runs.length;

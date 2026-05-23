@@ -34,7 +34,12 @@ def get_history(url: str, limit: int = 20) -> dict:
     uhash = url_hash(url)
 
     if not os.path.exists(DB_PATH):
-        return {"url": norm_url, "baselines": [], "comparisons": [], "note": "No database found. Run `drift baseline` first."}
+        return {
+            "url": norm_url,
+            "baselines": [],
+            "comparisons": [],
+            "note": "No database found. Run `drift baseline` first.",
+        }
 
     conn = init_db()
     try:
@@ -54,19 +59,21 @@ def get_history(url: str, limit: int = 20) -> dict:
 
         baselines = []
         for row in rows:
-            baselines.append({
-                "id": row[0],
-                "url": row[1],
-                "timestamp": row[2],
-                "title": row[3],
-                "canonical": row[4],
-                "robots": row[5],
-                "h1": row[6],
-                "status_code": row[7],
-                "html_hash": row[8][:12] + "..." if row[8] else None,
-                "schema_hash": row[9][:12] + "..." if row[9] else None,
-                "has_cwv": bool(row[10]),
-            })
+            baselines.append(
+                {
+                    "id": row[0],
+                    "url": row[1],
+                    "timestamp": row[2],
+                    "title": row[3],
+                    "canonical": row[4],
+                    "robots": row[5],
+                    "h1": row[6],
+                    "status_code": row[7],
+                    "html_hash": row[8][:12] + "..." if row[8] else None,
+                    "schema_hash": row[9][:12] + "..." if row[9] else None,
+                    "has_cwv": bool(row[10]),
+                }
+            )
 
         # Fetch comparisons
         comp_rows = conn.execute(
@@ -82,14 +89,16 @@ def get_history(url: str, limit: int = 20) -> dict:
 
         comparisons = []
         for row in comp_rows:
-            comparisons.append({
-                "id": row[0],
-                "baseline_id": row[1],
-                "timestamp": row[2],
-                "critical": row[3],
-                "warning": row[4],
-                "info": row[5],
-            })
+            comparisons.append(
+                {
+                    "id": row[0],
+                    "baseline_id": row[1],
+                    "timestamp": row[2],
+                    "critical": row[3],
+                    "warning": row[4],
+                    "info": row[5],
+                }
+            )
 
     finally:
         conn.close()
@@ -102,12 +111,11 @@ def get_history(url: str, limit: int = 20) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Query SEO drift history for a URL"
-    )
+    parser = argparse.ArgumentParser(description="Query SEO drift history for a URL")
     parser.add_argument("url", help="URL to query history for")
     parser.add_argument(
-        "--limit", "-n",
+        "--limit",
+        "-n",
         type=int,
         default=20,
         help="Maximum number of entries to return (default: 20)",
@@ -120,7 +128,10 @@ def main():
 
     if not result["baselines"]:
         print(f"\nNo baselines found for {result['url']}.", file=sys.stderr)
-        print("Run `python scripts/drift_baseline.py <url>` to capture the first baseline.", file=sys.stderr)
+        print(
+            "Run `python scripts/drift_baseline.py <url>` to capture the first baseline.",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":

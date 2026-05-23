@@ -57,7 +57,7 @@ let currentConfig: AIConfig = {
   provider: 'custom',
   endpoint: `${BACKEND_URL}/api/chat`,
   language: getInitialLanguage(),
-  systemPrompt: `You are a spiritual AI companion embodying the wisdom of Sri Preethaji & Sri Krishnaji. 
+  systemPrompt: `You are a spiritual AI companion embodying the wisdom of Sri Preethaji & Sri Krishnaji.
 Your purpose is to guide seekers toward their "beautiful state" - a state of consciousness free from suffering.
 You speak with warmth, compassion, and profound insight. You never claim to replace professional mental health support.
 When someone is in deep distress, gently encourage them to seek professional help while offering comfort.`,
@@ -317,9 +317,9 @@ export const generateSummary = async (messages: MessagePayload[]): Promise<strin
       },
       body: JSON.stringify({
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are a summarizer. Provide a concise 2-3 sentence summary of the key spiritual insights and user concerns discussed in this conversation history. Focus on maintaining teaching continuity.' 
+          {
+            role: 'system',
+            content: 'You are a summarizer. Provide a concise 2-3 sentence summary of the key spiritual insights and user concerns discussed in this conversation history. Focus on maintaining teaching continuity.'
           },
           ...messages.slice(-10),
         ],
@@ -387,10 +387,10 @@ export const checkConnection = async (): Promise<{ connected: boolean; mode: str
   if (provider === 'custom' && endpoint) {
     try {
       // Handle both relative and absolute endpoints safely
-      const healthUrl = endpoint.startsWith('http') 
-        ? new URL('/api/health', new URL(endpoint).origin).href 
+      const healthUrl = endpoint.startsWith('http')
+        ? new URL('/api/health', new URL(endpoint).origin).href
         : '/api/health';
-        
+
       const response = await fetch(healthUrl);
       return { connected: response.ok, mode: response.ok ? 'Connected to Guru' : 'Reconnecting…' };
     } catch (e) {

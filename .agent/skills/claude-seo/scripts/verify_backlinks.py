@@ -16,7 +16,6 @@ import argparse
 import json
 import sys
 import time
-from typing import Optional
 from urllib.parse import urlparse
 
 try:
@@ -26,6 +25,7 @@ except ImportError:
     sys.exit(1)
 
 import os
+
 _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _SCRIPTS_DIR)
 try:
@@ -72,9 +72,19 @@ def _head_check(url: str, timeout: int = 15) -> dict:
             "error": None,
         }
     except requests.exceptions.Timeout:
-        return {"status_code": None, "exists": False, "redirect_url": None, "error": "timeout"}
+        return {
+            "status_code": None,
+            "exists": False,
+            "redirect_url": None,
+            "error": "timeout",
+        }
     except requests.exceptions.RequestException as e:
-        return {"status_code": None, "exists": False, "redirect_url": None, "error": str(e)}
+        return {
+            "status_code": None,
+            "exists": False,
+            "redirect_url": None,
+            "error": str(e),
+        }
 
 
 def _normalize_url(url: str) -> str:
@@ -84,8 +94,9 @@ def _normalize_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}{path}"
 
 
-def verify_single_backlink(source_url: str, target_url: str,
-                            head_only: bool = False, timeout: int = 30) -> dict:
+def verify_single_backlink(
+    source_url: str, target_url: str, head_only: bool = False, timeout: int = 30
+) -> dict:
     """
     Verify a single backlink by checking if target_url appears on source_url page.
 
@@ -168,7 +179,9 @@ def verify_single_backlink(source_url: str, target_url: str,
 
     normalized_target = _normalize_url(target_url)
     raw_target_host = urlparse(target_url).netloc.lower()
-    target_domain = raw_target_host[4:] if raw_target_host.startswith("www.") else raw_target_host
+    target_domain = (
+        raw_target_host[4:] if raw_target_host.startswith("www.") else raw_target_host
+    )
 
     for link in all_page_links:
         link_href = link.get("href", "")
@@ -177,7 +190,9 @@ def verify_single_backlink(source_url: str, target_url: str,
 
         normalized_href = _normalize_url(link_href)
         raw_link_host = urlparse(link_href).netloc.lower()
-        link_domain = raw_link_host[4:] if raw_link_host.startswith("www.") else raw_link_host
+        link_domain = (
+            raw_link_host[4:] if raw_link_host.startswith("www.") else raw_link_host
+        )
 
         # Match: exact URL, same domain, or subdomain of target
         if normalized_href == normalized_target:
@@ -203,9 +218,16 @@ def verify_single_backlink(source_url: str, target_url: str,
     # Target not found — check if page is JS-rendered (false negative risk)
     content = page_data.get("content", "")
     js_indicators = [
-        '<div id="root"', '<div id="app"', '<div id="__next"',
-        "__NEXT_DATA__", "__nuxt", "ng-app=", "ng-version=",
-        "react-root", "data-reactroot", "_reactListening",
+        '<div id="root"',
+        '<div id="app"',
+        '<div id="__next"',
+        "__NEXT_DATA__",
+        "__nuxt",
+        "ng-app=",
+        "ng-version=",
+        "react-root",
+        "data-reactroot",
+        "_reactListening",
     ]
     content_lower = content.lower()
     is_likely_js = any(ind.lower() in content_lower for ind in js_indicators)
@@ -219,7 +241,9 @@ def verify_single_backlink(source_url: str, target_url: str,
     if is_likely_js or low_text_ratio:
         result["status"] = "unverifiable_js"
         result["target_found"] = None
-        result["error"] = "Page appears JS-rendered; link may exist but cannot be confirmed via HTTP GET"
+        result["error"] = (
+            "Page appears JS-rendered; link may exist but cannot be confirmed via HTTP GET"
+        )
         return result
 
     result["status"] = "link_removed"
@@ -227,8 +251,9 @@ def verify_single_backlink(source_url: str, target_url: str,
     return result
 
 
-def verify_backlinks(target_url: str, links: list, head_only: bool = False,
-                      timeout: int = 30) -> dict:
+def verify_backlinks(
+    target_url: str, links: list, head_only: bool = False, timeout: int = 30
+) -> dict:
     """
     Verify a batch of backlinks.
 
@@ -242,8 +267,16 @@ def verify_backlinks(target_url: str, links: list, head_only: bool = False,
         Standard response dict with verification results and summary.
     """
     results = []
-    summary = {"total": 0, "verified": 0, "lost": 0, "moved": 0,
-               "link_removed": 0, "unverifiable_js": 0, "exists": 0, "error": 0}
+    summary = {
+        "total": 0,
+        "verified": 0,
+        "lost": 0,
+        "moved": 0,
+        "link_removed": 0,
+        "unverifiable_js": 0,
+        "exists": 0,
+        "error": 0,
+    }
 
     for item in links:
         source_url = item.get("source_url", "")
@@ -251,8 +284,9 @@ def verify_backlinks(target_url: str, links: list, head_only: bool = False,
             continue
 
         summary["total"] += 1
-        result = verify_single_backlink(source_url, target_url,
-                                         head_only=head_only, timeout=timeout)
+        result = verify_single_backlink(
+            source_url, target_url, head_only=head_only, timeout=timeout
+        )
         results.append(result)
 
         status = result.get("status", "error")
@@ -289,7 +323,7 @@ def main():
     parser.add_argument(
         "--links",
         required=True,
-        help="JSON file with backlink list (or '-' for stdin). Format: [{\"source_url\": \"...\"}]",
+        help='JSON file with backlink list (or \'-\' for stdin). Format: [{"source_url": "..."}]',
     )
     parser.add_argument(
         "--head-only",
@@ -376,7 +410,9 @@ def main():
             anchor_display = f" [{anchor[:30]}]" if anchor else ""
             rel = r.get("rel_attributes", [])
             rel_display = f" rel={','.join(rel)}" if rel and rel != ["follow"] else ""
-            print(f"  [{status:13s}] {r.get('source_url', '?')}{anchor_display}{rel_display}")
+            print(
+                f"  [{status:13s}] {r.get('source_url', '?')}{anchor_display}{rel_display}"
+            )
 
 
 if __name__ == "__main__":

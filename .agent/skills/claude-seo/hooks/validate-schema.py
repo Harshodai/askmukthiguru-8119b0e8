@@ -107,9 +107,13 @@ def _validate_schema_object(obj: dict, block_num: int) -> List[str]:
         errors.append(f"{prefix}: @type '{schema_type}' is {deprecated[schema_type]}")
 
     # Check for restricted types used incorrectly
-    restricted = {"FAQPage": "restricted to government and healthcare sites only (Aug 2023)"}
+    restricted = {
+        "FAQPage": "restricted to government and healthcare sites only (Aug 2023)"
+    }
     if schema_type in restricted:
-        errors.append(f"{prefix}: @type '{schema_type}' is {restricted[schema_type]}; verify site qualifies")
+        errors.append(
+            f"{prefix}: @type '{schema_type}' is {restricted[schema_type]}; verify site qualifies"
+        )
 
     return errors
 
@@ -124,7 +128,16 @@ def main():
         sys.exit(0)
 
     # Only validate HTML-like files
-    valid_extensions = (".html", ".htm", ".jsx", ".tsx", ".vue", ".svelte", ".php", ".ejs")
+    valid_extensions = (
+        ".html",
+        ".htm",
+        ".jsx",
+        ".tsx",
+        ".vue",
+        ".svelte",
+        ".php",
+        ".ejs",
+    )
     if not filepath.endswith(valid_extensions):
         sys.exit(0)
 

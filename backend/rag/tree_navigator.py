@@ -114,8 +114,7 @@ async def check_sufficiency(
     from rag.prompts import SUFFICIENCY_CHECK_PROMPT
 
     prompt = (
-        f"Question: {query}\n\n"
-        f"Retrieved Context:\n{context[:3000]}"  # Truncate for efficiency
+        f"Question: {query}\n\n" f"Retrieved Context:\n{context[:3000]}"  # Truncate for efficiency
     )
 
     try:

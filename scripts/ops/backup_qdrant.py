@@ -23,18 +23,18 @@ import json
 import os
 import sys
 import tarfile
-import tempfile
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
-BACKUP_BASE_DIR = Path(os.environ.get("BACKUP_BASE_DIR", Path(__file__).resolve().parents[2] / "backups" / "qdrant"))
+BACKUP_BASE_DIR = Path(
+    os.environ.get("BACKUP_BASE_DIR", Path(__file__).resolve().parents[2] / "backups" / "qdrant")
+)
 DEFAULT_COLLECTION = "spiritual_wisdom"
 DEFAULT_RETENTION = 7  # keep last N backups
 
@@ -62,7 +62,7 @@ def _write_checksum(path: Path, checksum: str) -> None:
     print(f"  [+] Checksum written: {sidecar}")
 
 
-def _read_checksum(path: Path) -> Optional[str]:
+def _read_checksum(path: Path) -> str | None:
     """Read checksum from sidecar file if it exists."""
     sidecar = path.with_suffix(path.suffix + ".sha256")
     if not sidecar.exists():
@@ -71,7 +71,7 @@ def _read_checksum(path: Path) -> Optional[str]:
     return parts[0] if parts else None
 
 
-def _snapshot_exists_locally(name: str, collection: str) -> Optional[Path]:
+def _snapshot_exists_locally(name: str, collection: str) -> Path | None:
     """Check if a snapshot with the given name already exists locally."""
     candidate = BACKUP_BASE_DIR / f"{collection}_{name}"
     if candidate.exists():
@@ -79,7 +79,12 @@ def _snapshot_exists_locally(name: str, collection: str) -> Optional[Path]:
     return None
 
 
-def _api_request(url: str, method: str = "GET", data: Optional[bytes] = None, headers: Optional[dict] = None) -> dict:
+def _api_request(
+    url: str,
+    method: str = "GET",
+    data: bytes | None = None,
+    headers: dict | None = None,
+) -> dict:
     """Make a JSON API request to Qdrant and return parsed response."""
     req = urllib.request.Request(url, method=method, data=data)
     if headers:
@@ -92,6 +97,7 @@ def _api_request(url: str, method: str = "GET", data: Optional[bytes] = None, he
 
 
 # ─── Core Backup Logic ────────────────────────────────────────────────────────
+
 
 def create_snapshot(collection: str) -> str:
     """Trigger snapshot creation on Qdrant; return snapshot name."""
@@ -136,6 +142,7 @@ def cleanup_old_backups(collection: str, retention: int) -> None:
 
 # ─── Verification Logic ───────────────────────────────────────────────────────
 
+
 def verify_snapshot(path: Path) -> bool:
     """
     Verify a snapshot archive:
@@ -168,9 +175,13 @@ def verify_snapshot(path: Path) -> bool:
                 print("  [-] FAIL: Archive is empty.")
                 return False
             # Qdrant snapshots contain a segment directory and config.json
-            has_config = any(n.endswith("config.json") or n.endswith("snapshot_metadata.json") for n in names)
+            has_config = any(
+                n.endswith("config.json") or n.endswith("snapshot_metadata.json") for n in names
+            )
             if not has_config:
-                print(f"  [-] FAIL: Archive missing expected metadata files. Names: {names[:5]} ...")
+                print(
+                    f"  [-] FAIL: Archive missing expected metadata files. Names: {names[:5]} ..."
+                )
                 return False
             print(f"  [+] Archive OK ({len(names)} entries)")
     except tarfile.TarError as e:
@@ -200,13 +211,10 @@ def verify_snapshot(path: Path) -> bool:
 def _create_temp_collection(name: str) -> None:
     """Create a minimal temporary collection for verification."""
     url = f"{QDRANT_URL}/collections/{name}"
-    payload = json.dumps({
-        "vectors": {
-            "size": 1024,
-            "distance": "Cosine"
-        }
-    }).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="PUT")
+    payload = json.dumps({"vectors": {"size": 1024, "distance": "Cosine"}}).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=payload, headers={"Content-Type": "application/json"}, method="PUT"
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as res:
             pass
@@ -236,9 +244,11 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
         snapshot_bytes = f.read()
     body = (
         b"--" + boundary + b"\r\n"
-        b'Content-Disposition: form-data; name="snapshot"; filename="' + path.name.encode() + b'"' + b"\r\n"
-        b"Content-Type: application/octet-stream\r\n\r\n"
-        + snapshot_bytes + b"\r\n"
+        b'Content-Disposition: form-data; name="snapshot"; filename="'
+        + path.name.encode()
+        + b'"'
+        + b"\r\n"
+        b"Content-Type: application/octet-stream\r\n\r\n" + snapshot_bytes + b"\r\n"
         b"--" + boundary + b"--\r\n"
     )
     req = urllib.request.Request(
@@ -257,6 +267,7 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
 
 # ─── Main Entry Point ─────────────────────────────────────────────────────────
 
+
 def backup(collection: str, retention: int) -> bool:
     """Run full backup pipeline for a Qdrant collection."""
     print("=" * 70)
@@ -264,7 +275,7 @@ def backup(collection: str, retention: int) -> bool:
     print("=" * 70)
 
     BACKUP_BASE_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     dest = BACKUP_BASE_DIR / f"{collection}_{ts}.snapshot"
 
     try:
@@ -298,8 +309,18 @@ def backup(collection: str, retention: int) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mukthi Guru — Qdrant Backup & Verification")
     parser.add_argument("--collection", default=DEFAULT_COLLECTION, help="Qdrant collection name")
-    parser.add_argument("--retention", type=int, default=DEFAULT_RETENTION, help="Number of backups to retain")
-    parser.add_argument("--verify-only", type=Path, metavar="PATH", help="Verify an existing snapshot file")
+    parser.add_argument(
+        "--retention",
+        type=int,
+        default=DEFAULT_RETENTION,
+        help="Number of backups to retain",
+    )
+    parser.add_argument(
+        "--verify-only",
+        type=Path,
+        metavar="PATH",
+        help="Verify an existing snapshot file",
+    )
     args = parser.parse_args()
 
     _enforce_docker_path()
