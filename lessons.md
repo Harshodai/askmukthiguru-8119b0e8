@@ -601,3 +601,12 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Pre-flight Health Checks**: Added checks for Qdrant and Neo4j connectivity before launching the processing loop, ensuring that the script fails fast rather than burning API calls or processing time when critical infrastructure is down.
 - **Lesson**: High-volume ingestion architectures should prioritize state recovery (retries and backfills) over processing new records. Segmenting work queues into discrete execution phases with graceful checkpoints ensures pipeline predictability, controls API consumption, and simplifies troubleshooting.
 
+### 50. NameError Fixes, API Parameter Self-Healing Indentation, and Mock Client Signatures (May 2026)
+- **Problem**: Missing `asyncio` imports caused NameErrors in `ollama_service.py` when managing locks. A critical indentation bug in the self-healing and fallback loop in `SarvamCloudService._call_api` nested the exit `break` statement inside the `resp.status_code == 400` block. Consequently, HTTP 200 responses did not trigger a break, resulting in an infinite request loop. This drained API credits, hung tests, and eventually caused connection exhaustion. Also, mock HTTP clients in tests threw exceptions due to rigid constructor signatures that didn't support connection pooling arguments.
+- **Solution**:
+  - Imported `asyncio` inside `ollama_service.py`.
+  - Refactored the `_call_api` response handling branches, moving the `break` statement to the default `else` block so successful requests correctly exit the parameter adjustment loop.
+  - Hardened test mock clients (`FakeAsyncClient`, `CapturingAsyncClient`, `FallbackAsyncClient`) in `test_sarvam_observability.py` by configuring them to accept generic arguments (`*args, **kwargs`) in their constructors.
+- **Lesson learned**: When writing adjustment loops that process HTTP requests, always ensure that successful status code paths (such as HTTP 200) explicitly exit the loop via correct control flow indentation. Ensure test mocks match or fallback safely on standard client constructors (e.g. using `*args, **kwargs`) to prevent test breakage when constructor parameters evolve.
+
+
