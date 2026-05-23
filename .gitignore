@@ -80,3 +80,8 @@ data/lightrag/kv_store_*.json
 
 # Large raw transcript outputs
 transcripts/
+
+# Transient report outputs and caches
+reports/
+data/gptcache/
+

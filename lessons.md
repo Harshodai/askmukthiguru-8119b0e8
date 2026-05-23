@@ -643,3 +643,24 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Solution**:
   - Injected a fallback `JWT_SECRET` environment variable under the `env:` block of the `Run pytest` step in `.github/workflows/lint-test.yml` (e.g., `JWT_SECRET: dummy-jwt-secret-key-for-ci-runs`). This allows successful test collection and runner execution without exposing sensitive secrets.
 - **Lesson learned**: Ensure that CI/CD test runners always specify safe fallback values for any configuration fields validated at import time to prevent test collection crashes.
+
+### 55. Production-Grade Docker Data Persistence and Backup Strategy (May 2026)
+- **Problem**: During major Docker builds, recreations, or image upgrades, transient containers risk purging database files, knowledge graph indices, embedding weights, and cached data, leading to catastrophic data loss. Re-downloading massive HuggingFace models also slows down development environments.
+- **Solution**:
+  - **Named External Volumes**: Mapped all critical storage to persistent named external volumes: `qdrant_data:/qdrant/storage` (vector databases), `neo4j_data:/data` (knowledge graphs), `redis_data:/data` (Redis caches), and `telemetry_data:/app/data` (telemetry database).
+  - **Shared Model Caching**: Isolated heavy model weights under `hf_model_cache:/app/.cache` so they survive container rebuilds and image upgrades.
+  - **Hot-Reload Dev Mounting**: Mapped local code folders (`./app`, `./rag`, `./services`, `./guardrails`) directly into the container as read-write volumes, eliminating the need to rebuild Docker images for day-to-day code modifications.
+  - **Supabase CLI Integration**: Supported database schema persistence under `supabase/.temp` to maintain seeker and user profile records across stack updates.
+- **Lesson learned**: Never store state inside container boundaries. Always externalize databases, vector stores, and model caches to persistent named volumes, and mount code directly for hot-reloading to ensure that data is completely insulated from container lifecycles.
+
+### 56. Safe Stateless Web Stack Rebuilding via Dedicated Makefile Commands (May 2026)
+- **Problem**: Manually building and updating Docker containers requires typing long commands with absolute host paths for macOS Docker binaries (e.g., `export PATH="/Users/harshodaikolluru/.docker/bin:$PATH"`). Doing a standard full container rebuild (`docker compose up -d --build`) also risks transient database interruptions or database service restarts.
+- **Solution**:
+  - **Makefile Integration**: Created the `make docker-rebuild-web` command, which encapsulates the correct absolute Docker environment pathing and targets *only* the stateless `frontend` and `backend` containers:
+    ```makefile
+    docker-rebuild-web:
+        cd backend && PATH=$$PATH:/Users/harshodaikolluru/.docker/bin docker compose up -d --build frontend backend
+    ```
+  - **Zero Data Loss/Zero Interruption**: Running `make docker-rebuild-web` rebuilds and recreates only the stateless application layers while keeping Qdrant, Neo4j, Redis, and Supabase fully online and untouched.
+- **Lesson learned**: Codify environment-specific path prefixes (like macOS Docker custom paths) inside Makefile targets. Use focused container rebuilding targeting only stateless web tiers (e.g. `docker compose up -d --build frontend backend`) to prevent unnecessary database restarts, maintain service uptime, and protect localized data volumes.
+
