@@ -13,7 +13,8 @@ import type {
   DataPoint,
   QualityData,
   IngestionHealth,
-  QueryTrace,
+  ChatQuery as _ChatQueryUnused2,
+
   ChatQuery,
 } from '@/admin/types';
 import * as db from './mockData';
@@ -153,8 +154,8 @@ export async function listTriggers(filters: QueryFilters): Promise<TriggerEvent[
     'listTriggers',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/triggers?${params}`);
     },
@@ -168,8 +169,8 @@ export async function listSafetyEvents(filters: QueryFilters): Promise<SafetyEve
     'listSafetyEvents',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/safety-events?${params}`);
     },
@@ -192,8 +193,8 @@ export async function getRetrievalHealth(filters: QueryFilters): Promise<Retriev
     'getRetrievalHealth',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/retrieval-health?${params}`);
     },
@@ -222,8 +223,8 @@ export async function getQualityData(filters: QueryFilters): Promise<QualityData
     'getQualityData',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/quality-data?${params}`);
     },
@@ -319,8 +320,8 @@ export async function getTopFailures(filters: QueryFilters, limit: number) {
     'getTopFailures',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
         limit: String(limit),
       });
       return await fetchWithAuth(`/api/admin/top-failures?${params}`);
@@ -335,8 +336,8 @@ export async function getRagasHeatmap(filters: QueryFilters, buckets: number) {
     'getRagasHeatmap',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
         buckets: String(buckets),
       });
       return await fetchWithAuth(`/api/admin/ragas-heatmap?${params}`);
@@ -351,8 +352,8 @@ export async function getTriggerTrend(filters: QueryFilters, buckets: number) {
     'getTriggerTrend',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
         buckets: String(buckets),
       });
       return await fetchWithAuth(`/api/admin/trigger-trend?${params}`);
@@ -367,8 +368,8 @@ export async function getSimilarityTrend(filters: QueryFilters, buckets: number)
     'getSimilarityTrend',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
         buckets: String(buckets),
       });
       return await fetchWithAuth(`/api/admin/similarity-trend?${params}`);
@@ -383,8 +384,8 @@ export async function getDeadDocs(filters: QueryFilters) {
     'getDeadDocs',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
       });
       return await fetchWithAuth(`/api/admin/dead-docs?${params}`);
     },
@@ -398,8 +399,8 @@ export async function getEmptyRetrievals(filters: QueryFilters, limit: number) {
     'getEmptyRetrievals',
     async () => {
       const params = new URLSearchParams({
-        from_date: filters.from.toISOString(),
-        to_date: filters.to.toISOString(),
+        from_date: (filters.from ?? new Date(0)).toISOString(),
+        to_date: (filters.to ?? new Date()).toISOString(),
         limit: String(limit),
       });
       return await fetchWithAuth(`/api/admin/empty-retrievals?${params}`);
