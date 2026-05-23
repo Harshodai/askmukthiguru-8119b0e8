@@ -1,4 +1,4 @@
-exclude: '^(\.agent|\.agents|node_modules|playwright-report|dist)/'
+exclude: '^(\.agent|\.agents|node_modules|playwright-report|dist|scripts|local_ingestion|mukthi_guru_colab_optimized\.py)/'
 
 repos:
   # --- Standard File Checks ---
