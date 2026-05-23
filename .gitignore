@@ -66,6 +66,7 @@ knowledge/
 # Scratch and temporary files
 .docker_clean/cli-plugins
 .docker_clean/contexts
+.docker_clean/buildx
 *scratch_test.py
 scratch-llmfit/
 supabase_status.json
