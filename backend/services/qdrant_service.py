@@ -9,28 +9,27 @@ Supports:
   - Docker mode (QDRANT_URL) and local mode (QDRANT_LOCAL_PATH)
 """
 
-import logging
-import uuid
 import functools
+import logging
 import time
-from typing import Optional
+import uuid
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     Distance,
-    PointStruct,
-    VectorParams,
-    SparseVectorParams,
-    SparseIndexParams,
-    SparseVector,
+    FieldCondition,
     Filter,
     FilterSelector,
-    FieldCondition,
-    MatchValue,
-    MatchAny,
-    Prefetch,
-    FusionQuery,
     Fusion,
+    FusionQuery,
+    MatchAny,
+    MatchValue,
+    PointStruct,
+    Prefetch,
+    SparseIndexParams,
+    SparseVector,
+    SparseVectorParams,
+    VectorParams,
 )
 
 from app.config import settings
@@ -43,6 +42,7 @@ _NAMESPACE_URL = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")  # UUID NAMES
 
 def retry_with_backoff(max_retries=3, initial_delay=1):
     """Exponential backoff decorator for Qdrant operations."""
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -55,13 +55,17 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
                     last_exception = e
                     if attempt == max_retries - 1:
                         break
-                    logger.warning(f"Qdrant {func.__name__} failed (attempt {attempt+1}/{max_retries}): {e}. Retrying in {delay}s...")
+                    logger.warning(
+                        f"Qdrant {func.__name__} failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {delay}s..."
+                    )
                     time.sleep(delay)
                     delay *= 2
-            
+
             logger.error(f"Qdrant {func.__name__} failed after {max_retries} attempts.")
             raise last_exception
+
         return wrapper
+
     return decorator
 
 
@@ -146,7 +150,7 @@ class QdrantService:
         texts: list[str],
         vectors: list[list[float]],
         metadatas: list[dict],
-        sparse_vectors: Optional[list[dict]] = None,
+        sparse_vectors: list[dict] | None = None,
     ) -> int:
         """
         Batch upsert text chunks with dense + optional sparse vectors.
@@ -201,9 +205,9 @@ class QdrantService:
         self,
         query_vector: list[float],
         limit: int = 20,
-        content_type: Optional[str] = None,
-        sparse_vector: Optional[dict] = None,
-        raptor_level: Optional[int] = None,
+        content_type: str | None = None,
+        sparse_vector: dict | None = None,
+        raptor_level: int | None = None,
         **kwargs,
     ) -> list[dict]:
         """
@@ -233,18 +237,28 @@ class QdrantService:
                 prefetch_queries = [
                     # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
-                        query=query_vector, using="dense",
-                        limit=limit, filter=Filter(must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]),
+                        query=query_vector,
+                        using="dense",
+                        limit=limit,
+                        filter=Filter(
+                            must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]
+                        ),
                     ),
                     # Prefetch 2: Summaries (Level 1)
                     Prefetch(
-                        query=query_vector, using="dense",
-                        limit=limit // 2, filter=Filter(must=[FieldCondition(key="raptor_level", match=MatchValue(value=1))]),
+                        query=query_vector,
+                        using="dense",
+                        limit=limit // 2,
+                        filter=Filter(
+                            must=[FieldCondition(key="raptor_level", match=MatchValue(value=1))]
+                        ),
                     ),
                     # Prefetch 3: Sparse Lexical Match
                     Prefetch(
-                        query=sparse_qvec, using="sparse",
-                        limit=limit, filter=search_filter,
+                        query=sparse_qvec,
+                        using="sparse",
+                        limit=limit,
+                        filter=search_filter,
                     ),
                 ]
                 results = self._client.query_points(
@@ -293,7 +307,7 @@ class QdrantService:
         indices = list(range(chunk_index - window, chunk_index + window + 1))
         # Remove the target chunk itself if you only want neighbors,
         # but usually we want the whole window for sequence.
-        
+
         try:
             results, _ = self._client.scroll(
                 collection_name=self._collection,
@@ -307,10 +321,10 @@ class QdrantService:
                 limit=len(indices),
                 with_payload=True,
             )
-            
+
             # Sort by chunk_index to maintain sequence
             neighbors = sorted(results, key=lambda x: x.payload.get("chunk_index", 0))
-            
+
             return [
                 {
                     "text": hit.payload.get("text", ""),
@@ -318,7 +332,7 @@ class QdrantService:
                     "title": hit.payload.get("title", ""),
                     "chunk_index": hit.payload.get("chunk_index", 0),
                     "raptor_level": hit.payload.get("raptor_level", 0),
-                    "is_neighbor": hit.payload.get("chunk_index") != chunk_index
+                    "is_neighbor": hit.payload.get("chunk_index") != chunk_index,
                 }
                 for hit in neighbors
             ]
@@ -327,7 +341,6 @@ class QdrantService:
             return []
 
     def _dense_search(self, query_vector, limit, search_filter):
-
         """Dense-only search using the named 'dense' vector."""
         try:
             results = self._client.query_points(
@@ -387,7 +400,7 @@ class QdrantService:
                 scroll_filter=Filter(
                     must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
                 ),
-                limit=1000, # Sources rarely have more than 1000 chunks
+                limit=1000,  # Sources rarely have more than 1000 chunks
                 with_payload=True,
                 with_vectors=True,
             )
@@ -398,14 +411,12 @@ class QdrantService:
             # Convert to PointStruct for upsert
             backup_points = []
             for p in points:
-                backup_points.append(PointStruct(
-                    id=p.id,
-                    vector=p.vector,
-                    payload=p.payload
-                ))
+                backup_points.append(PointStruct(id=p.id, vector=p.vector, payload=p.payload))
 
             self._client.upsert(collection_name=backup_collection, points=backup_points)
-            logger.info(f"Backed up {len(backup_points)} points for {source_url} to {backup_collection}")
+            logger.info(
+                f"Backed up {len(backup_points)} points for {source_url} to {backup_collection}"
+            )
             return True
         except Exception as e:
             logger.error(f"Backup failed for {source_url}: {e}")
@@ -419,7 +430,7 @@ class QdrantService:
         try:
             collections = [c.name for c in self._client.get_collections().collections]
             backups = sorted([c for c in collections if c.startswith(prefix)])
-            
+
             if len(backups) > max_backups:
                 to_delete = backups[: len(backups) - max_backups]
                 for coll in to_delete:
@@ -435,9 +446,7 @@ class QdrantService:
                 collection_name=self._collection,
                 points_selector=FilterSelector(
                     filter=Filter(
-                        must=[FieldCondition(
-                            key="source_url", match=MatchValue(value=source_url)
-                        )]
+                        must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
                     )
                 ),
             )
@@ -516,13 +525,15 @@ class QdrantService:
             nodes = []
             for point in results:
                 payload = point.payload or {}
-                nodes.append({
-                    "cluster_id": payload.get("cluster_id", 0),
-                    "text": payload.get("text", ""),
-                    "topic_label": payload.get("topic_label", ""),
-                    "titles": payload.get("titles", []),
-                    "source_urls": payload.get("source_urls", []),
-                })
+                nodes.append(
+                    {
+                        "cluster_id": payload.get("cluster_id", 0),
+                        "text": payload.get("text", ""),
+                        "topic_label": payload.get("topic_label", ""),
+                        "titles": payload.get("titles", []),
+                        "source_urls": payload.get("source_urls", []),
+                    }
+                )
 
             logger.info(f"Tree navigation: retrieved {len(nodes)} summary nodes")
             return nodes
@@ -589,7 +600,7 @@ class QdrantService:
                 best_idx = remaining[np.argmax([query_sim[i] for i in remaining])]
             else:
                 # Subsequent picks: MMR score
-                best_score = -float('inf')
+                best_score = -float("inf")
                 best_idx = remaining[0]
 
                 selected_vecs = doc_norms[selected_indices]

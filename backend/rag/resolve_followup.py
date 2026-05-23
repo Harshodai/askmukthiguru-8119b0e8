@@ -17,6 +17,7 @@ Examples:
 """
 
 import logging
+
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
@@ -99,9 +100,7 @@ async def resolve_followup(state: GraphState) -> dict:
 
         # Only update if the LLM actually changed the question
         if resolved and resolved != question and len(resolved) > 3:
-            logger.info(
-                f"Follow-up resolved: '{question[:60]}' → '{resolved[:60]}'"
-            )
+            logger.info(f"Follow-up resolved: '{question[:60]}' → '{resolved[:60]}'")
             return {"question": resolved}
         else:
             logger.info(f"Follow-up resolution: no change needed for '{question[:60]}'")

@@ -21,7 +21,6 @@ import hashlib
 import json
 import logging
 import time
-from typing import Optional
 
 import numpy as np
 
@@ -65,12 +64,12 @@ class SemanticCacheService:
 
         try:
             import redis
+
             self._redis = redis.from_url(redis_url, decode_responses=True)
             self._redis.ping()
             self._available = True
             logger.info(
-                f"Semantic cache initialized (threshold={self._threshold}, "
-                f"ttl={self._ttl}s)"
+                f"Semantic cache initialized (threshold={self._threshold}, ttl={self._ttl}s)"
             )
         except Exception as e:
             logger.warning(f"Semantic cache unavailable: {e}")
@@ -83,7 +82,7 @@ class SemanticCacheService:
         """Key for the list of all cache entry IDs."""
         return "mukthiguru:semcache:index"
 
-    def get(self, query: str, query_embedding: Optional[list[float]] = None) -> Optional[dict]:
+    def get(self, query: str, query_embedding: list[float] | None = None) -> dict | None:
         """
         Look up a semantically similar cached response.
 
@@ -102,7 +101,9 @@ class SemanticCacheService:
                 return None
             try:
                 enc = self._embedder.encode_single_full(query)
-                query_embedding = enc['dense'].tolist() if hasattr(enc['dense'], 'tolist') else enc['dense']
+                query_embedding = (
+                    enc["dense"].tolist() if hasattr(enc["dense"], "tolist") else enc["dense"]
+                )
             except Exception as e:
                 logger.warning(f"Semantic cache: failed to encode query: {e}")
                 return None
@@ -165,7 +166,7 @@ class SemanticCacheService:
         response: str,
         intent: str,
         citations: list[str],
-        query_embedding: Optional[list[float]] = None,
+        query_embedding: list[float] | None = None,
         meditation_step: int = 0,
     ) -> None:
         """Store a response in the semantic cache with its embedding."""
@@ -177,7 +178,9 @@ class SemanticCacheService:
                 return
             try:
                 enc = self._embedder.encode_single_full(query)
-                query_embedding = enc['dense'].tolist() if hasattr(enc['dense'], 'tolist') else enc['dense']
+                query_embedding = (
+                    enc["dense"].tolist() if hasattr(enc["dense"], "tolist") else enc["dense"]
+                )
             except Exception as e:
                 logger.warning(f"Semantic cache: failed to encode for storage: {e}")
                 return
@@ -209,7 +212,7 @@ class SemanticCacheService:
                 # Cap at 500 entries to prevent index bloat
                 if len(entry_ids) > 500:
                     # Remove oldest entries
-                    for old_id in entry_ids[:len(entry_ids) - 500]:
+                    for old_id in entry_ids[: len(entry_ids) - 500]:
                         self._redis.delete(self._cache_key(old_id))
                     entry_ids = entry_ids[-500:]
 

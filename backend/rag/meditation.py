@@ -10,9 +10,8 @@ This is the meditation flow triggered by DISTRESS intent detection.
 """
 
 import logging
-from typing import Optional
 
-from rag.prompts import MEDITATION_STEPS, DISTRESS_PROMPT
+from rag.prompts import MEDITATION_STEPS
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,8 @@ MEDITATION_SCRIPTS = {
             "Close your eyes and take a deep breath.",
             "Acknowledge any thoughts, but let them pass like clouds.",
             "Focus on the stillness within.",
-            "When you are ready, gently open your eyes."
-        ]
+            "When you are ready, gently open your eyes.",
+        ],
     },
     "soul_sync": {
         "title": "Soul Sync Meditation",
@@ -35,10 +34,11 @@ MEDITATION_SCRIPTS = {
             "Exhale slowly, counting to 8.",
             "Repeat this cycle, imagining a golden light filling you.",
             "Focus on a deep sense of gratitude.",
-            "Slowly bring your awareness back to the present."
-        ]
-    }
+            "Slowly bring your awareness back to the present.",
+        ],
+    },
 }
+
 
 def get_meditation_script(script_name: str) -> dict:
     return MEDITATION_SCRIPTS.get(script_name, {"title": "Meditation", "steps": []})
@@ -51,7 +51,7 @@ MAX_STEP = len(MEDITATION_STEPS)
 def get_distress_response() -> str:
     """
     Get the initial distress acknowledgment message.
-    
+
     This is shown before the meditation starts — acknowledges pain,
     offers the meditation, and includes crisis helpline info.
     """
@@ -69,13 +69,13 @@ def get_distress_response() -> str:
     )
 
 
-def get_meditation_step(step: int) -> Optional[dict]:
+def get_meditation_step(step: int) -> dict | None:
     """
     Get a specific meditation step.
-    
+
     Args:
         step: Step number (1-4)
-        
+
     Returns:
         Dict with 'step', 'title', 'prompt' or None if step is invalid
     """
@@ -87,7 +87,7 @@ def get_meditation_step(step: int) -> Optional[dict]:
 def format_meditation_response(step: int) -> str:
     """
     Format a meditation step for the chat response.
-    
+
     Adds step indicator and title header to the meditation prompt.
     """
     step_data = get_meditation_step(step)
@@ -111,13 +111,33 @@ def should_start_meditation(message: str) -> bool:
     Checks for negation first to avoid false positives like "no, please don't".
     """
     negative_signals = [
-        "no", "don't", "dont", "not now", "nah", "nope",
-        "stop", "cancel", "never", "skip", "later",
+        "no",
+        "don't",
+        "dont",
+        "not now",
+        "nah",
+        "nope",
+        "stop",
+        "cancel",
+        "never",
+        "skip",
+        "later",
     ]
     positive_signals = [
-        "yes", "sure", "ok", "okay", "please", "let's", "lets",
-        "guide me", "meditat", "help me", "start", "i'd like",
-        "begin", "ready",
+        "yes",
+        "sure",
+        "ok",
+        "okay",
+        "please",
+        "let's",
+        "lets",
+        "guide me",
+        "meditat",
+        "help me",
+        "start",
+        "i'd like",
+        "begin",
+        "ready",
     ]
     message_lower = message.lower().strip()
 

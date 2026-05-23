@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from app.config import settings
 from services.sarvam_service import SarvamCloudService
 
@@ -56,23 +57,25 @@ The first secret is to live in a beautiful state. A beautiful state is a state o
 <Output>
 """
 
+
 async def main():
     settings.sarvam_api_key = "sk_j2hvqcbz_J3hrGVe6VlKoDxl47Kxmr3V0"
     service = SarvamCloudService()
     # Temporarily set gen_model to sarvam-m for the test
     service._gen_model = "sarvam-m"
-    
+
     print("\n--- Testing Entity Extraction with 1500-char spiritual chunk ---")
     try:
         res = await service.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            max_tokens=4096  # Invalid for sarvam-m (2048 max), should self-heal!
+            max_tokens=4096,  # Invalid for sarvam-m (2048 max), should self-heal!
         )
         print("\n=== Result ===")
         print(res)
     except Exception as e:
         print("Error:", e)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

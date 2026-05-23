@@ -1,27 +1,27 @@
-import os
 import asyncio
 import logging
-from typing import Optional
-from tenacity import retry, stop_after_attempt, wait_exponential
+import os
 
 from lightrag import LightRAG
-from lightrag.llm.ollama import ollama_model_complete, ollama_embed
 from lightrag.utils import EmbeddingFunc
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class LightRAGService:
     """
     Singleton service wrapper around LightRAG.
     Orchestrates graph-based extraction and retrieval using Neo4j and Qdrant.
     """
+
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(LightRAGService, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
             cls._instance.rag = None
         return cls._instance
@@ -34,28 +34,31 @@ class LightRAGService:
             return
 
         logger.info("Initializing LightRAG Service (Neo4j Graph + Qdrant Vector)...")
-        
+
         # Working directory for LightRAG internal states (e.g., pipeline completion files)
         working_dir = "data/lightrag"
         os.makedirs(working_dir, exist_ok=True)
-        
+
         # Inject Neo4j Configuration
         os.environ["NEO4J_URI"] = settings.neo4j_uri
         os.environ["NEO4J_USERNAME"] = settings.neo4j_user
         os.environ["NEO4J_PASSWORD"] = settings.neo4j_password
-        
+
         # LightRAG Native Qdrant Configuration
         os.environ["QDRANT_URL"] = settings.qdrant_url
         os.environ["QDRANT_COLLECTION"] = f"{settings.qdrant_collection}_lightrag"
 
         # Dynamically bridge our main generative LLM to LightRAG
-        async def llm_func(prompt, system_prompt=None, history_messages=[], **kwargs) -> str:
+        async def llm_func(prompt, system_prompt=None, history_messages=None, **kwargs) -> str:
             from app.dependencies import get_container
+
+            if history_messages is None:
+                history_messages = []
             container = get_container()
             if container.ollama is None:
                 logger.warning("LLM service not ready in container")
                 return ""
-            
+
             # Format history (lightrag provides dicts like {"role": "user", "content": "..."})
             context = ""
             for msg in history_messages:
@@ -65,32 +68,34 @@ class LightRAGService:
                     context += f"\n{msg}"
                 else:
                     context += f"\n{str(msg)}"
-                
+
             # If using Sarvam Cloud, route extraction tasks specifically to sarvam-m to avoid reasoning runaway
             if settings.llm_provider == "sarvam_cloud":
                 sys_prompt_str = system_prompt or ""
                 prompt_str = prompt or ""
                 is_extraction = (
-                    "Knowledge Graph" in sys_prompt_str or
-                    "entity" in sys_prompt_str or
-                    "relation" in sys_prompt_str or
-                    "Extract entities" in prompt_str or
-                    "Data to be Processed" in prompt_str
+                    "Knowledge Graph" in sys_prompt_str
+                    or "entity" in sys_prompt_str
+                    or "relation" in sys_prompt_str
+                    or "Extract entities" in prompt_str
+                    or "Data to be Processed" in prompt_str
                 )
                 if is_extraction:
                     kwargs["model"] = "sarvam-m"
                     # Clamp max_tokens to sarvam-m's subscription tier limit (2048)
                     kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
-                    logger.info("LightRAG: Routing extraction task to sarvam-m to prevent reasoning runaway and cutoff")
+                    logger.info(
+                        "LightRAG: Routing extraction task to sarvam-m to prevent reasoning runaway and cutoff"
+                    )
 
                 if is_extraction:
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "extraction"
                 elif (
-                    "summary" in sys_prompt_str.lower() or
-                    "merge" in sys_prompt_str.lower() or
-                    "summary" in prompt_str.lower() or
-                    "merge" in prompt_str.lower()
+                    "summary" in sys_prompt_str.lower()
+                    or "merge" in sys_prompt_str.lower()
+                    or "summary" in prompt_str.lower()
+                    or "merge" in prompt_str.lower()
                 ):
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "summarize"
@@ -99,15 +104,17 @@ class LightRAGService:
                 system_prompt=system_prompt or "You are a helpful assistant.",
                 user_prompt=prompt,
                 context=context,
-                **kwargs
+                **kwargs,
             )
 
-
         # Use our local BGE-M3 model already loaded in memory instead of calling Ollama API
-        import numpy as np
         import asyncio
+
+        import numpy as np
+
         async def embed_func(texts: list[str]) -> np.ndarray:
             from app.dependencies import get_container
+
             container = get_container()
             if container.embedding is None:
                 logger.warning("Embedding service not ready in container")
@@ -115,20 +122,21 @@ class LightRAGService:
             # encode_batch returns {'dense': list[list[float]], 'sparse': ...}
             # LightRAG requires a numpy array. Run in thread pool to avoid blocking event loop.
             batch_result = await asyncio.to_thread(container.embedding.encode_batch, texts)
-            dense_vectors = batch_result['dense']
+            dense_vectors = batch_result["dense"]
             return np.array(dense_vectors)
 
         embedding_func = EmbeddingFunc(
             embedding_dim=settings.embedding_dimension,
             max_token_size=8192,
             func=embed_func,
-            model_name=settings.embedding_model
+            model_name=settings.embedding_model,
         )
 
         # Pre-flight: Verify Neo4j is reachable before attempting LightRAG construction
         # NOTE: verify_connectivity() is synchronous — must run in thread to avoid blocking event loop
         def _check_neo4j():
             from neo4j import GraphDatabase
+
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=(settings.neo4j_user, settings.neo4j_password),
@@ -160,16 +168,18 @@ class LightRAGService:
 
         try:
             self.rag = _create_lightrag()
-            
+
             # Async initialize storages (checks DB connections)
             await self.rag.initialize_storages()
-            
+
             self._initialized = True
             logger.info("✅ LightRAG Service successfully initialized.")
         except Exception as e:
             logger.error(f"❌ Failed to initialize LightRAG: {e}", exc_info=True)
 
-    async def aquery(self, query: str, mode: str = "hybrid", only_need_context: bool = False) -> str:
+    async def aquery(
+        self, query: str, mode: str = "hybrid", only_need_context: bool = False
+    ) -> str:
         """
         Execute GraphRAG query async.
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
@@ -180,23 +190,32 @@ class LightRAGService:
         if not self.rag:
             logger.warning("LightRAG is not active, skipping graph query.")
             return "Knowledge graph is currently offline."
-            
+
         from lightrag import QueryParam
+
         try:
-            logger.info(f"Querying LightRAG graph (mode={mode}, only_need_context={only_need_context})...")
-            return await self.rag.aquery(query, param=QueryParam(mode=mode, only_need_context=only_need_context))
+            logger.info(
+                f"Querying LightRAG graph (mode={mode}, only_need_context={only_need_context})..."
+            )
+            return await self.rag.aquery(
+                query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+            )
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
                 logger.warning("LightRAG storage not initialized, retrying...")
                 await self.rag.initialize_storages()
-                return await self.rag.aquery(query, param=QueryParam(mode=mode, only_need_context=only_need_context))
+                return await self.rag.aquery(
+                    query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+                )
             logger.error(f"LightRAG query failed: {e}")
             return ""
 
-    async def ainsert(self, text: str, file_paths: Optional[str | list[str]] = None, timeout: float = 180.0):
+    async def ainsert(
+        self, text: str, file_paths: str | list[str] | None = None, timeout: float = 180.0
+    ):
         """Insert new content into the graph asynchronously.
-        
+
         Args:
             text: Text to extract entities from and insert into graph.
             file_paths: Optional source file paths for provenance tracking.
@@ -209,11 +228,11 @@ class LightRAGService:
         if not self.rag:
             logger.warning("LightRAG is not active, skipping graph extraction.")
             return
-        
+
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
         try:
             await asyncio.wait_for(self.rag.ainsert(text, file_paths=file_paths), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 f"LightRAG ainsert timed out after {timeout:.0f}s for text ({len(text)} chars). "
                 f"Skipping this chunk — Qdrant vectors are already indexed."
@@ -224,15 +243,21 @@ class LightRAGService:
                 logger.warning("LightRAG storage not initialized during insertion, retrying...")
                 await self.rag.initialize_storages()
                 try:
-                    await asyncio.wait_for(self.rag.ainsert(text, file_paths=file_paths), timeout=timeout)
-                except asyncio.TimeoutError:
-                    logger.warning(f"LightRAG ainsert timed out after retry ({timeout:.0f}s). Skipping.")
+                    await asyncio.wait_for(
+                        self.rag.ainsert(text, file_paths=file_paths), timeout=timeout
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        f"LightRAG ainsert timed out after retry ({timeout:.0f}s). Skipping."
+                    )
             else:
                 raise
 
-    async def safe_ainsert(self, text: str, file_paths: Optional[str | list[str]] = None, timeout: float = 180.0) -> bool:
+    async def safe_ainsert(
+        self, text: str, file_paths: str | list[str] | None = None, timeout: float = 180.0
+    ) -> bool:
         """Insert into graph with full error suppression. Returns True on success, False on failure.
-        
+
         Used by ingestion scripts where LightRAG is enrichment (not critical path).
         Qdrant vector ingestion is the primary store — graph extraction is bonus.
         """
@@ -243,7 +268,14 @@ class LightRAGService:
             logger.error(f"LightRAG safe_ainsert failed (non-fatal): {e}")
             return False
 
-    async def ainsert_chunked(self, text: str, file_paths: Optional[str | list[str]] = None, max_chunk_size: int = 8000, overlap: int = 500, sleep_between: float = 3.0):
+    async def ainsert_chunked(
+        self,
+        text: str,
+        file_paths: str | list[str] | None = None,
+        max_chunk_size: int = 8000,
+        overlap: int = 500,
+        sleep_between: float = 3.0,
+    ):
         """Insert large texts into the graph in chunks to prevent SIGSEGV or OOM errors."""
         if not self._initialized:
             await self.initialize()
@@ -259,7 +291,7 @@ class LightRAGService:
             while start < len(t):
                 end = min(start + size, len(t))
                 if end < len(t):
-                    for boundary_char in ['. ', '.\n', '!\n', '?\n', '! ', '? ']:
+                    for boundary_char in [". ", ".\n", "!\n", "?\n", "! ", "? "]:
                         last_boundary = t.rfind(boundary_char, start + size // 2, end)
                         if last_boundary != -1:
                             end = last_boundary + len(boundary_char)
@@ -288,6 +320,7 @@ class LightRAGService:
                 logger.error(f"LightRAG: Chunk {i}/{total} failed: {e}")
             if i < total:
                 await asyncio.sleep(sleep_between)
+
 
 # Singleton export
 lightrag_service = LightRAGService()

@@ -46,7 +46,10 @@ async def restore_from_backup(qdrant, source_url: str, backup_collection: str):
     """Restore a single source from the backup collection to the main collection."""
     try:
         from qdrant_client.http.models import (
-            PointStruct, Filter, FieldCondition, MatchValue,
+            FieldCondition,
+            Filter,
+            MatchValue,
+            PointStruct,
         )
 
         # Delete whatever partial data exists in main
@@ -67,10 +70,7 @@ async def restore_from_backup(qdrant, source_url: str, backup_collection: str):
             logger.warning(f"  No backup data found for {source_url}")
             return False
 
-        restore_points = [
-            PointStruct(id=p.id, vector=p.vector, payload=p.payload)
-            for p in points
-        ]
+        restore_points = [PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points]
 
         qdrant._client.upsert(
             collection_name=qdrant._collection,
@@ -89,7 +89,8 @@ async def migrate():
     logger.info("=" * 60)
 
     # Initialize services (startup/shutdown are synchronous in this codebase)
-    from app.dependencies import get_container, startup, shutdown
+    from app.dependencies import get_container, shutdown, startup
+
     startup()
     container = get_container()
     qdrant = container.qdrant
@@ -145,7 +146,7 @@ async def migrate():
         skip_count = 0
 
         for i, (url, chunks) in enumerate(sources.items()):
-            logger.info(f"\n[{i+1}/{len(sources)}] Processing: {url}")
+            logger.info(f"\n[{i + 1}/{len(sources)}] Processing: {url}")
 
             # 4a: Backup before touching anything
             logger.info(f"  📦 Backing up to {backup_collection}...")
@@ -162,7 +163,9 @@ async def migrate():
             full_text = " ".join(cleaned_texts)
 
             if len(full_text.strip()) < 50:
-                logger.warning(f"  ⚠️  Reconstructed text too short ({len(full_text)} chars), skipping")
+                logger.warning(
+                    f"  ⚠️  Reconstructed text too short ({len(full_text)} chars), skipping"
+                )
                 skip_count += 1
                 continue
 
@@ -181,7 +184,7 @@ async def migrate():
                     speaker=meta["speaker"],
                     topic=meta["topic"],
                     max_accuracy=True,
-                    on_progress=lambda msg, pct: logger.info(f"  {int(pct*100)}%: {msg}"),
+                    on_progress=lambda msg, pct: logger.info(f"  {int(pct * 100)}%: {msg}"),
                 )
 
                 if result.get("status") == "success":
@@ -189,13 +192,13 @@ async def migrate():
                     logger.info(f"  ✅ Success: {result.get('chunks_indexed', 0)} chunks indexed")
                 else:
                     logger.error(f"  ❌ Failed: {result.get('message', 'unknown error')}")
-                    logger.info(f"  🔄 Rolling back from backup...")
+                    logger.info("  🔄 Rolling back from backup...")
                     await restore_from_backup(qdrant, url, backup_collection)
                     fail_count += 1
 
             except Exception as e:
                 logger.error(f"  ❌ Exception during re-ingestion: {e}")
-                logger.info(f"  🔄 Rolling back from backup...")
+                logger.info("  🔄 Rolling back from backup...")
                 await restore_from_backup(qdrant, url, backup_collection)
                 fail_count += 1
 

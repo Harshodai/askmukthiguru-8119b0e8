@@ -13,7 +13,6 @@ Invalidated automatically when new content is ingested.
 import hashlib
 import logging
 import time
-from typing import Optional
 
 from cachetools import TTLCache
 
@@ -24,6 +23,7 @@ _CACHE_MAX_SIZE = 200  # Max cached responses
 _CACHE_TTL = 3600  # 1 hour in seconds
 
 from domain.ports.cache_port import ICacheRepository
+
 
 class InMemoryCacheAdapter(ICacheRepository):
     """
@@ -43,7 +43,7 @@ class InMemoryCacheAdapter(ICacheRepository):
         normalized = query.strip().lower()
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
-    def get(self, query: str) -> Optional[dict]:
+    def get(self, query: str) -> dict | None:
         """
         Look up a cached response for the given query.
 
@@ -60,8 +60,9 @@ class InMemoryCacheAdapter(ICacheRepository):
         self._misses += 1
         return None
 
-    def put(self, query: str, response: str, intent: str, citations: list[str],
-            meditation_step: int = 0) -> None:
+    def put(
+        self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0
+    ) -> None:
         """Store a response in the cache."""
         key = self._make_key(query)
         self._cache[key] = {
@@ -93,7 +94,9 @@ class InMemoryCacheAdapter(ICacheRepository):
             ),
         }
 
+
 import json
+
 
 class RedisCacheAdapter(ICacheRepository):
     """
@@ -102,6 +105,7 @@ class RedisCacheAdapter(ICacheRepository):
 
     def __init__(self, redis_url: str, ttl: int = _CACHE_TTL) -> None:
         import redis
+
         self._redis = None
         self._ttl = ttl
         self._hits = 0
@@ -125,7 +129,7 @@ class RedisCacheAdapter(ICacheRepository):
         key_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
         return f"mukthiguru:cache:{key_hash}"
 
-    def get(self, query: str) -> Optional[dict]:
+    def get(self, query: str) -> dict | None:
         """Look up a cached response for the given query."""
         if not self._redis:
             return None
@@ -144,8 +148,9 @@ class RedisCacheAdapter(ICacheRepository):
         self._misses += 1
         return None
 
-    def put(self, query: str, response: str, intent: str, citations: list[str],
-            meditation_step: int = 0) -> None:
+    def put(
+        self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0
+    ) -> None:
         """Store a response in the cache with TTL."""
         if not self._redis:
             return
@@ -186,17 +191,27 @@ class RedisCacheAdapter(ICacheRepository):
 
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams, PointStruct
-from services.embedding_service import EmbeddingService
+from qdrant_client.http.models import Distance, PointStruct, VectorParams
+
 from app.config import settings
+from services.embedding_service import EmbeddingService
+
 
 class SemanticCacheAdapter(ICacheRepository):
     """
     Semantic response cache using Qdrant for vector similarity and Redis for TTL payload storage.
     """
 
-    def __init__(self, embedding_service: EmbeddingService, qdrant_url: str = None, qdrant_path: str = None, redis_url: str = None, ttl: int = _CACHE_TTL) -> None:
+    def __init__(
+        self,
+        embedding_service: EmbeddingService,
+        qdrant_url: str = None,
+        qdrant_path: str = None,
+        redis_url: str = None,
+        ttl: int = _CACHE_TTL,
+    ) -> None:
         import redis
+
         self._redis = redis.from_url(
             redis_url,
             decode_responses=True,
@@ -237,34 +252,37 @@ class SemanticCacheAdapter(ICacheRepository):
         normalized = query.strip().lower()
         # Qdrant requires UUIDs or integers. We'll use UUIDv5.
         import uuid
+
         namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
         return str(uuid.uuid5(namespace, normalized))
 
-    def get(self, query: str) -> Optional[dict]:
+    def get(self, query: str) -> dict | None:
         """Look up a cached response semantically."""
         # Encode query
         emb = self._embedder.encode_single(query)
-        
+
         try:
             # Search Qdrant
             results = self._qdrant.query_points(
                 collection_name=self._collection,
                 query=emb,
                 limit=1,
-                score_threshold=self._threshold
+                score_threshold=self._threshold,
             ).points
-            
+
             if results:
                 hit = results[0]
                 point_id = hit.id
-                
+
                 # Fetch payload from Redis (using the point_id as key)
                 redis_key = f"mukthiguru:semcache:{point_id}"
                 payload_str = self._redis.get(redis_key)
-                
+
                 if payload_str:
                     self._hits += 1
-                    logger.info(f"Semantic Cache HIT (score={hit.score:.3f}, hits={self._hits}, misses={self._misses})")
+                    logger.info(
+                        f"Semantic Cache HIT (score={hit.score:.3f}, hits={self._hits}, misses={self._misses})"
+                    )
                     return json.loads(payload_str)
                 else:
                     # Redis TTL expired, but Qdrant vector remains. Act as miss.
@@ -275,11 +293,13 @@ class SemanticCacheAdapter(ICacheRepository):
         self._misses += 1
         return None
 
-    def put(self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0) -> None:
+    def put(
+        self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0
+    ) -> None:
         """Store a response semantically."""
         point_id = self._make_id(query)
         emb = self._embedder.encode_single(query)
-        
+
         payload = {
             "response": response,
             "intent": intent,
@@ -287,14 +307,14 @@ class SemanticCacheAdapter(ICacheRepository):
             "meditation_step": meditation_step,
             "cached_at": time.time(),
         }
-        
+
         try:
             # Upsert vector to Qdrant (payload is minimal, just original query for debugging)
             self._qdrant.upsert(
                 collection_name=self._collection,
-                points=[PointStruct(id=point_id, vector=emb, payload={"query": query})]
+                points=[PointStruct(id=point_id, vector=emb, payload={"query": query})],
             )
-            
+
             # Save actual response payload to Redis with TTL
             redis_key = f"mukthiguru:semcache:{point_id}"
             self._redis.setex(redis_key, self._ttl, json.dumps(payload))
@@ -306,7 +326,7 @@ class SemanticCacheAdapter(ICacheRepository):
         try:
             self._qdrant.delete_collection(self._collection)
             self._init_collection()
-            
+
             # Clear Redis keys
             pipe = self._redis.pipeline()
             count = 0
@@ -333,31 +353,32 @@ class SemanticCacheAdapter(ICacheRepository):
             "available": True,
         }
 
+
 def init_llm_cache():
     """
     Initializes the global LangChain cache using GPTCache.
     This intercepts redundant LLM calls (particularly during LightRAG extraction)
     to drastically cut down latency and repetition.
-    
+
     Gracefully skips if gptcache is not installed.
     """
     try:
         import os
+
         from gptcache import Cache
         from gptcache.manager.factory import manager_factory
         from gptcache.processor.pre import get_prompt
         from langchain.globals import set_llm_cache
         from langchain_community.cache import GPTCache
-        
+
         os.makedirs("data/gptcache", exist_ok=True)
-        
+
         def init_gptcache(cache_obj: Cache, llm: str):
             import re
+
             safe_llm_name = re.sub(r"[^a-zA-Z0-9_]", "_", llm)
             data_manager = manager_factory(
-                manager="map", 
-                data_dir=f"data/gptcache/{safe_llm_name}",
-                max_size=5000
+                manager="map", data_dir=f"data/gptcache/{safe_llm_name}", max_size=5000
             )
             cache_obj.init(
                 pre_embedding_func=get_prompt,
@@ -367,7 +388,8 @@ def init_llm_cache():
         set_llm_cache(GPTCache(init_gptcache))
         logger.info("GPTCache successfully attached to LangChain global cache.")
     except ImportError:
-        logger.info("GPTCache not installed — skipping LLM call caching. Install with: pip install gptcache")
+        logger.info(
+            "GPTCache not installed — skipping LLM call caching. Install with: pip install gptcache"
+        )
     except Exception as e:
         logger.error(f"Failed to initialize GPTCache: {e}")
-

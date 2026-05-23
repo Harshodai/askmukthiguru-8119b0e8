@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from services.auth_service import fastapi_users, auth_backend
-from schemas.user import UserRead, UserCreate, UserUpdate
+
 from app.config import settings
+from schemas.user import UserCreate, UserRead, UserUpdate
+from services.auth_service import auth_backend, fastapi_users
 
 router = APIRouter()
 
@@ -22,9 +23,11 @@ if not settings.disable_public_registration:
         tags=["auth"],
     )
 else:
+
     @router.post("/register", tags=["auth"])
     async def register_disabled():
         raise HTTPException(status_code=403, detail="Public registration is disabled.")
+
 
 router.include_router(
     fastapi_users.get_reset_password_router(),

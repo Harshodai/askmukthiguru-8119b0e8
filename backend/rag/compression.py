@@ -1,18 +1,20 @@
 """
 Mukthi Guru — Contextual Compression (Ch 10 RAG Made Simple)
 
-Strips irrelevant sentences from retrieved chunks based on their 
-semantic similarity to the query. 
+Strips irrelevant sentences from retrieved chunks based on their
+semantic similarity to the query.
 Reduces noise and improves LLM focus.
 """
 
 import logging
 import re
-from typing import Any, List, Optional
+
 import numpy as np
+
 from services.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
+
 
 class ContextualCompressor:
     def __init__(self, embedding_service: EmbeddingService, threshold: float = 0.5):
@@ -31,16 +33,16 @@ class ContextualCompressor:
         Compress a document to only its most relevant sentences.
         """
         # Split into sentences (simple regex)
-        sentences = re.split(r'(?<=[.!?]) +', document_text)
+        sentences = re.split(r"(?<=[.!?]) +", document_text)
         if len(sentences) <= 2:
             return document_text
 
         # Embed query and sentences
         query_enc = self._embedder.encode_single_full(query)
-        query_vec = query_enc['dense']
-        
+        query_vec = query_enc["dense"]
+
         sentence_encs = self._embedder.encode_batch(sentences)
-        sentence_vecs = sentence_encs['dense']
+        sentence_vecs = sentence_encs["dense"]
 
         relevant_sentences = []
         for i, sent_vec in enumerate(sentence_vecs):
@@ -54,6 +56,8 @@ class ContextualCompressor:
 
         compressed = " ".join(relevant_sentences)
         reduction = 1 - (len(compressed) / len(document_text))
-        logger.info(f"Compressed doc: {len(document_text)} -> {len(compressed)} chars ({reduction:.1%} reduction)")
-        
+        logger.info(
+            f"Compressed doc: {len(document_text)} -> {len(compressed)} chars ({reduction:.1%} reduction)"
+        )
+
         return compressed
