@@ -292,7 +292,7 @@ export const fetchProfileFromServer = async () => {
       // Merge server fields into local profile
       const merged: UserProfile = {
         ...current,
-        preferredLanguage: shouldUpdateLang ? (serverProfile.preferred_language as any) : current.preferredLanguage,
+        preferredLanguage: shouldUpdateLang ? (serverProfile.preferred_language as string) : current.preferredLanguage,
         // Map other fields as needed
       };
       

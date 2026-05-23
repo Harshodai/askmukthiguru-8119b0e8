@@ -15,6 +15,12 @@ import {
 export default function TopicsPage() {
   const { data } = useTopics();
 
+  interface TopicPayload {
+    label: string;
+    size: number;
+    faith: number;
+  }
+
   const points =
     data?.map((c, i) => ({
       x: i + 1,
@@ -65,7 +71,7 @@ export default function TopicsPage() {
                   fontSize: 12,
                 }}
                 content={({ payload }) => {
-                  const p = payload?.[0]?.payload as any;
+                  const p = payload?.[0]?.payload as TopicPayload | undefined;
                   if (!p) return null;
                   return (
                     <div className="bg-popover border border-border rounded-md p-2 text-xs">

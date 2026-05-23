@@ -297,7 +297,7 @@ const ProfilePage = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Preferred Language</Label>
-                      <Select value={form.preferredLanguage} onValueChange={(v: any) => patch('preferredLanguage', v)}>
+                      <Select value={form.preferredLanguage} onValueChange={(v) => patch('preferredLanguage', v)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -312,7 +312,7 @@ const ProfilePage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Guru's Tone</Label>
-                      <Select value={form.guruTone} onValueChange={(v: any) => patch('guruTone', v)}>
+                      <Select value={form.guruTone} onValueChange={(v) => patch('guruTone', v as GuruTone)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
