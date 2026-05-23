@@ -129,8 +129,13 @@ export default function QueriesPage() {
               <SelectContent>
                 <SelectItem value="__all__">All models</SelectItem>
                 {models?.map((m) => {
-                  const val = typeof m === 'string' ? m : (m as any).id ?? String(m);
-                  const label = typeof m === 'string' ? m : `${(m as any).name ?? val} (${(m as any).provider ?? ''})`.trim();
+                  interface ModelObject {
+                    id?: string;
+                    name?: string;
+                    provider?: string;
+                  }
+                  const val = typeof m === 'string' ? m : (m as ModelObject).id ?? String(m);
+                  const label = typeof m === 'string' ? m : `${(m as ModelObject).name ?? val} (${(m as ModelObject).provider ?? ''})`.trim();
                   return (
                     <SelectItem key={val} value={val}>
                       {label}
