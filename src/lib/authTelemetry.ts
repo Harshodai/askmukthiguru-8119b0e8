@@ -176,8 +176,9 @@ export const endAuthRun = (status: 'ok' | 'error', error?: string): void => {
   run.totalMs = run.endedAt - run.startedAt;
   run.status = status;
   if (error && !run.steps.some((s) => s.error === error)) {
-    run.steps.push({ name: 'navigate', status: 'error', startedAt: Date.now(), durationMs: null, error });
+    run.steps.push({ name: 'run_error', status: 'error', startedAt: Date.now(), durationMs: null, error });
   }
+
   const all = readRuns();
   all.push(run);
   writeRuns(all);
