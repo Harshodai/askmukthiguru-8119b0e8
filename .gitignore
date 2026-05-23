@@ -64,6 +64,8 @@ knowledge/
 .agent/
 
 # Scratch and temporary files
+.docker_clean/cli-plugins
+.docker_clean/contexts
 *scratch_test.py
 scratch-llmfit/
 supabase_status.json

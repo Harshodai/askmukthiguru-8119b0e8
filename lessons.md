@@ -102,6 +102,15 @@ Before claiming a feature is "production-ready," verify:
   - On the very first startup of a self-hosted Supabase DB instance, the Auth/Gotrue container applies all structural database migrations (typically 60+ migrations), which can take up to 26+ seconds.
   - If the container's healthcheck timeout rules are too strict (e.g., 3 retries at a 5s interval = 15 seconds), the container is prematurely marked unhealthy, causing Docker Compose to halt startup of dependent services.
   - **Resolution**: Provide a generous healthcheck grace period or run `docker compose up -d` a second time to start downstream services once migrations finish.
+- **macOS Docker Keychain Credentials Bypass (-25293)**:
+  - When pulling/building Docker images on macOS encounters keychain credential errors (like `-25293`), overriding `DOCKER_CONFIG` to a clean folder (e.g. `.docker_clean/`) with an empty `"credsStore": ""` is a robust workaround.
+  - **Cli-plugins / Contexts Gotcha**: Pointing `DOCKER_CONFIG` to a clean folder hides standard Docker CLI plugins (like `compose` and `buildx`) and contexts. This leads to issues like `unknown shorthand flag: -d` because Docker compose falls back to a normal command argument.
+  - **Resolution**: Symlink the host's actual `cli-plugins` and `contexts` folders into the clean config directory:
+    ```bash
+    ln -s /Users/harshodaikolluru/.docker/cli-plugins .docker_clean/cli-plugins
+    ln -s /Users/harshodaikolluru/.docker/contexts .docker_clean/contexts
+    ```
+
 
 ### Testing & UI
 - **Refactoring for Design**: When UI designs change (e.g., renaming "New Conversation" to "New Chat"), tests must be updated alongside the components. Using stable `data-testid` attributes reduces the brittleness of tests compared to querying by text labels alone.

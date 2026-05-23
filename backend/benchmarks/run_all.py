@@ -6,10 +6,8 @@ printing a final consolidated production-readiness dashboard.
 """
 
 import argparse
-import asyncio
-import os
-import sys
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -42,7 +40,7 @@ def run_script(script_name: str, args: list[str]) -> bool:
     try:
         # Run using current python interpreter
         cmd = [sys.executable, str(script_path)] + args
-        res = subprocess.run(cmd, capture_output=False, check=True)
+        subprocess.run(cmd, capture_output=False, check=True)
         elapsed = time.time() - t0
         print(f"✅ {script_name} finished successfully in {elapsed:.1f}s.")
         return True
@@ -95,6 +93,7 @@ def show_readiness_scorecard():
     print("=" * 70 + "\n")
 
 import json
+
 
 def main():
     print_banner()

@@ -15,11 +15,12 @@ from pathlib import Path
 # Add backend directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
+from benchmarks.question_bank import QUERIES
 from guardrails.rails import LightweightGuardrails
 from services.embedding_service import EmbeddingService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
-from benchmarks.question_bank import QUERIES
+
 
 async def run_native_evaluation(limit: int = 5):
     print("\n" + "=" * 60)
