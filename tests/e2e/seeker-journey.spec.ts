@@ -5,26 +5,26 @@ test.describe('Seeker Journey', () => {
   test('landing page to auth flow', async ({ page }) => {
     // Visit Landing Page
     await page.goto('/');
-    
+
     // Expect the main hero title to be visible
     await expect(page.locator('h1')).toContainText('Beautiful State');
-    
+
     // Click Begin Journey
     const beginButton = page.getByRole('link', { name: 'Begin Your Journey →' });
     await beginButton.click();
-    
+
     // Verify Auth Page Navigation
     await expect(page).toHaveURL(/.*\/auth/);
     await expect(page.locator('h1')).toHaveText('AskMukthiGuru');
-    
+
     // Verify Auth Form
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
-    
+
     // Switch to Sign Up
     await page.locator('text=Sign up').click();
-    
+
     // Full name field should appear
     await expect(page.locator('input[id="fullName"]')).toBeVisible();
   });
@@ -294,7 +294,7 @@ test.describe('Seeker Journey', () => {
 
     // C. Visit `/chat`
     await page.goto('/chat');
-    
+
     // Print window.location and localStorage to see why it redirected
     const debugInfo = await page.evaluate(() => {
       return {
@@ -322,7 +322,7 @@ test.describe('Seeker Journey', () => {
     await expect(wisdomButton).toBeVisible();
     await wisdomButton.click();
     await expect(wisdomButton).not.toBeVisible();
-    
+
     // F. Start speech input (STT Mic streaming)
     const micButton = page.getByRole('button', { name: 'Start voice input' });
     await expect(micButton).toBeVisible();

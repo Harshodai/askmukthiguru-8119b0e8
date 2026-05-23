@@ -59,9 +59,9 @@ The current implementation has **no authentication mechanism** and **no rate lim
 async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     """
     Main conversational endpoint.
-    
+
     Full pipeline: NeMo Input Rail → LangGraph (11 layers) → NeMo Output Rail
-    
+
     This is the thin controller — all intelligence lives in the graph.
     """
     container = get_container()
@@ -90,15 +90,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     """Validate JWT token and return user information."""
     try:
         payload = jwt.decode(
-            credentials.credentials, 
-            JWT_SECRET, 
+            credentials.credentials,
+            JWT_SECRET,
             algorithms=[JWT_ALGORITHM]
         )
         # Check token expiry
         exp = payload.get("exp")
         if exp and datetime.utcnow().timestamp() > exp:
             raise HTTPException(status_code=401, detail="Token expired")
-        
+
         return {
             "user_id": payload.get("sub"),
             "email": payload.get("email"),
@@ -138,14 +138,14 @@ async def chat_endpoint(
 ) -> ChatResponse:
     """
     Main conversational endpoint with auth and rate limiting.
-    
+
     Full pipeline: NeMo Input Rail → LangGraph (11 layers) → NeMo Output Rail
     """
     container = get_container()
     user_msg = request.user_message.strip()
     user_id = user["user_id"]
     user_language = user.get("language", "en")
-    
+
     # Log the query for audit and quality improvement (anonymized)
     logger.info(f"Chat request: user={user_id}, lang={user_language}, intent_check=starting")
 ```
@@ -170,9 +170,9 @@ app.add_middleware(
 # In config.py, add environment-specific CORS origins
 class Settings(BaseSettings):
     # ... existing config ...
-    
+
     environment: str = "development"  # development/staging/production
-    
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Parse comma-separated CORS origins with environment-specific defaults."""
@@ -220,7 +220,7 @@ async def add_request_id(request: Request, call_next):
     """Add unique request ID to all incoming requests for distributed tracing."""
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     request_id_var.set(request_id)
-    
+
     # Add request ID to response headers
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
@@ -257,7 +257,7 @@ async def chat_endpoint(
 ) -> ChatResponse:
     container = get_container()
     user_msg = request.user_message.strip()
-    
+
     try:
         # Execute full pipeline with strict timeout
         result = await asyncio.wait_for(
@@ -312,17 +312,17 @@ PROMPT_INJECTION_PATTERNS = [
 def sanitize_input(user_msg: str) -> tuple[str, Optional[str]]:
     """
     Sanitize user input: strip, truncate, check for injection attempts.
-    
+
     Returns: (sanitized_message, warning_message_or_None)
     """
     # Strip whitespace
     cleaned = user_msg.strip()
-    
+
     # Check length
     if len(cleaned) > MAX_MESSAGE_LENGTH:
         cleaned = cleaned[:MAX_MESSAGE_LENGTH]
         return cleaned, "Message was truncated to 2000 characters."
-    
+
     # Check for common prompt injection patterns
     msg_lower = cleaned.lower()
     for pattern in PROMPT_INJECTION_PATTERNS:
@@ -330,10 +330,10 @@ def sanitize_input(user_msg: str) -> tuple[str, Optional[str]]:
             logger.warning(f"Prompt injection attempt detected: pattern='{pattern[:30]}...'")
             # Replace with safe content - don't block, just sanitize
             cleaned = re.sub(pattern, "[content removed]", cleaned, flags=re.IGNORECASE)
-    
+
     # Escape HTML to prevent XSS in stored messages
     cleaned = escape(cleaned)
-    
+
     return cleaned, None
 
 # Usage in chat endpoint
@@ -380,14 +380,14 @@ async def ingest_endpoint(
     url = request.url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
-    
+
     # Validate URL format and domain
     if not _is_valid_youtube_url(url):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL format")
-    
+
     # Queue the task
     task = ingest_content_task.delay(url, request.max_accuracy, user["user_id"])
-    
+
     return IngestResponse(
         status="queued",
         message=f"Ingestion queued. Task ID: {task.id}",
@@ -561,7 +561,7 @@ class ChatRequest(BaseModel):
     messages: list[MessagePayload] = Field(..., description="Conversation history")
     user_message: str = Field(..., description="Current user message", max_length=MAX_MESSAGE_LENGTH)
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
-    
+
     @validator("user_message")
     def validate_message(cls, v):
         if not v or not v.strip():
@@ -582,7 +582,7 @@ class ChatResponse(BaseModel):
 class IngestRequest(BaseModel):
     url: str = Field(..., description="YouTube video/playlist URL")
     max_accuracy: bool = Field(default=False, description="Use Whisper transcription")
-    
+
     @validator("url")
     def validate_url(cls, v):
         if not _is_valid_youtube_url(v):
@@ -596,19 +596,19 @@ class IngestRequest(BaseModel):
 async def lifespan(app: FastAPI):
     """Application lifecycle with proper initialization order."""
     logger.info("🚀 Mukthi Guru starting up [production mode]...")
-    
+
     # Initialize rate limiter
     redis_conn = redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
-    
+
     # Initialize services
     startup()
     container = get_container()
     await container.lightrag.initialize()
-    
+
     logger.info("🙏 Mukthi Guru is ready to serve seekers")
     yield
-    
+
     logger.info("Shutting down gracefully...")
     shutdown()
     await redis_conn.close()
@@ -655,9 +655,9 @@ async def chat_endpoint(
     user_msg, _ = sanitize_input(request.user_message)
     user_id = user["user_id"]
     user_lang = user.get("preferred_language", "en")
-    
+
     REQUEST_COUNT.labels(status="received", tier=user.get("tier", "free")).inc()
-    
+
     try:
         with REQUEST_LATENCY.labels(stage="full_pipeline").time():
             result = await asyncio.wait_for(
@@ -696,7 +696,7 @@ async def _execute_pipeline(container, user_msg: str, request: ChatRequest, user
             blocked=True,
             block_reason=input_check["reason"],
         )
-    
+
     # Layer 2: Emotional Distress Detection (multilingual)
     distress_result = await container.distress_detector.detect(user_msg, user.get("preferred_language", "en"))
     if distress_result["triggered"]:
@@ -707,13 +707,13 @@ async def _execute_pipeline(container, user_msg: str, request: ChatRequest, user
             meditation_step=1,
             confidence_score=1.0,
         )
-    
+
     # Layer 3: Cache Check
     cached = container.response_cache.get(user_msg)
     if cached:
         REQUEST_COUNT.labels(status="cache_hit", tier="all").inc()
         return ChatResponse(**cached)
-    
+
     # Layers 4-12: LangGraph RAG Pipeline
     initial_state = create_initial_state(
         question=user_msg,
@@ -721,24 +721,24 @@ async def _execute_pipeline(container, user_msg: str, request: ChatRequest, user
         meditation_step=request.meditation_step,
         user_language=user.get("preferred_language", "en"),
     )
-    
+
     result = await container.rag_graph.ainvoke(initial_state)
-    
+
     final_answer = result.get("final_answer", settings.error_message)
     intent = result.get("intent", "CASUAL")
     med_step = result.get("meditation_step", 0)
     citations = result.get("citations", [])
     confidence = result.get("confidence_score", 0.5)
-    
+
     # Layer 13: Output Guardrails
     output_check = await container.guardrails.check_output(final_answer)
     if output_check["blocked"]:
         final_answer = output_check["moderated_response"]
-    
+
     # Cache only high-confidence QUERY results
     if intent == "QUERY" and confidence >= 0.6:
         container.response_cache.put(user_msg, final_answer, intent, citations, med_step, confidence)
-    
+
     return ChatResponse(
         response=final_answer,
         intent=intent,
@@ -812,22 +812,22 @@ from pydantic import Field, validator
 
 class Settings(BaseSettings):
     """Production-ready configuration with security hardening."""
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
     )
-    
+
     # === Environment ===
     environment: str = Field(default="development", pattern=r"^(development|staging|production)$")
-    
+
     # === Security (CRITICAL: Must be set in production) ===
     jwt_secret_key: str = Field(default="")
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
-    
+
     @validator("jwt_secret_key")
     def validate_jwt_secret(cls, v, values):
         env = values.data.get("environment", "development")
@@ -840,74 +840,74 @@ class Settings(BaseSettings):
             # Development fallback - NOT for production
             return "dev-secret-key-change-in-production-12345"
         return v
-    
+
     # === Redis (for distributed cache, rate limiting, Celery) ===
     redis_url: str = Field(default="redis://localhost:6379/0")
-    
+
     # === Model Preset ===
     model_preset: str = Field(default="sarvam", pattern=r"^(qwen|sarvam|custom)$")
-    
+
     # === LLM Inference (vLLM for production) ===
     llm_backend: str = Field(default="ollama", pattern=r"^(ollama|vllm|tgi)$")
     vllm_url: str = Field(default="http://localhost:8000")  # vLLM OpenAI-compatible endpoint
     vllm_api_key: str = Field(default="")
-    
+
     # === Ollama (development only) ===
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = ""
     ollama_classify_model: str = ""
-    
+
     # === Qdrant ===
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom"
     qdrant_local_path: Optional[str] = None
     qdrant_timeout: int = 10  # Connection timeout seconds
     qdrant_connection_pool_size: int = 10
-    
+
     # === Neo4j ===
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = Field(default="")
-    
+
     @validator("neo4j_password")
     def validate_neo4j_password(cls, v, values):
         env = values.data.get("environment", "development")
         if env == "production" and (not v or v == "password123"):
             raise ValueError("Default Neo4j password must be changed in production")
         return v
-    
+
     # === Embeddings ===
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-    
+
     # === Whisper / Transcription ===
     whisper_model: str = "large-v3"
     whisper_backend: str = Field(default="faster-whisper", pattern=r"^(faster-whisper|openai-whisper)$")
     whisper_compute_type: str = "float16"
     whisper_beam_size: int = 5
-    
+
     # === Transcript Languages (22 Indian languages + English) ===
     transcript_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa,or,as,ks,ne,sd,sa,ur,bo,mi,kok,doi,mni"
     transcript_max_retries: int = 3
     transcript_concurrent_workers: int = 4
-    
+
     @property
     def transcript_languages_list(self) -> list[str]:
         if not self.transcript_languages:
             return ["en", "hi"]
         return [l.strip() for l in self.transcript_languages.split(",") if l.strip()]
-    
+
     # === OCR ===
     ocr_languages: str = "en,hi,te,ta,kn,ml,bn,gu,mr,pa"
-    
+
     # === Server ===
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: str = ""
     request_timeout_seconds: int = 30
     max_request_size_mb: int = 10
-    
+
     @property
     def cors_origins_list(self) -> list[str]:
         """Environment-aware CORS origins."""
@@ -919,7 +919,7 @@ class Settings(BaseSettings):
             return ["https://staging.askmukthiguru.com"]
         else:
             return ["http://localhost:5173", "http://localhost:8080", "http://localhost:3000"]
-    
+
     # === RAG ===
     rag_top_k_retrieval: int = 20
     rag_top_k_rerank: int = 5
@@ -931,36 +931,36 @@ class Settings(BaseSettings):
     rag_mmr_lambda: float = 0.7  # MMR relevance-diversity balance
     rag_confidence_threshold_high: float = 0.7
     rag_confidence_threshold_low: float = 0.3
-    
+
     # === RAPTOR ===
     raptor_cluster_size: int = 8
     raptor_max_clusters: int = 100
     raptor_summary_max_tokens: int = 256
-    
+
     # === Circuit Breaker ===
     circuit_breaker_failure_threshold: int = 5
     circuit_breaker_recovery_timeout: int = 60
-    
+
     # === Rate Limiting ===
     rate_limit_free: str = "10/minute"
     rate_limit_premium: str = "60/minute"
     rate_limit_devotee: str = "120/minute"
-    
+
     # === Cache ===
     cache_ttl_seconds: int = 3600
     cache_max_size: int = 10000
     semantic_cache_similarity_threshold: float = 0.95
-    
+
     # === Messages (Multilingual defaults) ===
     timeout_message: str = "I apologize for the delay. The wisdom you seek requires deeper contemplation. Please try again in a moment. 🙏"
     error_message: str = "I am experiencing a moment of stillness. Please try again shortly. 🙏"
     fallback_message: str = "I am unable to find specific teachings on this topic from Sri Preethaji and Sri Krishnaji that I can share confidently. Rather than risk providing inaccurate guidance, I encourage you to explore their teachings directly. You can visit: https://www.youtube.com/@PreetiKrishna\n\nIs there another question about their teachings I can help with? 🙏"
-    
+
     # === Monitoring ===
     enable_prometheus: bool = True
     enable_structured_logging: bool = True
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    
+
     # === Model Preset Resolution ===
     _PRESETS = {
         "sarvam": {
@@ -974,14 +974,14 @@ class Settings(BaseSettings):
             "embedding": "BAAI/bge-m3",
         },
     }
-    
+
     @property
     def model_for_generation(self) -> str:
         if self.ollama_model:
             return self.ollama_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})
         return preset.get("generation", "sarvam-ai/sarvam-30b-v1")
-    
+
     @property
     def model_for_classification(self) -> str:
         if self.ollama_classify_model:
@@ -1034,26 +1034,26 @@ logger = logging.getLogger(__name__)
 class LLMService:
     """
     Production LLM gateway using vLLM's OpenAI-compatible API.
-    
+
     Falls back to Ollama for local development when vLLM is unavailable.
     """
-    
+
     def __init__(self) -> None:
         self.backend = settings.llm_backend  # "vllm" or "ollama"
         self.gen_model = settings.model_for_generation
         self.cls_model = settings.model_for_classification
-        
+
         # vLLM configuration
         self.vllm_url = settings.vllm_url.rstrip("/")
         self.vllm_api_key = settings.vllm_api_key
-        
+
         # Connection pool for HTTP requests
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(settings.request_timeout_seconds),
             limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
             headers={"Authorization": f"Bearer {self.vllm_api_key}"} if self.vllm_api_key else {},
         )
-        
+
         # Ollama fallback (for development)
         if self.backend == "ollama":
             from langchain_ollama import ChatOllama
@@ -1070,9 +1070,9 @@ class LLMService:
                 temperature=0.0,
                 num_predict=256,
             )
-        
+
         logger.info(f"LLM Service initialized: backend={self.backend}, gen={self.gen_model}, cls={self.cls_model}")
-    
+
     async def _call_vllm(
         self,
         model: str,
@@ -1087,7 +1087,7 @@ class LLMService:
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_prompt})
-        
+
         payload = {
             "model": model,
             "messages": messages,
@@ -1097,7 +1097,7 @@ class LLMService:
             "frequency_penalty": kwargs.get("frequency_penalty", 0.0),
             "presence_penalty": kwargs.get("presence_penalty", 0.0),
         }
-        
+
         @retry(
             retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
             stop=stop_after_attempt(3),
@@ -1111,10 +1111,10 @@ class LLMService:
             )
             response.raise_for_status()
             return response.json()
-        
+
         result = await _make_request()
         return result["choices"][0]["message"]["content"].strip()
-    
+
     async def generate(
         self,
         system_prompt: str,
@@ -1124,7 +1124,7 @@ class LLMService:
     ) -> str:
         """Generate response using main model."""
         full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}" if context else user_prompt
-        
+
         if self.backend == "vllm":
             return await self._call_vllm(
                 model=self.gen_model,
@@ -1138,7 +1138,7 @@ class LLMService:
             messages = [SystemMessage(content=system_prompt), HumanMessage(content=full_prompt)]
             response = await self._llm.ainvoke(messages)
             return response.content.strip()
-    
+
     async def generate_stream(
         self,
         system_prompt: str,
@@ -1148,7 +1148,7 @@ class LLMService:
     ) -> AsyncIterator[str]:
         """Stream generation token by token."""
         full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}" if context else user_prompt
-        
+
         if self.backend == "vllm":
             payload = {
                 "model": self.gen_model,
@@ -1160,7 +1160,7 @@ class LLMService:
                 "max_tokens": kwargs.get("max_tokens", 1024),
                 "stream": True,
             }
-            
+
             async with self._client.stream(
                 "POST",
                 f"{self.vllm_url}/v1/chat/completions",
@@ -1181,7 +1181,7 @@ class LLMService:
             async for chunk in self._llm.astream(messages):
                 if chunk.content:
                     yield chunk.content
-    
+
     async def classify_intent(self, message: str) -> str:
         """Classify user intent with Indian language support."""
         from rag.prompts import INTENT_CLASSIFICATION_PROMPT
@@ -1193,7 +1193,7 @@ class LLMService:
             return "QUERY"
         else:
             return "CASUAL"
-    
+
     async def _generate_fast(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
         """Fast classification using smaller model."""
         if self.backend == "vllm":
@@ -1215,9 +1215,9 @@ class LLMService:
                 logger.warning(f"Fast model failed, falling back: {e}")
                 response = await self._llm.ainvoke(messages)
                 return response.content.strip()
-    
+
     # ... [all other methods updated similarly] ...
-    
+
     async def health_check(self) -> bool:
         """Check LLM backend availability."""
         try:
@@ -1231,7 +1231,7 @@ class LLMService:
                 return response.status_code == 200
         except Exception:
             return False
-    
+
     async def close(self):
         """Close HTTP connection pool."""
         await self._client.aclose()
@@ -1343,20 +1343,20 @@ class DistressResult:
 class MultilingualDistressDetector:
     """
     Multilingual emotional distress detector for Indian spiritual context.
-    
+
     Uses sarvam-ai/sarvam-2b-v1 fine-tuned on:
     - Indian language expressions of emotional/spiritual distress
     - Culturally appropriate distress indicators
     - Spiritual seeking behaviors that indicate underlying pain
     """
-    
+
     # Distress class thresholds
     LEVEL_THRESHOLDS = {
         "mild": 0.4,
         "moderate": 0.6,
         "severe": 0.8,
     }
-    
+
     # Crisis keywords that immediately trigger highest alert
     CRISIS_KEYWORDS = {
         "en": ["suicide", "kill myself", "end my life", "want to die", "self-harm", "cut myself"],
@@ -1366,7 +1366,7 @@ class MultilingualDistressDetector:
         "bn": ["আত্মহত্যা", "মরতে চাই", "প্রাণ দিতে", "মৃত্যু"],
         # ... all 22 languages
     }
-    
+
     # Distress indicators in spiritual context (not crisis, but indicate pain)
     SPIRITUAL_DISTRESS_PATTERNS = {
         "en": [
@@ -1384,14 +1384,14 @@ class MultilingualDistressDetector:
         ],
         # ... all 22 languages
     }
-    
+
     def __init__(self):
         self.model_name = "sarvam-ai/sarvam-2b-v1"  # Fine-tuned for Indian languages
         self._classifier = None
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._tokenizer = None
         self._model = None
-    
+
     def load(self):
         """Load the multilingual distress classification model."""
         logger.info(f"Loading distress detector: {self.model_name}")
@@ -1415,7 +1415,7 @@ class MultilingualDistressDetector:
         except Exception as e:
             logger.error(f"Failed to load distress detector: {e}")
             self._classifier = None
-    
+
     def _detect_language(self, text: str) -> str:
         """Detect the language of the input text."""
         # Use a lightweight language detector
@@ -1425,7 +1425,7 @@ class MultilingualDistressDetector:
             return lang if lang in settings.transcript_languages_list else "en"
         except Exception:
             return "en"
-    
+
     def _check_crisis_keywords(self, text: str, lang: str) -> bool:
         """Fast-path crisis detection using keyword matching."""
         text_lower = text.lower()
@@ -1436,21 +1436,21 @@ class MultilingualDistressDetector:
         # Also check English (code-mixed text)
         en_keywords = self.CRISIS_KEYWORDS.get("en", [])
         return any(kw in text_lower for kw in en_keywords)
-    
+
     def _check_spiritual_distress(self, text: str, lang: str) -> float:
         """Check for spiritual distress patterns."""
         text_lower = text.lower()
         patterns = self.SPIRITUAL_DISTRESS_PATTERNS.get(lang, [])
         en_patterns = self.SPIRITUAL_DISTRESS_PATTERNS.get("en", [])
         all_patterns = patterns + en_patterns
-        
+
         matches = sum(1 for p in all_patterns if p in text_lower)
         return min(matches / 2.0, 1.0)  # Normalize, cap at 1.0
-    
+
     async def detect(self, text: str, language: Optional[str] = None) -> DistressResult:
         """
         Detect emotional distress with multilingual support.
-        
+
         Returns structured result with distress level, class, and recommended response type.
         """
         if not self._classifier:
@@ -1460,10 +1460,10 @@ class MultilingualDistressDetector:
                 recommended_response="normal", requires_meditation=False,
                 requires_crisis_resources=False,
             )
-        
+
         # Detect language if not provided
         detected_lang = language or self._detect_language(text)
-        
+
         # Fast-path: Check crisis keywords (highest priority)
         if self._check_crisis_keywords(text, detected_lang):
             return DistressResult(
@@ -1473,7 +1473,7 @@ class MultilingualDistressDetector:
                 requires_meditation=True,
                 requires_crisis_resources=True,
             )
-        
+
         # Run model inference in thread pool
         try:
             loop = asyncio.get_running_loop()
@@ -1481,12 +1481,12 @@ class MultilingualDistressDetector:
                 self._executor,
                 lambda: self._classifier(text[:512], truncation=True)
             )
-            
+
             # Parse results
             scores = {item["label"]: item["score"] for item in result[0]}
             max_label = max(scores, key=scores.get)
             max_score = scores[max_label]
-            
+
             # Enhance with spiritual distress pattern matching
             spiritual_score = self._check_spiritual_distress(text, detected_lang)
             if spiritual_score > 0.3:
@@ -1498,7 +1498,7 @@ class MultilingualDistressDetector:
                 if scores["spiritual_distress"] > max_score:
                     max_label = "spiritual_distress"
                     max_score = scores["spiritual_distress"]
-            
+
             # Determine distress level
             if max_label == "none" or max_score < self.LEVEL_THRESHOLDS["mild"]:
                 level = "none"
@@ -1512,7 +1512,7 @@ class MultilingualDistressDetector:
             else:
                 level = "severe"
                 triggered = True
-            
+
             # Determine recommended response
             response_map = {
                 "none": "normal",
@@ -1520,7 +1520,7 @@ class MultilingualDistressDetector:
                 "moderate": "meditation_plus_teaching",
                 "severe": "intensive_support",
             }
-            
+
             return DistressResult(
                 triggered=triggered,
                 level=level,
@@ -1531,7 +1531,7 @@ class MultilingualDistressDetector:
                 requires_meditation=triggered and level in ["moderate", "severe"],
                 requires_crisis_resources=max_label == "crisis",
             )
-            
+
         except Exception as e:
             logger.error(f"Distress detection failed: {e}")
             return DistressResult(
@@ -1577,10 +1577,10 @@ logger = logging.getLogger(__name__)
 
 class PromptManager:
     """Manages multilingual prompts for the RAG pipeline."""
-    
+
     def __init__(self):
         self._prompts = self._load_all_prompts()
-    
+
     def get(self, prompt_name: str, language: str = "en") -> str:
         """Get a prompt in the specified language, falling back to English."""
         lang_prompts = self._prompts.get(language, self._prompts["en"])
@@ -1591,7 +1591,7 @@ class PromptManager:
             if language != "en":
                 logger.warning(f"Prompt '{prompt_name}' not available in {language}, using English")
         return prompt
-    
+
     def _load_all_prompts(self) -> Dict[str, Dict[str, str]]:
         """Load all prompts for all supported languages."""
         return {
@@ -1601,7 +1601,7 @@ class PromptManager:
             "ta": self._load_tamil_prompts(),
             # ... all 22 languages
         }
-    
+
     def _load_english_prompts(self) -> Dict[str, str]:
         return {
             "guru_system": GURU_SYSTEM_PROMPT_EN,
@@ -1617,7 +1617,7 @@ class PromptManager:
             "summarize": SUMMARIZE_PROMPT_EN,
             "fallback": FALLBACK_RESPONSE_EN,
         }
-    
+
     def _load_hindi_prompts(self) -> Dict[str, str]:
         return {
             "guru_system": GURU_SYSTEM_PROMPT_HI,
@@ -1633,7 +1633,7 @@ class PromptManager:
             "summarize": SUMMARIZE_PROMPT_HI,
             "fallback": FALLBACK_RESPONSE_HI,
         }
-    
+
     # ... similar for all languages
 
 
@@ -1904,7 +1904,7 @@ timeout=NODE_TIMEOUT_SECONDS
 async def intent_router(state: GraphState) -> dict:
     """Classify user message → DISTRESS / QUERY / CASUAL."""
     question = state["question"]
-    
+
     # Check meditation state
     meditation_step = state.get("meditation_step", 0)
     if meditation_step > 0:
@@ -1913,12 +1913,12 @@ async def intent_router(state: GraphState) -> dict:
         if should_start_meditation(question):
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
-    
+
     try:
         # Get prompts in user's language
         lang = state.get("user_language", "en")
         intent_prompt = prompt_manager.get("intent_classification", lang)
-        
+
         intent = await asyncio.wait_for(
             _ollama.classify_intent(question, system_prompt=intent_prompt),
             timeout=5  # Classification should be fast
@@ -1954,21 +1954,21 @@ if chat_history:
 def _build_contextualized_query(query: str, chat_history: list[dict]) -> str:
     """
     Build a contextualized query using proper follow-up question resolution.
-    
+
     Handles cases like:
     - User: "What is the Beautiful State?"
     - User: "How do I achieve it?" → resolves "it" to "Beautiful State"
     """
     if not chat_history:
         return query
-    
+
     # Get last 3 turns for context
     recent_msgs = chat_history[-6:]
-    
+
     # Check if query contains pronouns/references that need resolution
     reference_indicators = ["it", "that", "this", "they", "them", "those", "he", "she"]
     has_reference = any(word in query.lower().split() for word in reference_indicators)
-    
+
     if has_reference:
         # Build context summary for reference resolution
         context_lines = []
@@ -1976,9 +1976,9 @@ def _build_contextualized_query(query: str, chat_history: list[dict]) -> str:
             role = "User" if msg.get("role") == "user" else "Assistant"
             content = msg.get("content", "")[:200]  # Truncate
             context_lines.append(f"{role}: {content}")
-        
+
         context_str = "\n".join(context_lines)
-        
+
         # Ask LLM to resolve the reference
         resolution_prompt = f"""Given the conversation history and the follow-up question, resolve any pronouns or references to provide a self-contained question.
 
@@ -1988,7 +1988,7 @@ Conversation:
 Follow-up question: {query}
 
 Provide ONLY the resolved, self-contained question with no explanation."""
-        
+
         try:
             resolved = asyncio.get_event_loop().run_until_complete(
                 _ollama._generate_fast("Resolve references in the question.", resolution_prompt)
@@ -1997,7 +1997,7 @@ Provide ONLY the resolved, self-contained question with no explanation."""
                 return resolved
         except Exception:
             pass  # Fall through to simple concatenation
-    
+
     return query
 ```
 
@@ -2021,7 +2021,7 @@ class NodeMetrics:
     input_tokens: int = 0
     output_tokens: int = 0
     error: Optional[str] = None
-    
+
     def record_complete(self):
         self.end_time = time.time()
         self.duration_ms = (self.end_time - self.start_time) * 1000
@@ -2031,14 +2031,14 @@ def _node_execution(node_name: str, state: GraphState):
     """Context manager for node execution with metrics and error handling."""
     metrics = NodeMetrics(node_name=node_name)
     logger.info(f"[{request_id_var.get()}] Node '{node_name}' starting")
-    
+
     try:
         yield metrics
         metrics.record_complete()
         logger.info(
             f"[{request_id_var.get()}] Node '{node_name}' completed in {metrics.duration_ms:.1f}ms"
         )
-        
+
         # Record metrics to state
         existing_metrics = state.get("metrics") or {}
         node_metrics = existing_metrics.get("nodes", [])
@@ -2048,7 +2048,7 @@ def _node_execution(node_name: str, state: GraphState):
             "error": metrics.error,
         })
         existing_metrics["nodes"] = node_metrics
-        
+
     except Exception as e:
         metrics.record_complete()
         metrics.error = str(e)
@@ -2067,10 +2067,10 @@ async def retrieve_documents(state: GraphState) -> dict:
         chat_history = state.get("chat_history", [])
         selected_clusters = state.get("selected_clusters", [])
         lang = state.get("user_language", "en")
-        
+
         all_docs = []
         retrieval_errors = []
-        
+
         for query in sub_queries:
             try:
                 docs = await _retrieve_for_query(query, chat_history, selected_clusters, lang)
@@ -2079,11 +2079,11 @@ async def retrieve_documents(state: GraphState) -> dict:
                 logger.warning(f"Sub-query retrieval failed for '{query[:50]}...': {e}")
                 retrieval_errors.append(str(e))
                 continue  # Continue with other sub-queries
-        
+
         if not all_docs and retrieval_errors:
             logger.error(f"All retrievals failed: {retrieval_errors}")
             # Return empty but don't fail — downstream handles gracefully
-        
+
         # Deduplicate
         seen_texts = set()
         unique_docs = []
@@ -2092,7 +2092,7 @@ async def retrieve_documents(state: GraphState) -> dict:
             if text_hash not in seen_texts:
                 seen_texts.add(text_hash)
                 unique_docs.append(doc)
-        
+
         logger.info(f"[{request_id_var.get()}] Retrieved {len(unique_docs)} unique documents")
         return {"documents": unique_docs, "retrieval_errors": retrieval_errors}
 ```
@@ -2121,7 +2121,7 @@ import hashlib
 
 class QdrantService:
     """Production vector database service with connection pooling and semantic cache."""
-    
+
     def __init__(self) -> None:
         if settings.qdrant_local_path:
             self._client = QdrantClient(
@@ -2136,14 +2136,14 @@ class QdrantService:
                 prefer_grpc=True,
                 grpc_port=6334,
             )
-        
+
         self._collection = settings.qdrant_collection
         self._dimension = settings.embedding_dimension
-        
+
         # Semantic cache for query embeddings
         self._query_cache = {}
         self._cache_max_size = 1000
-    
+
     def search(
         self,
         query_vector: list[float],
@@ -2169,7 +2169,7 @@ class QdrantService:
                 FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
             )
         search_filter = Filter(must=filter_conditions) if filter_conditions else None
-        
+
         if sparse_vector:
             try:
                 sparse_qvec = self._sparse_dict_to_vector(sparse_vector)
@@ -2191,7 +2191,7 @@ class QdrantService:
                 hits = self._dense_search(query_vector, limit, search_filter, score_threshold)
         else:
             hits = self._dense_search(query_vector, limit, search_filter, score_threshold)
-        
+
         return [
             {
                 "text": hit.payload.get("text", ""),
@@ -2204,7 +2204,7 @@ class QdrantService:
             }
             for hit in hits
         ]
-    
+
     def _dense_search(self, query_vector, limit, search_filter, score_threshold=None):
         """Dense-only search with score thresholding."""
         try:
@@ -2228,12 +2228,12 @@ class QdrantService:
                 score_threshold=score_threshold,
             )
             return results
-    
+
     def get_cached_embedding(self, query: str) -> Optional[list[float]]:
         """Check semantic cache for query embedding."""
         cache_key = hashlib.md5(query.lower().strip().encode()).hexdigest()
         return self._query_cache.get(cache_key)
-    
+
     def cache_embedding(self, query: str, embedding: list[float]):
         """Cache query embedding for future reuse."""
         if len(self._query_cache) >= self._cache_max_size:
@@ -2325,7 +2325,7 @@ class VideoMetadata:
 class YouTubeChannelSync:
     """
     Automated YouTube channel synchronization service.
-    
+
     Features:
     - Discovers new videos from configured channels
     - Tracks ingestion state (what's been ingested, when)
@@ -2333,7 +2333,7 @@ class YouTubeChannelSync:
     - Prioritizes high-value content (longer teachings over shorts)
     - Runs on configurable schedule
     """
-    
+
     def __init__(
         self,
         ingestion_pipeline: IngestionPipeline,
@@ -2343,7 +2343,7 @@ class YouTubeChannelSync:
         self._qdrant = qdrant_service
         self._scheduler = AsyncIOScheduler()
         self._ingested_video_ids = self._load_ingestion_state()
-    
+
     def _load_ingestion_state(self) -> Set[str]:
         """Load set of already-ingested video IDs from tracking."""
         try:
@@ -2354,7 +2354,7 @@ class YouTubeChannelSync:
                 return set(state.get("ingested_video_ids", []))
         except FileNotFoundError:
             return set()
-    
+
     def _save_ingestion_state(self):
         """Persist ingestion state."""
         import json
@@ -2365,18 +2365,18 @@ class YouTubeChannelSync:
                 "ingested_video_ids": list(self._ingested_video_ids),
                 "last_sync": datetime.utcnow().isoformat(),
             }, f)
-    
+
     async def discover_videos(self, channel_config: Dict) -> List[VideoMetadata]:
         """Discover all videos from a channel."""
         logger.info(f"Discovering videos from {channel_config['name']}...")
-        
+
         ydl_opts = {
             'quiet': True,
             'extract_flat': False,
             'playlistend': 500,  # Limit to recent 500 videos
             'no_warnings': True,
         }
-        
+
         videos = []
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
@@ -2385,16 +2385,16 @@ class YouTubeChannelSync:
                     for entry in result['entries']:
                         if not entry or entry.get('id') in self._ingested_video_ids:
                             continue
-                        
+
                         # Skip YouTube Shorts (too short for meaningful content)
                         duration = entry.get('duration', 0)
                         if duration < 120:  # Less than 2 minutes
                             continue
-                        
+
                         # Skip live streams and premieres
                         if entry.get('is_live') or entry.get('is_upcoming'):
                             continue
-                        
+
                         videos.append(VideoMetadata(
                             video_id=entry['id'],
                             title=entry.get('title', 'Unknown'),
@@ -2410,46 +2410,46 @@ class YouTubeChannelSync:
                         ))
             except Exception as e:
                 logger.error(f"Failed to discover videos from {channel_config['name']}: {e}")
-        
+
         # Sort by published date (newest first)
         videos.sort(key=lambda v: v.published_at, reverse=True)
         logger.info(f"Discovered {len(videos)} new videos from {channel_config['name']}")
         return videos
-    
+
     async def sync_channel(self, channel_config: Dict):
         """Sync a single channel."""
         videos = await self.discover_videos(channel_config)
-        
+
         # Prioritize: longer videos, more views
         videos.sort(
             key=lambda v: (v.duration_seconds * 0.5 + v.view_count * 0.001),
             reverse=True,
         )
-        
+
         # Process in batches to avoid overwhelming the system
         batch_size = 5
         for i in range(0, len(videos), batch_size):
             batch = videos[i:i + batch_size]
-            
+
             tasks = [
                 self._ingest_single_video(video)
                 for video in batch
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             for video, result in zip(batch, results):
                 if isinstance(result, Exception):
                     logger.error(f"Failed to ingest {video.title}: {result}")
                 elif result:
                     self._ingested_video_ids.add(video.video_id)
                     logger.info(f"Successfully ingested: {video.title}")
-            
+
             # Save state after each batch
             self._save_ingestion_state()
-            
+
             # Brief pause between batches
             await asyncio.sleep(10)
-    
+
     async def _ingest_single_video(self, video: VideoMetadata) -> bool:
         """Ingest a single video."""
         try:
@@ -2458,20 +2458,20 @@ class YouTubeChannelSync:
         except Exception as e:
             logger.error(f"Ingestion failed for {video.url}: {e}")
             return False
-    
+
     async def run_full_sync(self):
         """Run sync for all configured channels."""
         logger.info("Starting full YouTube channel sync...")
-        
+
         for channel in TARGET_CHANNELS:
             try:
                 await self.sync_channel(channel)
             except Exception as e:
                 logger.error(f"Channel sync failed for {channel['name']}: {e}")
                 continue
-        
+
         logger.info("Full sync complete")
-    
+
     def start_scheduler(self):
         """Start the background sync scheduler."""
         # Sync every 6 hours
@@ -2484,7 +2484,7 @@ class YouTubeChannelSync:
         )
         self._scheduler.start()
         logger.info("YouTube sync scheduler started (every 6 hours)")
-    
+
     def stop_scheduler(self):
         """Stop the scheduler."""
         self._scheduler.shutdown()

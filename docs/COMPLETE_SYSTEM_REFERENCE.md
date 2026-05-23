@@ -323,12 +323,12 @@ CREATE TABLE public.conversation_memories (
 ### 5.2 RLS & Row-Level Security Policies
 *   **user_profiles / conversation_memories:** Restrict direct modifications and reads via policies:
     ```sql
-    CREATE POLICY "Users can see their own profiles" ON public.user_profiles 
+    CREATE POLICY "Users can see their own profiles" ON public.user_profiles
       FOR SELECT USING (auth.uid() = user_id);
     ```
 *   **Admin Overrides:** Admin users bypass RLS filters on global telemetry tables via check functions:
     ```sql
-    CREATE POLICY "Admins can read all profiles" ON public.user_profiles 
+    CREATE POLICY "Admins can read all profiles" ON public.user_profiles
       FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'::public.app_role));
     ```
 

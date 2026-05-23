@@ -256,7 +256,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 # ... (same commands)
 ```
 
-> [!NOTE]  
+> [!NOTE]
 > RunPod supports **persistent volumes** — your models and data survive pod restarts.
 > Attach a persistent volume to `/root` to avoid re-downloading Sarvam 30B on restart.
 
@@ -274,7 +274,7 @@ vastai start instance $INSTANCE_ID  # Resume
 # RunPod: Stop/start from dashboard (only pay for storage when stopped)
 ```
 
-### Use Spot/Interruptible Instances  
+### Use Spot/Interruptible Instances
 Both Vast.ai and RunPod offer interruptible instances at **50-70% discount**.
 Good for dev/testing, not recommended for production.
 

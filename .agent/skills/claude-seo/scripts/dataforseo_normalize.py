@@ -25,6 +25,7 @@ from typing import Any, Optional
 # Generic helpers
 # ---------------------------------------------------------------------------
 
+
 def extract_items(response: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Extract data items from a DataForSEO response envelope.
@@ -188,6 +189,7 @@ def compute_statistics(values: list[float]) -> dict[str, Optional[float]]:
 # Merchant normalizer
 # ---------------------------------------------------------------------------
 
+
 def _normalize_price(raw: Any) -> Optional[float]:
     """Convert various price formats to float."""
     if raw is None:
@@ -269,7 +271,9 @@ def normalize_merchant(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # Handle rating as dict or scalar
         rating_raw = item.get("rating")
         if isinstance(rating_raw, dict):
-            rating_val = _safe_float(rating_raw.get("value") or rating_raw.get("rating_value"))
+            rating_val = _safe_float(
+                rating_raw.get("value") or rating_raw.get("rating_value")
+            )
         else:
             rating_val = _safe_float(rating_raw)
 
@@ -306,6 +310,7 @@ def normalize_merchant(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Social normalizer (placeholder for future seo-social skill)
 # ---------------------------------------------------------------------------
+
 
 def normalize_social(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
@@ -345,6 +350,7 @@ def normalize_social(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # Reviews normalizer (placeholder for future expansion)
 # ---------------------------------------------------------------------------
 
+
 def normalize_reviews(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Normalize review data from DataForSEO.
@@ -377,6 +383,7 @@ def normalize_reviews(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -440,9 +447,7 @@ def main():
     # Output
     if args.table:
         columns = (
-            args.columns.split(",")
-            if args.columns
-            else _default_columns(args.module)
+            args.columns.split(",") if args.columns else _default_columns(args.module)
         )
         print(format_markdown_table(normalized, columns))
     else:
@@ -464,7 +469,15 @@ def main():
 def _default_columns(module: str) -> list[str]:
     """Return default table columns for each module."""
     defaults = {
-        "merchant": ["title", "price", "currency", "seller", "rating", "reviews_count", "availability"],
+        "merchant": [
+            "title",
+            "price",
+            "currency",
+            "seller",
+            "rating",
+            "reviews_count",
+            "availability",
+        ],
         "social": ["platform", "title", "engagement_count", "likes", "shares", "date"],
         "reviews": ["author", "rating", "text", "date", "source", "verified"],
     }

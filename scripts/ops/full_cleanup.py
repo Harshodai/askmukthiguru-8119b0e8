@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
+import logging
 import os
 import shutil
 import sys
-import logging
 from pathlib import Path
 
 # Setup paths to backend
@@ -13,11 +13,15 @@ sys.path.insert(0, BACKEND_DIR)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("full_cleanup")
 
+
 def main():
     logger.info("🧹 Starting complete clean up of all local cache, state, and databases...")
 
     # 1. Clear GPTCache
-    gptcache_paths = [Path(BASE_DIR) / "data" / "gptcache", Path(BACKEND_DIR) / "data" / "gptcache"]
+    gptcache_paths = [
+        Path(BASE_DIR) / "data" / "gptcache",
+        Path(BACKEND_DIR) / "data" / "gptcache",
+    ]
     for path in gptcache_paths:
         if path.exists():
             try:
@@ -36,9 +40,7 @@ def main():
             logger.error(f"❌ Failed to delete LightRAG directory: {e}")
 
     # 3. Clear Ingestion state files (excluding logs)
-    ingestion_files = [
-        Path(BASE_DIR) / "scripts" / "ingestion_state.json"
-    ]
+    ingestion_files = [Path(BASE_DIR) / "scripts" / "ingestion_state.json"]
     for file_path in ingestion_files:
         if file_path.exists():
             try:
@@ -51,6 +53,7 @@ def main():
     logger.info("Connecting to Qdrant on localhost...")
     try:
         from qdrant_client import QdrantClient
+
         client = QdrantClient(url="http://localhost:6333")
         collections = client.get_collections().collections
         for c in collections:
@@ -64,6 +67,7 @@ def main():
     logger.info("Connecting to Neo4j on localhost...")
     try:
         from neo4j import GraphDatabase
+
         password = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
         driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", password))
         with driver.session() as session:
@@ -78,6 +82,7 @@ def main():
     logger.info("Connecting to Redis on localhost...")
     try:
         import redis
+
         password = os.environ.get("REDIS_PASSWORD", "mukthiguru_redis_pass")
         r = redis.from_url(f"redis://:{password}@localhost:6379/0")
         r.flushall()
@@ -86,6 +91,7 @@ def main():
         logger.warning(f"⚠️ Redis cleanup failed: {e}")
 
     logger.info("🎉 Complete cleanup finished successfully!")
+
 
 if __name__ == "__main__":
     main()

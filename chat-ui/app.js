@@ -10,7 +10,7 @@ let conversationHistory = [];
 async function checkHealth() {
     try {
         const response = await fetch('/api/health');
-        
+
         const contentType = response.headers.get("content-type");
         if (response.ok && contentType && contentType.includes("application/json")) {
             const data = await response.json();
@@ -33,9 +33,9 @@ async function checkHealth() {
 function appendMessage(role, content, citations = []) {
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${role}`;
-    
+
     let html = `<div class="content">${content}</div>`;
-    
+
     if (citations && citations.length > 0) {
         html += `<div class="sources">`;
         citations.forEach((url, i) => {
@@ -44,7 +44,7 @@ function appendMessage(role, content, citations = []) {
         });
         html += `</div>`;
     }
-    
+
     msgDiv.innerHTML = html;
     chatWindow.appendChild(msgDiv);
     chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -70,7 +70,7 @@ async function sendMessage(text) {
     // Add user message to UI
     appendMessage('user', text);
     userInput.value = '';
-    
+
     // Show typing
     const typingIndicator = showTyping();
 
@@ -105,7 +105,7 @@ async function sendMessage(text) {
         }
 
         const data = await response.json();
-        
+
         // Remove typing
         typingIndicator.remove();
 

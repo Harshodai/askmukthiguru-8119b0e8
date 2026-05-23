@@ -16,7 +16,7 @@ graph LR
     BE --> NG[NeMo Guardrails]
     BE --> WH[Whisper tiny]
     BE --> OCR[EasyOCR]
-    
+
     style FE fill:#f9f,stroke:#333
     style BE fill:#bbf,stroke:#333
     style OL fill:#fbb,stroke:#333
@@ -185,10 +185,10 @@ If you prefer running without Docker or are in a Colab environment:
 1.  **Set up Virtual Environment**:
     ```bash
     python -m venv venv
-    
+
     # Windows
     venv\Scripts\activate
-    
+
     # Linux/Mac
     source venv/bin/activate
     ```

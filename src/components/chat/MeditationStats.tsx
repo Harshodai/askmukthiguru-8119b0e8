@@ -64,7 +64,7 @@ export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
         <Flame className="w-4 h-4 text-ojas" />
         Your Soul Journey
       </h3>
-      
+
       <div className="grid grid-cols-4 gap-2">
         {statItems.map((item, index) => (
           <motion.div
@@ -77,7 +77,7 @@ export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
             <div className={`${compact ? 'w-7 h-7' : 'w-10 h-10'} rounded-full ${item.bgColor} flex items-center justify-center mx-auto mb-1`}>
               <item.icon className={`${compact ? 'w-3 h-3' : 'w-4 h-4'} ${item.color}`} />
             </div>
-            <motion.p 
+            <motion.p
               className={compact ? 'text-sm font-bold text-foreground' : 'text-lg font-bold text-foreground'}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

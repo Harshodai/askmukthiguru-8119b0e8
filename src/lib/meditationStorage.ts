@@ -101,7 +101,7 @@ export const completeMeditationSession = async (
 ): Promise<void> => {
   const sessions = loadMeditationSessions();
   const existingIndex = sessions.findIndex(s => s.id === sessionId);
-  
+
   const completedSession: MeditationSession = {
     id: sessionId,
     startedAt: existingIndex >= 0 ? sessions[existingIndex].startedAt : new Date(),

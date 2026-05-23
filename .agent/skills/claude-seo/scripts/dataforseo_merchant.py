@@ -23,7 +23,6 @@ import os
 import sys
 import time
 from typing import Any, Optional
-from urllib.parse import urlparse
 
 # Add scripts directory to path for sibling imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +33,9 @@ try:
     import requests
 except ImportError:
     print(
-        json.dumps({"error": "requests library required. Install with: pip install requests"}),
+        json.dumps(
+            {"error": "requests library required. Install with: pip install requests"}
+        ),
         file=sys.stdout,
     )
     sys.exit(1)
@@ -72,6 +73,7 @@ POLL_MAX_ATTEMPTS = 15
 # Authentication
 # ---------------------------------------------------------------------------
 
+
 def _get_credentials() -> tuple[str, str]:
     """Read DataForSEO credentials from environment variables."""
     username = os.environ.get("DATAFORSEO_USERNAME", "")
@@ -106,6 +108,7 @@ def _auth_header(username: str, password: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # API helpers
 # ---------------------------------------------------------------------------
+
 
 def _post_task(
     endpoint_key: str,
@@ -194,6 +197,7 @@ def _extract_items(response: dict[str, Any]) -> list[dict[str, Any]]:
 # Normalization
 # ---------------------------------------------------------------------------
 
+
 def _normalize_price(raw_price: Any) -> Optional[float]:
     """Normalize price to float."""
     if raw_price is None:
@@ -232,8 +236,8 @@ def _normalize_product(item: dict[str, Any], marketplace: str) -> dict[str, Any]
         "currency": item.get("currency", "USD"),
         "seller": item.get("seller", item.get("seller_name", "")),
         "rating": round(float(item.get("rating", {}).get("value", 0) or 0), 1)
-            if isinstance(item.get("rating"), dict)
-            else round(float(item.get("rating", 0) or 0), 1),
+        if isinstance(item.get("rating"), dict)
+        else round(float(item.get("rating", 0) or 0), 1),
         "reviews_count": int(item.get("reviews_count", 0) or 0),
         "url": item.get("url", ""),
         "image_url": item.get("image_url", item.get("marketplace_url", "")),
@@ -257,15 +261,14 @@ def _normalize_seller(item: dict[str, Any]) -> dict[str, Any]:
 # Commands
 # ---------------------------------------------------------------------------
 
+
 def cmd_search(args):
     """Search for products on Google Shopping or Amazon."""
     username, password = _get_credentials()
     headers = _auth_header(username, password)
     marketplace = args.marketplace
 
-    endpoint_key = (
-        "google_products" if marketplace == "google" else "amazon_products"
-    )
+    endpoint_key = "google_products" if marketplace == "google" else "amazon_products"
 
     payload = [
         {
@@ -323,9 +326,7 @@ def cmd_search(args):
             "price_median": sorted(prices)[len(prices) // 2] if prices else None,
             "avg_rating": round(sum(ratings) / len(ratings), 2) if ratings else None,
             "avg_reviews": (
-                round(
-                    sum(p["reviews_count"] for p in normalized) / len(normalized), 1
-                )
+                round(sum(p["reviews_count"] for p in normalized) / len(normalized), 1)
                 if normalized
                 else None
             ),
@@ -396,7 +397,10 @@ def cmd_compare(args):
 
     results = {}
 
-    for marketplace, endpoint_key in [("google", "google_products"), ("amazon", "amazon_products")]:
+    for marketplace, endpoint_key in [
+        ("google", "google_products"),
+        ("amazon", "amazon_products"),
+    ]:
         print(f"Fetching {marketplace} data...", file=sys.stderr)
         payload = [
             {
@@ -454,6 +458,7 @@ def cmd_compare(args):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Fetch marketplace data via DataForSEO Merchant API"
@@ -464,11 +469,12 @@ def main():
     def add_common(p):
         p.add_argument("keyword", help="Product search keyword")
         p.add_argument(
-            "--location", type=int, default=2840, help="Location code (default: 2840 = US)"
+            "--location",
+            type=int,
+            default=2840,
+            help="Location code (default: 2840 = US)",
         )
-        p.add_argument(
-            "--language", default="en", help="Language code (default: en)"
-        )
+        p.add_argument("--language", default="en", help="Language code (default: en)")
 
     # search
     p_search = sub.add_parser("search", help="Search products on a marketplace")
@@ -481,8 +487,12 @@ def main():
     )
     p_search.add_argument("--depth", type=int, default=100, help="Number of results")
     p_search.add_argument("--sort-by", dest="sort_by", help="Sort order")
-    p_search.add_argument("--price-min", dest="price_min", type=float, help="Minimum price filter")
-    p_search.add_argument("--price-max", dest="price_max", type=float, help="Maximum price filter")
+    p_search.add_argument(
+        "--price-min", dest="price_min", type=float, help="Minimum price filter"
+    )
+    p_search.add_argument(
+        "--price-max", dest="price_max", type=float, help="Maximum price filter"
+    )
 
     # sellers
     p_sellers = sub.add_parser("sellers", help="Search sellers on Google Shopping")

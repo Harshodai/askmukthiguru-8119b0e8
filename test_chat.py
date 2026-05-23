@@ -1,12 +1,11 @@
-import requests
 import time
+
+import requests
+
 
 def test_chat():
     url = "http://localhost/api/chat"
-    payload = {
-        "messages": [],
-        "user_message": "Hello, who are you?"
-    }
+    payload = {"messages": [], "user_message": "Hello, who are you?"}
     print(f"Sending request to {url}...")
     start = time.time()
     try:
@@ -16,6 +15,7 @@ def test_chat():
     except Exception as e:
         print(f"Error: {e}")
     print(f"Took {time.time() - start:.2f}s")
+
 
 if __name__ == "__main__":
     test_chat()

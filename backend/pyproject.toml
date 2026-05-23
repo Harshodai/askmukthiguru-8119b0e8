@@ -14,7 +14,7 @@ dependencies = [
     "pydantic-settings>=2.7.0,<3.0",
     "python-dotenv>=1.0.0,<2.0",
     "supabase>=2.3.0",
-    
+
     # LLM & RAG
     "langchain>=0.3.15,<1.0",
     "langchain-core>=0.3.31,<1.0",
@@ -30,19 +30,19 @@ dependencies = [
     "scikit-learn>=1.6.0,<2.0",
     "lightrag-hku>=1.0.0",
     "neo4j>=5.17.0",
-    
+
     # Ingestion & Media
     "youtube-transcript-api>=1.0.0",
     "yt-dlp>=2025.1.0",
     "requests>=2.32.0,<3.0",
     "Pillow>=10.0.0,<11.0",
-    
+
     # Infrastructure
     "cachetools>=5.3.0,<6.0",
     "prometheus_client>=0.21.0",
     "redis>=5.2.0",
     "apscheduler>=3.10.0",
-    
+
     # Auth & Security
     "fastapi-users[sqlalchemy]>=13.0.0",
     "slowapi>=0.1.9",
@@ -51,7 +51,7 @@ dependencies = [
     "gptcache>=0.1.43",
     "easyocr>=1.7.2",
     "nemoguardrails>=0.11.0",
-    
+
     # UI
     "gradio>=4.0.0",
 

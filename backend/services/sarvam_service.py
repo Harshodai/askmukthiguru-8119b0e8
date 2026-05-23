@@ -568,7 +568,9 @@ class SarvamCloudService:
                             # Reasoning model put EVERYTHING in think tags
                             think_text = think_match.group(1).strip()
                             if operation in ("classification", "classification_fallback"):
-                                lines = [line.strip() for line in think_text.splitlines() if line.strip()]
+                                lines = [
+                                    line.strip() for line in think_text.splitlines() if line.strip()
+                                ]
                                 if lines:
                                     # For classification: use the last line (usually the final answer)
                                     content = lines[-1]
@@ -852,9 +854,7 @@ class SarvamCloudService:
                             if data_str.strip() == "[DONE]":
                                 # Strip think tags from accumulated buffer
                                 if buffer:
-                                    re.sub(
-                                        r"<think>.*?</think>", "", buffer, flags=re.DOTALL
-                                    )
+                                    re.sub(r"<think>.*?</think>", "", buffer, flags=re.DOTALL)
                                     # Already yielded tokens — just log completion
                                 break
                             try:

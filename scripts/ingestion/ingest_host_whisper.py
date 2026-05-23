@@ -9,11 +9,11 @@ Usage:
     python3 scripts/ingest_host_whisper.py
 """
 
-import sys
-import os
 import asyncio
-import time
 import logging
+import os
+import sys
+import time
 
 # 1. Setup paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -21,6 +21,7 @@ BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 sys.path.insert(0, BACKEND_DIR)
 
 from dotenv import load_dotenv
+
 load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
 os.environ["LLM_PROVIDER"] = "sarvam_cloud"
@@ -34,8 +35,8 @@ os.environ["WHISPER_ONLY"] = "true"
 # 3. Configure Logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[logging.StreamHandler()]
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger("ingest_host")
 
@@ -47,16 +48,16 @@ logger.info(f"VENV_BIN exists: {os.path.exists(VENV_BIN)}")
 logger.info(f"yt-dlp in VENV_BIN: {os.path.exists(os.path.join(VENV_BIN, 'yt-dlp'))}")
 
 # 4. Import app components
-from app.config import settings
 from app.dependencies import get_container
 
 # ── Core Playlists ──────────────────────────────────────────────────────────
 PLAYLIST_URLS = [
-    "https://www.youtube.com/playlist?list=PLOVU2e0ZosYCZoSlsJgsCRwAKSn9k1YuK", # Preethaji
-    "https://www.youtube.com/playlist?list=PLOVU2e0ZosYBGXFR_4jCmVntbgBa3sx1y", # Krishnaji
+    "https://www.youtube.com/playlist?list=PLOVU2e0ZosYCZoSlsJgsCRwAKSn9k1YuK",  # Preethaji
+    "https://www.youtube.com/playlist?list=PLOVU2e0ZosYBGXFR_4jCmVntbgBa3sx1y",  # Krishnaji
 ]
 
 INTER_VIDEO_DELAY = 5
+
 
 async def ingest_playlist(pipeline, playlist_url: str, results: dict):
     """Ingest a full playlist."""
@@ -64,7 +65,7 @@ async def ingest_playlist(pipeline, playlist_url: str, results: dict):
     try:
         # Ingest URL will use YouTubeLoader which now uses whisper_local_service
         result = await pipeline.ingest_url(playlist_url, max_accuracy=True)
-        
+
         status = result.get("status", "unknown")
         chunks = result.get("chunks_indexed", 0)
         videos_ok = result.get("metadata", {}).get("videos_processed", 0)
@@ -82,6 +83,7 @@ async def ingest_playlist(pipeline, playlist_url: str, results: dict):
         results["total_videos_fail"] += 1
         logger.error(f"❌ Playlist Error: {playlist_url}")
         logger.error(f"   {type(e).__name__}: {e}", exc_info=True)
+
 
 async def main():
     start_time = time.time()
@@ -119,6 +121,7 @@ async def main():
     logger.info(f"  Total Chunks: {results['total_chunks']}")
     logger.info(f"  Elapsed: {elapsed/60:.1f} minutes")
     logger.info("=" * 70)
+
 
 if __name__ == "__main__":
     try:

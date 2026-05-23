@@ -42,6 +42,7 @@ UTM_PARAMS = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_conte
 # URL normalization
 # ---------------------------------------------------------------------------
 
+
 def normalize_url(url: str) -> str:
     """
     Normalize a URL for consistent baseline matching.
@@ -86,6 +87,7 @@ def url_hash(url: str) -> str:
 # ---------------------------------------------------------------------------
 # Database setup
 # ---------------------------------------------------------------------------
+
 
 def init_db() -> sqlite3.Connection:
     """Initialize the SQLite database and return a connection."""
@@ -140,6 +142,7 @@ def init_db() -> sqlite3.Connection:
 # ---------------------------------------------------------------------------
 # Page fetching via existing scripts (SSRF-protected)
 # ---------------------------------------------------------------------------
+
 
 def fetch_page_data(url: str) -> dict:
     """
@@ -210,7 +213,15 @@ def fetch_cwv_data(url: str) -> dict | None:
     psi_script = os.path.join(SCRIPTS_DIR, "pagespeed_check.py")
     try:
         proc = subprocess.run(
-            [sys.executable, psi_script, url, "--psi-only", "--strategy", "mobile", "--json"],
+            [
+                sys.executable,
+                psi_script,
+                url,
+                "--psi-only",
+                "--strategy",
+                "mobile",
+                "--json",
+            ],
             capture_output=True,
             text=True,
             timeout=180,
@@ -243,6 +254,7 @@ def fetch_cwv_data(url: str) -> dict | None:
 # Hashing
 # ---------------------------------------------------------------------------
 
+
 def hash_content(content: str) -> str:
     """SHA-256 hash of content string."""
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -251,6 +263,7 @@ def hash_content(content: str) -> str:
 # ---------------------------------------------------------------------------
 # Main baseline capture
 # ---------------------------------------------------------------------------
+
 
 def capture_baseline(url: str, skip_cwv: bool = False) -> dict:
     """
@@ -265,7 +278,9 @@ def capture_baseline(url: str, skip_cwv: bool = False) -> dict:
     """
     # Validate URL (SSRF protection)
     if not validate_url(url):
-        return {"error": "URL rejected: only public http/https URLs are accepted (SSRF protection)"}
+        return {
+            "error": "URL rejected: only public http/https URLs are accepted (SSRF protection)"
+        }
 
     # Fetch and parse the page
     page_data = fetch_page_data(url)
@@ -363,7 +378,8 @@ def capture_baseline(url: str, skip_cwv: bool = False) -> dict:
             "title": baseline["title"],
             "meta_description": (
                 baseline["meta_description"][:80] + "..."
-                if baseline["meta_description"] and len(baseline["meta_description"]) > 80
+                if baseline["meta_description"]
+                and len(baseline["meta_description"]) > 80
                 else baseline["meta_description"]
             ),
             "canonical": baseline["canonical"],
@@ -385,6 +401,7 @@ def capture_baseline(url: str, skip_cwv: bool = False) -> dict:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(

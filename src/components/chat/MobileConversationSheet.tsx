@@ -4,11 +4,11 @@ import { X, Plus, Flame, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
-import { 
-  Conversation, 
-  loadConversations, 
+import {
+  Conversation,
+  loadConversations,
   deleteConversation,
-  formatRelativeTime 
+  formatRelativeTime
 } from '@/lib/chatStorage';
 
 interface MobileConversationSheetProps {

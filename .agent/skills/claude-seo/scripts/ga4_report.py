@@ -15,7 +15,6 @@ import argparse
 import json
 import sys
 from datetime import datetime, timedelta
-from typing import Optional
 
 try:
     from google.analytics.data_v1beta import BetaAnalyticsDataClient
@@ -40,6 +39,7 @@ try:
     from google_auth import get_oauth_credentials, load_config
 except ImportError:
     import os
+
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from google_auth import get_oauth_credentials, load_config
 
@@ -133,7 +133,9 @@ def organic_traffic_report(
                     ),
                 )
             ),
-            order_bys=[OrderBy(dimension=OrderBy.DimensionOrderBy(dimension_name="date"))],
+            order_bys=[
+                OrderBy(dimension=OrderBy.DimensionOrderBy(dimension_name="date"))
+            ],
             limit=days + 5,
             return_property_quota=True,
         )
@@ -141,24 +143,36 @@ def organic_traffic_report(
         daily_response = client.run_report(daily_request)
 
         for row in daily_response.rows:
-            result["daily_data"].append({
-                "date": row.dimension_values[0].value,
-                "sessions": int(row.metric_values[0].value),
-                "users": int(row.metric_values[1].value),
-                "pageviews": int(row.metric_values[2].value),
-                "bounce_rate": round(float(row.metric_values[3].value) * 100, 1),
-                "avg_session_duration": round(float(row.metric_values[4].value), 1),
-                "engagement_rate": round(float(row.metric_values[5].value) * 100, 1),
-            })
+            result["daily_data"].append(
+                {
+                    "date": row.dimension_values[0].value,
+                    "sessions": int(row.metric_values[0].value),
+                    "users": int(row.metric_values[1].value),
+                    "pageviews": int(row.metric_values[2].value),
+                    "bounce_rate": round(float(row.metric_values[3].value) * 100, 1),
+                    "avg_session_duration": round(float(row.metric_values[4].value), 1),
+                    "engagement_rate": round(
+                        float(row.metric_values[5].value) * 100, 1
+                    ),
+                }
+            )
 
         # Quota info
         if daily_response.property_quota:
             pq = daily_response.property_quota
             result["quota_tokens_used"] = {
-                "daily_consumed": pq.tokens_per_day.consumed if pq.tokens_per_day else None,
-                "daily_remaining": pq.tokens_per_day.remaining if pq.tokens_per_day else None,
-                "hourly_consumed": pq.tokens_per_hour.consumed if pq.tokens_per_hour else None,
-                "hourly_remaining": pq.tokens_per_hour.remaining if pq.tokens_per_hour else None,
+                "daily_consumed": pq.tokens_per_day.consumed
+                if pq.tokens_per_day
+                else None,
+                "daily_remaining": pq.tokens_per_day.remaining
+                if pq.tokens_per_day
+                else None,
+                "hourly_consumed": pq.tokens_per_hour.consumed
+                if pq.tokens_per_hour
+                else None,
+                "hourly_remaining": pq.tokens_per_hour.remaining
+                if pq.tokens_per_hour
+                else None,
             }
 
     except Exception as e:
@@ -212,14 +226,18 @@ def organic_traffic_report(
         pages_response = client.run_report(pages_request)
 
         for row in pages_response.rows:
-            result["top_pages"].append({
-                "landing_page": row.dimension_values[0].value,
-                "sessions": int(row.metric_values[0].value),
-                "users": int(row.metric_values[1].value),
-                "pageviews": int(row.metric_values[2].value),
-                "bounce_rate": round(float(row.metric_values[3].value) * 100, 1),
-                "engagement_rate": round(float(row.metric_values[4].value) * 100, 1),
-            })
+            result["top_pages"].append(
+                {
+                    "landing_page": row.dimension_values[0].value,
+                    "sessions": int(row.metric_values[0].value),
+                    "users": int(row.metric_values[1].value),
+                    "pageviews": int(row.metric_values[2].value),
+                    "bounce_rate": round(float(row.metric_values[3].value) * 100, 1),
+                    "engagement_rate": round(
+                        float(row.metric_values[4].value) * 100, 1
+                    ),
+                }
+            )
 
     except Exception as e:
         # Non-fatal: daily data succeeded, pages failed
@@ -283,7 +301,12 @@ def device_breakdown(
     Returns:
         Dictionary with device breakdown data.
     """
-    result = {"property": property_id, "report": "device_breakdown", "devices": [], "error": None}
+    result = {
+        "property": property_id,
+        "report": "device_breakdown",
+        "devices": [],
+        "error": None,
+    }
 
     client = _build_ga4_client()
     if not client:
@@ -315,17 +338,23 @@ def device_breakdown(
                     ),
                 )
             ),
-            order_bys=[OrderBy(metric=OrderBy.MetricOrderBy(metric_name="sessions"), desc=True)],
+            order_bys=[
+                OrderBy(metric=OrderBy.MetricOrderBy(metric_name="sessions"), desc=True)
+            ],
         )
         response = client.run_report(request)
         for row in response.rows:
-            result["devices"].append({
-                "category": row.dimension_values[0].value,
-                "sessions": int(row.metric_values[0].value),
-                "users": int(row.metric_values[1].value),
-                "bounce_rate": round(float(row.metric_values[2].value) * 100, 1),
-                "engagement_rate": round(float(row.metric_values[3].value) * 100, 1),
-            })
+            result["devices"].append(
+                {
+                    "category": row.dimension_values[0].value,
+                    "sessions": int(row.metric_values[0].value),
+                    "users": int(row.metric_values[1].value),
+                    "bounce_rate": round(float(row.metric_values[2].value) * 100, 1),
+                    "engagement_rate": round(
+                        float(row.metric_values[3].value) * 100, 1
+                    ),
+                }
+            )
     except Exception as e:
         result["error"] = f"GA4 device breakdown error: {e}"
 
@@ -348,7 +377,12 @@ def country_breakdown(
     Returns:
         Dictionary with country breakdown data.
     """
-    result = {"property": property_id, "report": "country_breakdown", "countries": [], "error": None}
+    result = {
+        "property": property_id,
+        "report": "country_breakdown",
+        "countries": [],
+        "error": None,
+    }
 
     client = _build_ga4_client()
     if not client:
@@ -378,16 +412,20 @@ def country_breakdown(
                     ),
                 )
             ),
-            order_bys=[OrderBy(metric=OrderBy.MetricOrderBy(metric_name="sessions"), desc=True)],
+            order_bys=[
+                OrderBy(metric=OrderBy.MetricOrderBy(metric_name="sessions"), desc=True)
+            ],
             limit=limit,
         )
         response = client.run_report(request)
         for row in response.rows:
-            result["countries"].append({
-                "country": row.dimension_values[0].value,
-                "sessions": int(row.metric_values[0].value),
-                "users": int(row.metric_values[1].value),
-            })
+            result["countries"].append(
+                {
+                    "country": row.dimension_values[0].value,
+                    "sessions": int(row.metric_values[0].value),
+                    "users": int(row.metric_values[1].value),
+                }
+            )
     except Exception as e:
         result["error"] = f"GA4 country breakdown error: {e}"
 
@@ -399,12 +437,16 @@ def main():
         description="GA4 Data API - organic traffic reporting"
     )
     parser.add_argument(
-        "--property", "-p",
+        "--property",
+        "-p",
         help="GA4 property ID (numeric, e.g., 123456789). Uses config default if not specified.",
     )
-    parser.add_argument("--days", "-d", type=int, default=28, help="Number of days (default: 28)")
     parser.add_argument(
-        "--report", "-r",
+        "--days", "-d", type=int, default=28, help="Number of days (default: 28)"
+    )
+    parser.add_argument(
+        "--report",
+        "-r",
         choices=["organic", "top-pages", "device", "country"],
         default="organic",
         help="Report type (default: organic)",
@@ -421,7 +463,7 @@ def main():
         prop = config.get("ga4_property_id") or ""
         # Strip 'properties/' prefix if present for consistency
         if prop and prop.startswith("properties/"):
-            prop = prop[len("properties/"):]
+            prop = prop[len("properties/") :]
     if not prop:
         print(
             "Error: No GA4 property specified. Use --property or set ga4_property_id in config.",
@@ -447,31 +489,43 @@ def main():
         print(json.dumps(result, indent=2, default=str))
     else:
         if args.report == "top-pages":
-            print(f"=== Top Organic Landing Pages ===")
-            print(f"Property: {prop} | Period: {result.get('date_range', {}).get('start')} to {result.get('date_range', {}).get('end')}")
-            print(f"Total organic sessions: {result.get('total_organic_sessions', 0):,}")
+            print("=== Top Organic Landing Pages ===")
+            print(
+                f"Property: {prop} | Period: {result.get('date_range', {}).get('start')} to {result.get('date_range', {}).get('end')}"
+            )
+            print(
+                f"Total organic sessions: {result.get('total_organic_sessions', 0):,}"
+            )
             print()
             for i, page in enumerate(result.get("pages", [])[:20], 1):
                 print(f"  {i:2d}. {page['landing_page']}")
-                print(f"      Sessions: {page['sessions']:,} | Users: {page['users']:,} | Bounce: {page['bounce_rate']}%")
+                print(
+                    f"      Sessions: {page['sessions']:,} | Users: {page['users']:,} | Bounce: {page['bounce_rate']}%"
+                )
         else:
             totals = result.get("totals", {})
-            print(f"=== GA4 Organic Traffic Report ===")
+            print("=== GA4 Organic Traffic Report ===")
             print(f"Property: {prop}")
             dr = result.get("date_range", {})
             print(f"Period: {dr.get('start')} to {dr.get('end')}")
-            print(f"\nSessions: {totals.get('sessions', 0):,} | Users: {totals.get('users', 0):,} | Pageviews: {totals.get('pageviews', 0):,}")
+            print(
+                f"\nSessions: {totals.get('sessions', 0):,} | Users: {totals.get('users', 0):,} | Pageviews: {totals.get('pageviews', 0):,}"
+            )
             print(f"Avg Daily Sessions: {totals.get('avg_daily_sessions', 0):,.0f}")
 
             quota = result.get("quota_tokens_used")
             if quota and quota.get("daily_remaining") is not None:
-                print(f"\nQuota: {quota['daily_consumed']} tokens used / {quota['daily_remaining']} remaining (daily)")
+                print(
+                    f"\nQuota: {quota['daily_consumed']} tokens used / {quota['daily_remaining']} remaining (daily)"
+                )
 
             pages = result.get("top_pages", [])
             if pages:
                 print(f"\nTop {min(10, len(pages))} Organic Landing Pages:")
                 for i, page in enumerate(pages[:10], 1):
-                    print(f"  {i:2d}. {page['landing_page']} ({page['sessions']:,} sessions)")
+                    print(
+                        f"  {i:2d}. {page['landing_page']} ({page['sessions']:,} sessions)"
+                    )
 
 
 if __name__ == "__main__":

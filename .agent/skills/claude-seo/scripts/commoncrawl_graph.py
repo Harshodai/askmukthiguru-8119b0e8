@@ -17,7 +17,6 @@ Usage:
 """
 
 import argparse
-import csv
 import gzip
 import io
 import json
@@ -38,7 +37,10 @@ try:
     from backlinks_auth import get_cache_dir, load_config
     from google_auth import validate_url
 except ImportError:
-    print("Error: backlinks_auth.py and google_auth.py required in scripts/", file=sys.stderr)
+    print(
+        "Error: backlinks_auth.py and google_auth.py required in scripts/",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 # Common Crawl web graph base URL (HTTP access to S3 bucket)
@@ -145,8 +147,9 @@ def _stream_gz_lines(url: str, timeout: int = 120):
         yield line.rstrip("\n")
 
 
-def _stream_gz_chunked(url: str, target_domain: str, timeout: int = 120,
-                        max_lines: int = 0) -> list:
+def _stream_gz_chunked(
+    url: str, target_domain: str, timeout: int = 120, max_lines: int = 0
+) -> list:
     """
     Stream a gzipped file and filter for lines matching the target domain.
 
@@ -212,9 +215,13 @@ def _stream_gz_chunked(url: str, target_domain: str, timeout: int = 120,
     return matches
 
 
-def get_domain_metrics(domain: str, release: Optional[str] = None,
-                       force_update: bool = False, timeout: int = 120,
-                       top_referrers: int = 20) -> dict:
+def get_domain_metrics(
+    domain: str,
+    release: Optional[str] = None,
+    force_update: bool = False,
+    timeout: int = 120,
+    top_referrers: int = 20,
+) -> dict:
     """
     Get domain-level backlink metrics from Common Crawl web graph.
 
@@ -239,6 +246,7 @@ def get_domain_metrics(domain: str, release: Optional[str] = None,
                 "metadata": {"source": "commoncrawl"},
             }
         from urllib.parse import urlparse
+
         domain = urlparse(domain).netloc
     domain = domain.replace("www.", "")
 
@@ -270,16 +278,21 @@ def get_domain_metrics(domain: str, release: Optional[str] = None,
     reversed_domain = ".".join(reversed(domain.split(".")))
 
     try:
-        ranking_matches = _stream_gz_chunked(rankings_url, reversed_domain,
-                                              timeout=timeout, max_lines=5)
+        ranking_matches = _stream_gz_chunked(
+            rankings_url, reversed_domain, timeout=timeout, max_lines=5
+        )
         for fields in ranking_matches:
             if len(fields) >= 6:
                 # fields[4] is the reversed hostname (e.g., com.google)
                 if fields[4] == reversed_domain:
                     rankings_data = {
-                        "harmonic_centrality_rank": int(fields[0]) if fields[0].isdigit() else None,
+                        "harmonic_centrality_rank": int(fields[0])
+                        if fields[0].isdigit()
+                        else None,
                         "harmonic_centrality": _safe_float(fields[1]),
-                        "pagerank_rank": int(fields[2]) if fields[2].isdigit() else None,
+                        "pagerank_rank": int(fields[2])
+                        if fields[2].isdigit()
+                        else None,
                         "pagerank": _safe_float(fields[3]),
                         "n_hosts": int(fields[5]) if fields[5].isdigit() else None,
                     }
@@ -298,8 +311,9 @@ def get_domain_metrics(domain: str, release: Optional[str] = None,
     if not in_rankings:
         vertices_url = _graph_file_url(release, VERTICES_SUFFIX)
         try:
-            vertex_matches = _stream_gz_chunked(vertices_url, reversed_domain,
-                                                 timeout=min(timeout, 60), max_lines=1)
+            vertex_matches = _stream_gz_chunked(
+                vertices_url, reversed_domain, timeout=min(timeout, 60), max_lines=1
+            )
             in_crawl = len(vertex_matches) > 0
         except Exception:
             pass  # Vertices file may be very large; timeout is acceptable
@@ -423,7 +437,7 @@ def main():
             print(json.dumps(result, indent=2))
         else:
             data = result["data"]
-            print(f"Common Crawl Web Graph Info")
+            print("Common Crawl Web Graph Info")
             print(f"  Latest release: {data.get('latest_release', 'unknown')}")
             print(f"  Known releases: {', '.join(data.get('known_releases', []))}")
             print(f"  Cache dir:      {data.get('cache_dir', 'N/A')}")
@@ -450,9 +464,15 @@ def main():
             cached = result.get("metadata", {}).get("from_cache", False)
             release = result.get("metadata", {}).get("release", "unknown")
             print(f"Common Crawl Domain Metrics: {data.get('domain', args.domain)}")
-            print(f"  Release:                   {release} {'(cached)' if cached else ''}")
-            print(f"  PageRank:                  {data.get('pagerank', 'N/A')} (rank #{data.get('pagerank_rank', 'N/A')})")
-            print(f"  Harmonic Centrality:       {data.get('harmonic_centrality', 'N/A')} (rank #{data.get('harmonic_centrality_rank', 'N/A')})")
+            print(
+                f"  Release:                   {release} {'(cached)' if cached else ''}"
+            )
+            print(
+                f"  PageRank:                  {data.get('pagerank', 'N/A')} (rank #{data.get('pagerank_rank', 'N/A')})"
+            )
+            print(
+                f"  Harmonic Centrality:       {data.get('harmonic_centrality', 'N/A')} (rank #{data.get('harmonic_centrality_rank', 'N/A')})"
+            )
             print(f"  Number of hosts:           {data.get('n_hosts', 'N/A')}")
             referrers = data.get("top_referring_domains", [])
             if referrers:

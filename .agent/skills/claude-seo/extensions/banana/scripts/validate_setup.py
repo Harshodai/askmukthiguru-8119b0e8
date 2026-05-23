@@ -37,11 +37,13 @@ def main() -> int:
     results = []
 
     # 1. Settings file exists
-    results.append(check(
-        "Claude Code settings.json exists",
-        SETTINGS_PATH.exists(),
-        str(SETTINGS_PATH),
-    ))
+    results.append(
+        check(
+            "Claude Code settings.json exists",
+            SETTINGS_PATH.exists(),
+            str(SETTINGS_PATH),
+        )
+    )
 
     if not SETTINGS_PATH.exists():
         print("\nCannot continue without settings.json.")
@@ -65,45 +67,55 @@ def main() -> int:
         mcp = servers[MCP_NAME]
 
         # 4. Command is npx
-        results.append(check(
-            "Command is 'npx'",
-            mcp.get("command") == "npx",
-            mcp.get("command", "(missing)"),
-        ))
+        results.append(
+            check(
+                "Command is 'npx'",
+                mcp.get("command") == "npx",
+                mcp.get("command", "(missing)"),
+            )
+        )
 
         # 5. Package is correct
         args = mcp.get("args", [])
         has_pkg = "@ycse/nanobanana-mcp" in args
-        results.append(check(
-            "Package is @ycse/nanobanana-mcp",
-            has_pkg,
-            str(args),
-        ))
+        results.append(
+            check(
+                "Package is @ycse/nanobanana-mcp",
+                has_pkg,
+                str(args),
+            )
+        )
 
         # 6. API key present
         env = mcp.get("env", {})
         key = env.get("GOOGLE_AI_API_KEY", "")
-        results.append(check(
-            "GOOGLE_AI_API_KEY is set",
-            bool(key),
-            f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "(empty or short)",
-        ))
+        results.append(
+            check(
+                "GOOGLE_AI_API_KEY is set",
+                bool(key),
+                f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "(empty or short)",
+            )
+        )
 
         # 7. Model configured
         model = env.get("NANOBANANA_MODEL", "")
-        results.append(check(
-            "NANOBANANA_MODEL is set",
-            bool(model),
-            model or "(not set, will use package default)",
-        ))
+        results.append(
+            check(
+                "NANOBANANA_MODEL is set",
+                bool(model),
+                model or "(not set, will use package default)",
+            )
+        )
 
     # 8. Node.js/npx available
     has_npx = shutil.which("npx") is not None
-    results.append(check(
-        "npx is available in PATH",
-        has_npx,
-        shutil.which("npx") or "not found",
-    ))
+    results.append(
+        check(
+            "npx is available in PATH",
+            has_npx,
+            shutil.which("npx") or "not found",
+        )
+    )
 
     # 9. Output directory
     if OUTPUT_DIR.exists():

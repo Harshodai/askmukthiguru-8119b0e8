@@ -3,16 +3,14 @@
 #           4-Tier Transcripts, Concurrent Ingestion, VRAM Management,
 #           Robust Persistence, Enhanced RAG
 
-import os
-import sys
-import shutil
-import time
 import asyncio
-import re
-import tempfile
-import subprocess
 import gc
-from concurrent.futures import ThreadPoolExecutor
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+import time
 
 # ==========================================
 # 1. ROBUST PERSISTENCE & CACHING
@@ -28,6 +26,7 @@ HF_CACHE = f"{CACHE_ROOT}/huggingface"
 TORCH_CACHE = f"{CACHE_ROOT}/torch"
 QDRANT_PATH = f"{DRIVE_ROOT}/qdrant_db"
 
+
 def setup_drive():
     if not os.path.exists(DRIVE_MOUNT_POINT):
         os.makedirs(DRIVE_MOUNT_POINT, exist_ok=True)
@@ -35,6 +34,7 @@ def setup_drive():
     if not os.path.exists(f"{DRIVE_MOUNT_POINT}/MyDrive"):
         try:
             from google.colab import drive
+
             print("  🔗 Mounting Google Drive...")
             drive.mount(DRIVE_MOUNT_POINT)
         except ImportError:
@@ -47,7 +47,14 @@ def setup_drive():
             TORCH_CACHE = f"{CACHE_ROOT}/torch"
             QDRANT_PATH = f"{DRIVE_ROOT}/qdrant_db"
 
-    for folder in [DRIVE_ROOT, CACHE_ROOT, PIP_CACHE, HF_CACHE, TORCH_CACHE, QDRANT_PATH]:
+    for folder in [
+        DRIVE_ROOT,
+        CACHE_ROOT,
+        PIP_CACHE,
+        HF_CACHE,
+        TORCH_CACHE,
+        QDRANT_PATH,
+    ]:
         os.makedirs(folder, exist_ok=True)
 
     system_hf_home = os.path.expanduser("~/.cache/huggingface")
@@ -57,10 +64,11 @@ def setup_drive():
         os.makedirs(os.path.dirname(system_hf_home), exist_ok=True)
         os.symlink(HF_CACHE, system_hf_home)
 
-    os.environ['HF_HOME'] = HF_CACHE
-    os.environ['TORCH_HOME'] = TORCH_CACHE
-    os.environ['XDG_CACHE_HOME'] = CACHE_ROOT
+    os.environ["HF_HOME"] = HF_CACHE
+    os.environ["TORCH_HOME"] = TORCH_CACHE
+    os.environ["XDG_CACHE_HOME"] = CACHE_ROOT
     print("  ✅ Persistence Layer Ready.")
+
 
 setup_drive()
 
@@ -68,6 +76,7 @@ setup_drive()
 # 2. INSTALLATION (Optimized for Colab T4)
 # ==========================================
 print("\n⏳ Checking Dependencies...")
+
 
 def install_dependencies():
     marker_file = f"{PIP_CACHE}/installed_v5_t4.marker"
@@ -77,16 +86,30 @@ def install_dependencies():
         return
 
     print("  📦 Installing system dependencies (ffmpeg, nodejs)...")
-    subprocess.run("apt-get update -qq && apt-get install -y nodejs ffmpeg",
-                    shell=True, capture_output=True, text=True)
+    subprocess.run(
+        "apt-get update -qq && apt-get install -y nodejs ffmpeg",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
 
     packages = [
         "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git",
-        "xformers<0.0.27", "peft", "accelerate", "bitsandbytes",
-        "qdrant-client", "sentence-transformers",
-        "youtube-transcript-api", "yt-dlp", "faster-whisper",
-        "webvtt-py", "nest_asyncio",
-        "matplotlib", "scikit-learn", "pandas", "plotly",
+        "xformers<0.0.27",
+        "peft",
+        "accelerate",
+        "bitsandbytes",
+        "qdrant-client",
+        "sentence-transformers",
+        "youtube-transcript-api",
+        "yt-dlp",
+        "faster-whisper",
+        "webvtt-py",
+        "nest_asyncio",
+        "matplotlib",
+        "scikit-learn",
+        "pandas",
+        "plotly",
     ]
 
     pkg_str = " ".join([f'"{p}"' for p in packages])
@@ -96,11 +119,12 @@ def install_dependencies():
     process = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if process.returncode == 0:
         print("  ✅ Python Dependencies Installed/Verified.")
-        with open(marker_file, 'w') as f:
+        with open(marker_file, "w") as f:
             f.write(f"Installed on {time.ctime()} — v5 T4 Optimized")
     else:
         print("  ❌ Dependency Installation had issues.")
         print(process.stderr[-1000:])
+
 
 install_dependencies()
 
@@ -108,33 +132,36 @@ install_dependencies()
 # 3. IMPORTS & SETUP
 # ==========================================
 import torch
-import numpy as np
 
 try:
-    from huggingface_hub import login
     from google.colab import userdata
-    hf_token = userdata.get('HF_TOKEN')
+    from huggingface_hub import login
+
+    hf_token = userdata.get("HF_TOKEN")
     if hf_token:
         login(token=hf_token)
         print("🔑 Authenticated with HuggingFace.")
-    elif 'HF_TOKEN' in os.environ:
-        login(token=os.environ['HF_TOKEN'])
+    elif "HF_TOKEN" in os.environ:
+        login(token=os.environ["HF_TOKEN"])
 except Exception:
     pass
 
-from unsloth import FastLanguageModel
-from sentence_transformers import SentenceTransformer, CrossEncoder
-from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
-from faster_whisper import WhisperModel
-from youtube_transcript_api import YouTubeTranscriptApi as YTApi
-import yt_dlp
 import nest_asyncio
+import yt_dlp
+from faster_whisper import WhisperModel
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+from sentence_transformers import CrossEncoder, SentenceTransformer
+from unsloth import FastLanguageModel
+from youtube_transcript_api import YouTubeTranscriptApi as YTApi
+
 nest_asyncio.apply()
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 GPU_NAME = torch.cuda.get_device_name(0) if DEVICE == "cuda" else "CPU"
-GPU_VRAM_GB = torch.cuda.get_device_properties(0).total_memory / (1024**3) if DEVICE == "cuda" else 0
+GPU_VRAM_GB = (
+    torch.cuda.get_device_properties(0).total_memory / (1024**3) if DEVICE == "cuda" else 0
+)
 print(f"🚀 {DEVICE.upper()} — {GPU_NAME} ({GPU_VRAM_GB:.1f} GB)")
 
 
@@ -144,22 +171,29 @@ print(f"🚀 {DEVICE.upper()} — {GPU_NAME} ({GPU_VRAM_GB:.1f} GB)")
 CONFIG = {
     # Sarvam 2B — fits T4 comfortably. Switch to "sarvamai/sarvam-30b" on A100.
     "sarvam_model": "sarvamai/sarvam-2b-v0.5",
-    "max_seq_length": 2048,       # Reduced to save KV cache memory on T4
+    "max_seq_length": 2048,  # Reduced to save KV cache memory on T4
     "load_in_4bit": True,
-
     # Embeddings & Reranker
     "embedding_model": "BAAI/bge-base-en-v1.5",
     "reranker_model": "BAAI/bge-reranker-base",
-
     # Whisper — large-v3 for maximum transcript accuracy
     # Loaded on-demand and freed after use to save VRAM
     "whisper_model": "large-v3",
     "whisper_compute_type": "float16" if DEVICE == "cuda" else "int8",
-
     # Transcript (10 Indian languages)
-    "transcript_languages": ["en", "hi", "te", "ta", "kn", "ml", "bn", "gu", "mr", "pa"],
-    "concurrent_workers": 2,      # Conservative for T4 CPU/memory
-
+    "transcript_languages": [
+        "en",
+        "hi",
+        "te",
+        "ta",
+        "kn",
+        "ml",
+        "bn",
+        "gu",
+        "mr",
+        "pa",
+    ],
+    "concurrent_workers": 2,  # Conservative for T4 CPU/memory
     # RAG
     "chunk_size": 500,
     "chunk_overlap": 100,
@@ -171,6 +205,7 @@ CONFIG = {
 # VRAM MANAGEMENT HELPERS
 # ==========================================
 
+
 def vram_cleanup():
     """Aggressively free GPU memory."""
     gc.collect()
@@ -178,12 +213,15 @@ def vram_cleanup():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
 
+
 def vram_report(label=""):
     """Print current VRAM usage."""
     if DEVICE == "cuda":
         used = torch.cuda.memory_allocated() / (1024**3)
         free = GPU_VRAM_GB - used
-        print(f"  📊 VRAM{' ('+label+')' if label else ''}: {used:.1f}GB used / {GPU_VRAM_GB:.1f}GB total ({free:.1f}GB free)")
+        print(
+            f"  📊 VRAM{' ('+label+')' if label else ''}: {used:.1f}GB used / {GPU_VRAM_GB:.1f}GB total ({free:.1f}GB free)"
+        )
 
 
 # ==========================================
@@ -192,7 +230,8 @@ def vram_report(label=""):
 model, tokenizer = None, None
 embed_model = None
 reranker = None
-whisper_model_instance = None   # Loaded on-demand, freed after transcription batch
+whisper_model_instance = None  # Loaded on-demand, freed after transcription batch
+
 
 def load_core_models():
     """Load LLM + embeddings. Whisper loaded separately on-demand."""
@@ -214,7 +253,7 @@ def load_core_models():
             vram_report("after LLM")
         except Exception as e:
             print(f"  ❌ LLM failed: {e}")
-            print(f"  💡 Try a smaller model or restart runtime.")
+            print("  💡 Try a smaller model or restart runtime.")
 
     # B. Embeddings & Reranker
     if embed_model is None:
@@ -224,6 +263,7 @@ def load_core_models():
 
     vram_report("all core models")
     print("  ✅ Core Models Loaded.")
+
 
 load_core_models()
 
@@ -271,10 +311,15 @@ else:
 # 5. 4-TIER TRANSCRIPT EXTRACTION
 # ==========================================
 
+
 def extract_video_id(url):
     """Extract YouTube video ID from various URL formats."""
-    for p in [r'(?:v=|/)([0-9A-Za-z_-]{11})(?:\?|&|$)', r'youtu\.be/([0-9A-Za-z_-]{11})',
-              r'embed/([0-9A-Za-z_-]{11})', r'shorts/([0-9A-Za-z_-]{11})']:
+    for p in [
+        r"(?:v=|/)([0-9A-Za-z_-]{11})(?:\?|&|$)",
+        r"youtu\.be/([0-9A-Za-z_-]{11})",
+        r"embed/([0-9A-Za-z_-]{11})",
+        r"shorts/([0-9A-Za-z_-]{11})",
+    ]:
         m = re.search(p, url)
         if m:
             return m.group(1)
@@ -288,16 +333,16 @@ def get_transcript_4tier(url):
       T2: faster-whisper large-v3 transcription (on-demand load/unload)
       T3: yt-dlp subtitle download + VTT/SRT parsing
       T4: Auto-generated captions via youtube-transcript-api
-    
+
     Each tier has retry logic. Whisper is loaded/unloaded on-demand to save VRAM.
     """
     # Get video metadata
     try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True}) as ydl:
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
             info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Unknown Video')
-            video_id = info['id']
-            duration = info.get('duration', 0)
+            title = info.get("title", "Unknown Video")
+            video_id = info["id"]
+            duration = info.get("duration", 0)
             print(f"   📹 {title} ({duration//60}m{duration%60}s)")
     except Exception as e:
         print(f"   ⚠️ Video info failed: {e}")
@@ -306,13 +351,13 @@ def get_transcript_4tier(url):
     languages = CONFIG["transcript_languages"]
 
     # ── T1: Manual Captions (fastest, most accurate) ──
-    print(f"      T1: Manual captions...")
+    print("      T1: Manual captions...")
     for attempt in range(2):
         try:
             transcript_list = YTApi.list_transcripts(video_id)
             try:
                 manual = transcript_list.find_manually_created_transcript(languages)
-                text = " ".join([t['text'] for t in manual.fetch()])
+                text = " ".join([t["text"] for t in manual.fetch()])
                 if text.strip() and len(text.strip()) > 50:
                     print(f"      ✅ T1: {len(text)} chars (manual)")
                     return text.strip(), title, "manual_captions"
@@ -326,15 +371,15 @@ def get_transcript_4tier(url):
                 print(f"      T1: API error ({e})")
 
     # ── T2: faster-whisper large-v3 (on-demand load) ──
-    print(f"      T2: faster-whisper large-v3...")
+    print("      T2: faster-whisper large-v3...")
     audio_path = f"/content/temp_{video_id}.mp3"
     try:
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': audio_path.replace('.mp3', ''),
-            'quiet': True,
-            'no_warnings': True,
-            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+            "format": "bestaudio/best",
+            "outtmpl": audio_path.replace(".mp3", ""),
+            "quiet": True,
+            "no_warnings": True,
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
@@ -344,15 +389,15 @@ def get_transcript_4tier(url):
         segments, seg_info = wm.transcribe(
             audio_path,
             beam_size=5,
-            language=None,       # Auto-detect
-            vad_filter=True,     # Voice Activity Detection for cleaner results
+            language=None,  # Auto-detect
+            vad_filter=True,  # Voice Activity Detection for cleaner results
             vad_parameters=dict(min_silence_duration_ms=500),
         )
         text = " ".join([s.text for s in segments])
-        detected_lang = getattr(seg_info, 'language', 'unknown')
+        detected_lang = getattr(seg_info, "language", "unknown")
 
         # Cleanup audio
-        for f in [audio_path, audio_path.replace('.mp3', '')]:
+        for f in [audio_path, audio_path.replace(".mp3", "")]:
             if os.path.exists(f):
                 os.remove(f)
 
@@ -361,24 +406,25 @@ def get_transcript_4tier(url):
             return text.strip(), title, "faster_whisper"
     except Exception as e:
         print(f"      ⚠️ T2 failed: {e}")
-        for f in [audio_path, audio_path.replace('.mp3', '')]:
+        for f in [audio_path, audio_path.replace(".mp3", "")]:
             if os.path.exists(f):
                 os.remove(f)
 
     # ── T3: yt-dlp Subtitle Download + VTT/SRT Parse ──
-    print(f"      T3: yt-dlp subtitles...")
+    print("      T3: yt-dlp subtitles...")
     try:
         import glob
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             ydl_opts = {
-                'skip_download': True,
-                'writesubtitles': True,
-                'writeautomaticsub': True,
-                'subtitleslangs': languages,
-                'subtitlesformat': 'vtt/srt/best',
-                'outtmpl': f"{tmp_dir}/subs",
-                'quiet': True,
-                'no_warnings': True,
+                "skip_download": True,
+                "writesubtitles": True,
+                "writeautomaticsub": True,
+                "subtitleslangs": languages,
+                "subtitlesformat": "vtt/srt/best",
+                "outtmpl": f"{tmp_dir}/subs",
+                "quiet": True,
+                "no_warnings": True,
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -393,12 +439,12 @@ def get_transcript_4tier(url):
         print(f"      ⚠️ T3 failed: {e}")
 
     # ── T4: Auto-generated Captions ──
-    print(f"      T4: Auto captions...")
+    print("      T4: Auto captions...")
     for attempt in range(2):
         try:
             transcript_list = YTApi.list_transcripts(video_id)
             auto = transcript_list.find_generated_transcript(languages)
-            text = " ".join([t['text'] for t in auto.fetch()])
+            text = " ".join([t["text"] for t in auto.fetch()])
             if text.strip() and len(text.strip()) > 50:
                 print(f"      ✅ T4: {len(text)} chars (auto)")
                 return text.strip(), title, "auto_captions"
@@ -414,21 +460,21 @@ def get_transcript_4tier(url):
 def _parse_subtitle_file(filepath):
     """Parse VTT/SRT subtitle file into clean plaintext (deduped)."""
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
     except Exception:
         return None
 
     lines = []
     seen = set()
-    for line in content.split('\n'):
+    for line in content.split("\n"):
         line = line.strip()
-        if line.startswith('WEBVTT') or line.startswith('Kind:') or line.startswith('Language:'):
+        if line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:"):
             continue
-        if re.match(r'^\d{2}:\d{2}', line) or re.match(r'^\d+$', line) or not line:
+        if re.match(r"^\d{2}:\d{2}", line) or re.match(r"^\d+$", line) or not line:
             continue
-        clean = re.sub(r'<[^>]+>', '', line)
-        clean = re.sub(r'\{[^}]+\}', '', clean).strip()
+        clean = re.sub(r"<[^>]+>", "", line)
+        clean = re.sub(r"\{[^}]+\}", "", clean).strip()
         if clean and clean not in seen:
             seen.add(clean)
             lines.append(clean)
@@ -440,11 +486,12 @@ def _parse_subtitle_file(filepath):
 # 6. INGESTION (Async, Concurrent, VRAM-Safe)
 # ==========================================
 
+
 def chunk_text(text, size, overlap):
     """Split text into overlapping chunks, skip tiny fragments."""
     chunks, start = [], 0
     while start < len(text):
-        chunks.append(text[start:start + size])
+        chunks.append(text[start : start + size])
         start += size - overlap
     return [c for c in chunks if len(c.strip()) > 20]
 
@@ -494,7 +541,7 @@ def process_single_video_sync(url):
                     "chunk_index": i,
                     "total_chunks": len(chunks),
                     "timestamp": time.time(),
-                }
+                },
             )
             for i in range(len(chunks))
         ]
@@ -505,7 +552,13 @@ def process_single_video_sync(url):
         del embeddings
         vram_cleanup()
 
-        return {"url": url, "status": "success", "title": title, "method": method, "chunks": len(chunks)}
+        return {
+            "url": url,
+            "status": "success",
+            "title": title,
+            "method": method,
+            "chunks": len(chunks),
+        }
 
     except Exception as e:
         print(f"   ❌ Error {url}: {e}")
@@ -516,21 +569,20 @@ def process_single_video_sync(url):
 async def _ingest_concurrent(url):
     """Ingest playlist/channel/video with concurrent workers."""
     print(f"\n📂 Analyzing: {url}")
-    ydl_opts = {'extract_flat': True, 'quiet': True, 'no_warnings': True}
+    ydl_opts = {"extract_flat": True, "quiet": True, "no_warnings": True}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         result = ydl.extract_info(url, download=False)
-        if 'entries' not in result:
+        if "entries" not in result:
             # Single video
             return [process_single_video_sync(url)]
 
-        videos = [e for e in result['entries'] if e and e.get('id')]
+        videos = [e for e in result["entries"] if e and e.get("id")]
         workers = CONFIG["concurrent_workers"]
         print(f"   Found {len(videos)} videos → {workers} concurrent workers")
 
         sem = asyncio.Semaphore(workers)
         tasks = [
-            process_video_async(f"https://www.youtube.com/watch?v={v['id']}", sem)
-            for v in videos
+            process_video_async(f"https://www.youtube.com/watch?v={v['id']}", sem) for v in videos
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -538,7 +590,13 @@ async def _ingest_concurrent(url):
         final = []
         for i, r in enumerate(results):
             if isinstance(r, Exception):
-                final.append({"url": videos[i].get('url', ''), "status": "exception", "error": str(r)})
+                final.append(
+                    {
+                        "url": videos[i].get("url", ""),
+                        "status": "exception",
+                        "error": str(r),
+                    }
+                )
             else:
                 final.append(r)
 
@@ -555,7 +613,7 @@ async def _ingest_concurrent(url):
             methods[m] = methods.get(m, 0) + 1
 
         print(f"\n{'='*50}")
-        print(f"📊 Ingestion Summary:")
+        print("📊 Ingestion Summary:")
         print(f"   ✅ Success: {success}/{len(final)}")
         print(f"   ❌ Failed:  {failed}/{len(final)}")
         print(f"   📦 Chunks indexed: {total_chunks}")
@@ -593,6 +651,7 @@ def batch_ingest(urls):
 # 7. ENHANCED RAG (VRAM-Safe)
 # ==========================================
 
+
 def get_guru_response(question, verbose=False):
     """
     Full RAG with VRAM management:
@@ -612,7 +671,9 @@ def get_guru_response(question, verbose=False):
     inputs = tokenizer([hyde_prompt], return_tensors="pt").to(DEVICE)
     with torch.no_grad():
         outputs = model.generate(**inputs, max_new_tokens=50, use_cache=True)
-    hypothetical = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+    hypothetical = tokenizer.decode(
+        outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
+    )
     del inputs, outputs
     vram_cleanup()
 
@@ -667,7 +728,7 @@ Context:
             use_cache=True,
         )
 
-    response = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+    response = tokenizer.decode(outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True)
 
     # VRAM cleanup after generation
     del inputs, outputs
@@ -680,11 +741,12 @@ Context:
 # 8. UTILITIES
 # ==========================================
 
+
 def show_stats():
     """System stats + knowledge base overview."""
     cnt = client.count(collection_name=COLLECTION_NAME).count
     print(f"\n{'='*50}")
-    print(f"📊 MUKTHI GURU v5.0 — System Stats")
+    print("📊 MUKTHI GURU v5.0 — System Stats")
     print(f"{'='*50}")
     vram_report()
     print(f"   🧠 LLM: {CONFIG['sarvam_model']} (4-bit)")
@@ -696,7 +758,9 @@ def show_stats():
 
     if cnt > 0:
         try:
-            pts = client.scroll(COLLECTION_NAME, limit=500, with_payload=True, with_vectors=False)[0]
+            pts = client.scroll(COLLECTION_NAME, limit=500, with_payload=True, with_vectors=False)[
+                0
+            ]
             sources, methods = {}, {}
             for p in pts:
                 s = p.payload.get("title", "Unknown")
@@ -707,7 +771,7 @@ def show_stats():
             print(f"\n   📋 Sources ({len(sources)} videos):")
             for s, c in sorted(sources.items(), key=lambda x: -x[1])[:10]:
                 print(f"      • {s[:50]}: {c} chunks")
-            print(f"   🔧 Methods:")
+            print("   🔧 Methods:")
             for m, c in sorted(methods.items(), key=lambda x: -x[1]):
                 print(f"      • {m}: {c}")
         except Exception:
@@ -720,7 +784,9 @@ def search_knowledge(query, top_k=5):
     results = client.query_points(collection_name=COLLECTION_NAME, query=q_vec, limit=top_k)
     print(f"\n🔍 '{query}' → {len(results.points)} results")
     for i, p in enumerate(results.points):
-        print(f"   [{i+1}] {p.score:.4f} | {p.payload.get('title', '?')[:40]} | {p.payload['text'][:100]}...")
+        print(
+            f"   [{i+1}] {p.score:.4f} | {p.payload.get('title', '?')[:40]} | {p.payload['text'][:100]}..."
+        )
     return results
 
 
@@ -728,7 +794,7 @@ def clear_knowledge():
     """Clear all indexed knowledge (with confirmation)."""
     cnt = client.count(collection_name=COLLECTION_NAME).count
     confirm = input(f"⚠️ Delete all {cnt} chunks? Type 'YES': ")
-    if confirm == 'YES':
+    if confirm == "YES":
         client.delete_collection(COLLECTION_NAME)
         client.create_collection(
             COLLECTION_NAME,
@@ -748,42 +814,43 @@ def main_menu():
     print(f"{'='*50}")
 
     while True:
-        print(f"\n 1. Ingest (Video/Playlist/Channel)")
-        print(f" 2. Batch Ingest (Multiple URLs)")
-        print(f" 3. Ask Guru (RAG Chat)")
-        print(f" 4. Search Knowledge Base")
-        print(f" 5. System Stats")
-        print(f" 6. Clear Knowledge Base")
-        print(f" 7. Exit")
+        print("\n 1. Ingest (Video/Playlist/Channel)")
+        print(" 2. Batch Ingest (Multiple URLs)")
+        print(" 3. Ask Guru (RAG Chat)")
+        print(" 4. Search Knowledge Base")
+        print(" 5. System Stats")
+        print(" 6. Clear Knowledge Base")
+        print(" 7. Exit")
 
         c = input("→ ").strip()
-        if c == '1':
+        if c == "1":
             url = input("URL: ").strip()
             if url:
                 ingest_url(url)
-        elif c == '2':
+        elif c == "2":
             print("Enter URLs (one per line, empty to finish):")
             urls = []
             while True:
                 u = input("  URL: ").strip()
-                if not u: break
+                if not u:
+                    break
                 urls.append(u)
             if urls:
                 batch_ingest(urls)
-        elif c == '3':
+        elif c == "3":
             q = input("Question (any language): ").strip()
             if q:
                 response = get_guru_response(q, verbose=True)
                 print(f"\n🕉️ {response}")
-        elif c == '4':
+        elif c == "4":
             q = input("Search: ").strip()
             if q:
                 search_knowledge(q)
-        elif c == '5':
+        elif c == "5":
             show_stats()
-        elif c == '6':
+        elif c == "6":
             clear_knowledge()
-        elif c == '7':
+        elif c == "7":
             print("🙏 Namaste!")
             break
 

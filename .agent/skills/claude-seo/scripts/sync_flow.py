@@ -24,7 +24,9 @@ def _validate_github_url(url):
     """Abort if url does not use HTTPS or does not target the expected GitHub API host."""
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.netloc != _ALLOWED_HOST:
-        raise ValueError(f"Blocked request to unexpected host: {parsed.netloc!r} (scheme: {parsed.scheme!r})")
+        raise ValueError(
+            f"Blocked request to unexpected host: {parsed.netloc!r} (scheme: {parsed.scheme!r})"
+        )
 
 
 PROMPT_STAGES = ["find", "leverage", "optimize", "win", "local"]
@@ -49,8 +51,12 @@ def parse_args():
         description="Sync Flow references into skills/seo-flow/references/.",
         epilog=epilog,
     )
-    parser.add_argument("--dry-run", action="store_true", help="Report changes without writing files.")
-    parser.add_argument("--ref", metavar="SHA", help="Pin fetches to a Flow commit SHA.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Report changes without writing files."
+    )
+    parser.add_argument(
+        "--ref", metavar="SHA", help="Pin fetches to a Flow commit SHA."
+    )
     return parser.parse_args()
 
 
@@ -163,7 +169,8 @@ def prompt_meta(stage, filename, raw):
         "stage": stage,
         "filename": filename,
         "title": frontmatter_value(lines, "title") or first_h1(lines),
-        "description": frontmatter_value(lines, "description") or first_description(lines),
+        "description": frontmatter_value(lines, "description")
+        or first_description(lines),
     }
 
 
@@ -172,7 +179,12 @@ def escape_cell(value):
 
 
 def prompt_readme(rows):
-    lines = ["# Flow Prompt Index", "", "| Stage | Filename | Title | Description |", "|---|---|---|---|"]
+    lines = [
+        "# Flow Prompt Index",
+        "",
+        "| Stage | Filename | Title | Description |",
+        "|---|---|---|---|",
+    ]
     for row in rows:
         lines.append(
             "| {stage} | {filename} | {title} | {description} |".format(
@@ -209,7 +221,9 @@ def record_write(root, path, content, dry_run, changes):
     resolved = path.resolve()
     root_resolved = root.resolve()
     if not str(resolved).startswith(str(root_resolved) + os.sep):
-        raise ValueError(f"Path traversal blocked: {resolved} is outside {root_resolved}")
+        raise ValueError(
+            f"Path traversal blocked: {resolved} is outside {root_resolved}"
+        )
 
     rel = path.relative_to(root).as_posix()
     changes.setdefault("hashes", {})[rel] = _sha256(content)
@@ -250,7 +264,13 @@ def sync(args):
             content = f"{attribution_header(today)}\n{raw}"
             record_write(root, target, content, args.dry_run, changes)
 
-    record_write(root, refs / "prompts" / "README.md", prompt_readme(prompt_rows), args.dry_run, changes)
+    record_write(
+        root,
+        refs / "prompts" / "README.md",
+        prompt_readme(prompt_rows),
+        args.dry_run,
+        changes,
+    )
 
     # Generate SHA-256 lockfile
     lock_path = root / LOCK_REL

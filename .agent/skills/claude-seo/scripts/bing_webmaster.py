@@ -16,7 +16,7 @@ import json
 import sys
 import time
 from typing import Optional
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse
 
 try:
     import requests
@@ -25,13 +25,17 @@ except ImportError:
     sys.exit(1)
 
 import os
+
 _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _SCRIPTS_DIR)
 try:
     from backlinks_auth import get_bing_api_key, get_bing_verified_sites, load_config
     from google_auth import validate_url
 except ImportError:
-    print("Error: backlinks_auth.py and google_auth.py required in scripts/", file=sys.stderr)
+    print(
+        "Error: backlinks_auth.py and google_auth.py required in scripts/",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 BING_API_BASE = "https://ssl.bing.com/webmaster/api.svc/json"
@@ -51,8 +55,9 @@ def _rate_limit():
     _last_request_time = time.time()
 
 
-def _bing_request(endpoint: str, api_key: str, params: Optional[dict] = None,
-                  method: str = "GET") -> dict:
+def _bing_request(
+    endpoint: str, api_key: str, params: Optional[dict] = None, method: str = "GET"
+) -> dict:
     """
     Make a request to the Bing Webmaster API.
 
@@ -169,15 +174,25 @@ def get_link_details(site_url: str, api_key: str, page: int = 0) -> dict:
     if result["status"] == "success" and result["data"]:
         raw_data = result["data"]
         links = []
-        link_list = raw_data if isinstance(raw_data, list) else raw_data.get("d", raw_data.get("results", []))
+        link_list = (
+            raw_data
+            if isinstance(raw_data, list)
+            else raw_data.get("d", raw_data.get("results", []))
+        )
         if isinstance(link_list, list):
             for item in link_list:
-                links.append({
-                    "source_url": item.get("SourceUrl", item.get("sourceUrl", "")),
-                    "target_url": item.get("TargetUrl", item.get("targetUrl", "")),
-                    "anchor_text": item.get("AnchorText", item.get("anchorText", "")),
-                    "date_discovered": item.get("DateDiscovered", item.get("dateDiscovered", "")),
-                })
+                links.append(
+                    {
+                        "source_url": item.get("SourceUrl", item.get("sourceUrl", "")),
+                        "target_url": item.get("TargetUrl", item.get("targetUrl", "")),
+                        "anchor_text": item.get(
+                            "AnchorText", item.get("anchorText", "")
+                        ),
+                        "date_discovered": item.get(
+                            "DateDiscovered", item.get("dateDiscovered", "")
+                        ),
+                    }
+                )
         result["data"] = {
             "site_url": site_url,
             "page": page,
@@ -377,10 +392,18 @@ def main():
 
     # Warn if site not in verified list
     verified = get_bing_verified_sites()
-    parsed_target = urlparse(target if target.startswith("http") else f"https://{target}")
-    if verified and parsed_target.netloc not in verified and parsed_target.netloc.replace("www.", "") not in verified:
-        print(f"Warning: {parsed_target.netloc} not in bing_verified_sites config. API may return limited data.",
-              file=sys.stderr)
+    parsed_target = urlparse(
+        target if target.startswith("http") else f"https://{target}"
+    )
+    if (
+        verified
+        and parsed_target.netloc not in verified
+        and parsed_target.netloc.replace("www.", "") not in verified
+    ):
+        print(
+            f"Warning: {parsed_target.netloc} not in bing_verified_sites config. API may return limited data.",
+            file=sys.stderr,
+        )
 
     # Execute command
     if args.command == "links":
@@ -390,7 +413,11 @@ def main():
     elif args.command == "compare":
         result = compare_links(target, args.competitor_url, api_key)
     else:
-        result = {"status": "error", "data": None, "error": f"Unknown command: {args.command}"}
+        result = {
+            "status": "error",
+            "data": None,
+            "error": f"Unknown command: {args.command}",
+        }
 
     # Output
     if args.json:
@@ -399,7 +426,9 @@ def main():
         if result["status"] == "success" and result["data"]:
             data = result["data"]
             if args.command == "links":
-                print(f"Bing Inbound Links for: {data.get('site_url', target)} ({data.get('total_returned', 0)} returned)")
+                print(
+                    f"Bing Inbound Links for: {data.get('site_url', target)} ({data.get('total_returned', 0)} returned)"
+                )
                 for link in data.get("links", [])[:20]:
                     anchor = link.get("anchor_text", "")[:40]
                     print(f"  {link.get('source_url', '?'):60s} [{anchor}]")
@@ -407,14 +436,20 @@ def main():
                 print(f"Bing Link Counts for: {data.get('site_url', target)}")
                 print(f"  Sample links found: {data.get('total_links_sample', 'N/A')}")
             elif args.command == "compare":
-                print(f"Backlink Gap: {data.get('site_url', '')} vs {data.get('competitor_url', '')}")
-                print(f"  Your linking domains:       {data.get('your_linking_domains', 0)}")
-                print(f"  Competitor linking domains:  {data.get('competitor_linking_domains', 0)}")
+                print(
+                    f"Backlink Gap: {data.get('site_url', '')} vs {data.get('competitor_url', '')}"
+                )
+                print(
+                    f"  Your linking domains:       {data.get('your_linking_domains', 0)}"
+                )
+                print(
+                    f"  Competitor linking domains:  {data.get('competitor_linking_domains', 0)}"
+                )
                 print(f"  Gap (they have, you don't): {data.get('gap_count', 0)}")
                 print(f"  Shared:                     {data.get('shared_count', 0)}")
                 print(f"  Unique to you:              {data.get('unique_count', 0)}")
                 if data.get("gap_domains"):
-                    print(f"\n  Top gap domains:")
+                    print("\n  Top gap domains:")
                     for d in data["gap_domains"][:10]:
                         print(f"    {d}")
         elif result.get("error"):

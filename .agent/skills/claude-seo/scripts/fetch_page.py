@@ -94,7 +94,9 @@ def fetch_page(
         resolved_ip = socket.gethostbyname(parsed.hostname)
         ip = ipaddress.ip_address(resolved_ip)
         if ip.is_private or ip.is_loopback or ip.is_reserved:
-            result["error"] = f"Blocked: URL resolves to private/internal IP ({resolved_ip})"
+            result["error"] = (
+                f"Blocked: URL resolves to private/internal IP ({resolved_ip})"
+            )
             return result
     except (socket.gaierror, ValueError):
         pass  # DNS resolution failure handled by requests below
@@ -123,8 +125,7 @@ def fetch_page(
         if response.history:
             result["redirect_chain"] = [r.url for r in response.history]
             result["redirect_details"] = [
-                {"url": r.url, "status_code": r.status_code}
-                for r in response.history
+                {"url": r.url, "status_code": r.status_code} for r in response.history
             ]
 
     except requests.exceptions.Timeout:
@@ -145,8 +146,12 @@ def main():
     parser = argparse.ArgumentParser(description="Fetch a web page for SEO analysis")
     parser.add_argument("url", help="URL to fetch")
     parser.add_argument("--output", "-o", help="Output file path")
-    parser.add_argument("--timeout", "-t", type=int, default=30, help="Timeout in seconds")
-    parser.add_argument("--no-redirects", action="store_true", help="Don't follow redirects")
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=30, help="Timeout in seconds"
+    )
+    parser.add_argument(
+        "--no-redirects", action="store_true", help="Don't follow redirects"
+    )
     parser.add_argument("--user-agent", help="Custom User-Agent string")
     parser.add_argument(
         "--googlebot",

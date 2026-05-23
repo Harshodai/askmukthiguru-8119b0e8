@@ -40,8 +40,8 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
           {/* Disclaimer */}
           <div className="text-xs text-muted-foreground max-w-lg mb-6 bg-muted/50 rounded-lg p-3">
             <p>
-              This is an AI companion trained on spiritual teachings. It is not a replacement 
-              for medical or clinical therapy. If you are experiencing a mental health crisis, 
+              This is an AI companion trained on spiritual teachings. It is not a replacement
+              for medical or clinical therapy. If you are experiencing a mental health crisis,
               please seek professional help.
             </p>
           </div>
