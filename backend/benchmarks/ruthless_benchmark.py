@@ -9,10 +9,10 @@ import argparse
 import asyncio
 import json
 import os
+import socket
 import sys
 import time
 import uuid
-import socket
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
@@ -28,21 +28,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from benchmarks.question_bank import (
         QUERIES,
-        SOUL_SYNC_STEPS_VERIFIED,
-        SERENE_MIND_KNOWN,
-        FOUR_SACRED_SECRETS,
-        DEEKSHA_NEUROSCIENCE,
-        VERIFIED_SOURCES
     )
 except ImportError:
     # Fallback if run directly as scripts/benchmarks/ruthless_benchmark.py
     from question_bank import (
         QUERIES,
-        SOUL_SYNC_STEPS_VERIFIED,
-        SERENE_MIND_KNOWN,
-        FOUR_SACRED_SECRETS,
-        DEEKSHA_NEUROSCIENCE,
-        VERIFIED_SOURCES
     )
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -566,7 +556,7 @@ def print_report(results: list[SingleResult], infra: list[InfraResult], scores: 
     print("═" * 100)
     total = 0.0
     weight_sum = 0.0
-    for key, sc in scores.items():
+    for _key, sc in scores.items():
         emoji = "🟢" if sc.verdict == Verdict.PASS else "🔴"
         contrib = sc.score * sc.weight
         total += contrib
