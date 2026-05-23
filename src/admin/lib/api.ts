@@ -13,7 +13,8 @@ import type {
   DataPoint,
   QualityData,
   IngestionHealth,
-  QueryTrace,
+  ChatQuery as _ChatQueryUnused2,
+
   ChatQuery,
 } from '@/admin/types';
 import * as db from './mockData';
