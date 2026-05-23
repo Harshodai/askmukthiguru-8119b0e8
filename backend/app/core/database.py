@@ -1,5 +1,6 @@
-from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from collections.abc import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
 from app.config import get_settings
@@ -14,7 +15,7 @@ if os.path.exists("/app/data"):
     db_path = "/app/data/mukthi_users.db"
 else:
     db_path = os.environ.get("AUTH_DB_PATH", "./mukthi_users.db")
-    
+
 SQLITE_URL = f"sqlite+aiosqlite:///{db_path}"
 
 engine = create_async_engine(SQLITE_URL, echo=False)
@@ -22,9 +23,11 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=As
 
 Base = declarative_base()
 
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
+
 
 async def init_db():
     async with engine.begin() as conn:

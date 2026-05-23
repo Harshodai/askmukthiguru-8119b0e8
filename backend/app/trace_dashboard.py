@@ -12,10 +12,8 @@ containing all pipeline stages with timing, doc counts, and decisions.
 import json
 import logging
 import time
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict
 
 from app.config import settings
 from services.auth_service import get_current_user_from_supabase
@@ -46,14 +44,16 @@ class TraceCollector:
         self.start_time = time.time()
         self.metadata: dict = {}
 
-    def add_stage(self, name: str, duration: float, metadata: Optional[dict] = None):
+    def add_stage(self, name: str, duration: float, metadata: dict | None = None):
         """Record a pipeline stage completion."""
-        self.stages.append({
-            "stage": name,
-            "duration_ms": round(duration * 1000, 1),
-            "timestamp": time.time(),
-            **(metadata or {}),
-        })
+        self.stages.append(
+            {
+                "stage": name,
+                "duration_ms": round(duration * 1000, 1),
+                "timestamp": time.time(),
+                **(metadata or {}),
+            }
+        )
 
     def set_metadata(self, key: str, value):
         """Set top-level trace metadata."""
@@ -90,6 +90,7 @@ def _store_trace_redis(request_id: str, trace_data: dict):
     """Store trace in Redis with 24h TTL."""
     try:
         import redis
+
         r = redis.from_url(settings.redis_url, decode_responses=True)
         key = f"mukthiguru:trace:{request_id}"
         r.setex(key, 86400, json.dumps(trace_data, default=str))
@@ -97,10 +98,11 @@ def _store_trace_redis(request_id: str, trace_data: dict):
         pass
 
 
-def _get_trace_redis(request_id: str) -> Optional[dict]:
+def _get_trace_redis(request_id: str) -> dict | None:
     """Get trace from Redis."""
     try:
         import redis
+
         r = redis.from_url(settings.redis_url, decode_responses=True)
         key = f"mukthiguru:trace:{request_id}"
         data = r.get(key)
@@ -113,8 +115,9 @@ def _get_trace_redis(request_id: str) -> Optional[dict]:
 # API Routes — all require authentication
 # ===================================================================
 
+
 @router.get("/trace/{request_id}")
-async def get_trace(request_id: str, user: Dict = Depends(get_current_user_from_supabase)):
+async def get_trace(request_id: str, user: dict = Depends(get_current_user_from_supabase)):
     """Get detailed trace for a specific request. Requires admin authentication."""
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -132,7 +135,7 @@ async def get_trace(request_id: str, user: Dict = Depends(get_current_user_from_
 
 
 @router.get("/metrics/summary")
-async def get_metrics_summary(user: Dict = Depends(get_current_user_from_supabase)):
+async def get_metrics_summary(user: dict = Depends(get_current_user_from_supabase)):
     """
     High-level pipeline metrics summary. Requires admin authentication.
     """
@@ -140,14 +143,15 @@ async def get_metrics_summary(user: Dict = Depends(get_current_user_from_supabas
         raise HTTPException(status_code=403, detail="Admin access required")
 
     from app.metrics import (
-        REQUEST_LATENCY, REQUEST_COUNT, CACHE_OPERATIONS,
-        DISTRESS_DETECTIONS, LLM_LATENCY, LLM_TOKENS,
+        CACHE_OPERATIONS,
+        DISTRESS_DETECTIONS,
+        REQUEST_COUNT,
     )
 
     summary = {
         "pipeline": {
             "total_requests": _safe_counter_value(REQUEST_COUNT, ["success"])
-                + _safe_counter_value(REQUEST_COUNT, ["error"]),
+            + _safe_counter_value(REQUEST_COUNT, ["error"]),
             "successful_requests": _safe_counter_value(REQUEST_COUNT, ["success"]),
             "error_requests": _safe_counter_value(REQUEST_COUNT, ["error"]),
             "blocked_requests": _safe_counter_value(REQUEST_COUNT, ["blocked"]),

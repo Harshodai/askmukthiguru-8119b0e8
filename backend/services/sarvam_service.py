@@ -21,32 +21,32 @@ API Reference:
 All LLM calls funnel through this service. No other module talks to Sarvam directly.
 """
 
+import asyncio
+import json
 import logging
 import os
 import re
 import time
-import asyncio
-import json
-from typing import Optional, AsyncIterator
-from enum import Enum
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from enum import Enum
 
 import httpx
 
 from app.config import settings
 from rag.prompts import (
-    INTENT_CLASSIFICATION_PROMPT,
-    GRADE_RELEVANCE_PROMPT,
-    FAITHFULNESS_CHECK_PROMPT,
-    HINT_EXTRACTION_PROMPT,
-    QUERY_REWRITE_PROMPT,
-    VERIFICATION_PROMPT,
-    SUMMARIZE_PROMPT,
-    DECOMPOSE_QUERY_PROMPT,
-    HYDE_PROMPT,
-    IS_COMPLEX_QUERY_PROMPT,
     BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
+    DECOMPOSE_QUERY_PROMPT,
+    FAITHFULNESS_CHECK_PROMPT,
+    GRADE_RELEVANCE_PROMPT,
+    HINT_EXTRACTION_PROMPT,
+    HYDE_PROMPT,
+    INTENT_CLASSIFICATION_PROMPT,
+    IS_COMPLEX_QUERY_PROMPT,
+    QUERY_REWRITE_PROMPT,
+    SUMMARIZE_PROMPT,
+    VERIFICATION_PROMPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,7 @@ except ImportError:  # OpenTelemetry is optional in local/minimal installs.
 
 class QuotaExceededError(Exception):
     """Raised when the Sarvam Cloud API has exceeded its quota/credits."""
+
     pass
 
 
@@ -69,21 +70,23 @@ class QuotaExceededError(Exception):
 # Circuit Breaker — fail-fast when API is down, auto-recover
 # ---------------------------------------------------------------------------
 
+
 class CircuitState(Enum):
-    CLOSED = "closed"        # Normal operation
-    OPEN = "open"            # Failing — reject requests immediately
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing — reject requests immediately
     HALF_OPEN = "half_open"  # Testing if recovered
 
 
 @dataclass
 class CircuitBreaker:
     """Lightweight circuit breaker for Sarvam API calls."""
+
     failure_threshold: int = 5
     recovery_timeout: float = 30.0
     half_open_max_calls: int = 3
     # Mutable state — use field(default_factory)
     _failures: int = field(default=0, repr=False)
-    _last_failure_time: Optional[float] = field(default=None, repr=False)
+    _last_failure_time: float | None = field(default=None, repr=False)
     _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
     _half_open_calls: int = field(default=0, repr=False)
 
@@ -118,14 +121,13 @@ class CircuitBreaker:
             logger.warning("Circuit breaker → OPEN (failed during half-open)")
         elif self._failures >= self.failure_threshold:
             self._state = CircuitState.OPEN
-            logger.warning(
-                f"Circuit breaker → OPEN (threshold={self.failure_threshold} reached)"
-            )
+            logger.warning(f"Circuit breaker → OPEN (threshold={self.failure_threshold} reached)")
 
 
 # ---------------------------------------------------------------------------
 # Sarvam Cloud Service
 # ---------------------------------------------------------------------------
+
 
 class SarvamCloudService:
     """
@@ -146,11 +148,11 @@ class SarvamCloudService:
                 "Set it in your .env file or environment variables."
             )
 
-        self._base_url = getattr(settings, 'sarvam_base_url', 'https://api.sarvam.ai/v1')
+        self._base_url = getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
         self._gen_model = settings.sarvam_cloud_model
         self._cls_model = settings.sarvam_cloud_classify_model
-        self._timeout = getattr(settings, 'llm_timeout', 60)
-        self._max_retries = getattr(settings, 'llm_max_retries', 3)
+        self._timeout = getattr(settings, "llm_timeout", 60)
+        self._max_retries = getattr(settings, "llm_max_retries", 3)
         self._circuit = CircuitBreaker()
         self._last_request_time = 0.0
         self._rate_limit_lock = asyncio.Lock()
@@ -174,14 +176,13 @@ class SarvamCloudService:
             if self._http_client is None:
                 # Configure connection pool limits from settings
                 limits = httpx.Limits(
-                    max_connections=getattr(settings, 'http_max_connections', 100),
-                    max_keepalive_connections=getattr(settings, 'http_max_keepalive_connections', 20),
-                    keepalive_expiry=getattr(settings, 'http_keepalive_expiry', 30.0)
+                    max_connections=getattr(settings, "http_max_connections", 100),
+                    max_keepalive_connections=getattr(
+                        settings, "http_max_keepalive_connections", 20
+                    ),
+                    keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
-                self._http_client = httpx.AsyncClient(
-                    timeout=self._timeout,
-                    limits=limits
-                )
+                self._http_client = httpx.AsyncClient(timeout=self._timeout, limits=limits)
                 logger.info(
                     f"HTTP client initialized with pool limits: "
                     f"max_connections={limits.max_connections}, "
@@ -197,7 +198,7 @@ class SarvamCloudService:
                 self._http_client = None
                 logger.info("HTTP client closed")
 
-    def _extract_structured_content(self, text: str, operation: str) -> Optional[str]:
+    def _extract_structured_content(self, text: str, operation: str) -> str | None:
         """
         Attempt to extract structured data (JSON, markdown code blocks, tab-separated entity tables)
         from reasoning_content when the main content field is returned empty.
@@ -211,9 +212,15 @@ class SarvamCloudService:
             block_strip = block.strip()
             if not block_strip:
                 continue
-            
+
             # If JSON-based operation, check if block is valid JSON
-            if operation in ("grading", "combined_verify", "verify_claims", "classification", "classification_fallback"):
+            if operation in (
+                "grading",
+                "combined_verify",
+                "verify_claims",
+                "classification",
+                "classification_fallback",
+            ):
                 try:
                     json.loads(block_strip)
                     return block_strip
@@ -224,30 +231,30 @@ class SarvamCloudService:
                 if operation == "extraction":
                     block_lower = block_strip.lower()
                     if (
-                        "<|#|>" in block_strip or
-                        "entity" in block_lower or
-                        "relation" in block_lower or
-                        "\t" in block_strip
+                        "<|#|>" in block_strip
+                        or "entity" in block_lower
+                        or "relation" in block_lower
+                        or "\t" in block_strip
                     ):
                         return block_strip
                 else:
                     return block_strip
 
         # 2. Try regex-based JSON block extraction (matching first/last braces or brackets)
-        first_brace = text.find('{')
-        last_brace = text.rfind('}')
+        first_brace = text.find("{")
+        last_brace = text.rfind("}")
         if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-            potential_json = text[first_brace:last_brace+1]
+            potential_json = text[first_brace : last_brace + 1]
             try:
                 json.loads(potential_json)
                 return potential_json
             except Exception:
                 pass
 
-        first_bracket = text.find('[')
-        last_bracket = text.rfind(']')
+        first_bracket = text.find("[")
+        last_bracket = text.rfind("]")
         if first_bracket != -1 and last_bracket != -1 and last_bracket > first_bracket:
-            potential_json = text[first_bracket:last_bracket+1]
+            potential_json = text[first_bracket : last_bracket + 1]
             try:
                 json.loads(potential_json)
                 return potential_json
@@ -261,9 +268,9 @@ class SarvamCloudService:
             for line in lines:
                 l_strip = line.strip()
                 l_lower = l_strip.lower()
-                is_record = (
-                    "<|#|>" in l_strip or
-                    (l_strip.count('"') >= 4 and ("entity" in l_lower or "relation" in l_lower or "\t" in l_strip))
+                is_record = "<|#|>" in l_strip or (
+                    l_strip.count('"') >= 4
+                    and ("entity" in l_lower or "relation" in l_lower or "\t" in l_strip)
                 )
                 if is_record:
                     extracted_lines.append(l_strip)
@@ -296,8 +303,8 @@ class SarvamCloudService:
         """
         if not self._circuit.can_execute():
             exc = Exception(
-                f"Sarvam API circuit breaker is OPEN — "
-                f"failing fast. Will retry after recovery timeout."
+                "Sarvam API circuit breaker is OPEN — "
+                "failing fast. Will retry after recovery timeout."
             )
             with self._start_llm_span(model=model, operation=operation, attempt=0) as span:
                 self._record_span_exception(span, exc)
@@ -333,7 +340,9 @@ class SarvamCloudService:
             else:
                 max_tokens = 4096
             capped_output_length = max_tokens
-            logger.info(f"_call_api: Proactively capped default output length to {capped_output_length} for {model}")
+            logger.info(
+                f"_call_api: Proactively capped default output length to {capped_output_length} for {model}"
+            )
 
         payload = {
             "model": model,
@@ -362,7 +371,9 @@ class SarvamCloudService:
                     elapsed = now - self._last_request_time
                     if elapsed < min_interval:
                         sleep_time = min_interval - elapsed
-                        logger.info(f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit")
+                        logger.info(
+                            f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit"
+                        )
                         await asyncio.sleep(sleep_time)
                     self._last_request_time = time.time()
 
@@ -383,7 +394,7 @@ class SarvamCloudService:
                         if resp.status_code == 400:
                             m = re.search(
                                 r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
-                                resp.text
+                                resp.text,
                             )
                             if m:
                                 tier_limit = int(m.group(1))
@@ -396,30 +407,37 @@ class SarvamCloudService:
                                 continue
                             else:
                                 break
-                            
+
                         # Self-healing for context window limits (HTTP 422)
-                        elif resp.status_code == 422 and "exceeds the model context window" in resp.text:
+                        elif (
+                            resp.status_code == 422
+                            and "exceeds the model context window" in resp.text
+                        ):
                             if payload.get("model") == "sarvam-m":
                                 logger.warning(
-                                    f"Sarvam API context window exceeded for sarvam-m. "
-                                    f"Automatically upgrading model to sarvam-30b and retrying immediately."
+                                    "Sarvam API context window exceeded for sarvam-m. "
+                                    "Automatically upgrading model to sarvam-30b and retrying immediately."
                                 )
                                 payload["model"] = "sarvam-30b"
                                 # Cap to sarvam-30b's subscription tier limit (4096)
                                 payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
-                                model = "sarvam-30b"  # Update outer scope model variable for logging
+                                model = (
+                                    "sarvam-30b"  # Update outer scope model variable for logging
+                                )
                                 adjustment_attempts += 1
                                 continue
                             else:
                                 # Try parsing the allowed limit and prompt tokens to dynamically cap max_tokens
                                 m = re.search(
                                     r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
-                                    resp.text
+                                    resp.text,
                                 )
                                 if m:
                                     prompt_t = int(m.group(1))
                                     window_t = int(m.group(2))
-                                    allowed_max = window_t - prompt_t - 50  # 50 tokens safety margin
+                                    allowed_max = (
+                                        window_t - prompt_t - 50
+                                    )  # 50 tokens safety margin
                                     if allowed_max > 0:
                                         logger.warning(
                                             f"Sarvam API context window exceeded for {model}. "
@@ -451,21 +469,37 @@ class SarvamCloudService:
                         if os.environ.get("SARVAM_DEBUG", "false").lower() == "true":
                             try:
                                 import json as _json
+
                                 debug_file = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/data/sarvam_debug.json"
                                 # Rotate if file exceeds 50MB
-                                if os.path.exists(debug_file) and os.path.getsize(debug_file) > 50 * 1024 * 1024:
+                                if (
+                                    os.path.exists(debug_file)
+                                    and os.path.getsize(debug_file) > 50 * 1024 * 1024
+                                ):
                                     os.rename(debug_file, debug_file + ".bak")
                                 with open(debug_file, "a") as df:
-                                    df.write(_json.dumps({
-                                        "timestamp": time.time(),
-                                        "operation": operation,
-                                        "max_tokens": max_tokens,
-                                        "temperature": temperature,
-                                        "payload_messages_len": len(payload.get("messages", [])),
-                                        "prompt_example": payload.get("messages", [])[-1].get("content")[:500] if payload.get("messages") else "",
-                                        "choice_0": data.get("choices", [{}])[0],
-                                        "usage": data.get("usage", {})
-                                    }, indent=2) + "\n\n")
+                                    df.write(
+                                        _json.dumps(
+                                            {
+                                                "timestamp": time.time(),
+                                                "operation": operation,
+                                                "max_tokens": max_tokens,
+                                                "temperature": temperature,
+                                                "payload_messages_len": len(
+                                                    payload.get("messages", [])
+                                                ),
+                                                "prompt_example": payload.get("messages", [])[
+                                                    -1
+                                                ].get("content")[:500]
+                                                if payload.get("messages")
+                                                else "",
+                                                "choice_0": data.get("choices", [{}])[0],
+                                                "usage": data.get("usage", {}),
+                                            },
+                                            indent=2,
+                                        )
+                                        + "\n\n"
+                                    )
                             except Exception as e:
                                 logger.error(f"Failed to write sarvam debug info: {e}")
 
@@ -475,13 +509,24 @@ class SarvamCloudService:
 
                         # Check if the current call is a structured operation
                         is_structured = kwargs.get("is_structured", False)
-                        structured_ops = {"extraction", "grading", "classification", "classification_fallback", "correction", "translation", "extract", "summarize"}
+                        structured_ops = {
+                            "extraction",
+                            "grading",
+                            "classification",
+                            "classification_fallback",
+                            "correction",
+                            "translation",
+                            "extract",
+                            "summarize",
+                        }
 
                         # Fallback: if content is empty but reasoning_content exists, use reasoning_content
                         # This happens if the model gets cut off by max_tokens/context limit during reasoning.
                         if not content.strip() and reasoning_content.strip():
                             if is_structured or operation in structured_ops:
-                                recovered = self._extract_structured_content(reasoning_content, operation)
+                                recovered = self._extract_structured_content(
+                                    reasoning_content, operation
+                                )
                                 if recovered:
                                     logger.info(
                                         f"Sarvam API: Successfully recovered structured output from reasoning_content "
@@ -512,7 +557,9 @@ class SarvamCloudService:
                         # Strategy: First check if there's content OUTSIDE think tags.
                         # If not, extract the meaningful output FROM the think tags.
                         think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                        content_outside_think = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                        content_outside_think = re.sub(
+                            r"<think>.*?</think>", "", content, flags=re.DOTALL
+                        ).strip()
 
                         if content_outside_think:
                             # Normal case: real content exists outside think tags
@@ -521,17 +568,21 @@ class SarvamCloudService:
                             # Reasoning model put EVERYTHING in think tags
                             think_text = think_match.group(1).strip()
                             if operation in ("classification", "classification_fallback"):
-                                lines = [l.strip() for l in think_text.splitlines() if l.strip()]
+                                lines = [line.strip() for line in think_text.splitlines() if line.strip()]
                                 if lines:
                                     # For classification: use the last line (usually the final answer)
                                     content = lines[-1]
-                                    logger.debug(f"Extracted classification from <think> tags: '{content[:100]}'")
+                                    logger.debug(
+                                        f"Extracted classification from <think> tags: '{content[:100]}'"
+                                    )
                                 else:
                                     content = ""
                             else:
                                 # For generate/extract: Keep the ENTIRE content, otherwise LightRAG extractions are destroyed!
                                 content = think_text
-                                logger.debug("Reasoning model wrapped entire generation in <think>. Using full block.")
+                                logger.debug(
+                                    "Reasoning model wrapped entire generation in <think>. Using full block."
+                                )
                         else:
                             content = content.strip()
 
@@ -545,7 +596,10 @@ class SarvamCloudService:
                         # Prometheus instrumentation
                         try:
                             from app.metrics import LLM_LATENCY, LLM_TOKENS
-                            LLM_LATENCY.labels(model=model, operation=operation).observe(latency_ms / 1000)
+
+                            LLM_LATENCY.labels(model=model, operation=operation).observe(
+                                latency_ms / 1000
+                            )
                             if tokens_used:
                                 LLM_TOKENS.labels(model=model).inc(tokens_used)
                         except Exception:
@@ -572,14 +626,12 @@ class SarvamCloudService:
                         )
                         last_error = Exception(f"HTTP {status}: {body}")
                         self._record_span_exception(span, last_error)
-                        await asyncio.sleep(min(2 ** attempt, 8))  # Exponential backoff
+                        await asyncio.sleep(min(2**attempt, 8))  # Exponential backoff
                         continue
 
                     # Client error (4xx) — don't retry
                     self._circuit.record_failure()
-                    raise Exception(
-                        f"Sarvam API client error: HTTP {status} — {body}"
-                    )
+                    raise Exception(f"Sarvam API client error: HTTP {status} — {body}")
 
                 except QuotaExceededError as exc:
                     self._record_span_exception(span, exc)
@@ -593,18 +645,16 @@ class SarvamCloudService:
                         f"{latency_ms:.0f}ms"
                     )
                     last_error = Exception(f"Timeout after {latency_ms:.0f}ms")
-                    await asyncio.sleep(min(2 ** attempt, 8))  # Exponential backoff
+                    await asyncio.sleep(min(2**attempt, 8))  # Exponential backoff
                 except Exception as e:
                     if isinstance(e, QuotaExceededError):
                         raise
                     latency_ms = (time.time() - start_time) * 1000
                     self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
                     self._record_span_exception(span, e)
-                    logger.warning(
-                        f"Sarvam API error (attempt {attempt}/{self._max_retries}): {e}"
-                    )
+                    logger.warning(f"Sarvam API error (attempt {attempt}/{self._max_retries}): {e}")
                     last_error = e
-                    await asyncio.sleep(min(2 ** attempt, 8))
+                    await asyncio.sleep(min(2**attempt, 8))
 
         # All retries exhausted
         self._circuit.record_failure()
@@ -802,12 +852,16 @@ class SarvamCloudService:
                             if data_str.strip() == "[DONE]":
                                 # Strip think tags from accumulated buffer
                                 if buffer:
-                                    clean = re.sub(r"<think>.*?</think>", "", buffer, flags=re.DOTALL)
+                                    re.sub(
+                                        r"<think>.*?</think>", "", buffer, flags=re.DOTALL
+                                    )
                                     # Already yielded tokens — just log completion
                                 break
                             try:
                                 data = json.loads(data_str)
-                                delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                delta = (
+                                    data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                )
                                 if delta:
                                     buffer += delta
                                     yield delta
@@ -832,7 +886,7 @@ class SarvamCloudService:
     async def classify_intent(self, message: str) -> str:
         """
         Classify user message into one of three intents.
-        
+
         Speculative Execution (Sys 2.2):
         Races the high-accuracy model against the fast model for minimum latency.
         """
@@ -841,13 +895,14 @@ class SarvamCloudService:
         try:
             # Speculative "Fast Path"
             result = await asyncio.wait_for(
-                self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message),
-                timeout=3.0
+                self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message), timeout=3.0
             )
-        except asyncio.TimeoutError:
-            logger.warning("Speculative intent classification timed out. Falling back to main model.")
+        except TimeoutError:
+            logger.warning(
+                "Speculative intent classification timed out. Falling back to main model."
+            )
             result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message)
-        
+
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
 
@@ -876,8 +931,7 @@ class SarvamCloudService:
         else:
             # Unrecognized output — default to QUERY (safer than CASUAL)
             logger.warning(
-                f"classify_intent got unrecognized output: {result[:100]!r}. "
-                "Defaulting to QUERY."
+                f"classify_intent got unrecognized output: {result[:100]!r}. Defaulting to QUERY."
             )
             return "QUERY"
 
@@ -903,7 +957,7 @@ class SarvamCloudService:
 
         # Build numbered document list
         numbered_docs = "\n\n".join(
-            f"Document {i+1}:\n{doc[:1500]}"  # Truncate individual docs to fit context
+            f"Document {i + 1}:\n{doc[:1500]}"  # Truncate individual docs to fit context
             for i, doc in enumerate(documents)
         )
 
@@ -911,15 +965,17 @@ class SarvamCloudService:
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
 
         # Parse "1: [yes/no] - reason\n2: [yes/no] - reason" format
-        relevance_results = [{"relevant": False, "reason": "No response from LLM"} for _ in documents]
-        
+        relevance_results = [
+            {"relevant": False, "reason": "No response from LLM"} for _ in documents
+        ]
+
         # Regex to handle various formats like "1: yes - The document discusses..."
         # or "1: yes (Reason: ...)"
         for line in result.strip().splitlines():
             line = line.strip()
             if not line:
                 continue
-            
+
             # Match pattern: index, then yes/no, then optional reason
             match = re.match(r"(\d+)[:.]\s*(yes|no)(?:\s*[:-]\s*(.*))?", line, re.IGNORECASE)
             if match:
@@ -927,7 +983,11 @@ class SarvamCloudService:
                     idx = int(match.group(1)) - 1
                     if 0 <= idx < len(documents):
                         is_relevant = match.group(2).lower() == "yes"
-                        reason = match.group(3).strip() if match.group(3) else ("Relevant teaching" if is_relevant else "Irrelevant content")
+                        reason = (
+                            match.group(3).strip()
+                            if match.group(3)
+                            else ("Relevant teaching" if is_relevant else "Irrelevant content")
+                        )
                         relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
                 except (ValueError, IndexError):
                     continue
@@ -937,8 +997,8 @@ class SarvamCloudService:
         if not any(r["relevant"] for r in relevance_results) and len(documents) > 0:
             logger.warning("Relevance grading returned no docs. Using top document fallback.")
             relevance_results[0] = {
-                "relevant": True, 
-                "reason": "Fallback: Used top retrieval result as a starting point despite low initial relevance score."
+                "relevant": True,
+                "reason": "Fallback: Used top retrieval result as a starting point despite low initial relevance score.",
             }
 
         return relevance_results
@@ -984,7 +1044,7 @@ class SarvamCloudService:
     ) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
-        
+
         Args:
             original_query: The query that failed to find relevant docs
             reasons: Explanations from the grader about why retrieval failed (standard name)
@@ -995,7 +1055,7 @@ class SarvamCloudService:
         if actual_reasons:
             reasons_text = "\n".join([f"- {r}" for r in actual_reasons if r])
             prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing and perform a more targeted query expansion."
-            
+
         return await self.generate(QUERY_REWRITE_PROMPT, prompt)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
@@ -1073,7 +1133,7 @@ class SarvamCloudService:
         for line in lines:
             if "CONFIDENCE" in line:
                 after = line.split("CONFIDENCE", 1)[-1]
-                nums = re.findall(r'\d+', after)
+                nums = re.findall(r"\d+", after)
                 if nums:
                     try:
                         confidence = float(min(int(nums[0]), 10))
@@ -1081,7 +1141,7 @@ class SarvamCloudService:
                         pass
             elif "FAITHFULNESS_SCORE" in line:
                 after = line.split("FAITHFULNESS_SCORE", 1)[-1]
-                scores = re.findall(r'0\.\d+|1\.0|1', after)
+                scores = re.findall(r"0\.\d+|1\.0|1", after)
                 if scores:
                     try:
                         faithfulness_score = float(scores[0])
@@ -1089,7 +1149,7 @@ class SarvamCloudService:
                         pass
             elif "RELEVANCY_SCORE" in line:
                 after = line.split("RELEVANCY_SCORE", 1)[-1]
-                scores = re.findall(r'0\.\d+|1\.0|1', after)
+                scores = re.findall(r"0\.\d+|1\.0|1", after)
                 if scores:
                     try:
                         relevancy_score = float(scores[0])
@@ -1113,7 +1173,6 @@ class SarvamCloudService:
             "relevancy_score": relevancy_score,
             "details": result,
         }
-
 
     async def summarize(self, texts: list[str]) -> str:
         """
@@ -1159,17 +1218,14 @@ class SarvamCloudService:
         If NO_RELEVANT_CONTEXT is returned, it returns an empty string.
         """
         from rag.prompts import COMPRESS_CONTEXT_PROMPT
-        
-        prompt = COMPRESS_CONTEXT_PROMPT.format(
-            question=question,
-            document_text=document_text
-        )
+
+        prompt = COMPRESS_CONTEXT_PROMPT.format(question=question, document_text=document_text)
         # Always use the fast model for compression to save time
         compressed = await self._generate_fast("", prompt)
-        
+
         if "NO_RELEVANT_CONTEXT" in compressed:
             return ""
-            
+
         return compressed.strip()
 
     async def translate_text(
@@ -1183,7 +1239,7 @@ class SarvamCloudService:
         """
         if not text.strip():
             return ""
-        
+
         # Normalize code
         def normalize_code(code: str) -> str:
             code = code.lower().strip()
@@ -1226,15 +1282,12 @@ class SarvamCloudService:
             return text
 
         url = "https://api.sarvam.ai/translate"
-        headers = {
-            "api-subscription-key": self._api_key,
-            "Content-Type": "application/json"
-        }
+        headers = {"api-subscription-key": self._api_key, "Content-Type": "application/json"}
         payload = {
             "input": text,
             "source_language_code": src_code,
             "target_language_code": tgt_code,
-            "model": "mayura:v1"
+            "model": "mayura:v1",
         }
 
         try:
@@ -1244,7 +1297,9 @@ class SarvamCloudService:
                     data = resp.json()
                     return data.get("translated_text", text)
                 else:
-                    logger.error(f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}")
+                    logger.error(
+                        f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}"
+                    )
                     return text
         except Exception as e:
             logger.error(f"Error calling Sarvam translation: {e}")

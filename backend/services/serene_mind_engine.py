@@ -17,19 +17,20 @@ Distress Levels:
   - CRISIS → Immediate danger, helpline information first
 """
 
+import asyncio
 import logging
 import re
-import asyncio
-import numpy as np
-from enum import IntEnum
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import IntEnum
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
 class DistressLevel(IntEnum):
     """Graduated distress severity levels."""
+
     NONE = 0
     MILD = 1
     MODERATE = 2
@@ -40,6 +41,7 @@ class DistressLevel(IntEnum):
 @dataclass
 class DistressAssessment:
     """Result of a Serene Mind distress evaluation."""
+
     level: DistressLevel
     confidence: float  # 0.0 - 1.0
     detected_signals: list[str] = field(default_factory=list)
@@ -192,11 +194,7 @@ CRISIS_RESOURCES = {
         "• 988 Suicide & Crisis Lifeline: 988\n"
         "• Crisis Text Line: Text HOME to 741741"
     ),
-    "uk": (
-        "🆘 Crisis Helplines (UK):\n"
-        "• Samaritans: 116 123\n"
-        "• SHOUT: Text SHOUT to 85258"
-    ),
+    "uk": ("🆘 Crisis Helplines (UK):\n• Samaritans: 116 123\n• SHOUT: Text SHOUT to 85258"),
 }
 
 
@@ -267,81 +265,79 @@ _SEMANTIC_DISTRESS_EXAMPLES = {
 class SemanticDistressDetector:
     """
     Embedding-based semantic distress detection.
-    
+
     Compares user message against pre-computed distress example embeddings.
     Captures nuance that keyword matching misses.
     """
-    
+
     def __init__(self, embedding_service, threshold: float = 0.72):
         self._embedder = embedding_service
         self._threshold = threshold
         self._distress_embeddings = {}  # level -> list of embeddings
         self._initialized = False
-    
+
     async def initialize(self):
         """Pre-compute distress example embeddings."""
         if self._initialized or not self._embedder:
             return
-            
+
         try:
             for level, examples in _SEMANTIC_DISTRESS_EXAMPLES.items():
                 # Use encode_batch if available, else encode individually
-                if hasattr(self._embedder, 'encode_batch'):
-                    embeddings = await asyncio.to_thread(
-                        self._embedder.encode_batch, examples
-                    )
-                    self._distress_embeddings[level] = embeddings['dense']
+                if hasattr(self._embedder, "encode_batch"):
+                    embeddings = await asyncio.to_thread(self._embedder.encode_batch, examples)
+                    self._distress_embeddings[level] = embeddings["dense"]
                 else:
                     level_embs = []
                     for ex in examples:
-                        emb = await asyncio.to_thread(
-                            self._embedder.encode_single_full, ex
-                        )
-                        level_embs.append(emb['dense'])
+                        emb = await asyncio.to_thread(self._embedder.encode_single_full, ex)
+                        level_embs.append(emb["dense"])
                     self._distress_embeddings[level] = level_embs
-            
+
             self._initialized = True
             logger.info("Semantic distress detector initialized")
         except Exception as e:
             logger.error(f"Failed to initialize SemanticDistressDetector: {e}")
-    
-    async def detect(self, message: str) -> Optional[DistressLevel]:
+
+    async def detect(self, message: str) -> DistressLevel | None:
         """
         Detect distress via semantic similarity to known distress patterns.
         """
         if not self._initialized:
             await self.initialize()
-            
+
         if not self._distress_embeddings:
             return None
-        
+
         try:
             # Encode user message
-            msg_embedding = await asyncio.to_thread(
-                self._embedder.encode_single_full, message
-            )
-            msg_vec = np.array(msg_embedding['dense'])
-            
+            msg_embedding = await asyncio.to_thread(self._embedder.encode_single_full, message)
+            msg_vec = np.array(msg_embedding["dense"])
+
             # Compare against each level's examples
             max_sim = 0.0
             detected_level = None
-            
+
             for level in sorted(self._distress_embeddings.keys(), reverse=True):
                 level_embs = self._distress_embeddings[level]
                 similarities = []
                 for emb in level_embs:
                     emb_vec = np.array(emb)
-                    sim = np.dot(msg_vec, emb_vec) / (np.linalg.norm(msg_vec) * np.linalg.norm(emb_vec))
+                    sim = np.dot(msg_vec, emb_vec) / (
+                        np.linalg.norm(msg_vec) * np.linalg.norm(emb_vec)
+                    )
                     similarities.append(sim)
-                
+
                 best_sim = max(similarities) if similarities else 0.0
                 if best_sim > self._threshold and best_sim > max_sim:
                     max_sim = best_sim
                     detected_level = level
-            
+
             if detected_level:
-                logger.info(f"Semantic distress detected: level={detected_level.name}, sim={max_sim:.3f}")
-            
+                logger.info(
+                    f"Semantic distress detected: level={detected_level.name}, sim={max_sim:.3f}"
+                )
+
             return detected_level
         except Exception as e:
             logger.warning(f"Semantic distress detection failed: {e}")
@@ -351,6 +347,7 @@ class SemanticDistressDetector:
 # ---------------------------------------------------------------------------
 # Serene Mind Engine
 # ---------------------------------------------------------------------------
+
 
 class SereneMindEngine:
     """
@@ -381,19 +378,23 @@ class SereneMindEngine:
 
     async def analyze_with_history(self, message: str, history: list) -> DistressAssessment:
         # Check window for escalating patterns
-        recent = history[-self.rolling_window:]
+        recent = history[-self.rolling_window :]
+
         # Extract distress score either from object attribute or dict key
         def get_distress(msg):
             if isinstance(msg, dict):
                 return msg.get("distress_score", 0)
             return getattr(msg, "distress_score", 0)
-            
+
         distress_count = sum(1 for msg in recent if get_distress(msg) > 0.6)
-        
+
         assessment = await self.async_assess_distress(message)
-        
+
         # If user explicitly states they are burned out/pointless etc, trigger MODERATE
-        if assessment.level == DistressLevel.MILD and assessment.recommended_response_type == "gentle":
+        if (
+            assessment.level == DistressLevel.MILD
+            and assessment.recommended_response_type == "gentle"
+        ):
             assessment.level = DistressLevel.MODERATE
             assessment.recommended_response_type = "meditation"
 
@@ -401,13 +402,13 @@ class SereneMindEngine:
         if distress_count >= self.distress_threshold and assessment.level.value >= 1:
             assessment.level = DistressLevel.SEVERE
             assessment.detected_signals.append("Persistent distress over rolling window")
-            
+
         return assessment
 
     def assess_distress(
         self,
         message: str,
-        conversation_history: Optional[list[dict]] = None,
+        conversation_history: list[dict] | None = None,
     ) -> DistressAssessment:
         """
         Assess the distress level of a user message.
@@ -430,7 +431,9 @@ class SereneMindEngine:
         for lang, levels in _ALL_PATTERNS.items():
             for level in sorted(levels.keys(), reverse=True):  # Check most severe first
                 for pattern in levels[level]:
-                    matches = pattern.findall(message_lower if lang in ("en", "hinglish") else message)
+                    matches = pattern.findall(
+                        message_lower if lang in ("en", "hinglish") else message
+                    )
                     if matches:
                         signal_text = f"[{lang}] {matches[0]}"
                         signals.append(signal_text)
@@ -442,7 +445,8 @@ class SereneMindEngine:
         # Escalation detection from conversation history
         if conversation_history and len(conversation_history) >= 2:
             recent_distress_count = sum(
-                1 for msg in conversation_history[-6:]
+                1
+                for msg in conversation_history[-6:]
                 if msg.get("role") == "user" and self._quick_distress_check(msg.get("content", ""))
             )
             if recent_distress_count >= 2:
@@ -488,27 +492,30 @@ class SereneMindEngine:
     async def async_assess_distress(
         self,
         message: str,
-        conversation_history: Optional[list[dict]] = None,
+        conversation_history: list[dict] | None = None,
     ) -> DistressAssessment:
         """
         Three-stage distress assessment:
         1. Fast keyword detection (sync)
         2. LLM semantic classification (async)
         3. Embedding-based semantic similarity (async)
-        
+
         Returns the HIGHEST distress level found across all stages.
         """
         # Stage 1: Fast keyword (always run)
         assessment = self.assess_distress(message, conversation_history)
-        
+
         # Stage 2: LLM fallback (if Stage 1 didn't find MODERATE+)
         if assessment.level < DistressLevel.MODERATE:
             try:
                 from app.dependencies import get_container
+
                 container = get_container()
                 if container.ollama:
                     # Phase 3: Deterministic JSON outputs via Instructor
-                    structured_assessment = await container.ollama.classify_distress_structured(message[:512])
+                    structured_assessment = await container.ollama.classify_distress_structured(
+                        message[:512]
+                    )
                     if structured_assessment.get("is_distress"):
                         assessment.level = DistressLevel.MODERATE
                         assessment.confidence = structured_assessment.get("confidence", 0.55)
@@ -516,7 +523,7 @@ class SereneMindEngine:
                         assessment.detected_signals.append(f"[LLM Stage 2] {reason}")
             except Exception as e:
                 logger.warning(f"Stage 2 LLM distress detection failed: {e}")
-        
+
         # Stage 3: Embedding-based semantic detection (if available)
         if self._semantic_detector and assessment.level < DistressLevel.CRISIS:
             try:
@@ -527,7 +534,7 @@ class SereneMindEngine:
                     assessment.detected_signals.append(f"[Semantic Stage 3] {semantic_level.name}")
             except Exception as e:
                 logger.warning(f"Stage 3 semantic distress detection failed: {e}")
-        
+
         # Update response type based on final level
         response_type_map = {
             DistressLevel.NONE: "normal",
@@ -537,7 +544,7 @@ class SereneMindEngine:
             DistressLevel.CRISIS: "crisis",
         }
         assessment.recommended_response_type = response_type_map.get(assessment.level, "normal")
-        
+
         return assessment
 
     def get_response(self, assessment: DistressAssessment) -> str:
@@ -575,25 +582,25 @@ class SereneMindEngine:
     def _detect_language(self, text: str) -> str:
         """Simple heuristic language detection based on script."""
         # Check for Devanagari (Hindi, Marathi)
-        if re.search(r'[\u0900-\u097F]', text):
+        if re.search(r"[\u0900-\u097F]", text):
             return "hi"
         # Tamil
-        if re.search(r'[\u0B80-\u0BFF]', text):
+        if re.search(r"[\u0B80-\u0BFF]", text):
             return "ta"
         # Telugu
-        if re.search(r'[\u0C00-\u0C7F]', text):
+        if re.search(r"[\u0C00-\u0C7F]", text):
             return "te"
         # Kannada
-        if re.search(r'[\u0C80-\u0CFF]', text):
+        if re.search(r"[\u0C80-\u0CFF]", text):
             return "kn"
         # Bengali
-        if re.search(r'[\u0980-\u09FF]', text):
+        if re.search(r"[\u0980-\u09FF]", text):
             return "bn"
         # Malayalam
-        if re.search(r'[\u0D00-\u0D7F]', text):
+        if re.search(r"[\u0D00-\u0D7F]", text):
             return "ml"
         # Gujarati
-        if re.search(r'[\u0A80-\u0AFF]', text):
+        if re.search(r"[\u0A80-\u0AFF]", text):
             return "gu"
         # Default: English
         return "en"

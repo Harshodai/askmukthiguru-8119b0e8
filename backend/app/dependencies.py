@@ -10,24 +10,23 @@ This module is the "composition root" — the only place where concrete
 service instances are created. All other modules depend on abstractions.
 """
 
-import logging
 import asyncio
+import logging
 import threading
-from typing import Optional
 
 from app.config import settings
-from services.qdrant_service import QdrantService
-from services.embedding_service import EmbeddingService
-from services.ocr_service import OCRService
 from guardrails.rails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
-from services.lightrag_service import lightrag_service, LightRAGService
-from services.cache_service import init_llm_cache, SemanticCacheAdapter
+from services.cache_service import SemanticCacheAdapter, init_llm_cache
+from services.embedding_service import EmbeddingService
+from services.krutrim_service import KrutrimService
+from services.language_router import LanguageRouter
+from services.lightrag_service import lightrag_service
+from services.ocr_service import OCRService
+from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
 from services.user_profile_service import UserProfileService
-from services.language_router import LanguageRouter
-from services.krutrim_service import KrutrimService
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +34,17 @@ logger = logging.getLogger(__name__)
 def _create_llm_service():
     """
     Factory: Create the appropriate LLM service based on LLM_PROVIDER config.
-    
+
     Returns either SarvamCloudService or OllamaService — both share the same interface.
     """
     if settings.is_sarvam_cloud:
         from services.sarvam_service import SarvamCloudService
+
         logger.info("Using Sarvam Cloud API as LLM provider")
         return SarvamCloudService()
     else:
         from services.ollama_service import OllamaService
+
         logger.info("Using Ollama (local) as LLM provider")
         return OllamaService()
 
@@ -51,9 +52,9 @@ def _create_llm_service():
 class ServiceContainer:
     """
     Composition Root: Creates and holds all singleton service instances.
-    
+
     Design Pattern: Service Locator + Singleton Container.
-    
+
     All services are created once during startup and shared across
     all request handlers. This avoids re-loading models on every request.
     """
@@ -61,7 +62,7 @@ class ServiceContainer:
     def __init__(self) -> None:
         """Initialize all services in dependency order."""
         logger.info("Initializing service container...")
-        
+
         # State: Active ingestion progress
         # Format: {url: {status, message, progress, updated_at}}
         self.ingest_status = {}
@@ -104,13 +105,14 @@ class ServiceContainer:
         # Layer 4d: User Profiles (depends on supabase)
         if settings.user_profile_enabled:
             from supabase import create_client
+
             supabase_client = None
             if settings.supabase_url and settings.supabase_key:
                 try:
                     supabase_client = create_client(settings.supabase_url, settings.supabase_key)
                 except Exception as e:
                     logger.error(f"Failed to initialize Supabase client: {e}")
-            
+
             self.user_profile = UserProfileService(supabase_client=supabase_client)
         else:
             self.user_profile = None
@@ -151,7 +153,7 @@ class ServiceContainer:
     async def health_status(self) -> dict:
         """Check health of all services (non-blocking)."""
         loop = asyncio.get_running_loop()
-        
+
         # Run blocking checks in thread pool
         try:
             qdrant_ok = await loop.run_in_executor(None, self.qdrant.health_check)
@@ -161,7 +163,7 @@ class ServiceContainer:
             qdrant_ok = False
             qdrant_count = 0
             ocr_ok = False
-            
+
         return {
             "qdrant": qdrant_ok,
             "ollama": await self.ollama.health_check(),  # Already async
@@ -177,12 +179,13 @@ class ServiceContainer:
     def update_progress(self, url: str, message: str, percent: float) -> None:
         """Update progress for a specific ingestion URL."""
         import time
+
         self.ingest_status[url] = {
             "url": url,
             "message": message,
             "progress": percent,
             "updated_at": time.time(),
-            "status": "processing" if percent < 1.0 else "success"
+            "status": "processing" if percent < 1.0 else "success",
         }
 
     def close(self) -> None:
@@ -196,7 +199,17 @@ class ServiceContainer:
         dependent services are released before their dependencies.
         """
         # LIFO order: rag_graph → ingestion → guardrails → ocr → ollama → embedding → qdrant
-        for name in ("rag_graph", "ingestion", "guardrails", "ocr", "ollama", "embedding", "qdrant", "user_profile", "krutrim"):
+        for name in (
+            "rag_graph",
+            "ingestion",
+            "guardrails",
+            "ocr",
+            "ollama",
+            "embedding",
+            "qdrant",
+            "user_profile",
+            "krutrim",
+        ):
             svc = getattr(self, name, None)
             if svc is None:
                 continue
@@ -213,14 +226,14 @@ class ServiceContainer:
 
 
 # Module-level singleton with thread-safe initialization
-_container: Optional[ServiceContainer] = None
+_container: ServiceContainer | None = None
 _container_lock = threading.Lock()
 
 
 def get_container() -> ServiceContainer:
     """
     Get or create the service container singleton.
-    
+
     Thread-safe: uses a lock to ensure only one ServiceContainer is created
     even if multiple threads call this concurrently.
     """

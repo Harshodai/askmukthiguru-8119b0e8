@@ -5,9 +5,9 @@ Use this to backup and restore your Mukthi Guru data (Qdrant & Models)
 to/from Google Drive or your local machine.
 """
 
+import datetime
 import os
 import shutil
-import datetime
 import sys
 import tempfile
 from pathlib import Path
@@ -23,58 +23,63 @@ def mount_drive():
     if os.path.exists("/content/drive"):
         print("✅ Google Drive already mounted.")
         return Path("/content/drive/MyDrive")
-    
+
     try:
         from google.colab import drive
+
         drive.mount("/content/drive")
         return Path("/content/drive/MyDrive")
     except ImportError:
         print("⚠️  Not running in Google Colab (or google.colab module missing).")
         return None
 
+
 def _get_timestamp():
     """Get current timestamp for filename."""
     return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
+
 def backup(target="drive", include_models=False):
     """
     Create a zip backup of qdrant_data (and optionally models).
-    
+
     Args:
         target: 'drive' (save to GDrive) or 'local' (download file).
         include_models: If True, includes ~/.cache/huggingface (large!).
     """
     print(f"📦 Starting backup ({target})...")
-    
+
     timestamp = _get_timestamp()
     backup_filename = f"mukthiguru_backup_{timestamp}.zip"
-    
+
     # Create a temp directory for staging
     with tempfile.TemporaryDirectory() as staging_str:
         staging_dir = Path(staging_str)
-        
+
         # 1. Copy Qdrant Data
         if QDRANT_DATA.exists():
             print(f"   Copying Qdrant data ({get_size(QDRANT_DATA)})...")
             shutil.copytree(QDRANT_DATA, staging_dir / "qdrant_data")
         else:
             print("⚠️  No Qdrant data found to backup.")
-            
+
         # 2. Copy Models (Optional - can be huge)
         if include_models:
             if HF_CACHE.exists():
-                print(f"   Copying HuggingFace models ({get_size(HF_CACHE)})... this may take a while.")
+                print(
+                    f"   Copying HuggingFace models ({get_size(HF_CACHE)})... this may take a while."
+                )
                 shutil.copytree(HF_CACHE, staging_dir / "models")
             else:
                 print("⚠️  No HuggingFace cache found.")
-                
+
         # 3. Zip it
         print("   Zipping archive...")
         # make_archive creates zip at base_name + .zip
         zip_base = Path("backup_temp")
         shutil.make_archive(str(zip_base), "zip", staging_dir)
         zip_path = Path(f"{zip_base}.zip")
-        
+
         # 4. Transfer
         final_path = None
         if target == "drive":
@@ -87,24 +92,26 @@ def backup(target="drive", include_models=False):
                 print(f"✅ Backup saved to Google Drive: {final_path}")
             else:
                 print("❌ Cannot save to Drive (not mounted or valid).")
-                
+
         elif target == "local":
             try:
                 from google.colab import files
+
                 # Rename to timestamped name for download
                 renamed_zip = Path(backup_filename)
                 shutil.move(str(zip_path), str(renamed_zip))
                 zip_path = renamed_zip
-                
+
                 files.download(str(zip_path))
                 print("✅ Triggered local download.")
             except ImportError:
                 print(f"⚠️  Not in Colab. File saved locally at: {zip_path.absolute()}")
-                
+
         # Cleanup zip
         if zip_path.exists():
             zip_path.unlink()
-        
+
+
 def restore(backup_path):
     """
     Restore from a backup zip file with safety checks and staging.
@@ -113,9 +120,9 @@ def restore(backup_path):
     if not backup_file.exists():
         print(f"❌ Backup file not found: {backup_file}")
         return
-        
+
     print(f"♻️  Restoring from {backup_file}...")
-    
+
     with tempfile.TemporaryDirectory() as staging_str:
         staging = Path(staging_str)
         try:
@@ -127,7 +134,7 @@ def restore(backup_path):
         # Verification
         has_data = (staging / "qdrant_data").exists()
         has_models = (staging / "models").exists()
-        
+
         if not has_data and not has_models:
             print("❌ Invalid backup: No qdrant_data or models found in archive.")
             return
@@ -141,7 +148,7 @@ def restore(backup_path):
                 if backup_path_q.exists():
                     shutil.rmtree(backup_path_q)
                 shutil.move(str(QDRANT_DATA), str(backup_path_q))
-            
+
             try:
                 shutil.move(str(staging / "qdrant_data"), str(QDRANT_DATA))
                 print("✅ Qdrant data restored.")
@@ -163,13 +170,13 @@ def restore(backup_path):
             # Ensure parent exists
             if not HF_CACHE.parent.exists():
                 HF_CACHE.parent.mkdir(parents=True)
-                
+
             backup_path_m = HF_CACHE.with_suffix(".bak")
             if HF_CACHE.exists():
                 if backup_path_m.exists():
                     shutil.rmtree(backup_path_m)
                 shutil.move(str(HF_CACHE), str(backup_path_m))
-            
+
             try:
                 shutil.move(str(staging / "models"), str(HF_CACHE))
                 print("✅ Models restored.")
@@ -186,19 +193,21 @@ def restore(backup_path):
 
     print("🎉 Restore complete. Please restart the backend.")
 
+
 def get_size(start_path):
     total_size = 0
-    for dirpath, dirnames, filenames in os.walk(start_path):
+    for dirpath, _dirnames, filenames in os.walk(start_path):
         for f in filenames:
             fp = os.path.join(dirpath, f)
             if not os.path.islink(fp):
                 total_size += os.path.getsize(fp)
     # convert to readable
-    for unit in ['B', 'KiB', 'MiB', 'GiB']:
+    for unit in ["B", "KiB", "MiB", "GiB"]:
         if total_size < 1024.0:
             return f"{total_size:.1f} {unit}"
         total_size /= 1024.0
     return f"{total_size:.1f} TiB"
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

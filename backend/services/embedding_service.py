@@ -12,7 +12,6 @@ languages including all 10 target Indian languages.
 
 import logging
 import os
-from typing import Optional
 
 # Silence Hugging Face tokenizer advisory warnings in logs
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
@@ -20,7 +19,6 @@ os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
 
 
 class EmbeddingService:
@@ -39,6 +37,7 @@ class EmbeddingService:
     def __init__(self) -> None:
         """Initialize with None models — will be loaded on first use."""
         import threading
+
         self._encoder = None
         self._reranker = None
         self._colbert = None
@@ -54,25 +53,32 @@ class EmbeddingService:
         with self._lock:
             if self._encoder is None:
                 from FlagEmbedding import BGEM3FlagModel
+
                 logger.info(f"Loading encoder: {settings.embedding_model}")
                 self._encoder = BGEM3FlagModel(
                     settings.embedding_model,
-                    use_fp16=False,   # FP16 requires CUDA; use False for CPU/Mac Docker
+                    use_fp16=False,  # FP16 requires CUDA; use False for CPU/Mac Docker
                     devices="cpu",
                 )
-                
+
                 # Monkeypatch to catch and diagnose PyTorch model forward pass crashes
                 try:
                     original_forward = self._encoder.model.forward
+
                     def custom_forward(*args, **kwargs):
                         try:
                             return original_forward(*args, **kwargs)
                         except Exception as e:
-                            logger.error(f"❌ ROOT CAUSE: BGE-M3 model forward pass failed: {e}", exc_info=True)
+                            logger.error(
+                                f"❌ ROOT CAUSE: BGE-M3 model forward pass failed: {e}",
+                                exc_info=True,
+                            )
                             raise e
+
                     self._encoder.model.forward = custom_forward
-                    
+
                     original_pad = self._encoder.tokenizer.pad
+
                     def custom_pad(encoded_inputs, *args, **kwargs):
                         if not encoded_inputs:
                             raise ValueError(
@@ -80,13 +86,17 @@ class EmbeddingService:
                                 "batch_size loop degrading to 0 because of persistent model forward pass failures."
                             )
                         return original_pad(encoded_inputs, *args, **kwargs)
+
                     self._encoder.tokenizer.pad = custom_pad
-                    logger.info("Successfully monkeypatched BGEM3FlagModel for robust error tracing.")
+                    logger.info(
+                        "Successfully monkeypatched BGEM3FlagModel for robust error tracing."
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to apply BGEM3FlagModel monkeypatch: {e}")
 
             if self._reranker is None:
                 from sentence_transformers import CrossEncoder
+
                 logger.info(f"Loading reranker: {settings.reranker_model}")
                 self._reranker = CrossEncoder(
                     settings.reranker_model,
@@ -95,19 +105,21 @@ class EmbeddingService:
             if self._colbert is None:
                 try:
                     from ragatouille import RAGPretrainedModel
+
                     logger.info("Loading ColBERTv2 reranker (RAGatouille)")
                     # Force CPU execution for ColBERT locally
-                    import torch
+
                     self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
                 except (ImportError, ModuleNotFoundError):
-                    logger.info("ColBERTv2 (RAGatouille) is not installed (optional). Cascaded reranking will fallback to pure CrossEncoder.")
+                    logger.info(
+                        "ColBERTv2 (RAGatouille) is not installed (optional). Cascaded reranking will fallback to pure CrossEncoder."
+                    )
                     self._colbert = False
                 except Exception as e:
                     logger.warning(f"Failed to load RAGatouille ColBERTv2: {e}")
-                    self._colbert = False # mark as failed so we don't retry forever
+                    self._colbert = False  # mark as failed so we don't retry forever
 
                 logger.info("Embedding service models fully loaded")
-
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         """
@@ -123,7 +135,7 @@ class EmbeddingService:
             return []
 
         self._ensure_models()
-        
+
         max_retries = 3
         last_err = None
         for attempt in range(1, max_retries + 1):
@@ -134,7 +146,7 @@ class EmbeddingService:
                     return_sparse=False,
                     return_colbert_vecs=False,
                 )
-                return output['dense_vecs'].tolist()
+                return output["dense_vecs"].tolist()
             except Exception as e:
                 last_err = e
                 logger.warning(
@@ -143,10 +155,13 @@ class EmbeddingService:
                 )
                 import gc
                 import time
+
                 gc.collect()
                 time.sleep(2)
-                
-        logger.error(f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}")
+
+        logger.error(
+            f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
+        )
         raise last_err
 
     def encode_single(self, text: str) -> list[float]:
@@ -165,10 +180,10 @@ class EmbeddingService:
               - 'sparse': list of sparse dicts {token_id: weight}
         """
         if not texts:
-            return {'dense': [], 'sparse': []}
+            return {"dense": [], "sparse": []}
 
         self._ensure_models()
-        
+
         max_retries = 3
         last_err = None
         for attempt in range(1, max_retries + 1):
@@ -180,8 +195,8 @@ class EmbeddingService:
                     return_colbert_vecs=False,
                 )
                 return {
-                    'dense': output['dense_vecs'].tolist(),
-                    'sparse': output['lexical_weights'],
+                    "dense": output["dense_vecs"].tolist(),
+                    "sparse": output["lexical_weights"],
                 }
             except Exception as e:
                 last_err = e
@@ -191,10 +206,13 @@ class EmbeddingService:
                 )
                 import gc
                 import time
+
                 gc.collect()
                 time.sleep(2)
-                
-        logger.error(f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}")
+
+        logger.error(
+            f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
+        )
         raise last_err
 
     def encode_single_full(self, text: str) -> dict:
@@ -205,16 +223,16 @@ class EmbeddingService:
         prefixed_text = f"{self.instruction}{text}"
         result = self.encode_batch([prefixed_text])
         return {
-            'dense': result['dense'][0],
-            'sparse': result['sparse'][0],
+            "dense": result["dense"][0],
+            "sparse": result["sparse"][0],
         }
 
     def rerank(
         self,
         query: str,
         documents: list[dict],
-        top_k: Optional[int] = None,
-        min_score: Optional[float] = None,
+        top_k: int | None = None,
+        min_score: float | None = None,
     ) -> list[dict]:
         """
         Rerank documents using CrossEncoder for maximum precision.
@@ -238,6 +256,7 @@ class EmbeddingService:
         # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
         # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
         import numpy as np
+
         def _sigmoid(x):
             return 1.0 / (1.0 + np.exp(-x))
 
@@ -291,10 +310,10 @@ class EmbeddingService:
         documents: list[dict],
         colbert_top_k: int = 15,
         cross_top_k: int = 5,
-        min_score: Optional[float] = None,
+        min_score: float | None = None,
     ) -> list[dict]:
         """
-        Cascaded Pipeline: 
+        Cascaded Pipeline:
         1. ColBERTv2 rapidly narrows down the pool (e.g. 100 -> 15).
         2. CrossEncoder performs ultra-precise scoring (15 -> 5).
         """
@@ -302,15 +321,17 @@ class EmbeddingService:
             return []
 
         self._ensure_models()
-        
+
         # Step 1: ColBERT Reranking
         colbert_docs = documents
         if self._colbert and len(documents) > colbert_top_k:
             texts = [doc["text"] for doc in documents]
             # RAGatouille rerank returns list of dicts: [{'content': text, 'score': score, 'rank': int}, ...]
             try:
-                colbert_results = self._colbert.rerank(query=query, documents=texts, k=colbert_top_k)
-                
+                colbert_results = self._colbert.rerank(
+                    query=query, documents=texts, k=colbert_top_k
+                )
+
                 # Map back to original document dicts
                 mapped_docs = []
                 for res in colbert_results:
@@ -324,9 +345,10 @@ class EmbeddingService:
                 colbert_docs = mapped_docs
                 logger.info(f"ColBERT narrowed {len(documents)} -> {len(colbert_docs)} docs")
             except Exception as e:
-                logger.error(f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder.")
-                colbert_docs = documents[:colbert_top_k*2] # Fallback rough slice
-        
+                logger.error(
+                    f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder."
+                )
+                colbert_docs = documents[: colbert_top_k * 2]  # Fallback rough slice
+
         # Step 2: CrossEncoder Polish
         return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
-

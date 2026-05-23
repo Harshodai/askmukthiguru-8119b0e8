@@ -22,14 +22,13 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def download_audio(video_id: str, output_dir: str) -> Optional[str]:
+def download_audio(video_id: str, output_dir: str) -> str | None:
     """
     Download YouTube audio as mono 16kHz MP3 using yt-dlp.
 
@@ -42,8 +41,11 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
     # Search for cookies.txt in standard workspace locations
     possible_paths = [
         os.path.join(os.getcwd(), "cookies.txt"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cookies.txt"),
-        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "cookies.txt",
+        ),
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt",
     ]
     cookie_path = None
     for path in possible_paths:
@@ -61,17 +63,23 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         cmd.extend(["--cookies-from-browser", "chrome"])
         logger.info(f"[{video_id}] Using Chrome cookies-from-browser fallback")
 
-    cmd.extend([
-        "-x",                          # Extract audio only
-        "--audio-format", "mp3",
-        "--audio-quality", "128K",
-        "--postprocessor-args", "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono for STT
-        "--no-playlist",
-        "--quiet",
-        "--no-warnings",
-        "-o", output_template,
-        url,
-    ])
+    cmd.extend(
+        [
+            "-x",  # Extract audio only
+            "--audio-format",
+            "mp3",
+            "--audio-quality",
+            "128K",
+            "--postprocessor-args",
+            "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono for STT
+            "--no-playlist",
+            "--quiet",
+            "--no-warnings",
+            "-o",
+            output_template,
+            url,
+        ]
+    )
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -100,9 +108,19 @@ def get_audio_duration_seconds(audio_path: str) -> float:
     """Get audio duration via ffprobe."""
     try:
         result = subprocess.run(
-            ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
-             "-of", "csv=p=0", audio_path],
-            capture_output=True, text=True, timeout=30
+            [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "csv=p=0",
+                audio_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         return float(result.stdout.strip())
     except Exception:
@@ -121,7 +139,7 @@ def chunk_audio(audio_path: str, output_dir: str, chunk_minutes: int) -> list[st
         return [audio_path]  # No splitting needed
 
     num_chunks = math.ceil(duration / chunk_secs)
-    logger.info(f"Splitting {duration/60:.1f}min audio into {num_chunks} chunks")
+    logger.info(f"Splitting {duration / 60:.1f}min audio into {num_chunks} chunks")
 
     chunks = []
     basename = Path(audio_path).stem
@@ -130,11 +148,16 @@ def chunk_audio(audio_path: str, output_dir: str, chunk_minutes: int) -> list[st
         start = i * chunk_secs
         chunk_path = os.path.join(output_dir, f"{basename}_chunk{i:02d}.mp3")
         cmd = [
-            "ffmpeg", "-y",
-            "-i", audio_path,
-            "-ss", str(start),
-            "-t", str(chunk_secs),
-            "-acodec", "copy",
+            "ffmpeg",
+            "-y",
+            "-i",
+            audio_path,
+            "-ss",
+            str(start),
+            "-t",
+            str(chunk_secs),
+            "-acodec",
+            "copy",
             chunk_path,
         ]
         result = subprocess.run(cmd, capture_output=True, timeout=120)
@@ -146,7 +169,7 @@ def chunk_audio(audio_path: str, output_dir: str, chunk_minutes: int) -> list[st
     return chunks
 
 
-def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
+def transcribe_with_sarvam(video_id: str, audio_path: str) -> str | None:
     """
     Transcribe audio using Sarvam Saaras v3 Batch API.
 
@@ -166,7 +189,9 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
     # Safety check: skip very large files
     size_mb = os.path.getsize(audio_path) / (1024 * 1024)
     if size_mb > settings.stt_max_audio_mb:
-        logger.warning(f"[{video_id}] Audio too large ({size_mb:.0f}MB > {settings.stt_max_audio_mb}MB limit), skipping STT")
+        logger.warning(
+            f"[{video_id}] Audio too large ({size_mb:.0f}MB > {settings.stt_max_audio_mb}MB limit), skipping STT"
+        )
         return None
 
     client = SarvamAI(api_subscription_key=api_key)
@@ -180,15 +205,18 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
 
         # Process in batches of 20 (Sarvam Batch API limit per job)
         for batch_start in range(0, len(chunks), 20):
-            batch = chunks[batch_start:batch_start + 20]
+            batch = chunks[batch_start : batch_start + 20]
 
             try:
                 # Retry loop for 429 errors
                 import time
+
                 max_sv_retries = 3
                 for attempt in range(max_sv_retries):
                     try:
-                        logger.info(f"[{video_id}] Creating Sarvam job with model: {settings.sarvam_stt_model} (Attempt {attempt+1})")
+                        logger.info(
+                            f"[{video_id}] Creating Sarvam job with model: {settings.sarvam_stt_model} (Attempt {attempt + 1})"
+                        )
                         job = client.speech_to_text_job.create_job(
                             model=settings.sarvam_stt_model,
                             mode=settings.sarvam_stt_mode,
@@ -199,7 +227,9 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
                     except Exception as e:
                         if "429" in str(e) and attempt < max_sv_retries - 1:
                             wait_sec = 10 * (attempt + 1)
-                            logger.warning(f"[{video_id}] Sarvam rate limit (429), waiting {wait_sec}s...")
+                            logger.warning(
+                                f"[{video_id}] Sarvam rate limit (429), waiting {wait_sec}s..."
+                            )
                             time.sleep(wait_sec)
                         else:
                             raise e
@@ -223,12 +253,14 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
                     try:
                         job.download_outputs(output_dir=output_dir)
                     except Exception as e:
-                        logger.warning(f"[{video_id}] download_outputs failed: {e}, trying get_output_mappings")
+                        logger.warning(
+                            f"[{video_id}] download_outputs failed: {e}, trying get_output_mappings"
+                        )
 
                 # Extract transcripts from successful results
                 # Sarvam Batch API often renames files to index (0.json, 1.json, etc.)
                 # If we have only 1 chunk, we can just grab the first .json or .txt file.
-                
+
                 # List all files in the output directory
                 output_files = os.listdir(output_dir) if os.path.exists(output_dir) else []
                 logger.info(f"[{video_id}] Sarvam output files: {output_files}")
@@ -238,11 +270,11 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
                     if transcript_text:
                         all_transcripts.append(transcript_text.strip())
                         continue
-                    
+
                     # Try to find a matching file in output_dir
                     # Strategy: if only 1 file exists, use it. Otherwise try to match by index.
                     found_text = None
-                    
+
                     # Look for ANY .json or .txt file if we're desperate
                     for out_fname in output_files:
                         out_path = os.path.join(output_dir, out_fname)
@@ -252,12 +284,13 @@ def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
                         elif out_fname.endswith(".json"):
                             try:
                                 import json
+
                                 with open(out_path) as fp:
                                     data = json.load(fp)
                                     found_text = data.get("transcript", "") or data.get("text", "")
                             except Exception as je:
                                 logger.error(f"[{video_id}] Failed to parse JSON {out_fname}: {je}")
-                        
+
                         if found_text:
                             all_transcripts.append(found_text)
                             # Remove from output_files so we don't reuse it for next chunk in same batch
@@ -309,12 +342,29 @@ def score_transcript(text: str, video_id: str = "") -> float:
 
     # 3. Domain term score (up to 0.2): known spiritual terms
     domain_terms = [
-        "enlighten", "consciousness", "meditation", "awareness",
-        "liberation", "freedom", "mind", "suffering", "joy", "presence",
-        "spiritual", "mukthi", "preethaji", "krishnaji", "ekam",
-        "dharma", "karma", "awakening", "wisdom", "inner",
+        "enlighten",
+        "consciousness",
+        "meditation",
+        "awareness",
+        "liberation",
+        "freedom",
+        "mind",
+        "suffering",
+        "joy",
+        "presence",
+        "spiritual",
+        "mukthi",
+        "preethaji",
+        "krishnaji",
+        "ekam",
+        "dharma",
+        "karma",
+        "awakening",
+        "wisdom",
+        "inner",
     ]
     import re
+
     found = sum(1 for t in domain_terms if re.search(t, text, re.IGNORECASE))
     domain_score = min(found / 8, 1.0) * 0.2  # Finding 8+ terms is great
 
@@ -335,8 +385,8 @@ def score_transcript(text: str, video_id: str = "") -> float:
 
 
 def council_pick_best(
-    youtube_text: Optional[str],
-    sarvam_text: Optional[str],
+    youtube_text: str | None,
+    sarvam_text: str | None,
     video_id: str = "",
 ) -> dict:
     """
@@ -360,21 +410,37 @@ def council_pick_best(
     yt_score = score_transcript(youtube_text, video_id) if youtube_text else 0.0
     sv_score = score_transcript(sarvam_text, video_id) if sarvam_text else 0.0
 
-    logger.info(
-        f"[{video_id}] Council scores — YouTube: {yt_score:.3f}, Sarvam: {sv_score:.3f}"
-    )
+    logger.info(f"[{video_id}] Council scores — YouTube: {yt_score:.3f}, Sarvam: {sv_score:.3f}")
 
     # Both failed
     if not youtube_text and not sarvam_text:
-        return {"text": "", "method": "failed", "youtube_score": 0.0, "sarvam_score": 0.0, "winner": "none"}
+        return {
+            "text": "",
+            "method": "failed",
+            "youtube_score": 0.0,
+            "sarvam_score": 0.0,
+            "winner": "none",
+        }
 
     # Only one available
     if not youtube_text:
         logger.info(f"[{video_id}] Council: Sarvam only (no YouTube captions)")
-        return {"text": sarvam_text, "method": "sarvam", "youtube_score": 0.0, "sarvam_score": sv_score, "winner": "sarvam"}
+        return {
+            "text": sarvam_text,
+            "method": "sarvam",
+            "youtube_score": 0.0,
+            "sarvam_score": sv_score,
+            "winner": "sarvam",
+        }
     if not sarvam_text:
         logger.info(f"[{video_id}] Council: YouTube only (no Sarvam STT)")
-        return {"text": youtube_text, "method": "youtube", "youtube_score": yt_score, "sarvam_score": 0.0, "winner": "youtube"}
+        return {
+            "text": youtube_text,
+            "method": "youtube",
+            "youtube_score": yt_score,
+            "sarvam_score": 0.0,
+            "winner": "youtube",
+        }
 
     gap = abs(yt_score - sv_score)
     both_long = len(youtube_text.split()) > 500 and len(sarvam_text.split()) > 500
@@ -383,10 +449,22 @@ def council_pick_best(
         # Clear winner
         if yt_score > sv_score:
             logger.info(f"[{video_id}] Council: YouTube wins (gap={gap:.2f})")
-            return {"text": youtube_text, "method": "youtube", "youtube_score": yt_score, "sarvam_score": sv_score, "winner": "youtube"}
+            return {
+                "text": youtube_text,
+                "method": "youtube",
+                "youtube_score": yt_score,
+                "sarvam_score": sv_score,
+                "winner": "youtube",
+            }
         else:
             logger.info(f"[{video_id}] Council: Sarvam wins (gap={gap:.2f})")
-            return {"text": sarvam_text, "method": "sarvam", "youtube_score": yt_score, "sarvam_score": sv_score, "winner": "sarvam"}
+            return {
+                "text": sarvam_text,
+                "method": "sarvam",
+                "youtube_score": yt_score,
+                "sarvam_score": sv_score,
+                "winner": "sarvam",
+            }
 
     if both_long:
         # Scores close and both long: merge Sarvam (structure) + YouTube (completeness)
@@ -396,10 +474,22 @@ def council_pick_best(
             f"[YouTube Captions — additional coverage]\n{youtube_text}"
         )
         logger.info(f"[{video_id}] Council: Merged both sources (gap={gap:.2f}, both long)")
-        return {"text": merged, "method": "merged", "youtube_score": yt_score, "sarvam_score": sv_score, "winner": "merged"}
+        return {
+            "text": merged,
+            "method": "merged",
+            "youtube_score": yt_score,
+            "sarvam_score": sv_score,
+            "winner": "merged",
+        }
 
     # Close scores, one is short: pick higher scorer
     winner_text = youtube_text if yt_score >= sv_score else sarvam_text
     winner_name = "youtube" if yt_score >= sv_score else "sarvam"
     logger.info(f"[{video_id}] Council: {winner_name} wins by score (gap={gap:.2f})")
-    return {"text": winner_text, "method": winner_name, "youtube_score": yt_score, "sarvam_score": sv_score, "winner": winner_name}
+    return {
+        "text": winner_text,
+        "method": winner_name,
+        "youtube_score": yt_score,
+        "sarvam_score": sv_score,
+        "winner": winner_name,
+    }

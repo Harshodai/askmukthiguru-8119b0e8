@@ -5,16 +5,12 @@ Provides reusable functions for language detection, translation decisions,
 and text translation that are shared between chat endpoints.
 """
 
-from typing import Tuple
-from services.language_router import LanguageDetection, LanguageCode
-from app.config import settings
+from services.language_router import LanguageCode, LanguageDetection
 
 
 def detect_and_prepare_language_info(
-    container,
-    message: str,
-    preferred_lang: str
-) -> Tuple[LanguageDetection, str, bool, bool]:
+    container, message: str, preferred_lang: str
+) -> tuple[LanguageDetection, str, bool, bool]:
     """
     Detect language and prepare translation flags for a message.
 
@@ -47,11 +43,8 @@ def detect_and_prepare_language_info(
             should_translate = True
         else:
             detected = container.language_router.detect(message)
-            should_translate = (
-                detected.primary.value != "en" or
-                any(ord(char) > 127 for char in message)
+            should_translate = detected.primary.value != "en" or any(
+                ord(char) > 127 for char in message
             )
 
     return lang_detection, normalized_lang, is_indic, should_translate
-
-

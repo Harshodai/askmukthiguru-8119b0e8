@@ -1,5 +1,7 @@
 import asyncio
+
 import httpx
+
 
 async def main():
     api_key = "sk_j2hvqcbz_J3hrGVe6VlKoDxl47Kxmr3V0"
@@ -8,17 +10,23 @@ async def main():
         "api-subscription-key": api_key,
     }
     base_url = "https://api.sarvam.ai/v1"
-    
+
     messages = [
-        {"role": "system", "content": "You are a helpful assistant. Extract key terms from the text and return as a JSON list."},
-        {"role": "user", "content": "The path to ultimate liberation is through devotion (Bhakti), knowledge (Jnana), and selfless action (Karma)."}
+        {
+            "role": "system",
+            "content": "You are a helpful assistant. Extract key terms from the text and return as a JSON list.",
+        },
+        {
+            "role": "user",
+            "content": "The path to ultimate liberation is through devotion (Bhakti), knowledge (Jnana), and selfless action (Karma).",
+        },
     ]
-    
+
     test_cases = [
         {"model": "sarvam-m", "reasoning_effort": "low"},
         {"model": "sarvam-m", "reasoning_effort": "medium"},
     ]
-    
+
     for case in test_cases:
         model = case["model"]
         reasoning_effort = case.get("reasoning_effort")
@@ -30,11 +38,13 @@ async def main():
         }
         if reasoning_effort is not None:
             payload["reasoning_effort"] = reasoning_effort
-            
+
         print(f"\n--- Testing Model: {model} | reasoning_effort: {reasoning_effort} ---")
         try:
             async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
+                resp = await client.post(
+                    f"{base_url}/chat/completions", headers=headers, json=payload
+                )
                 print(f"Status: {resp.status_code}")
                 if resp.status_code == 200:
                     data = resp.json()
@@ -47,6 +57,7 @@ async def main():
                     print(f"Error: {resp.text}")
         except Exception as e:
             print(f"Exception: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,4 +1,3 @@
-
 """
 Mukthi Guru — Prometheus Metrics (Production Observability)
 
@@ -12,7 +11,7 @@ Tracks key metrics for monitoring the health and performance of:
 Endpoint: GET /api/metrics → Prometheus text format
 """
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 # ===================================================================
 # Request-Level Metrics
@@ -172,7 +171,6 @@ RELEVANCY_SCORE = Histogram(
     "Graded answer relevancy score (0-1)",
     buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
 )
-
 
 
 def metrics_endpoint():

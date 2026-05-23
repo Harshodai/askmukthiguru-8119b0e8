@@ -11,7 +11,6 @@ Runs in ~50ms for 40-50 sentences.
 
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ _SENTENCE_THRESHOLD = 0.3
 def _split_into_sentences(text: str) -> list[str]:
     """Split text into sentences using regex-based boundary detection."""
     # Split on sentence-ending punctuation followed by space or newline
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
     # Filter out very short fragments
     return [s.strip() for s in sentences if len(s.strip()) > 20]
 
@@ -93,9 +92,7 @@ def compress_documents(
             relevant = [s for s, _ in scored[:min_sentences]]
 
         # Reconstruct in original order
-        original_order = [
-            s for s in sentences if s in relevant
-        ]
+        original_order = [s for s in sentences if s in relevant]
 
         compressed_text = " ".join(original_order)
         total_compressed += len(compressed_text)

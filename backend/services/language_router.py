@@ -1,38 +1,38 @@
-
-import re
 import logging
-from enum import Enum
+import re
 from dataclasses import dataclass
-from typing import Optional
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
+
 class LanguageCode(str, Enum):
     EN = "en"
-    HI = "hi"           # Hindi (Devanagari)
-    TA = "ta"           # Tamil
-    TE = "te"           # Telugu
-    KN = "kn"           # Kannada
-    ML = "ml"           # Malayalam
-    BN = "bn"           # Bengali
-    GU = "gu"           # Gujarati
-    MR = "mr"           # Marathi
-    PA = "pa"           # Punjabi
-    OR = "or"           # Odia
-    UR = "ur"           # Urdu
-    AS = "as"           # Assamese
-    MAI = "mai"         # Maithili
-    SA = "sa"           # Sanskrit
-    KS = "ks"           # Kashmiri
-    NE = "ne"           # Nepali
-    SD = "sd"           # Sindhi
-    KOK = "kok"         # Konkani
-    DOI = "doi"         # Dogri
-    MNI = "mni"         # Manipuri
-    SAT = "sat"         # Santali
-    BRX = "brx"         # Bodo
+    HI = "hi"  # Hindi (Devanagari)
+    TA = "ta"  # Tamil
+    TE = "te"  # Telugu
+    KN = "kn"  # Kannada
+    ML = "ml"  # Malayalam
+    BN = "bn"  # Bengali
+    GU = "gu"  # Gujarati
+    MR = "mr"  # Marathi
+    PA = "pa"  # Punjabi
+    OR = "or"  # Odia
+    UR = "ur"  # Urdu
+    AS = "as"  # Assamese
+    MAI = "mai"  # Maithili
+    SA = "sa"  # Sanskrit
+    KS = "ks"  # Kashmiri
+    NE = "ne"  # Nepali
+    SD = "sd"  # Sindhi
+    KOK = "kok"  # Konkani
+    DOI = "doi"  # Dogri
+    MNI = "mni"  # Manipuri
+    SAT = "sat"  # Santali
+    BRX = "brx"  # Bodo
     HINGLISH = "hinglish"  # Code-mixed Hindi-English
     TANGLISH = "tanglish"  # Code-mixed Tamil-English
+
 
 @dataclass
 class LanguageDetection:
@@ -42,45 +42,46 @@ class LanguageDetection:
     scripts_detected: list[str]
     recommendation: str  # Which model/prompt variant to use
 
+
 class LanguageRouter:
     """
     Multi-script language detection for Indian languages.
-    
+
     Handles:
     - Pure script detection (Devanagari, Tamil, etc.)
     - Code-mixed detection (Hinglish, Tanglish)
     - Romanized Indic text (transliterated Hindi, Tamil)
     - Language routing to appropriate model
     """
-    
+
     # Unicode script ranges
     SCRIPT_RANGES = {
-        "Devanagari": ("\u0900", "\u097F"),   # Hindi, Marathi, Sanskrit
-        "Tamil": ("\u0B80", "\u0BFF"),
-        "Telugu": ("\u0C00", "\u0C7F"),
-        "Kannada": ("\u0C80", "\u0CFF"),
-        "Malayalam": ("\u0D00", "\u0D7F"),
-        "Bengali": ("\u0980", "\u09FF"),
-        "Gujarati": ("\u0A80", "\u0AFF"),
-        "Gurmukhi": ("\u0A00", "\u0A7F"),    # Punjabi
+        "Devanagari": ("\u0900", "\u097f"),  # Hindi, Marathi, Sanskrit
+        "Tamil": ("\u0b80", "\u0bff"),
+        "Telugu": ("\u0c00", "\u0c7f"),
+        "Kannada": ("\u0c80", "\u0cff"),
+        "Malayalam": ("\u0d00", "\u0d7f"),
+        "Bengali": ("\u0980", "\u09ff"),
+        "Gujarati": ("\u0a80", "\u0aff"),
+        "Gurmukhi": ("\u0a00", "\u0a7f"),  # Punjabi
     }
-    
+
     # Code-mixed indicators
     HINGLISH_PATTERNS = [
-        r'\b(kya|kaise|kyun|kyunki|agar|lekin|par|aur|nahi|haan|hoon|hai|tha|thi|'
-        r'acha|theek|bas|yaar|bhai|dost|dil|mann|zindagi|khush|dukhi|pyaar|'
-        r'shanti|sukh|dukh|moksha|atma|parmatma|jeevan|karma|dharma)\b',
+        r"\b(kya|kaise|kyun|kyunki|agar|lekin|par|aur|nahi|haan|hoon|hai|tha|thi|"
+        r"acha|theek|bas|yaar|bhai|dost|dil|mann|zindagi|khush|dukhi|pyaar|"
+        r"shanti|sukh|dukh|moksha|atma|parmatma|jeevan|karma|dharma)\b",
     ]
-    
+
     TANGLISH_PATTERNS = [
-        r'\b(enna|epdi|yaaru|ennaachu|seri|kadavul|anbu|santhosam|'
-        r'dukkam|manasu|uyir|vaazhkai|aanandham|shanthi)\b',
+        r"\b(enna|epdi|yaaru|ennaachu|seri|kadavul|anbu|santhosam|"
+        r"dukkam|manasu|uyir|vaazhkai|aanandham|shanthi)\b",
     ]
-    
+
     def detect(self, text: str) -> LanguageDetection:
         """Detect language with confidence score."""
         scripts = self._detect_scripts(text)
-        
+
         # Pure script-based detection
         if "Devanagari" in scripts:
             return LanguageDetection(
@@ -99,7 +100,7 @@ class LanguageRouter:
                 recommendation="sarvam-30b-tamil",
             )
         elif "Telugu" in scripts:
-             return LanguageDetection(
+            return LanguageDetection(
                 primary=LanguageCode.TE,
                 confidence=0.95,
                 is_codemixed=False,
@@ -107,7 +108,7 @@ class LanguageRouter:
                 recommendation="sarvam-30b-telugu",
             )
         elif "Kannada" in scripts:
-             return LanguageDetection(
+            return LanguageDetection(
                 primary=LanguageCode.KN,
                 confidence=0.95,
                 is_codemixed=False,
@@ -115,7 +116,7 @@ class LanguageRouter:
                 recommendation="sarvam-30b-kannada",
             )
         elif "Malayalam" in scripts:
-             return LanguageDetection(
+            return LanguageDetection(
                 primary=LanguageCode.ML,
                 confidence=0.95,
                 is_codemixed=False,
@@ -123,7 +124,7 @@ class LanguageRouter:
                 recommendation="sarvam-30b-malayalam",
             )
         elif "Bengali" in scripts:
-             return LanguageDetection(
+            return LanguageDetection(
                 primary=LanguageCode.BN,
                 confidence=0.95,
                 is_codemixed=False,
@@ -131,7 +132,7 @@ class LanguageRouter:
                 recommendation="sarvam-30b-bengali",
             )
         elif "Gujarati" in scripts:
-             return LanguageDetection(
+            return LanguageDetection(
                 primary=LanguageCode.GU,
                 confidence=0.95,
                 is_codemixed=False,
@@ -139,20 +140,20 @@ class LanguageRouter:
                 recommendation="sarvam-30b-gujarati",
             )
         elif "Gurmukhi" in scripts:
-             return LanguageDetection(
+            return LanguageDetection(
                 primary=LanguageCode.PA,
                 confidence=0.95,
                 is_codemixed=False,
                 scripts_detected=scripts,
                 recommendation="sarvam-30b-punjabi",
             )
-        
+
         # Code-mixed detection for Roman text
         text_lower = text.lower()
-        
+
         hinglish_score = sum(1 for p in self.HINGLISH_PATTERNS if re.search(p, text_lower))
         tanglish_score = sum(1 for p in self.TANGLISH_PATTERNS if re.search(p, text_lower))
-        
+
         if hinglish_score >= 2:
             return LanguageDetection(
                 primary=LanguageCode.HINGLISH,
@@ -169,7 +170,7 @@ class LanguageRouter:
                 scripts_detected=["Latin"],
                 recommendation="sarvam-30b-tanglish",
             )
-        
+
         # Default to English
         return LanguageDetection(
             primary=LanguageCode.EN,
@@ -178,7 +179,7 @@ class LanguageRouter:
             scripts_detected=["Latin"],
             recommendation="sarvam-30b",
         )
-    
+
     def _detect_scripts(self, text: str) -> list[str]:
         """Detect which Unicode scripts are present in text."""
         scripts = []
@@ -186,7 +187,7 @@ class LanguageRouter:
             if any(start <= c <= end for c in text):
                 scripts.append(script_name)
         return scripts
-    
+
     def get_system_prompt_suffix(self, lang: LanguageCode) -> str:
         """
         Get language-specific instruction suffix for system prompts.

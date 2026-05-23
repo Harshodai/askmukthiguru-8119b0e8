@@ -4,6 +4,7 @@ Mukthi Guru — Request ID Context Propagation
 Provides a module-level context variable for correlation/request IDs
 that is accessible from anywhere in the async call chain.
 """
+
 from contextvars import ContextVar
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")

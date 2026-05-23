@@ -15,15 +15,15 @@ Usage in a Colab notebook:
     !python colab/setup.py
 """
 
+import os
 import subprocess
 import sys
-import os
 import time
-
 
 # ============================================================
 # Step 1: Install Python Dependencies
 # ============================================================
+
 
 def install_dependencies():
     """Install backend Python dependencies from requirements.txt."""
@@ -35,8 +35,15 @@ def install_dependencies():
     # Install optional heavy deps needed for full functionality
     print("📦 Installing optional dependencies (whisper, easyocr)...")
     subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q",
-         "openai-whisper>=20240930", "easyocr>=1.7.2"],
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-q",
+            "openai-whisper>=20240930",
+            "easyocr>=1.7.2",
+        ],
         check=False,  # Don't fail if these can't install
     )
     print("✅ Python dependencies installed")
@@ -45,6 +52,7 @@ def install_dependencies():
 # ============================================================
 # Step 2: Install & Start Ollama (native, for GPU access)
 # ============================================================
+
 
 def setup_ollama(preset: str = "qwen"):
     """
@@ -65,7 +73,8 @@ def setup_ollama(preset: str = "qwen"):
     subprocess.run(
         ["apt-get", "install", "-y", "-qq", "zstd", "ffmpeg"],
         check=False,  # Don't fail if apt isn't available (non-Colab)
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     # Download script first (don't pipe curl into sh)
@@ -147,8 +156,16 @@ def _setup_sarvam_gguf():
     else:
         print(f"   📥 Downloading GGUF from {HF_REPO} (~19GB)...")
         subprocess.run(
-            ["huggingface-cli", "download", HF_REPO, GGUF_FILENAME,
-             "--local-dir", MODELS_DIR, "--local-dir-use-symlinks", "False"],
+            [
+                "huggingface-cli",
+                "download",
+                HF_REPO,
+                GGUF_FILENAME,
+                "--local-dir",
+                MODELS_DIR,
+                "--local-dir-use-symlinks",
+                "False",
+            ],
             check=True,
         )
 
@@ -169,6 +186,7 @@ def _setup_sarvam_gguf():
 # ============================================================
 # Step 3: Configure Environment for Native Mode
 # ============================================================
+
 
 def configure_environment(preset: str = "qwen"):
     """
@@ -215,12 +233,10 @@ CORS_ORIGINS=*
     print("   Ollama: localhost:11434")
 
 
-
-
-
 # ============================================================
 # Step 5: Start the Backend
 # ============================================================
+
 
 def start_backend():
     """
@@ -232,20 +248,20 @@ def start_backend():
     print("🚀 Starting FastAPI backend (logs -> backend.log)...")
     log_file = open("backend.log", "w")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app",
-         "--host", "0.0.0.0", "--port", "8000"],
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"],
         stdout=log_file,
         stderr=subprocess.STDOUT,
     )
 
     # Wait for the server to start, polling health endpoint
     print("⏳ Waiting for backend to be ready...")
-    for attempt in range(30):
+    for _attempt in range(30):
         time.sleep(2)
         try:
             result = subprocess.run(
                 ["curl", "-sf", "http://localhost:8000/api/health"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             if result.returncode == 0:
                 print("✅ Backend is running!")
@@ -272,6 +288,7 @@ def start_backend():
 # Step 5: Expose with ngrok (optional)
 # ============================================================
 
+
 def expose_with_ngrok(auth_token: str = ""):
     """
     Expose the backend via ngrok tunnel and auto-open UI in Colab.
@@ -281,25 +298,26 @@ def expose_with_ngrok(auth_token: str = ""):
         return
 
     try:
-        from pyngrok import ngrok, conf
-        from IPython.display import display, Javascript, HTML
+        from IPython.display import HTML, Javascript, display
+        from pyngrok import conf, ngrok
     except ImportError:
         # Install if missing (just in case)
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "-q", "pyngrok==7.2.2"],
             check=True,
         )
-        from pyngrok import ngrok, conf
+        from pyngrok import conf, ngrok
+
         try:
-            from IPython.display import display, Javascript, HTML
+            from IPython.display import HTML, Javascript, display
         except ImportError:
-            display = print # Fallback
+            display = print  # Fallback
 
     print("🔌 Starting Ngrok tunnel...")
-    
+
     # 1. Kill old tunnels to avoid "too many sessions" error on free tier
     ngrok.kill()
-    
+
     # 2. Connect
     conf.get_default().auth_token = auth_token
     tunnel = ngrok.connect(8000)
@@ -308,12 +326,12 @@ def expose_with_ngrok(auth_token: str = ""):
     docs_url = f"{public_url}/docs"
 
     # 3. Text Output
-    print(f"\n✨ Ngrok Tunnel Established! ✨")
+    print("\n✨ Ngrok Tunnel Established! ✨")
     print(f"👉 INGEST UI: {ingest_url}")
     print(f"📄 API DOCS:  {docs_url}")
 
     # 4. Colab Rich Output (Clickable Button + Auto Open)
-    if 'google.colab' in sys.modules:
+    if "google.colab" in sys.modules:
         html_content = f"""
         <div style="
             border: 2px solid #4CAF50; 
@@ -352,17 +370,28 @@ def expose_with_ngrok(auth_token: str = ""):
 # Step 6: Ingest Content
 # ============================================================
 
+
 def ingest_content(url: str):
     """Ingest content via the running API."""
     import json
+
     try:
         result = subprocess.run(
-            ["curl", "-s", "-X", "POST",
-             "http://localhost:8000/api/ingest",
-             "-H", "Content-Type: application/json",
-             "-d", json.dumps({"url": url}),
-             "--max-time", "300"],
-            capture_output=True, text=True,
+            [
+                "curl",
+                "-s",
+                "-X",
+                "POST",
+                "http://localhost:8000/api/ingest",
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                json.dumps({"url": url}),
+                "--max-time",
+                "300",
+            ],
+            capture_output=True,
+            text=True,
         )
         if result.returncode != 0:
             print(f"❌ Ingestion request failed (exit code {result.returncode})")
@@ -402,7 +431,7 @@ if __name__ == "__main__":
     setup_ollama(preset)
     configure_environment(preset)
     backend_proc = start_backend()
-    
+
     # Auto-expose if NGROK_AUTH_TOKEN is set in environment
     ngrok_token = os.environ.get("NGROK_AUTH_TOKEN", "")
     if ngrok_token:

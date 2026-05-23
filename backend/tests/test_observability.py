@@ -15,4 +15,3 @@ def test_observability_is_idempotent(monkeypatch):
     monkeypatch.setattr(observability, "_INITIALIZED", True)
 
     assert observability.init_observability(FastAPI()) is True
-

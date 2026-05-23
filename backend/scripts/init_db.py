@@ -1,8 +1,7 @@
-
 import asyncio
 import logging
-from app.core.database import engine, Base
-from models.user import User  # Ensure models are imported so they register with Base
+
+from app.core.database import Base, engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("init_db")
@@ -40,16 +39,20 @@ CREATE INDEX IF NOT EXISTS idx_conversation_memories_user_id ON conversation_mem
 CREATE INDEX IF NOT EXISTS idx_conversation_memories_started_at ON conversation_memories(started_at DESC);
 """
 
+
 async def init_db():
     logger.info("Initializing local SQLite database...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Local SQLite database initialized.")
-    
-    logger.info("\nIMPORTANT: To enable persistent memory and user profiles, please run the following SQL in your Supabase SQL Editor:")
+
+    logger.info(
+        "\nIMPORTANT: To enable persistent memory and user profiles, please run the following SQL in your Supabase SQL Editor:"
+    )
     logger.info("-" * 80)
     logger.info(SQL_MIGRATIONS)
     logger.info("-" * 80)
+
 
 if __name__ == "__main__":
     asyncio.run(init_db())

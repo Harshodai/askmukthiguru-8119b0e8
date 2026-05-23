@@ -11,17 +11,13 @@ Supports: English, Hindi, Telugu (configurable via OCR_LANGUAGES env var)
 Runs on CPU to leave GPU free for the LLM.
 """
 
+import asyncio
 import logging
 import os
 import tempfile
 import threading
-from pathlib import Path
-import asyncio
-from pathlib import Path
-from typing import Optional
 
 import httpx
-from PIL import Image
 
 from app.config import settings
 
@@ -31,10 +27,10 @@ logger = logging.getLogger(__name__)
 class OCRService:
     """
     Extract text from images using EasyOCR.
-    
+
     Lazy-loaded: The EasyOCR reader (~200MB) is only loaded when
     the first OCR request comes in. This saves memory if OCR is never used.
-    
+
     Thread-safe: Uses a lock around reader initialization to prevent
     double-loading in concurrent request scenarios.
     """
@@ -49,7 +45,7 @@ class OCRService:
     def _ensure_reader(self) -> None:
         """
         Lazy-load the EasyOCR reader on first use.
-        
+
         Thread-safe: Double-checked locking ensures only one reader is created
         even if multiple threads call this concurrently.
         """
@@ -58,6 +54,7 @@ class OCRService:
         with self._reader_lock:
             if self._reader is None:
                 import easyocr
+
                 logger.info(f"Loading EasyOCR reader for: {self._languages}")
                 self._reader = easyocr.Reader(
                     self._languages,
@@ -68,19 +65,20 @@ class OCRService:
     async def extract_text_from_url(self, image_url: str) -> dict:
         """
         Download an image from URL and extract text via OCR.
-        
+
         Args:
             image_url: HTTP(S) URL to an image (JPG, PNG, WEBP)
-            
+
         Returns:
             Dict with 'text', 'source_url', 'content_type', 'confidence'
         """
         logger.info(f"OCR: downloading {image_url}")
 
         # SSRF protection: validate URL scheme and block private/internal addresses
-        from urllib.parse import urlparse
         import ipaddress
         import socket
+        from urllib.parse import urlparse
+
         parsed = urlparse(image_url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
@@ -90,9 +88,9 @@ class OCRService:
             for _, _, _, _, sockaddr in resolved_ips:
                 ip = ipaddress.ip_address(sockaddr[0])
                 if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local:
-                    raise ValueError(f"URL resolves to a private/internal address")
+                    raise ValueError("URL resolves to a private/internal address")
         except socket.gaierror:
-            raise ValueError(f"Cannot resolve hostname: {hostname}")
+            raise ValueError(f"Cannot resolve hostname: {hostname}") from None
         tmp_path = None
 
         try:
@@ -134,10 +132,10 @@ class OCRService:
     async def extract_text_from_file(self, file_path: str) -> dict:
         """
         Extract text from a local image file.
-        
+
         Args:
             file_path: Path to image file
-            
+
         Returns:
             Dict with 'text', 'source_url', 'content_type', 'confidence'
         """
@@ -147,7 +145,7 @@ class OCRService:
     def _extract_from_file(self, file_path: str, source_url: str = "") -> dict:
         """
         Internal: Run EasyOCR on a file path.
-        
+
         Returns structured result with text and confidence score.
         """
         self._ensure_reader()
@@ -167,8 +165,7 @@ class OCRService:
             avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
             logger.info(
-                f"OCR extracted {len(texts)} text segments, "
-                f"avg confidence: {avg_confidence:.2f}"
+                f"OCR extracted {len(texts)} text segments, avg confidence: {avg_confidence:.2f}"
             )
 
             return {
@@ -190,8 +187,6 @@ class OCRService:
 
     def health_check(self) -> bool:
         """Check if EasyOCR can be imported (don't load the model for health check)."""
-        try:
-            import easyocr
-            return True
-        except ImportError:
-            return False
+        import importlib.util
+
+        return importlib.util.find_spec("easyocr") is not None

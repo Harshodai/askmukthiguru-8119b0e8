@@ -1,8 +1,8 @@
 import pytest
 
+from app.config import settings
 from services import sarvam_service
 from services.sarvam_service import SarvamCloudService
-from app.config import settings
 
 
 class FakeSpan:
@@ -115,20 +115,21 @@ async def test_sarvam_injects_reasoning_effort(monkeypatch):
     class CapturingResponse:
         status_code = 200
         text = ""
+
         @staticmethod
         def json():
-            return {
-                "choices": [{"message": {"content": "Hello"}}],
-                "usage": {"total_tokens": 10}
-            }
+            return {"choices": [{"message": {"content": "Hello"}}], "usage": {"total_tokens": 10}}
 
     class CapturingAsyncClient:
         def __init__(self, *args, **kwargs):
             pass
+
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, exc_type, exc, tb):
             return False
+
         async def post(self, url, headers=None, json=None):
             recorded_payloads.append(json)
             return CapturingResponse()
@@ -141,23 +142,16 @@ async def test_sarvam_injects_reasoning_effort(monkeypatch):
     monkeypatch.setattr(settings, "llm_max_retries", 1)
 
     service = SarvamCloudService()
-    
+
     # Test setting from settings
-    await service.generate(
-        system_prompt="system",
-        user_prompt="hello",
-        max_tokens=64
-    )
-    
+    await service.generate(system_prompt="system", user_prompt="hello", max_tokens=64)
+
     assert len(recorded_payloads) == 1
     assert recorded_payloads[0]["reasoning_effort"] == "medium"
 
     # Test explicit override in kwargs
     await service.generate(
-        system_prompt="system",
-        user_prompt="hello",
-        max_tokens=64,
-        reasoning_effort="low"
+        system_prompt="system", user_prompt="hello", max_tokens=64, reasoning_effort="low"
     )
     assert len(recorded_payloads) == 2
     assert recorded_payloads[1]["reasoning_effort"] == "low"
@@ -168,25 +162,31 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
     class FallbackResponse:
         status_code = 200
         text = ""
+
         @staticmethod
         def json():
             return {
-                "choices": [{
-                    "message": {
-                        "content": "   ",  # empty/whitespace content
-                        "reasoning_content": "This is reasoning that serves as fallback."
+                "choices": [
+                    {
+                        "message": {
+                            "content": "   ",  # empty/whitespace content
+                            "reasoning_content": "This is reasoning that serves as fallback.",
+                        }
                     }
-                }],
-                "usage": {"total_tokens": 10}
+                ],
+                "usage": {"total_tokens": 10},
             }
 
     class FallbackAsyncClient:
         def __init__(self, *args, **kwargs):
             pass
+
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, exc_type, exc, tb):
             return False
+
         async def post(self, url, headers=None, json=None):
             return FallbackResponse()
 
@@ -197,13 +197,7 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
     monkeypatch.setattr(settings, "llm_max_retries", 1)
 
     service = SarvamCloudService()
-    result = await service.generate(
-        system_prompt="system",
-        user_prompt="hello",
-        max_tokens=64
-    )
+    result = await service.generate(system_prompt="system", user_prompt="hello", max_tokens=64)
 
     # Content should fall back to reasoning_content
     assert result == "This is reasoning that serves as fallback."
-
-

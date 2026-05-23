@@ -12,9 +12,8 @@ Usage (from host via Docker):
     docker exec mukthiguru-backend python3 scripts/seed_admin.py
 """
 
-import asyncio
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -51,8 +50,7 @@ def seed_admin():
             user_id = str(existing[0].id)
             print(f"   ✅ Admin user already exists (id={user_id})")
             client.auth.admin.update_user_by_id(
-                user_id,
-                {"password": ADMIN_PASSWORD, "email_confirm": True}
+                user_id, {"password": ADMIN_PASSWORD, "email_confirm": True}
             )
             print(f"   ✅ Admin password forcefully updated to {ADMIN_PASSWORD}")
         else:

@@ -1,11 +1,14 @@
 """Krutrim AI integration as alternative/fallback LLM provider."""
 
 import asyncio
-import httpx
 import logging
+
+import httpx
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class KrutrimService:
     """
@@ -23,20 +26,21 @@ class KrutrimService:
         # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
         self._http_client = None
         self._http_client_lock = asyncio.Lock()
-    
+
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create the singleton HTTP client with connection pooling."""
         async with self._http_client_lock:
             if self._http_client is None:
                 # Configure connection pool limits from settings
                 limits = httpx.Limits(
-                    max_connections=getattr(settings, 'http_max_connections', 100),
-                    max_keepalive_connections=getattr(settings, 'http_max_keepalive_connections', 20),
-                    keepalive_expiry=getattr(settings, 'http_keepalive_expiry', 30.0)
+                    max_connections=getattr(settings, "http_max_connections", 100),
+                    max_keepalive_connections=getattr(
+                        settings, "http_max_keepalive_connections", 20
+                    ),
+                    keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
                 self._http_client = httpx.AsyncClient(
-                    timeout=getattr(settings, 'llm_timeout', 60),
-                    limits=limits
+                    timeout=getattr(settings, "llm_timeout", 60), limits=limits
                 )
                 logger.info(
                     f"Krutrim HTTP client initialized with pool limits: "

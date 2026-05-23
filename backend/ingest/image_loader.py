@@ -11,7 +11,6 @@ ready for the ingestion pipeline.
 
 import logging
 import re
-from typing import Optional
 
 from services.ocr_service import OCRService
 
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Regex patterns for image URL detection
 IMAGE_EXTENSIONS = re.compile(
-    r'\.(jpg|jpeg|png|webp|gif|bmp|tiff|svg)(\?.*)?$',
+    r"\.(jpg|jpeg|png|webp|gif|bmp|tiff|svg)(\?.*)?$",
     re.IGNORECASE,
 )
 
@@ -29,14 +28,14 @@ def is_image_url(url: str) -> bool:
     return bool(IMAGE_EXTENSIONS.search(url))
 
 
-async def process_image_url(url: str, ocr_service: Optional[OCRService] = None) -> dict:
+async def process_image_url(url: str, ocr_service: OCRService | None = None) -> dict:
     """
     Download an image URL and extract text via OCR.
-    
+
     Args:
         url: HTTP(S) URL to an image
         ocr_service: Optional pre-initialized OCR service (for DI)
-        
+
     Returns:
         Dict with 'text', 'source_url', 'title', 'content_type', 'method'
     """

@@ -17,42 +17,41 @@ The graph handles:
 """
 
 import logging
-from typing import Optional
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from rag.states import GraphState
 from rag.nodes import (
+    check_context_sufficiency,
+    check_contradiction,
+    context_engineer,
+    decompose_query,
+    enrich_context,
+    explain_retrieval,
+    format_final_answer,
+    generate_answer,
+    generate_hyde,
+    grade_documents,
+    handle_casual,
+    handle_distress,
+    handle_fallback,
+    handle_meditation,
     # Service initialization
     init_services,
     # Node functions
     intent_router,
-    decompose_query,
     navigate_knowledge_tree,
-    check_context_sufficiency,
-    retrieve_documents,
-    rerank_documents,
-    grade_documents,
-    enrich_context,
-    rewrite_query,
-    generate_answer,
     reflect_on_answer,
-    context_engineer,
-    explain_retrieval,
-    verify_answer,
-    format_final_answer,
-    check_contradiction,
-
-    handle_casual,
-    handle_distress,
-    handle_meditation,
-    handle_fallback,
-    generate_hyde,
+    rerank_documents,
+    retrieve_documents,
+    rewrite_query,
+    route_after_grading,
     # Routing functions
     route_by_intent,
-    route_after_grading,
+    verify_answer,
 )
+from rag.states import GraphState
+
 
 def route_after_reflection(state: GraphState) -> str:
     """Route after self-reflection."""
@@ -62,11 +61,12 @@ def route_after_reflection(state: GraphState) -> str:
         return "rewrite"
     return "verify"
 
+
 from rag.resolve_followup import resolve_followup
-from services.ollama_service import OllamaService
 from services.embedding_service import EmbeddingService
-from services.qdrant_service import QdrantService
 from services.lightrag_service import LightRAGService
+from services.ollama_service import OllamaService
+from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,9 @@ def build_rag_graph(
         Compiled LangGraph (CompiledStateGraph) ready for invocation
     """
     # Inject services into nodes module
-    init_services(ollama_service, embedding_service, qdrant_service, lightrag_service, serene_mind_engine)
+    init_services(
+        ollama_service, embedding_service, qdrant_service, lightrag_service, serene_mind_engine
+    )
 
     # Create the state graph
     graph = StateGraph(GraphState)
@@ -159,11 +161,11 @@ def build_rag_graph(
     # PageIndex-inspired: navigate tree & HyDE in parallel → retrieve (scoped) → rerank → grade → sufficiency
     graph.add_edge("decompose_query", "navigate_knowledge_tree")
     graph.add_edge("decompose_query", "generate_hyde")
-    
+
     # Wait for both tree navigation and HyDE before retrieval
     graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
     graph.add_edge("generate_hyde", "retrieve_documents")
-    
+
     graph.add_edge("retrieve_documents", "rerank_documents")
     graph.add_edge("rerank_documents", "grade_documents")
     graph.add_edge("grade_documents", "check_context_sufficiency")
@@ -221,9 +223,9 @@ def build_rag_graph(
 
 def create_initial_state(
     question: str,
-    chat_history: Optional[list[dict]] = None,
+    chat_history: list[dict] | None = None,
     meditation_step: int = 0,
-    request_id: Optional[str] = None,
+    request_id: str | None = None,
 ) -> GraphState:
     """
     Create the initial state for a pipeline invocation.

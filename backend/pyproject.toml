@@ -93,10 +93,21 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+exclude = [
+    "*.ipynb",
+    "colab/**",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"] # Line length handled by formatter
+ignore = [
+    "E501",  # Line length handled by formatter
+    "E402",  # Module level import not at top of file (needed for path-patching scripts)
+    "UP042", # Class inherits from both str and Enum (needed for backwards-compatible string enums)
+    "B905",  # zip() strict= parameter (breaks compatibility with Python < 3.10)
+    "B008",  # Depends function calls in FastAPI defaults
+    "B904",  # exception chaining (raise from)
+]
 
 [tool.mypy]
 python_version = "3.12"
