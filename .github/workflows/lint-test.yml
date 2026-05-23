@@ -74,6 +74,7 @@ jobs:
         run: pytest tests/ -v --tb=short
         env:
           PYTHONPATH: ${{ github.workspace }}/backend
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
 
   # --- Pre-commit validation ---
   pre-commit-check:
