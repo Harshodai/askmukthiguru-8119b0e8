@@ -64,8 +64,8 @@ class FakeResponse:
 
 
 class FakeAsyncClient:
-    def __init__(self, timeout):
-        self.timeout = timeout
+    def __init__(self, *args, **kwargs):
+        self.timeout = kwargs.get("timeout")
 
     async def __aenter__(self):
         return self
@@ -123,7 +123,7 @@ async def test_sarvam_injects_reasoning_effort(monkeypatch):
             }
 
     class CapturingAsyncClient:
-        def __init__(self, timeout):
+        def __init__(self, *args, **kwargs):
             pass
         async def __aenter__(self):
             return self
@@ -181,7 +181,7 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
             }
 
     class FallbackAsyncClient:
-        def __init__(self, timeout):
+        def __init__(self, *args, **kwargs):
             pass
         async def __aenter__(self):
             return self

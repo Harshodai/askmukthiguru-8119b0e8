@@ -12,6 +12,7 @@ All LLM calls funnel through this service. No other module talks to Ollama direc
 This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 """
 
+import asyncio
 import logging
 from typing import Optional, AsyncIterator
 
