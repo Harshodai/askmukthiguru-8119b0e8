@@ -373,7 +373,11 @@ export const useSidebarCollapsed = () => {
   const toggle = useCallback(() => {
     setIsCollapsed(v => {
       const next = !v;
-      try { localStorage.setItem(SIDEBAR_PREF_KEY, JSON.stringify(next)); } catch {}
+      try {
+        localStorage.setItem(SIDEBAR_PREF_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore localStorage quota or access errors in private browsing
+      }
       return next;
     });
   }, []);

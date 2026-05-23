@@ -62,13 +62,16 @@ vi.mock('@/hooks/useMeditationReminder', () => ({
 
 // Mock framer-motion to bypass animations
 vi.mock('framer-motion', async () => {
-  const actual = await vi.importActual('framer-motion');
+  const actual = await vi.importActual<typeof import('framer-motion')>('framer-motion');
   return {
-    ...actual as any,
+    ...actual,
     motion: {
-      div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-      p: ({ children, ...props }: any) => <p {...props}>{children}</p>,
-      form: ({ children, ...props }: any) => <form {...props}>{children}</form>,
+      div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) =>
+        <div {...props}>{children}</div>,
+      p: ({ children, ...props }: React.HTMLAttributes<HTMLParagraphElement> & { children?: React.ReactNode }) =>
+        <p {...props}>{children}</p>,
+      form: ({ children, ...props }: React.HTMLAttributes<HTMLFormElement> & { children?: React.ReactNode }) =>
+        <form {...props}>{children}</form>,
     },
   };
 });

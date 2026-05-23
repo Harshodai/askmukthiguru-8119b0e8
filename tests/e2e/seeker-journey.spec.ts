@@ -207,16 +207,20 @@ test.describe('Seeker Journey', () => {
       sessionStorage.setItem('askmukthiguru_pre_practice_asked', '1');
 
       // 3. Mock Web Audio & Microphone recording APIs (MediaRecorder)
+      interface MockBlobEvent extends Event {
+        data?: Blob;
+      }
+
       class MockMediaRecorder extends EventTarget {
-        stream: any;
-        options: any;
+        stream: unknown;
+        options: { mimeType?: string } | undefined;
         state: string;
         mimeType: string;
-        ondataavailable: ((e: any) => void) | null = null;
+        ondataavailable: ((e: MockBlobEvent) => void) | null = null;
         onstop: (() => void) | null = null;
         static isTypeSupported = () => true;
 
-        constructor(stream: any, options: any) {
+        constructor(stream: unknown, options?: { mimeType?: string }) {
           super();
           this.stream = stream;
           this.options = options;
@@ -228,7 +232,7 @@ test.describe('Seeker Journey', () => {
           const result = super.dispatchEvent(event);
           if (event.type === 'dataavailable' && typeof this.ondataavailable === 'function') {
             try {
-              this.ondataavailable(event);
+              this.ondataavailable(event as MockBlobEvent);
             } catch (e) {
               console.error("Error in ondataavailable:", e);
             }
@@ -246,7 +250,7 @@ test.describe('Seeker Journey', () => {
         start() {
           this.state = 'recording';
           // Synchronously dispatch dataavailable event so that chunks are populated immediately!
-          const event = new Event('dataavailable') as any;
+          const event = new Event('dataavailable') as MockBlobEvent;
           event.data = new Blob([new Uint8Array([1, 2, 3])], { type: this.mimeType });
           this.dispatchEvent(event);
         }
@@ -259,18 +263,18 @@ test.describe('Seeker Journey', () => {
         }
       }
 
-      window.MediaRecorder = MockMediaRecorder as any;
+      window.MediaRecorder = MockMediaRecorder as unknown as typeof MediaRecorder;
 
       navigator.mediaDevices.getUserMedia = async () => {
         return {
           getTracks: () => [{ stop: () => {} }],
-        } as any;
+        } as unknown as MediaStream;
       };
 
       // 4. Mock SpeechSynthesis API on prototype to override read-only properties
       if (typeof SpeechSynthesis !== 'undefined') {
         SpeechSynthesis.prototype.getVoices = () => [];
-        SpeechSynthesis.prototype.speak = function (utterance: any) {
+        SpeechSynthesis.prototype.speak = function (utterance: SpeechSynthesisUtterance) {
           setTimeout(() => {
             if (typeof utterance.onstart === 'function') {
               utterance.onstart();

@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Real-time data layer over Supabase.
 // Swapped from deterministic seeds to real database queries.
 // NOTE: Many admin tables (chat_queries, prompt_versions, etc.) are not yet

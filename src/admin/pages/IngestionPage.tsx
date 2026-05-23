@@ -59,7 +59,7 @@ export default function IngestionPage() {
         if (status && typeof status === "object") {
           const mapped: Record<string, IngestionJob> = {};
           for (const [key, val] of Object.entries(status)) {
-            const v = val as any;
+            const v = val as { status?: string; message?: string; progress?: number | null };
             mapped[key] = {
               status: v.status || v.message || "processing",
               message: v.message || "",
@@ -101,8 +101,8 @@ export default function IngestionPage() {
         [trimmed]: { status: "processing", message: "Starting...", progress: 0 },
       }));
       setUrl("");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start ingestion");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start ingestion");
     } finally {
       setSubmitting(false);
     }
