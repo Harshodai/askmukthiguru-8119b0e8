@@ -1,98 +1,82 @@
-## Goal
+## Bug fixes + production-readiness audit
 
-Make the multilingual `/chat` experience production-ready end-to-end: language is loaded from the user's profile before the first request, Sarvam STT/TTS work through secure edge-function proxies, the UI never fails silently when a voice is missing, and there's an automated browser smoke test to prove the whole flow works.
+### Part 1 — Bugs to fix in this pass
 
-## Phase 1 — Audit & status report on prior fixes
+1. **Runtime crash: `Cannot read properties of null (reading 'useEffect')` in `src/App.tsx:109`**
+   Almost always caused by a duplicate React copy or React being null at import time (commonly: importing `useEffect` from the wrong package, or a circular import in something `App.tsx` pulls in). Inspect line 109 + imports, dedupe React, and verify the dev server restart resolves it. This is the highest-priority bug — the app currently doesn't mount.
 
-Read & summarize the actual state of:
-- `useProfile` + `ChatInterface` language wiring (does language hit `setAILanguage` before the first request, or only on a later effect tick?)
-- `LANGUAGES` array vs. what's rendered in `LanguageSelector` (user reports "only some languages") — confirm scroll/overflow on small viewports
-- `useTextToSpeech` Sarvam fallback path (currently calls `/api/speech/tts` against an external backend that isn't deployed → silent failure in prod)
-- `useSpeechRecognition` (Web Speech only, no Sarvam streaming)
-- `handle_new_user` trigger vs. `ensure_profile_and_role` RPC — is `display_name` reliably populated for Google sign-ins?
+2. **Broken Google logo SVG** (`src/pages/AuthPage.tsx` ~line 389)
+   The 4th `<path d="...">` is malformed (`...3.47 2.18 7.07l...` is missing a command letter) and all paths use `currentColor` instead of Google's brand colors. Replace with the correct 4-path, brand-colored Google "G".
 
-Deliver as a short written report (no code changes in this phase).
+3. **"Signing you in…" flash for already-logged-in visitors**
+   `handleSession` unconditionally sets `googleStep='finalizing'`. Gate it on an active Google telemetry run / `GOOGLE_STEP_KEY` flag.
 
-## Phase 2 — Profile language load order (race fix)
+4. **Telemetry mislabels run errors as `navigate` step errors** (`src/lib/authTelemetry.ts` `endAuthRun`)
+   Add a `run_error` step name and use it instead of reusing `navigate`, so the dashboard's per-step error rate stays accurate.
 
-Change `ChatInterface` so the **first** chat request always uses the profile's `preferred_language`:
+5. **`redirectingRef` never reset on failure** (`AuthPage.tsx`)
+   Wrap `handleSession` body in try/finally so a thrown error doesn't permanently block subsequent `onAuthStateChange` events.
 
-- Block the input/composer until `useProfile` resolves (skeleton state), OR
-- Initialize `aiService.currentLanguage` synchronously from a `localStorage` mirror of the last-known profile language, then reconcile on profile load.
+6. **Layout shift on Google button** — keep the colored logo visible and render the spinner alongside it instead of replacing it.
 
-`profileStorage.ts` already mirrors to localStorage — wire it into `aiService` module init so refresh never starts in `en` by accident.
+### Part 2 — End-to-end "does every page open" check
 
-## Phase 3 — Sarvam edge-function proxies (STT + TTS)
+Add a Playwright smoke test (`tests/e2e/page-smoke.spec.ts`) that visits each route and asserts no console errors + the expected H1/heading renders. Routes to cover:
 
-Two new Supabase edge functions (require `SARVAM_API_KEY` secret — will prompt):
+- `/` (Index)
+- `/auth` (AuthPage)
+- `/reset-password`
+- `/auth/diagnostics`
+- `/auth/latency` (the dashboard added earlier)
+- `/chat` (with mocked auth)
+- `/profile` and `/profile?onboarding=true`
+- `/practices` and `/practices/:slug` (one slug)
+- `/privacy`, `/terms`
+- `/admin/*` (with mocked admin role): dashboard, conversations, prompts, evals, settings, ask-data
+- `*` (NotFound shows 404)
 
-- `supabase/functions/sarvam-tts/index.ts` — POST `{ text, target_language_code, speaker? }` → returns `{ audio: base64 }`. Proxies to `https://api.sarvam.ai/text-to-speech`. JWT-verified, rate-limited per user.
-- `supabase/functions/sarvam-stt/index.ts` — POST multipart `{ audio: Blob, language_code }` → returns `{ transcript, detected_language }`. Proxies to `https://api.sarvam.ai/speech-to-text`. JWT-verified.
+Each test waits for network idle, asserts no uncaught console errors, and snapshots the visible heading. Run via `npx playwright test tests/e2e/page-smoke.spec.ts`.
 
-Update `useTextToSpeech.ts` to call `supabase.functions.invoke('sarvam-tts', …)` instead of the dead `/api/speech/tts` path.
+### Part 3 — Wider production-readiness audit
 
-## Phase 4 — Sarvam mic streaming with detected language
+Run these checks and report findings inline (no code changes unless a fix is trivial):
 
-New `useSarvamSpeech` hook:
-- Uses `MediaRecorder` to capture mic audio.
-- On stop, posts the blob to `sarvam-stt` edge function with the currently selected `language_code`.
-- Returns `{ transcript, detectedLanguage }`.
-- `ChatInterface` prefers `useSarvamSpeech` when the selected language isn't `en`; falls back to existing `useSpeechRecognition` (Web Speech) for `en`.
+- **Build & types**: `npm run build` clean, no TS errors (already relaxed in tsconfig — note this as tech debt).
+- **Lint**: `npm run lint` clean.
+- **Unit tests**: `npm test` — confirm Vitest suite passes; flag flaky / skipped tests.
+- **Edge functions**: list functions (`sarvam-stt`, `sarvam-tts`, `chat-rate-limit`, `delete-my-account`, `export-my-data`), verify each handles CORS preflight, validates JWT, and has secrets configured. Check logs for recent 5xx via `supabase--edge_function_logs`.
+- **Supabase linter**: run `supabase--linter`, list every warning, propose fixes for RLS gaps.
+- **Security scan**: run `security--run_security_scan`, classify findings as must-fix vs accept.
+- **Auth flow**: confirm Google + email signup/signin/reset both work end-to-end via Playwright; check the new latency dashboard renders with seeded data.
+- **STT/TTS**: confirm Sarvam STT/TTS edge functions return 200 for a sample payload in en-IN, hi-IN, te-IN, ml-IN; confirm Web Speech fallback path triggers on failure.
+- **Chat**: send a complex query in each supported language, verify language is preserved on the response and TTS plays in the same language.
+- **Profile language**: confirm preferred language loads from profile and applies before the first chat request after a hard refresh.
+- **Realtime / DB**: confirm `conversations`, `chat_messages`, `meditation_sessions` writes work under RLS for an authenticated user and are blocked for anon.
+- **Performance**: check route bundle sizes, Lighthouse score on `/` and `/chat`, time-to-interactive on slow 3G.
+- **SEO basics**: title <60 chars, meta description, single H1, alt text, JSON-LD where applicable on landing pages.
+- **Error boundaries**: confirm an error in `ChatPage` doesn't blank the whole app.
 
-## Phase 5 — Automatic language detection with confirmation
+### Part 4 — Prod-readiness confidence score
 
-When STT returns a `detectedLanguage` that differs from the active language:
-- Render a confirmation toast: *"Detected Hindi (हिन्दी) — switch?"* with **Switch** / **Keep English** actions.
-- On **Switch**: call `handleLanguageChange(detected)` (persists to profile, restarts STT, swaps TTS).
-- On **Keep**: do nothing; remember the dismissal for the current session so it doesn't re-prompt every turn.
+After running Part 3, deliver a 1–10 score with a short rubric breakdown:
 
-## Phase 6 — Graceful no-voice fallback UX
+```
+Build/Types      : x/10
+Tests            : x/10
+Security/RLS     : x/10
+Auth flow        : x/10
+Edge functions   : x/10
+Voice (STT/TTS)  : x/10
+Performance/SEO  : x/10
+Observability    : x/10
+-------------------------
+Overall          : x/10  →  Ship / Ship with caveats / Do not ship
+```
 
-Today the failure path is a silent `console.error`. Replace with:
-- `useTextToSpeech` exposes `error` already — surface it via a `sonner` toast in `ChatInterface` whenever it changes: *"Voice playback isn't available for {language}. Showing text only."*
-- Disable the TTS toggle (with a tooltip) when both the Web Speech voice list and the Sarvam edge function are unavailable for the selected language.
-- Same treatment for mic: if neither Web Speech nor Sarvam STT is reachable, disable the mic button and show *"Voice input isn't available for {language} in this browser."*
+Each sub-score is justified with the concrete findings from Part 3, plus a prioritized "must-fix before prod" list.
 
-## Phase 7 — Language picker visibility fix
+### Out of scope
 
-User reports only some languages show. Likely causes: viewport-clipped popover, missing `overflow-y-auto` on small screens, or z-index stacking under header. Fix:
-- Ensure dropdown panel is fully scrollable with `max-h-[60vh] sm:max-h-80` (already present — verify it actually scrolls past `mai`/`sat`/`brx` on the user's 935×769 viewport).
-- Add a sticky search input at the top of the dropdown when language count > 10 for faster selection.
-
-## Phase 8 — End-to-end browser smoke test
-
-Use the in-sandbox `browser--*` tools to:
-1. Navigate to `/auth`, sign in (Google flow can't run headless; instead seed a test session via `supabase.auth.signInWithPassword` against a seeded test user, or skip auth and test as anonymous fallback).
-2. Open language picker, select Telugu.
-3. Type a complex query, send via `Ctrl+Enter`.
-4. Verify the request payload includes `language: "te"`.
-5. Enable TTS, verify either a Web Speech utterance or a Sarvam audio response plays (or the fallback toast appears).
-6. Reload, confirm language is still Telugu.
-
-Run via `code--exec` of a Playwright-like script using the `browser--act` tool sequence, capture screenshots into `/mnt/documents/e2e/` for review.
-
-## Phase 9 — Prior-fixes verification report
-
-Re-read `docs/ROADMAP.md`, run `bunx vitest run`, and produce a short table:
-| Issue | Status | Evidence |
-| ----- | ------ | -------- |
-| White-screen on /chat | ✅ | RootErrorBoundary mounted |
-| Google profile name missing | ⚠️ / ✅ | depends on `ensure_profile_and_role` audit |
-| Sidebar lag from stream saves | ✅ | `saveConversation(c, notify=false)` |
-| Sarvam mic + language | ✅ (after this plan) | edge functions deployed |
-| Keyboard shortcuts | ✅ | `useChatShortcuts` |
-| Mobile swipe sidebar | ✅ | `useSwipeGesture` |
-
-## Technical details
-
-- **Secrets needed**: `SARVAM_API_KEY` (will prompt via `secrets--add_secret`).
-- **Edge functions**: both deployed with `verify_jwt = true` and per-user rate-limiting via `chat-rate-limit` pattern already in repo.
-- **No DB migrations** required — `profiles.preferred_language` already accepts arbitrary `text`.
-- **Touch points**: ~8 files (`src/hooks/useTextToSpeech.ts`, `src/hooks/useSarvamSpeech.ts` *new*, `src/components/chat/ChatInterface.tsx`, `src/components/chat/LanguageSelector.tsx`, `src/lib/aiService.ts`, `src/lib/profileStorage.ts`, `supabase/functions/sarvam-tts/index.ts` *new*, `supabase/functions/sarvam-stt/index.ts` *new*).
-- **Tests**: extend `useTextToSpeech.test.ts` with a no-voice fallback case; add `useSarvamSpeech.test.ts`; add `LanguageSelector` scroll test.
-
-## Out of scope
-
-- Replacing FastAPI backend (`backend/`) — Sarvam access stays via Supabase edge proxies for now.
-- Real Sarvam *streaming* WebSocket (their REST API is sufficient for sub-3s clips; streaming can be a follow-up).
-- Translating UI chrome strings (i18n of menus/buttons) — only chat content language switches.
+- No refactor of the OAuth flow, dashboard layout, or session caching (already implemented in prior turns).
+- No new product features.
+- Backend RAG pipeline changes are not in scope unless an edge function is outright broken.
