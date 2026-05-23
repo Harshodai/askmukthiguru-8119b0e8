@@ -88,9 +88,16 @@ const AuthPage = () => {
     const handleSession = async (session: import('@supabase/supabase-js').Session) => {
       if (redirectingRef.current) return;
       redirectingRef.current = true;
-      // Visible progress while we hydrate profile + decide destination.
-      setGoogleStep('finalizing');
+      try {
+      // Only show the Google "finalizing" step if a Google attempt is actually
+      // in progress. Avoids a misleading "Signing you in…" flash for users who
+      // land on /auth with an already-valid session.
+      const isGoogleReturn =
+        sessionStorage.getItem(GOOGLE_STEP_KEY) === '1' ||
+        getActiveRun()?.provider === 'google';
+      if (isGoogleReturn) setGoogleStep('finalizing');
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
+
 
       // If this session is the tail end of a Google round-trip, record it.
       const active = getActiveRun();
