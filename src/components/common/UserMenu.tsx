@@ -115,14 +115,14 @@ export const UserMenu = () => {
         <DropdownMenuItem onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" /> Export my data
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={async () => {
             const { supabase } = await import('@/integrations/supabase/client');
             await supabase.auth.signOut();
             resetProfile();
             navigate('/auth');
             toast({ title: 'Signed out', description: 'You have been logged out.' });
-          }} 
+          }}
           className="text-destructive focus:text-destructive"
         >
           <LogOut className="w-4 h-4 mr-2" /> Sign out

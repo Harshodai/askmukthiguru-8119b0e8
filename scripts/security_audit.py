@@ -18,13 +18,12 @@ Exit code: 0 = all PASS, 1 = any FAIL/WARN
 """
 
 import argparse
-import ast
 import json
 import os
 import re
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -35,6 +34,7 @@ FRONTEND_SRC = ROOT / "src"
 
 # ─── Result model ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Finding:
     category: str
@@ -43,7 +43,9 @@ class Finding:
     detail: str
     fix: str = ""
 
+
 findings: list[Finding] = []
+
 
 def record(category, check, status, detail, fix=""):
     findings.append(Finding(category, check, status, detail, fix))
@@ -57,58 +59,95 @@ def record(category, check, status, detail, fix=""):
 
 # ─── 01 Legal & Privacy ──────────────────────────────────────────────────────
 
+
 def check_legal():
     print("\n01 Legal & Privacy")
 
     # Privacy policy page exists (case-insensitive search)
-    all_pages = list(ROOT.rglob("*.tsx")) + list(ROOT.rglob("*.jsx")) + list(ROOT.rglob("*.html")) + list(ROOT.rglob("*.md"))
+    all_pages = (
+        list(ROOT.rglob("*.tsx"))
+        + list(ROOT.rglob("*.jsx"))
+        + list(ROOT.rglob("*.html"))
+        + list(ROOT.rglob("*.md"))
+    )
     all_pages = [f for f in all_pages if ".venv" not in str(f) and "node_modules" not in str(f)]
     pp_files = [f for f in all_pages if "privacy" in f.name.lower()]
     if pp_files:
         record("Legal", "Privacy policy file exists", "PASS", str(pp_files[0]))
     else:
-        record("Legal", "Privacy policy file exists", "FAIL",
-               "No privacy policy page found",
-               "Create src/pages/Privacy.tsx and wire it to /privacy route")
+        record(
+            "Legal",
+            "Privacy policy file exists",
+            "FAIL",
+            "No privacy policy page found",
+            "Create src/pages/Privacy.tsx and wire it to /privacy route",
+        )
 
     # Terms of service (case-insensitive)
     tos_files = [f for f in all_pages if "terms" in f.name.lower()]
     if tos_files:
         record("Legal", "Terms of service file exists", "PASS", str(tos_files[0]))
     else:
-        record("Legal", "Terms of service file exists", "FAIL",
-               "No terms of service page found",
-               "Create src/pages/Terms.tsx and wire it to /terms route")
+        record(
+            "Legal",
+            "Terms of service file exists",
+            "FAIL",
+            "No terms of service page found",
+            "Create src/pages/Terms.tsx and wire it to /terms route",
+        )
 
     # Data deletion capability
     deletion_hits = _grep_code(r"delete.*user|user.*delete|account.*delet|delet.*account", [".py"])
     if deletion_hits:
-        record("Legal", "User data deletion capability", "PASS", f"Found in {len(deletion_hits)} location(s)")
+        record(
+            "Legal",
+            "User data deletion capability",
+            "PASS",
+            f"Found in {len(deletion_hits)} location(s)",
+        )
     else:
-        record("Legal", "User data deletion capability", "WARN",
-               "No account/data deletion endpoint detected",
-               "Add DELETE /api/user/account endpoint for GDPR compliance")
+        record(
+            "Legal",
+            "User data deletion capability",
+            "WARN",
+            "No account/data deletion endpoint detected",
+            "Add DELETE /api/user/account endpoint for GDPR compliance",
+        )
 
     # PII in logs check
-    pii_log_hits = _grep_code(r'logger\.(info|debug|warning)\(.*?(email|password|token|phone)', [".py"])
+    pii_log_hits = _grep_code(
+        r"logger\.(info|debug|warning)\(.*?(email|password|token|phone)", [".py"]
+    )
     if pii_log_hits:
-        record("Legal", "PII not logged", "WARN",
-               f"Possible PII in log statements: {pii_log_hits[:2]}",
-               "Scrub email/token values from log messages")
+        record(
+            "Legal",
+            "PII not logged",
+            "WARN",
+            f"Possible PII in log statements: {pii_log_hits[:2]}",
+            "Scrub email/token values from log messages",
+        )
     else:
         record("Legal", "PII not logged", "PASS", "No obvious PII in log statements")
 
     # Cookie consent (check for any cookie consent component)
-    cookie_hits = _grep_code(r"cookie.*consent|consent.*cookie|CookieBanner|cookie.*banner", [".tsx", ".jsx", ".ts"])
+    cookie_hits = _grep_code(
+        r"cookie.*consent|consent.*cookie|CookieBanner|cookie.*banner",
+        [".tsx", ".jsx", ".ts"],
+    )
     if cookie_hits:
         record("Legal", "Cookie consent mechanism", "PASS", f"Found: {cookie_hits[0]}")
     else:
-        record("Legal", "Cookie consent mechanism", "WARN",
-               "No cookie consent banner detected",
-               "Add a CookieBanner component for GDPR compliance if you use analytics/tracking cookies")
+        record(
+            "Legal",
+            "Cookie consent mechanism",
+            "WARN",
+            "No cookie consent banner detected",
+            "Add a CookieBanner component for GDPR compliance if you use analytics/tracking cookies",
+        )
 
 
 # ─── 02 Security Basics ──────────────────────────────────────────────────────
+
 
 def check_security_basics():
     print("\n02 Security Basics")
@@ -116,80 +155,141 @@ def check_security_basics():
     # CORS not wildcard
     cors_hits = _grep_code(r'allow_origins\s*=\s*\[?\s*["\']?\*["\']?\s*\]?', [".py", ".yml"])
     if cors_hits:
-        record("Security", "CORS not wildcard", "FAIL",
-               f"Wildcard CORS found: {cors_hits[0]}",
-               "Set cors_origins to explicit frontend domain(s) in .env")
+        record(
+            "Security",
+            "CORS not wildcard",
+            "FAIL",
+            f"Wildcard CORS found: {cors_hits[0]}",
+            "Set cors_origins to explicit frontend domain(s) in .env",
+        )
     else:
         record("Security", "CORS not wildcard", "PASS", "No wildcard CORS detected")
 
     # SQL injection — raw string queries
     sqli_hits = _grep_code(r'execute\(.*?f["\']|execute\(.*?%\s*\(|cursor\.execute\(.*?\+', [".py"])
     if sqli_hits:
-        record("Security", "No raw SQL string formatting", "FAIL",
-               f"Possible SQL injection: {sqli_hits[:2]}",
-               "Use parameterized queries: cursor.execute('SELECT * FROM t WHERE id = %s', (id,))")
+        record(
+            "Security",
+            "No raw SQL string formatting",
+            "FAIL",
+            f"Possible SQL injection: {sqli_hits[:2]}",
+            "Use parameterized queries: cursor.execute('SELECT * FROM t WHERE id = %s', (id,))",
+        )
     else:
-        record("Security", "No raw SQL string formatting", "PASS", "No raw SQL formatting found")
+        record(
+            "Security",
+            "No raw SQL string formatting",
+            "PASS",
+            "No raw SQL formatting found",
+        )
 
     # XSS — dangerouslySetInnerHTML
     xss_hits = _grep_code(r"dangerouslySetInnerHTML", [".tsx", ".jsx", ".ts", ".js"])
     if xss_hits:
-        record("Security", "No dangerouslySetInnerHTML", "WARN",
-               f"Found in: {xss_hits[:2]}",
-               "Review each usage — ensure content is sanitized with DOMPurify before rendering")
+        record(
+            "Security",
+            "No dangerouslySetInnerHTML",
+            "WARN",
+            f"Found in: {xss_hits[:2]}",
+            "Review each usage — ensure content is sanitized with DOMPurify before rendering",
+        )
     else:
         record("Security", "No dangerouslySetInnerHTML", "PASS", "No unsafe HTML injection")
 
     # Auth on sensitive endpoints
     auth_dep = _grep_code(r"get_current_user_from_supabase", [".py"])
     if len(auth_dep) >= 3:
-        record("Security", "Auth dependency on API routes", "PASS", f"Found in {len(auth_dep)} route(s)")
+        record(
+            "Security",
+            "Auth dependency on API routes",
+            "PASS",
+            f"Found in {len(auth_dep)} route(s)",
+        )
     else:
-        record("Security", "Auth dependency on API routes", "WARN",
-               f"Only {len(auth_dep)} auth-guarded routes detected",
-               "Ensure all /api/* endpoints use get_current_user_from_supabase")
+        record(
+            "Security",
+            "Auth dependency on API routes",
+            "WARN",
+            f"Only {len(auth_dep)} auth-guarded routes detected",
+            "Ensure all /api/* endpoints use get_current_user_from_supabase",
+        )
 
     # Session expiry / JWT settings
     jwt_hits = _grep_code(r"jwt_secret|JWT_SECRET|jwt_expir", [".py", ".env.example"])
     if jwt_hits:
-        record("Security", "JWT secret configured", "PASS", "JWT secret referenced in config")
+        record(
+            "Security",
+            "JWT secret configured",
+            "PASS",
+            "JWT secret referenced in config",
+        )
     else:
-        record("Security", "JWT secret configured", "WARN",
-               "No explicit JWT secret config detected",
-               "Ensure SUPABASE_JWT_SECRET is set and never hardcoded")
+        record(
+            "Security",
+            "JWT secret configured",
+            "WARN",
+            "No explicit JWT secret config detected",
+            "Ensure SUPABASE_JWT_SECRET is set and never hardcoded",
+        )
 
     # HTTPS enforcement (HSTS / redirect)
-    hsts_hits = _grep_code(r"Strict-Transport-Security|add_header.*HSTS|https_redirect|force_https", [".py", ".conf", ".yml"])
+    hsts_hits = _grep_code(
+        r"Strict-Transport-Security|add_header.*HSTS|https_redirect|force_https",
+        [".py", ".conf", ".yml"],
+    )
     if hsts_hits:
         record("Security", "HTTPS/HSTS enforcement", "PASS", "HSTS or redirect found")
     else:
-        record("Security", "HTTPS/HSTS enforcement", "WARN",
-               "No HSTS header or HTTPS redirect detected",
-               "Add Strict-Transport-Security header in nginx or as FastAPI middleware")
+        record(
+            "Security",
+            "HTTPS/HSTS enforcement",
+            "WARN",
+            "No HSTS header or HTTPS redirect detected",
+            "Add Strict-Transport-Security header in nginx or as FastAPI middleware",
+        )
 
     # Security middleware / headers middleware
-    sec_header_hits = _grep_code(r"SecurityHeadersMiddleware|X-Frame-Options|X-Content-Type|Content-Security-Policy", [".py"])
+    sec_header_hits = _grep_code(
+        r"SecurityHeadersMiddleware|X-Frame-Options|X-Content-Type|Content-Security-Policy",
+        [".py"],
+    )
     if sec_header_hits:
-        record("Security", "Security headers middleware", "PASS", f"Found: {sec_header_hits[0]}")
+        record(
+            "Security",
+            "Security headers middleware",
+            "PASS",
+            f"Found: {sec_header_hits[0]}",
+        )
     else:
-        record("Security", "Security headers middleware", "FAIL",
-               "No security headers middleware detected",
-               "Add SecurityHeadersMiddleware (see auto-fix: --fix flag adds it to main.py)")
+        record(
+            "Security",
+            "Security headers middleware",
+            "FAIL",
+            "No security headers middleware detected",
+            "Add SecurityHeadersMiddleware (see auto-fix: --fix flag adds it to main.py)",
+        )
 
 
 # ─── 03 Secrets & API Keys ───────────────────────────────────────────────────
 
 SECRET_PATTERNS = [
-    (r'sk-[A-Za-z0-9]{20,}', "OpenAI API key"),
-    (r'AIza[0-9A-Za-z\-_]{35}', "Google API key"),
-    (r'ghp_[A-Za-z0-9]{36}', "GitHub Personal Access Token"),
-    (r'["\'](?:API_KEY|SECRET_KEY|PRIVATE_KEY)["\']:\s*["\'][A-Za-z0-9+/]{16,}["\']', "Hardcoded secret"),
+    (r"sk-[A-Za-z0-9]{20,}", "OpenAI API key"),
+    (r"AIza[0-9A-Za-z\-_]{35}", "Google API key"),
+    (r"ghp_[A-Za-z0-9]{36}", "GitHub Personal Access Token"),
+    (
+        r'["\'](?:API_KEY|SECRET_KEY|PRIVATE_KEY)["\']:\s*["\'][A-Za-z0-9+/]{16,}["\']',
+        "Hardcoded secret",
+    ),
     (r'password\s*=\s*["\'][^${\s]{6,}["\']', "Hardcoded password"),
     (r'SARVAM_API_KEY\s*=\s*["\'][a-zA-Z0-9\-]{10,}["\']', "Hardcoded Sarvam key"),
     # Note: Supabase anon keys are PUBLIC by design — skip them
     # Only flag service_role JWTs (role:service_role in payload)
-    (r'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}.*service_role', "Hardcoded service_role JWT (CRITICAL)"),
+    (
+        r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}.*service_role",
+        "Hardcoded service_role JWT (CRITICAL)",
+    ),
 ]
+
 
 def check_secrets():
     print("\n03 Secrets & API Keys")
@@ -201,32 +301,42 @@ def check_secrets():
         if ".env" in content:
             record("Secrets", ".env in .gitignore", "PASS", ".env is gitignored")
         else:
-            record("Secrets", ".env in .gitignore", "FAIL",
-                   ".env is NOT in .gitignore",
-                   "Add '.env' and '.env.local' to .gitignore immediately")
+            record(
+                "Secrets",
+                ".env in .gitignore",
+                "FAIL",
+                ".env is NOT in .gitignore",
+                "Add '.env' and '.env.local' to .gitignore immediately",
+            )
     else:
         record("Secrets", ".gitignore exists", "FAIL", "No .gitignore found")
 
     # .env committed to git history
     result = subprocess.run(
         ["git", "log", "--all", "--full-history", "--", "*.env", ".env", "**/.env"],
-        cwd=ROOT, capture_output=True, text=True
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
     if result.stdout.strip():
-        record("Secrets", ".env never committed to git", "FAIL",
-               ".env appears in git history — keys may be exposed",
-               "Run: git filter-repo --path .env --invert-paths (then force-push)")
+        record(
+            "Secrets",
+            ".env never committed to git",
+            "FAIL",
+            ".env appears in git history — keys may be exposed",
+            "Run: git filter-repo --path .env --invert-paths (then force-push)",
+        )
     else:
         record("Secrets", ".env never committed to git", "PASS", "No .env in git history")
 
     # Scan source for hardcoded secrets
     all_source_files = (
-        list(ROOT.glob("src/**/*.ts")) +
-        list(ROOT.glob("src/**/*.tsx")) +
-        list(BACKEND.glob("app/**/*.py")) +
-        list(BACKEND.glob("rag/**/*.py")) +
-        list(BACKEND.glob("services/**/*.py")) +
-        list(BACKEND.glob("guardrails/**/*.py"))
+        list(ROOT.glob("src/**/*.ts"))
+        + list(ROOT.glob("src/**/*.tsx"))
+        + list(BACKEND.glob("app/**/*.py"))
+        + list(BACKEND.glob("rag/**/*.py"))
+        + list(BACKEND.glob("services/**/*.py"))
+        + list(BACKEND.glob("guardrails/**/*.py"))
     )
     found_secrets = []
     for path in all_source_files:
@@ -239,96 +349,172 @@ def check_secrets():
             pass
 
     if found_secrets:
-        record("Secrets", "No hardcoded secrets in source", "FAIL",
-               f"{len(found_secrets)} potential secret(s): {found_secrets[:3]}",
-               "Move all secrets to .env and reference via settings/config")
+        record(
+            "Secrets",
+            "No hardcoded secrets in source",
+            "FAIL",
+            f"{len(found_secrets)} potential secret(s): {found_secrets[:3]}",
+            "Move all secrets to .env and reference via settings/config",
+        )
     else:
-        record("Secrets", "No hardcoded secrets in source", "PASS", "Clean — no hardcoded secrets found")
+        record(
+            "Secrets",
+            "No hardcoded secrets in source",
+            "PASS",
+            "Clean — no hardcoded secrets found",
+        )
 
     # Frontend not exposing API keys (check VITE_ prefix — these are public!)
-    vite_secret_hits = _grep_code(r'VITE_.*(?:SECRET|PRIVATE|PASSWORD|API_KEY)', [".ts", ".tsx", ".env.example"])
+    vite_secret_hits = _grep_code(
+        r"VITE_.*(?:SECRET|PRIVATE|PASSWORD|API_KEY)", [".ts", ".tsx", ".env.example"]
+    )
     if vite_secret_hits:
-        record("Secrets", "No secrets in VITE_ env vars", "FAIL",
-               f"VITE_ prefixed secrets are public: {vite_secret_hits[:2]}",
-               "VITE_ vars are baked into the JS bundle. Move to backend-only env vars.")
+        record(
+            "Secrets",
+            "No secrets in VITE_ env vars",
+            "FAIL",
+            f"VITE_ prefixed secrets are public: {vite_secret_hits[:2]}",
+            "VITE_ vars are baked into the JS bundle. Move to backend-only env vars.",
+        )
     else:
-        record("Secrets", "No secrets in VITE_ env vars", "PASS", "No private keys in VITE_ vars")
+        record(
+            "Secrets",
+            "No secrets in VITE_ env vars",
+            "PASS",
+            "No private keys in VITE_ vars",
+        )
 
     # Sensitive data in API responses (password field returned)
     password_response = _grep_code(r'"password"\s*:', [".py"])
     exposed = [h for h in password_response if "hash" not in h.lower() and "test" not in h.lower()]
     if exposed:
-        record("Secrets", "Password not in API responses", "WARN",
-               f"'password' field in responses: {exposed[:2]}",
-               "Exclude password/hash fields from all Pydantic response models")
+        record(
+            "Secrets",
+            "Password not in API responses",
+            "WARN",
+            f"'password' field in responses: {exposed[:2]}",
+            "Exclude password/hash fields from all Pydantic response models",
+        )
     else:
-        record("Secrets", "Password not in API responses", "PASS", "No password field in response schemas")
+        record(
+            "Secrets",
+            "Password not in API responses",
+            "PASS",
+            "No password field in response schemas",
+        )
 
 
 # ─── 04 Abuse Prevention ─────────────────────────────────────────────────────
+
 
 def check_abuse_prevention():
     print("\n04 Abuse Prevention")
 
     # Rate limiting
-    rate_limit_hits = _grep_code(r'@limiter\.limit|rate_limit|RateLimiter|slowapi', [".py"])
+    rate_limit_hits = _grep_code(r"@limiter\.limit|rate_limit|RateLimiter|slowapi", [".py"])
     if len(rate_limit_hits) >= 3:
-        record("Abuse", "Rate limiting on API endpoints", "PASS", f"Found in {len(rate_limit_hits)} location(s)")
+        record(
+            "Abuse",
+            "Rate limiting on API endpoints",
+            "PASS",
+            f"Found in {len(rate_limit_hits)} location(s)",
+        )
     elif rate_limit_hits:
-        record("Abuse", "Rate limiting on API endpoints", "WARN",
-               f"Only {len(rate_limit_hits)} rate-limited endpoint(s)",
-               "Apply @limiter.limit() to all public-facing endpoints")
+        record(
+            "Abuse",
+            "Rate limiting on API endpoints",
+            "WARN",
+            f"Only {len(rate_limit_hits)} rate-limited endpoint(s)",
+            "Apply @limiter.limit() to all public-facing endpoints",
+        )
     else:
-        record("Abuse", "Rate limiting on API endpoints", "FAIL",
-               "No rate limiting detected",
-               "Add slowapi or similar middleware. See: pip install slowapi")
+        record(
+            "Abuse",
+            "Rate limiting on API endpoints",
+            "FAIL",
+            "No rate limiting detected",
+            "Add slowapi or similar middleware. See: pip install slowapi",
+        )
 
     # Input validation / max length
-    input_len_hits = _grep_code(r'max_input_length|MaxLength|max_length|Field.*max_length', [".py"])
+    input_len_hits = _grep_code(r"max_input_length|MaxLength|max_length|Field.*max_length", [".py"])
     if input_len_hits:
         record("Abuse", "Input length validation", "PASS", f"Found: {input_len_hits[0]}")
     else:
-        record("Abuse", "Input length validation", "WARN",
-               "No explicit max input length found",
-               "Add max_input_length check in config.py and apply in all endpoints")
+        record(
+            "Abuse",
+            "Input length validation",
+            "WARN",
+            "No explicit max input length found",
+            "Add max_input_length check in config.py and apply in all endpoints",
+        )
 
     # Spend alerts / hard caps (check for env var or doc)
-    spend_hits = _grep_code(r'SARVAM_MONTHLY_BUDGET|spend_alert|BUDGET_LIMIT|monthly_cap|quota', [".py", ".yml", ".md"])
+    spend_hits = _grep_code(
+        r"SARVAM_MONTHLY_BUDGET|spend_alert|BUDGET_LIMIT|monthly_cap|quota",
+        [".py", ".yml", ".md"],
+    )
     if spend_hits:
         record("Abuse", "API spend cap / budget alert", "PASS", f"Found: {spend_hits[0]}")
     else:
-        record("Abuse", "API spend cap / budget alert", "WARN",
-               "No budget cap or spend alert config found",
-               "Set hard cap in Sarvam/OpenAI dashboard AND add SARVAM_MONTHLY_BUDGET env var with enforcement")
+        record(
+            "Abuse",
+            "API spend cap / budget alert",
+            "WARN",
+            "No budget cap or spend alert config found",
+            "Set hard cap in Sarvam/OpenAI dashboard AND add SARVAM_MONTHLY_BUDGET env var with enforcement",
+        )
 
     # Bot protection on auth endpoints
-    captcha_hits = _grep_code(r'captcha|hcaptcha|turnstile|recaptcha|honeypot', [".py", ".tsx", ".ts"])
+    captcha_hits = _grep_code(
+        r"captcha|hcaptcha|turnstile|recaptcha|honeypot", [".py", ".tsx", ".ts"]
+    )
     if captcha_hits:
         record("Abuse", "Bot protection on auth", "PASS", f"Found: {captcha_hits[0]}")
     else:
-        record("Abuse", "Bot protection on auth", "WARN",
-               "No CAPTCHA or honeypot detected on auth endpoints",
-               "Add Cloudflare Turnstile (free) or hCaptcha to /signup and /login")
+        record(
+            "Abuse",
+            "Bot protection on auth",
+            "WARN",
+            "No CAPTCHA or honeypot detected on auth endpoints",
+            "Add Cloudflare Turnstile (free) or hCaptcha to /signup and /login",
+        )
 
     # Auth brute-force protection
-    brute_hits = _grep_code(r'exponential.backoff|failed_attempts|lockout|auth.*rate_limit|5.minute', [".py"])
+    brute_hits = _grep_code(
+        r"exponential.backoff|failed_attempts|lockout|auth.*rate_limit|5.minute",
+        [".py"],
+    )
     if brute_hits:
         record("Abuse", "Brute-force protection on auth", "PASS", f"Found: {brute_hits[0]}")
     else:
-        record("Abuse", "Brute-force protection on auth", "WARN",
-               "No login brute-force protection detected",
-               "Use Supabase's built-in auth rate limiting or add @limiter.limit('5/minute') on /auth/login")
+        record(
+            "Abuse",
+            "Brute-force protection on auth",
+            "WARN",
+            "No login brute-force protection detected",
+            "Use Supabase's built-in auth rate limiting or add @limiter.limit('5/minute') on /auth/login",
+        )
 
     # File upload restrictions (if applicable)
     upload_hits = _grep_code(r"UploadFile|multipart|file_upload", [".py"])
     if upload_hits:
         size_check = _grep_code(r"content_length|max_size|file\.size|MAX_UPLOAD", [".py"])
         if size_check:
-            record("Abuse", "File upload size limits", "PASS", "Upload size validation found")
+            record(
+                "Abuse",
+                "File upload size limits",
+                "PASS",
+                "Upload size validation found",
+            )
         else:
-            record("Abuse", "File upload size limits", "WARN",
-                   "File upload endpoints found but no size limit detected",
-                   "Add max file size check (e.g., 10MB) to all UploadFile endpoints")
+            record(
+                "Abuse",
+                "File upload size limits",
+                "WARN",
+                "File upload endpoints found but no size limit detected",
+                "Add max file size check (e.g., 10MB) to all UploadFile endpoints",
+            )
     else:
         record("Abuse", "File upload size limits", "PASS", "No file upload endpoints (N/A)")
 
@@ -344,11 +530,12 @@ REQUIRED_HEADERS = {
     "Permissions-Policy": "Disables unused browser features",
 }
 
+
 def check_security_headers():
     print("\n05 Security Headers (static analysis)")
 
     # Check if SecurityHeadersMiddleware exists anywhere
-    header_middleware = (BACKEND / "app" / "middleware.py")
+    header_middleware = BACKEND / "app" / "middleware.py"
     main_py = BACKEND / "app" / "main.py"
 
     found_headers = set()
@@ -367,9 +554,13 @@ def check_security_headers():
         if header in found_headers:
             record("Headers", f"{header} set", "PASS", desc)
         else:
-            record("Headers", f"{header} set", "FAIL",
-                   f"Missing — {desc}",
-                   "Run with --fix to add SecurityHeadersMiddleware to main.py")
+            record(
+                "Headers",
+                f"{header} set",
+                "FAIL",
+                f"Missing — {desc}",
+                "Run with --fix to add SecurityHeadersMiddleware to main.py",
+            )
 
     # Check nginx config if exists
     nginx_files = list(ROOT.rglob("*.conf")) + list(ROOT.rglob("nginx*"))
@@ -377,9 +568,13 @@ def check_security_headers():
     if nginx_files:
         record("Headers", "Nginx config exists", "PASS", f"Found: {nginx_files[0]}")
     else:
-        record("Headers", "Nginx config review", "WARN",
-               "No nginx config found",
-               "If using nginx, add security headers in server block")
+        record(
+            "Headers",
+            "Nginx config review",
+            "WARN",
+            "No nginx config found",
+            "If using nginx, add security headers in server block",
+        )
 
 
 # ─── Auto-Fix: Security Headers Middleware ───────────────────────────────────
@@ -414,6 +609,7 @@ class SecurityHeadersMiddleware(_BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 '''
 
+
 def apply_fixes():
     """Apply auto-fixable issues."""
     main_py = BACKEND / "app" / "main.py"
@@ -423,25 +619,39 @@ def apply_fixes():
         # Insert before the last app.include_router or after CORS middleware block
         insert_marker = "app.add_middleware(CorrelationIDMiddleware)"
         if insert_marker in content:
-            content = content.replace(insert_marker, insert_marker + "\n" + SECURITY_MIDDLEWARE_CODE)
+            content = content.replace(
+                insert_marker, insert_marker + "\n" + SECURITY_MIDDLEWARE_CODE
+            )
             main_py.write_text(content)
             print("\n🔧 AUTO-FIX: Added SecurityHeadersMiddleware to main.py")
         else:
-            print("\n⚠️  Could not auto-add SecurityHeadersMiddleware — insert manually after CORS middleware")
+            print(
+                "\n⚠️  Could not auto-add SecurityHeadersMiddleware — insert manually after CORS middleware"
+            )
     else:
         print("\n✅ SecurityHeadersMiddleware already present — no fix needed")
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
+
 def _grep_code(pattern: str, extensions: list[str]) -> list[str]:
     """Grep source tree for a regex pattern, returning matching file paths."""
     results = []
     # Exclude all virtualenv, dependency, and build directories
     exclude_dirs = {
-        ".venv", ".venv_host", "venv", "env", ".env",
-        "node_modules", "__pycache__", ".git",
-        "dist", "build", ".next", "coverage",
+        ".venv",
+        ".venv_host",
+        "venv",
+        "env",
+        ".env",
+        "node_modules",
+        "__pycache__",
+        ".git",
+        "dist",
+        "build",
+        ".next",
+        "coverage",
         "site-packages",  # catches any nested venv
     }
     # Only search these top-level source directories
@@ -478,6 +688,7 @@ def _grep_code(pattern: str, extensions: list[str]) -> list[str]:
 
 # ─── Report ──────────────────────────────────────────────────────────────────
 
+
 def print_summary():
     counts = {"PASS": 0, "WARN": 0, "FAIL": 0}
     for f in findings:
@@ -492,7 +703,9 @@ def print_summary():
     print(f"  ✅ PASS : {counts['PASS']}/{total}")
     print(f"  ⚠️  WARN : {counts['WARN']}/{total}")
     print(f"  ❌ FAIL : {counts['FAIL']}/{total}")
-    print(f"  📊 Score: {score}%  {'🟢 SHIP READY' if score >= 85 else '🟡 NEEDS WORK' if score >= 65 else '🔴 NOT READY'}")
+    print(
+        f"  📊 Score: {score}%  {'🟢 SHIP READY' if score >= 85 else '🟡 NEEDS WORK' if score >= 65 else '🔴 NOT READY'}"
+    )
     print("=" * 60)
 
     if counts["FAIL"] > 0:
@@ -534,10 +747,15 @@ def save_report():
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="Mukthi Guru Pre-Launch Security Audit")
     parser.add_argument("--fix", action="store_true", help="Apply auto-fixes (security headers)")
-    parser.add_argument("--report", action="store_true", help="Save JSON report to data/security_report.json")
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Save JSON report to data/security_report.json",
+    )
     args = parser.parse_args()
 
     print("🔐 Mukthi Guru — Pre-Launch Security Audit")

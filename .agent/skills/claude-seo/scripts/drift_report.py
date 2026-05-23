@@ -52,6 +52,7 @@ SEVERITY_BG = {
 # HTML generation
 # ---------------------------------------------------------------------------
 
+
 def _escape(text) -> str:
     """HTML-escape a value, handling None."""
     if text is None:
@@ -316,6 +317,7 @@ def generate_html(comparison: dict) -> str:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate an HTML report from SEO drift comparison results"
@@ -331,7 +333,8 @@ def main():
         help="Read comparison JSON from stdin",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default=None,
         help="Output HTML file path (default: stdout)",
     )

@@ -60,7 +60,7 @@ export const HeroSection = () => {
             transition={{ delay: 0.5, duration: 0.7 }}
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
           >
-            Experience the timeless wisdom of Sri Preethaji & Sri Krishnaji through 
+            Experience the timeless wisdom of Sri Preethaji & Sri Krishnaji through
             an AI companion designed to guide you from suffering to serenity.
           </motion.p>
 

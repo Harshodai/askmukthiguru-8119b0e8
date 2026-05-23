@@ -167,10 +167,10 @@ export const DailyTeaching = () => {
               </div>
             ) : (
               <picture>
-                <source 
-                  srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=600 600w`} 
-                  type="image/webp" 
-                  sizes="(max-width: 600px) 400px, 600px" 
+                <source
+                  srcSet={`${teaching.imageUrl}?transform=1&format=webp&width=600 600w`}
+                  type="image/webp"
+                  sizes="(max-width: 600px) 400px, 600px"
                 />
                 <img
                   src={teaching.imageUrl}
@@ -197,7 +197,7 @@ export const DailyTeaching = () => {
                 &ldquo;{teaching.caption}&rdquo;
               </p>
             )}
-            
+
             <button
               onClick={handleDismiss}
               className="w-full py-3 px-4 rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground font-medium text-sm transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ojas/50"

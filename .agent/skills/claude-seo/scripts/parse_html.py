@@ -23,6 +23,7 @@ except ImportError:
 
 try:
     import lxml  # noqa: F401
+
     _HTML_PARSER = "lxml"
 except ImportError:
     _HTML_PARSER = "html.parser"
@@ -62,7 +63,10 @@ def _detect_lazy_method(img) -> str:
     if any(img.get(a) for a in _EWWW_ATTRS) or class_list & _EWWW_CLASSES:
         return "ewww"
 
-    if any(img.get(a) for a in _GENERIC_LAZY_ATTRS) or class_list & _GENERIC_LAZY_CLASSES:
+    if (
+        any(img.get(a) for a in _GENERIC_LAZY_ATTRS)
+        or class_list & _GENERIC_LAZY_CLASSES
+    ):
         return "js-generic"
 
     return "none"
@@ -134,10 +138,12 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
     for link in soup.find_all("link", rel="alternate"):
         hreflang = link.get("hreflang")
         if hreflang:
-            result["hreflang"].append({
-                "lang": hreflang,
-                "href": link.get("href"),
-            })
+            result["hreflang"].append(
+                {
+                    "lang": hreflang,
+                    "href": link.get("href"),
+                }
+            )
 
     # Headings
     for tag in ["h1", "h2", "h3"]:
@@ -149,7 +155,13 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
                 stripped = text.strip()
                 is_suspicious = (
                     len(stripped) <= 3
-                    or stripped.replace(",", "").replace(".", "").replace("+", "").replace("-", "").replace("%", "").replace(" ", "").isdigit()
+                    or stripped.replace(",", "")
+                    .replace(".", "")
+                    .replace("+", "")
+                    .replace("-", "")
+                    .replace("%", "")
+                    .replace(" ", "")
+                    .isdigit()
                 )
                 if is_suspicious:
                     key = f"{tag}_suspicious"
@@ -163,14 +175,16 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
         if base_url and src:
             src = urljoin(base_url, src)
 
-        result["images"].append({
-            "src": src,
-            "alt": img.get("alt"),
-            "width": img.get("width"),
-            "height": img.get("height"),
-            "loading": img.get("loading"),
-            "lazy_method": _detect_lazy_method(img),
-        })
+        result["images"].append(
+            {
+                "src": src,
+                "alt": img.get("alt"),
+                "width": img.get("width"),
+                "height": img.get("height"),
+                "loading": img.get("loading"),
+                "lazy_method": _detect_lazy_method(img),
+            }
+        )
 
     # Links
     if base_url:

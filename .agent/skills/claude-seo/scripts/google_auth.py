@@ -90,7 +90,9 @@ def load_config() -> dict:
 
     # Environment variable fallbacks
     if not config["service_account_path"]:
-        config["service_account_path"] = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        config["service_account_path"] = os.environ.get(
+            "GOOGLE_APPLICATION_CREDENTIALS"
+        )
 
     if not config["api_key"]:
         config["api_key"] = os.environ.get("GOOGLE_API_KEY")
@@ -198,6 +200,7 @@ def _persist_oauth_client_path(creds_path: str):
     config["oauth_client_path"] = abs_path
     # Atomic write: tempfile + replace
     import tempfile
+
     fd, tmp_path = tempfile.mkstemp(
         dir=os.path.dirname(CONFIG_PATH), prefix=".google-api.", suffix=".tmp"
     )
@@ -219,15 +222,19 @@ def _refresh_oauth_token(client: dict, token_data: dict) -> Optional[dict]:
     if not token_data.get("refresh_token"):
         return None
 
-    params = urllib.parse.urlencode({
-        "client_id": client["client_id"],
-        "client_secret": client["client_secret"],
-        "refresh_token": token_data["refresh_token"],
-        "grant_type": "refresh_token",
-    }).encode()
+    params = urllib.parse.urlencode(
+        {
+            "client_id": client["client_id"],
+            "client_secret": client["client_secret"],
+            "refresh_token": token_data["refresh_token"],
+            "grant_type": "refresh_token",
+        }
+    ).encode()
 
     try:
-        req = urllib.request.Request(client.get("token_uri", "https://oauth2.googleapis.com/token"), data=params)
+        req = urllib.request.Request(
+            client.get("token_uri", "https://oauth2.googleapis.com/token"), data=params
+        )
         with urllib.request.urlopen(req) as resp:
             new_data = json.loads(resp.read())
         token_data["access_token"] = new_data["access_token"]
@@ -264,12 +271,16 @@ def get_oauth_credentials(scopes: list):
                 if client:
                     token_data = _refresh_oauth_token(client, token_data)
                     if not token_data:
-                        print("OAuth token refresh failed. Re-run --auth.", file=sys.stderr)
+                        print(
+                            "OAuth token refresh failed. Re-run --auth.",
+                            file=sys.stderr,
+                        )
                         return get_service_account_credentials(scopes)
 
         if token_data and token_data.get("access_token"):
             try:
                 from google.oauth2.credentials import Credentials
+
                 # Read client_secret from client file, never from stored token
                 client_secret = None
                 oauth_path = config.get("oauth_client_path")
@@ -285,7 +296,10 @@ def get_oauth_credentials(scopes: list):
                     client_secret=client_secret,
                 )
             except ImportError:
-                print("Error: google-auth required. Install with: pip install google-auth", file=sys.stderr)
+                print(
+                    "Error: google-auth required. Install with: pip install google-auth",
+                    file=sys.stderr,
+                )
 
     # Fall back to service account
     return get_service_account_credentials(scopes)
@@ -330,10 +344,13 @@ def run_oauth_flow(creds_path: str):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html")
                 self.end_headers()
-                self.wfile.write(b"<h1>Authentication successful!</h1><p>Close this tab.</p>")
+                self.wfile.write(
+                    b"<h1>Authentication successful!</h1><p>Close this tab.</p>"
+                )
             else:
                 self.send_response(400)
                 self.end_headers()
+
         def log_message(self, *a):
             pass
 
@@ -355,7 +372,9 @@ def run_oauth_flow(creds_path: str):
         print("\nAuthentication failed or timed out.", file=sys.stderr)
         print("If the browser showed 'localhost refused to connect', copy the full URL")
         print("from the browser address bar and run:")
-        print(f"  python scripts/google_auth.py --exchange --creds {creds_path} --code 'THE_CODE'")
+        print(
+            f"  python scripts/google_auth.py --exchange --creds {creds_path} --code 'THE_CODE'"
+        )
         sys.exit(1)
 
     # Exchange code for tokens
@@ -372,13 +391,15 @@ def _exchange_code(client: dict, code: str, creds_path: Optional[str] = None):
     import urllib.parse
     import urllib.request
 
-    params = urllib.parse.urlencode({
-        "code": code,
-        "client_id": client["client_id"],
-        "client_secret": client["client_secret"],
-        "redirect_uri": OAUTH_REDIRECT_URI,
-        "grant_type": "authorization_code",
-    }).encode()
+    params = urllib.parse.urlencode(
+        {
+            "code": code,
+            "client_id": client["client_id"],
+            "client_secret": client["client_secret"],
+            "redirect_uri": OAUTH_REDIRECT_URI,
+            "grant_type": "authorization_code",
+        }
+    ).encode()
 
     try:
         req = urllib.request.Request(
@@ -431,7 +452,10 @@ def validate_url(url: str) -> bool:
     if not parsed.hostname:
         return False
     blocked = [
-        "localhost", "127.0.0.1", "0.0.0.0", "::1",
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
         "metadata.google.internal",
     ]
     if parsed.hostname in blocked:
@@ -439,6 +463,7 @@ def validate_url(url: str) -> bool:
     # Block private IP ranges (10.x, 172.16-31.x, 192.168.x)
     try:
         import ipaddress
+
         ip = ipaddress.ip_address(parsed.hostname)
         if ip.is_private or ip.is_loopback or ip.is_link_local:
             return False
@@ -533,10 +558,14 @@ def check_credentials(service: str) -> dict:
             result["method"] = "oauth_token"
             expired = time.time() > token_data.get("expires_at", 0) - 60
             if expired and token_data.get("refresh_token"):
-                result["note"] = "Token expired but refresh_token available (will auto-refresh)"
+                result["note"] = (
+                    "Token expired but refresh_token available (will auto-refresh)"
+                )
             elif expired:
                 result["available"] = False
-                result["error"] = "OAuth token expired and no refresh_token. Re-run --auth."
+                result["error"] = (
+                    "OAuth token expired and no refresh_token. Re-run --auth."
+                )
         else:
             # Fall back to service account
             sa_path = config.get("service_account_path")
@@ -554,8 +583,13 @@ def check_credentials(service: str) -> dict:
                     try:
                         with open(sa_path, "r") as f:
                             sa_data = json.load(f)
-                        if "client_email" not in sa_data or "private_key" not in sa_data:
-                            result["error"] = "Service account JSON missing required fields (client_email, private_key)"
+                        if (
+                            "client_email" not in sa_data
+                            or "private_key" not in sa_data
+                        ):
+                            result["error"] = (
+                                "Service account JSON missing required fields (client_email, private_key)"
+                            )
                         else:
                             result["available"] = True
                             result["method"] = "service_account"
@@ -625,9 +659,14 @@ def detect_tier() -> dict:
             "tier": 2,
             "description": "Full (API key + Service Account + GA4)",
             "capabilities": [
-                "PageSpeed Insights", "CrUX", "CrUX History",
-                "Search Console", "URL Inspection", "Sitemaps",
-                "Indexing API", "GA4 Organic Traffic",
+                "PageSpeed Insights",
+                "CrUX",
+                "CrUX History",
+                "Search Console",
+                "URL Inspection",
+                "Sitemaps",
+                "Indexing API",
+                "GA4 Organic Traffic",
             ],
             "missing": None,
         }
@@ -636,8 +675,12 @@ def detect_tier() -> dict:
             "tier": 1,
             "description": "Authenticated (API key + OAuth/Service Account)",
             "capabilities": [
-                "PageSpeed Insights", "CrUX", "CrUX History",
-                "Search Console", "URL Inspection", "Sitemaps",
+                "PageSpeed Insights",
+                "CrUX",
+                "CrUX History",
+                "Search Console",
+                "URL Inspection",
+                "Sitemaps",
                 "Indexing API",
             ],
             "missing": "Add 'ga4_property_id' to unlock GA4 organic traffic reports",
@@ -647,7 +690,9 @@ def detect_tier() -> dict:
             "tier": 0,
             "description": "API Key Only",
             "capabilities": [
-                "PageSpeed Insights", "CrUX", "CrUX History",
+                "PageSpeed Insights",
+                "CrUX",
+                "CrUX History",
             ],
             "missing": "Add a service account to unlock Search Console, URL Inspection, and Indexing API",
         }
@@ -774,7 +819,10 @@ def main():
 
     if args.exchange:
         if not args.creds or not args.code:
-            print("Error: --creds and --code are required with --exchange", file=sys.stderr)
+            print(
+                "Error: --creds and --code are required with --exchange",
+                file=sys.stderr,
+            )
             sys.exit(1)
         client = _load_oauth_client(args.creds)
         if client:
@@ -798,11 +846,7 @@ def main():
         return
 
     if args.check:
-        services = (
-            list(SERVICE_AUTH.keys())
-            if args.check == "all"
-            else [args.check]
-        )
+        services = list(SERVICE_AUTH.keys()) if args.check == "all" else [args.check]
 
         results = {}
         for svc in services:
@@ -838,7 +882,7 @@ def main():
     else:
         print(f"Credential Tier: {tier_info['tier']} -- {tier_info['description']}")
         if tier_info["missing"]:
-            print(f"Run --setup for configuration instructions.")
+            print("Run --setup for configuration instructions.")
 
 
 if __name__ == "__main__":

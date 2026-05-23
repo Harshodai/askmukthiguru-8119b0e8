@@ -35,7 +35,7 @@ export default function TelemetryPage() {
           />
         </CardContent>
       </Card>
-      
+
       <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
         <h3 className="text-sm font-medium text-primary flex items-center gap-2">
           <span className="relative flex h-2 w-2">
@@ -45,7 +45,7 @@ export default function TelemetryPage() {
           Observability Note
         </h3>
         <p className="text-xs text-muted-foreground mt-1">
-          Traces are captured automatically for all RAG pipeline nodes. Use the Jaeger UI above to inspect latency, 
+          Traces are captured automatically for all RAG pipeline nodes. Use the Jaeger UI above to inspect latency,
           provider calls, and token consumption for each seeker's query.
         </p>
       </div>

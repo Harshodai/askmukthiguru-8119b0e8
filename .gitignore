@@ -80,4 +80,3 @@ data/lightrag/kv_store_*.json
 
 # Large raw transcript outputs
 transcripts/
-

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import sys
-import os
 import asyncio
 import logging
-from qdrant_client import QdrantClient
-from qdrant_client.http import models
+import os
+import sys
+
 from neo4j import GraphDatabase
+from qdrant_client import QdrantClient
 
 # Setup paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -15,20 +15,21 @@ sys.path.insert(0, BACKEND_DIR)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cleanup")
 
+
 async def cleanup():
     # 1. FULL Clear Qdrant
     logger.info("Connecting to Qdrant...")
     try:
         client = QdrantClient(url="http://qdrant:6333")
-        
+
         # Get all collections
         collections = client.get_collections().collections
         for c in collections:
             logger.info(f"Deleting Qdrant collection: {c.name}")
             client.delete_collection(c.name)
-        
+
         logger.info("✅ Qdrant completely cleared.")
-                
+
     except Exception as e:
         logger.error(f"❌ Qdrant cleanup failed: {e}")
 
@@ -49,11 +50,13 @@ async def cleanup():
     logger.info("Connecting to Redis...")
     try:
         import redis
+
         r = redis.from_url("redis://:mukthiguru_redis_pass@redis:6379/0")
         r.flushall()
         logger.info("✅ Redis cleared.")
     except Exception as e:
         logger.warning(f"⚠️ Redis cleanup failed: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(cleanup())

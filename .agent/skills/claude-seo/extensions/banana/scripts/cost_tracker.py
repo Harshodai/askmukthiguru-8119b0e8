@@ -62,12 +62,18 @@ def _lookup_cost(model, resolution, batch=False):
                 model_pricing = PRICING[key]
                 break
     if not model_pricing:
-        print(f"Warning: Unknown model '{model}', using 3.1 Flash pricing", file=sys.stderr)
+        print(
+            f"Warning: Unknown model '{model}', using 3.1 Flash pricing",
+            file=sys.stderr,
+        )
         model_pricing = PRICING["gemini-3.1-flash-image-preview"]
 
     valid_resolutions = {"512", "1K", "2K", "4K"}
     if resolution not in valid_resolutions:
-        print(f"Warning: Unknown resolution '{resolution}', using 1K pricing", file=sys.stderr)
+        print(
+            f"Warning: Unknown resolution '{resolution}', using 1K pricing",
+            file=sys.stderr,
+        )
     cost = model_pricing.get(resolution, model_pricing.get("1K", 0.039))
     if batch:
         cost *= BATCH_DISCOUNT
@@ -99,8 +105,16 @@ def cmd_log(args):
     ledger["daily"][today]["cost"] = round(ledger["daily"][today]["cost"] + cost, 4)
 
     _save_ledger(ledger)
-    print(json.dumps({"logged": True, "cost": cost, "total_cost": ledger["total_cost"],
-                       "total_images": ledger["total_images"]}))
+    print(
+        json.dumps(
+            {
+                "logged": True,
+                "cost": cost,
+                "total_cost": ledger["total_cost"],
+                "total_images": ledger["total_images"],
+            }
+        )
+    )
 
 
 def cmd_summary(args):
@@ -160,7 +174,9 @@ def main():
     # log
     p_log = sub.add_parser("log", help="Log a generation")
     p_log.add_argument("--model", required=True, help="Model ID")
-    p_log.add_argument("--resolution", required=True, help="Resolution (512, 1K, 2K, 4K)")
+    p_log.add_argument(
+        "--resolution", required=True, help="Resolution (512, 1K, 2K, 4K)"
+    )
     p_log.add_argument("--prompt", required=True, help="Brief prompt description")
     p_log.add_argument("--batch", action="store_true", help="Batch API (50%% discount)")
 
@@ -173,17 +189,26 @@ def main():
     # estimate
     p_est = sub.add_parser("estimate", help="Estimate batch cost")
     p_est.add_argument("--model", required=True, help="Model ID")
-    p_est.add_argument("--resolution", required=True, help="Resolution (512, 1K, 2K, 4K)")
+    p_est.add_argument(
+        "--resolution", required=True, help="Resolution (512, 1K, 2K, 4K)"
+    )
     p_est.add_argument("--count", required=True, type=int, help="Number of images")
-    p_est.add_argument("--batch", action="store_true", help="Use batch pricing (50%% discount)")
+    p_est.add_argument(
+        "--batch", action="store_true", help="Use batch pricing (50%% discount)"
+    )
 
     # reset
     p_reset = sub.add_parser("reset", help="Reset cost ledger")
     p_reset.add_argument("--confirm", action="store_true", help="Confirm reset")
 
     args = parser.parse_args()
-    cmds = {"log": cmd_log, "summary": cmd_summary, "today": cmd_today,
-            "estimate": cmd_estimate, "reset": cmd_reset}
+    cmds = {
+        "log": cmd_log,
+        "summary": cmd_summary,
+        "today": cmd_today,
+        "estimate": cmd_estimate,
+        "reset": cmd_reset,
+    }
     cmds[args.command](args)
 
 

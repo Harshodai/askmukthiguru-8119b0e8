@@ -62,8 +62,8 @@ export const SafetyDisclaimer = () => {
 
               {/* Message */}
               <p className="text-muted-foreground text-center leading-relaxed mb-6">
-                AskMukthiGuru is an AI spiritual companion inspired by the teachings of 
-                Sri Preethaji & Sri Krishnaji. It offers wisdom and guidance on your 
+                AskMukthiGuru is an AI spiritual companion inspired by the teachings of
+                Sri Preethaji & Sri Krishnaji. It offers wisdom and guidance on your
                 journey toward inner peace.
               </p>
 
@@ -74,8 +74,8 @@ export const SafetyDisclaimer = () => {
                   <div className="text-sm">
                     <p className="font-medium text-destructive mb-1">Important Notice</p>
                     <p className="text-muted-foreground">
-                      This is <strong>not</strong> a replacement for professional mental health 
-                      support, medical advice, or therapy. If you're experiencing a crisis, 
+                      This is <strong>not</strong> a replacement for professional mental health
+                      support, medical advice, or therapy. If you're experiencing a crisis,
                       please reach out to a qualified professional or crisis helpline.
                     </p>
                   </div>

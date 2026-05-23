@@ -6,6 +6,7 @@ Optimizer, or other JS lazy-loaders strip the native `loading="lazy"` attribute
 and replace `src` with a placeholder + a data attribute. A check on `loading`
 alone reports "not lazy-loaded" when the page is heavily lazy-loaded.
 """
+
 import sys
 from pathlib import Path
 

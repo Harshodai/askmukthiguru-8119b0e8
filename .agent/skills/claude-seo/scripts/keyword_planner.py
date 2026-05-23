@@ -35,6 +35,7 @@ from typing import Optional
 try:
     from google.ads.googleads.client import GoogleAdsClient
     from google.ads.googleads.errors import GoogleAdsException
+
     HAS_GOOGLE_ADS = True
 except ImportError:
     HAS_GOOGLE_ADS = False
@@ -154,27 +155,41 @@ def generate_keyword_ideas(
             metrics = idea.keyword_idea_metrics
             monthly_volumes = []
             for mv in metrics.monthly_search_volumes:
-                monthly_volumes.append({
-                    "year": mv.year,
-                    "month": mv.month,
-                    "volume": mv.monthly_searches,
-                })
+                monthly_volumes.append(
+                    {
+                        "year": mv.year,
+                        "month": mv.month,
+                        "volume": mv.monthly_searches,
+                    }
+                )
 
-            result["ideas"].append({
-                "keyword": idea.text,
-                "avg_monthly_searches": metrics.avg_monthly_searches,
-                "competition": metrics.competition.name if metrics.competition else "UNSPECIFIED",
-                "competition_index": metrics.competition_index,
-                "low_top_of_page_bid": metrics.low_top_of_page_bid_micros / 1_000_000 if metrics.low_top_of_page_bid_micros else None,
-                "high_top_of_page_bid": metrics.high_top_of_page_bid_micros / 1_000_000 if metrics.high_top_of_page_bid_micros else None,
-                "monthly_volumes": monthly_volumes[-12:] if monthly_volumes else [],
-            })
+            result["ideas"].append(
+                {
+                    "keyword": idea.text,
+                    "avg_monthly_searches": metrics.avg_monthly_searches,
+                    "competition": metrics.competition.name
+                    if metrics.competition
+                    else "UNSPECIFIED",
+                    "competition_index": metrics.competition_index,
+                    "low_top_of_page_bid": metrics.low_top_of_page_bid_micros
+                    / 1_000_000
+                    if metrics.low_top_of_page_bid_micros
+                    else None,
+                    "high_top_of_page_bid": metrics.high_top_of_page_bid_micros
+                    / 1_000_000
+                    if metrics.high_top_of_page_bid_micros
+                    else None,
+                    "monthly_volumes": monthly_volumes[-12:] if monthly_volumes else [],
+                }
+            )
 
             if len(result["ideas"]) >= limit:
                 break
 
         # Sort by volume descending
-        result["ideas"].sort(key=lambda k: k.get("avg_monthly_searches", 0) or 0, reverse=True)
+        result["ideas"].sort(
+            key=lambda k: k.get("avg_monthly_searches", 0) or 0, reverse=True
+        )
 
     except GoogleAdsException as e:
         errors = [err.message for err in e.failure.errors]
@@ -226,14 +241,24 @@ def get_keyword_volumes(
 
         for kw_result in response.results:
             metrics = kw_result.keyword_metrics
-            result["keywords"].append({
-                "keyword": kw_result.text,
-                "avg_monthly_searches": metrics.avg_monthly_searches,
-                "competition": metrics.competition.name if metrics.competition else "UNSPECIFIED",
-                "competition_index": metrics.competition_index,
-                "low_top_of_page_bid": metrics.low_top_of_page_bid_micros / 1_000_000 if metrics.low_top_of_page_bid_micros else None,
-                "high_top_of_page_bid": metrics.high_top_of_page_bid_micros / 1_000_000 if metrics.high_top_of_page_bid_micros else None,
-            })
+            result["keywords"].append(
+                {
+                    "keyword": kw_result.text,
+                    "avg_monthly_searches": metrics.avg_monthly_searches,
+                    "competition": metrics.competition.name
+                    if metrics.competition
+                    else "UNSPECIFIED",
+                    "competition_index": metrics.competition_index,
+                    "low_top_of_page_bid": metrics.low_top_of_page_bid_micros
+                    / 1_000_000
+                    if metrics.low_top_of_page_bid_micros
+                    else None,
+                    "high_top_of_page_bid": metrics.high_top_of_page_bid_micros
+                    / 1_000_000
+                    if metrics.high_top_of_page_bid_micros
+                    else None,
+                }
+            )
 
     except GoogleAdsException as e:
         errors = [err.message for err in e.failure.errors]
@@ -254,19 +279,32 @@ def main():
         help="Command: ideas (keyword suggestions), volume (search volume lookup)",
     )
     parser.add_argument("keywords", help="Seed keyword(s), comma-separated for volume")
-    parser.add_argument("--limit", type=int, default=50, help="Max results for ideas (default: 50)")
-    parser.add_argument("--language", default="1000", help="Language ID (default: 1000 = English)")
-    parser.add_argument("--location", default="2840", help="Location ID (default: 2840 = US)")
+    parser.add_argument(
+        "--limit", type=int, default=50, help="Max results for ideas (default: 50)"
+    )
+    parser.add_argument(
+        "--language", default="1000", help="Language ID (default: 1000 = English)"
+    )
+    parser.add_argument(
+        "--location", default="2840", help="Location ID (default: 2840 = US)"
+    )
     parser.add_argument("--json", "-j", action="store_true", help="Output as JSON")
 
     args = parser.parse_args()
 
     if args.command == "ideas":
         seeds = [k.strip() for k in args.keywords.split(",")]
-        result = generate_keyword_ideas(seeds, language_id=args.language, location_id=args.location, limit=args.limit)
+        result = generate_keyword_ideas(
+            seeds,
+            language_id=args.language,
+            location_id=args.location,
+            limit=args.limit,
+        )
     elif args.command == "volume":
         kws = [k.strip() for k in args.keywords.split(",")]
-        result = get_keyword_volumes(kws, language_id=args.language, location_id=args.location)
+        result = get_keyword_volumes(
+            kws, language_id=args.language, location_id=args.location
+        )
 
     if result.get("error"):
         print(f"Error: {result['error']}", file=sys.stderr)
@@ -277,16 +315,20 @@ def main():
         print(json.dumps(result, indent=2, default=str))
     else:
         if args.command == "ideas":
-            print(f"=== Keyword Ideas ===")
+            print("=== Keyword Ideas ===")
             for i, idea in enumerate(result.get("ideas", [])[:20], 1):
                 vol = idea.get("avg_monthly_searches", "?")
                 comp = idea.get("competition", "?")
                 bid_low = idea.get("low_top_of_page_bid")
                 bid_high = idea.get("high_top_of_page_bid")
-                bid_str = f"${bid_low:.2f}-${bid_high:.2f}" if bid_low and bid_high else "N/A"
-                print(f"  {i:2d}. {idea['keyword']:40s} | Vol: {vol:>8} | Comp: {comp:8s} | CPC: {bid_str}")
+                bid_str = (
+                    f"${bid_low:.2f}-${bid_high:.2f}" if bid_low and bid_high else "N/A"
+                )
+                print(
+                    f"  {i:2d}. {idea['keyword']:40s} | Vol: {vol:>8} | Comp: {comp:8s} | CPC: {bid_str}"
+                )
         elif args.command == "volume":
-            print(f"=== Keyword Volumes ===")
+            print("=== Keyword Volumes ===")
             for kw in result.get("keywords", []):
                 vol = kw.get("avg_monthly_searches", "?")
                 comp = kw.get("competition", "?")

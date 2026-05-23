@@ -128,7 +128,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 }`}
               >
                 {isGuru ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none 
+                  <div className="prose prose-sm dark:prose-invert max-w-none
                     prose-p:mb-2.5 prose-p:mt-0 prose-p:leading-relaxed
                     prose-li:mb-1 prose-strong:text-ojas prose-strong:font-semibold
                     prose-headings:text-foreground prose-headings:font-bold prose-headings:text-base prose-headings:mb-2
@@ -154,8 +154,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   {citations
                     .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
                     .map((url, i) => {
-                      const videoId = url.includes('v=') 
-                        ? url.split('v=')[1]?.split('&')[0] 
+                      const videoId = url.includes('v=')
+                        ? url.split('v=')[1]?.split('&')[0]
                         : url.split('/').pop();
                       if (!videoId) return null;
                       return (

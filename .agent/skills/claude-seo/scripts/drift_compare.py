@@ -27,7 +27,6 @@ sys.path.insert(0, SCRIPTS_DIR)
 
 from google_auth import validate_url  # noqa: E402
 from drift_baseline import (  # noqa: E402
-    DB_PATH,
     fetch_cwv_data,
     fetch_page_data,
     hash_content,
@@ -41,7 +40,10 @@ from drift_baseline import (  # noqa: E402
 # Baseline loading
 # ---------------------------------------------------------------------------
 
-def load_baseline(conn: sqlite3.Connection, uhash: str, baseline_id: int | None = None) -> dict | None:
+
+def load_baseline(
+    conn: sqlite3.Connection, uhash: str, baseline_id: int | None = None
+) -> dict | None:
     """
     Load the most recent baseline for a URL hash, or a specific baseline by ID.
 
@@ -61,7 +63,9 @@ def load_baseline(conn: sqlite3.Connection, uhash: str, baseline_id: int | None 
     if not row:
         return None
 
-    columns = [desc[0] for desc in conn.execute("SELECT * FROM baselines LIMIT 0").description]
+    columns = [
+        desc[0] for desc in conn.execute("SELECT * FROM baselines LIMIT 0").description
+    ]
     return dict(zip(columns, row))
 
 
@@ -69,7 +73,10 @@ def load_baseline(conn: sqlite3.Connection, uhash: str, baseline_id: int | None 
 # Comparison rules
 # ---------------------------------------------------------------------------
 
-def _make_finding(rule: str, severity: str, triggered: bool, old_value, new_value, message: str) -> dict:
+
+def _make_finding(
+    rule: str, severity: str, triggered: bool, old_value, new_value, message: str
+) -> dict:
     """Create a standardized finding dict."""
     return {
         "rule": rule,
@@ -87,11 +94,14 @@ def rule_01_schema_removed(baseline: dict, current: dict) -> dict:
     new_schema = current.get("schema", [])
     triggered = len(old_schema) > 0 and len(new_schema) == 0
     return _make_finding(
-        "schema_removed", "CRITICAL", triggered,
+        "schema_removed",
+        "CRITICAL",
+        triggered,
         f"{len(old_schema)} schema block(s)",
         "0 schema blocks",
         "All structured data (JSON-LD) has been removed. Rich results will be lost. Restore immediately."
-        if triggered else "Schema presence unchanged.",
+        if triggered
+        else "Schema presence unchanged.",
     )
 
 
@@ -101,10 +111,14 @@ def rule_02_canonical_changed(baseline: dict, current: dict) -> dict:
     new = current.get("canonical")
     triggered = old is not None and new is not None and old != new
     return _make_finding(
-        "canonical_changed", "CRITICAL", triggered,
-        old, new,
+        "canonical_changed",
+        "CRITICAL",
+        triggered,
+        old,
+        new,
         f"Canonical URL changed from '{old}' to '{new}'. Verify this is intentional."
-        if triggered else "Canonical URL unchanged.",
+        if triggered
+        else "Canonical URL unchanged.",
     )
 
 
@@ -114,10 +128,14 @@ def rule_03_canonical_removed(baseline: dict, current: dict) -> dict:
     new = current.get("canonical")
     triggered = old is not None and (new is None or new == "")
     return _make_finding(
-        "canonical_removed", "CRITICAL", triggered,
-        old, None,
+        "canonical_removed",
+        "CRITICAL",
+        triggered,
+        old,
+        None,
         "Canonical tag has been removed. Google will guess the canonical, often incorrectly."
-        if triggered else "Canonical tag presence unchanged.",
+        if triggered
+        else "Canonical tag presence unchanged.",
     )
 
 
@@ -127,10 +145,14 @@ def rule_04_noindex_added(baseline: dict, current: dict) -> dict:
     new_robots = (current.get("meta_robots") or "").lower()
     triggered = "noindex" not in old_robots and "noindex" in new_robots
     return _make_finding(
-        "noindex_added", "CRITICAL", triggered,
-        baseline.get("robots"), current.get("meta_robots"),
+        "noindex_added",
+        "CRITICAL",
+        triggered,
+        baseline.get("robots"),
+        current.get("meta_robots"),
         "A 'noindex' directive has been added. The page will be dropped from search results within days."
-        if triggered else "Robots directives unchanged regarding noindex.",
+        if triggered
+        else "Robots directives unchanged regarding noindex.",
     )
 
 
@@ -140,10 +162,14 @@ def rule_05_h1_removed(baseline: dict, current: dict) -> dict:
     new_h1_list = current.get("h1", [])
     triggered = old_h1 is not None and old_h1 != "" and len(new_h1_list) == 0
     return _make_finding(
-        "h1_removed", "CRITICAL", triggered,
-        old_h1, None,
+        "h1_removed",
+        "CRITICAL",
+        triggered,
+        old_h1,
+        None,
         "H1 heading has been removed. Primary topic signal for search engines is gone."
-        if triggered else "H1 presence unchanged.",
+        if triggered
+        else "H1 presence unchanged.",
     )
 
 
@@ -154,15 +180,26 @@ def rule_06_h1_changed_significantly(baseline: dict, current: dict) -> dict:
     new_h1 = new_h1_list[0] if new_h1_list else ""
 
     if not old_h1 or not new_h1:
-        return _make_finding("h1_changed", "CRITICAL", False, old_h1, new_h1, "H1 comparison skipped (one side empty).")
+        return _make_finding(
+            "h1_changed",
+            "CRITICAL",
+            False,
+            old_h1,
+            new_h1,
+            "H1 comparison skipped (one side empty).",
+        )
 
     ratio = SequenceMatcher(None, old_h1, new_h1).ratio()
     triggered = ratio < 0.5
     return _make_finding(
-        "h1_changed", "CRITICAL", triggered,
-        old_h1, new_h1,
+        "h1_changed",
+        "CRITICAL",
+        triggered,
+        old_h1,
+        new_h1,
         f"H1 changed significantly (similarity: {ratio:.0%}). Verify keyword targeting is preserved."
-        if triggered else f"H1 text is similar enough (similarity: {ratio:.0%}).",
+        if triggered
+        else f"H1 text is similar enough (similarity: {ratio:.0%}).",
     )
 
 
@@ -172,10 +209,14 @@ def rule_07_title_removed(baseline: dict, current: dict) -> dict:
     new = current.get("title")
     triggered = old is not None and old != "" and (new is None or new == "")
     return _make_finding(
-        "title_removed", "CRITICAL", triggered,
-        old, None,
+        "title_removed",
+        "CRITICAL",
+        triggered,
+        old,
+        None,
         "Title tag has been removed. Google will auto-generate one, often poorly."
-        if triggered else "Title tag presence unchanged.",
+        if triggered
+        else "Title tag presence unchanged.",
     )
 
 
@@ -187,10 +228,14 @@ def rule_08_status_code_error(baseline: dict, current_status: int | None) -> dic
     new_error = new is not None and new >= 400
     triggered = old_ok and new_error
     return _make_finding(
-        "status_code_error", "CRITICAL", triggered,
-        old, new,
+        "status_code_error",
+        "CRITICAL",
+        triggered,
+        old,
+        new,
         f"Page now returns HTTP {new} (was {old}). Rankings will drop within days."
-        if triggered else f"Status code: {old} -> {new}.",
+        if triggered
+        else f"Status code: {old} -> {new}.",
     )
 
 
@@ -201,10 +246,14 @@ def rule_09_title_changed(baseline: dict, current: dict) -> dict:
     # Only trigger if both exist and differ (removal is Rule 7)
     triggered = old != "" and new != "" and old != new
     return _make_finding(
-        "title_changed", "WARNING", triggered,
-        old, new,
+        "title_changed",
+        "WARNING",
+        triggered,
+        old,
+        new,
         "Title tag text has changed. Monitor CTR in Search Console over 2 weeks."
-        if triggered else "Title text unchanged.",
+        if triggered
+        else "Title text unchanged.",
     )
 
 
@@ -214,11 +263,14 @@ def rule_10_meta_description_changed(baseline: dict, current: dict) -> dict:
     new = (current.get("meta_description") or "").strip()
     triggered = old != "" and new != "" and old != new
     return _make_finding(
-        "meta_description_changed", "WARNING", triggered,
+        "meta_description_changed",
+        "WARNING",
+        triggered,
         old[:120] + ("..." if len(old) > 120 else ""),
         new[:120] + ("..." if len(new) > 120 else ""),
         "Meta description has changed. Verify it includes target keywords and CTA."
-        if triggered else "Meta description unchanged.",
+        if triggered
+        else "Meta description unchanged.",
     )
 
 
@@ -226,27 +278,43 @@ def rule_11_cwv_regressed(baseline: dict, current_cwv: dict | None) -> dict:
     """WARNING: Core Web Vitals metric regressed >20%."""
     old_cwv = json.loads(baseline.get("cwv_json") or "null")
     if not old_cwv or not current_cwv:
-        return _make_finding("cwv_regressed", "WARNING", False, None, None, "CWV comparison skipped (data unavailable).")
+        return _make_finding(
+            "cwv_regressed",
+            "WARNING",
+            False,
+            None,
+            None,
+            "CWV comparison skipped (data unavailable).",
+        )
 
     regressions = []
     old_lab = old_cwv.get("lab_metrics", {})
     new_lab = current_cwv.get("lab_metrics", {})
 
-    for metric_id in ["largest-contentful-paint", "cumulative-layout-shift", "total-blocking-time"]:
+    for metric_id in [
+        "largest-contentful-paint",
+        "cumulative-layout-shift",
+        "total-blocking-time",
+    ]:
         old_val = old_lab.get(metric_id, {}).get("value")
         new_val = new_lab.get(metric_id, {}).get("value")
         if old_val is not None and new_val is not None and old_val > 0:
             pct_change = (new_val - old_val) / old_val
             if pct_change > 0.20:  # >20% worse (higher is worse for all these)
-                regressions.append(f"{metric_id}: {old_val:.0f} -> {new_val:.0f} (+{pct_change:.0%})")
+                regressions.append(
+                    f"{metric_id}: {old_val:.0f} -> {new_val:.0f} (+{pct_change:.0%})"
+                )
 
     triggered = len(regressions) > 0
     return _make_finding(
-        "cwv_regressed", "WARNING", triggered,
+        "cwv_regressed",
+        "WARNING",
+        triggered,
         {k: v.get("value") for k, v in old_lab.items()} if old_lab else None,
         {k: v.get("value") for k, v in new_lab.items()} if new_lab else None,
         f"CWV regressions detected: {'; '.join(regressions)}"
-        if triggered else "No significant CWV regressions.",
+        if triggered
+        else "No significant CWV regressions.",
     )
 
 
@@ -254,20 +322,38 @@ def rule_12_performance_score_dropped(baseline: dict, current_cwv: dict | None) 
     """WARNING: CWV performance score dropped 10+ points."""
     old_cwv = json.loads(baseline.get("cwv_json") or "null")
     if not old_cwv or not current_cwv:
-        return _make_finding("perf_score_dropped", "WARNING", False, None, None, "Performance score comparison skipped.")
+        return _make_finding(
+            "perf_score_dropped",
+            "WARNING",
+            False,
+            None,
+            None,
+            "Performance score comparison skipped.",
+        )
 
     old_score = old_cwv.get("performance_score")
     new_score = current_cwv.get("performance_score")
     if old_score is None or new_score is None:
-        return _make_finding("perf_score_dropped", "WARNING", False, old_score, new_score, "Performance score unavailable.")
+        return _make_finding(
+            "perf_score_dropped",
+            "WARNING",
+            False,
+            old_score,
+            new_score,
+            "Performance score unavailable.",
+        )
 
     drop = old_score - new_score
     triggered = drop >= 10
     return _make_finding(
-        "perf_score_dropped", "WARNING", triggered,
-        old_score, new_score,
+        "perf_score_dropped",
+        "WARNING",
+        triggered,
+        old_score,
+        new_score,
         f"Performance score dropped {drop} points ({old_score} -> {new_score}). Run full PageSpeed analysis."
-        if triggered else f"Performance score: {old_score} -> {new_score} (change: {-drop:+d}).",
+        if triggered
+        else f"Performance score: {old_score} -> {new_score} (change: {-drop:+d}).",
     )
 
 
@@ -277,11 +363,14 @@ def rule_13_og_tags_removed(baseline: dict, current: dict) -> dict:
     new_og = current.get("open_graph", {})
     triggered = len(old_og) > 0 and len(new_og) == 0
     return _make_finding(
-        "og_tags_removed", "WARNING", triggered,
+        "og_tags_removed",
+        "WARNING",
+        triggered,
         list(old_og.keys()),
         [],
         "All Open Graph tags have been removed. Social sharing will show generic previews."
-        if triggered else "OG tags presence unchanged.",
+        if triggered
+        else "OG tags presence unchanged.",
     )
 
 
@@ -293,17 +382,16 @@ def rule_14_schema_modified(baseline: dict, current: dict) -> dict:
     new_hash = hash_content(new_schema_str) if new_schema else None
 
     # Only trigger if schema exists in both and hash differs (removal is Rule 1)
-    triggered = (
-        old_hash is not None
-        and new_hash is not None
-        and old_hash != new_hash
-    )
+    triggered = old_hash is not None and new_hash is not None and old_hash != new_hash
     return _make_finding(
-        "schema_modified", "WARNING", triggered,
+        "schema_modified",
+        "WARNING",
+        triggered,
         old_hash[:12] + "..." if old_hash else None,
         new_hash[:12] + "..." if new_hash else None,
         "Schema/JSON-LD content has been modified. Validate with /seo schema."
-        if triggered else "Schema content hash unchanged.",
+        if triggered
+        else "Schema content hash unchanged.",
     )
 
 
@@ -313,11 +401,14 @@ def rule_15_schema_added(baseline: dict, current: dict) -> dict:
     new_schema = current.get("schema", [])
     triggered = len(old_schema) == 0 and len(new_schema) > 0
     return _make_finding(
-        "schema_added", "INFO", triggered,
+        "schema_added",
+        "INFO",
+        triggered,
         "0 schema blocks",
         f"{len(new_schema)} schema block(s)",
         "New structured data added. Validate with /seo schema."
-        if triggered else "No new schema added.",
+        if triggered
+        else "No new schema added.",
     )
 
 
@@ -327,11 +418,14 @@ def rule_16_h2_structure_changed(baseline: dict, current: dict) -> dict:
     new_h2 = current.get("h2", [])
     triggered = old_h2 != new_h2
     return _make_finding(
-        "h2_structure_changed", "INFO", triggered,
+        "h2_structure_changed",
+        "INFO",
+        triggered,
         f"{len(old_h2)} H2s",
         f"{len(new_h2)} H2s",
         f"H2 heading structure changed ({len(old_h2)} -> {len(new_h2)} headings)."
-        if triggered else "H2 structure unchanged.",
+        if triggered
+        else "H2 structure unchanged.",
     )
 
 
@@ -344,11 +438,14 @@ def rule_17_content_hash_changed(baseline: dict, current_html_hash: str | None) 
         and old_hash != current_html_hash
     )
     return _make_finding(
-        "content_hash_changed", "INFO", triggered,
+        "content_hash_changed",
+        "INFO",
+        triggered,
         old_hash[:12] + "..." if old_hash else None,
         current_html_hash[:12] + "..." if current_html_hash else None,
         "Page content has changed (HTML body hash differs from baseline)."
-        if triggered else "Page content hash unchanged.",
+        if triggered
+        else "Page content hash unchanged.",
     )
 
 
@@ -356,7 +453,10 @@ def rule_17_content_hash_changed(baseline: dict, current_html_hash: str | None) 
 # Main comparison
 # ---------------------------------------------------------------------------
 
-def run_comparison(url: str, skip_cwv: bool = False, baseline_id: int | None = None) -> dict:
+
+def run_comparison(
+    url: str, skip_cwv: bool = False, baseline_id: int | None = None
+) -> dict:
     """
     Compare current page state to stored baseline.
 
@@ -370,7 +470,9 @@ def run_comparison(url: str, skip_cwv: bool = False, baseline_id: int | None = N
     """
     # Validate URL (SSRF protection)
     if not validate_url(url):
-        return {"error": "URL rejected: only public http/https URLs are accepted (SSRF protection)"}
+        return {
+            "error": "URL rejected: only public http/https URLs are accepted (SSRF protection)"
+        }
 
     uhash = url_hash(url)
     norm_url = normalize_url(url)
@@ -499,6 +601,7 @@ def run_comparison(url: str, skip_cwv: bool = False, baseline_id: int | None = N
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compare current page state to stored SEO baseline"
@@ -517,7 +620,9 @@ def main():
     )
 
     args = parser.parse_args()
-    result = run_comparison(args.url, skip_cwv=args.skip_cwv, baseline_id=args.baseline_id)
+    result = run_comparison(
+        args.url, skip_cwv=args.skip_cwv, baseline_id=args.baseline_id
+    )
 
     print(json.dumps(result, indent=2))
 

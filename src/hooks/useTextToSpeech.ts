@@ -35,13 +35,13 @@ const languageMap: Record<string, string[]> = LANGUAGES.reduce(
 
 export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechReturn => {
   const { lang = 'en', rate = 0.9, pitch = 1, volume = 1, speaker, onError } = options;
-  
+
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [currentVoice, setCurrentVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const sarvamAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -62,7 +62,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     };
 
     loadVoices();
-    
+
     // Voices may load asynchronously
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
@@ -76,7 +76,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     if (voices.length === 0) return;
 
     const preferredLangs = languageMap[lang] || languageMap.en;
-    
+
     for (const preferredLang of preferredLangs) {
       const matchingVoice = voices.find(
         (voice) => voice.lang.startsWith(preferredLang.split('-')[0]) || voice.lang === preferredLang
@@ -95,7 +95,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
   const speak = useCallback(
     (text: string) => {
       setError(null);
-      
+
       // Stop any existing Sarvam audio
       if (sarvamAudioRef.current) {
         sarvamAudioRef.current.pause();

@@ -175,7 +175,7 @@ Any new protected endpoint MUST use `get_current_user_from_supabase`. Do not add
 
 ### Code-Review-Graph MCP "Context Canceled" Error
 **Symptom**: `code-review-graph: INFO Starting MCP server 'code-review-graph' with transport 'stdio' : context canceled` appears in IDE logs.
-**Root Cause**: This is **NOT** a bug in the MCP server. It happens when the IDE (Antigravity/Claude/Windsurf) restarts or terminates the `stdio` connection abruptly. 
+**Root Cause**: This is **NOT** a bug in the MCP server. It happens when the IDE (Antigravity/Claude/Windsurf) restarts or terminates the `stdio` connection abruptly.
 **Fix**: No action needed if it reconnects. If it fails to connect entirely, ensure the `mcp_config.json` is properly formatted with the correct path to `.venv/bin/code-review-graph`. An empty or unparseable JSON file will cause the IDE to fail to register the server.
 **Root Cause**: The Vite build bakes `VITE_*` env vars at **build time**, not runtime. After code changes, the frontend container must be **rebuilt** (not just restarted) to pick up new env vars or to fix any build-time configuration issues.
 
@@ -385,7 +385,7 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   caffeinate_proc = subprocess.Popen(["caffeinate", "-w", str(os.getpid())])
   ```
   This spawns a background `caffeinate` process that monitors the current Python script's PID. It keeps the computer fully awake for the exact duration of the ingestion and automatically self-terminates when the Python process completes or exits.
-- **Resilient Multi-Source De-duplication**: 
+- **Resilient Multi-Source De-duplication**:
   - **In-Memory Filtering**: Cross-playlist de-duplication keeps track of queued video IDs globally to ensure any video duplicated across different playlists is only processed exactly **once**.
   - **Persistent State Saving**: Storing successfully processed video IDs and PDF documents in `/scripts/ingestion_state.json` allows the pipeline to act as a resumable state machine. If interrupted, subsequent runs will immediately skip already processed items, saving immense local CPU, Neural Engine, and network resources.
 ### 20. Unified Metadata Schema & Data Quality (May 2026)
@@ -425,7 +425,7 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 
 ### 28. Robust Sliding-Window API Rate Limiting for Bulk Ingestion (May 2026)
 - **The Problem**: When running highly concurrent bulk ingestion pipelines, developer API subscription keys (like Sarvam Cloud) are often restricted to low requests-per-minute (RPM) limits (e.g., 60 RPM / 1 request per second). Exceeding these limits throws frequent HTTP 429 Too Many Requests errors, causing ingestion failures or slow recovery cycles.
-- **The Solution**: Designed and integrated a thread-safe and async-safe token/interval rate limiter directly inside the `SarvamCloudService` HTTP client wrapper. 
+- **The Solution**: Designed and integrated a thread-safe and async-safe token/interval rate limiter directly inside the `SarvamCloudService` HTTP client wrapper.
   - Implemented an `asyncio.Lock()` to serialize access and track the exact `self._last_request_time`.
   - Added a configurable `SARVAM_RPM_LIMIT` environment variable (defaulting to `60` requests/min).
   - Dynamically calculates the minimum request spacing (`60.0 / SARVAM_RPM_LIMIT = 1.0` second) and injects a non-blocking `asyncio.sleep()` inline prior to each API call.
@@ -459,7 +459,7 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 
 ### 32. Systemic yt-dlp "n challenge" Failures and Smart Error Handling (May 2026)
 - **Problem**: The ingestion pipeline encountered a 99% failure rate with `yt-dlp` throwing "Requested format is not available" errors. This was caused by YouTube's "nsig" challenge, which requires a JavaScript runtime to execute obfuscated JS code dynamically.
-- **Solution**: 
+- **Solution**:
   - Injected explicit `--js-runtimes` and `--remote-components` configuration flags into all `yt-dlp` API calls (both subprocess downloads and Python API usage) to force the use of `node` to resolve the challenges.
   - Implemented smart error classification in `whisper_local_service.py` to differentiate between Authentication/Bot errors, DNS resolution failures, and Format errors. Cookie refreshes are now only triggered on genuine Auth/Bot errors, eliminating 200+ wasted keychain unlock operations during network drops.
   - Removed redundant Whisper transcript processing during the LightRAG step by leveraging cached Qdrant transcript text.

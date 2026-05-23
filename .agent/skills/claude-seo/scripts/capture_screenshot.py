@@ -18,7 +18,9 @@ from urllib.parse import ParseResult, urlparse
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
-    print("Error: playwright required. Install with: pip install playwright && playwright install chromium")
+    print(
+        "Error: playwright required. Install with: pip install playwright && playwright install chromium"
+    )
     sys.exit(1)
 
 
@@ -74,7 +76,9 @@ def capture_screenshot(
     }
 
     if viewport not in VIEWPORTS:
-        result["error"] = f"Invalid viewport: {viewport}. Choose from: {list(VIEWPORTS.keys())}"
+        result["error"] = (
+            f"Invalid viewport: {viewport}. Choose from: {list(VIEWPORTS.keys())}"
+        )
         return result
 
     try:
@@ -89,7 +93,9 @@ def capture_screenshot(
         resolved_ip = socket.gethostbyname(parsed.hostname)
         ip = ipaddress.ip_address(resolved_ip)
         if ip.is_private or ip.is_loopback or ip.is_reserved:
-            result["error"] = f"Blocked: URL resolves to private/internal IP ({resolved_ip})"
+            result["error"] = (
+                f"Blocked: URL resolves to private/internal IP ({resolved_ip})"
+            )
             return result
     except socket.gaierror:
         pass
@@ -128,11 +134,17 @@ def capture_screenshot(
 def main():
     parser = argparse.ArgumentParser(description="Capture web page screenshots")
     parser.add_argument("url", help="URL to capture")
-    parser.add_argument("--output", "-o", default="screenshots", help="Output directory")
+    parser.add_argument(
+        "--output", "-o", default="screenshots", help="Output directory"
+    )
     parser.add_argument("--viewport", "-v", default="desktop", choices=VIEWPORTS.keys())
-    parser.add_argument("--all", "-a", action="store_true", help="Capture all viewports")
+    parser.add_argument(
+        "--all", "-a", action="store_true", help="Capture all viewports"
+    )
     parser.add_argument("--full", "-f", action="store_true", help="Capture full page")
-    parser.add_argument("--timeout", "-t", type=int, default=30000, help="Timeout in ms")
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=30000, help="Timeout in ms"
+    )
 
     args = parser.parse_args()
 
@@ -141,7 +153,10 @@ def main():
     cwd = os.getcwd()
     home = os.path.expanduser("~")
     if not (output_dir.startswith(cwd) or output_dir.startswith(home)):
-        print("Error: Output path must be within current directory or home directory", file=sys.stderr)
+        print(
+            "Error: Output path must be within current directory or home directory",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Create output directory

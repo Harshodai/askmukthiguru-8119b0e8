@@ -185,6 +185,7 @@ async def lifespan(app: FastAPI):
     # 6. Schedule recurring jobs (BE-5)
     def shutdown_scheduler():
         return None
+
     try:
         from infrastructure.scheduler import shutdown_scheduler as _sd
         from infrastructure.scheduler import start_scheduler

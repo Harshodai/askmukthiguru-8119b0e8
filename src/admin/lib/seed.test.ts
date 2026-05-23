@@ -4,7 +4,7 @@ import { generateSeed } from './seed';
 describe('generateSeed', () => {
   it('generates a valid SeedData object with expected collections', () => {
     const seed = generateSeed();
-    
+
     // Check if the object has the expected keys
     expect(seed).toHaveProperty('prompt_versions');
     expect(seed).toHaveProperty('sessions');
@@ -26,20 +26,20 @@ describe('generateSeed', () => {
     expect(seed).toHaveProperty('alert_events');
     expect(seed).toHaveProperty('annotations');
     expect(seed).toHaveProperty('admins');
-    
+
     // Ensure arrays are actually populated
     expect(Array.isArray(seed.prompt_versions)).toBe(true);
     expect(seed.prompt_versions.length).toBeGreaterThan(0);
-    
+
     // Ensure admins are populated
     expect(Array.isArray(seed.admins)).toBe(true);
     expect(seed.admins.length).toBeGreaterThan(0);
   });
-  
+
   it('generates consistent data structures', () => {
     const seed = generateSeed();
     const firstPrompt = seed.prompt_versions[0];
-    
+
     expect(firstPrompt).toHaveProperty('id');
     expect(firstPrompt).toHaveProperty('name');
     expect(firstPrompt).toHaveProperty('version');

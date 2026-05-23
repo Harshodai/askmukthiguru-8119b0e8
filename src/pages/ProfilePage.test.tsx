@@ -83,7 +83,7 @@ describe('ProfilePage', () => {
         <ProfilePage />
       </BrowserRouter>
     );
-    
+
     // Check if profile header or name is rendered
     expect(screen.getByText('Test User')).toBeInTheDocument();
   });
