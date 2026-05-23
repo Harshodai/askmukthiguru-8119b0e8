@@ -12,6 +12,8 @@ import type {
   DataPoint,
   QualityData,
   IngestionHealth,
+  QueryTrace,
+  ChatQuery,
 } from '@/admin/types';
 import * as db from './mockData';
 
@@ -59,13 +61,7 @@ function withDevFallback<T>(
   });
 }
 
-/* ── Helper: throw in production, allow mock only in dev ───────────────── */
-function prodRequired<T>(label: string, mockFn: () => T | Promise<T>): Promise<T> {
-  if (ALLOW_MOCK) {
-    return Promise.resolve(mockFn());
-  }
-  throw new Error(`${label}: backend endpoint not implemented. Mock data is disallowed in production.`);
-}
+
 
 // ── KPIs ────────────────────────────────────────────────────────────────────
 export async function getKpis(filters: QueryFilters): Promise<KpiSnapshot> {
@@ -92,23 +88,20 @@ export async function listQueries(
       const params = new URLSearchParams({ limit: String(filters.limit || 50) });
       return await fetchWithAuth(`/api/admin/traces?${params}`);
     },
-    () => db.listQueries(filters) as any,
+    () => db.listQueries(filters) as Promise<ChatTrace[]>,
   );
 }
 
-export async function getQueryTrace(id: string): Promise<ChatTrace> {
+export async function getQueryTrace(id: string): Promise<QueryTrace> {
   return withDevFallback(
     'getQueryTrace',
     async () => {
-      const traces = await listQueries({ from: new Date(), to: new Date(), limit: 100 });
-      const trace = traces.find((t) => t.id === id);
-      if (!trace) throw new Error(`Trace ${id} not found`);
-      return trace;
+      return await fetchWithAuth(`/api/admin/traces/${id}`);
     },
-    () => {
-      const trace = db.getQueryTrace(id);
-      if (trace) return trace as any;
-      throw new Error(`Trace ${id} not found in mock data`);
+    async () => {
+      const trace = await db.getQueryTrace(id);
+      if (!trace) throw new Error(`Trace ${id} not found in mock data`);
+      return trace;
     },
   );
 }
@@ -124,7 +117,11 @@ export async function listPromptVersions(): Promise<PromptVersion[]> {
 
 // ── Models ─────────────────────────────────────────────────────────────────
 export async function listModels(): Promise<string[]> {
-  return prodRequired('listModels', () => db.listModels());
+  return withDevFallback(
+    'listModels',
+    () => fetchWithAuth('/api/admin/models'),
+    () => db.listModels(),
+  );
 }
 
 // ── Timeseries ──────────────────────────────────────────────────────────────
@@ -134,156 +131,321 @@ export async function getTimeseries(options: {
   to: Date;
   buckets: number;
 }): Promise<DataPoint[]> {
-  return prodRequired('getTimeseries', () => db.getTimeseries(options));
+  return withDevFallback(
+    'getTimeseries',
+    async () => {
+      const params = new URLSearchParams({
+        metric: options.metric,
+        from_date: options.from.toISOString(),
+        to_date: options.to.toISOString(),
+        buckets: String(options.buckets),
+      });
+      return await fetchWithAuth(`/api/admin/timeseries?${params}`);
+    },
+    () => db.getTimeseries(options),
+  );
 }
 
 // ── Triggers ────────────────────────────────────────────────────────────────
 export async function listTriggers(filters: QueryFilters): Promise<TriggerEvent[]> {
-  return prodRequired('listTriggers', () => db.listTriggers({ from: filters.from, to: filters.to }));
+  return withDevFallback(
+    'listTriggers',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+      });
+      return await fetchWithAuth(`/api/admin/triggers?${params}`);
+    },
+    () => db.listTriggers({ from: filters.from, to: filters.to }),
+  );
 }
 
 // ── Safety Events ───────────────────────────────────────────────────────────
 export async function listSafetyEvents(filters: QueryFilters): Promise<SafetyEvent[]> {
-  return prodRequired('listSafetyEvents', () => db.listSafetyEvents({ from: filters.from, to: filters.to }));
+  return withDevFallback(
+    'listSafetyEvents',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+      });
+      return await fetchWithAuth(`/api/admin/safety-events?${params}`);
+    },
+    () => db.listSafetyEvents({ from: filters.from, to: filters.to }),
+  );
 }
 
 // ── Topics ──────────────────────────────────────────────────────────────────
 export async function listTopicClusters(): Promise<TopicCluster[]> {
-  return prodRequired('listTopicClusters', () => db.listTopicClusters() as any);
+  return withDevFallback(
+    'listTopicClusters',
+    () => fetchWithAuth('/api/admin/topic-clusters'),
+    () => db.listTopicClusters() as Promise<TopicCluster[]>,
+  );
 }
 
 // ── Retrieval Health ────────────────────────────────────────────────────────
 export async function getRetrievalHealth(filters: QueryFilters): Promise<RetrievalHealth> {
-  return prodRequired('getRetrievalHealth', async () => {
-    const data = await db.getRetrievalHealth({ from: filters.from, to: filters.to });
-    return {
-      total_retrievals: 0,
-      avg_precision: 0.85,
-      avg_recall: 0.78,
-      hit_rate: 0.92,
-      empty_retrievals: 0,
-      avg_top_score: 0.86,
-      miss_rate: 0.08,
-      avg_chunks_per_query: 3.5,
-      top_missing_topics: [],
-      sources: [],
-      ...data,
-    };
-  });
+  return withDevFallback(
+    'getRetrievalHealth',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+      });
+      return await fetchWithAuth(`/api/admin/retrieval-health?${params}`);
+    },
+    async () => {
+      const data = await db.getRetrievalHealth({ from: filters.from, to: filters.to });
+      return {
+        total_retrievals: 0,
+        avg_precision: 0.85,
+        avg_recall: 0.78,
+        hit_rate: 0.92,
+        empty_retrievals: 0,
+        avg_top_score: 0.86,
+        miss_rate: 0.08,
+        avg_chunks_per_query: 3.5,
+        top_missing_topics: [],
+        sources: [],
+        ...data,
+      };
+    },
+  );
 }
 
 // ── Quality Data ────────────────────────────────────────────────────────────
 export async function getQualityData(filters: QueryFilters): Promise<QualityData> {
-  return prodRequired('getQualityData', async () => {
-    const data = await db.getQualityData({ from: filters.from, to: filters.to });
-    return {
-      faithfulness: 0.92,
-      relevancy: 0.88,
-      safety_score: 0.99,
-      manual_review_score: 0.85,
-      disagreements: [],
-      low_confidence: [],
-      ...data,
-    };
-  });
+  return withDevFallback(
+    'getQualityData',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+      });
+      return await fetchWithAuth(`/api/admin/quality-data?${params}`);
+    },
+    async () => {
+      const data = await db.getQualityData({ from: filters.from, to: filters.to });
+      return {
+        faithfulness: 0.92,
+        relevancy: 0.88,
+        safety_score: 0.99,
+        manual_review_score: 0.85,
+        disagreements: [],
+        low_confidence: [],
+        ...data,
+      };
+    },
+  );
 }
 
 // ── Eval Runs ───────────────────────────────────────────────────────────────
 export async function listEvalRuns() {
-  return prodRequired('listEvalRuns', () => db.listEvalRuns());
+  return withDevFallback(
+    'listEvalRuns',
+    () => fetchWithAuth('/api/admin/eval-runs'),
+    () => db.listEvalRuns(),
+  );
 }
 
 // ── Golden Questions ────────────────────────────────────────────────────────
 export async function listGoldenQuestions() {
-  return prodRequired('listGoldenQuestions', () => db.listGoldenQuestions());
+  return withDevFallback(
+    'listGoldenQuestions',
+    () => fetchWithAuth('/api/admin/golden-questions'),
+    () => db.listGoldenQuestions(),
+  );
 }
 
 // ── Ingestion Runs ──────────────────────────────────────────────────────────
 export async function listIngestionRuns() {
-  return prodRequired('listIngestionRuns', () => db.listIngestionRuns());
+  return withDevFallback(
+    'listIngestionRuns',
+    () => fetchWithAuth('/api/admin/ingestion-runs'),
+    () => db.listIngestionRuns(),
+  );
 }
 
 // ── Alert Rules & Events ──────────────────────────────────────────────────────
 export async function listAlertRules() {
-  return prodRequired('listAlertRules', () => db.listAlertRules());
+  return withDevFallback(
+    'listAlertRules',
+    () => fetchWithAuth('/api/admin/alert-rules'),
+    () => db.listAlertRules(),
+  );
 }
 
 export async function listAlertEvents() {
-  return prodRequired('listAlertEvents', () => db.listAlertEvents());
+  return withDevFallback(
+    'listAlertEvents',
+    () => fetchWithAuth('/api/admin/alert-events'),
+    () => db.listAlertEvents(),
+  );
 }
 
 // ── Annotations ─────────────────────────────────────────────────────────────
 export async function listAnnotations() {
-  return prodRequired('listAnnotations', () => db.listAnnotations());
+  return withDevFallback(
+    'listAnnotations',
+    () => fetchWithAuth('/api/admin/annotations'),
+    () => db.listAnnotations(),
+  );
 }
 
 // ── Admins ────────────────────────────────────────────────────────────────────
 export async function listAdmins() {
-  return prodRequired('listAdmins', () => db.listAdmins());
+  return withDevFallback(
+    'listAdmins',
+    () => fetchWithAuth('/api/admin/admins'),
+    () => db.listAdmins(),
+  );
 }
 
 // ── Model Pricing ───────────────────────────────────────────────────────────
 export async function listModelPricing() {
-  return prodRequired('listModelPricing', () => db.listModelPricing());
+  return withDevFallback(
+    'listModelPricing',
+    () => fetchWithAuth('/api/admin/model-pricing'),
+    () => db.listModelPricing(),
+  );
 }
 
 // ── Top Failures ──────────────────────────────────────────────────────────────
 export async function getTopFailures(filters: QueryFilters, limit: number) {
-  return prodRequired('getTopFailures', () => db.getTopFailures({ from: filters.from, to: filters.to }, limit));
+  return withDevFallback(
+    'getTopFailures',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+        limit: String(limit),
+      });
+      return await fetchWithAuth(`/api/admin/top-failures?${params}`);
+    },
+    () => db.getTopFailures({ from: filters.from, to: filters.to }, limit),
+  );
 }
 
 // ── RAGAS Heatmap ───────────────────────────────────────────────────────────
 export async function getRagasHeatmap(filters: QueryFilters, buckets: number) {
-  return prodRequired('getRagasHeatmap', () => db.getRagasHeatmap({ from: filters.from, to: filters.to }, buckets));
+  return withDevFallback(
+    'getRagasHeatmap',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+        buckets: String(buckets),
+      });
+      return await fetchWithAuth(`/api/admin/ragas-heatmap?${params}`);
+    },
+    () => db.getRagasHeatmap({ from: filters.from, to: filters.to }, buckets),
+  );
 }
 
 // ── Trigger Trend ───────────────────────────────────────────────────────────
 export async function getTriggerTrend(filters: QueryFilters, buckets: number) {
-  return prodRequired('getTriggerTrend', () => db.getTriggerTrend({ from: filters.from, to: filters.to }, buckets));
+  return withDevFallback(
+    'getTriggerTrend',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+        buckets: String(buckets),
+      });
+      return await fetchWithAuth(`/api/admin/trigger-trend?${params}`);
+    },
+    () => db.getTriggerTrend({ from: filters.from, to: filters.to }, buckets),
+  );
 }
 
 // ── Similarity Trend ────────────────────────────────────────────────────────
 export async function getSimilarityTrend(filters: QueryFilters, buckets: number) {
-  return prodRequired('getSimilarityTrend', () => db.getSimilarityTrend({ from: filters.from, to: filters.to }, buckets));
+  return withDevFallback(
+    'getSimilarityTrend',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+        buckets: String(buckets),
+      });
+      return await fetchWithAuth(`/api/admin/similarity-trend?${params}`);
+    },
+    () => db.getSimilarityTrend({ from: filters.from, to: filters.to }, buckets),
+  );
 }
 
 // ── Dead Docs ─────────────────────────────────────────────────────────────────
 export async function getDeadDocs(filters: QueryFilters) {
-  return prodRequired('getDeadDocs', () => db.getDeadDocs({ from: filters.from, to: filters.to }));
+  return withDevFallback(
+    'getDeadDocs',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+      });
+      return await fetchWithAuth(`/api/admin/dead-docs?${params}`);
+    },
+    () => db.getDeadDocs({ from: filters.from, to: filters.to }),
+  );
 }
 
 // ── Empty Retrievals ────────────────────────────────────────────────────────
 export async function getEmptyRetrievals(filters: QueryFilters, limit: number) {
-  return prodRequired('getEmptyRetrievals', () => db.getEmptyRetrievals({ from: filters.from, to: filters.to }, limit));
+  return withDevFallback(
+    'getEmptyRetrievals',
+    async () => {
+      const params = new URLSearchParams({
+        from_date: filters.from.toISOString(),
+        to_date: filters.to.toISOString(),
+        limit: String(limit),
+      });
+      return await fetchWithAuth(`/api/admin/empty-retrievals?${params}`);
+    },
+    () => db.getEmptyRetrievals({ from: filters.from, to: filters.to }, limit),
+  );
 }
 
 // ── Ingestion Health ──────────────────────────────────────────────────────────
 export async function getIngestionHealth(): Promise<IngestionHealth> {
-  return prodRequired('getIngestionHealth', async () => {
-    const data = await db.getIngestionHealth();
-    if (data) return data;
-    return {
-      status: 'healthy',
-      last_run: new Date().toISOString(),
-      indexed_docs: 0,
-      failed_docs: 0,
-      total_runs: 0,
-      ok: 0,
-      partial: 0,
-      failed: 0,
-      total_chunks: 0,
-    };
-  });
+  return withDevFallback(
+    'getIngestionHealth',
+    () => fetchWithAuth('/api/admin/ingestion-health'),
+    async () => {
+      const data = await db.getIngestionHealth();
+      if (data) return data;
+      return {
+        status: 'healthy',
+        last_run: new Date().toISOString(),
+        indexed_docs: 0,
+        failed_docs: 0,
+        total_runs: 0,
+        ok: 0,
+        partial: 0,
+        failed: 0,
+        total_chunks: 0,
+      };
+    },
+  );
 }
 
 // ── Prompt Metrics ────────────────────────────────────────────────────────────
 export async function getPromptMetricsByVersion() {
-  return prodRequired('getPromptMetricsByVersion', () => db.getPromptMetricsByVersion());
+  return withDevFallback(
+    'getPromptMetricsByVersion',
+    () => fetchWithAuth('/api/admin/prompt-metrics'),
+    () => db.getPromptMetricsByVersion(),
+  );
 }
 
 // ── Live Feed ─────────────────────────────────────────────────────────────────
-export async function pollLiveFeed() {
-  return prodRequired('pollLiveFeed', () => db.pollLiveFeed() as any);
+export async function pollLiveFeed(): Promise<ChatTrace[]> {
+  return withDevFallback(
+    'pollLiveFeed',
+    () => fetchWithAuth('/api/admin/live-feed'),
+    () => db.pollLiveFeed() as Promise<ChatTrace[]>,
+  );
 }
 
 // ── Ingestion Submit (wired to backend) ─────────────────────────────────────
