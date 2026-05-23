@@ -394,45 +394,47 @@ class SarvamCloudService:
                                 payload["max_tokens"] = tier_limit
                                 adjustment_attempts += 1
                                 continue
+                            else:
+                                break
                             
-                            # Self-healing for context window limits (HTTP 422)
-                            if resp.status_code == 422 and "exceeds the model context window" in resp.text:
-                                if payload.get("model") == "sarvam-m":
-                                    logger.warning(
-                                        f"Sarvam API context window exceeded for sarvam-m. "
-                                        f"Automatically upgrading model to sarvam-30b and retrying immediately."
-                                    )
-                                    payload["model"] = "sarvam-30b"
-                                    # Cap to sarvam-30b's subscription tier limit (4096)
-                                    payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
-                                    model = "sarvam-30b"  # Update outer scope model variable for logging
-                                    adjustment_attempts += 1
-                                    continue
-                                else:
-                                    # Try parsing the allowed limit and prompt tokens to dynamically cap max_tokens
-                                    m = re.search(
-                                        r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
-                                        resp.text
-                                    )
-                                    if m:
-                                        prompt_t = int(m.group(1))
-                                        window_t = int(m.group(2))
-                                        allowed_max = window_t - prompt_t - 50  # 50 tokens safety margin
-                                        if allowed_max > 0:
-                                            logger.warning(
-                                                f"Sarvam API context window exceeded for {model}. "
-                                                f"Prompt tokens: {prompt_t}, Context window: {window_t}. "
-                                                f"Automatically reducing max_tokens to {allowed_max} and retrying immediately."
-                                            )
-                                            payload["max_tokens"] = allowed_max
-                                            adjustment_attempts += 1
-                                            continue
-                                        else:
-                                            # Cannot fit the prompt even with minimal max_tokens, stop retrying
-                                            break
+                        # Self-healing for context window limits (HTTP 422)
+                        elif resp.status_code == 422 and "exceeds the model context window" in resp.text:
+                            if payload.get("model") == "sarvam-m":
+                                logger.warning(
+                                    f"Sarvam API context window exceeded for sarvam-m. "
+                                    f"Automatically upgrading model to sarvam-30b and retrying immediately."
+                                )
+                                payload["model"] = "sarvam-30b"
+                                # Cap to sarvam-30b's subscription tier limit (4096)
+                                payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
+                                model = "sarvam-30b"  # Update outer scope model variable for logging
+                                adjustment_attempts += 1
+                                continue
+                            else:
+                                # Try parsing the allowed limit and prompt tokens to dynamically cap max_tokens
+                                m = re.search(
+                                    r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
+                                    resp.text
+                                )
+                                if m:
+                                    prompt_t = int(m.group(1))
+                                    window_t = int(m.group(2))
+                                    allowed_max = window_t - prompt_t - 50  # 50 tokens safety margin
+                                    if allowed_max > 0:
+                                        logger.warning(
+                                            f"Sarvam API context window exceeded for {model}. "
+                                            f"Prompt tokens: {prompt_t}, Context window: {window_t}. "
+                                            f"Automatically reducing max_tokens to {allowed_max} and retrying immediately."
+                                        )
+                                        payload["max_tokens"] = allowed_max
+                                        adjustment_attempts += 1
+                                        continue
                                     else:
+                                        # Cannot fit the prompt even with minimal max_tokens, stop retrying
                                         break
-                            
+                                else:
+                                    break
+                        else:
                             # If we succeeded or hit a different status code, break out of adjustment loop
                             break
 
