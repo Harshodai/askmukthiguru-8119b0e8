@@ -179,7 +179,13 @@ const AuthPage = () => {
         navigate('/chat', { replace: true });
       }
       endAuthRun('ok');
+      } catch (err) {
+        console.error('[Auth] handleSession failed', err);
+        redirectingRef.current = false;
+        endAuthRun('error', err instanceof Error ? err.message : String(err));
+      }
     };
+
 
     // Set up auth listener FIRST, then check existing session.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
