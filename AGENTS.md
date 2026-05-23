@@ -4,9 +4,12 @@ This file serves as a knowledge base for AI agents interacting with this workspa
 
 ## Docker Execution on Host
 - **Docker Path**: The Docker binary is not in the default `/usr/local/bin` or `/opt/homebrew/bin`. It is located at `/Users/harshodaikolluru/.docker/bin/docker`.
-- **Command Prefix**: Whenever executing `docker` or `docker compose` commands, agents MUST explicitly set the PATH or use the absolute path.
-  - Example: `export PATH="/Users/harshodaikolluru/.docker/bin:$PATH" && docker compose up -d --build`
+- **Command Prefix & Makefile Usage**: Whenever executing `docker` or `docker compose` commands, agents MUST explicitly set the PATH or use the absolute path. Alternatively, and preferably, use the workspace `Makefile` commands which automatically configure the correct PATH.
+  - **Preferred (Makefile)**: `make docker-rebuild-web` (to rebuild and restart frontend and backend services without data loss or volume purges).
+  - **Other Makefile commands**: `make docker-up` (start full stack), `make docker-down` (stop full stack), `make logs` (view logs).
+  - **Raw Command Example**: `export PATH="/Users/harshodaikolluru/.docker/bin:$PATH" && docker compose up -d --build backend frontend`
 - Failure to do this will result in "unexpected user interaction type: not permission" errors from the agent runner, or `command not found: docker` errors in standard shells.
+
 
 ## Supabase
 - The application stack relies on Supabase for auth and persistence.
