@@ -15,16 +15,13 @@ Usage:
 import logging
 import os
 import subprocess
-import tempfile
-from pathlib import Path
-from typing import Optional
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def download_audio(video_id: str, output_dir: str) -> Optional[str]:
+def download_audio(video_id: str, output_dir: str) -> str | None:
     """
     Download YouTube audio as mono 16kHz MP3 using yt-dlp.
     Returns the path to the downloaded file, or None on failure.
@@ -50,6 +47,7 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
 
         # Resolve Node path for executing JS signature challenges (nsig/n-parameter)
         import shutil
+
         node_path = "/opt/homebrew/bin/node"
         if not os.path.exists(node_path):
             node_path = shutil.which("node")
@@ -60,25 +58,43 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         else:
             logger.warning(f"[{video_id}] JS runtime: node NOT found — nsig challenge may fail")
 
-        cmd.extend([
-            "--remote-components", "ejs:github",
-            "-x",                          # Extract audio only
-            "--audio-format", "mp3",
-            "--audio-quality", "128K",
-            "--postprocessor-args", "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono for STT
-            "--no-playlist",
-            "--quiet",
-            "--no-warnings",
-            "-o", output_template,
-            url,
-        ])
+        cmd.extend(
+            [
+                "--remote-components",
+                "ejs:github",
+                "-x",  # Extract audio only
+                "--audio-format",
+                "mp3",
+                "--audio-quality",
+                "128K",
+                "--postprocessor-args",
+                "ffmpeg:-ar 16000 -ac 1",  # 16kHz mono for STT
+                "--no-playlist",
+                "--quiet",
+                "--no-warnings",
+                "-o",
+                output_template,
+                url,
+            ]
+        )
         return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
     def _classify_error(stderr: str) -> str:
         """Classify yt-dlp stderr into an error category for smart retry logic."""
-        if any(k in stderr for k in ("Failed to resolve", "nodename nor servname", "Network is unreachable", "[Errno 8]")):
+        if any(
+            k in stderr
+            for k in (
+                "Failed to resolve",
+                "nodename nor servname",
+                "Network is unreachable",
+                "[Errno 8]",
+            )
+        ):
             return "dns"
-        if any(k in stderr for k in ("Sign in", "bot", "HTTP Error 403", "403 Forbidden", "This video is private")):
+        if any(
+            k in stderr
+            for k in ("Sign in", "bot", "HTTP Error 403", "403 Forbidden", "This video is private")
+        ):
             return "auth"
         if "Requested format is not available" in stderr:
             return "format"
@@ -86,10 +102,10 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
 
     try:
         result = run_ytdlp(cookie_path)
-        
+
         mp3_path = os.path.join(output_dir, f"{video_id}.mp3")
         success = os.path.exists(mp3_path) and os.path.getsize(mp3_path) > 1000
-        
+
         # Smart retry: only refresh cookies on auth errors, not DNS/format errors
         if not success:
             err_category = _classify_error(result.stderr)
@@ -137,9 +153,9 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
 def transcribe_with_whisper(
     video_id: str,
     audio_path: str,
-    model: Optional[str] = None,
+    model: str | None = None,
     language: str = "en",
-) -> Optional[str]:
+) -> str | None:
     """
     Transcribe audio using local Whisper via mlx-whisper.
 
@@ -158,7 +174,7 @@ def transcribe_with_whisper(
 
     if not model:
         model = settings.whisper_local_model or "mlx-community/whisper-large-v3-turbo"
-        
+
     size_mb = os.path.getsize(audio_path) / (1024 * 1024)
     logger.info(f"[{video_id}] Transcribing {size_mb:.1f}MB audio with local MLX model: {model}...")
 
@@ -186,11 +202,7 @@ def transcribe_with_whisper(
     }
 
     try:
-        result = mlx_whisper.transcribe(
-            audio_path,
-            path_or_hf_repo=model,
-            verbose=False
-        )
+        result = mlx_whisper.transcribe(audio_path, path_or_hf_repo=model, verbose=False)
         text = result.get("text", "").strip()
 
         if not text:
@@ -199,11 +211,11 @@ def transcribe_with_whisper(
 
         # Filter out common Whisper hallucinations (e.g., repeated "Thank you" loops)
         import re
-        
+
         # Remove repeated intro phrases like "Thank you. Thank you. Thank you."
         thank_you_pattern = r"^(Thank you[\.\!\?\s,]*){3,}"
         text = re.sub(thank_you_pattern, "Thank you. ", text, flags=re.IGNORECASE)
-        
+
         # Remove trailing repeated phrases
         trailing_thank_you = r"(Thank you[\.\!\?\s,]*){3,}$"
         text = re.sub(trailing_thank_you, " Thank you.", text, flags=re.IGNORECASE)
@@ -214,7 +226,9 @@ def transcribe_with_whisper(
             text = re.sub(rf"\b{old}\b", new, text, flags=re.IGNORECASE)
 
         word_count = len(text.split())
-        logger.info(f"[{video_id}] ✅ Whisper STT: {len(text)} chars, {word_count} words (domain-corrected)")
+        logger.info(
+            f"[{video_id}] ✅ Whisper STT: {len(text)} chars, {word_count} words (domain-corrected)"
+        )
         return text
 
     except Exception as e:
@@ -255,11 +269,29 @@ def score_transcript(text: str, video_id: str = "") -> float:
 
     # 3. Domain term score (up to 0.2)
     domain_terms = [
-        "enlighten", "consciousness", "meditation", "awareness",
-        "liberation", "freedom", "mind", "suffering", "joy", "presence",
-        "spiritual", "mukthi", "preethaji", "krishnaji", "ekam",
-        "dharma", "karma", "awakening", "wisdom", "inner",
-        "beautiful state", "suffering state", "soul sync",
+        "enlighten",
+        "consciousness",
+        "meditation",
+        "awareness",
+        "liberation",
+        "freedom",
+        "mind",
+        "suffering",
+        "joy",
+        "presence",
+        "spiritual",
+        "mukthi",
+        "preethaji",
+        "krishnaji",
+        "ekam",
+        "dharma",
+        "karma",
+        "awakening",
+        "wisdom",
+        "inner",
+        "beautiful state",
+        "suffering state",
+        "soul sync",
     ]
     found = sum(1 for t in domain_terms if re.search(t, text, re.IGNORECASE))
     domain_score = min(found / 8, 1.0) * 0.2
@@ -281,8 +313,8 @@ def score_transcript(text: str, video_id: str = "") -> float:
 
 
 def council_pick_best(
-    youtube_text: Optional[str],
-    whisper_text: Optional[str],
+    youtube_text: str | None,
+    whisper_text: str | None,
     video_id: str = "",
 ) -> dict:
     """
@@ -292,21 +324,37 @@ def council_pick_best(
     yt_score = score_transcript(youtube_text, video_id) if youtube_text else 0.0
     wh_score = score_transcript(whisper_text, video_id) if whisper_text else 0.0
 
-    logger.info(
-        f"[{video_id}] Council scores — YouTube: {yt_score:.3f}, Whisper: {wh_score:.3f}"
-    )
+    logger.info(f"[{video_id}] Council scores — YouTube: {yt_score:.3f}, Whisper: {wh_score:.3f}")
 
     # Both failed
     if not youtube_text and not whisper_text:
-        return {"text": "", "method": "failed", "youtube_score": 0.0, "whisper_score": 0.0, "winner": "none"}
+        return {
+            "text": "",
+            "method": "failed",
+            "youtube_score": 0.0,
+            "whisper_score": 0.0,
+            "winner": "none",
+        }
 
     # Only one available
     if not youtube_text:
         logger.info(f"[{video_id}] Council: Whisper only (no YouTube captions)")
-        return {"text": whisper_text, "method": "whisper", "youtube_score": 0.0, "whisper_score": wh_score, "winner": "whisper"}
+        return {
+            "text": whisper_text,
+            "method": "whisper",
+            "youtube_score": 0.0,
+            "whisper_score": wh_score,
+            "winner": "whisper",
+        }
     if not whisper_text:
         logger.info(f"[{video_id}] Council: YouTube only (no Whisper STT)")
-        return {"text": youtube_text, "method": "youtube", "youtube_score": yt_score, "whisper_score": 0.0, "winner": "youtube"}
+        return {
+            "text": youtube_text,
+            "method": "youtube",
+            "youtube_score": yt_score,
+            "whisper_score": 0.0,
+            "winner": "youtube",
+        }
 
     gap = abs(yt_score - wh_score)
     both_long = len(youtube_text.split()) > 500 and len(whisper_text.split()) > 500
@@ -314,10 +362,22 @@ def council_pick_best(
     if gap > 0.15:
         if yt_score > wh_score:
             logger.info(f"[{video_id}] Council: YouTube wins (gap={gap:.2f})")
-            return {"text": youtube_text, "method": "youtube", "youtube_score": yt_score, "whisper_score": wh_score, "winner": "youtube"}
+            return {
+                "text": youtube_text,
+                "method": "youtube",
+                "youtube_score": yt_score,
+                "whisper_score": wh_score,
+                "winner": "youtube",
+            }
         else:
             logger.info(f"[{video_id}] Council: Whisper wins (gap={gap:.2f})")
-            return {"text": whisper_text, "method": "whisper", "youtube_score": yt_score, "whisper_score": wh_score, "winner": "whisper"}
+            return {
+                "text": whisper_text,
+                "method": "whisper",
+                "youtube_score": yt_score,
+                "whisper_score": wh_score,
+                "winner": "whisper",
+            }
 
     if both_long:
         # Scores close and both long — Whisper has better punctuation, merge
@@ -326,10 +386,22 @@ def council_pick_best(
             f"[YouTube Captions — additional coverage]\n{youtube_text}"
         )
         logger.info(f"[{video_id}] Council: Merged both sources (gap={gap:.2f}, both long)")
-        return {"text": merged, "method": "merged", "youtube_score": yt_score, "whisper_score": wh_score, "winner": "merged"}
+        return {
+            "text": merged,
+            "method": "merged",
+            "youtube_score": yt_score,
+            "whisper_score": wh_score,
+            "winner": "merged",
+        }
 
     # Close scores, one is short: pick higher scorer
     winner_text = youtube_text if yt_score >= wh_score else whisper_text
     winner_name = "youtube" if yt_score >= wh_score else "whisper"
     logger.info(f"[{video_id}] Council: {winner_name} wins by score (gap={gap:.2f})")
-    return {"text": winner_text, "method": winner_name, "youtube_score": yt_score, "whisper_score": wh_score, "winner": winner_name}
+    return {
+        "text": winner_text,
+        "method": winner_name,
+        "youtube_score": yt_score,
+        "whisper_score": wh_score,
+        "winner": winner_name,
+    }

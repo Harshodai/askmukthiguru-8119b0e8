@@ -19,12 +19,12 @@ Supports both single videos and playlists with sequential extraction (rate-limit
 """
 
 import asyncio
-import os
 import logging
+import os
 import re
 import tempfile
 import time
-from typing import Optional
+from collections.abc import Callable
 
 from app.config import settings
 
@@ -34,24 +34,29 @@ logger = logging.getLogger(__name__)
 def _get_cookies_opts() -> dict:
     """Get yt-dlp cookie options. Falls back to Chrome cookies if cookies.txt is not found."""
     import os
+
     try:
         from services.cookie_helper import ensure_cookies_file
+
         cookie_path = ensure_cookies_file()
         if cookie_path and os.path.exists(cookie_path):
-            return {'cookiefile': cookie_path}
+            return {"cookiefile": cookie_path}
     except Exception as e:
         logger.warning(f"Failed to use automated cookie_helper in youtube_loader: {e}")
 
     possible_paths = [
         os.path.join(os.getcwd(), "cookies.txt"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cookies.txt"),
-        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "cookies.txt",
+        ),
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt",
     ]
     for path in possible_paths:
         if os.path.exists(path):
-            return {'cookiefile': path}
+            return {"cookiefile": path}
     # Fallback to direct Chrome cookie extraction
-    return {'cookiesfrombrowser': ('chrome',)}
+    return {"cookiesfrombrowser": ("chrome",)}
 
 
 def _get_js_runtime_opts() -> dict:
@@ -63,15 +68,16 @@ def _get_js_runtime_opts() -> dict:
     'Requested format is not available'.
     """
     import shutil
+
     node_path = "/opt/homebrew/bin/node"
     if not os.path.exists(node_path):
         node_path = shutil.which("node")
 
     opts = {
-        'remote_components': ['ejs:github'],
+        "remote_components": ["ejs:github"],
     }
     if node_path:
-        opts['js_runtimes'] = {'node': {'path': node_path}}
+        opts["js_runtimes"] = {"node": {"path": node_path}}
         logger.debug(f"JS runtime: node={node_path}")
     else:
         logger.warning("JS runtime: node not found — nsig challenge may fail")
@@ -82,13 +88,14 @@ def _get_js_runtime_opts() -> dict:
 # URL Utilities
 # ============================================================
 
-def extract_video_id(url: str) -> Optional[str]:
+
+def extract_video_id(url: str) -> str | None:
     """Extract YouTube video ID from various URL formats."""
     patterns = [
-        r'(?:v=|/)([0-9A-Za-z_-]{11})(?:\?|&|$)',
-        r'(?:youtu\.be/)([0-9A-Za-z_-]{11})',
-        r'(?:embed/)([0-9A-Za-z_-]{11})',
-        r'(?:shorts/)([0-9A-Za-z_-]{11})',
+        r"(?:v=|/)([0-9A-Za-z_-]{11})(?:\?|&|$)",
+        r"(?:youtu\.be/)([0-9A-Za-z_-]{11})",
+        r"(?:embed/)([0-9A-Za-z_-]{11})",
+        r"(?:shorts/)([0-9A-Za-z_-]{11})",
     ]
     for pattern in patterns:
         match = re.search(pattern, url)
@@ -105,10 +112,10 @@ def is_playlist_url(url: str) -> bool:
 def is_channel_url(url: str) -> bool:
     """Check if URL is a YouTube channel."""
     channel_patterns = [
-        r'youtube\.com/@',
-        r'youtube\.com/channel/',
-        r'youtube\.com/c/',
-        r'youtube\.com/user/',
+        r"youtube\.com/@",
+        r"youtube\.com/channel/",
+        r"youtube\.com/c/",
+        r"youtube\.com/user/",
     ]
     return any(re.search(p, url) for p in channel_patterns)
 
@@ -116,6 +123,7 @@ def is_channel_url(url: str) -> bool:
 # ============================================================
 # Playlist / Channel Extraction
 # ============================================================
+
 
 def get_playlist_video_urls(playlist_url: str) -> list[dict]:
     """
@@ -127,9 +135,9 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
     import yt_dlp
 
     ydl_opts = {
-        'quiet': True,
-        'extract_flat': True,
-        'no_warnings': True,
+        "quiet": True,
+        "extract_flat": True,
+        "no_warnings": True,
     }
     ydl_opts.update(_get_cookies_opts())
     # extract_flat=True doesn't need signature solving, but add JS opts for
@@ -144,17 +152,25 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
             logger.error(f"Failed to extract playlist/channel info: {e}")
             return []
 
-        if result and 'entries' in result:
-            for entry in result['entries']:
+        if result and "entries" in result:
+            for entry in result["entries"]:
                 if entry:
                     try:
-                        videos.append({
-                            'url': f"https://www.youtube.com/watch?v={entry.get('id', '')}",
-                            'title': entry.get('title', 'Unknown'),
-                            'video_id': entry.get('id', ''),
-                            'speaker': entry.get('uploader') or entry.get('channel') or 'Unknown',
-                            'topic': (entry.get('categories') or entry.get('tags') or ['Spiritual'])[0] if (entry.get('categories') or entry.get('tags')) else 'Spiritual',
-                        })
+                        videos.append(
+                            {
+                                "url": f"https://www.youtube.com/watch?v={entry.get('id', '')}",
+                                "title": entry.get("title", "Unknown"),
+                                "video_id": entry.get("id", ""),
+                                "speaker": entry.get("uploader")
+                                or entry.get("channel")
+                                or "Unknown",
+                                "topic": (
+                                    entry.get("categories") or entry.get("tags") or ["Spiritual"]
+                                )[0]
+                                if (entry.get("categories") or entry.get("tags"))
+                                else "Spiritual",
+                            }
+                        )
                     except Exception as e:
                         logger.warning(f"Skipping playlist entry: {e}")
 
@@ -166,7 +182,10 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
 # Tier 1 & 2: YouTube Transcript API v1.x
 # ============================================================
 
-def _fetch_youtube_captions(video_id: str, languages: list[str], allow_auto: bool = True) -> Optional[str]:
+
+def _fetch_youtube_captions(
+    video_id: str, languages: list[str], allow_auto: bool = True
+) -> str | None:
     """
     Fetch captions using youtube-transcript-api v1.x instance-based API.
 
@@ -176,10 +195,6 @@ def _fetch_youtube_captions(video_id: str, languages: list[str], allow_auto: boo
     """
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
-        from youtube_transcript_api._errors import (
-            TranscriptsDisabled,
-            NoTranscriptFound,
-        )
     except ImportError:
         logger.error("youtube-transcript-api not installed")
         return None
@@ -222,7 +237,9 @@ def _fetch_youtube_captions(video_id: str, languages: list[str], allow_auto: boo
             err_str = str(e)
             if "429" in err_str or "Too Many Requests" in err_str:
                 wait = 2 ** (attempt + 1)  # 2s, 4s, 8s
-                logger.warning(f"[{video_id}] Rate limited. Retry {attempt+1}/{max_retries} in {wait}s")
+                logger.warning(
+                    f"[{video_id}] Rate limited. Retry {attempt + 1}/{max_retries} in {wait}s"
+                )
                 time.sleep(wait)
                 continue
             # TranscriptsDisabled, NoTranscriptFound, or other permanent errors
@@ -236,29 +253,31 @@ def _fetch_youtube_captions(video_id: str, languages: list[str], allow_auto: boo
 # Tier 3: yt-dlp Subtitle Download + VTT Parsing
 # ============================================================
 
-def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]:
+
+def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> str | None:
     """
     Download subtitles via yt-dlp and parse VTT/SRT format.
 
     Used as fallback when youtube-transcript-api is rate-limited.
     yt-dlp uses a different HTTP path and is less likely to 429.
     """
-    import yt_dlp
     import glob
+
+    import yt_dlp
 
     url = f"https://www.youtube.com/watch?v={video_id}"
 
     def run_download():
         with tempfile.TemporaryDirectory() as tmp_dir:
             ydl_opts = {
-                'skip_download': True,
-                'writesubtitles': True,
-                'writeautomaticsub': True,
-                'subtitleslangs': languages,
-                'subtitlesformat': 'vtt/srt/best',
-                'outtmpl': f"{tmp_dir}/subs",
-                'quiet': True,
-                'no_warnings': True,
+                "skip_download": True,
+                "writesubtitles": True,
+                "writeautomaticsub": True,
+                "subtitleslangs": languages,
+                "subtitlesformat": "vtt/srt/best",
+                "outtmpl": f"{tmp_dir}/subs",
+                "quiet": True,
+                "no_warnings": True,
             }
             ydl_opts.update(_get_cookies_opts())
             # Fix: solve YouTube nsig challenge so format URLs are valid
@@ -279,9 +298,12 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
             return text.strip()
 
         # If failed, refresh cookies once and retry
-        logger.warning(f"[{video_id}] Tier 3 yt-dlp download failed or yielded no files. Refreshing cookies and retrying...")
+        logger.warning(
+            f"[{video_id}] Tier 3 yt-dlp download failed or yielded no files. Refreshing cookies and retrying..."
+        )
         try:
             from services.cookie_helper import ensure_cookies_file
+
             ensure_cookies_file(force_refresh=True)
         except Exception as e:
             logger.warning(f"Failed to refresh cookies: {e}")
@@ -297,10 +319,10 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
         return None
 
 
-def _parse_subtitle_file(filepath: str) -> Optional[str]:
+def _parse_subtitle_file(filepath: str) -> str | None:
     """Parse VTT or SRT subtitle file into plain text. Removes timestamps and duplicates."""
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
         logger.error(f"Failed to read subtitle file: {e}")
@@ -309,19 +331,19 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
     lines = []
     seen = set()
 
-    for line in content.split('\n'):
+    for line in content.split("\n"):
         # Skip VTT header, timestamps, and empty lines
-        if line.startswith('WEBVTT') or line.startswith('NOTE'):
+        if line.startswith("WEBVTT") or line.startswith("NOTE"):
             continue
-        if re.match(r'^\d+$', line.strip()):  # SRT sequence number
+        if re.match(r"^\d+$", line.strip()):  # SRT sequence number
             continue
-        if '-->' in line:  # Timestamp line
+        if "-->" in line:  # Timestamp line
             continue
         if not line.strip():
             continue
 
-        clean = re.sub(r'<[^>]+>', '', line)      # Remove HTML tags
-        clean = re.sub(r'\{[^}]+\}', '', clean)   # Remove SRT formatting
+        clean = re.sub(r"<[^>]+>", "", line)  # Remove HTML tags
+        clean = re.sub(r"\{[^}]+\}", "", clean)  # Remove SRT formatting
         clean = clean.strip()
 
         if clean and clean not in seen:
@@ -334,6 +356,7 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
 # ============================================================
 # Main Transcript Fetcher + Council Logic
 # ============================================================
+
 
 def fetch_transcript_hybrid(
     video_id: str,
@@ -360,6 +383,7 @@ def fetch_transcript_hybrid(
         and 'council' info (youtube_score, sarvam_score, winner)
     """
     import json
+
     source_url = f"https://www.youtube.com/watch?v={video_id}"
     languages = settings.transcript_languages_list
 
@@ -368,18 +392,20 @@ def fetch_transcript_hybrid(
     transcripts_json_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         "transcripts",
-        "transcripts.json"
+        "transcripts.json",
     )
     if os.path.exists(transcripts_json_path):
         try:
-            with open(transcripts_json_path, "r", encoding="utf-8") as f:
+            with open(transcripts_json_path, encoding="utf-8") as f:
                 data = json.load(f)
                 if video_id in data and data[video_id].get("captions"):
                     logger.info(f"[{video_id}] Found pre-extracted transcript in transcripts.json!")
                     return {
                         "text": data[video_id]["captions"],
                         "source_url": source_url,
-                        "title": data[video_id].get("title") or data[video_id].get("videoId") or title,
+                        "title": data[video_id].get("title")
+                        or data[video_id].get("videoId")
+                        or title,
                         "speaker": speaker,
                         "topic": topic,
                         "method": "pre_extracted_json",
@@ -391,17 +417,19 @@ def fetch_transcript_hybrid(
     transcript_md_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         "transcripts",
-        f"{video_id}.md"
+        f"{video_id}.md",
     )
     if os.path.exists(transcript_md_path):
         try:
-            with open(transcript_md_path, "r", encoding="utf-8") as f:
+            with open(transcript_md_path, encoding="utf-8") as f:
                 content = f.read()
                 if "## Transcript" in content:
                     parts = content.split("## Transcript")
                     transcript_text = parts[1].strip()
                     if transcript_text:
-                        logger.info(f"[{video_id}] Found pre-extracted transcript in {video_id}.md!")
+                        logger.info(
+                            f"[{video_id}] Found pre-extracted transcript in {video_id}.md!"
+                        )
                         # extract title if possible
                         parsed_title = title
                         for line in content.split("\n"):
@@ -426,10 +454,7 @@ def fetch_transcript_hybrid(
         logger.info(f"[{video_id}] WHISPER_ONLY mode: skipping YouTube captions")
     else:
         logger.info(f"[{video_id}] Fetching YouTube captions...")
-        youtube_text = _fetch_youtube_captions(
-            video_id, languages,
-            allow_auto=(not max_accuracy)
-        )
+        youtube_text = _fetch_youtube_captions(video_id, languages, allow_auto=(not max_accuracy))
 
         # Tier 3 fallback: yt-dlp if YouTube API failed
         if not youtube_text:
@@ -437,7 +462,10 @@ def fetch_transcript_hybrid(
             youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
 
     # ── Step 2: Council / Whisper Fallback ──
-    if settings.enable_transcript_council or os.environ.get("WHISPER_ONLY", "false").lower() == "true":
+    if (
+        settings.enable_transcript_council
+        or os.environ.get("WHISPER_ONLY", "false").lower() == "true"
+    ):
         logger.info(f"[{video_id}] Running local Whisper large-v3-turbo STT...")
         whisper_text = _run_whisper_stt(video_id)
 
@@ -450,10 +478,13 @@ def fetch_transcript_hybrid(
             )
             youtube_text = _fetch_youtube_captions(video_id, languages, allow_auto=True)
             if not youtube_text:
-                logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download as final fallback...")
+                logger.info(
+                    f"[{video_id}] Tier 3: Trying yt-dlp subtitle download as final fallback..."
+                )
                 youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
 
         from services.whisper_local_service import council_pick_best
+
         council_result = council_pick_best(youtube_text, whisper_text, video_id)
 
         chosen_text = council_result["text"]
@@ -467,9 +498,13 @@ def fetch_transcript_hybrid(
         if not chosen_text:
             logger.error(f"[{video_id}] ❌ Council: Both sources failed.")
             return {
-                "text": "", "source_url": source_url, "title": title,
-                "speaker": speaker, "topic": topic,
-                "method": "failed", "error": "All transcript extraction methods failed",
+                "text": "",
+                "source_url": source_url,
+                "title": title,
+                "speaker": speaker,
+                "topic": topic,
+                "method": "failed",
+                "error": "All transcript extraction methods failed",
                 "council": council_info,
             }
 
@@ -478,27 +513,39 @@ def fetch_transcript_hybrid(
             f"(YT={council_result['youtube_score']:.2f}, WH={council_result.get('whisper_score', 0.0):.2f})"
         )
         return {
-            "text": chosen_text, "source_url": source_url, "title": title,
-            "speaker": speaker, "topic": topic,
-            "method": method, "council": council_info,
+            "text": chosen_text,
+            "source_url": source_url,
+            "title": title,
+            "speaker": speaker,
+            "topic": topic,
+            "method": method,
+            "council": council_info,
         }
 
     # ── No council: use YouTube only ──
     if youtube_text:
         return {
-            "text": youtube_text, "source_url": source_url, "title": title,
-            "speaker": speaker, "topic": topic, "method": "youtube_captions"
+            "text": youtube_text,
+            "source_url": source_url,
+            "title": title,
+            "speaker": speaker,
+            "topic": topic,
+            "method": "youtube_captions",
         }
 
     logger.error(f"[{video_id}] ❌ All transcript extraction methods failed.")
     return {
-        "text": "", "source_url": source_url, "title": title,
-        "speaker": speaker, "topic": topic,
-        "method": "failed", "error": "All transcript extraction methods failed",
+        "text": "",
+        "source_url": source_url,
+        "title": title,
+        "speaker": speaker,
+        "topic": topic,
+        "method": "failed",
+        "error": "All transcript extraction methods failed",
     }
 
 
-def _run_whisper_stt(video_id: str) -> Optional[str]:
+def _run_whisper_stt(video_id: str) -> str | None:
     """Download audio and transcribe via local Whisper STT. Returns text or None."""
     try:
         from services.whisper_local_service import download_audio, transcribe_with_whisper
@@ -519,10 +566,11 @@ def _run_whisper_stt(video_id: str) -> Optional[str]:
 # Concurrent Playlist Extraction (Sequential, Rate-Limit Safe)
 # ============================================================
 
+
 async def fetch_transcripts_concurrent(
     video_list: list[dict],
-    max_workers: Optional[int] = None,
-    on_progress: Optional[callable] = None,
+    max_workers: int | None = None,
+    on_progress: Callable | None = None,
 ) -> list[dict]:
     """
     Fetch transcripts for multiple videos sequentially to avoid YouTube 429 rate limits.
@@ -543,8 +591,8 @@ async def fetch_transcripts_concurrent(
     total = len(video_list)
 
     for i, video in enumerate(video_list):
-        video_id = video.get('video_id', extract_video_id(video.get('url', '')))
-        title = video.get('title', 'Unknown')
+        video_id = video.get("video_id", extract_video_id(video.get("url", "")))
+        title = video.get("title", "Unknown")
 
         if not video_id:
             result = {"text": "", "method": "failed", "error": "No video ID"}
@@ -554,8 +602,8 @@ async def fetch_transcripts_concurrent(
                 video_id,
                 title,
                 False,  # allow auto-captions
-                video.get('speaker', 'Unknown'),
-                video.get('topic', 'Spiritual'),
+                video.get("speaker", "Unknown"),
+                video.get("topic", "Spiritual"),
             )
 
         results.append(result)

@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from typing import Iterable, Optional
-
+from collections.abc import Iterable
 
 _SESSION_NAMESPACE = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
 
-def normalize_session_id(session_id: Optional[str], user_id: str) -> str:
+def normalize_session_id(session_id: str | None, user_id: str) -> str:
     """
     Return a stable UUID for any frontend conversation id.
 
@@ -62,7 +61,8 @@ def build_memory_context(
     sections: list[str] = []
 
     recent_turns = [
-        msg for msg in chat_history[-max_history_messages:]
+        msg
+        for msg in chat_history[-max_history_messages:]
         if msg.get("role") in {"user", "assistant"}
     ]
     if recent_turns:
@@ -78,17 +78,21 @@ def build_memory_context(
     seen = set()
     prior_lines = []
     for memory in recent_memories[:max_memories]:
-        fingerprint = _memory_fingerprint([
-            getattr(memory, "session_id", ""),
-            getattr(memory, "key_insights", ""),
-            getattr(memory, "follow_up_suggestions", ""),
-        ])
+        fingerprint = _memory_fingerprint(
+            [
+                getattr(memory, "session_id", ""),
+                getattr(memory, "key_insights", ""),
+                getattr(memory, "follow_up_suggestions", ""),
+            ]
+        )
         if fingerprint in seen:
             continue
         seen.add(fingerprint)
 
         parts = []
-        insights = [short_text(item, 90) for item in (getattr(memory, "key_insights", None) or []) if item]
+        insights = [
+            short_text(item, 90) for item in (getattr(memory, "key_insights", None) or []) if item
+        ]
         if insights:
             parts.append(f"topics: {', '.join(insights[:3])}")
 

@@ -47,13 +47,13 @@ def init_observability(app: FastAPI) -> bool:
         return True
 
     try:
+        from openinference.instrumentation.langchain import LangChainInstrumentor
         from opentelemetry import trace
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
-        from openinference.instrumentation.langchain import LangChainInstrumentor
     except ImportError as exc:
         logger.info("OpenTelemetry packages not installed; skipping tracing. (%s)", exc)
         return False
@@ -86,4 +86,3 @@ def init_observability(app: FastAPI) -> bool:
     except Exception as exc:
         logger.warning("Failed to initialize OpenTelemetry tracing: %s", exc)
         return False
-

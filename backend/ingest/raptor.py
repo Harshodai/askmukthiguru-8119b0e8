@@ -22,9 +22,8 @@ This creates a 2-level hierarchy:
 The retrieval pipeline searches BOTH levels simultaneously.
 """
 
-import logging
 import asyncio
-from typing import Optional
+import logging
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -40,7 +39,7 @@ logger = logging.getLogger(__name__)
 class RaptorIndexer:
     """
     Builds hierarchical summary tree from leaf chunks.
-    
+
     Builder Pattern: Construct the tree step by step:
     1. collect() — gather all leaf chunks
     2. cluster() — group semantically similar chunks
@@ -98,7 +97,7 @@ class RaptorIndexer:
         for s in summaries:
             header = f"[RAPTOR Level: 1 | Topic: {s['topic_label'] or 'General'}]\n"
             summary_texts.append(header + s["text"])
-            
+
         summary_embeddings = self._embedder.encode_batch(summary_texts)
         summary_metas = [
             {
@@ -117,9 +116,9 @@ class RaptorIndexer:
 
         count = self._qdrant.upsert_chunks(
             summary_texts,
-            summary_embeddings['dense'],
+            summary_embeddings["dense"],
             summary_metas,
-            sparse_vectors=summary_embeddings['sparse'],
+            sparse_vectors=summary_embeddings["sparse"],
         )
         logger.info(f"RAPTOR: created {count} level-1 summary nodes from {len(texts)} chunks")
         return count
@@ -133,31 +132,32 @@ class RaptorIndexer:
         """
         try:
             import umap
+
             n_samples = embeddings.shape[0]
             # UMAP requires n_components < n_samples - 1 and n_neighbors < n_samples
             safe_components = min(n_components, max(1, n_samples - 2))
             safe_neighbors = min(15, max(2, n_samples - 1))
-            
+
             if safe_components < 2 or n_samples < 4:
                 logger.warning(f"UMAP: too few samples ({n_samples}), falling back to truncation")
-                return embeddings[:, :min(n_components, embeddings.shape[1])]
-            
+                return embeddings[:, : min(n_components, embeddings.shape[1])]
+
             reducer = umap.UMAP(
                 n_components=safe_components,
                 n_neighbors=safe_neighbors,
                 min_dist=0.1,
-                metric='cosine',
+                metric="cosine",
                 random_state=42,
             )
             return reducer.fit_transform(embeddings)
         except Exception as e:
             logger.warning(f"UMAP failed, falling back to truncation: {e}")
-            return embeddings[:, :min(n_components, embeddings.shape[1])]
+            return embeddings[:, : min(n_components, embeddings.shape[1])]
 
     def _cluster_texts(self, embeddings: np.ndarray, n_clusters: int) -> dict:
         """
         Cluster reduced embeddings using K-Means.
-        
+
         Returns: Dict mapping cluster_id → list of text indices
         """
         n_clusters = min(n_clusters, embeddings.shape[0])
@@ -185,12 +185,10 @@ class RaptorIndexer:
             cluster_chunks = [chunks[i] for i in indices]
             cluster_texts = [c["text"] for c in cluster_chunks]
 
-            source_urls = sorted(set(
-                c.get("source_url", "") for c in cluster_chunks if c.get("source_url")
-            ))
-            titles = sorted(set(
-                c.get("title", "") for c in cluster_chunks if c.get("title")
-            ))
+            source_urls = sorted(
+                set(c.get("source_url", "") for c in cluster_chunks if c.get("source_url"))
+            )
+            titles = sorted(set(c.get("title", "") for c in cluster_chunks if c.get("title")))
 
             async with semaphore:
                 try:
@@ -200,6 +198,7 @@ class RaptorIndexer:
                     topic_label = ""
                     try:
                         from rag.prompts import TOPIC_LABEL_PROMPT
+
                         topic_prompt = TOPIC_LABEL_PROMPT.format(
                             texts="\n".join(t[:150] for t in cluster_texts[:5])
                         )

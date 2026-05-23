@@ -9,7 +9,7 @@ Uses an LLM to correct homophones, spelling errors, and domain-specific terminol
 import asyncio
 import logging
 import re
-from typing import List
+
 from services.ollama_service import OllamaService
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ def _sentence_aware_split(text: str, chunk_size: int = 4000, overlap: int = 100)
         segment = text[start:end]
         # Look for '. ', '! ', '? ', or '\n' as sentence boundaries
         last_boundary = -1
-        for match in re.finditer(r'[.!?]\s+|\n', segment):
+        for match in re.finditer(r"[.!?]\s+|\n", segment):
             last_boundary = match.end()
 
         if last_boundary > chunk_size // 2:
@@ -102,7 +102,7 @@ def _sentence_aware_split(text: str, chunk_size: int = 4000, overlap: int = 100)
             actual_end = start + last_boundary
         else:
             # No good boundary — fall back to space boundary
-            space_pos = segment.rfind(' ', chunk_size // 2)
+            space_pos = segment.rfind(" ", chunk_size // 2)
             if space_pos > 0:
                 actual_end = start + space_pos
             else:
@@ -146,9 +146,11 @@ class TranscriptCorrector:
                     )
                     # Fallback if LLM returns empty or truncated response
                     if not response or len(response.strip()) < min(50, len(chunk.strip()) // 2):
-                        logger.warning(f"Chunk {i} correction returned empty/short string. Using original.")
+                        logger.warning(
+                            f"Chunk {i} correction returned empty/short string. Using original."
+                        )
                         return chunk
-                        
+
                     return response
                 except Exception as e:
                     logger.error(f"Failed to correct chunk {i}: {e}")
@@ -159,9 +161,9 @@ class TranscriptCorrector:
         )
 
         full_corrected_text = " ".join(corrected_chunks)
-        
+
         # Apply fast regex-based replacements to catch any LLM misses
         for pattern, replacement in FAST_REPLACEMENTS.items():
             full_corrected_text = re.sub(pattern, replacement, full_corrected_text)
-            
+
         return full_corrected_text

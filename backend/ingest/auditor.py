@@ -10,10 +10,9 @@ Ensures that ingested content is high-quality and relevant.
 
 import logging
 import random
-from typing import List
 
-from services.ollama_service import OllamaService
 from app.config import settings
+from services.ollama_service import OllamaService
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +43,8 @@ class DataAuditor:
     async def audit_transcript(self, text: str, source_url: str) -> bool:
         """
         Check if the transcript is valid.
-        
-        To save costs/time, we don't audit the *entire* text. 
+
+        To save costs/time, we don't audit the *entire* text.
         We sample 3 random chunks of 500 chars and check if they make sense.
         If ANY chunk fails, we flag for deeper review (or fail, depending on strictness).
         """
@@ -58,11 +57,11 @@ class DataAuditor:
 
         # Sample 3 random segments (start, middle, end)
         chunks = self._sample_text(text, num_samples=3, sample_size=500)
-        
+
         for i, chunk in enumerate(chunks):
             is_valid = await self._check_chunk(chunk)
             if not is_valid:
-                logger.warning(f"Audit FAILED for {source_url} at sample {i+1}: {chunk[:50]}...")
+                logger.warning(f"Audit FAILED for {source_url} at sample {i + 1}: {chunk[:50]}...")
                 return False
 
         logger.info(f"Audit PASSED for {source_url}")
@@ -83,7 +82,7 @@ class DataAuditor:
             # unless we are in strict mode.
             return True
 
-    def _sample_text(self, text: str, num_samples: int, sample_size: int) -> List[str]:
+    def _sample_text(self, text: str, num_samples: int, sample_size: int) -> list[str]:
         """Extract random samples from the text."""
         if len(text) <= sample_size:
             return [text]
@@ -96,5 +95,5 @@ class DataAuditor:
             offset = random.randint(0, max(0, step - sample_size))
             actual_start = start + offset
             samples.append(text[actual_start : actual_start + sample_size])
-            
+
         return samples

@@ -15,9 +15,8 @@ After retrieval, a sufficiency check asks the LLM if the context is
 enough to answer well. If not, the search widens to additional clusters.
 """
 
-import logging
 import json
-from typing import Optional
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +87,7 @@ async def navigate_tree(
             return [s["cluster_id"] for s in summary_nodes]
 
         logger.info(
-            f"Tree navigation: selected clusters {selected} "
-            f"from {len(summary_nodes)} total"
+            f"Tree navigation: selected clusters {selected} from {len(summary_nodes)} total"
         )
         return selected[:max_clusters]
 
@@ -126,9 +124,7 @@ async def check_sufficiency(
 
         sufficient = "SUFFICIENT" in result_upper and "INSUFFICIENT" not in result_upper
 
-        logger.info(
-            f"Sufficiency check: {'SUFFICIENT' if sufficient else 'INSUFFICIENT'}"
-        )
+        logger.info(f"Sufficiency check: {'SUFFICIENT' if sufficient else 'INSUFFICIENT'}")
         return {"sufficient": sufficient, "reason": result.strip()}
 
     except Exception as e:
@@ -160,7 +156,7 @@ def _parse_cluster_ids(response: str, summary_nodes: list[dict]) -> list[int]:
         pass
 
     # Extract all numbers from the response
-    numbers = re.findall(r'\b(\d+)\b', response)
+    numbers = re.findall(r"\b(\d+)\b", response)
     selected = []
     for n in numbers:
         cid = int(n)

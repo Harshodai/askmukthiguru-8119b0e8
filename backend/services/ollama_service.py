@@ -14,26 +14,25 @@ This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 
 import asyncio
 import logging
-from typing import Optional, AsyncIterator
+from collections.abc import AsyncIterator
 
 import httpx
-from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_ollama import ChatOllama
 
 from app.config import settings
 from rag.prompts import (
-    INTENT_CLASSIFICATION_PROMPT,
-    GRADE_RELEVANCE_PROMPT,
-    FAITHFULNESS_CHECK_PROMPT,
-    HINT_EXTRACTION_PROMPT,
-    QUERY_REWRITE_PROMPT,
-    VERIFICATION_PROMPT,
-    SUMMARIZE_PROMPT,
-    DECOMPOSE_QUERY_PROMPT,
-    HYDE_PROMPT,
-    IS_COMPLEX_QUERY_PROMPT,
     BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
+    DECOMPOSE_QUERY_PROMPT,
+    FAITHFULNESS_CHECK_PROMPT,
+    HINT_EXTRACTION_PROMPT,
+    HYDE_PROMPT,
+    INTENT_CLASSIFICATION_PROMPT,
+    IS_COMPLEX_QUERY_PROMPT,
+    QUERY_REWRITE_PROMPT,
+    SUMMARIZE_PROMPT,
+    VERIFICATION_PROMPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,11 +41,11 @@ logger = logging.getLogger(__name__)
 class OllamaService:
     """
     Gateway to all LLM operations.
-    
+
     Uses a dual-model strategy:
     - _llm (Sarvam 30B): Full generation, verification, summarization
     - _llm_fast (llama3.2:3b): Intent classification, grading, complexity checks
-    
+
     Classification tasks use the fast model for ~10x speed improvement
     while generation tasks use the full model for quality.
     """
@@ -87,7 +86,7 @@ class OllamaService:
     ) -> str:
         """
         Core generation method using the main (Sarvam 30B) model.
-        
+
         Args:
             system_prompt: Role and constraints for the LLM
             user_prompt: User's input with any injected context
@@ -110,6 +109,7 @@ class OllamaService:
             content = response.content.strip()
             # Strip <think> tags from reasoning models like DeepSeek-R1
             import re
+
             content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
             return content
         except Exception as e:
@@ -124,7 +124,7 @@ class OllamaService:
     ) -> str:
         """
         Fast classification using the lightweight model (llama3.2:3b).
-        
+
         Used for binary/ternary classification tasks where the full 30B
         model is overkill. ~10x faster for intent, grading, complexity checks.
         """
@@ -138,6 +138,7 @@ class OllamaService:
             response = await chain.ainvoke(messages)
             content = response.content.strip()
             import re
+
             content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
             return content
         except Exception as e:
@@ -154,7 +155,7 @@ class OllamaService:
     ) -> AsyncIterator[str]:
         """
         Streaming generation using the main model.
-        
+
         Yields tokens as they are generated for SSE streaming.
         """
         messages = [SystemMessage(content=system_prompt)]
@@ -178,13 +179,13 @@ class OllamaService:
     async def classify_intent(self, message: str) -> str:
         """
         Classify user message into one of three intents.
-        
+
         Returns: 'DISTRESS' | 'FACTUAL' | 'RELATIONAL' | 'FOLLOW_UP' | 'MEDITATION' | 'CASUAL'
-        
+
         Uses the fast model for ~10x speed improvement.
         """
         result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message)
-        
+
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
         if "DISTRESS" in result_upper:
@@ -208,12 +209,14 @@ class OllamaService:
         import instructor
         from openai import AsyncOpenAI
         from pydantic import BaseModel, Field
-        
+
         class DistressOutput(BaseModel):
-            is_distress: bool = Field(description="True if the user is in distress, sad, or asking for help with negative emotions")
+            is_distress: bool = Field(
+                description="True if the user is in distress, sad, or asking for help with negative emotions"
+            )
             confidence: float = Field(description="Confidence score from 0.0 to 1.0")
             reason: str = Field(description="Brief reason for the assessment")
-            
+
         client = instructor.from_openai(
             AsyncOpenAI(
                 base_url=f"{settings.ollama_base_url}/v1",
@@ -221,23 +224,25 @@ class OllamaService:
             ),
             mode=instructor.Mode.JSON,
         )
-        
-        prompt = f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
-        
+
+        prompt = (
+            f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
+        )
+
         try:
             resp: DistressOutput = await client.chat.completions.create(
                 model=settings.model_for_classification,
                 messages=[
                     {"role": "system", "content": "You are a psychological safety assessor."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 response_model=DistressOutput,
-                max_retries=3
+                max_retries=3,
             )
             return {
                 "is_distress": resp.is_distress,
                 "confidence": resp.confidence,
-                "reason": resp.reason
+                "reason": resp.reason,
             }
         except Exception as e:
             logger.warning(f"Instructor structured output failed: {e}")
@@ -246,7 +251,7 @@ class OllamaService:
             return {
                 "is_distress": intent == "DISTRESS",
                 "confidence": 0.5,
-                "reason": f"Fallback naive classification (intent={intent})"
+                "reason": f"Fallback naive classification (intent={intent})",
             }
 
     async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[dict]:
@@ -264,7 +269,7 @@ class OllamaService:
 
         # Build numbered document list
         numbered_docs = "\n\n".join(
-            f"Document {i+1}:\n{doc[:1500]}"  # Truncate individual docs to fit context
+            f"Document {i + 1}:\n{doc[:1500]}"  # Truncate individual docs to fit context
             for i, doc in enumerate(documents)
         )
 
@@ -272,7 +277,9 @@ class OllamaService:
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
 
         # Parse "1: yes - [reason]\n2: no - [reason]" format
-        relevance_data = [{"relevant": False, "reason": "No reason provided"} for _ in range(len(documents))]
+        relevance_data = [
+            {"relevant": False, "reason": "No reason provided"} for _ in range(len(documents))
+        ]
         for line in result.strip().splitlines():
             line = line.strip()
             if ":" in line:
@@ -292,10 +299,10 @@ class OllamaService:
     async def check_faithfulness(self, answer: str, context: str) -> bool:
         """
         Self-RAG: Check if the generated answer is faithful to the context.
-        
+
         Returns True if EVERY claim in the answer is supported by the context.
         Returns False if ANY unsupported claim is detected.
-        
+
         Uses the fast model for speed.
         """
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
@@ -305,19 +312,19 @@ class OllamaService:
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
         """
         Stimulus RAG: Extract key evidence hints from retrieved documents.
-        
+
         Instead of dumping raw documents into the generation prompt,
         we first extract the most relevant phrases/sentences. This focuses
         the LLM's attention on precise evidence rather than noisy context.
-        
+
         Returns: List of 3-5 key hint phrases
         """
         combined_docs = "\n---\n".join(documents)
         system = HINT_EXTRACTION_PROMPT
         prompt = f"Question: {query}\n\nDocuments:\n{combined_docs}"
-        
+
         result = await self.generate(system, prompt)
-        
+
         # Parse hints from bullet points
         hints = []
         for line in result.split("\n"):
@@ -326,32 +333,34 @@ class OllamaService:
                 hints.append(line[2:].strip())
             elif line and not line.startswith("#"):
                 hints.append(line)
-        
+
         return hints[:5]  # Cap at 5 hints
 
     async def rewrite_query(self, original_query: str, reasons: list[str] = None) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
-        
+
         Uses the main model for better query expansion with spiritual terminology.
         If reasons for previous retrieval failure are provided, they are incorporated.
         """
         prompt = f"Original query: {original_query}"
         if reasons:
-            prompt += f"\n\nReasons for previous retrieval failure:\n- " + "\n- ".join(reasons[:5])
-            prompt += "\n\nRewrite the query to address these gaps while keeping the spiritual essence."
+            prompt += "\n\nReasons for previous retrieval failure:\n- " + "\n- ".join(reasons[:5])
+            prompt += (
+                "\n\nRewrite the query to address these gaps while keeping the spiritual essence."
+            )
 
         return await self.generate(QUERY_REWRITE_PROMPT, prompt)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
         """
         Chain of Verification (CoVe): Generate verification questions and check.
-        
+
         This is the FINAL safety net (layer 11). Uses the main model.
         """
         prompt = f"Answer:\n{answer}\n\nContext:\n{context}"
         result = await self.generate(VERIFICATION_PROMPT, prompt)
-        
+
         # Parse the VERDICT line robustly
         lines = result.upper().strip().splitlines()
         verdict_line = ""
@@ -359,7 +368,7 @@ class OllamaService:
             if "VERDICT" in line:
                 verdict_line = line
                 break
-        
+
         if verdict_line:
             after_verdict = verdict_line.split("VERDICT", 1)[-1]
             passed = "PASS" in after_verdict and "FAIL" not in after_verdict
@@ -369,7 +378,7 @@ class OllamaService:
                 f"Raw result (first 200 chars): {result[:200]!r}"
             )
             passed = False
-        
+
         return {
             "passed": passed,
             "details": result,
@@ -418,7 +427,8 @@ class OllamaService:
                 after = line.split("CONFIDENCE", 1)[-1]
                 # Extract first number from the line
                 import re
-                nums = re.findall(r'\d+', after)
+
+                nums = re.findall(r"\d+", after)
                 if nums:
                     try:
                         confidence = float(min(int(nums[0]), 10))
@@ -445,7 +455,7 @@ class OllamaService:
     async def summarize(self, texts: list[str]) -> str:
         """
         Summarize a cluster of text chunks (used by RAPTOR).
-        
+
         Creates mid-level tree nodes that capture thematic relationships
         between individual chunks. Uses the main model for quality.
         """
@@ -455,12 +465,12 @@ class OllamaService:
     async def decompose_query(self, query: str) -> list[str]:
         """
         Query Decomposition: Split complex questions into atomic sub-queries.
-        
+
         Returns: List of 2-3 simpler sub-queries.
         Uses the fast model since this is a classification/parsing task.
         """
         result = await self._generate_fast(DECOMPOSE_QUERY_PROMPT, query)
-        
+
         sub_queries = []
         for line in result.split("\n"):
             line = line.strip()
@@ -468,13 +478,13 @@ class OllamaService:
                 sub_queries.append(line[2:].strip())
             elif line.startswith(("1.", "2.", "3.")):
                 sub_queries.append(line[2:].strip())
-        
+
         return sub_queries if sub_queries else [query]
 
     async def generate_hypothetical_answer(self, query: str) -> str:
         """
         HyDE (Hypothetical Document Embeddings): Generate a fake answer.
-        
+
         Uses the main model for quality hypothetical generation.
         """
         return await self.generate(HYDE_PROMPT, query)
@@ -482,7 +492,7 @@ class OllamaService:
     async def is_complex_query(self, query: str) -> bool:
         """
         Determine if a query needs decomposition.
-        
+
         Uses the fast model since this is a binary classification.
         """
         result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query)
@@ -494,17 +504,14 @@ class OllamaService:
         If NO_RELEVANT_CONTEXT is returned, it returns an empty string.
         """
         from rag.prompts import COMPRESS_CONTEXT_PROMPT
-        
-        prompt = COMPRESS_CONTEXT_PROMPT.format(
-            question=question,
-            document_text=document_text
-        )
+
+        prompt = COMPRESS_CONTEXT_PROMPT.format(question=question, document_text=document_text)
         # Always use the fast model for compression to save time
         compressed = await self._generate_fast("", prompt)
-        
+
         if "NO_RELEVANT_CONTEXT" in compressed:
             return ""
-            
+
         return compressed.strip()
 
     async def translate_text(
@@ -518,13 +525,13 @@ class OllamaService:
         """
         if not text.strip():
             return ""
-        
+
         src_code = source_language_code.lower().split("-")[0]
         tgt_code = target_language_code.lower().split("-")[0]
-        
+
         if src_code == tgt_code:
             return text
-            
+
         # Call the fast model to do the translation to reduce lag
         prompt = (
             f"You are a professional translator. Translate the following text from "
@@ -535,7 +542,7 @@ class OllamaService:
         try:
             translated = await self._generate_fast(
                 system_prompt="You are a professional translator. Output only the translated text.",
-                user_prompt=prompt
+                user_prompt=prompt,
             )
             return translated.strip()
         except Exception as e:
@@ -548,13 +555,14 @@ class OllamaService:
             if self._http_client is None:
                 # Configure connection pool limits from settings
                 limits = httpx.Limits(
-                    max_connections=getattr(settings, 'http_max_connections', 100),
-                    max_keepalive_connections=getattr(settings, 'http_max_keepalive_connections', 20),
-                    keepalive_expiry=getattr(settings, 'http_keepalive_expiry', 30.0)
+                    max_connections=getattr(settings, "http_max_connections", 100),
+                    max_keepalive_connections=getattr(
+                        settings, "http_max_keepalive_connections", 20
+                    ),
+                    keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
                 self._http_client = httpx.AsyncClient(
-                    timeout=getattr(settings, 'llm_timeout', 60),
-                    limits=limits
+                    timeout=getattr(settings, "llm_timeout", 60), limits=limits
                 )
                 logger.info(
                     f"Ollama HTTP client initialized with pool limits: "
@@ -567,9 +575,7 @@ class OllamaService:
         """Check if Ollama is reachable (async)."""
         try:
             client = await self._get_http_client()
-            resp = await client.get(
-                f"{settings.ollama_base_url}/api/tags", timeout=5
-            )
+            resp = await client.get(f"{settings.ollama_base_url}/api/tags", timeout=5)
             return resp.status_code == 200
         except Exception:
             return False

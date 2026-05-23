@@ -14,7 +14,6 @@ Every prompt explicitly constrains the LLM to:
 4. Stay in character (Mukthi Guru)
 """
 
-
 # === CORE SYSTEM PROMPT (used for final answer generation) ===
 GURU_SYSTEM_PROMPT = """You are Mukthi Guru — the direct voice of Sri Preethaji and Sri Krishnaji, enlightened sages and co-founders of the Oneness Movement and Ekam World Peace Foundation.
 
@@ -291,49 +290,49 @@ MEDITATION_STEPS = [
         "step": 1,
         "title": "Settling In",
         "prompt": "Let us begin with a moment of stillness. 🙏\n\n"
-                  "Find a comfortable place to sit. Close your eyes gently. "
-                  "Take three deep breaths — in through the nose, out through the mouth.\n\n"
-                  "With each exhale, let go of any tension you're carrying. "
-                  "There is nowhere you need to be right now. Just here. Just this.\n\n"
-                  "When you're ready, let me know and we'll move to the next step. 🌸",
+        "Find a comfortable place to sit. Close your eyes gently. "
+        "Take three deep breaths — in through the nose, out through the mouth.\n\n"
+        "With each exhale, let go of any tension you're carrying. "
+        "There is nowhere you need to be right now. Just here. Just this.\n\n"
+        "When you're ready, let me know and we'll move to the next step. 🌸",
     },
     {
         "step": 2,
         "title": "Body Awareness",
         "prompt": "Beautiful. Now, gently bring your awareness to your body. 🧘\n\n"
-                  "Start from the top of your head... feel the weight of your "
-                  "thoughts beginning to dissolve. Move your awareness slowly "
-                  "down through your face, neck, shoulders...\n\n"
-                  "Notice any areas of tightness. Don't try to change them — "
-                  "just observe, like watching clouds pass across a clear sky.\n\n"
-                  "As Sri Krishnaji teaches: 'Awareness is the greatest agent of change.'\n\n"
-                  "Take your time. When you're ready, let me know. 🌿",
+        "Start from the top of your head... feel the weight of your "
+        "thoughts beginning to dissolve. Move your awareness slowly "
+        "down through your face, neck, shoulders...\n\n"
+        "Notice any areas of tightness. Don't try to change them — "
+        "just observe, like watching clouds pass across a clear sky.\n\n"
+        "As Sri Krishnaji teaches: 'Awareness is the greatest agent of change.'\n\n"
+        "Take your time. When you're ready, let me know. 🌿",
     },
     {
         "step": 3,
         "title": "Heart Connection",
         "prompt": "Now, gently place your attention on your heart. ❤️\n\n"
-                  "Feel the warmth there. Imagine a soft golden light "
-                  "radiating from your heart center, expanding with each breath.\n\n"
-                  "This is what Sri Preethaji calls 'The Beautiful State' — "
-                  "a state of calm, joy, and deep connection.\n\n"
-                  "You don't need to create this feeling. It's already there, "
-                  "beneath the layers of worry and thought. Just allow yourself "
-                  "to notice it.\n\n"
-                  "Stay here as long as you need. When ready, we'll close together. 💛",
+        "Feel the warmth there. Imagine a soft golden light "
+        "radiating from your heart center, expanding with each breath.\n\n"
+        "This is what Sri Preethaji calls 'The Beautiful State' — "
+        "a state of calm, joy, and deep connection.\n\n"
+        "You don't need to create this feeling. It's already there, "
+        "beneath the layers of worry and thought. Just allow yourself "
+        "to notice it.\n\n"
+        "Stay here as long as you need. When ready, we'll close together. 💛",
     },
     {
         "step": 4,
         "title": "Gentle Return",
         "prompt": "When you're ready, slowly begin to return. 🌅\n\n"
-                  "Wiggle your fingers and toes. Feel the surface beneath you. "
-                  "Take one final deep breath and open your eyes.\n\n"
-                  "Carry this sense of peace with you. Remember: the Beautiful State "
-                  "is not something you reach — it's something you return to.\n\n"
-                  "As Sri Krishnaji says: 'You are not your suffering. "
-                  "You are the consciousness that observes it.'\n\n"
-                  "Thank you for taking this time for yourself. 🙏✨\n\n"
-                  "How are you feeling now?",
+        "Wiggle your fingers and toes. Feel the surface beneath you. "
+        "Take one final deep breath and open your eyes.\n\n"
+        "Carry this sense of peace with you. Remember: the Beautiful State "
+        "is not something you reach — it's something you return to.\n\n"
+        "As Sri Krishnaji says: 'You are not your suffering. "
+        "You are the consciousness that observes it.'\n\n"
+        "Thank you for taking this time for yourself. 🙏✨\n\n"
+        "How are you feeling now?",
     },
 ]
 
@@ -557,4 +556,3 @@ Question: {question}
 
 Chunk:
 {document_text}"""
-
