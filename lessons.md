@@ -643,4 +643,3 @@ The codebase is structured into 10 primary communities detected via the Leiden a
 - **Solution**:
   - Injected a fallback `JWT_SECRET` environment variable under the `env:` block of the `Run pytest` step in `.github/workflows/lint-test.yml` (e.g., `JWT_SECRET: dummy-jwt-secret-key-for-ci-runs`). This allows successful test collection and runner execution without exposing sensitive secrets.
 - **Lesson learned**: Ensure that CI/CD test runners always specify safe fallback values for any configuration fields validated at import time to prevent test collection crashes.
-
