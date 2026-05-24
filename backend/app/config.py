@@ -11,6 +11,8 @@ Includes configs for:
   - Concurrent playlist ingestion workers
 """
 
+from __future__ import annotations
+
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

@@ -9,6 +9,7 @@ bge-m3 produces dense, sparse (lexical), and ColBERT vectors in a single encode(
 enabling native hybrid search without a separate BM25/sparse encoder. Supports 100+
 languages including all 10 target Indian languages.
 """
+from __future__ import annotations
 
 import logging
 import os

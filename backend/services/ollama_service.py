@@ -11,6 +11,7 @@ Design Patterns:
 All LLM calls funnel through this service. No other module talks to Ollama directly.
 This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 """
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -110,7 +111,17 @@ class OllamaService:
             # Strip <think> tags from reasoning models like DeepSeek-R1
             import re
 
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+            content_outside_think = re.sub(
+                r"<think>.*?</think>", "", content, flags=re.DOTALL
+            ).strip()
+
+            if content_outside_think:
+                content = content_outside_think
+            elif think_match:
+                content = think_match.group(1).strip()
+            else:
+                content = content.strip()
             return content
         except Exception as e:
             logger.error(f"Ollama generation failed: {e}")
@@ -139,7 +150,17 @@ class OllamaService:
             content = response.content.strip()
             import re
 
-            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+            content_outside_think = re.sub(
+                r"<think>.*?</think>", "", content, flags=re.DOTALL
+            ).strip()
+
+            if content_outside_think:
+                content = content_outside_think
+            elif think_match:
+                content = think_match.group(1).strip()
+            else:
+                content = content.strip()
             return content
         except Exception as e:
             # Fall back to main model if fast model fails

@@ -12,6 +12,7 @@ Design Patterns:
   - Proxy Pattern: Wraps the RAG pipeline with input/output safety rails
   - Fail-Open → Fail-Safe: If NeMo unavailable, use lightweight (NOT disabled)
 """
+from __future__ import annotations
 
 import logging
 import re
@@ -301,11 +302,24 @@ class LightweightGuardrails:
                         description="One of: 'explicit', 'self_harm', 'medical_advice_broad', 'financial_advice', 'prompt_injection', 'cryptocurrency', 'politics', 'none'"
                     )
 
+                if settings.is_sarvam_cloud:
+                    base_url = getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
+                    api_key = settings.sarvam_api_key
+                    openai_client = AsyncOpenAI(
+                        base_url=base_url,
+                        api_key="api-key-not-used-by-bearer",
+                        default_headers={"api-subscription-key": api_key},
+                    )
+                else:
+                    base_url = f"{settings.ollama_base_url}/v1"
+                    api_key = "ollama"
+                    openai_client = AsyncOpenAI(
+                        base_url=base_url,
+                        api_key=api_key,
+                    )
+
                 client = instructor.from_openai(
-                    AsyncOpenAI(
-                        base_url=f"{settings.ollama_base_url}/v1",
-                        api_key="ollama",
-                    ),
+                    openai_client,
                     mode=instructor.Mode.JSON,
                 )
 
