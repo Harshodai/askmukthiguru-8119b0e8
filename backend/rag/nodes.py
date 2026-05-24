@@ -124,11 +124,12 @@ def init_services(
     _qdrant = qdrant
     _lightrag = lightrag
     _serene_mind = serene_mind
-    
+
     # Initialize LettuceDetect Service using the injected embedder
     from services.lettuce_detect_service import LettuceDetectService
+
     _lettuce_detect = LettuceDetectService(embedder)
-    
+
     # Inject ollama into follow-up resolver
     set_followup_ollama(ollama)
 
@@ -299,14 +300,14 @@ async def decompose_query(state: GraphState) -> dict:
     if it's already simple, so no quality loss.
     """
     question = state["question"]
-    
+
     # Fast bypass: if question is short and doesn't contain conjunctions/multiple clauses
     words = question.strip().split()
     conjunctions = {"and", "or", "but", "while", "whereas"}
     has_conjunction = any(w.lower() in conjunctions for w in words)
-    
+
     if len(words) <= 6 and not has_conjunction and "?" not in question[:-1] and "," not in question:
-        logger.info(f"Decompose Query: Short/simple query detected, skipping LLM decomposition.")
+        logger.info("Decompose Query: Short/simple query detected, skipping LLM decomposition.")
         return {"sub_queries": [question], "is_complex": False}
 
     sub_queries = await _ollama.decompose_query(question)
@@ -349,8 +350,9 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
     """
     question = state["question"]
 
-    # Fetch RAPTOR level-1 summaries from Qdrant
-    summary_nodes = _qdrant.get_summary_nodes()
+    # Embed the query to retrieve only the most similar summary nodes
+    query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
+    summary_nodes = _qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
 
     if not summary_nodes:
         logger.info("Tree navigation: No summary nodes in DB, skipping")
@@ -785,8 +787,8 @@ async def context_engineer(state: GraphState) -> dict:
     This replaces passing raw strings to the generator, allowing for
     more nuanced control over different parts of the prompt.
     """
-    from rag.prompts import STIMULUS_RAG_PROMPT
     from rag.compressor import cap_to_token_budget
+    from rag.prompts import STIMULUS_RAG_PROMPT
 
     intent = state.get("intent", "FACTUAL")
     relevant_docs = state.get("relevant_docs", [])
@@ -859,19 +861,26 @@ async def explain_retrieval(state: GraphState) -> dict:
     if not relevant_docs:
         return {"citation_reasoning": {}}
 
-    reasoning = {}
-    # Only explain top 3 to save time/cost
-    for doc in relevant_docs[:3]:
+    async def explain_doc(doc):
         url = doc.get("source_url")
         if not url:
-            continue
-
+            return None
         try:
             user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
             resp = await _ollama.generate(CITATION_REASONING_PROMPT, user_prompt)
-            reasoning[url] = resp.strip()
+            return url, resp.strip()
         except Exception as e:
             logger.warning(f"Reasoning failed for {url}: {e}")
+            return None
+
+    tasks = [explain_doc(doc) for doc in relevant_docs[:3]]
+    results = await asyncio.gather(*tasks)
+
+    reasoning = {}
+    for res in results:
+        if res:
+            url, explanation = res
+            reasoning[url] = explanation
 
     return {"citation_reasoning": reasoning}
 
@@ -1052,7 +1061,9 @@ async def reflect_on_answer(state: GraphState) -> dict:
         logger.info("Self-Reflection (LettuceDetect): Answer is VALID.")
         return {"needs_correction": False, "reflection_feedback": None}
 
-    logger.warning(f"Self-Reflection (LettuceDetect): Hallucination detected! Feedback: {ld_result['details']}")
+    logger.warning(
+        f"Self-Reflection (LettuceDetect): Hallucination detected! Feedback: {ld_result['details']}"
+    )
     return {"needs_correction": True, "reflection_feedback": ld_result["details"]}
 
 
@@ -1077,7 +1088,7 @@ async def verify_answer(state: GraphState) -> dict:
     question = state.get("rewritten_query") or state["question"]
 
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    
+
     # Run local LettuceDetect factuality scoring
     ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
 

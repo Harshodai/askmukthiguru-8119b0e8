@@ -52,7 +52,9 @@ def is_valid_youtube_url(url: str) -> bool:
     if not re.match(r"^[a-zA-Z0-9_.:/?=&%#-]+$", url):
         return False
     # Domain check: must be youtube.com, youtu.be, or a valid subdomain of youtube.com
-    domain_match = re.match(r"^https?://(?:[a-zA-Z0-9_-]+\.)?(?:youtube\.com|youtu\.be)(?:/|$)", url)
+    domain_match = re.match(
+        r"^https?://(?:[a-zA-Z0-9_-]+\.)?(?:youtube\.com|youtu\.be)(?:/|$)", url
+    )
     return bool(domain_match)
 
 

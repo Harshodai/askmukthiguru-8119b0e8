@@ -1,6 +1,73 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '@/lib/chatStorage';
 import { ChatMessage } from './ChatMessage';
+
+// ── VirtualMessageWrapper for list virtualization (dynamic heights) ──────────────────
+const VirtualMessageWrapper = ({
+  id,
+  children,
+  defaultHeight = 150,
+  alwaysVisible = false,
+}: {
+  id: string;
+  children: React.ReactNode;
+  defaultHeight?: number;
+  alwaysVisible?: boolean;
+}) => {
+  const [isVisible, setIsVisible] = useState(true);
+  const [height, setHeight] = useState(defaultHeight);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (alwaysVisible) {
+      setIsVisible(true);
+      return;
+    }
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Measure the actual height dynamically as the item loads or changes size
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const measuredHeight = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+        if (measuredHeight > 0) {
+          setHeight(measuredHeight);
+        }
+      }
+    });
+    resizeObserver.observe(el);
+
+    // Unmount content when far outside the viewport to keep DOM size small and re-renders fast
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      {
+        rootMargin: '1000px 0px 1000px 0px', // large buffer to ensure smooth scrolling
+      }
+    );
+    observer.observe(el);
+
+    return () => {
+      resizeObserver.disconnect();
+      observer.disconnect();
+    };
+  }, [alwaysVisible]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        minHeight: `${height}px`,
+        contentVisibility: 'auto',
+        containIntrinsicSize: `auto ${height}px`,
+      }}
+    >
+      {alwaysVisible || isVisible ? children : <div style={{ height: `${height}px` }} />}
+    </div>
+  );
+};
 
 // ── Date separator helpers ──────────────────────────────────────────
 const isSameDay = (a: Date, b: Date): boolean =>
@@ -29,6 +96,7 @@ export const MessageList = React.memo(({
   streamingContent?: string;
   onRegenerate?: () => void;
   onEditUserMessage?: (message: Message) => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }) => {
   // Find the ID of the last guru message for the regenerate button
   let lastGuruId: string | undefined;
@@ -48,7 +116,6 @@ export const MessageList = React.memo(({
       groups[groups.length - 1].messages.push(msg);
     }
   });
-
 
   return (
     <>
@@ -73,24 +140,24 @@ export const MessageList = React.memo(({
                 }
               }
             }
+            const isStreamingMsg = message.id === streamingId;
             return (
-              <div
+              <VirtualMessageWrapper
                 key={message.id}
-                style={{
-                  contentVisibility: 'auto',
-                  containIntrinsicSize: 'auto 150px',
-                }}
+                id={message.id}
+                defaultHeight={message.role === 'user' ? 80 : 180}
+                alwaysVisible={isStreamingMsg}
               >
                 <ChatMessage
-                  message={message.id === streamingId && streamingContent !== undefined ? { ...message, content: streamingContent } : message}
+                  message={isStreamingMsg && streamingContent !== undefined ? { ...message, content: streamingContent } : message}
                   queryText={queryText}
                   index={index}
-                  isStreaming={message.id === streamingId && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
+                  isStreaming={isStreamingMsg && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
                   isLastGuru={message.id === lastGuruId && !streamingId}
                   onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
                 />
-              </div>
+              </VirtualMessageWrapper>
             );
           })}
         </React.Fragment>

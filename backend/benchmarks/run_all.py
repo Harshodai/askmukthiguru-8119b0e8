@@ -14,9 +14,11 @@ from pathlib import Path
 # Add parent directory to path to enable package execution
 sys.path.append(str(Path(__file__).parent.parent))
 
+
 def check_docker():
     """Checks if the local stack is running on the expected Docker port."""
     import socket
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(2.0)
     try:
@@ -26,12 +28,14 @@ def check_docker():
     except Exception:
         return False
 
+
 def print_banner():
     print("""
 ======================================================================
   🧘   MUKTHI GURU — UNIFIED BENCHMARK & READINESS SUITE   🧘  
 ======================================================================
 """)
+
 
 def run_script(script_name: str, args: list[str]) -> bool:
     script_path = Path(__file__).parent / script_name
@@ -47,6 +51,7 @@ def run_script(script_name: str, args: list[str]) -> bool:
     except subprocess.CalledProcessError as e:
         print(f"❌ {script_name} failed with exit code {e.returncode}.")
         return False
+
 
 def show_readiness_scorecard():
     report_path = Path("reports/ruthless_report.json")
@@ -92,6 +97,7 @@ def show_readiness_scorecard():
         print("⚠️  PLATFORM NOT QUITE PRODUCTION READY YET. CHECK FAILING CATEGORIES.")
     print("=" * 70 + "\n")
 
+
 import json
 
 
@@ -131,6 +137,7 @@ def main():
 
     if not success_ruthless or not success_native:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
