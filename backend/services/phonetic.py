@@ -4,7 +4,7 @@ Mukthi Guru — Indic Phonetic Matching (phonetic.py)
 Provides a lightweight, Indic-optimized phonetic encoding algorithm (transliteration metaphone)
 to resolve common phonetic spelling variations in transliterated Sanskrit/Hindi/Telugu terms.
 Examples:
-  - "deeksha", "diksha", "dikhsha" -> "DIXA"
+  - "deeksha", "diksha", "dikhsha" -> "DEEKSHA"
   - "mukthi", "mukti" -> "MUKTI"
   - "pranayama", "pranayam" -> "PRANAYAM"
   - "upanishad", "upanishada" -> "UPANISAD"

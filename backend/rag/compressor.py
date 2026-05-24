@@ -23,6 +23,7 @@ _SENTENCE_THRESHOLD = 0.3
 # Try importing LLMLingua optionally for advanced 20x compression
 try:
     from llmlingua import PromptCompressor
+
     _HAS_LLMLINGUA = True
 except ImportError:
     _HAS_LLMLINGUA = False
@@ -44,14 +45,16 @@ def cap_to_token_budget(text: str, max_tokens: int) -> str:
     """
     if not text:
         return ""
-    
+
     words = text.split()
     max_words = int(max_tokens / 1.3)
-    
+
     if len(words) <= max_words:
         return text
-        
-    logger.info(f"Token Budget: Capping text from {len(words)} to {max_words} words ({max_tokens} token budget).")
+
+    logger.info(
+        f"Token Budget: Capping text from {len(words)} to {max_words} words ({max_tokens} token budget)."
+    )
     return " ".join(words[:max_words])
 
 
@@ -91,7 +94,7 @@ def compress_documents(
                 model_name="microsoft/llmlingua-2-bert-base-multilingual-cased-meeting",
                 use_llmlingua2=True,
             )
-            
+
             compressed_docs = []
             for doc in documents:
                 text = doc.get("text", "")
@@ -104,11 +107,16 @@ def compress_documents(
                     instruction="",
                     question=query,
                     rate=0.4,  # Target 60% compression rate
-                    force_tokens=["Sri Preethaji", "Sri Krishnaji", "Beautiful State", "Serene Mind"],
+                    force_tokens=[
+                        "Sri Preethaji",
+                        "Sri Krishnaji",
+                        "Beautiful State",
+                        "Serene Mind",
+                    ],
                 )
                 compressed_text = res.get("compressed_prompt", text)
                 compressed_docs.append({**doc, "text": compressed_text})
-            
+
             documents = compressed_docs
         except Exception as e:
             logger.warning(f"LLMLingua compression failed ({e}), falling back to CrossEncoder.")
@@ -170,9 +178,11 @@ def compress_documents(
     # Enforce strict Token Budget Allocation on the entire merged context
     total_context_words = sum(len(d["text"].split()) for d in compressed)
     max_context_words = int(context_budget / 1.3)
-    
+
     if total_context_words > max_context_words:
-        logger.info(f"Token Budget: Merged context ({total_context_words} words) exceeds budget. Truncating chunks.")
+        logger.info(
+            f"Token Budget: Merged context ({total_context_words} words) exceeds budget. Truncating chunks."
+        )
         budget_per_doc = int(max_context_words / len(compressed))
         for doc in compressed:
             doc["text"] = cap_to_token_budget(doc["text"], int(budget_per_doc * 1.3))

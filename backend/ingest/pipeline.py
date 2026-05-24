@@ -169,6 +169,7 @@ class IngestionPipeline:
 
         # === Route to correct loader ===
         from app.security_utils import is_valid_youtube_url
+
         is_yt = "youtube.com" in url or "youtu.be" in url
         if is_yt and not is_valid_youtube_url(url):
             return {

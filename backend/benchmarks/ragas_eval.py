@@ -22,6 +22,7 @@ try:
         context_recall,
         faithfulness,
     )
+
     RAGAS_AVAILABLE = True
 except ImportError:
     RAGAS_AVAILABLE = False
@@ -35,27 +36,32 @@ EVAL_DATASET = {
         "What is the Beautiful State?",
         "How do I deal with suffering according to Sri Krishnaji?",
         "What are the Four Sacred Secrets of O&O Academy?",
-        "What is the first step of Soul Sync meditation?"
+        "What is the first step of Soul Sync meditation?",
     ],
     "contexts": [
-        ["The Beautiful State is a state of connection, joy, and peace. It is the absence of suffering."],
+        [
+            "The Beautiful State is a state of connection, joy, and peace. It is the absence of suffering."
+        ],
         ["Suffering is a doorway to transformation. You must observe it to overcome it."],
-        ["The Four Sacred Secrets include: Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action."],
-        ["The first step of Soul Sync is deep breathing (breath awareness) for 8 counts."]
+        [
+            "The Four Sacred Secrets include: Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action."
+        ],
+        ["The first step of Soul Sync is deep breathing (breath awareness) for 8 counts."],
     ],
     "answer": [
         "The Beautiful State is a state of connection and joy, characterized by the absence of suffering.",
         "According to Sri Krishnaji, suffering is a doorway to transformation and must be observed.",
         "The Four Sacred Secrets are: Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action.",
-        "The first step of the practice is taking deep breaths for 8 counts."
+        "The first step of the practice is taking deep breaths for 8 counts.",
     ],
     "ground_truth": [
         "The Beautiful State is a state devoid of suffering, full of peace and connection.",
         "Sri Krishnaji teaches that observing suffering transforms it.",
         "The Four Sacred Secrets are Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action.",
-        "The first step of Soul Sync is deep breathing."
+        "The first step of Soul Sync is deep breathing.",
     ],
 }
+
 
 def run_evaluation():
     logger.info("Starting standard Ragas RAG Evaluation...")
@@ -92,6 +98,7 @@ def run_evaluation():
 
     except Exception as e:
         logger.error(f"Ragas evaluation failed: {e}")
+
 
 if __name__ == "__main__":
     run_evaluation()

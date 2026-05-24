@@ -96,7 +96,12 @@ class QdrantService:
             existing = [c.name for c in collections]
 
             if self._collection not in existing:
-                from qdrant_client.http.models import ScalarQuantization, ScalarQuantizationConfig, ScalarType
+                from qdrant_client.http.models import (
+                    ScalarQuantization,
+                    ScalarQuantizationConfig,
+                    ScalarType,
+                )
+
                 self._client.create_collection(
                     collection_name=self._collection,
                     vectors_config={
@@ -197,6 +202,7 @@ class QdrantService:
 
             # Generate Indic phonetic tokens for misspelling tolerance
             from services.phonetic import IndicPhoneticMatcher
+
             phonetic_tokens = IndicPhoneticMatcher.get_phonetic_tokens(text)
 
             point = PointStruct(
@@ -250,8 +256,11 @@ class QdrantService:
 
         # Extract Indic phonetic tokens from query for misspelling tolerance
         from services.phonetic import IndicPhoneticMatcher
+
         query_str = kwargs.get("query", "")
-        query_phonetic_tokens = IndicPhoneticMatcher.get_phonetic_tokens(query_str) if query_str else []
+        query_phonetic_tokens = (
+            IndicPhoneticMatcher.get_phonetic_tokens(query_str) if query_str else []
+        )
 
         # Hybrid search with Multi-Vector Prefetching (Ch 6 RAG Made Simple)
         if sparse_vector:
@@ -289,12 +298,16 @@ class QdrantService:
                 if query_phonetic_tokens:
                     prefetch_queries.append(
                         Prefetch(
-                            query=SparseVector(indices=[], values=[]), # Empty sparse query for filtering
+                            query=SparseVector(
+                                indices=[], values=[]
+                            ),  # Empty sparse query for filtering
                             using="sparse",
                             limit=limit // 2,
                             filter=Filter(
                                 should=[
-                                    FieldCondition(key="phonetic_tokens", match=MatchValue(value=tok))
+                                    FieldCondition(
+                                        key="phonetic_tokens", match=MatchValue(value=tok)
+                                    )
                                     for tok in query_phonetic_tokens
                                 ]
                             ),
@@ -539,27 +552,43 @@ class QdrantService:
         except Exception:
             return False
 
-    def get_summary_nodes(self) -> list[dict]:
+    def get_summary_nodes(
+        self, query_vector: list[float] | None = None, limit: int = 15
+    ) -> list[dict]:
         """
-        Retrieve all RAPTOR level-1 summary nodes for tree navigation.
-
-        Returns a list of dicts with text, cluster_id, topic_label, titles,
-        and source_urls — the "table of contents" for reasoning-based retrieval.
+        Retrieve RAPTOR level-1 summary nodes for tree navigation.
+        If query_vector is provided, searches by similarity; otherwise scrolls.
         """
         try:
-            results, _ = self._client.scroll(
-                collection_name=self._collection,
-                scroll_filter=Filter(
-                    must=[
-                        FieldCondition(
-                            key="raptor_level",
-                            match=MatchValue(value=1),
-                        )
-                    ]
-                ),
-                limit=100,  # Unlikely to have more than 100 summary nodes
-                with_payload=True,
-            )
+            if query_vector is not None:
+                results = self._client.search(
+                    collection_name=self._collection,
+                    query_vector=query_vector,
+                    query_filter=Filter(
+                        must=[
+                            FieldCondition(
+                                key="raptor_level",
+                                match=MatchValue(value=1),
+                            )
+                        ]
+                    ),
+                    limit=limit,
+                    with_payload=True,
+                )
+            else:
+                results, _ = self._client.scroll(
+                    collection_name=self._collection,
+                    scroll_filter=Filter(
+                        must=[
+                            FieldCondition(
+                                key="raptor_level",
+                                match=MatchValue(value=1),
+                            )
+                        ]
+                    ),
+                    limit=100,  # Unlikely to have more than 100 summary nodes
+                    with_payload=True,
+                )
 
             nodes = []
             for point in results:

@@ -998,12 +998,16 @@ async def chat_stream_endpoint(
                 cached_response = cached["response"]
                 output_check = await container.guardrails.check_output(cached_response)
                 final_response = (
-                    output_check["moderated_response"] if output_check["blocked"] else cached_response
+                    output_check["moderated_response"]
+                    if output_check["blocked"]
+                    else cached_response
                 )
-                
+
                 # Translate back to native language if needed
                 if is_indic and final_response != cached_response:
-                    final_response = await translate_text(final_response, "en", preferred_lang, container)
+                    final_response = await translate_text(
+                        final_response, "en", preferred_lang, container
+                    )
 
                 escaped = final_response.replace("\n", "\\n")
                 yield f"event: token\ndata: {escaped}\n\n"
@@ -1020,7 +1024,11 @@ async def chat_stream_endpoint(
             user_id = user.get("id", "anonymous")
 
             # === Language Detection and Translation Setup ===
-            lang_detection, normalized_lang, is_indic, should_translate = (
+            # IMPORTANT: Do NOT reassign `is_indic` here — the outer scope's
+            # `is_indic` (line 975) is read on the cache-hit path (line 1007).
+            # Any assignment would make Python treat the whole generator as having
+            # a local `is_indic`, triggering UnboundLocalError on cache hits.
+            lang_detection, normalized_lang, is_indic_detected, should_translate = (
                 detect_and_prepare_language_info(container, user_msg, preferred_lang)
             )
             stable_session_id = normalize_session_id(chat_body.session_id, user_id)
@@ -1040,7 +1048,7 @@ async def chat_stream_endpoint(
 
             # Translate history messages to English if Indic language is active
             chat_history_en = []
-            if is_indic and should_translate:
+            if is_indic_detected and should_translate:
 
                 async def _translate_msg(msg):
                     return await translate_text(msg["content"], preferred_lang, "en", container)
@@ -1063,7 +1071,7 @@ async def chat_stream_endpoint(
 
             if input_check["blocked"]:
                 blocked_resp = input_check["response"]
-                if is_indic:
+                if is_indic_detected:
                     blocked_resp = await translate_text(
                         blocked_resp, "en", preferred_lang, container
                     )
@@ -1120,7 +1128,7 @@ async def chat_stream_endpoint(
             med_step = result.get("meditation_step", 0)
             citations = result.get("citations", [])
 
-            if is_indic:
+            if is_indic_detected:
                 # Indicate translation status
                 yield "event: status\ndata: Translating spiritual response to your language...\n\n"
 
@@ -1447,6 +1455,8 @@ async def ingest_endpoint(
     url = ingest_body.url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
+
+    import re
 
     from app.security_utils import is_valid_youtube_url
     from ingest.image_loader import is_image_url

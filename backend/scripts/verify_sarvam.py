@@ -2,7 +2,6 @@
 """Verify Sarvam Cloud API connectivity and report latency."""
 
 import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -50,9 +49,7 @@ def verify_sarvam() -> tuple[bool, str, float | None]:
     }
     payload = {
         "model": model,
-        "messages": [
-            {"role": "user", "content": "Say 'Sarvam API is live' and nothing else."}
-        ],
+        "messages": [{"role": "user", "content": "Say 'Sarvam API is live' and nothing else."}],
         "max_tokens": 20,
         "temperature": 0.0,
     }
@@ -91,7 +88,7 @@ def verify_sarvam() -> tuple[bool, str, float | None]:
         print(f"  Response preview: {content[:120].strip()}")
         return True, content[:120], latency
     else:
-        print(f"RESULT: WARN — Empty response from API")
+        print("RESULT: WARN — Empty response from API")
         return False, "Empty response", latency
 
 
@@ -99,7 +96,9 @@ if __name__ == "__main__":
     success, message, latency = verify_sarvam()
     print()
     if success:
-        print(f"✅ Sarvam API is LIVE (latency: {latency:.2f}s, model: {settings.sarvam_cloud_model})")
+        print(
+            f"✅ Sarvam API is LIVE (latency: {latency:.2f}s, model: {settings.sarvam_cloud_model})"
+        )
         sys.exit(0)
     else:
         print(f"❌ Sarvam API NOT LIVE — {message}")

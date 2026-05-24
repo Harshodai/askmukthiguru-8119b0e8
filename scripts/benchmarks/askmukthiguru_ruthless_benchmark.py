@@ -1279,6 +1279,36 @@ def load_supabase_credentials() -> tuple[str | None, str | None]:
     return url, key
 
 
+def load_jwt_secret() -> str | None:
+    possible_paths = [
+        os.path.join(os.path.dirname(__file__), "../../backend/.env"),
+        os.path.join(os.path.dirname(__file__), "../backend/.env"),
+        os.path.join(os.path.dirname(__file__), "backend/.env"),
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.env",
+        ".env",
+        "backend/.env",
+    ]
+    secret = os.environ.get("JWT_SECRET")
+    if not secret:
+        for path in possible_paths:
+            if os.path.exists(path):
+                with open(path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        if "=" in line:
+                            k, v = line.split("=", 1)
+                            k = k.strip()
+                            v = v.strip().strip("'\"")
+                            if k == "JWT_SECRET":
+                                secret = v
+                                break
+            if secret:
+                break
+    return secret
+
+
 async def get_active_prompt_version(url: str, key: str) -> str | None:
     headers = {
         "apikey": key,
@@ -2857,4 +2887,5 @@ if __name__ == "__main__":
     p.add_argument("--url", default="http://localhost:8000")
     p.add_argument("--test-key", default=None)
     args = p.parse_args()
-    asyncio.run(main(args.url, args.test_key))
+    test_key = args.test_key or load_jwt_secret()
+    asyncio.run(main(args.url, test_key))
