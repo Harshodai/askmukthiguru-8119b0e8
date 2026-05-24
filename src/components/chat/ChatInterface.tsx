@@ -908,7 +908,7 @@ export const ChatInterface = () => {
               </motion.div>
             )}
 
-            {/* Pipeline Thinking Pills */}
+            {/* Pipeline Visualization */}
             <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
 
             {/* Streaming skeleton */}

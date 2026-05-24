@@ -40,6 +40,7 @@ const TelemetryPage = lazy(() => import("./admin/pages/TelemetryPage"));
 const AlertsPage = lazy(() => import("./admin/pages/AlertsPage"));
 const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
 const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
+const FeedbackPage = lazy(() => import("./admin/pages/FeedbackPage"));
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ const App = () => {
               <Route path="alerts" element={<AlertsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="admins" element={<AdminsPage />} />
+              <Route path="feedback" element={<FeedbackPage />} />
             </Route>
 
             {/* Seeker */}
