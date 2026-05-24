@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Loader2 } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Loader2, Share2, Check } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { recordRecentPractice } from '@/lib/favoritesStorage';
 import { cn } from '@/lib/utils';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useToast } from '@/hooks/use-toast';
 
 const PracticeDetailPage = () => {
   const { loading: authLoading } = useRequireAuth();
@@ -19,7 +20,10 @@ const PracticeDetailPage = () => {
   const navigate = useNavigate();
   const practice = getPracticeBySlug(slug);
   const { isFavorited, toggle } = useFavorites();
+  const { toast } = useToast();
+  
   const fav = practice ? isFavorited(practice.slug) : false;
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Track this as the most recently opened practice for the landing "Continue" card.
   useEffect(() => {
@@ -80,6 +84,29 @@ const PracticeDetailPage = () => {
     ? `https://www.youtube.com/watch?v=${practice.audioId}`
     : null;
 
+  const handleShare = async () => {
+    const stepsText = practice.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
+    const benefitsText = practice.benefits.map((b) => `• ${b}`).join('\n');
+    const shareText = `🧘 *${practice.title}* — ${practice.tagline} (${practice.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}\n\n🎥 *Guided Video:* ${watchUrl}\n\nShared via AskMukthiGuru`;
+    
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShareCopied(true);
+      toast({
+        title: 'Meditation Guide Copied!',
+        description: 'The steps and benefits are copied to your clipboard to share with others.',
+      });
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard: ', err);
+      toast({
+        title: 'Unable to copy link',
+        description: 'Please copy the steps manually from the page.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <AppShell title={practice.title}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
@@ -109,16 +136,36 @@ const PracticeDetailPage = () => {
             <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
               {practice.title}
             </h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toggle(practice.slug)}
-              aria-pressed={fav}
-              className="gap-1.5 shrink-0"
-            >
-              <Star className={cn('w-4 h-4', fav ? 'fill-ojas text-ojas' : 'text-muted-foreground')} />
-              <span className="hidden sm:inline">{fav ? 'Favorited' : 'Add to favorites'}</span>
-            </Button>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                className="gap-1.5"
+              >
+                {shareCopied ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <span className="hidden sm:inline">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4 text-muted-foreground" />
+                    <span className="hidden sm:inline">Share guide</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggle(practice.slug)}
+                aria-pressed={fav}
+                className="gap-1.5"
+              >
+                <Star className={cn('w-4 h-4', fav ? 'fill-ojas text-ojas' : 'text-muted-foreground')} />
+                <span className="hidden sm:inline">{fav ? 'Favorited' : 'Add to favorites'}</span>
+              </Button>
+            </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
             {practice.tagline}
@@ -203,11 +250,41 @@ const PracticeDetailPage = () => {
             <CardTitle className="text-base">How to do it</CardTitle>
           </CardHeader>
           <CardContent>
-            <ol className="space-y-2 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
-              {practice.howItWorks.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
+            <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
+              {practice.howItWorks.map((step) => {
+                const parts = step.split(': ');
+                if (parts.length > 1) {
+                  return (
+                    <li key={step} className="align-text-top">
+                      <span className="font-semibold text-foreground">{parts[0]}:</span> {parts.slice(1).join(': ')}
+                    </li>
+                  );
+                }
+                return <li key={step}>{step}</li>;
+              })}
             </ol>
+          </CardContent>
+        </Card>
+
+        {/* Key Benefits */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Key Benefits</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
+              {practice.benefits.map((benefit) => {
+                const parts = benefit.split(': ');
+                if (parts.length > 1) {
+                  return (
+                    <li key={benefit}>
+                      <span className="font-semibold text-foreground">{parts[0]}:</span> {parts.slice(1).join(': ')}
+                    </li>
+                  );
+                }
+                return <li key={benefit}>{benefit}</li>;
+              })}
+            </ul>
           </CardContent>
         </Card>
 

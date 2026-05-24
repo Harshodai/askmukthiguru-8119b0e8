@@ -478,7 +478,8 @@ class SarvamCloudService:
                             try:
                                 import json as _json
 
-                                debug_file = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/data/sarvam_debug.json"
+                                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                                debug_file = os.path.join(base_dir, "app", "sarvam_debug.json")
                                 # Rotate if file exceeds 50MB
                                 if (
                                     os.path.exists(debug_file)
@@ -978,7 +979,8 @@ class SarvamCloudService:
             client = instructor.from_openai(
                 AsyncOpenAI(
                     base_url=self._base_url,
-                    api_key=self._api_key,
+                    api_key="api-key-not-used-by-bearer",
+                    default_headers={"api-subscription-key": self._api_key},
                 ),
                 mode=instructor.Mode.JSON,
             )

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 ruthless_benchmark.py — Unified HTTP API benchmark runner
 for AskMukthiGuru. Loads 250+ queries from question_bank.py, runs them,
