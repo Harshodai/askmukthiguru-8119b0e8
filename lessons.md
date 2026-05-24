@@ -673,3 +673,74 @@ The codebase is structured into 10 primary communities detected via the Leiden a
   - **Zero Data Loss/Zero Interruption**: Running `make docker-rebuild-web` rebuilds and recreates only the stateless application layers while keeping Qdrant, Neo4j, Redis, and Supabase fully online and untouched.
 - **Lesson learned**: Codify environment-specific path prefixes (like macOS Docker custom paths) inside Makefile targets. Use focused container rebuilding targeting only stateless web tiers (e.g. `docker compose up -d --build frontend backend`) to prevent unnecessary database restarts, maintain service uptime, and protect localized data volumes.
 
+### 57. End-to-End Wiring Verification & Benchmark Results (May 2026)
+
+**Verification Date**: 2026-05-24
+
+#### Pages Verified
+
+**Admin pages (15 wired, all importable)**:
+Overview, Queries, Quality, Retrieval, DailyTeaching, Triggers, Topics, Prompts, Evals, Ingestion, Logs, Telemetry, Alerts, Settings, Admins — plus FeedbackPage (added this session), all via lazy imports in `App.tsx`.
+
+**Seeker pages (11 wired, all importable)**:
+`/`, `/auth`, `/auth/diagnostics`, `/auth/latency`, `/reset-password`, `/privacy`, `/terms`, `/chat`, `/profile`, `/practices`, `/practices/:slug`.
+
+Note: `FeedbackPage` was previously on disk but not wired in the router. Added `<Route path="feedback" element={<FeedbackPage />} />` inside the admin shell. Build passed with zero errors post-fix.
+
+#### Test Results Summary
+
+| Suite | Files | Passed | Skipped | Status |
+|-------|-------|--------|---------|--------|
+| Frontend (Vitest) | 27 | 123 | 6 | ✅ All pass |
+| Backend (Pytest) | 10 | 36 | 0 | ✅ All pass |
+
+**Key fix (backend tests)**: System SOCKS proxy environment variables caused `httpx` to require `socksio`. Stripping `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY` with `env -u` before pytest resolved all 10 test file collection errors. Python 3.12 venv at `backend/.venv` (not 3.9 system Python which lacks `str | None` union syntax).
+
+#### Sarvam API Verification
+
+| Field | Value |
+|-------|-------|
+| Provider | `sarvam_cloud` |
+| Config source | `.env` via `app/config.py` |
+| Model | `sarvam-30b` |
+| Base URL | `https://api.sarvam.ai/v1` |
+| API Key | `***SET***` |
+| Live connectivity | ❌ FAIL — `nodename nor servname provided, or not known` (DNS/resolution blocked in environment) |
+| Verification script | `backend/scripts/verify_sarvam.py` |
+
+The script correctly reads `.env`, uses the `api-subscription-key` header (not Bearer), calls `/chat/completions`, and returns the latency + response preview on success. API call failed at DNS resolution — the environment blocks external HTTP requests, not a config or code issue. The Sarvam SDK (`SarvamCloudService`) correctly sets `headers["api-subscription-key"] = settings.sarvam_api_key` and `payload["model"] = settings.sarvam_cloud_model`, so when the network is available, live calls will fire.
+
+#### Benchmark Suite
+
+The 30-question comprehensive benchmark suite (`backend/benchmarks/comprehensive_benchmark.py`) is verified structurally:
+
+| Tier | Count | Categories |
+|------|-------|------------|
+| Tier 1 (Simple) | 8 | Factual, Applicational |
+| Tier 2 (Complex) | 6 | Comparative, Reasoning |
+| Tier 3 (Distress) | 3 | Distress (empathetic routing) |
+| Tier 4 (Guardrail) | 5 | Off-topic/harmful (expected blocked) |
+| Tier 5 (Edge) | 5 | Cross-lingual, ambiguous, follow-ups |
+| Expert | 3 | Reasoning, Applicational |
+
+Benchmark runner requires live backend. Scripts validated at `src/benchmarks/` structure. Full run deferred — Sarvam API not reachable in current network environment.
+
+#### Verification Script Created
+
+`backend/scripts/verify_sarvam.py` — standalone script that:
+1. Reads `settings.sarvam_api_key`, `settings.sarvam_base_url`, `settings.sarvam_cloud_model` from `.env`
+2. Sends a minimal `max_tokens=20` completion request to `https://api.sarvam.ai/v1/chat/completions`
+3. Reports: API key presence, response latency, content preview
+4. Exits 0 on success, exits 1 on failure
+
+Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
+
+#### Verification Plan Completion
+
+- [x] `npm run build` — zero errors (FeedbackPage included)
+- [x] `npm test` — 123 passed, 6 skipped
+- [x] `cd backend && .venv/bin/python -m pytest tests/ -v` — 36 passed (with proxy env vars stripped)
+- [x] Sarvam verification script confirms config wiring (live call blocked by network, not code)
+- [ ] Benchmark report — deferred (requires network/Sarvam access)
+- [x] lessons.md updated with all results
+
