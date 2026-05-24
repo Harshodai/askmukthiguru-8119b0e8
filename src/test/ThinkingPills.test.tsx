@@ -12,13 +12,11 @@ describe('mapStatusToLabel', () => {
     expect(mapStatusToLabel('Verifying answer...')).toBe('Verifying');
   });
 
-  it('strips trailing ellipsis from unknown statuses', () => {
-    expect(mapStatusToLabel('Loading context...')).toBe('Loading context');
-    expect(mapStatusToLabel('Custom step...')).toBe('Custom step');
-  });
-
-  it('returns raw string when no trailing ellipsis', () => {
-    expect(mapStatusToLabel('Done')).toBe('Done');
+  it('returns "Processing" for unknown statuses (no dot stripping)', () => {
+    expect(mapStatusToLabel('Loading context...')).toBe('Processing');
+    expect(mapStatusToLabel('Custom step...')).toBe('Processing');
+    expect(mapStatusToLabel('Done')).toBe('Processing');
+    expect(mapStatusToLabel('Complete')).toBe('Processing');
   });
 });
 
@@ -45,6 +43,7 @@ describe('ThinkingPills', () => {
     render(<ThinkingPills steps={steps} visible={true} />);
     expect(screen.getByText('Safety check')).toBeInTheDocument();
     expect(screen.getByText('Searching wisdom')).toBeInTheDocument();
-    expect(screen.getByText('Composing')).toBeInTheDocument();
+    // Vertical stepper shows label text in multiple places; getAllByText avoids ambiguity
+    expect(screen.getAllByText('Composing').length).toBeGreaterThan(0);
   });
 });
