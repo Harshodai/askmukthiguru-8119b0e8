@@ -44,6 +44,18 @@ def validate_video_id(video_id: str) -> str:
     return video_id
 
 
+def is_valid_youtube_url(url: str) -> bool:
+    """Strict regex validation for scraped YouTube URLs to prevent SSRF and injection."""
+    if not url or len(url) > 250:
+        return False
+    # Strict character set check: only allow standard URL characters
+    if not re.match(r"^[a-zA-Z0-9_.:/?=&%#-]+$", url):
+        return False
+    # Domain check: must be youtube.com, youtu.be, or a valid subdomain of youtube.com
+    domain_match = re.match(r"^https?://(?:[a-zA-Z0-9_-]+\.)?(?:youtube\.com|youtu\.be)(?:/|$)", url)
+    return bool(domain_match)
+
+
 def validate_session_id(session_id: str | None) -> str | None:
     """
     Validate a session ID before use in logs / DB queries.
