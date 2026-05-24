@@ -168,6 +168,16 @@ class IngestionPipeline:
         self._notify(on_progress, "Detecting content type...", 0.05)
 
         # === Route to correct loader ===
+        from app.security_utils import is_valid_youtube_url
+        is_yt = "youtube.com" in url or "youtu.be" in url
+        if is_yt and not is_valid_youtube_url(url):
+            return {
+                "status": "error",
+                "message": f"Invalid YouTube URL format: {url}",
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
+
         if is_playlist_url(url) or is_channel_url(url):
             return await self._ingest_playlist(url, max_accuracy, on_progress)
         elif is_image_url(url):

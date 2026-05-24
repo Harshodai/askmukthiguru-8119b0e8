@@ -96,6 +96,7 @@ class QdrantService:
             existing = [c.name for c in collections]
 
             if self._collection not in existing:
+                from qdrant_client.http.models import ScalarQuantization, ScalarQuantizationConfig, ScalarType
                 self._client.create_collection(
                     collection_name=self._collection,
                     vectors_config={
@@ -109,6 +110,13 @@ class QdrantService:
                             index=SparseIndexParams(),
                         ),
                     },
+                    quantization_config=ScalarQuantization(
+                        scalar=ScalarQuantizationConfig(
+                            type=ScalarType.INT8,
+                            always_ram=True,
+                        )
+                    ),
+                    on_disk_payload=True,
                 )
                 # Create payload index on raptor_level for fast level-based filtering
                 self._client.create_payload_index(
@@ -116,9 +124,15 @@ class QdrantService:
                     field_name="raptor_level",
                     field_schema="integer",
                 )
+                # Create payload index on phonetic_tokens for fast keyword/phonetic matching
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="phonetic_tokens",
+                    field_schema="keyword",
+                )
                 logger.info(
                     f"Created collection: {self._collection} "
-                    f"(dense={self._dimension}d + sparse, raptor_level index)"
+                    f"(dense={self._dimension}d + sparse, raptor_level and phonetic indexes)"
                 )
             else:
                 logger.info(f"Collection exists: {self._collection}")
@@ -181,10 +195,14 @@ class QdrantService:
                 if sparse_vec and (len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0):
                     vector_dict["sparse"] = self._sparse_dict_to_vector(sparse_vec)
 
+            # Generate Indic phonetic tokens for misspelling tolerance
+            from services.phonetic import IndicPhoneticMatcher
+            phonetic_tokens = IndicPhoneticMatcher.get_phonetic_tokens(text)
+
             point = PointStruct(
                 id=point_id,
                 vector=vector_dict,
-                payload={"text": text, **meta},
+                payload={"text": text, "phonetic_tokens": phonetic_tokens, **meta},
             )
             points.append(point)
 
@@ -230,6 +248,11 @@ class QdrantService:
             )
         search_filter = Filter(must=filter_conditions) if filter_conditions else None
 
+        # Extract Indic phonetic tokens from query for misspelling tolerance
+        from services.phonetic import IndicPhoneticMatcher
+        query_str = kwargs.get("query", "")
+        query_phonetic_tokens = IndicPhoneticMatcher.get_phonetic_tokens(query_str) if query_str else []
+
         # Hybrid search with Multi-Vector Prefetching (Ch 6 RAG Made Simple)
         if sparse_vector:
             try:
@@ -261,6 +284,22 @@ class QdrantService:
                         filter=search_filter,
                     ),
                 ]
+
+                # Prefetch 4: Indic Phonetic Matching (Fuzzy search fallback)
+                if query_phonetic_tokens:
+                    prefetch_queries.append(
+                        Prefetch(
+                            query=SparseVector(indices=[], values=[]), # Empty sparse query for filtering
+                            using="sparse",
+                            limit=limit // 2,
+                            filter=Filter(
+                                should=[
+                                    FieldCondition(key="phonetic_tokens", match=MatchValue(value=tok))
+                                    for tok in query_phonetic_tokens
+                                ]
+                            ),
+                        )
+                    )
                 results = self._client.query_points(
                     collection_name=self._collection,
                     prefetch=prefetch_queries,

@@ -972,7 +972,7 @@ async def chat_stream_endpoint(
 
     user_msg = chat_body.user_message.strip()
     preferred_lang = chat_body.language or "en"
-    preferred_lang and not preferred_lang.startswith("en")
+    is_indic = preferred_lang and not preferred_lang.startswith("en")
     cache_key = _cache_language_key(user_msg, preferred_lang)
 
     if not user_msg:
@@ -992,10 +992,21 @@ async def chat_stream_endpoint(
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
         try:
-            # === Cache check (Bypass guardrails for known safe queries) ===
+            # === Cache check (Run output rail before returning cached responses) ===
             cached = container.semantic_cache.get(cache_key)
             if cached is not None:
-                yield f"event: token\ndata: {cached['response']}\n\n"
+                cached_response = cached["response"]
+                output_check = await container.guardrails.check_output(cached_response)
+                final_response = (
+                    output_check["moderated_response"] if output_check["blocked"] else cached_response
+                )
+                
+                # Translate back to native language if needed
+                if is_indic and final_response != cached_response:
+                    final_response = await translate_text(final_response, "en", preferred_lang, container)
+
+                escaped = final_response.replace("\n", "\\n")
+                yield f"event: token\ndata: {escaped}\n\n"
                 meta = json.dumps(
                     {
                         "intent": cached.get("intent"),
@@ -1434,9 +1445,24 @@ async def ingest_endpoint(
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     url = ingest_body.url.strip()
-
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
+
+    from app.security_utils import is_valid_youtube_url
+    from ingest.image_loader import is_image_url
+
+    is_yt = "youtube.com" in url or "youtu.be" in url
+    if is_yt:
+        if not is_valid_youtube_url(url):
+            raise HTTPException(status_code=400, detail="Invalid YouTube URL format.")
+    elif is_image_url(url):
+        if not re.match(r"^https?://[a-zA-Z0-9_.:/?=&%#-]+$", url) or len(url) > 250:
+            raise HTTPException(status_code=400, detail="Invalid image URL format.")
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported URL format. Only YouTube and image URLs are supported.",
+        )
 
     # Run ingestion in the background for large content
     async def _run_ingestion():

@@ -74,16 +74,23 @@ export const MessageList = React.memo(({
               }
             }
             return (
-              <ChatMessage
+              <div
                 key={message.id}
-                message={message.id === streamingId && streamingContent !== undefined ? { ...message, content: streamingContent } : message}
-                queryText={queryText}
-                index={index}
-                isStreaming={message.id === streamingId && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
-                isLastGuru={message.id === lastGuruId && !streamingId}
-                onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
-                onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
-              />
+                style={{
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: 'auto 150px',
+                }}
+              >
+                <ChatMessage
+                  message={message.id === streamingId && streamingContent !== undefined ? { ...message, content: streamingContent } : message}
+                  queryText={queryText}
+                  index={index}
+                  isStreaming={message.id === streamingId && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
+                  isLastGuru={message.id === lastGuruId && !streamingId}
+                  onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
+                  onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
+                />
+              </div>
             );
           })}
         </React.Fragment>
