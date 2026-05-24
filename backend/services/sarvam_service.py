@@ -301,6 +301,8 @@ class SarvamCloudService:
 
         Returns: The assistant's response content (stripped of <think> tags).
         """
+        request_timeout = kwargs.pop("timeout", self._timeout)
+        request_retries = kwargs.pop("max_retries", self._max_retries)
         if not self._circuit.can_execute():
             exc = Exception(
                 "Sarvam API circuit breaker is OPEN — "
@@ -369,7 +371,7 @@ class SarvamCloudService:
                 payload["reasoning_effort"] = reasoning_effort
 
         last_error = None
-        for attempt in range(1, self._max_retries + 1):
+        for attempt in range(1, request_retries + 1):
             # Enforce rate limiting to stay under subscription/API tier RPM limit (e.g. 60 RPM = 1.0s interval)
             rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
             if rpm_limit > 0:
@@ -396,6 +398,7 @@ class SarvamCloudService:
                             f"{self._base_url}/chat/completions",
                             headers=headers,
                             json=payload,
+                            timeout=request_timeout,
                         )
 
                         # Self-healing for max_tokens limits on starter tier (HTTP 400)
@@ -632,7 +635,7 @@ class SarvamCloudService:
                     if status >= 500:
                         # Server error — retry
                         logger.warning(
-                            f"Sarvam API server error (attempt {attempt}/{self._max_retries}): "
+                            f"Sarvam API server error (attempt {attempt}/{request_retries}): "
                             f"HTTP {status} — {body}"
                         )
                         last_error = Exception(f"HTTP {status}: {body}")
@@ -652,7 +655,7 @@ class SarvamCloudService:
                     self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
                     self._record_span_exception(span, exc)
                     logger.warning(
-                        f"Sarvam API timeout (attempt {attempt}/{self._max_retries}): "
+                        f"Sarvam API timeout (attempt {attempt}/{request_retries}): "
                         f"{latency_ms:.0f}ms"
                     )
                     last_error = Exception(f"Timeout after {latency_ms:.0f}ms")
@@ -663,7 +666,7 @@ class SarvamCloudService:
                     latency_ms = (time.time() - start_time) * 1000
                     self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
                     self._record_span_exception(span, e)
-                    logger.warning(f"Sarvam API error (attempt {attempt}/{self._max_retries}): {e}")
+                    logger.warning(f"Sarvam API error (attempt {attempt}/{request_retries}): {e}")
                     last_error = e
                     await asyncio.sleep(min(2**attempt, 8))
 
@@ -907,7 +910,7 @@ class SarvamCloudService:
     # Domain-specific LLM methods (unchanged public interface)
     # -----------------------------------------------------------------------
 
-    async def classify_intent(self, message: str) -> str:
+    async def classify_intent(self, message: str, **kwargs) -> str:
         """
         Classify user message into one of three intents.
 
@@ -919,13 +922,13 @@ class SarvamCloudService:
         try:
             # Speculative "Fast Path"
             result = await asyncio.wait_for(
-                self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message), timeout=3.0
+                self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message, **kwargs), timeout=3.0
             )
-        except TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):
             logger.warning(
                 "Speculative intent classification timed out. Falling back to main model."
             )
-            result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message)
+            result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()

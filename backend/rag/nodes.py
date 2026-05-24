@@ -273,7 +273,11 @@ async def intent_router(state: GraphState) -> dict:
         return {"intent": "CASUAL"}
 
     # Stage 2: LLM classification (nuanced)
-    intent = await _ollama.classify_intent(question)
+    try:
+        intent = await _ollama.classify_intent(question, timeout=12, max_retries=1)
+    except Exception as e:
+        logger.warning(f"Intent router classification failed/timed out: {e}. Falling back to FACTUAL.")
+        intent = "FACTUAL"
 
     # Adaptive Retrieval: map older labels to new ones if necessary
     if intent == "QUERY":
@@ -350,16 +354,20 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
     """
     question = state["question"]
 
-    # Embed the query to retrieve only the most similar summary nodes
-    query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
-    summary_nodes = _qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
+    try:
+        # Embed the query to retrieve only the most similar summary nodes
+        query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
+        summary_nodes = _qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
 
-    if not summary_nodes:
-        logger.info("Tree navigation: No summary nodes in DB, skipping")
+        if not summary_nodes:
+            logger.info("Tree navigation: No summary nodes in DB, skipping")
+            return {"selected_clusters": []}
+
+        selected = await navigate_tree(question, summary_nodes, _ollama, max_clusters=3, timeout=12, max_retries=1)
+        return {"selected_clusters": selected}
+    except Exception as e:
+        logger.warning(f"navigate_knowledge_tree node failed/timed out: {e}. Searching all clusters.")
         return {"selected_clusters": []}
-
-    selected = await navigate_tree(question, summary_nodes, _ollama, max_clusters=3)
-    return {"selected_clusters": selected}
 
 
 @log_metrics
