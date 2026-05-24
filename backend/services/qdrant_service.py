@@ -8,6 +8,7 @@ Supports:
   - Deterministic point IDs for ingestion deduplication
   - Docker mode (QDRANT_URL) and local mode (QDRANT_LOCAL_PATH)
 """
+from __future__ import annotations
 
 import functools
 import logging
@@ -406,13 +407,13 @@ class QdrantService:
             return results.points
         except Exception:
             # Final fallback for legacy collections without named vectors
-            results = self._client.search(
+            results = self._client.query_points(
                 collection_name=self._collection,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=limit,
                 query_filter=search_filter,
             )
-            return results
+            return results.points
 
     def check_source_exists(self, source_url: str) -> bool:
         """Check if any points with this source_url already exist (dedup check)."""
@@ -561,9 +562,10 @@ class QdrantService:
         """
         try:
             if query_vector is not None:
-                results = self._client.search(
+                query_res = self._client.query_points(
                     collection_name=self._collection,
-                    query_vector=query_vector,
+                    query=query_vector,
+                    using="dense",
                     query_filter=Filter(
                         must=[
                             FieldCondition(
@@ -575,6 +577,7 @@ class QdrantService:
                     limit=limit,
                     with_payload=True,
                 )
+                results = query_res.points
             else:
                 results, _ = self._client.scroll(
                     collection_name=self._collection,

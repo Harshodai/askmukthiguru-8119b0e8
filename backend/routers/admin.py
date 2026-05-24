@@ -382,13 +382,10 @@ async def ask_admin_question(
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    from app.config import settings
+    from app.dependencies import get_container
 
-    api_key = settings.sarvam_api_key
-    base_url = settings.sarvam_base_url.rstrip("/")
-    model = settings.sarvam_cloud_model
-    if not api_key:
-        raise HTTPException(status_code=500, detail="SARVAM_API_KEY not configured")
+    container = get_container()
+    llm_service = container.ollama
 
     system_prompt = (
         "You are an AI analytics assistant for the AskMukthiGuru admin dashboard. "
@@ -401,24 +398,16 @@ async def ask_admin_question(
     user_message = f"{context_block}{req.question}"
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{base_url}/chat/completions",
-                headers={"api-subscription-key": api_key, "Content-Type": "application/json"},
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message},
-                    ],
-                    "max_tokens": 200,
-                    "temperature": 0.3,
-                },
-                timeout=30.0,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            answer = data["choices"][0]["message"]["content"]
-            return {"response": answer}
+        answer = await llm_service.generate(
+            system_prompt=system_prompt,
+            user_prompt=user_message,
+            max_tokens=200,
+            temperature=0.3,
+        )
+        if not answer or not answer.strip():
+            logger.warning("LLM returned empty or whitespace response for admin ask. Using fallback response.")
+            answer = "I apologize, but I am currently unable to retrieve a response from the analytics engine. Please ensure that platform metrics are populated and try again."
+        return {"response": answer.strip()}
     except Exception as e:
+        logger.error(f"Error in ask_admin_question: {e}")
         raise HTTPException(status_code=500, detail=str(e))

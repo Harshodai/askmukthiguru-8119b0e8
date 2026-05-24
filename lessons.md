@@ -750,3 +750,14 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - [ ] Benchmark report — deferred (requires network/Sarvam access)
 - [x] lessons.md updated with all results
 
+### 58. Docker-Safe Debug Logging, Resilient LLM Reasoning, and Host compatibility (May 2026)
+- **Problem**: 
+  - **Docker File Path Crashes**: Setting absolute host paths for debug logs (e.g. `/Users/...`) in containerized services leads to `FileNotFoundError` or permission crashes inside Docker where those directories do not exist.
+  - **Empty Reasoning Responses**: Local and cloud reasoning models (like DeepSeek-R1 or Sarvam-30b) often output their entire generation inside `<think>...</think>` tags, especially when token budgets are small. Stripping these tags globally without fallbacks returns empty responses, causing frontend UI failures.
+  - **Host Python 3.9 Compatibility**: Run-all benchmark scripts executed on host machines with older Python runtimes (like macOS system Python 3.9) crash with `TypeError: unsupported operand type(s) for |` during import/evaluation of typing syntax introduced in Python 3.10+.
+- **Solution**:
+  - **Container-Safe Pathing**: Used `os.path.dirname` to dynamically construct paths relative to the service module (e.g. mapping `sarvam_debug.json` to the container-mounted `/app/app/` folder, which syncs back to the host's `backend/app/` directory).
+  - **Robust Think-Tag Fallback**: Updated `OllamaService` and the admin routing endpoints to use a multi-stage parser: check for content outside think tags; if none exists, extract the content from inside the `<think>` block; if both are empty, return a helpful default message to prevent blank response UI crashes.
+  - **Annotations Backport & Future Imports**: Staged `from __future__ import annotations` at the top of all core service files (`config.py`, `embedding_service.py`, `qdrant_service.py`, `ollama_service.py`, `rails.py`, `ruthless_benchmark.py`) and installed `eval_type_backport` on the host to enable backward compatibility on Python 3.9.
+- **Lesson learned**: Always resolve paths dynamically using `__file__` inside container stacks. Implement layered fallback patterns for LLM outputs to gracefully handle reasoning tags, and systematically add `from __future__ import annotations` when codebase runtimes must target Python versions older than 3.10.
+

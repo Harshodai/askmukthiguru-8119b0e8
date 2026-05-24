@@ -170,10 +170,15 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
 
         traces = []
         for row in response.data:
-            # Flatten response data for UI compatibility
+            # Flatten response data for UI compatibility, preserving query id and created_at
             res_data = row.pop("chat_responses", [])
             if res_data and len(res_data) > 0:
-                row.update(res_data[0])
+                response_item = res_data[0]
+                for k, v in response_item.items():
+                    if k not in ("id", "created_at"):
+                        row[k] = v
+                    else:
+                        row[f"response_{k}"] = v
             traces.append(row)
 
         return traces
