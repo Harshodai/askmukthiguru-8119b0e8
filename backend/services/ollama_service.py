@@ -197,7 +197,7 @@ class OllamaService:
             logger.error(f"Ollama streaming failed: {e}")
             raise
 
-    async def classify_intent(self, message: str) -> str:
+    async def classify_intent(self, message: str, **kwargs) -> str:
         """
         Classify user message into one of three intents.
 
@@ -205,7 +205,7 @@ class OllamaService:
 
         Uses the fast model for ~10x speed improvement.
         """
-        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message)
+        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
