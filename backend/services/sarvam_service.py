@@ -839,7 +839,9 @@ class SarvamCloudService:
                 max_tokens = 4096
 
         if "sarvam-30b" in self._gen_model and max_tokens < 4096:
-            logger.info(f"generate_stream: Scaling max_tokens to 4096 for reasoning model {self._gen_model}")
+            logger.info(
+                f"generate_stream: Scaling max_tokens to 4096 for reasoning model {self._gen_model}"
+            )
             max_tokens = 4096
 
         payload = {
@@ -866,28 +868,28 @@ class SarvamCloudService:
                 headers=headers,
                 json=payload,
             ) as resp:
-                    buffer = ""
-                    async for line in resp.aiter_lines():
-                        if line.startswith("data: "):
-                            data_str = line[6:]
-                            if data_str.strip() == "[DONE]":
-                                # Strip think tags from accumulated buffer
-                                if buffer:
-                                    re.sub(r"<think>.*?</think>", "", buffer, flags=re.DOTALL)
-                                    # Already yielded tokens — just log completion
-                                break
-                            try:
-                                data = json.loads(data_str)
-                                delta_msg = data.get("choices", [{}])[0].get("delta", {})
-                                delta = delta_msg.get("content") or ""
-                                reasoning_delta = delta_msg.get("reasoning_content") or ""
-                                if delta:
-                                    buffer += delta
-                                    yield delta
-                                elif reasoning_delta:
-                                    yield reasoning_delta
-                            except json.JSONDecodeError:
-                                pass
+                buffer = ""
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]
+                        if data_str.strip() == "[DONE]":
+                            # Strip think tags from accumulated buffer
+                            if buffer:
+                                re.sub(r"<think>.*?</think>", "", buffer, flags=re.DOTALL)
+                                # Already yielded tokens — just log completion
+                            break
+                        try:
+                            data = json.loads(data_str)
+                            delta_msg = data.get("choices", [{}])[0].get("delta", {})
+                            delta = delta_msg.get("content") or ""
+                            reasoning_delta = delta_msg.get("reasoning_content") or ""
+                            if delta:
+                                buffer += delta
+                                yield delta
+                            elif reasoning_delta:
+                                yield reasoning_delta
+                        except json.JSONDecodeError:
+                            pass
 
             self._circuit.record_success()
 
@@ -981,14 +983,15 @@ class SarvamCloudService:
                 mode=instructor.Mode.JSON,
             )
 
-            prompt = (
-                f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
-            )
+            prompt = f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
 
             resp: DistressOutput = await client.chat.completions.create(
                 model=self._cls_model,
                 messages=[
-                    {"role": "system", "content": "You are a psychological safety assessor. Return a strictly formatted JSON object matching the requested schema. Do not include any reasoning inside think tags when returning JSON."},
+                    {
+                        "role": "system",
+                        "content": "You are a psychological safety assessor. Return a strictly formatted JSON object matching the requested schema. Do not include any reasoning inside think tags when returning JSON.",
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 response_model=DistressOutput,
@@ -1001,7 +1004,9 @@ class SarvamCloudService:
                 "reason": resp.reason,
             }
         except Exception as e:
-            logger.warning(f"Instructor structured output on Sarvam failed: {e}. Falling back to naive classification.")
+            logger.warning(
+                f"Instructor structured output on Sarvam failed: {e}. Falling back to naive classification."
+            )
             # Fallback to naive parsing if Instructor fails
             intent = await self.classify_intent(message)
             return {
@@ -1372,9 +1377,7 @@ class SarvamCloudService:
                 data = resp.json()
                 return data.get("translated_text", text)
             else:
-                logger.error(
-                    f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}"
-                )
+                logger.error(f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}")
                 return text
         except Exception as e:
             logger.error(f"Error calling Sarvam translation: {e}")

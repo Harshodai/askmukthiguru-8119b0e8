@@ -1,6 +1,38 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles, Share2 } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen } from 'lucide-react';
+
+const OptimisticPlaceholder = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0 }}
+    className="flex items-start gap-3 w-full"
+  >
+    <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
+      <Sparkles className="w-3.5 h-3.5 text-ojas/60" />
+    </div>
+    <div className="flex-1 flex flex-col gap-2 max-w-[85%] sm:max-w-[75%]">
+      <div className="border-l-[3px] border-ojas/10 pl-4 py-2 space-y-3 w-full bg-gradient-to-r from-ojas/5 to-transparent rounded-r-xl">
+        <div className="h-3.5 bg-muted-foreground/10 rounded animate-pulse w-[90%]" />
+        <div className="h-3.5 bg-muted-foreground/10 rounded animate-pulse w-[85%]" />
+        <div className="h-3.5 bg-muted-foreground/10 rounded animate-pulse w-[95%]" />
+        <div className="h-3.5 bg-muted-foreground/10 rounded animate-pulse w-[60%]" />
+      </div>
+      <div className="w-full rounded-xl border border-ojas/10 bg-card/30 p-3 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-3 h-3 text-ojas/40 animate-pulse" />
+          <div className="h-2.5 bg-muted-foreground/10 rounded animate-pulse w-24" />
+        </div>
+        <div className="space-y-1.5 pl-5">
+          <div className="h-2 bg-muted-foreground/10 rounded animate-pulse w-2/3" />
+          <div className="h-2 bg-muted-foreground/10 rounded animate-pulse w-1/2" />
+        </div>
+      </div>
+    </div>
+  </motion.div>
+);
+
 import {
   Message,
   Conversation,
@@ -906,6 +938,7 @@ export const ChatInterface = () => {
               streamingContent={streamingContent}
               onRegenerate={handleRegenerate}
               onEditUserMessage={handleEditUserMessage}
+              scrollContainerRef={scrollContainerRef}
             />
 
             {/* Suggested starters */}
@@ -947,22 +980,8 @@ export const ChatInterface = () => {
 
             {/* Streaming skeleton */}
             <AnimatePresence>
-              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && !showPipeline && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-start gap-3"
-                >
-                  <div className="w-7 h-7 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30">
-                    <div className="w-3.5 h-3.5 rounded-full bg-ojas/50" />
-                  </div>
-                  <div className="border-l-2 border-ojas/20 pl-3.5 space-y-2 w-48">
-                    <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse" />
-                    <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-3/4" />
-                    <div className="h-3 bg-muted-foreground/10 rounded-full animate-pulse w-1/2" />
-                  </div>
-                </motion.div>
+              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+                <OptimisticPlaceholder />
               )}
             </AnimatePresence>
 

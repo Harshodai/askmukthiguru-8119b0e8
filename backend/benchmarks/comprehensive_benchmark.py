@@ -17,10 +17,8 @@ Usage:
     cd backend && python -m benchmarks.comprehensive_benchmark
 """
 
-import json
-import time
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 

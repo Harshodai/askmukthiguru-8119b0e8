@@ -7,15 +7,15 @@ similarity to verify that generated answers are grounded strictly in context.
 """
 
 import logging
-import time
 import re
+import time
 
 logger = logging.getLogger(__name__)
 
 
 class LettuceDetectService:
     """
-    ONNX-optimized local factual grading service utilizing highly optimized 
+    ONNX-optimized local factual grading service utilizing highly optimized
     sentence-level NLI/similarity heuristics to avoid network latency.
     Achieves <50ms token-level factuality scoring locally.
     """
@@ -44,9 +44,7 @@ class LettuceDetectService:
 
         # Split answer into sentences
         sentences = [
-            s.strip()
-            for s in re.split(r"(?<=[.!?])\s+", clean_answer)
-            if len(s.strip()) > 10
+            s.strip() for s in re.split(r"(?<=[.!?])\s+", clean_answer) if len(s.strip()) > 10
         ]
         if not sentences:
             return {"is_faithful": True, "score": 1.0, "details": "No testable sentences."}
