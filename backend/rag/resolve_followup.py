@@ -70,6 +70,18 @@ async def resolve_followup(state: GraphState) -> dict:
     if not chat_history:
         return {}
 
+    # Fast-path routing bypass: if latest query is very simple or doesn't have pronouns/continuation signals, skip LLM resolution.
+    import string
+    normalized_q = question.strip().lower().translate(str.maketrans("", "", string.punctuation))
+    words = normalized_q.split()
+    pronouns = {"it", "that", "this", "they", "them", "he", "him", "she", "her", "his", "their", "there", "here", "these", "those"}
+    has_pronoun = any(w in pronouns for w in words)
+    has_continuation = any(normalized_q.startswith(prefix) for prefix in ["what about", "how about", "also", "and", "why", "how", "more", "tell me more"])
+    
+    if not has_pronoun and not has_continuation:
+        logger.info(f"Resolve Follow-up: Standalone query '{question[:50]}...' detected. Skipping LLM resolution.")
+        return {}
+
     # Only resolve if Ollama is available
     if _ollama is None:
         logger.warning("resolve_followup: OllamaService not initialized, skipping")

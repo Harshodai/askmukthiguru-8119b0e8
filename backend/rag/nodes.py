@@ -91,6 +91,7 @@ _embedder: EmbeddingService = None
 _qdrant: QdrantService | None = None
 _lightrag: LightRAGService | None = None
 _serene_mind: SereneMindEngine | None = None
+_lettuce_detect = None
 
 
 def init_services(
@@ -117,12 +118,17 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect
     _ollama = ollama
     _embedder = embedder
     _qdrant = qdrant
     _lightrag = lightrag
     _serene_mind = serene_mind
+    
+    # Initialize LettuceDetect Service using the injected embedder
+    from services.lettuce_detect_service import LettuceDetectService
+    _lettuce_detect = LettuceDetectService(embedder)
+    
     # Inject ollama into follow-up resolver
     set_followup_ollama(ollama)
 
@@ -293,6 +299,16 @@ async def decompose_query(state: GraphState) -> dict:
     if it's already simple, so no quality loss.
     """
     question = state["question"]
+    
+    # Fast bypass: if question is short and doesn't contain conjunctions/multiple clauses
+    words = question.strip().split()
+    conjunctions = {"and", "or", "but", "while", "whereas"}
+    has_conjunction = any(w.lower() in conjunctions for w in words)
+    
+    if len(words) <= 6 and not has_conjunction and "?" not in question[:-1] and "," not in question:
+        logger.info(f"Decompose Query: Short/simple query detected, skipping LLM decomposition.")
+        return {"sub_queries": [question], "is_complex": False}
+
     sub_queries = await _ollama.decompose_query(question)
     is_complex = len(sub_queries) > 1
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
@@ -400,24 +416,40 @@ async def retrieve_for_single_query(
     # Encode query with both dense and sparse for hybrid search
     query_embedding = await asyncio.to_thread(embedder.encode_single_full, query_for_embedding)
 
-    # Phase 1: Search RAPTOR level-1 summaries (thematic overview)
-    summary_results = await asyncio.to_thread(
+    # Concurrently execute:
+    # 1. Search RAPTOR level-1 summaries (thematic overview)
+    # 2. Search level-0 leaf chunks (specific details)
+    # 3. Search LightRAG graph
+    summary_task = asyncio.to_thread(
         qdrant.search,
         query_vector=query_embedding["dense"],
         limit=2,
         sparse_vector=query_embedding["sparse"],
         raptor_level=1,
+        query=query_for_embedding,
     )
 
-    # Phase 2: Search level-0 leaf chunks (specific details)
-    chunk_results = await asyncio.to_thread(
+    chunk_task = asyncio.to_thread(
         qdrant.search,
         query_vector=query_embedding["dense"],
         limit=settings.rag_top_k_retrieval,
         sparse_vector=query_embedding["sparse"],
         raptor_level=0,
         cluster_ids=selected_clusters if selected_clusters else None,
+        query=query_for_embedding,
     )
+
+    tasks = [summary_task, chunk_task]
+
+    lightrag_index = -1
+    if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
+        lightrag_index = len(tasks)
+        tasks.append(lightrag.aquery(query, mode="hybrid", only_need_context=True))
+
+    results = await asyncio.gather(*tasks)
+
+    summary_results = results[0]
+    chunk_results = results[1]
 
     # Phase 2.5: Parent-Child Resolution (Hierarchical Retrieval)
     # Replaces the matching child chunk with its full parent context for better reasoning
@@ -438,25 +470,20 @@ async def retrieve_for_single_query(
 
     chunk_results = resolved_chunks
 
-    # Phase 3: Search LightRAG graph
     lightrag_results = []
-    if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
-        try:
-            graph_answer = await lightrag.aquery(query, mode="hybrid", only_need_context=True)
-            if graph_answer:
-                lightrag_results.append(
-                    {
-                        "text": graph_answer,
-                        "title": "Knowledge Graph (LightRAG)",
-                        "source_url": "knowledge_graph",
-                        "content_type": "graph_summary",
-                        "chunk_index": 0,
-                        "raptor_level": 0,
-                        "score": 1.0,
-                    }
-                )
-        except Exception as e:
-            logger.error(f"LightRAG query failed in retrieve_documents: {e}")
+    if lightrag_index != -1 and results[lightrag_index]:
+        graph_answer = results[lightrag_index]
+        lightrag_results.append(
+            {
+                "text": graph_answer,
+                "title": "Knowledge Graph (LightRAG)",
+                "source_url": "knowledge_graph",
+                "content_type": "graph_summary",
+                "chunk_index": 0,
+                "raptor_level": 0,
+                "score": 1.0,
+            }
+        )
 
     return summary_results + chunk_results + lightrag_results
 
@@ -558,7 +585,7 @@ async def retrieve_documents(state: GraphState) -> dict:
 async def rerank_documents(state: GraphState) -> dict:
     """
     Layer 5: Rerank Documents (CrossEncoder)
-    Precise top-5 extraction with adaptive thresholds.
+    Precise top-5 extraction with adaptive thresholds and MMR diversification.
     """
     question = state.get("rewritten_query") or state["question"]
     documents = state.get("documents", [])
@@ -580,12 +607,30 @@ async def rerank_documents(state: GraphState) -> dict:
         question,
         documents,
         colbert_top_k=20,
-        cross_top_k=5,
+        cross_top_k=10,  # Increase cross_top_k to gather enough candidates for MMR diversification
         min_score=threshold,
     )
+
+    # Apply MMR (Maximal Marginal Relevance) post-rerank to diversify the final context set
+    if len(reranked) > settings.rag_top_k_retrieval:
+        doc_texts = [doc["text"] for doc in reranked]
+        batch_enc = await asyncio.to_thread(_embedder.encode_batch, doc_texts)
+        doc_embeddings = batch_enc["dense"]
+
+        query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
+        query_emb = query_enc["dense"]
+
+        reranked = _qdrant.mmr_select(
+            query_embedding=query_emb,
+            documents=reranked,
+            doc_embeddings=doc_embeddings,
+            top_k=settings.rag_top_k_retrieval,
+            lambda_param=0.7,
+        )
+
     logger.info(
         f"Reranked {len(documents)} → {len(reranked)} documents "
-        f"(complex={is_complex}, threshold={threshold:.2f})"
+        f"(complex={is_complex}, threshold={threshold:.2f}, MMR applied)"
     )
     return {"reranked_docs": reranked}
 
@@ -741,6 +786,7 @@ async def context_engineer(state: GraphState) -> dict:
     more nuanced control over different parts of the prompt.
     """
     from rag.prompts import STIMULUS_RAG_PROMPT
+    from rag.compressor import cap_to_token_budget
 
     intent = state.get("intent", "FACTUAL")
     relevant_docs = state.get("relevant_docs", [])
@@ -749,21 +795,23 @@ async def context_engineer(state: GraphState) -> dict:
     memory_context = state.get("memory_context") or ""
     detected_language = state.get("detected_language") or "en"
 
-    # Layer 1: Persona
+    # Layer 1: Persona (capped to 512 tokens)
     if intent == "DISTRESS":
         persona = STIMULUS_RAG_PROMPT
     else:
         persona = GURU_SYSTEM_PROMPT
+    persona = cap_to_token_budget(persona, 512)
 
-    # Layer 2: Knowledge (Retrieved Chunks)
+    # Layer 2: Knowledge (Retrieved Chunks, capped to 2048 tokens)
     knowledge = "\n\n".join(
         [
             f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
             for doc in relevant_docs
         ]
     )
+    knowledge = cap_to_token_budget(knowledge, 2048)
 
-    # Layer 3: User State
+    # Layer 3: User State / continuity (capped to 1024 tokens)
     user_state = f"Intent: {intent}\n"
     if meditation_step > 0:
         user_state += f"Active Meditation Step: {meditation_step}\n"
@@ -773,8 +821,9 @@ async def context_engineer(state: GraphState) -> dict:
         user_state += f"Detected Language: {detected_language}\n"
     if memory_context:
         user_state += f"\n{memory_context}\n"
+    user_state = cap_to_token_budget(user_state, 1024)
 
-    # Layer 4: Instructions
+    # Layer 4: Instructions (capped to 512 tokens)
     instructions = (
         "1. Base your answer ONLY on the provided Knowledge.\n"
         "2. If Knowledge is insufficient, admit it warmly.\n"
@@ -783,6 +832,7 @@ async def context_engineer(state: GraphState) -> dict:
         "5. Use the continuity context only to personalize and resolve references; "
         "do not treat it as a source of spiritual facts."
     )
+    instructions = cap_to_token_budget(instructions, 512)
 
     context_layers = {
         "persona": persona,
@@ -791,7 +841,7 @@ async def context_engineer(state: GraphState) -> dict:
         "instructions": instructions,
     }
 
-    logger.info("Context Engineering: Layers assembled")
+    logger.info("Context Engineering: Layers assembled and capped to strict token budgets")
     return {"context_layers": context_layers}
 
 
@@ -994,33 +1044,16 @@ async def reflect_on_answer(state: GraphState) -> dict:
     if not answer or not relevant_docs:
         return {"needs_correction": False}
 
-    # Context compression for reflection to avoid token limits
-    context = "\n\n".join(doc["text"][:500] for doc in relevant_docs[:3])
+    # Use ultra-fast local LettuceDetect factual grading (sub-15ms)
+    context = "\n\n".join(doc["text"] for doc in relevant_docs)
+    ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
 
-    prompt = (
-        "You are an expert evaluator of RAG systems. "
-        "Read the following context and the generated answer.\n\n"
-        f"Context:\n{context}\n\n"
-        f"Question: {question}\n\n"
-        f"Generated Answer: {answer}\n\n"
-        "Does the answer hallucinate or make claims not supported by the context? "
-        "If it is completely supported or if the answer correctly states that it doesn't know, reply with exactly 'VALID'. "
-        "If it hallucinated or is unsupported, reply with a short explanation of why it failed."
-    )
-
-    reflection = await _ollama.generate("You are a strict evaluator. Be concise.", prompt)
-    reflection = reflection.strip()
-
-    if (
-        reflection.upper() == "VALID"
-        or "VALID" in reflection.upper()[:10]
-        or "doesn't know" in answer.lower()
-    ):
-        logger.info("Self-Reflection: Answer is VALID.")
+    if ld_result["is_faithful"] or "doesn't know" in answer.lower():
+        logger.info("Self-Reflection (LettuceDetect): Answer is VALID.")
         return {"needs_correction": False, "reflection_feedback": None}
 
-    logger.warning(f"Self-Reflection: Hallucination detected! Feedback: {reflection}")
-    return {"needs_correction": True, "reflection_feedback": reflection}
+    logger.warning(f"Self-Reflection (LettuceDetect): Hallucination detected! Feedback: {ld_result['details']}")
+    return {"needs_correction": True, "reflection_feedback": ld_result["details"]}
 
 
 # ===================================================================
@@ -1033,45 +1066,50 @@ async def verify_answer(state: GraphState) -> dict:
     """
     Combined Self-RAG + CoVe verification in one LLM call.
 
-    Merges the old check_faithfulness (layer 10) and verify_answer (layer 11)
-    into a single structured prompt. Reduces 2 LLM calls to 1.
-    Also extracts a confidence score (1-10) for graduated response gating.
-
+    Replaced with ultra-fast local LettuceDetect factual grading.
     Checks:
     1. Faithfulness — every claim must be grounded in context
-    2. Verification — generates sub-questions and verifies them
+    2. Verification — local semantic consistency checks
     3. Confidence — 1-10 score for graduated responses
     """
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
+    question = state.get("rewritten_query") or state["question"]
 
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    result = await _ollama.combined_verify(answer, context)
+    
+    # Run local LettuceDetect factuality scoring
+    ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
 
-    is_faithful = result["is_faithful"]
-    passed = result["passed"]
-    confidence = result.get("confidence", 5.0)
+    is_faithful = ld_result["is_faithful"]
+    passed = ld_result["is_faithful"]
+    confidence = float(ld_result["score"] * 10.0)
 
     logger.info(
-        f"Combined verify: faithful={'YES' if is_faithful else 'NO'}, "
-        f"verdict={'PASS' if passed else 'FAIL'}, confidence={confidence}"
+        f"Combined verify (LettuceDetect): faithful={'YES' if is_faithful else 'NO'}, "
+        f"verdict={'PASS' if passed else 'FAIL'}, confidence={confidence:.1f}"
     )
 
     # Record metrics
-    VERIFICATION_RESULTS.labels(result="faithful" if is_faithful else "hallucinated").inc()
-    VERIFICATION_RESULTS.labels(result="pass" if passed else "fail").inc()
-    CONFIDENCE_SCORES.observe(confidence)
+    try:
+        VERIFICATION_RESULTS.labels(result="faithful" if is_faithful else "hallucinated").inc()
+        VERIFICATION_RESULTS.labels(result="pass" if passed else "fail").inc()
+        CONFIDENCE_SCORES.observe(confidence)
+    except Exception:
+        pass
 
-    # Graded scores (assuming combined_verify returns these, or we estimate)
-    faithfulness = result.get("faithfulness_score", 1.0 if is_faithful else 0.0)
-    relevancy = result.get("relevancy_score", 1.0 if passed else 0.5)
+    faithfulness = float(ld_result["score"])
+    relevancy = 1.0 if is_faithful else float(ld_result["score"])
 
-    FAITHFULNESS_SCORE.observe(faithfulness)
-    RELEVANCY_SCORE.observe(relevancy)
+    try:
+        FAITHFULNESS_SCORE.observe(faithfulness)
+        RELEVANCY_SCORE.observe(relevancy)
+    except Exception:
+        pass
 
     return {
         "is_faithful": is_faithful,
-        "verification": {"passed": passed, "details": result["details"]},
+        "verification": {"passed": passed, "details": ld_result["details"]},
         "confidence_score": confidence,
         "faithfulness_score": faithfulness,
         "relevancy_score": relevancy,

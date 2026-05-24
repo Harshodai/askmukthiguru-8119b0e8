@@ -28,8 +28,12 @@ async def stream_sarvam_response(
                     try:
                         chunk = json.loads(data)
                         if "choices" in chunk and len(chunk["choices"]) > 0:
-                            content = chunk["choices"][0].get("delta", {}).get("content")
+                            delta = chunk["choices"][0].get("delta", {})
+                            content = delta.get("content")
+                            reasoning_content = delta.get("reasoning_content")
                             if content:
                                 yield content
+                            elif reasoning_content:
+                                yield reasoning_content
                     except (json.JSONDecodeError, IndexError, KeyError):
                         continue

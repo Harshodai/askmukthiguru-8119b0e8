@@ -344,6 +344,14 @@ class SarvamCloudService:
                 f"_call_api: Proactively capped default output length to {capped_output_length} for {model}"
             )
 
+        # Ensure reasoning models like sarvam-30b have a large enough max_tokens budget
+        # to generate both the thinking trace and the final content response.
+        if "sarvam-30b" in model and max_tokens < 4096:
+            logger.info(
+                f"_call_api: Dynamically scaling max_tokens from {max_tokens} to 4096 for reasoning model {model}."
+            )
+            max_tokens = 4096
+
         payload = {
             "model": model,
             "messages": validated_messages,
@@ -823,11 +831,22 @@ class SarvamCloudService:
             "api-subscription-key": self._api_key,
         }
 
+        max_tokens = kwargs.get("max_tokens", 8192)
+        if max_tokens == 8192:
+            if "sarvam-m" in self._gen_model:
+                max_tokens = 2048
+            else:
+                max_tokens = 4096
+
+        if "sarvam-30b" in self._gen_model and max_tokens < 4096:
+            logger.info(f"generate_stream: Scaling max_tokens to 4096 for reasoning model {self._gen_model}")
+            max_tokens = 4096
+
         payload = {
             "model": self._gen_model,
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.1),
-            "max_tokens": kwargs.get("max_tokens", 8192),
+            "max_tokens": max_tokens,
             "stream": True,
         }
 
@@ -840,13 +859,13 @@ class SarvamCloudService:
                 payload["reasoning_effort"] = reasoning_effort
 
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                async with client.stream(
-                    "POST",
-                    f"{self._base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                ) as resp:
+            client = await self._get_http_client()
+            async with client.stream(
+                "POST",
+                f"{self._base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as resp:
                     buffer = ""
                     async for line in resp.aiter_lines():
                         if line.startswith("data: "):
@@ -859,12 +878,14 @@ class SarvamCloudService:
                                 break
                             try:
                                 data = json.loads(data_str)
-                                delta = (
-                                    data.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                                )
+                                delta_msg = data.get("choices", [{}])[0].get("delta", {})
+                                delta = delta_msg.get("content") or ""
+                                reasoning_delta = delta_msg.get("reasoning_content") or ""
                                 if delta:
                                     buffer += delta
                                     yield delta
+                                elif reasoning_delta:
+                                    yield reasoning_delta
                             except json.JSONDecodeError:
                                 pass
 
@@ -934,6 +955,60 @@ class SarvamCloudService:
                 f"classify_intent got unrecognized output: {result[:100]!r}. Defaulting to QUERY."
             )
             return "QUERY"
+
+    async def classify_distress_structured(self, message: str) -> dict:
+        """
+        Phase 3: Deterministic JSON outputs via Instructor or robust prompt fallback.
+        Uses Instructor to strictly enforce a Pydantic schema for distress classification.
+        """
+        import instructor
+        from openai import AsyncOpenAI
+        from pydantic import BaseModel, Field
+
+        class DistressOutput(BaseModel):
+            is_distress: bool = Field(
+                description="True if the user is in distress, sad, or asking for help with negative emotions"
+            )
+            confidence: float = Field(description="Confidence score from 0.0 to 1.0")
+            reason: str = Field(description="Brief reason for the assessment")
+
+        try:
+            client = instructor.from_openai(
+                AsyncOpenAI(
+                    base_url=self._base_url,
+                    api_key=self._api_key,
+                ),
+                mode=instructor.Mode.JSON,
+            )
+
+            prompt = (
+                f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
+            )
+
+            resp: DistressOutput = await client.chat.completions.create(
+                model=self._cls_model,
+                messages=[
+                    {"role": "system", "content": "You are a psychological safety assessor. Return a strictly formatted JSON object matching the requested schema. Do not include any reasoning inside think tags when returning JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_model=DistressOutput,
+                max_retries=2,
+                timeout=15.0,
+            )
+            return {
+                "is_distress": resp.is_distress,
+                "confidence": resp.confidence,
+                "reason": resp.reason,
+            }
+        except Exception as e:
+            logger.warning(f"Instructor structured output on Sarvam failed: {e}. Falling back to naive classification.")
+            # Fallback to naive parsing if Instructor fails
+            intent = await self.classify_intent(message)
+            return {
+                "is_distress": intent == "DISTRESS",
+                "confidence": 0.5,
+                "reason": f"Fallback naive classification (intent={intent})",
+            }
 
     async def grade_relevance(self, query: str, document: str) -> bool:
         """
@@ -1291,16 +1366,16 @@ class SarvamCloudService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(url, json=payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    return data.get("translated_text", text)
-                else:
-                    logger.error(
-                        f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}"
-                    )
-                    return text
+            client = await self._get_http_client()
+            resp = await client.post(url, json=payload, headers=headers, timeout=15.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("translated_text", text)
+            else:
+                logger.error(
+                    f"Sarvam translation failed (HTTP {resp.status_code}): {resp.text}"
+                )
+                return text
         except Exception as e:
             logger.error(f"Error calling Sarvam translation: {e}")
             return text
@@ -1308,19 +1383,20 @@ class SarvamCloudService:
     async def health_check(self) -> bool:
         """Check if Sarvam Cloud API is reachable."""
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(
-                    f"{self._base_url}/chat/completions",
-                    headers={
-                        "api-subscription-key": self._api_key,
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": self._gen_model,
-                        "messages": [{"role": "user", "content": "ping"}],
-                        "max_tokens": 5,
-                    },
-                )
+            client = await self._get_http_client()
+            resp = await client.post(
+                f"{self._base_url}/chat/completions",
+                headers={
+                    "api-subscription-key": self._api_key,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self._gen_model,
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "max_tokens": 5,
+                },
+                timeout=10.0,
+            )
             return resp.status_code == 200
         except Exception:
             return False

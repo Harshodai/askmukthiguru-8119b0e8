@@ -1,20 +1,30 @@
 #!/usr/bin/env bash
 # docker-safe.sh
 # Bypasses macOS keychain credentials helper error (-25293)
-# by pointing Docker to a clean configuration directory.
+# by mocking the credential helper binaries.
 
 set -e
-
-# Support custom macOS Docker binary path
-CUSTOM_DOCKER_BIN="/Users/harshodaikolluru/.docker/bin"
-if [[ -d "$CUSTOM_DOCKER_BIN" ]]; then
-    export PATH="$CUSTOM_DOCKER_BIN:$PATH"
-fi
 
 # Define clean docker config directory in the workspace
 WORKSPACE_DIR="/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8"
 CLEAN_DIR="${WORKSPACE_DIR}/.docker_clean"
-mkdir -p "$CLEAN_DIR"
+CLEAN_BIN="${CLEAN_DIR}/bin"
+mkdir -p "$CLEAN_BIN"
+
+# Write mock credential helpers that bypass the keychain access
+for helper in docker-credential-osxkeychain docker-credential-desktop; do
+    cat << 'EOF' > "${CLEAN_BIN}/${helper}"
+#!/usr/bin/env bash
+# Mock credential helper to bypass locked macOS keychain
+echo "credentials not found in native keychain"
+exit 1
+EOF
+    chmod +x "${CLEAN_BIN}/${helper}"
+done
+
+# Prepend mock bin path and custom macOS Docker binary path to PATH
+CUSTOM_DOCKER_BIN="/Users/harshodaikolluru/.docker/bin"
+export PATH="${CLEAN_BIN}:${CUSTOM_DOCKER_BIN}:${PATH}"
 
 # Write config that disables credsStore/keychain helper
 echo '{"credsStore": ""}' > "${CLEAN_DIR}/config.json"
