@@ -26,6 +26,7 @@ async def navigate_tree(
     summary_nodes: list[dict],
     llm,
     max_clusters: int = 3,
+    **kwargs,
 ) -> list[int]:
     """
     Reasoning-based tree navigation over RAPTOR summary nodes.
@@ -76,7 +77,7 @@ async def navigate_tree(
     )
 
     try:
-        result = await llm._generate_fast(TREE_NAVIGATION_PROMPT, prompt)
+        result = await llm._generate_fast(TREE_NAVIGATION_PROMPT, prompt, **kwargs)
 
         # Parse cluster IDs from the response
         selected = _parse_cluster_ids(result, summary_nodes)

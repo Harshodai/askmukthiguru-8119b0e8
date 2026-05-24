@@ -761,3 +761,13 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Annotations Backport & Future Imports**: Staged `from __future__ import annotations` at the top of all core service files (`config.py`, `embedding_service.py`, `qdrant_service.py`, `ollama_service.py`, `rails.py`, `ruthless_benchmark.py`) and installed `eval_type_backport` on the host to enable backward compatibility on Python 3.9.
 - **Lesson learned**: Always resolve paths dynamically using `__file__` inside container stacks. Implement layered fallback patterns for LLM outputs to gracefully handle reasoning tags, and systematically add `from __future__ import annotations` when codebase runtimes must target Python versions older than 3.10.
 
+### 59. Chat UI Height Constraint & RAG Pipeline Timeout Optimization (May 2026)
+- **Problem**:
+  - **Chat Interface Scroll Layout Defect**: In the chat view, parent flex columns defaults to `min-height: auto`, allowing them to grow vertically to fit overflow content instead of shrinking within the viewport height. This pushes the message input area and navigation footer completely off-screen.
+  - **LangGraph RAG Pipeline Timeouts**: High-latency upstream reasoning calls on auxiliary nodes (intent classification, knowledge tree navigation) taking over 30s can hit the hard 40s LangGraph wrapper timeout, resulting in complete service timeouts.
+- **Solution**:
+  - **Flexbox Min-Height Constraints**: Added the `min-h-0` Tailwind class to the Main Chat Area wrapper layout column. This restricts the height computation to the parent container's constraints, forcing overflow contents to scroll correctly while preserving the footer position.
+  - **Request-Level LLM Timeout Overrides**: Extended the `SarvamCloudService` client mapping to support custom `timeout` and `max_retries` overrides, forwarding them directly to `httpx.AsyncClient.post`.
+  - **Fast-Failing Nodes & Fallbacks**: Wrapped auxiliary nodes (`intent_router` and `navigate_knowledge_tree` in `nodes.py`) in try-except blocks, invoking them with a strict `timeout=12` and `max_retries=1`. Upon failure, they immediately fail fast and use safe defaults (`FACTUAL` intent and `[]` selected clusters), preserving runtime budget for the main completion node.
+- **Lesson learned**: When nesting flex columns inside overflow-hidden layers in React, always apply `min-h-0` to container wrappers to enable correct scroll heights. Additionally, implement fast-failing timeouts and default fallbacks for all non-essential LLM helper tasks in a graph workflow to avoid cascading network timeouts.
+

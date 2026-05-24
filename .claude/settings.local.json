@@ -14,7 +14,20 @@
       "Bash(grep -E '\\\\.env$|\\\\.env\\\\.local$|\\\\.log$|\\\\.venv/|scratch_test|test_chat|test_chunk|test_semantic|test_cookie|mukthi_guru_colab|extract_pdf|parse_dead_code|update_task')",
       "Bash(python3 *)",
       "Bash(git status *)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(npm test *)",
+      "Bash(.venv/bin/python -m pytest tests/ -v)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(npm run *)",
+      "Bash(python3.11 *)",
+      "Bash(ls -la venv*/bin/python*)",
+      "Bash(ls -la .venv*/bin/python*)",
+      "Bash(HTTP_PROXY= ALL_PROXY= NO_PROXY=* .venv/bin/python -m pytest tests/ -v)",
+      "mcp__code-review-graph__get_architecture_overview_tool",
+      "mcp__code-review-graph__get_hub_nodes_tool",
+      "mcp__code-review-graph__list_communities_tool",
+      "mcp__code-review-graph__get_bridge_nodes_tool",
+      "mcp__code-review-graph__get_minimal_context_tool"
     ]
   },
   "enableAllProjectMcpServers": true,

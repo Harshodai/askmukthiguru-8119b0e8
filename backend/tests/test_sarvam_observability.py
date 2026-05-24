@@ -130,7 +130,7 @@ async def test_sarvam_injects_reasoning_effort(monkeypatch):
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-        async def post(self, url, headers=None, json=None):
+        async def post(self, url, headers=None, json=None, **kwargs):
             recorded_payloads.append(json)
             return CapturingResponse()
 
@@ -187,7 +187,7 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-        async def post(self, url, headers=None, json=None):
+        async def post(self, url, headers=None, json=None, **kwargs):
             return FallbackResponse()
 
     monkeypatch.setattr(sarvam_service, "trace", FakeTrace(FakeTracer()))
