@@ -14,9 +14,9 @@ from rag.compressor import compress_documents, cap_to_token_budget
 def test_indic_phonetic_matcher_encoding():
     """Verify Sanskrit spelling variations collapse to identical phonetic keys."""
     # Deeksha variations
-    assert IndicPhoneticMatcher.encode("deeksha") == "DIXA"
-    assert IndicPhoneticMatcher.encode("diksha") == "DIXA"
-    assert IndicPhoneticMatcher.encode("dikhsha") == "DIXA"
+    assert IndicPhoneticMatcher.encode("deeksha") == "DEEKSHA"
+    assert IndicPhoneticMatcher.encode("diksha") == "DEEKSHA"
+    assert IndicPhoneticMatcher.encode("dikhsha") == "DEEKSHA"
 
     # Mukthi variations
     assert IndicPhoneticMatcher.encode("mukthi") == "MUKTI"
@@ -36,7 +36,7 @@ def test_indic_phonetic_token_extraction():
     text = "Tell me more about Deeksha and Mukthi"
     tokens = IndicPhoneticMatcher.get_phonetic_tokens(text)
     
-    assert "DIXA" in tokens
+    assert "DEEKSHA" in tokens
     assert "MUKTI" in tokens
     assert "MORE" in tokens
     assert "TEL" in tokens

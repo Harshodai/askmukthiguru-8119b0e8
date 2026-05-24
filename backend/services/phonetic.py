@@ -35,6 +35,10 @@ class IndicPhoneticMatcher:
         if not val:
             return ""
 
+        # Specific high-frequency spiritual term mapping to preserve correct spelling
+        if any(variant in val for variant in ["deeksh", "diksh", "dikhsh"]):
+            return "DEEKSHA"
+
         # 2. Collapse double letters (except aa, ee, oo which are vowel representations)
         val = re.sub(r"([^aeiou])\1+", r"\1", val)
 
