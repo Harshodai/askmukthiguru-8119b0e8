@@ -182,6 +182,52 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     selection:bg-ojas/20">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
+                ) : isEditing ? (
+                  <div className="flex flex-col gap-2 w-full">
+                    <textarea
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      autoFocus
+                      rows={Math.max(2, Math.min(8, editValue.split('\n').length))}
+                      className="w-full bg-primary-foreground/10 border border-primary-foreground/25 rounded-lg p-2 text-sm text-primary-foreground placeholder:text-primary-foreground/60 outline-none focus:border-primary-foreground/50 resize-none font-medium"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          if (editValue.trim() && editValue.trim() !== message.content) {
+                            onSubmitEdit?.(message.id, editValue.trim());
+                          }
+                          setIsEditing(false);
+                        }
+                        if (e.key === 'Escape') {
+                          setEditValue(message.content);
+                          setIsEditing(false);
+                        }
+                      }}
+                    />
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setEditValue(message.content); setIsEditing(false); }}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-medium text-primary-foreground/80 hover:bg-primary-foreground/15 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = editValue.trim();
+                          if (trimmed && trimmed !== message.content) {
+                            onSubmitEdit?.(message.id, trimmed);
+                          }
+                          setIsEditing(false);
+                        }}
+                        disabled={!editValue.trim() || editValue.trim() === message.content}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Save & resend
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <span className="font-medium">{message.content}</span>
                 )}
