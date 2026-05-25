@@ -865,6 +865,25 @@ export const ChatInterface = () => {
     });
   }, []);
 
+  // ── Inline edit: replace a past user message and regenerate from there ──
+  const handleSubmitEdit = useCallback((messageId: string, newContent: string) => {
+    if (isStreaming || isTyping) return;
+    const idx = messages.findIndex((m) => m.id === messageId);
+    if (idx < 0) return;
+    const updatedUserMsg: Message = { ...messages[idx], content: newContent, timestamp: new Date() };
+    // Keep history up to (but not including) the edited message; we'll resubmit it.
+    const baseMessages = [...messages.slice(0, idx), updatedUserMsg];
+    const historyMessages = messages.slice(0, idx);
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, newContent, {
+      appendUser: false,
+      baseMessages,
+      historyMessages,
+      bypassCache: true,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming, isTyping, messages]);
+
   const handleNewConversation = () => {
     stopSpeaking();
     const newConversation = createNewConversation();
