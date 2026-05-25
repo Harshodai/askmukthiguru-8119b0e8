@@ -90,12 +90,14 @@ export const MessageList = React.memo(({
   streamingContent,
   onRegenerate,
   onEditUserMessage,
+  onSubmitEdit,
 }: {
   messages: Message[];
   streamingId?: string;
   streamingContent?: string;
   onRegenerate?: () => void;
   onEditUserMessage?: (message: Message) => void;
+  onSubmitEdit?: (messageId: string, newContent: string) => void;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }) => {
   // Find the ID of the last guru message for the regenerate button
