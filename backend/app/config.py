@@ -49,16 +49,20 @@ class Settings(BaseSettings):
     sarvam_api_key: str = ""  # API subscription key from dashboard.sarvam.ai
     sarvam_cloud_model: str = "sarvam-30b"  # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
     sarvam_cloud_classify_model: str = (
-        "sarvam-30b"  # Classification model — can be same or different from generation model
+        "sarvam-m"  # Classification model — can be same or different from generation model
     )
     sarvam_base_url: str = (
         "https://api.sarvam.ai/v1"  # Sarvam API base URL (override for proxy/staging)
     )
     sarvam_reasoning_effort: str = "low"  # Reasoning effort for Sarvam models (low, medium, high)
-    llm_timeout: int = (
-        120  # HTTP timeout for LLM calls (seconds) - Increased for LightRAG extraction
-    )
-    llm_max_retries: int = 3  # Max retry attempts for failed LLM calls
+    # Per-call HTTP timeout. Sarvam Cloud has a 30s server-side limit; Ollama tends to hang on
+    # slow models. Must be smaller than pipeline_timeout. Individual LLM calls that exceed this
+    # trigger retry logic in OllamaService.generate() (max_retries attempts with backoff).
+    llm_timeout: int = 120
+    # Total outer pipeline timeout — must comfortably exceed (llm_timeout × num_retries × num_calls).
+    # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 180s gives healthy headroom.
+    pipeline_timeout: int = 180
+    llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
     # --- Safety Limits ---

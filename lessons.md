@@ -771,3 +771,16 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Fast-Failing Nodes & Fallbacks**: Wrapped auxiliary nodes (`intent_router` and `navigate_knowledge_tree` in `nodes.py`) in try-except blocks, invoking them with a strict `timeout=12` and `max_retries=1`. Upon failure, they immediately fail fast and use safe defaults (`FACTUAL` intent and `[]` selected clusters), preserving runtime budget for the main completion node.
 - **Lesson learned**: When nesting flex columns inside overflow-hidden layers in React, always apply `min-h-0` to container wrappers to enable correct scroll heights. Additionally, implement fast-failing timeouts and default fallbacks for all non-essential LLM helper tasks in a graph workflow to avoid cascading network timeouts.
 
+### 60. Graph RAG (LightRAG) routing optimization, Tailwind Typography, and SSE Guardrail Integration (May 2026)
+- **Problem**:
+  - **LightRAG Latency Outages**: Factual queries retrieve context from LightRAG, which internally calls LLM keyword extraction. By default this was routed to `sarvam-30b`, causing a runaway reasoning trace (22KB of think tags taking 15.8 seconds) and timeouts (exceeding 40s).
+  - **Markdown CSS List Alignment**: The typography stylesheet rendering list items/headers was broken because the `@tailwindcss/typography` plugin was not registered in the Tailwind configuration.
+  - **SSE Metadata Mismatch**: streaming `done` chunks failed to parse `blocked` or `block_reason` fields, preventing the UI from triggering Serene Mind modal overlays when requests were blocked.
+- **Solution**:
+  - **sarvam-m Model Routing**: Routed all internal LightRAG tasks (extraction, keyword extraction, summarization) to the fast non-reasoning `sarvam-m` model, and enabled structured fallback extraction in the client. This reduced keyword extraction latency to ~1-2 seconds.
+  - **Tailwind Typography Integration**: Registered `@tailwindcss/typography` inside `tailwind.config.ts` plugins to correctly align list items and headings in `.prose` classes.
+  - **SSE done chunk parser updates**: Extended the `sendMessageStreaming` done payload schema to capture and forward `blocked` and `blockReason` fields, opening the Serene Mind practice when blocked.
+  - **Bypassed distress checks**: Bypassed context sufficiency calls inside `nodes.py` if the intent is `DISTRESS` and fixed potential `NoneType` issues in `verify_sarvam.py`.
+- **Lesson learned**: Route auxiliary structured tasks (like entity and keyword extraction in Graph RAG) to non-reasoning models (like `sarvam-m`) to prevent costly chain-of-thought delays. Ensure streaming APIs preserve metadata payloads so state machine logic (like guardrail actions) triggers correctly.
+
+

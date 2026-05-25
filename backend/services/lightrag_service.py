@@ -69,28 +69,34 @@ class LightRAGService:
                 else:
                     context += f"\n{str(msg)}"
 
-            # If using Sarvam Cloud, route extraction tasks specifically to sarvam-m to avoid reasoning runaway
+            # Route ALL LightRAG internal LLM tasks to a fast non-reasoning model.
+            # Prevents reasoning model runaway (15+ KB thinking traces, 15-30s latency)
+            # from blocking LightRAG keyword extraction and defeating the anti-hallucination pipeline.
             if settings.llm_provider == "sarvam_cloud":
                 sys_prompt_str = system_prompt or ""
                 prompt_str = prompt or ""
+                
+                # All LightRAG operations run on sarvam-m for high throughput and zero reasoning overhead
+                kwargs["model"] = "sarvam-m"
+                kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
+
                 is_extraction = (
                     "Knowledge Graph" in sys_prompt_str
                     or "entity" in sys_prompt_str
                     or "relation" in sys_prompt_str
                     or "Extract entities" in prompt_str
                     or "Data to be Processed" in prompt_str
+                    or kwargs.get("keyword_extraction", False)
+                    or "keyword" in prompt_str.lower()
+                    or "keyword" in sys_prompt_str.lower()
                 )
-                if is_extraction:
-                    kwargs["model"] = "sarvam-m"
-                    # Clamp max_tokens to sarvam-m's subscription tier limit (2048)
-                    kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
-                    logger.info(
-                        "LightRAG: Routing extraction task to sarvam-m to prevent reasoning runaway and cutoff"
-                    )
 
                 if is_extraction:
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "extraction"
+                    logger.info(
+                        "LightRAG: Routing extraction/keyword task to sarvam-m to prevent reasoning runaway"
+                    )
                 elif (
                     "summary" in sys_prompt_str.lower()
                     or "merge" in sys_prompt_str.lower()
@@ -99,13 +105,37 @@ class LightRAGService:
                 ):
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "summarize"
+                    logger.info(
+                        "LightRAG: Routing summarization task to sarvam-m to prevent reasoning runaway"
+                    )
+                else:
+                    logger.info(
+                        "LightRAG: Routing generic query task to sarvam-m to prevent reasoning runaway"
+                    )
 
-            return await container.ollama.generate(
-                system_prompt=system_prompt or "You are a helpful assistant.",
-                user_prompt=prompt,
-                context=context,
-                **kwargs,
-            )
+            # Route LightRAG calls to the fast model (no reasoning).
+            # The main reasoning model produces 15+ KB thinking traces on broad queries,
+            # causing 30s timeouts in LightRAG's internal keyword extraction pipeline.
+            # The fast model (llama3.2:3b / qwen3:3b) handles extraction in 1-3s with zero overhead.
+            # sarvam_cloud already routes to sarvam-m above; this handles the Ollama path.
+            if settings.llm_provider == "sarvam_cloud":
+                return await container.ollama.generate(
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    user_prompt=prompt,
+                    context=context,
+                    **kwargs,
+                )
+            else:
+                # Ollama: force the fast classification model for ALL LightRAG internals.
+                # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
+                return await container.ollama.generate(
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    user_prompt=prompt,
+                    context=context,
+                    timeout=25,
+                    max_retries=2,
+                    **kwargs,
+                )
 
         # Use our local BGE-M3 model already loaded in memory instead of calling Ollama API
         import asyncio

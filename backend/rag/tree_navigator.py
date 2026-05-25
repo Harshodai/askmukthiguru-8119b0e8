@@ -101,6 +101,7 @@ async def check_sufficiency(
     query: str,
     context: str,
     llm,
+    **kwargs,
 ) -> dict:
     """
     Iterative sufficiency check — PageIndex's key to high accuracy.
@@ -117,7 +118,7 @@ async def check_sufficiency(
     prompt = f"Question: {query}\n\nRetrieved Context:\n{context[:3000]}"  # Truncate for efficiency
 
     try:
-        result = await llm._generate_fast(SUFFICIENCY_CHECK_PROMPT, prompt)
+        result = await llm._generate_fast(SUFFICIENCY_CHECK_PROMPT, prompt, **kwargs)
         result_upper = result.upper().strip()
 
         sufficient = "SUFFICIENT" in result_upper and "INSUFFICIENT" not in result_upper

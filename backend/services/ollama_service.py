@@ -57,22 +57,26 @@ class OllamaService:
         cls_model = settings.model_for_classification
 
         # Main model — for generation and verification
+        # timeout=settings.llm_timeout enforces per-call HTTP timeout on ChatOllama's
+        # internal httpx client, preventing unbounded hangs when Ollama is slow/unresponsive
         self._llm = ChatOllama(
             base_url=settings.ollama_base_url,
             model=gen_model,
             temperature=0.1,  # Low temp for factual accuracy
             num_predict=1024,  # Max output tokens (increased for richer spiritual explanations)
+            timeout=settings.llm_timeout,  # CRITICAL: prevents unbounded LLM hangs
         )
-        logger.info(f"Ollama main model ready: {gen_model} (preset: {settings.model_preset})")
+        logger.info(f"Ollama main model ready: {gen_model} (preset: {settings.model_preset}, timeout={settings.llm_timeout}s)")
 
-        # Fast model — for classification tasks
+        # Fast model — for classification tasks (shorter timeout)
         self._llm_fast = ChatOllama(
             base_url=settings.ollama_base_url,
             model=cls_model,
             temperature=0.0,  # Zero temp for deterministic classification
             num_predict=256,  # Classification outputs are short
+            timeout=30,  # Fast model: 30s timeout per call
         )
-        logger.info(f"Ollama fast model ready: {cls_model}")
+        logger.info(f"Ollama fast model ready: {cls_model} (timeout=30s)")
 
         # Connection pooling: Create a singleton httpx.AsyncClient for health checks and direct HTTP calls
         self._http_client = None
@@ -103,29 +107,37 @@ class OllamaService:
 
         messages.append(HumanMessage(content=full_prompt))
 
-        try:
-            # Bind runtime args like temperature
-            chain = self._llm.bind(**kwargs) if kwargs else self._llm
-            response = await chain.ainvoke(messages)
-            content = response.content.strip()
-            # Strip <think> tags from reasoning models like DeepSeek-R1
-            import re
+        # Extract timeout from kwargs (pop so it's not passed to bind())
+        timeout = kwargs.pop("timeout", settings.llm_timeout)
+        max_retries = kwargs.pop("max_retries", 1)
+        last_err = None
+        for attempt in range(max_retries):
+            try:
+                chain = self._llm.bind(**kwargs) if kwargs else self._llm
+                response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
+                content = response.content.strip()
+                import re
+                think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                content_outside_think = re.sub(
+                    r"<think>.*?</think>", "", content, flags=re.DOTALL
+                ).strip()
 
-            think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-            content_outside_think = re.sub(
-                r"<think>.*?</think>", "", content, flags=re.DOTALL
-            ).strip()
-
-            if content_outside_think:
-                content = content_outside_think
-            elif think_match:
-                content = think_match.group(1).strip()
-            else:
-                content = content.strip()
-            return content
-        except Exception as e:
-            logger.error(f"Ollama generation failed: {e}")
-            raise
+                if content_outside_think:
+                    content = content_outside_think
+                elif think_match:
+                    content = think_match.group(1).strip()
+                else:
+                    content = content.strip()
+                return content
+            except asyncio.TimeoutError as e:
+                last_err = f"Ollama generate timeout after {timeout}s (attempt {attempt+1}/{max_retries})"
+                logger.warning(last_err)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+            except Exception as e:
+                logger.error(f"Ollama generation failed: {e}")
+                raise
+        raise TimeoutError(f"All {max_retries} retries exhausted after {timeout}s") from last_err
 
     async def _generate_fast(
         self,
@@ -144,28 +156,39 @@ class OllamaService:
             HumanMessage(content=user_prompt),
         ]
 
-        try:
-            chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
-            response = await chain.ainvoke(messages)
-            content = response.content.strip()
-            import re
+        _FAST_TIMEOUT = 25
+        _FAST_RETRIES = 2
+        timeout = kwargs.pop("timeout", _FAST_TIMEOUT)
+        max_retries = kwargs.pop("max_retries", _FAST_RETRIES)
+        last_err = None
+        for attempt in range(max_retries):
+            try:
+                chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
+                response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
+                content = response.content.strip()
+                import re
+                think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                content_outside_think = re.sub(
+                    r"<think>.*?</think>", "", content, flags=re.DOTALL
+                ).strip()
 
-            think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-            content_outside_think = re.sub(
-                r"<think>.*?</think>", "", content, flags=re.DOTALL
-            ).strip()
-
-            if content_outside_think:
-                content = content_outside_think
-            elif think_match:
-                content = think_match.group(1).strip()
-            else:
-                content = content.strip()
-            return content
-        except Exception as e:
-            # Fall back to main model if fast model fails
-            logger.warning(f"Fast model failed, falling back to main: {e}")
-            return await self.generate(system_prompt, user_prompt, **kwargs)
+                if content_outside_think:
+                    content = content_outside_think
+                elif think_match:
+                    content = think_match.group(1).strip()
+                else:
+                    content = content.strip()
+                return content
+            except asyncio.TimeoutError as e:
+                last_err = f"Ollama _generate_fast timeout after {timeout}s (attempt {attempt+1}/{max_retries})"
+                logger.warning(last_err)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+            except Exception as e:
+                logger.warning(f"Fast model failed: {e}, falling back to main model")
+                return await self.generate(system_prompt, user_prompt, **kwargs)
+        logger.warning(f"Fast model retries exhausted, falling back to main model")
+        return await self.generate(system_prompt, user_prompt, **kwargs)
 
     async def generate_stream(
         self,
