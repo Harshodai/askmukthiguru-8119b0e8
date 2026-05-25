@@ -90,12 +90,14 @@ export const MessageList = React.memo(({
   streamingContent,
   onRegenerate,
   onEditUserMessage,
+  onSubmitEdit,
 }: {
   messages: Message[];
   streamingId?: string;
   streamingContent?: string;
   onRegenerate?: () => void;
   onEditUserMessage?: (message: Message) => void;
+  onSubmitEdit?: (messageId: string, newContent: string) => void;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }) => {
   // Find the ID of the last guru message for the regenerate button
@@ -141,11 +143,12 @@ export const MessageList = React.memo(({
               }
             }
             const isStreamingMsg = message.id === streamingId;
+            const isEmptyStreaming = isStreamingMsg && !(streamingContent && streamingContent.length > 0) && message.content.length === 0;
             return (
               <VirtualMessageWrapper
                 key={message.id}
                 id={message.id}
-                defaultHeight={message.role === 'user' ? 80 : 180}
+                defaultHeight={isEmptyStreaming ? 24 : (message.role === 'user' ? 60 : 140)}
                 alwaysVisible={isStreamingMsg}
               >
                 <ChatMessage
@@ -156,6 +159,7 @@ export const MessageList = React.memo(({
                   isLastGuru={message.id === lastGuruId && !streamingId}
                   onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
+                  onSubmitEdit={message.role === 'user' ? onSubmitEdit : undefined}
                 />
               </VirtualMessageWrapper>
             );

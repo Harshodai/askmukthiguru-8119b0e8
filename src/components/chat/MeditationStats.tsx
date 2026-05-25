@@ -1,9 +1,22 @@
 import { motion } from 'framer-motion';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { getMeditationStats } from '@/lib/meditationStorage';
 
 export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
-  const stats = getMeditationStats();
+  const [stats, setStats] = useState(() => getMeditationStats());
+
+  useEffect(() => {
+    const refresh = () => setStats(getMeditationStats());
+    window.addEventListener('askmukthiguru:meditation_completed', refresh);
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('askmukthiguru:meditation_completed', refresh);
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   const statItems = [
     {

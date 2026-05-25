@@ -256,16 +256,42 @@ export const ChatInterface = () => {
     });
   }, [profileLoading]);
 
-  // Auto-speak new guru messages when TTS is enabled
+  // Auto-speak ONLY for newly generated guru messages — never on initial mount
+  // or when switching conversations (avoids unwanted speaker when entering /chat).
+  const ttsInitializedRef = useRef(false);
   useEffect(() => {
-    if (!ttsEnabled || messages.length === 0) return;
+    if (!ttsEnabled || messages.length === 0) {
+      // Seed the ref so the next message change is treated as "new"
+      if (messages.length > 0) {
+        lastGuruMessageRef.current = messages[messages.length - 1]?.content ?? '';
+      }
+      ttsInitializedRef.current = true;
+      return;
+    }
+
+    // Skip first run: don't speak the already-existing last message on mount/switch
+    if (!ttsInitializedRef.current) {
+      ttsInitializedRef.current = true;
+      lastGuruMessageRef.current = messages[messages.length - 1]?.content ?? '';
+      return;
+    }
 
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role === 'guru' && lastMessage.content !== lastGuruMessageRef.current) {
+    if (
+      lastMessage.role === 'guru' &&
+      lastMessage.content &&
+      !isStreaming &&
+      lastMessage.content !== lastGuruMessageRef.current
+    ) {
       lastGuruMessageRef.current = lastMessage.content;
       speak(lastMessage.content);
     }
-  }, [messages, ttsEnabled, speak]);
+  }, [messages, ttsEnabled, speak, isStreaming]);
+
+  // Reset TTS gate when switching conversations
+  useEffect(() => {
+    ttsInitializedRef.current = false;
+  }, [currentConversation?.id]);
 
   // Voice recognition hook
   const {
@@ -828,16 +854,27 @@ export const ChatInterface = () => {
   }, [isStreaming, isTyping, messages, currentLanguage]);
   // ─────────────────────────────────────────────────────────────────
 
-  const handleEditUserMessage = useCallback((message: Message) => {
-    setInputValue(message.content);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 128)}px`;
-      }
+  // Legacy fallback (kept for API stability): copy message text into composer.
+  // No longer wired into MessageList — inline edit (handleSubmitEdit) is preferred.
+
+  // ── Inline edit: replace a past user message and regenerate from there ──
+  const handleSubmitEdit = useCallback((messageId: string, newContent: string) => {
+    if (isStreaming || isTyping) return;
+    const idx = messages.findIndex((m) => m.id === messageId);
+    if (idx < 0) return;
+    const updatedUserMsg: Message = { ...messages[idx], content: newContent, timestamp: new Date() };
+    // Keep history up to (but not including) the edited message; we'll resubmit it.
+    const baseMessages = [...messages.slice(0, idx), updatedUserMsg];
+    const historyMessages = messages.slice(0, idx);
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, newContent, {
+      appendUser: false,
+      baseMessages,
+      historyMessages,
+      bypassCache: true,
     });
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStreaming, isTyping, messages]);
 
   const handleNewConversation = () => {
     stopSpeaking();
@@ -937,7 +974,8 @@ export const ChatInterface = () => {
               streamingId={streamingMessageId}
               streamingContent={streamingContent}
               onRegenerate={handleRegenerate}
-              onEditUserMessage={handleEditUserMessage}
+              onEditUserMessage={undefined}
+              onSubmitEdit={handleSubmitEdit}
               scrollContainerRef={scrollContainerRef}
             />
 
@@ -978,9 +1016,9 @@ export const ChatInterface = () => {
             {/* Pipeline Visualization */}
             <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
 
-            {/* Streaming skeleton */}
+            {/* Streaming skeleton — only show before empty guru bubble is added */}
             <AnimatePresence>
-              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+              {isTyping && !isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
                 <OptimisticPlaceholder />
               )}
             </AnimatePresence>
