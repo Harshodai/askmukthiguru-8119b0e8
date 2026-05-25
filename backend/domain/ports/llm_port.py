@@ -22,6 +22,11 @@ class ILLMService(ABC):
         pass
 
     @abstractmethod
+    async def classify_complexity(self, text: str) -> str:
+        """Classify user question complexity (e.g., 'simple' or 'complex')."""
+        pass
+
+    @abstractmethod
     async def get_fast_model(self) -> Any:
         """Return the model configuration optimized for speed/classification."""
         pass

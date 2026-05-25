@@ -285,14 +285,14 @@ async def intent_router(state: GraphState) -> dict:
 
     query_tier = None
     if intent == "FACTUAL":
-        words = question.strip().split()
-        conjunctions = {"and", "or", "but", "while", "whereas"}
-        has_conjunction = any(w.lower() in conjunctions for w in words)
-        comparisons = {"compare", "versus", "vs", "difference", "similar"}
-        has_comparison = any(w.lower() in comparisons for w in words)
-        if len(words) <= 7 and not has_conjunction and not has_comparison:
-            query_tier = "tier2_simple"
-        else:
+        try:
+            complexity = await _ollama.classify_complexity(question)
+            if complexity == "simple":
+                query_tier = "tier2_simple"
+            else:
+                query_tier = "tier3_complex"
+        except Exception as e:
+            logger.warning(f"Complexity classification failed: {e}. Falling back to tier3_complex.")
             query_tier = "tier3_complex"
 
     logger.info(
@@ -322,15 +322,6 @@ async def decompose_query(state: GraphState) -> dict:
         logger.info("Decompose Query: tier2_simple query, skipping LLM decomposition.")
         return {"sub_queries": [question], "is_complex": False}
 
-    # Fast bypass: if question is short and doesn't contain conjunctions/multiple clauses
-    words = question.strip().split()
-    conjunctions = {"and", "or", "but", "while", "whereas"}
-    has_conjunction = any(w.lower() in conjunctions for w in words)
-
-    if len(words) <= 6 and not has_conjunction and "?" not in question[:-1] and "," not in question:
-        logger.info("Decompose Query: Short/simple query detected, skipping LLM decomposition.")
-        return {"sub_queries": [question], "is_complex": False}
-
     sub_queries = await _ollama.decompose_query(question)
     is_complex = len(sub_queries) > 1
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
@@ -347,13 +338,6 @@ async def generate_hyde(state: GraphState) -> dict:
     # Fast bypass: skip HyDE (Hypothetical Document Embeddings) for simple queries.
     if state.get("query_tier") == "tier2_simple":
         logger.info("HyDE: tier2_simple query, skipping HyDE generation")
-        return {"hyde_text": None}
-
-    question_text = state.get("rewritten_query") or state["question"]
-    words = question_text.strip().lower().split()
-    is_simple = len(words) <= 5 and not any(w in words for w in ["and", "or", "but", "why", "how"])
-    if is_simple:
-        logger.info(f"HyDE: skipping for simple query '{question_text}'")
         return {"hyde_text": None}
 
     if not settings.rag_use_hyde:
@@ -391,15 +375,6 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
         # Fast bypass: simple factual queries skip the LLM tree-selection entirely.
         if state.get("query_tier") == "tier2_simple":
             logger.info("Tree nav: tier2_simple query, skipping LLM cluster selection")
-            return {"selected_clusters": []}
-
-        words = question.strip().lower().split()
-        is_simple = (
-            len(words) <= 5
-            and not any(w in words for w in ["and", "or", "but", "why", "how", "when", "where"])
-        )
-        if is_simple:
-            logger.info(f"Tree nav: simple query, skipping LLM cluster selection")
             return {"selected_clusters": []}
 
         if not summary_nodes:
