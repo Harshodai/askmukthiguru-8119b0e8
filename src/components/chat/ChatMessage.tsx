@@ -324,7 +324,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     </button>
                   </div>
                 )}
-                {!isGuru && message.content && !isStreaming && (
+                {!isGuru && message.content && !isStreaming && !isEditing && (
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       onClick={handleCopy}
@@ -333,11 +333,18 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     >
                       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     </button>
-                    {onEditUserMessage && (
+                    {(onSubmitEdit || onEditUserMessage) && (
                       <button
-                        onClick={() => onEditUserMessage(message)}
+                        onClick={() => {
+                          if (onSubmitEdit) {
+                            setEditValue(message.content);
+                            setIsEditing(true);
+                          } else if (onEditUserMessage) {
+                            onEditUserMessage(message);
+                          }
+                        }}
                         className="p-1 rounded-full hover:bg-primary-foreground/15 text-primary-foreground/70 hover:text-primary-foreground transition-colors"
-                        title="Edit question"
+                        title="Edit & resend"
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
