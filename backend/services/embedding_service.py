@@ -52,14 +52,22 @@ class EmbeddingService:
         if self._encoder is not None and self._reranker is not None and self._colbert is not None:
             return
         with self._lock:
+            import torch
+            device = "cpu"
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif torch.backends.mps.is_available():
+                device = "mps"
+            logger.info(f"Dynamic device selection: using {device} for local models")
+
             if self._encoder is None:
                 from FlagEmbedding import BGEM3FlagModel
 
-                logger.info(f"Loading encoder: {settings.embedding_model}")
+                logger.info(f"Loading encoder: {settings.embedding_model} on device: {device}")
                 self._encoder = BGEM3FlagModel(
                     settings.embedding_model,
-                    use_fp16=False,  # FP16 requires CUDA; use False for CPU/Mac Docker
-                    devices="cpu",
+                    use_fp16=(device == "cuda"),  # FP16 requires CUDA
+                    devices=device,
                 )
 
                 # Monkeypatch to catch and diagnose PyTorch model forward pass crashes
@@ -98,10 +106,10 @@ class EmbeddingService:
             if self._reranker is None:
                 from sentence_transformers import CrossEncoder
 
-                logger.info(f"Loading reranker: {settings.reranker_model}")
+                logger.info(f"Loading reranker: {settings.reranker_model} on device: {device}")
                 self._reranker = CrossEncoder(
                     settings.reranker_model,
-                    device="cpu",
+                    device=device,
                 )
             if self._colbert is None:
                 try:

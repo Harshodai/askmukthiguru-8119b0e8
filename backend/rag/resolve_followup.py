@@ -63,6 +63,10 @@ async def resolve_followup(state: GraphState) -> dict:
     Returns:
         dict with updated 'question' if resolved, or empty dict if no change needed.
     """
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Resolve Follow-up: tier2_simple query, skipping LLM resolution.")
+        return {}
+
     chat_history = state.get("chat_history", [])
     question = state["question"]
 

@@ -1117,21 +1117,60 @@ async def chat_stream_endpoint(
             initial_state["user_id"] = user_id
             initial_state["memory_context"] = memory_context
 
-            yield "event: status\ndata: Searching knowledge base...\n\n"
-            result = await asyncio.wait_for(
-                container.rag_graph.ainvoke(initial_state),
-                timeout=settings.llm_timeout + 10,
+            # A/B Testing Logic
+            import random
+
+            if settings.ab_testing_enabled and random.random() < settings.ab_testing_ratio:
+                initial_state["ab_model"] = "krutrim"
+            else:
+                initial_state["ab_model"] = "primary"
+
+            # Create a queue for token streaming
+            queue = asyncio.Queue()
+            config = {"configurable": {"stream_queue": queue}}
+
+            # Run RAG graph in the background
+            pipeline_task = asyncio.create_task(
+                asyncio.wait_for(
+                    container.rag_graph.ainvoke(initial_state, config=config),
+                    timeout=settings.llm_timeout + 15,
+                )
             )
 
+            # Stream tokens from queue as they are produced in the graph
+            has_streamed_tokens = False
+            while not pipeline_task.done() or not queue.empty():
+                try:
+                    # Poll queue with timeout to check if task finished
+                    item = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    if isinstance(item, dict):
+                        # Support structured events (status/metadata)
+                        event_type = item.get("event", "token")
+                        data = item.get("data", "")
+                        if event_type == "status":
+                            yield f"event: status\ndata: {data}\n\n"
+                        elif event_type == "token":
+                            has_streamed_tokens = True
+                            escaped = data.replace("\n", "\\n")
+                            yield f"event: token\ndata: {escaped}\n\n"
+                    else:
+                        has_streamed_tokens = True
+                        escaped = item.replace("\n", "\\n")
+                        yield f"event: token\ndata: {escaped}\n\n"
+                    queue.task_done()
+                except asyncio.TimeoutError:
+                    continue
+
+            # Wait for pipeline completion to get final state
+            result = await pipeline_task
             final_answer = result.get("final_answer", "I apologize, something went wrong.")
             intent = result.get("intent", "CASUAL")
             med_step = result.get("meditation_step", 0)
             citations = result.get("citations", [])
 
+            # For Indic language requests, translate the final completed answer
             if is_indic_detected:
-                # Indicate translation status
                 yield "event: status\ndata: Translating spiritual response to your language...\n\n"
-
                 final_answer_native = await translate_text(
                     final_answer, "en", preferred_lang, container
                 )
@@ -1144,66 +1183,29 @@ async def chat_stream_endpoint(
                     final_answer_native = output_check["moderated_response"]
 
                 final_answer = final_answer_native
-                # Chunk-stream the translated text
+                # Stream the native response to the client
                 for i in range(0, len(final_answer_native), 10):
                     chunk = final_answer_native[i : i + 10]
                     escaped = chunk.replace("\n", "\\n")
                     yield f"event: token\ndata: {escaped}\n\n"
                     await asyncio.sleep(0.01)
             else:
-                # Stream the answer using real SSE if it's a QUERY with context
-                if intent == "QUERY" and result.get("documents") and settings.sarvam_api_key:
-                    try:
-                        from services.streaming_generator import stream_sarvam_response
+                # Run output guardrail check for non-Indic
+                output_check = await container.guardrails.check_output(final_answer)
+                if output_check["blocked"]:
+                    final_answer = output_check["moderated_response"]
 
-                        context_text = "\n\n".join(
-                            [
-                                d.get("text", d.get("page_content", ""))
-                                if isinstance(d, dict)
-                                else getattr(d, "page_content", "")
-                                for d in result.get("documents", [])
-                            ]
-                        )
-                        messages = [
-                            {
-                                "role": "system",
-                                "content": f"You are a spiritual guide. Answer using this context:\n{context_text}",
-                            },
-                            {"role": "user", "content": user_msg_en},
-                        ]
-                        sarvam_answer = ""
-                        async for chunk in stream_sarvam_response(
-                            messages, api_key=settings.sarvam_api_key
-                        ):
-                            if chunk:
-                                sarvam_answer += chunk
-                                escaped = chunk.replace("\n", "\\n")
-                                yield f"event: token\ndata: {escaped}\n\n"
-                        final_answer = sarvam_answer
-                    except Exception as stream_e:
-                        logger.warning(
-                            f"Sarvam API streaming failed: {stream_e}. Falling back to Ollama."
-                        )
-                        # Fallback to simulated stream of local LLM answer
-                        for i in range(0, len(final_answer), 20):
-                            chunk = final_answer[i : i + 20]
-                            escaped = chunk.replace("\n", "\\n")
-                            yield f"event: token\ndata: {escaped}\n\n"
-                            await asyncio.sleep(0.01)
-                else:
-                    # Fallback to simulated stream for casual/distress/cached responses
+                # If we did NOT stream any tokens during graph execution (e.g. CASUAL or DISTRESS intent),
+                # stream the final answer here using simulated streaming.
+                if not has_streamed_tokens:
                     for i in range(0, len(final_answer), 20):
                         chunk = final_answer[i : i + 20]
                         escaped = chunk.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
                         await asyncio.sleep(0.01)
 
-                output_check = await container.guardrails.check_output(final_answer)
-                if output_check["blocked"]:
-                    final_answer = output_check["moderated_response"]
-
-            # Cache QUERY and CASUAL results (Semantic Caching for fast routing)
-            if intent in ["QUERY", "CASUAL"]:
+            # Cache FACTUAL, QUERY, and CASUAL results (Semantic Caching)
+            if intent in ["QUERY", "CASUAL", "FACTUAL"]:
                 container.semantic_cache.put(
                     cache_key, final_answer, intent, citations, meditation_step=med_step
                 )
