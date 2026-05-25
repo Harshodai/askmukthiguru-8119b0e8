@@ -87,6 +87,10 @@ This file documents key implementation patterns, architectural decisions, and "l
 - **Adaptive Chunk Evaluation**: Implemented Size Compliance (SC) and Intrachunk Cohesion (ICC) metrics to dynamically grade and select the best chunking candidates (Semantic Split vs. Recursive Split) on the fly using preview text sampling, completely eliminating manual text heuristics.
 - **Length-Based Proposition Routing**: Configured the LLM-based `PropositionService` with a minimum character threshold (e.g. 400 characters). Short files automatically bypass the LLM proposition parsing cost, falling back immediately to `AdaptiveChunkingService`, preventing latency overhead on tiny inputs.
 
+### 25. Safe Cache Management & Premium Chat UX (May 2026)
+- **Safe Cache Operations**: Added a unified `make flush-cache` task which safely deletes the query-side semantic caches (GPTCache database files and Redis keys). Because the ingestion pipeline is an isolated write-only ETL process targeting Qdrant and Neo4j and maintains checkpoints in `scripts/ingestion_state.json`, flushing transient query caches has **zero impact** on active or pending document indexing runs.
+- **Premium Chat Auto-Scrolling**: Implemented a highly responsive `ResizeObserver` layout-tracking pattern on the chat message wrapper. If a user is near the bottom, it locks the scroll position to the bottom automatically when new tokens arrive or message lists shrink (during regenerate/inline edits), completely preventing disorienting jumps. Manual scrolling up immediately suspends snap-locking to allow uninterrupted history reading.
+
 ## Environment Parity: Lovable vs Local
 
 ### 1. OAuth Strategy & VITE_USE_NATIVE_OAUTH
