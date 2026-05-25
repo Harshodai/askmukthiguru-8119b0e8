@@ -109,6 +109,12 @@ Ensure the following variables are configured in `backend/.env` before running t
 |---|---|---|
 | `KEYCHAIN_PASS` | Required for macOS keychain unlocking during YouTube ingestion cookie retrieval. | `142000` |
 | `SARVAM_DEBUG` | Set to `true` to enable verbose JSON logging for Sarvam API responses. Helps debug quota/reasoning issues. | `false` |
+| `USE_FLASHRANK` | Enable FlashRank ONNX-based high-performance reranking for fast retrieval. | `true` |
+| `FLASHRANK_MODEL` | FlashRank model to load. Use `auto` for platform-specific tuning. | `auto` |
+| `USE_ADAPTIVE_CHUNKING` | Enable quantitative SC/ICC dynamic chunking strategies (Recursive vs. Semantic). | `true` |
+| `ADAPTIVE_CHUNKING_MIN_CHARS` | Minimum text character length before adaptive chunking evaluation is triggered. | `5000` |
+| `USE_PROPOSITION_CHUNKING` | Enable LLM-based proposition extraction. Bypasses for short files if set to `auto`. | `auto` |
+| `PROPOSITION_CHAR_LIMIT` | Max text character length permitted for proposition extraction to prevent LLM timeouts. | `15000` |
 
 ## LLM Configuration
 

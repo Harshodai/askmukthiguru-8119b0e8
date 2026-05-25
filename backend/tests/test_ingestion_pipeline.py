@@ -6,7 +6,9 @@ from ingest.pipeline import IngestionPipeline
 
 
 @pytest.fixture
-def mock_pipeline():
+def mock_pipeline(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "use_adaptive_chunking", False)
     qdrant = MagicMock()
     embedder = MagicMock()
     ollama = MagicMock()
