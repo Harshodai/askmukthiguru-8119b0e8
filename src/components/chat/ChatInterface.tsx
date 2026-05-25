@@ -982,7 +982,8 @@ export const ChatInterface = () => {
               streamingId={streamingMessageId}
               streamingContent={streamingContent}
               onRegenerate={handleRegenerate}
-              onEditUserMessage={handleEditUserMessage}
+              onEditUserMessage={undefined}
+              onSubmitEdit={handleSubmitEdit}
               scrollContainerRef={scrollContainerRef}
             />
 
