@@ -95,9 +95,11 @@ async def resolve_followup(state: GraphState) -> dict:
             question=question,
         )
 
-        resolved = await _ollama.generate(
+        resolved = await _ollama._generate_fast(
             system_prompt="",
             user_prompt=prompt,
+            timeout=15,
+            max_retries=1,
         )
 
         resolved = resolved.strip()

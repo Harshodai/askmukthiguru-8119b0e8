@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 180s gives healthy headroom.
     pipeline_timeout: int = 180
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
+
+    # --- Timeout Budget ---
+    pipeline_timeout_budget: int = 120  # Total pipeline timeout budget in seconds
+    node_timeout_fast: int = 15        # Default fast-model node timeout
+    node_timeout_main: int = 60        # Default main-model node timeout
+
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
     # --- Safety Limits ---
@@ -175,9 +181,17 @@ class Settings(BaseSettings):
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = 10000  # Only compress context if character length exceeds this threshold
 
+    # --- FlashRank Reranking & Ingestion Service Config ---
+    use_flashrank: bool = True
+    flashrank_model: str = "auto"
+    use_adaptive_chunking: bool = True
+    adaptive_chunking_min_chars: int = 5000
+    use_proposition_chunking: str = "auto"
+    proposition_char_limit: int = 15000
+
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
-    semantic_cache_similarity: float = 0.95  # Cosine similarity threshold for cache hit
+    semantic_cache_similarity: float = 0.88  # Cosine similarity threshold for cache hit
     semantic_cache_ttl: int = 3600  # Cache TTL in seconds (1 hour)
 
     # --- User Profiles & Persistence ---

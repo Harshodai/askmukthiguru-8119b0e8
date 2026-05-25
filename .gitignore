@@ -88,3 +88,22 @@ transcripts/
 reports/
 data/gptcache/
 
+# Temporary and Clean Local files
+.docker_clean/
+ecc/
+*askmukthiguru_corrected_report*.json
+*sarvam_debug*.json
+config.json
+nohup.out
+temp_plan.md
+TODO-fix-plan.md
+scripts/ingestion_summary.json
+
+# Cloned Reference Repos
+backend/repos/HippoRAG/
+backend/repos/RAG_Techniques/
+backend/repos/adaptive-chunking/
+backend/repos/raptor/
+
+
+
