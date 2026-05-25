@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = [
   '/practices/serene-mind',
   '/chat',
   '/profile',
+  '/test-tts',
   '/admin/login',
   '/this-route-does-not-exist',
 ];
