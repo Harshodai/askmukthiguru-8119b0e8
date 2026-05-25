@@ -790,4 +790,9 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Bypassed distress checks**: Bypassed context sufficiency calls inside `nodes.py` if the intent is `DISTRESS` and fixed potential `NoneType` issues in `verify_sarvam.py`.
 - **Lesson learned**: Route auxiliary structured tasks (like entity and keyword extraction in Graph RAG) to non-reasoning models (like `sarvam-m`) to prevent costly chain-of-thought delays. Ensure streaming APIs preserve metadata payloads so state machine logic (like guardrail actions) triggers correctly.
 
+### 61. Elimination of Hardcoded Text Heuristics in Agentic Routing (May 2026)
+- **Problem**: The RAG pipeline nodes (`resolve_followup`, `decompose_query`, `generate_hyde`, `navigate_knowledge_tree`) had hardcoded text checks (word counts, punctuation splits, conjunction filters, and manual pronoun lists) to bypass steps or determine query complexity. This was brittle, hard to maintain, and conflicted with true agentic routing.
+- **Solution**: Removed all hardcoded checks and pronoun list mappings. Rely entirely on the dynamically evaluated `query_tier` (determined by `_ollama.classify_complexity` inside the `intent_router` node) and dynamic LLM instruction tuning.
+- **Lesson learned**: Avoid hardcoded heuristics for control-flow routing in agentic RAG workflows. Instead, delegate complexity classification to dedicated, fast LLM calls at the router/entry boundary, and pass that structured state downstream.
+
 

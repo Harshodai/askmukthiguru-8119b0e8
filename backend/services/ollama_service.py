@@ -245,6 +245,11 @@ class OllamaService:
         else:
             return "CASUAL"
 
+    async def classify_complexity(self, text: str) -> str:
+        """Classify user question complexity into 'simple' or 'complex' using the fast model."""
+        is_complex = await self.is_complex_query(text)
+        return "complex" if is_complex else "simple"
+
     async def classify_distress_structured(self, message: str) -> dict:
         """
         Phase 3: Deterministic JSON outputs via Instructor (replacing Guardrails AI).
