@@ -293,4 +293,5 @@ def create_initial_state(
         detected_language="en",
         memory_context="",
         ab_model="primary",
+        query_tier=None,
     )

@@ -283,10 +283,22 @@ async def intent_router(state: GraphState) -> dict:
     if intent == "QUERY":
         intent = "FACTUAL"
 
+    query_tier = None
+    if intent == "FACTUAL":
+        words = question.strip().split()
+        conjunctions = {"and", "or", "but", "while", "whereas"}
+        has_conjunction = any(w.lower() in conjunctions for w in words)
+        comparisons = {"compare", "versus", "vs", "difference", "similar"}
+        has_comparison = any(w.lower() in comparisons for w in words)
+        if len(words) <= 7 and not has_conjunction and not has_comparison:
+            query_tier = "tier2_simple"
+        else:
+            query_tier = "tier3_complex"
+
     logger.info(
-        f"Intent Router: classified '{question[:80]}...' → {intent} (question_len={len(question)})"
+        f"Intent Router: classified '{question[:80]}...' → {intent} | tier → {query_tier} (question_len={len(question)})"
     )
-    return {"intent": intent}
+    return {"intent": intent, "query_tier": query_tier}
 
 
 # ===================================================================
@@ -304,6 +316,11 @@ async def decompose_query(state: GraphState) -> dict:
     if it's already simple, so no quality loss.
     """
     question = state["question"]
+    query_tier = state.get("query_tier")
+
+    if query_tier == "tier2_simple":
+        logger.info("Decompose Query: tier2_simple query, skipping LLM decomposition.")
+        return {"sub_queries": [question], "is_complex": False}
 
     # Fast bypass: if question is short and doesn't contain conjunctions/multiple clauses
     words = question.strip().split()
@@ -328,9 +345,10 @@ async def generate_hyde(state: GraphState) -> dict:
     that 'look like' a good answer.
     """
     # Fast bypass: skip HyDE (Hypothetical Document Embeddings) for simple queries.
-    # HyDE generates a fake answer using the main LLM (~5-15s) then queries the vector DB with it.
-    # For straightforward fact lookup this adds latency with minimal benefit — the retrieval
-    # is already narrow enough from the simple query phrasing.
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("HyDE: tier2_simple query, skipping HyDE generation")
+        return {"hyde_text": None}
+
     question_text = state.get("rewritten_query") or state["question"]
     words = question_text.strip().lower().split()
     is_simple = len(words) <= 5 and not any(w in words for w in ["and", "or", "but", "why", "how"])
@@ -371,9 +389,10 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
         summary_nodes = _qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
 
         # Fast bypass: simple factual queries skip the LLM tree-selection entirely.
-        # The LLM call to reason about clusters takes 5-12s on slow models and rarely
-        # changes outcome for short simple questions (≤5 words). Vector search works fine without
-        # a pre-filter when the query is unambiguous — this saves 5-12s on the hot path.
+        if state.get("query_tier") == "tier2_simple":
+            logger.info("Tree nav: tier2_simple query, skipping LLM cluster selection")
+            return {"selected_clusters": []}
+
         words = question.strip().lower().split()
         is_simple = (
             len(words) <= 5
@@ -403,6 +422,10 @@ async def check_context_sufficiency(state: GraphState) -> dict:
     this question well?" If not, we clear the cluster filter so the
     next CRAG iteration searches the full knowledge base.
     """
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Sufficiency check: tier2_simple query, bypassing sufficiency check")
+        return {}
+
     intent = state.get("intent")
     if intent == "DISTRESS":
         logger.info("Sufficiency check: bypassing for DISTRESS intent")
@@ -528,7 +551,7 @@ async def retrieve_for_single_query(
 
 
 @log_metrics
-async def retrieve_documents(state: GraphState) -> dict:
+async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     """
     Two-phase hybrid retrieval from Qdrant.
 
@@ -539,6 +562,16 @@ async def retrieve_documents(state: GraphState) -> dict:
     Uses bge-m3 dense + sparse vectors with RRF fusion for hybrid search.
     If query was decomposed, retrieves for all sub-queries in parallel.
     """
+    configurable = {}
+    if config:
+        if hasattr(config, "get"):
+            configurable = config.get("configurable", {})
+        elif hasattr(config, "configurable"):
+            configurable = config.configurable
+    stream_queue = configurable.get("stream_queue")
+    if stream_queue:
+        await stream_queue.put({"event": "status", "data": "Searching knowledge base..."})
+
     sub_queries = state.get("sub_queries", [state["question"]])
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
@@ -688,6 +721,10 @@ async def grade_documents(state: GraphState) -> dict:
     grading prompt. Reduces LLM calls from N to 1.
     If ALL documents fail, triggers query rewriting.
     """
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("CRAG batch: tier2_simple query, bypassing relevance grading entirely")
+        return {"relevant_docs": state["reranked_docs"]}
+
     question = state.get("rewritten_query") or state["question"]
     reranked_docs = state["reranked_docs"]
 
@@ -741,6 +778,10 @@ async def enrich_context(state: GraphState) -> dict:
     Provides broader context for better reasoning (RAG Made Simple Ch 8).
     """
     relevant_docs = state.get("relevant_docs", [])
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Enrich context: tier2_simple query, bypassing neighbor enrichment")
+        return {"relevant_docs": relevant_docs}
+
     if not relevant_docs or settings.rag_context_window <= 0:
         return {"relevant_docs": relevant_docs}
 
@@ -892,6 +933,10 @@ async def explain_retrieval(state: GraphState) -> dict:
     """
     from rag.prompts import CITATION_REASONING_PROMPT
 
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Explain retrieval: tier2_simple query, bypassing explain retrieval")
+        return {"citation_reasoning": {}}
+
     question = state["question"]
     relevant_docs = state.get("relevant_docs", [])
 
@@ -929,7 +974,7 @@ async def explain_retrieval(state: GraphState) -> dict:
 
 
 @log_metrics
-async def generate_answer(state: GraphState) -> dict:
+async def generate_answer(state: GraphState, config: dict = None) -> dict:
     """
     Generate the final answer with inline hint extraction.
 
@@ -954,26 +999,39 @@ async def generate_answer(state: GraphState) -> dict:
     lang_suffix = router.get_system_prompt_suffix(LanguageCode(lang))
 
     # Build context string with Contextual Compression (Ch 10 RAG Made Simple)
-    # Using LLM-based compressor (Fast model)
+    # Using LLM-based compressor (Fast model) if configured and threshold is exceeded, else formatting directly
     if len(relevant_docs) > 0:
+        total_raw_len = sum(len(doc.get("text", "")) for doc in relevant_docs)
+        use_compression = getattr(settings, "rag_use_context_compression", False)
+        threshold = getattr(settings, "rag_context_compression_threshold", 10000)
+        
+        if use_compression and total_raw_len > threshold:
+            async def compress_and_format(doc):
+                compressed_text = await _ollama.compress_context(question, doc["text"])
+                if compressed_text:
+                    title = doc.get("title", doc.get("source_url", "Unknown"))
+                    return f"[Source: {title}]\n{compressed_text}"
+                return None
 
-        async def compress_and_format(doc):
-            compressed_text = await _ollama.compress_context(question, doc["text"])
-            if compressed_text:
-                title = doc.get("title", doc.get("source_url", "Unknown"))
-                return f"[Source: {title}]\n{compressed_text}"
-            return None
+            compressed_results = await asyncio.gather(
+                *[compress_and_format(doc) for doc in relevant_docs]
+            )
+            # Filter out empty results where NO_RELEVANT_CONTEXT was returned
+            valid_compressed = [res for res in compressed_results if res]
 
-        compressed_results = await asyncio.gather(
-            *[compress_and_format(doc) for doc in relevant_docs]
-        )
-        # Filter out empty results where NO_RELEVANT_CONTEXT was returned
-        valid_compressed = [res for res in compressed_results if res]
-
-        if valid_compressed:
-            context = "\n\n---\n\n".join(valid_compressed)
+            if valid_compressed:
+                context = "\n\n---\n\n".join(valid_compressed)
+            else:
+                # Fallback if everything got compressed away
+                context = "\n\n---\n\n".join(
+                    f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+                    for doc in relevant_docs
+                )
         else:
-            # Fallback if everything got compressed away
+            logger.info(
+                f"Context Compression: bypassing LLM-based compression (enabled={use_compression}, "
+                f"total_len={total_raw_len}, threshold={threshold}), formatting raw context directly"
+            )
             context = "\n\n---\n\n".join(
                 f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
                 for doc in relevant_docs
@@ -1029,6 +1087,15 @@ async def generate_answer(state: GraphState) -> dict:
     if history_str:
         prompt = f"{history_str}\n\n{prompt}"
 
+    # Extract stream_queue from config
+    configurable = {}
+    if config:
+        if hasattr(config, "get"):
+            configurable = config.get("configurable", {})
+        elif hasattr(config, "configurable"):
+            configurable = config.configurable
+    stream_queue = configurable.get("stream_queue")
+
     # A/B Testing: Choose model
     ab_model = state.get("ab_model", "primary")
 
@@ -1039,31 +1106,63 @@ async def generate_answer(state: GraphState) -> dict:
             container = get_container()
             if container.krutrim:
                 logger.info("A/B Testing: Using Krutrim Pro for generation")
-                answer = await container.krutrim.generate(
-                    system_prompt="",  # Persona already in prompt
-                    user_prompt=prompt,
-                )
+                if stream_queue and hasattr(container.krutrim, "generate_stream"):
+                    answer = ""
+                    async for chunk in container.krutrim.generate_stream(system_prompt="", user_prompt=prompt):
+                        if chunk:
+                            await stream_queue.put(chunk)
+                            answer += chunk
+                else:
+                    answer = await container.krutrim.generate(
+                        system_prompt="",  # Persona already in prompt
+                        user_prompt=prompt,
+                    )
+                    if stream_queue:
+                        await stream_queue.put(answer)
             else:
                 # Fallback to primary if krutrim not available
+                if stream_queue:
+                    answer = ""
+                    async for chunk in _ollama.generate_stream(system_prompt="", user_prompt=prompt):
+                        if chunk:
+                            await stream_queue.put(chunk)
+                            answer += chunk
+                else:
+                    answer = await _ollama.generate(
+                        system_prompt="",
+                        user_prompt=prompt,
+                    )
+        except Exception as e:
+            logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
+            if stream_queue:
+                answer = ""
+                async for chunk in _ollama.generate_stream(system_prompt="", user_prompt=prompt):
+                    if chunk:
+                        await stream_queue.put(chunk)
+                        answer += chunk
+            else:
                 answer = await _ollama.generate(
                     system_prompt="",
                     user_prompt=prompt,
                 )
-        except Exception as e:
-            logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
+    else:
+        if stream_queue:
+            answer = ""
+            async for chunk in _ollama.generate_stream(system_prompt="", user_prompt=prompt):
+                if chunk:
+                    await stream_queue.put(chunk)
+                    answer += chunk
+        else:
             answer = await _ollama.generate(
-                system_prompt="",
+                system_prompt="",  # System prompt is now embedded in the persona layer
                 user_prompt=prompt,
             )
-    else:
-        answer = await _ollama.generate(
-            system_prompt="",  # System prompt is now embedded in the persona layer
-            user_prompt=prompt,
-        )
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")
         answer = "I apologize, but I am unable to formulate a complete response right now. Please allow me to share some relevant teachings from the sacred knowledge base instead."
+        if stream_queue:
+            await stream_queue.put(answer)
 
     logger.info(
         f"Generated answer ({len(answer)} chars, {len(citations)} citations, model={ab_model})"
@@ -1083,6 +1182,10 @@ async def reflect_on_answer(state: GraphState) -> dict:
     Evaluates the generated answer against the retrieved context to detect hallucinations.
     If hallucinated, flags needs_correction=True to trigger a rewrite.
     """
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Self-Reflection: tier2_simple query, bypassing reflection")
+        return {"needs_correction": False, "reflection_feedback": None}
+
     answer = state.get("answer")
     relevant_docs = state.get("relevant_docs", [])
     question = state.get("rewritten_query") or state["question"]
@@ -1120,6 +1223,16 @@ async def verify_answer(state: GraphState) -> dict:
     2. Verification — local semantic consistency checks
     3. Confidence — 1-10 score for graduated responses
     """
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Combined verify: tier2_simple query, bypassing verification")
+        return {
+            "is_faithful": True,
+            "verification": {"passed": True, "details": "Bypassed for simple query"},
+            "confidence_score": 10.0,
+            "faithfulness_score": 1.0,
+            "relevancy_score": 1.0,
+        }
+
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
     question = state.get("rewritten_query") or state["question"]
@@ -1505,6 +1618,10 @@ def route_after_grading(state: GraphState) -> str:
 @log_metrics
 async def check_contradiction(state: GraphState) -> dict:
     """Check if the newly generated answer contradicts previous conversation history."""
+    if state.get("query_tier") == "tier2_simple":
+        logger.info("Contradiction check: tier2_simple query, bypassing contradiction check")
+        return {}
+
     answer = state.get("answer", "")
     chat_history = state.get("chat_history", [])
 
