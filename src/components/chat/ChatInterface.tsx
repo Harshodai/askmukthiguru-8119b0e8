@@ -1004,9 +1004,9 @@ export const ChatInterface = () => {
             {/* Pipeline Visualization */}
             <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
 
-            {/* Streaming skeleton */}
+            {/* Streaming skeleton — only show before empty guru bubble is added */}
             <AnimatePresence>
-              {isStreaming && messages.length > 0 && messages[messages.length - 1].content === '' && (
+              {isTyping && !isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
                 <OptimisticPlaceholder />
               )}
             </AnimatePresence>
