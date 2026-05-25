@@ -807,3 +807,12 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Lesson learned**: Avoid hardcoded heuristics for control-flow routing in agentic RAG workflows. Instead, delegate complexity classification to dedicated, fast LLM calls at the router/entry boundary, and pass that structured state downstream.
 
 
+
+### 62. Service Worker Bypassing and Route Interception in Playwright E2E Tests (May 2026)
+- **Problem**: 
+  - **Service Worker Interception Bypassing Playwright Mocks**: In modern progressive web apps (PWAs), the Service Worker (`sw.js`) intercepts network fetches via the `fetch` event listener. Because Service Workers execute in a separate worker thread, fetches initiated by the Service Worker bypass Playwright's page-level `page.route` mocks. This results in requests (such as Supabase database REST calls or backend APIs) hitting the real local/production servers instead of the mocked intercepts, leading to unexpected `401 Unauthorized` or `JWT cryptographic operation failed` network errors in test environments.
+  - **Serialization Errors in evaluate Blocks**: Referencing bundler-replaced build-time variables (like `import.meta.env`) inside Playwright `page.evaluate()` dynamic function bodies throws serialization errors, because the test runner executes in a standard Node.js environment where `import.meta` is either undefined or non-serializable.
+- **Solution**:
+  - **Navigator Service Worker Mocking**: Stubbed the `serviceWorker` property on `navigator` using `Object.defineProperty` inside a global `page.addInitScript()` before page loading. By redefining the `register` function to return a resolved promise wrapping mock lifecycle methods, the application-level Service Worker is gracefully bypassed without throwing uncaught TypeErrors, returning full fetch control to Playwright's `page.route` handlers.
+  - **Eliminating Build-Time Variables in Tests**: Replaced direct browser evaluation of `import.meta.env` with clean browser logs or standard global checks, ensuring all Playwright test scripts compile and run under Node.js smoothly.
+- **Lesson learned**: When writing E2E tests for progressive web applications (PWAs) with active Service Workers, always mock or stub `navigator.serviceWorker` in an initialization script to prevent worker-level network interception from bypassing Playwright's route mocks. Ensure all page-evaluation callbacks are strictly self-contained and free of environment-specific build constants.
