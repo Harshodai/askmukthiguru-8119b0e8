@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format test docker-up docker-rebuild-web docker-down clean logs shell
+.PHONY: help install dev lint format test docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache
 
 # Colors for terminal output
 YELLOW=\033[1;33m
@@ -86,6 +86,10 @@ backup: ## Take a comprehensive snapshot of Qdrant, Neo4j, and Supabase data
 
 restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
 	@python3 scripts/backup/snapshot_manager.py restore
+
+flush-cache: ## Flush query-side caches (GPTCache, Redis) safely without impacting ingestion
+	@echo "${GREEN}Flushing query-side caches (GPTCache and Redis)...${NC}"
+	@python3 scripts/ops/flush_cache.py
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f
