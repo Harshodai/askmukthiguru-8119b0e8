@@ -159,6 +159,7 @@ export const MessageList = React.memo(({
                   isLastGuru={message.id === lastGuruId && !streamingId}
                   onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
+                  onSubmitEdit={message.role === 'user' ? onSubmitEdit : undefined}
                 />
               </VirtualMessageWrapper>
             );
