@@ -17,6 +17,7 @@ interface ChatMessageProps {
   isLastGuru?: boolean;
   onRegenerate?: () => void;
   onEditUserMessage?: (message: Message) => void;
+  onSubmitEdit?: (messageId: string, newContent: string) => void;
 }
 
 const getDomain = (url: string): string => {
