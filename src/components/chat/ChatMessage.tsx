@@ -74,7 +74,7 @@ const getSourceDisplayName = (url: string, index: number): string => {
 const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit }, ref) => {
     const isGuru = message.role === 'guru';
     const { profile } = useProfile();
     // Extract any https:// URL from the guru's response as a fallback citation.
@@ -95,6 +95,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [feedbackComment, setFeedbackComment] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValue, setEditValue] = useState(message.content);
 
     const handleCopy = useCallback(async () => {
       try {
