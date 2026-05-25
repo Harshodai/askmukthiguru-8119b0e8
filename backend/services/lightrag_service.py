@@ -128,7 +128,7 @@ class LightRAGService:
             else:
                 # Ollama: force the fast classification model for ALL LightRAG internals.
                 # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
-                return await container.ollama.generate(
+                return await container.ollama._generate_fast(
                     system_prompt=system_prompt or "You are a helpful assistant.",
                     user_prompt=prompt,
                     context=context,

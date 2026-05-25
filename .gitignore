@@ -105,5 +105,9 @@ backend/repos/RAG_Techniques/
 backend/repos/adaptive-chunking/
 backend/repos/raptor/
 
+# Playwright Test Outputs
+playwright-report/
+test-results/
+
 
 
