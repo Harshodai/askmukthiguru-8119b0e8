@@ -256,16 +256,42 @@ export const ChatInterface = () => {
     });
   }, [profileLoading]);
 
-  // Auto-speak new guru messages when TTS is enabled
+  // Auto-speak ONLY for newly generated guru messages — never on initial mount
+  // or when switching conversations (avoids unwanted speaker when entering /chat).
+  const ttsInitializedRef = useRef(false);
   useEffect(() => {
-    if (!ttsEnabled || messages.length === 0) return;
+    if (!ttsEnabled || messages.length === 0) {
+      // Seed the ref so the next message change is treated as "new"
+      if (messages.length > 0) {
+        lastGuruMessageRef.current = messages[messages.length - 1]?.content ?? '';
+      }
+      ttsInitializedRef.current = true;
+      return;
+    }
+
+    // Skip first run: don't speak the already-existing last message on mount/switch
+    if (!ttsInitializedRef.current) {
+      ttsInitializedRef.current = true;
+      lastGuruMessageRef.current = messages[messages.length - 1]?.content ?? '';
+      return;
+    }
 
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role === 'guru' && lastMessage.content !== lastGuruMessageRef.current) {
+    if (
+      lastMessage.role === 'guru' &&
+      lastMessage.content &&
+      !isStreaming &&
+      lastMessage.content !== lastGuruMessageRef.current
+    ) {
       lastGuruMessageRef.current = lastMessage.content;
       speak(lastMessage.content);
     }
-  }, [messages, ttsEnabled, speak]);
+  }, [messages, ttsEnabled, speak, isStreaming]);
+
+  // Reset TTS gate when switching conversations
+  useEffect(() => {
+    ttsInitializedRef.current = false;
+  }, [currentConversation?.id]);
 
   // Voice recognition hook
   const {
