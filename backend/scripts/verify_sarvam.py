@@ -78,7 +78,8 @@ def verify_sarvam() -> tuple[bool, str, float | None]:
 
     choices = body.get("choices", [{}])
     if choices:
-        content = choices[0].get("message", {}).get("content", "")
+        message = choices[0].get("message", {})
+        content = message.get("content") or message.get("reasoning_content") or ""
     else:
         content = str(body)
 

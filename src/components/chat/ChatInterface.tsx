@@ -590,6 +590,8 @@ export const ChatInterface = () => {
       let gotFirstToken = false;
       let streamedCitations: string[] = [];
       let streamedMedStep = 0;
+      let streamedBlocked = false;
+      let streamedBlockReason: string | null = null;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
           // Pipeline status update → add or advance pills
@@ -610,6 +612,8 @@ export const ChatInterface = () => {
           streamedCitations = chunk.citations;
           finalIntent = chunk.intent;
           streamedMedStep = chunk.meditationStep;
+          streamedBlocked = chunk.blocked ?? false;
+          streamedBlockReason = chunk.blockReason ?? null;
           continue;
         }
 
@@ -654,8 +658,10 @@ export const ChatInterface = () => {
           setMeditationStep(streamedMedStep);
         }
 
-        // Trigger Serene Mind if distress detected in streaming
-        if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
+        // Trigger Serene Mind if distress or blocked detected in streaming
+        if (streamedBlocked) {
+          openSereneMind('breathing');
+        } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
           openSereneMind('audio');
         }
 
@@ -724,6 +730,7 @@ export const ChatInterface = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, blockedMessage]);
+        openSereneMind('breathing');
       } else {
         if (response.errorCode === 'rate_limited') {
           toast({
