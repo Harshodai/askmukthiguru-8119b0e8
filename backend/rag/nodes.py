@@ -327,6 +327,17 @@ async def generate_hyde(state: GraphState) -> dict:
     This hallucinated text is used as a dense vector to find real chunks
     that 'look like' a good answer.
     """
+    # Fast bypass: skip HyDE (Hypothetical Document Embeddings) for simple queries.
+    # HyDE generates a fake answer using the main LLM (~5-15s) then queries the vector DB with it.
+    # For straightforward fact lookup this adds latency with minimal benefit — the retrieval
+    # is already narrow enough from the simple query phrasing.
+    question_text = state.get("rewritten_query") or state["question"]
+    words = question_text.strip().lower().split()
+    is_simple = len(words) <= 5 and not any(w in words for w in ["and", "or", "but", "why", "how"])
+    if is_simple:
+        logger.info(f"HyDE: skipping for simple query '{question_text}'")
+        return {"hyde_text": None}
+
     if not settings.rag_use_hyde:
         return {"hyde_text": None}
 
@@ -359,6 +370,19 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
         query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
         summary_nodes = _qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
 
+        # Fast bypass: simple factual queries skip the LLM tree-selection entirely.
+        # The LLM call to reason about clusters takes 5-12s on slow models and rarely
+        # changes outcome for short simple questions (≤5 words). Vector search works fine without
+        # a pre-filter when the query is unambiguous — this saves 5-12s on the hot path.
+        words = question.strip().lower().split()
+        is_simple = (
+            len(words) <= 5
+            and not any(w in words for w in ["and", "or", "but", "why", "how", "when", "where"])
+        )
+        if is_simple:
+            logger.info(f"Tree nav: simple query, skipping LLM cluster selection")
+            return {"selected_clusters": []}
+
         if not summary_nodes:
             logger.info("Tree navigation: No summary nodes in DB, skipping")
             return {"selected_clusters": []}
@@ -379,6 +403,11 @@ async def check_context_sufficiency(state: GraphState) -> dict:
     this question well?" If not, we clear the cluster filter so the
     next CRAG iteration searches the full knowledge base.
     """
+    intent = state.get("intent")
+    if intent == "DISTRESS":
+        logger.info("Sufficiency check: bypassing for DISTRESS intent")
+        return {}
+
     question = state["question"]
     relevant_docs = state.get("relevant_docs", [])
 
@@ -387,7 +416,7 @@ async def check_context_sufficiency(state: GraphState) -> dict:
         return {}
 
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    result = await check_sufficiency(question, context, _ollama)
+    result = await check_sufficiency(question, context, _ollama, timeout=12, max_retries=1)
 
     if not result["sufficient"]:
         logger.info("Sufficiency check: INSUFFICIENT — widening search scope")
@@ -875,7 +904,7 @@ async def explain_retrieval(state: GraphState) -> dict:
             return None
         try:
             user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
-            resp = await _ollama.generate(CITATION_REASONING_PROMPT, user_prompt)
+            resp = await _ollama.generate(CITATION_REASONING_PROMPT, user_prompt, timeout=12, max_retries=1)
             return url, resp.strip()
         except Exception as e:
             logger.warning(f"Reasoning failed for {url}: {e}")
@@ -1497,6 +1526,8 @@ async def check_contradiction(state: GraphState) -> dict:
         is_contradiction = await container.ollama.generate(
             system_prompt="You are a contradiction detector. Only answer yes or no.",
             user_prompt=prompt,
+            timeout=12,
+            max_retries=1,
         )
 
         if "yes" in is_contradiction.lower():

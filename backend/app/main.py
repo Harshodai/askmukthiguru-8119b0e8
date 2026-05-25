@@ -740,7 +740,7 @@ async def chat_endpoint(
                 f"{preferred_lang}:{user_msg_en}:{hashlib.md5(str([m['content'] for m in chat_history_en[-4:]]).encode()).hexdigest()[:8]}",
                 run_pipeline,
             ),
-            timeout=settings.llm_timeout + 10,  # Pipeline timeout = LLM timeout + 10s buffer
+            timeout=settings.pipeline_timeout,  # Dedicated pipeline budget (180s) >> per-call timeout (120s)
         )
 
         final_answer = result.get("final_answer", "I apologize, something went wrong.")
@@ -797,7 +797,7 @@ async def chat_endpoint(
         final_answer = final_answer_native
 
     except TimeoutError:
-        logger.error(f"Pipeline timeout after {settings.llm_timeout + 10}s for: {user_msg[:100]}")
+        logger.error(f"Pipeline timeout after {settings.pipeline_timeout}s for: {user_msg[:100]}")
         REQUEST_COUNT.labels(status="timeout").inc()
         final_answer = (
             "I apologize, the process took too long. 🙏 Please try asking your question again."

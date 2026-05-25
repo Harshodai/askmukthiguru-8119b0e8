@@ -108,7 +108,7 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
 export type StreamChunk =
   | { type: 'token'; text: string }
   | { type: 'status'; text: string }
-  | { type: 'done'; intent: string; citations: string[]; meditationStep: number }
+  | { type: 'done'; intent: string; citations: string[]; meditationStep: number; blocked?: boolean; blockReason?: string | null }
   | { type: 'error'; text: string };
 
 export async function* sendMessageStreaming(
@@ -195,6 +195,8 @@ export async function* sendMessageStreaming(
               intent: meta.intent ?? 'CASUAL',
               citations: meta.citations ?? [],
               meditationStep: meta.meditation_step ?? 0,
+              blocked: meta.blocked ?? false,
+              blockReason: meta.block_reason ?? null,
             };
           } catch {
             // Ignore malformed done payload
