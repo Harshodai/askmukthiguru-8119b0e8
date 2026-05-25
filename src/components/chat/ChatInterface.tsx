@@ -139,6 +139,7 @@ export const ChatInterface = () => {
   const { teaching: dailyTeaching } = useDailyTeaching();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const innerContentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
@@ -156,9 +157,40 @@ export const ChatInterface = () => {
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    isNearBottomRef.current = true;
+    const container = scrollContainerRef.current;
+    if (container) {
+      if (behavior === 'smooth') {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
     setShowScrollFab(false);
     setUnreadCount(0);
+  }, []);
+
+  // ── Smart ResizeObserver auto-scroll to bottom (no gaps) ─────────
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    const inner = innerContentRef.current;
+    if (!container || !inner || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      // Whenever content height changes (streaming tokens, regenerate, inline edit),
+      // lock the scroll position to the bottom if the user was already near the bottom.
+      if (isNearBottomRef.current) {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+
+    observer.observe(inner);
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   // ── Textarea auto-resize ─────────────────────────────────────────
@@ -252,7 +284,9 @@ export const ChatInterface = () => {
 
     // Scroll to bottom on mount after a tick
     requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
     });
   }, [profileLoading]);
 
@@ -431,17 +465,12 @@ export const ChatInterface = () => {
     }
   }, [messages]);
 
-  // Scroll to bottom when new messages arrive (only if near bottom)
+  // Track unread messages when we are not near the bottom
   useEffect(() => {
-    if (isNearBottomRef.current) {
-      // Use requestAnimationFrame for reliable scroll after DOM update
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      });
-    } else if (messages.length > 0 && messages[messages.length - 1].role === 'guru') {
+    if (!isNearBottomRef.current && messages.length > 0 && messages[messages.length - 1].role === 'guru') {
       setUnreadCount(prev => prev + 1);
     }
-  }, [messages, isTyping, scrollToBottom]);
+  }, [messages]);
 
   const handleSubmit = async (
     e: React.FormEvent,
@@ -634,10 +663,8 @@ export const ChatInterface = () => {
         fullContent += chunk.text;
         setStreamingContent(fullContent);
         // Keep scrolling during streaming if near bottom
-        if (isNearBottomRef.current) {
-          requestAnimationFrame(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
-          });
+        if (isNearBottomRef.current && scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
         }
       }
 
@@ -910,8 +937,11 @@ export const ChatInterface = () => {
     setCurrentConversationId(conversation.id);
     setMessages(conversation.messages);
     // Scroll to bottom when switching conversations
+    isNearBottomRef.current = true;
     requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
     });
   };
 
@@ -975,7 +1005,7 @@ export const ChatInterface = () => {
           onScroll={handleScroll}
           className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
         >
-          <div className="max-w-3xl mx-auto space-y-3">
+          <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-3">
             <MessageList
               messages={messages}
               streamingId={streamingMessageId}

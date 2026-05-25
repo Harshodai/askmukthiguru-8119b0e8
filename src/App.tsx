@@ -21,6 +21,7 @@ const AuthLatencyDashboard = lazy(() => import("./pages/AuthLatencyDashboard"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
+const TTSVerificationPage = lazy(() => import("./pages/TTSVerificationPage"));
 
 // Admin
 const AdminLoginPage = lazy(() => import("./admin/pages/AdminLoginPage"));
@@ -101,6 +102,7 @@ const App = () => {
               <Route path="/privacy" element={<Suspense fallback={<BrandedSpinner />}><PrivacyPage /></Suspense>} />
               <Route path="/terms" element={<Suspense fallback={<BrandedSpinner />}><TermsPage /></Suspense>} />
               <Route path="/chat" element={<Suspense fallback={<BrandedSpinner />}><ChatPage /></Suspense>} />
+              <Route path="/test-tts" element={<Suspense fallback={<BrandedSpinner />}><TTSVerificationPage /></Suspense>} />
               <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
               <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
