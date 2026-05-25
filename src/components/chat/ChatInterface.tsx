@@ -854,16 +854,8 @@ export const ChatInterface = () => {
   }, [isStreaming, isTyping, messages, currentLanguage]);
   // ─────────────────────────────────────────────────────────────────
 
-  const handleEditUserMessage = useCallback((message: Message) => {
-    setInputValue(message.content);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-        inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 128)}px`;
-      }
-    });
-  }, []);
+  // Legacy fallback (kept for API stability): copy message text into composer.
+  // No longer wired into MessageList — inline edit (handleSubmitEdit) is preferred.
 
   // ── Inline edit: replace a past user message and regenerate from there ──
   const handleSubmitEdit = useCallback((messageId: string, newContent: string) => {
