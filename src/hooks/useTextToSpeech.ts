@@ -220,7 +220,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         window.speechSynthesis.speak(utterance);
       }
     },
-    [isSupported, currentVoice, lang, rate, pitch, volume, voices]
+    [isSupported, currentVoice, lang, rate, pitch, volume, voices, speaker]
   );
 
   const stop = useCallback(() => {
