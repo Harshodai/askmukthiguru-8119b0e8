@@ -149,3 +149,4 @@ class GraphState(TypedDict):
     detected_language: str | None
     memory_context: str | None
     ab_model: str | None  # "primary" or "krutrim" for A/B testing
+    query_tier: str | None  # "tier2_simple" vs "tier3_complex"
