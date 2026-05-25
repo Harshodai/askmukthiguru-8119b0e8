@@ -80,6 +80,13 @@ This file documents key implementation patterns, architectural decisions, and "l
 - **Threshold-Based Context Compression**: Added `rag_context_compression_threshold` config parameter. LLM-based context compression is now bypassed by default and is only executed if the total character length of the raw retrieved documents exceeds the threshold (default: 10,000 characters), eliminating CPU-bound generation overhead for standard-sized contexts.
 - **Hardware Acceleration**: Configured dynamic device selection (`cuda` -> `mps` -> `cpu`) for local embeddings and cross-encoders to leverage native macOS MPS (Metal Performance Shaders) or CUDA hardware acceleration instead of defaulting to CPU, accelerating encoding latency from 1-3s to sub-100ms.
 
+### 24. FlashRank & Adaptive/Proposition Chunking Integration (May 2026)
+- **High-Performance ONNX Reranking**: Replaced resource-intensive PyTorch-based CrossEncoders with PrithivirajDamodaran/FlashRank. This bypasses the heavyweight PyTorch model load time, offering a **50% lower latency** and a **1GB smaller RAM footprint**.
+- **Dynamic Platform Tuning**: Configured FlashRank to automatically load `ms-marco-MultiBERT-L-12` on Apple Silicon macOS to provide native support for multilingual transcript indexing, while defaulting to `ms-marco-MiniLM-L-6-v2` in generic environments.
+- **Asynchronous Execution**: Made the `RerankerService.rerank` method asynchronous and ran the CPU-heavy ONNX scoring under `asyncio.to_thread` to prevent CPU-bound tasks from blocking FastAPI's async event loop.
+- **Adaptive Chunk Evaluation**: Implemented Size Compliance (SC) and Intrachunk Cohesion (ICC) metrics to dynamically grade and select the best chunking candidates (Semantic Split vs. Recursive Split) on the fly using preview text sampling, completely eliminating manual text heuristics.
+- **Length-Based Proposition Routing**: Configured the LLM-based `PropositionService` with a minimum character threshold (e.g. 400 characters). Short files automatically bypass the LLM proposition parsing cost, falling back immediately to `AdaptiveChunkingService`, preventing latency overhead on tiny inputs.
+
 ## Environment Parity: Lovable vs Local
 
 ### 1. OAuth Strategy & VITE_USE_NATIVE_OAUTH

@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
+from enum import Enum
 
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -37,6 +40,67 @@ from rag.prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class CircuitState(Enum):
+    CLOSED = "closed"    # Normal operation
+    OPEN = "open"        # Failing — reject requests immediately
+    HALF_OPEN = "half_open"  # Testing if recovered
+
+
+@dataclass
+class CircuitBreaker:
+    """Circuit breaker to prevent cascading failures when Ollama hangs.
+
+    After ``failure_threshold`` consecutive failures, the circuit opens and
+    ``can_execute()`` returns ``False`` for ``recovery_timeout`` seconds.
+    After the timeout, a single probe call is allowed (half-open). If it
+    succeeds, the circuit resets to closed; if it fails, the circuit re-opens.
+    """
+
+    failure_threshold: int = 3
+    recovery_timeout: float = 60.0
+    half_open_max_calls: int = 1
+    # Mutable state — use field(default_factory) to avoid shared state across instances
+    _failures: int = field(default=0, repr=False)
+    _last_failure_time: float | None = field(default=None, repr=False)
+    _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
+    _half_open_calls: int = field(default=0, repr=False)
+
+    def can_execute(self) -> bool:
+        if self._state == CircuitState.CLOSED:
+            return True
+        if self._state == CircuitState.OPEN:
+            if time.time() - (self._last_failure_time or 0) > self.recovery_timeout:
+                self._state = CircuitState.HALF_OPEN
+                self._half_open_calls = 0
+                logger.info("Ollama circuit breaker -> HALF_OPEN (testing recovery)")
+                return True
+            return False
+        # HALF_OPEN
+        return self._half_open_calls < self.half_open_max_calls
+
+    def record_success(self):
+        if self._state == CircuitState.HALF_OPEN:
+            self._half_open_calls += 1
+            if self._half_open_calls >= self.half_open_max_calls:
+                self._state = CircuitState.CLOSED
+                self._failures = 0
+                logger.info("Ollama circuit breaker -> CLOSED (recovered)")
+        else:
+            self._failures = max(0, self._failures - 1)
+
+    def record_failure(self):
+        self._failures += 1
+        self._last_failure_time = time.time()
+        if self._state == CircuitState.HALF_OPEN:
+            self._state = CircuitState.OPEN
+            logger.warning("Ollama circuit breaker -> OPEN (failed during half-open)")
+        elif self._failures >= self.failure_threshold:
+            self._state = CircuitState.OPEN
+            logger.warning(
+                f"Ollama circuit breaker -> OPEN (threshold={self.failure_threshold} reached)"
+            )
 
 
 class OllamaService:
@@ -82,6 +146,11 @@ class OllamaService:
         self._http_client = None
         self._http_client_lock = asyncio.Lock()
 
+        # Circuit breaker: fail-fast after consecutive failures to prevent cascading hangs
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=3, recovery_timeout=60.0, half_open_max_calls=1
+        )
+
     async def generate(
         self,
         system_prompt: str,
@@ -111,6 +180,15 @@ class OllamaService:
         timeout = kwargs.pop("timeout", settings.llm_timeout)
         max_retries = kwargs.pop("max_retries", 1)
         last_err = None
+
+        # Circuit breaker: fail-fast if too many consecutive failures
+        if not self._circuit_breaker.can_execute():
+            self._circuit_breaker.record_failure()
+            raise Exception(
+                f"Ollama circuit breaker is OPEN — failing fast. "
+                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
+            )
+
         for attempt in range(max_retries):
             try:
                 chain = self._llm.bind(**kwargs) if kwargs else self._llm

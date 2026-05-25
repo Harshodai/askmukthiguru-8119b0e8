@@ -55,6 +55,8 @@ from services.embedding_service import EmbeddingService
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
+from services.adaptive_chunking_service import AdaptiveChunkingService
+from services.proposition_service import PropositionService
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +96,9 @@ class IngestionPipeline:
         self._auditor = DataAuditor(ollama_service)
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
+
+        self._adaptive_chunker = AdaptiveChunkingService(self._embedder)
+        self._proposition_service = PropositionService(self._llm)
 
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
@@ -447,6 +452,8 @@ class IngestionPipeline:
 
         speaker = result.get("speaker", "Unknown")
 
+        apply_props = self._proposition_service.should_apply_propositions(clean_text)
+
         # Process each topic partition
         topic_index = 0
         for topic, text in sections.items():
@@ -458,8 +465,12 @@ class IngestionPipeline:
             for parent_chunk in parent_chunks:
                 parent_id = str(uuid.uuid4())
 
-                # Decompose the parent chunk into propositions (child chunks)
-                propositions = await self._proposition_split(parent_chunk)
+                # Decompose the parent chunk into propositions (child chunks) or use adaptive chunking
+                if apply_props:
+                    propositions = await self._proposition_split(parent_chunk)
+                else:
+                    propositions = self._adaptive_chunker.chunk_document(parent_chunk)
+
                 augmented = await self._augment_chunks(propositions)
 
                 # Prepend contextual header to each child chunk to guarantee UI clarity
@@ -867,7 +878,9 @@ class IngestionPipeline:
         if not text or len(text.strip()) < 50:
             return []
 
-        if semantic:
+        if settings.use_adaptive_chunking:
+            chunks = self._adaptive_chunker.chunk_document(text)
+        elif semantic:
             chunks = self._semantic_split(text)
         else:
             chunks = self._splitter.split_text(text)
@@ -921,34 +934,7 @@ class IngestionPipeline:
         Phase 2 Improvement: Proposition Chunking.
         Decomposes a chunk into independent, self-contained propositions using an LLM.
         """
-        try:
-            # System prompt: extraction instructions
-            # User prompt: the actual text to decompose
-            response = await self._llm.generate(
-                "Decompose the following spiritual teaching into independent, self-contained propositions. Return each on a new line prefixed with '- '.",
-                f"Teaching:\n{text}",
-                max_tokens=500,
-            )
-
-            # Parse lines starting with '- '
-            propositions = []
-            for line in response.split("\n"):
-                line = line.strip()
-                if line.startswith("- "):
-                    prop = line[2:].strip()
-                    if len(prop) > 20:  # Filter out very short noise
-                        propositions.append(prop)
-                elif line and not line.startswith("#") and len(line) > 30:
-                    # Fallback for LLMs that don't follow the format perfectly
-                    propositions.append(line)
-
-            if not propositions:
-                return [text]
-
-            return propositions
-        except Exception as e:
-            logger.error(f"Proposition splitting failed: {e}")
-            return [text]
+        return await self._proposition_service.extract_propositions(text)
 
     def _semantic_split(self, text: str) -> list[str]:
         """

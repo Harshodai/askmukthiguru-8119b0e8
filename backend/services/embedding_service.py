@@ -45,6 +45,9 @@ class EmbeddingService:
         self._lock = threading.Lock()
         # REQUIRED for multilingual-e5-large-instruct
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
+        # Embedding cache to avoid redundant encodes
+        from services.cache_service import EmbeddingCache
+        self._embed_cache = EmbeddingCache(max_size=1000)
         logger.info("Embedding service initialized (lazy load)")
 
     def _ensure_models(self) -> None:
@@ -191,6 +194,33 @@ class EmbeddingService:
         if not texts:
             return {"dense": [], "sparse": []}
 
+        # Check cache for each text (using prefixed text as cache key)
+        cached_embeddings = []
+        uncached_indices = []
+        uncached_prefixed_texts = []
+
+        for i, text in enumerate(texts):
+            prefixed_text = f"{self.instruction}{text}"
+            cached = self._embed_cache.get(prefixed_text)
+            if cached is not None:
+                cached_embeddings.append((i, cached))
+            else:
+                uncached_indices.append(i)
+                uncached_prefixed_texts.append(prefixed_text)
+
+        # If all are cached, return immediately
+        if not uncached_prefixed_texts:
+            # Reorder cached results to match original order
+            dense_results = [None] * len(texts)
+            sparse_results = [None] * len(texts)
+            for idx, emb in cached_embeddings:
+                dense_results[idx] = emb["dense"]
+                sparse_results[idx] = emb["sparse"]
+            return {
+                "dense": dense_results,
+                "sparse": sparse_results,
+            }
+
         self._ensure_models()
 
         max_retries = 3
@@ -198,14 +228,39 @@ class EmbeddingService:
         for attempt in range(1, max_retries + 1):
             try:
                 output = self._encoder.encode(
-                    texts,
+                    uncached_prefixed_texts,
                     return_dense=True,
                     return_sparse=True,
                     return_colbert_vecs=False,
                 )
+                # Build results in original order
+                dense_results = [None] * len(texts)
+                sparse_results = [None] * len(texts)
+
+                # Fill cached results
+                for idx, emb in cached_embeddings:
+                    dense_results[idx] = emb["dense"]
+                    sparse_results[idx] = emb["sparse"]
+
+                # Fill newly computed results
+                dense_vecs = output["dense_vecs"].tolist()
+                sparse_weights = output["lexical_weights"]
+                for i, idx in enumerate(uncached_indices):
+                    dense_results[idx] = dense_vecs[i]
+                    sparse_results[idx] = sparse_weights[i]
+
+                # Cache the newly computed embeddings (using prefixed text as key)
+                for i, idx in enumerate(uncached_indices):
+                    prefixed_text = uncached_prefixed_texts[i]
+                    embedding_result = {
+                        "dense": dense_vecs[i],
+                        "sparse": sparse_weights[i],
+                    }
+                    self._embed_cache.put(prefixed_text, embedding_result)
+
                 return {
-                    "dense": output["dense_vecs"].tolist(),
-                    "sparse": output["lexical_weights"],
+                    "dense": dense_results,
+                    "sparse": sparse_results,
                 }
             except Exception as e:
                 last_err = e
@@ -230,11 +285,20 @@ class EmbeddingService:
         Uses the instruction prefix required for e5 models.
         """
         prefixed_text = f"{self.instruction}{text}"
+        # Check cache for the prefixed text
+        cached = self._embed_cache.get(prefixed_text)
+        if cached is not None:
+            logger.debug(f"Embedding cache HIT for prefixed text: {prefixed_text[:50]}...")
+            return cached
+
         result = self.encode_batch([prefixed_text])
-        return {
+        embedding_result = {
             "dense": result["dense"][0],
             "sparse": result["sparse"][0],
         }
+        # Cache the result
+        self._embed_cache.put(prefixed_text, embedding_result)
+        return embedding_result
 
     def rerank(
         self,

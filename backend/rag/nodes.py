@@ -51,6 +51,51 @@ The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with ad
 import asyncio
 import logging
 
+# -----------------------------------------------------------------------
+# Timeout Budget Hierarchy
+# Each node type has a specific timeout and retry policy.
+# The TimeoutBudget tracks remaining pipeline budget dynamically.
+# -----------------------------------------------------------------------
+
+NODE_TIMEOUTS = {
+    "intent_router": 15,
+    "resolve_followup": 15,
+    "decompose_query": 15,
+    "navigate_knowledge_tree": 15,
+    "generate_hyde": 30,
+    "grade_documents": 20,
+    "check_context_sufficiency": 15,
+    "generate_answer": 60,
+    "check_contradiction": 15,
+    "explain_retrieval": 15,
+    "default_fast": 15,
+    "default_main": 60,
+    "default_embedding": 10,
+    "default_qdrant": 5,
+}
+
+
+class TimeoutBudget:
+    """Tracks remaining pipeline budget and dynamically reduces per-call timeouts."""
+
+    def __init__(self, total_budget: float = 120.0):
+        self.total = total_budget
+        self._start = time.monotonic()
+
+    def remaining(self) -> float:
+        elapsed = time.monotonic() - self._start
+        return max(0.0, self.total - elapsed)
+
+    def allocate(self, node_name: str, default_timeout: float | None = None) -> float:
+        """Allocate timeout for a node. Uses min of node default and remaining budget."""
+        if default_timeout is None:
+            default_timeout = NODE_TIMEOUTS.get(node_name, 30)
+        return min(default_timeout, max(5.0, self.remaining() * 0.5))
+
+    def is_exhausted(self) -> bool:
+        return self.remaining() <= 0
+
+
 from app.config import settings
 from app.metrics import (
     CONFIDENCE_SCORES,
@@ -92,6 +137,7 @@ _qdrant: QdrantService | None = None
 _lightrag: LightRAGService | None = None
 _serene_mind: SereneMindEngine | None = None
 _lettuce_detect = None
+_reranker = None
 
 
 def init_services(
@@ -118,12 +164,16 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker
     _ollama = ollama
     _embedder = embedder
     _qdrant = qdrant
     _lightrag = lightrag
     _serene_mind = serene_mind
+
+    # Initialize RerankerService
+    from services.reranker_service import RerankerService
+    _reranker = RerankerService()
 
     # Initialize LettuceDetect Service using the injected embedder
     from services.lettuce_detect_service import LettuceDetectService
@@ -648,15 +698,23 @@ async def rerank_documents(state: GraphState) -> dict:
     # Use very permissive thresholds because CRAG grading is the primary filter
     threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
 
-    # Cascaded Reranking (ColBERT + CrossEncoder)
-    reranked = await asyncio.to_thread(
-        _embedder.cascaded_rerank,
-        question,
-        documents,
-        colbert_top_k=20,
-        cross_top_k=10,  # Increase cross_top_k to gather enough candidates for MMR diversification
-        min_score=threshold,
-    )
+    # Cascaded Reranking (ColBERT / FlashRank + CrossEncoder)
+    if settings.use_flashrank and _reranker is not None:
+        reranked = await _reranker.rerank(
+            question,
+            documents,
+            limit=10,  # Match cross_top_k for MMR diversification
+            min_score=threshold,
+        )
+    else:
+        reranked = await asyncio.to_thread(
+            _embedder.cascaded_rerank,
+            question,
+            documents,
+            colbert_top_k=20,
+            cross_top_k=10,  # Increase cross_top_k to gather enough candidates for MMR diversification
+            min_score=threshold,
+        )
 
     # Apply MMR (Maximal Marginal Relevance) post-rerank to diversify the final context set
     if len(reranked) > settings.rag_top_k_retrieval:

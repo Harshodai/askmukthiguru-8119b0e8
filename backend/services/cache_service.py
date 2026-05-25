@@ -25,6 +25,61 @@ _CACHE_TTL = 3600  # 1 hour in seconds
 from domain.ports.cache_port import ICacheRepository
 
 
+class EmbeddingCache:
+    """In-memory embedding cache keyed by SHA-256 of input text.
+
+    Prevents redundant encode() calls when the same query text is embedded
+    multiple times across different pipeline stages (retrieval, rerank, semantic cache).
+    Uses simple dict with LRU-style eviction.
+    """
+
+    def __init__(self, max_size: int = 1000):
+        self._cache: dict[str, dict] = {}
+        self._max_size = max_size
+        self._hits = 0
+        self._misses = 0
+        self._access_order: list[str] = []  # For LRU eviction tracking
+
+    def _key(self, text: str) -> str:
+        return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
+
+    def get(self, text: str) -> dict | None:
+        """Return cached embedding dict or None."""
+        key = self._key(text)
+        cached = self._cache.get(key)
+        if cached is not None:
+            self._hits += 1
+            # Move to end of access order (most recently used)
+            if key in self._access_order:
+                self._access_order.remove(key)
+            self._access_order.append(key)
+            return cached
+        self._misses += 1
+        return None
+
+    def put(self, text: str, embedding: dict) -> None:
+        """Cache an embedding dict keyed by input text."""
+        key = self._key(text)
+        if not self._cache.get(key):
+            # Evict oldest if at capacity
+            if len(self._cache) >= self._max_size and self._access_order:
+                oldest = self._access_order.pop(0)
+                self._cache.pop(oldest, None)
+            self._access_order.append(key)
+        self._cache[key] = embedding
+
+    @property
+    def stats(self) -> dict:
+        total = self._hits + self._misses
+        return {
+            "size": len(self._cache),
+            "max_size": self._max_size,
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
+        }
+
+
 class InMemoryCacheAdapter(ICacheRepository):
     """
     In-memory response cache with TTL expiration.
@@ -226,7 +281,7 @@ class SemanticCacheAdapter(ICacheRepository):
         self._embedder = embedding_service
         self._ttl = ttl
         self._collection = "mukthi_semantic_cache"
-        self._threshold = 0.95  # 95% similarity required for a hit
+        self._threshold = 0.88  # 88% similarity required for a hit
         self._hits = 0
         self._misses = 0
 
@@ -351,6 +406,78 @@ class SemanticCacheAdapter(ICacheRepository):
             "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
             "threshold": self._threshold,
             "available": True,
+        }
+
+
+class SearchResultCache:
+    """In-memory cache for Qdrant search results.
+
+    Keyed by SHA-256 of (query_vector_hash, content_type, cluster_ids, raptor_level).
+    TTL-based expiration (default 5 minutes) -- safe since new content
+    is rarely ingested mid-session.
+    """
+
+    def __init__(self, maxsize: int = 200, ttl: int = 300):
+        self._cache = TTLCache(maxsize=maxsize, ttl=ttl)
+        self._hits = 0
+        self._misses = 0
+
+    def _make_key(
+        self,
+        query_vector_hash: str,
+        content_type: str | None,
+        cluster_ids: list[int] | None,
+        raptor_level: int | None,
+    ) -> str:
+        raw = (
+            f"{query_vector_hash}|{content_type or ''}|"
+            f"{sorted(cluster_ids or [])}|{raptor_level or ''}"
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def get(
+        self,
+        query_vector_hash: str,
+        content_type: str | None = None,
+        cluster_ids: list[int] | None = None,
+        raptor_level: int | None = None,
+    ) -> list[dict] | None:
+        """Look up cached search results. Returns None on miss."""
+        key = self._make_key(query_vector_hash, content_type, cluster_ids, raptor_level)
+        result = self._cache.get(key)
+        if result is not None:
+            self._hits += 1
+            logger.debug(f"Search result cache HIT (hits={self._hits})")
+            return result
+        self._misses += 1
+        return None
+
+    def put(
+        self,
+        query_vector_hash: str,
+        results: list[dict],
+        content_type: str | None = None,
+        cluster_ids: list[int] | None = None,
+        raptor_level: int | None = None,
+    ) -> None:
+        """Store search results in the cache."""
+        key = self._make_key(query_vector_hash, content_type, cluster_ids, raptor_level)
+        self._cache[key] = results
+
+    def invalidate(self) -> None:
+        """Clear the entire search result cache."""
+        self._cache.clear()
+        logger.info("Search result cache invalidated")
+
+    @property
+    def stats(self) -> dict:
+        total = self._hits + self._misses
+        return {
+            "size": len(self._cache),
+            "maxsize": self._cache.maxsize,
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
         }
 
 
