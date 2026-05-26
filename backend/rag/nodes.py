@@ -572,7 +572,46 @@ async def retrieve_for_single_query(
             }
         )
 
-    return summary_results + chunk_results + lightrag_results
+    # ── Reciprocal Rank Fusion (RRF) across the three retrieval sources ────
+    # RRF formula: score(d) = Σ_r  1 / (k + rank_r(d))   k=60 (industry std)
+    #
+    # Why RRF here (not just reranker): The three sources use completely
+    # different scoring scales — RAPTOR cosine similarity, Qdrant BM42+dense
+    # fusion scores, and LightRAG's unscored graph text.  Simple concatenation
+    # passes an unbalanced mix to the CrossEncoder.  RRF lets each source's
+    # *relative ranking* contribute without needing score normalisation.
+    #
+    # LightRAG graph summaries are always prepended because they are synthesised
+    # context that should prime the reranker window even if they'd rank low
+    # individually (there's only ever 0-1 of them).
+    _RRF_K = 60
+    rrf_scores: dict[int, float] = {}  # keyed by id(doc) for pointer-stable refs
+    id_to_doc: dict[int, dict] = {}
+
+    for ranked_list in (summary_results, chunk_results):
+        for rank, doc in enumerate(ranked_list):
+            key = id(doc)
+            id_to_doc[key] = doc
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (_RRF_K + rank + 1)
+
+    # Sort by RRF score descending, then prepend LightRAG context
+    rrf_ranked = sorted(id_to_doc.values(), key=lambda d: rrf_scores[id(d)], reverse=True)
+    merged = lightrag_results + rrf_ranked
+
+    # Deduplicate by text hash (parent-child resolution can produce duplicates)
+    seen: set[int] = set()
+    deduped: list[dict] = []
+    for doc in merged:
+        th = hash(doc["text"][:120])
+        if th not in seen:
+            seen.add(th)
+            deduped.append(doc)
+
+    logger.debug(
+        f"RRF merge: summaries={len(summary_results)} chunks={len(chunk_results)} "
+        f"graph={len(lightrag_results)} → {len(deduped)} unique docs"
+    )
+    return deduped
 
 
 @log_metrics
@@ -613,15 +652,28 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         ]
     )
 
-    # Merge and deduplicate across all sub-query results
-    all_docs = []
-    seen_texts = set()
+    # ── RRF across sub-query results ────────────────────────────────────
+    # Each sub-query produces its own RRF-merged ranked list.  We apply a
+    # second-level RRF so documents appearing across MULTIPLE sub-queries
+    # (i.e., relevant to several facets of the question) are boosted.
+    _RRF_K2 = 60
+    rrf2_scores: dict[int, float] = {}
+    id_to_doc2: dict[int, dict] = {}
+
     for results in all_results:
-        for doc in results:
-            text_hash = hash(doc["text"][:100])
-            if text_hash not in seen_texts:
-                seen_texts.add(text_hash)
-                all_docs.append(doc)
+        for rank, doc in enumerate(results):
+            key = id(doc)
+            id_to_doc2[key] = doc
+            rrf2_scores[key] = rrf2_scores.get(key, 0.0) + 1.0 / (_RRF_K2 + rank + 1)
+
+    # Deduplicate by text hash while preserving RRF order
+    seen_texts: set[int] = set()
+    all_docs: list[dict] = []
+    for doc in sorted(id_to_doc2.values(), key=lambda d: rrf2_scores[id(d)], reverse=True):
+        th = hash(doc["text"][:100])
+        if th not in seen_texts:
+            seen_texts.add(th)
+            all_docs.append(doc)
 
     # Context Augmentation Fallback
     if len(all_docs) < 3:
