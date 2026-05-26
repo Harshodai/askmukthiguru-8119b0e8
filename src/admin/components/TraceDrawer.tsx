@@ -163,8 +163,6 @@ export function TraceDrawer({ queryId, onClose }: Props) {
 
             {/* Retrieved chunks */}
             <section>
-            {/* Retrieved chunks */}
-            <section>
               <h3 className="text-sm font-medium mb-2">Retrieved chunks</h3>
               {trace.retrieval?.source_docs ? (
                 <div className="space-y-1.5 text-xs">
@@ -186,7 +184,6 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               ) : (
                 <div className="text-xs text-muted-foreground">No retrieval recorded.</div>
               )}
-            </section>
             </section>
 
             <Separator />
