@@ -50,6 +50,7 @@ The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with ad
 
 import asyncio
 import logging
+from langgraph.types import Send
 
 # -----------------------------------------------------------------------
 # Timeout Budget Hierarchy
@@ -722,6 +723,178 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         )
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
+    return {"documents": all_docs}
+
+
+# ===================================================================
+# LangGraph Send API — Parallel Sub-Query Fan-Out
+# ===================================================================
+#
+# Architecture:
+#   decompose_query → navigate_knowledge_tree + generate_hyde
+#                   → route_sub_queries (returns List[Send])
+#                   → retrieve_single  ×N  (parallel branches, each → sub_results)
+#                   → merge_sub_results    (fan-in: RRF across branches)
+#                   → rerank_documents     (unchanged CrossEncoder layer)
+#
+# vs. old asyncio.gather() approach:
+#   - LangGraph manages parallelism natively → better checkpointing, retries
+#   - Each branch is an independent graph node → visible in LangGraph Studio
+#   - Failed branches can be retried in isolation without re-running full graph
+#   - Enables future per-branch CRAG loops with zero graph refactoring
+#
+# The CRAG rewrite loop (rewrite_query → retrieve_documents) still uses the
+# legacy retrieve_documents node which has asyncio.gather internally — this
+# keeps the rewrite path simple and avoids re-dispatch overhead for retries.
+# ===================================================================
+
+
+def route_sub_queries(state: GraphState) -> list[Send]:
+    """
+    Fan-out router: spawn one retrieve_single branch per sub-query via Send.
+
+    Returns a list of Send objects — LangGraph launches them as fully
+    independent parallel nodes.  Each branch receives a minimal state slice
+    so the branch node is cheap to initialise.
+    """
+    sub_queries = state.get("sub_queries") or [state["question"]]
+    chat_history = state.get("chat_history", [])
+    hyde_text = state.get("hyde_text")
+    intent = state.get("intent", "FACTUAL")
+    selected_clusters = state.get("selected_clusters", [])
+
+    logger.info(
+        f"route_sub_queries: dispatching {len(sub_queries)} parallel branch(es) via Send"
+    )
+
+    return [
+        Send(
+            "retrieve_single",
+            {
+                # Core question fields
+                "question": state["question"],
+                "chat_history": chat_history,
+                # Per-branch sub-query
+                "sub_query": q,
+                # Context from pre-retrieval nodes
+                "hyde_text": hyde_text,
+                "intent": intent,
+                "selected_clusters": selected_clusters,
+                # Propagate correlating IDs
+                "request_id": state.get("request_id"),
+                "user_id": state.get("user_id"),
+                "query_tier": state.get("query_tier"),
+                # Required by LangGraph (fan-in reducer needs it pre-initialised)
+                "sub_results": [],
+            },
+        )
+        for q in sub_queries
+    ]
+
+
+@log_metrics
+async def retrieve_single(state: GraphState) -> dict:
+    """
+    Branch node: retrieve documents for ONE sub-query.
+
+    Executed N times in parallel by LangGraph (one Send per sub-query).
+    Result is merged by the collect_sub_results reducer in GraphState
+    into sub_results: [[docs_q1], [docs_q2], [docs_q3], ...].
+    """
+    sub_query: str = state.get("sub_query") or state["question"]
+
+    docs = await retrieve_for_single_query(
+        query=sub_query,
+        chat_history=state.get("chat_history", []),
+        hyde_text=state.get("hyde_text"),
+        intent=state.get("intent", "FACTUAL"),
+        selected_clusters=state.get("selected_clusters", []),
+        embedder=_embedder,
+        qdrant=_qdrant,
+        lightrag=_lightrag,
+    )
+
+    logger.debug(f"retrieve_single[{sub_query[:40]}]: {len(docs)} docs retrieved")
+    # The collect_sub_results reducer wraps this into [[...]] in the main state
+    return {"sub_results": docs}
+
+
+@log_metrics
+async def merge_sub_results(state: GraphState) -> dict:
+    """
+    Fan-in node: collect all per-branch results and apply two-level RRF.
+
+    sub_results is a list-of-lists — [[docs_q1], [docs_q2], ...] — thanks to
+    the collect_sub_results reducer.  We apply inter-branch RRF to boost docs
+    that appear across multiple sub-queries, then run fallback + MMR exactly
+    as retrieve_documents did, and write to state["documents"].
+    """
+    all_results: list[list[dict]] = state.get("sub_results", [])
+
+    if not all_results:
+        logger.warning("merge_sub_results: no sub_results to merge, returning empty")
+        return {"documents": []}
+
+    # ── Level-2 RRF: across sub-query branches ───────────────────────────────
+    # Documents appearing in MULTIPLE branches receive boosted scores.
+    _RRF_K = 60
+    rrf_scores: dict[int, float] = {}
+    id_to_doc: dict[int, dict] = {}
+
+    for result_list in all_results:
+        for rank, doc in enumerate(result_list):
+            key = id(doc)
+            id_to_doc[key] = doc
+            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (_RRF_K + rank + 1)
+
+    # Deduplicate by text hash while preserving RRF order
+    seen: set[int] = set()
+    all_docs: list[dict] = []
+    for doc in sorted(id_to_doc.values(), key=lambda d: rrf_scores[id(d)], reverse=True):
+        th = hash(doc["text"][:100])
+        if th not in seen:
+            seen.add(th)
+            all_docs.append(doc)
+
+    # ── Fallback: widen search if too few docs ────────────────────────────────
+    if len(all_docs) < 3:
+        logger.info(f"merge_sub_results: only {len(all_docs)} docs, triggering fallback search")
+        fallback_query = state.get("sub_queries", [state["question"]])[0]
+        query_embedding = await asyncio.to_thread(_embedder.encode_single_full, fallback_query)
+        fallback_results = await asyncio.to_thread(
+            _qdrant.search,
+            query_vector=query_embedding["dense"],
+            limit=10,
+            sparse_vector=query_embedding["sparse"],
+            raptor_level=0,
+            cluster_ids=None,  # No cluster restriction on fallback
+        )
+        for doc in fallback_results:
+            th = hash(doc["text"][:100])
+            if th not in seen:
+                seen.add(th)
+                all_docs.append(doc)
+
+    # ── MMR Diversity Re-ranking ──────────────────────────────────────────────
+    if len(all_docs) > settings.rag_top_k_retrieval:
+        question = state.get("rewritten_query") or state["question"]
+        doc_texts = [doc["text"] for doc in all_docs]
+        batch_enc = await asyncio.to_thread(_embedder.encode_batch, doc_texts)
+        doc_embeddings = batch_enc["dense"]
+        query_enc = await asyncio.to_thread(_embedder.encode_single_full, question)
+        query_emb = query_enc["dense"]
+        all_docs = _qdrant.mmr_select(
+            query_embedding=query_emb,
+            documents=all_docs,
+            doc_embeddings=doc_embeddings,
+            top_k=settings.rag_top_k_retrieval,
+            lambda_param=0.7,
+        )
+
+    logger.info(
+        f"merge_sub_results: {len(all_results)} branch(es) → {len(all_docs)} unique docs "
+        f"(RRF + MMR applied)"
+    )
     return {"documents": all_docs}
 
 

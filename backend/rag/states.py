@@ -23,6 +23,20 @@ def add_dicts(left: dict, right: dict) -> dict:
     return {**left, **right}
 
 
+def collect_sub_results(existing: list, new: list) -> list:
+    """
+    Fan-in reducer for LangGraph Send API parallel sub-query branches.
+
+    Each Send branch returns {"sub_results": [doc, doc, ...]}.  This reducer
+    collects each branch's list as a separate element so merge_sub_results can
+    apply RRF across sub-queries independently::
+
+        existing=[]           new=[doc1, doc2]  →  [[doc1, doc2]]
+        existing=[[d1,d2]]    new=[doc3]        →  [[d1,d2],[doc3]]
+    """
+    return existing + [new]
+
+
 class GraphState(TypedDict):
     """
     Complete state for the Mukthi Guru RAG pipeline.
@@ -100,6 +114,12 @@ class GraphState(TypedDict):
     # Decomposition
     sub_queries: list[str]
     is_complex: bool
+
+    # LangGraph Send API — parallel sub-query retrieval
+    # sub_query: injected per-branch via Send({"sub_query": q, ...})
+    # sub_results: fan-in collector; each branch appends its result list
+    sub_query: str | None
+    sub_results: Annotated[list, collect_sub_results]
 
     # Tree Navigation (PageIndex-inspired)
     selected_clusters: list[int]
