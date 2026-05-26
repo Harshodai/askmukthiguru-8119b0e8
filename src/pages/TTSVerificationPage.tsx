@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Square, RefreshCw, CheckCircle, ArrowLeft, Volume2, Activity, Sparkles, ShieldAlert } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
-import { supabase } from '@/integrations/supabase/client';
+
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 
@@ -112,38 +112,27 @@ export default function TTSVerificationPage() {
     await fireTelemetryEvent(selectedVoice, testText);
   };
 
-  // Fire telemetry to database/telemetry systems
+  // Fire telemetry to local session store (and dispatch a browser event so
+  // any listeners — e.g. MeditationStats / analytics hooks — can react).
   const fireTelemetryEvent = async (voice: string, text: string) => {
     setTelemetryState('firing');
     addLog('telemetry', `[Telemetry] Dispatching 'tts_synthesis' metrics event...`);
-    
+
     const startTime = Date.now();
     try {
-      // Insert custom metrics log directly into database under app_logs using existing schema
-      const { error: dbErr } = await supabase
-        .from('app_logs')
-        .insert({
-          level: 'METRIC',
-          message: `TTS Synthesis Event Fired: speaker=${voice}`,
-          context: {
-            event: 'tts_synthesis',
-            speaker: voice,
-            language: profile.preferredLanguage || 'en',
-            text_length: text.length,
-            client_timestamp: new Date().toISOString(),
-            latency_ms: Date.now() - startTime
-          }
-        });
-
-      if (dbErr) {
-        // Fallback to local trace generation if table RLS fails
-        addLog('telemetry', `[Telemetry] DB direct log restricted. Storing inside local session telemetry storage.`);
-        localStorage.setItem(`askmukthiguru_telemetry_tts_${Date.now()}`, JSON.stringify({
-          event: 'tts_synthesis',
-          speaker: voice,
-          text_length: text.length
-        }));
-      }
+      const payload = {
+        event: 'tts_synthesis',
+        speaker: voice,
+        language: profile.preferredLanguage || 'en',
+        text_length: text.length,
+        client_timestamp: new Date().toISOString(),
+        latency_ms: Date.now() - startTime,
+      };
+      localStorage.setItem(
+        `askmukthiguru_telemetry_tts_${Date.now()}`,
+        JSON.stringify(payload),
+      );
+      window.dispatchEvent(new CustomEvent('askmukthiguru:tts_synthesis', { detail: payload }));
 
       setTelemetryState('success');
       setTestChecklist(prev => ({ ...prev, metricsFired: true }));
