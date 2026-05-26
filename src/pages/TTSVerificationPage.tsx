@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Square, RefreshCw, CheckCircle, ArrowLeft, Volume2, Activity, Sparkles, ShieldAlert } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
-import { supabase } from '@/integrations/supabase/client';
+
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 
