@@ -40,10 +40,13 @@ from rag.nodes import (
     init_services,
     # Node functions
     intent_router,
+    merge_sub_results,
     navigate_knowledge_tree,
     reflect_on_answer,
     rerank_documents,
     retrieve_documents,
+    retrieve_single,
+    route_sub_queries,
     rewrite_query,
     route_after_grading,
     # Routing functions
@@ -117,7 +120,10 @@ def build_rag_graph(
     graph.add_node("resolve_followup", resolve_followup)
     graph.add_node("decompose_query", decompose_query)
     graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
-    graph.add_node("retrieve_documents", retrieve_documents)
+    graph.add_node("retrieve_documents", retrieve_documents)  # kept for CRAG rewrite loop
+    graph.add_node("route_sub_queries", route_sub_queries)
+    graph.add_node("retrieve_single", retrieve_single)
+    graph.add_node("merge_sub_results", merge_sub_results)
     graph.add_node("rerank_documents", rerank_documents)
     graph.add_node("grade_documents", grade_documents)
     graph.add_node("enrich_context", enrich_context)
@@ -158,15 +164,20 @@ def build_rag_graph(
     graph.add_edge("resolve_followup", "decompose_query")
 
     # === Linear edges for the RAG pipeline ===
-    # PageIndex-inspired: navigate tree & HyDE in parallel → retrieve (scoped) → rerank → grade → sufficiency
+    # PageIndex-inspired: navigate tree & HyDE in parallel → route_sub_queries
+    # route_sub_queries returns List[Send] → LangGraph spawns retrieve_single branches
+    # All branches fan-in to merge_sub_results (via collect_sub_results reducer)
     graph.add_edge("decompose_query", "navigate_knowledge_tree")
     graph.add_edge("decompose_query", "generate_hyde")
 
-    # Wait for both tree navigation and HyDE before retrieval
-    graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
-    graph.add_edge("generate_hyde", "retrieve_documents")
+    # Both pre-retrieval nodes must complete before fan-out dispatch
+    graph.add_edge("navigate_knowledge_tree", "route_sub_queries")
+    graph.add_edge("generate_hyde", "route_sub_queries")
 
-    graph.add_edge("retrieve_documents", "rerank_documents")
+    # route_sub_queries returns List[Send] — LangGraph handles fan-out automatically
+    # retrieve_single branches all converge to merge_sub_results via fan-in reducer
+    graph.add_edge("retrieve_single", "merge_sub_results")
+    graph.add_edge("merge_sub_results", "rerank_documents")
     graph.add_edge("rerank_documents", "grade_documents")
     graph.add_edge("grade_documents", "check_context_sufficiency")
 
@@ -258,6 +269,9 @@ def create_initial_state(
         # Decomposition
         sub_queries=[],
         is_complex=False,
+        # LangGraph Send API fan-out
+        sub_query=None,
+        sub_results=[],
         # Tree Navigation (PageIndex-inspired)
         selected_clusters=[],
         # Stimulus RAG
