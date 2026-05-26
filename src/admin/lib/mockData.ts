@@ -57,6 +57,8 @@ export async function listQueries(filters: QueryFilters = {}): Promise<ChatQuery
 }
 
 export async function getQueryTrace(queryId: string): Promise<QueryTrace | null> {
+  // Use maybeSingle() so missing rows return null instead of throwing — fixes
+  // drill-down failures when a query has no response/retrieval row yet.
   const [
     { data: query },
     { data: response },
@@ -65,9 +67,9 @@ export async function getQueryTrace(queryId: string): Promise<QueryTrace | null>
     { data: triggers },
     { data: safety },
   ] = await Promise.all([
-    fromUntyped("chat_queries").select("*").eq("id", queryId).single(),
-    fromUntyped("chat_responses").select("*").eq("query_id", queryId).single(),
-    fromUntyped("retrieval_events").select("*").eq("query_id", queryId).single(),
+    fromUntyped("chat_queries").select("*").eq("id", queryId).maybeSingle(),
+    fromUntyped("chat_responses").select("*").eq("query_id", queryId).maybeSingle(),
+    fromUntyped("retrieval_events").select("*").eq("query_id", queryId).maybeSingle(),
     fromUntyped("trace_spans").select("*").eq("query_id", queryId).order("start_ms"),
     fromUntyped("trigger_events").select("*").eq("query_id", queryId),
     fromUntyped("safety_events").select("*").eq("query_id", queryId),
@@ -78,12 +80,12 @@ export async function getQueryTrace(queryId: string): Promise<QueryTrace | null>
   return {
     query: query as ChatQuery,
     prompt: null as unknown as import('@/admin/types').PromptVersion,
-    retrieval: retrieval as any || null,
-    response: response as any || null,
-    spans: (spans || []) as any,
-    triggers: (triggers || []) as any,
+    retrieval: (retrieval as any) ?? null,
+    response: (response as any) ?? null,
+    spans: ((spans as any) ?? []) as any,
+    triggers: ((triggers as any) ?? []) as any,
     feedback: null,
-    safety: (safety || []) as any,
+    safety: ((safety as any) ?? []) as any,
   };
 }
 
