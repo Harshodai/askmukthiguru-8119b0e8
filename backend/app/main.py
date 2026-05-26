@@ -1137,7 +1137,11 @@ async def chat_stream_endpoint(
                 )
             )
 
-            # Stream tokens from queue as they are produced in the graph
+            # Stream tokens from queue as they are produced in the graph.
+            # NOTE: For Indic requests we suppress English tokens here to avoid
+            # a double-render: client would see English tokens first, then the
+            # full translated text.  Status events are still forwarded so the
+            # "thinking pills" continue to update normally.
             has_streamed_tokens = False
             while not pipeline_task.done() or not queue.empty():
                 try:
@@ -1148,12 +1152,15 @@ async def chat_stream_endpoint(
                         event_type = item.get("event", "token")
                         data = item.get("data", "")
                         if event_type == "status":
+                            # Always forward status/thinking-pill events
                             yield f"event: status\ndata: {data}\n\n"
-                        elif event_type == "token":
+                        elif event_type == "token" and not is_indic_detected:
+                            # Suppress English tokens when translation is pending
                             has_streamed_tokens = True
                             escaped = data.replace("\n", "\\n")
                             yield f"event: token\ndata: {escaped}\n\n"
-                    else:
+                    elif not is_indic_detected:
+                        # Plain string token — suppress for Indic
                         has_streamed_tokens = True
                         escaped = item.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
