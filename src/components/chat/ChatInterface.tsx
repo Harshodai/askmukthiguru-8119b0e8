@@ -720,7 +720,7 @@ export const ChatInterface = () => {
         } else if (streamedProactiveSereneMind?.triggered) {
           // Proactive: stream the teachings prelude as a guru message, then open gated after 7s
           const preludeText =
-            (streamedProactiveSereneMind as any).teachings_prelude ||
+            streamedProactiveSereneMind.teachings_prelude ||
             'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Let us pause together in Serene Mind.';
           setMessages((prev) => [
             ...prev,
@@ -851,7 +851,7 @@ export const ChatInterface = () => {
         } else if (response.proactiveSereneMind?.triggered) {
           // Proactive gated path with 7s teachings prelude
           const preludeText =
-            (response.proactiveSereneMind as any).teachings_prelude ||
+            response.proactiveSereneMind?.teachings_prelude ||
             'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Let us pause together in Serene Mind.';
           setMessages((prev) => [
             ...prev,
