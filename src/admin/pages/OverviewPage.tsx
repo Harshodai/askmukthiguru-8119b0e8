@@ -19,6 +19,7 @@ import {
 } from "@/admin/lib/formatters";
 import { AskDataPanel } from "@/admin/components/AskDataPanel";
 import { LiveFeed } from "@/admin/components/LiveFeed";
+import { SeedDemoButton } from "@/admin/components/SeedDemoButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
