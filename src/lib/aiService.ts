@@ -32,6 +32,7 @@ export interface AIResponse {
   meditationStep?: number;
   blocked?: boolean;
   blockReason?: string;
+  proactiveSereneMind?: any;
 }
 
 // Auto-detect backend URL: VITE_BACKEND_URL for local dev, relative path for production
@@ -108,7 +109,7 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
 export type StreamChunk =
   | { type: 'token'; text: string }
   | { type: 'status'; text: string }
-  | { type: 'done'; intent: string; citations: string[]; meditationStep: number; blocked?: boolean; blockReason?: string | null }
+  | { type: 'done'; intent: string; citations: string[]; meditationStep: number; blocked?: boolean; blockReason?: string | null; proactiveSereneMind?: any }
   | { type: 'error'; text: string };
 
 export async function* sendMessageStreaming(
@@ -197,6 +198,7 @@ export async function* sendMessageStreaming(
               meditationStep: meta.meditation_step ?? 0,
               blocked: meta.blocked ?? false,
               blockReason: meta.block_reason ?? null,
+              proactiveSereneMind: meta.proactive_serene_mind ?? null,
             };
           } catch {
             // Ignore malformed done payload
@@ -285,6 +287,7 @@ export const sendMessage = async (
         meditationStep: data.meditation_step || 0,
         blocked: data.blocked || false,
         blockReason: data.block_reason,
+        proactiveSereneMind: data.proactive_serene_mind ?? null,
       };
     } catch (error) {
       console.error('AI Service Error:', error);

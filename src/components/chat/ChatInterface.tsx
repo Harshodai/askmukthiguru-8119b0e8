@@ -621,6 +621,7 @@ export const ChatInterface = () => {
       let streamedMedStep = 0;
       let streamedBlocked = false;
       let streamedBlockReason: string | null = null;
+      let streamedProactiveSereneMind: any = null;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
           // Pipeline status update → add or advance pills
@@ -637,12 +638,13 @@ export const ChatInterface = () => {
         }
 
         if (chunk.type === 'done') {
-          // Final metadata from backend — citations, intent, meditationStep
+          // Final metadata from backend — citations, intent, meditationStep, proactiveSereneMind
           streamedCitations = chunk.citations;
           finalIntent = chunk.intent;
           streamedMedStep = chunk.meditationStep;
           streamedBlocked = chunk.blocked ?? false;
           streamedBlockReason = chunk.blockReason ?? null;
+          streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
           continue;
         }
 
@@ -690,12 +692,26 @@ export const ChatInterface = () => {
           openSereneMind('breathing');
         } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
           openSereneMind('audio');
+        } else if (streamedProactiveSereneMind?.triggered) {
+          // Proactive offer — gentle toast invite (non-blocking, user decides)
+          setTimeout(() => {
+            toast({
+              title: '🧘 A moment of stillness?',
+              description: 'I\'ve noticed some stress in our conversation. Would you like a Serene Mind practice?',
+              duration: 10000,
+              action: (
+                <ToastAction altText="Open Serene Mind" onClick={() => openSereneMind('breathing')}>
+                  Begin
+                </ToastAction>
+              ),
+            });
+          }, 1500); // slight delay so it appears after the response renders
         }
 
         // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
         // but backend didn't flag DISTRESS (e.g. serene_mind module not running),
         // open the modal so the real guided session plays alongside the text.
-        if (finalIntent !== 'DISTRESS') {
+        if (finalIntent !== 'DISTRESS' && !streamedProactiveSereneMind?.triggered) {
           const t = fullContent.toLowerCase();
           const looksLikeSereneMind =
             t.includes('serene mind') ||
@@ -794,10 +810,24 @@ export const ChatInterface = () => {
 
         if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
+        } else if (response.proactiveSereneMind?.triggered) {
+          // Proactive offer — gentle toast invite (non-blocking, user decides)
+          setTimeout(() => {
+            toast({
+              title: '🧘 A moment of stillness?',
+              description: "I've noticed some stress in our conversation. Would you like a Serene Mind practice?",
+              duration: 10000,
+              action: (
+                <ToastAction altText="Open Serene Mind" onClick={() => openSereneMind('breathing')}>
+                  Begin
+                </ToastAction>
+              ),
+            });
+          }, 1500);
         }
 
         // Heuristic fallback for non-streaming path (same logic as streaming)
-        if (response.intent !== 'DISTRESS') {
+        if (response.intent !== 'DISTRESS' && !response.proactiveSereneMind?.triggered) {
           const t = (response.content || '').toLowerCase();
           const looksLikeSereneMind =
             t.includes('serene mind') ||

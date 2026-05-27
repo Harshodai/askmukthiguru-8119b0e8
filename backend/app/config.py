@@ -198,6 +198,13 @@ class Settings(BaseSettings):
     user_profile_enabled: bool = True  # Enable user profiles and persistent memory
     krutrim_api_key: str = ""  # Fallback Indian LLM provider
 
+    # --- Proactive Serene Mind ---
+    proactive_serene_mind_enabled: bool = True
+    proactive_distress_avg_threshold: float = 1.5  # Minimum average distress to consider
+    proactive_distress_trend_threshold: float = 0.5  # Minimum escalation rate
+    proactive_distress_frequency_threshold: float = 0.6  # Minimum frequency of moderate+
+    proactive_min_conversation_points: int = 3  # Minimum data points needed
+
     # --- A/B Testing ---
     ab_testing_enabled: bool = False  # Randomly switch between primary LLM and Krutrim
     ab_testing_ratio: float = 0.1  # 10% traffic to Krutrim
