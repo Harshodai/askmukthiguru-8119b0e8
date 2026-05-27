@@ -42,6 +42,8 @@ export interface ProactiveSereneMindTrigger {
   confidence?: number;
   signals?: string[];
   suggested_response?: string;
+  /** Krishnaji/Preethaji teaching streamed as a guru message before the modal opens */
+  teachings_prelude?: string;
 }
 
 // Auto-detect backend URL: VITE_BACKEND_URL for local dev, relative path for production
