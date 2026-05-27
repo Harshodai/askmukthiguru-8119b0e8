@@ -3,9 +3,12 @@ import { SereneMindModal, SereneMindTab } from '@/components/chat/SereneMindModa
 
 interface SereneMindContextValue {
   isOpen: boolean;
-  open: (initialTab?: SereneMindTab) => void;
+  isGated: boolean;
+  open: (initialTab?: SereneMindTab, gated?: boolean) => void;
   close: () => void;
   toggle: () => void;
+  onComplete: (() => void) | null;
+  setOnComplete: (cb: (() => void) | null) => void;
 }
 
 const SereneMindContext = createContext<SereneMindContextValue | null>(null);
@@ -13,21 +16,45 @@ const SereneMindContext = createContext<SereneMindContextValue | null>(null);
 export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [initialTab, setInitialTab] = useState<SereneMindTab>('breathing');
+  const [isGated, setIsGated] = useState(false);
+  const [onComplete, setOnCompleteState] = useState<(() => void) | null>(null);
 
-  const open = useCallback((tab: SereneMindTab = 'breathing') => {
+  const open = useCallback((tab: SereneMindTab = 'breathing', gated = false) => {
     setInitialTab(tab);
+    setIsGated(gated);
     setIsOpen(true);
   }, []);
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    setIsOpen(false);
+    setIsGated(false);
+  }, []);
+
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
 
-  const value = useMemo(() => ({ isOpen, open, close, toggle }), [isOpen, open, close, toggle]);
+  const setOnComplete = useCallback((cb: (() => void) | null) => {
+    setOnCompleteState(() => cb);
+  }, []);
+
+  const handleComplete = useCallback(() => {
+    onComplete?.();
+  }, [onComplete]);
+
+  const value = useMemo(
+    () => ({ isOpen, isGated, open, close, toggle, onComplete, setOnComplete }),
+    [isOpen, isGated, open, close, toggle, onComplete, setOnComplete]
+  );
 
   return (
     <SereneMindContext.Provider value={value}>
       {children}
-      <SereneMindModal isOpen={isOpen} onClose={close} initialTab={initialTab} />
+      <SereneMindModal
+        isOpen={isOpen}
+        onClose={close}
+        initialTab={initialTab}
+        isGated={isGated}
+        onComplete={handleComplete}
+      />
     </SereneMindContext.Provider>
   );
 };
@@ -45,9 +72,12 @@ export const useSereneMind = (): SereneMindContextValue => {
     }
     return {
       isOpen: false,
+      isGated: false,
       open: () => {},
       close: () => {},
       toggle: () => {},
+      onComplete: null,
+      setOnComplete: () => {},
     };
   }
   return ctx;
