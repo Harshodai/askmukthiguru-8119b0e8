@@ -254,11 +254,11 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
               )}
 
               {activeTab === 'audio' && (
-                <MediaTab mode="audio" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} />
+                <MediaTab mode="audio" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
               )}
 
               {activeTab === 'video' && (
-                <MediaTab mode="video" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} />
+                <MediaTab mode="video" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
               )}
             </div>
           </motion.div>
@@ -435,9 +435,12 @@ interface MediaTabProps {
   mode: 'audio' | 'video';
   videoId: string;
   url: string;
+  /** When true, show "Complete Meditation & Unlock Chat" CTA */
+  isGated?: boolean;
+  onComplete?: () => void;
 }
 
-const MediaTab = ({ mode, videoId, url }: MediaTabProps) => {
+const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) => {
   const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0`;
 
   return (
@@ -481,6 +484,15 @@ const MediaTab = ({ mode, videoId, url }: MediaTabProps) => {
         Tap play to begin. Audio and video sessions are not counted in your stats —
         only timed breathing logs a session.
       </p>
+
+      {isGated && (
+        <button
+          onClick={onComplete}
+          className="mt-3 w-full py-2.5 px-4 rounded-full bg-ojas/90 hover:bg-ojas text-white text-sm font-semibold transition-all shadow-md"
+        >
+          ✓ Complete Meditation &amp; Unlock Chat
+        </button>
+      )}
 
       <a
         href={url}
