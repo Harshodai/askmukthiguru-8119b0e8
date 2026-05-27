@@ -35,12 +35,16 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Health & usage of the AskMukthiGuru assistant.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold">Overview</h1>
+          <p className="text-sm text-muted-foreground">
+            Health & usage of the AskMukthiGuru assistant.
+          </p>
+        </div>
+        <SeedDemoButton />
       </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <KpiCard label="Queries" value={isLoading ? "…" : fmtInt(kpis?.total_queries ?? 0)} />
