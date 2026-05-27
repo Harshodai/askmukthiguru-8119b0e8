@@ -20,6 +20,8 @@ from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
 from services.cache_service import SemanticCacheAdapter, init_llm_cache
 from services.embedding_service import EmbeddingService
+from services.ingestion_tracker import build_tracker as build_ingestion_tracker
+from services.ingestion_tracker import IngestionTracker
 from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
@@ -63,9 +65,10 @@ class ServiceContainer:
         """Initialize all services in dependency order."""
         logger.info("Initializing service container...")
 
-        # State: Active ingestion progress
-        # Format: {url: {status, message, progress, updated_at}}
-        self.ingest_status = {}
+        # State: Active ingestion progress — shared across pods via Redis
+        self.ingestion_tracker: IngestionTracker = build_ingestion_tracker(
+            redis_url=getattr(settings, "redis_url", None)
+        )
 
         # Initialize LLM caching (GPTCache)
         init_llm_cache()
@@ -180,13 +183,11 @@ class ServiceContainer:
         """Update progress for a specific ingestion URL."""
         import time
 
-        self.ingest_status[url] = {
-            "url": url,
-            "message": message,
-            "progress": percent,
-            "updated_at": time.time(),
-            "status": "processing" if percent < 1.0 else "success",
-        }
+        self.ingestion_tracker.update(url, message, percent)
+
+    def get_ingest_status(self) -> dict:
+        """Retrieve ingestion status from shared storage (Redis or in-memory)."""
+        return self.ingestion_tracker.get_all()
 
     def close(self) -> None:
         """

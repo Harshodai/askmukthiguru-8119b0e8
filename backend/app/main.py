@@ -51,6 +51,9 @@ from app.language_utils import detect_and_prepare_language_info
 from app.metrics import REQUEST_COUNT, REQUEST_LATENCY, metrics_endpoint
 from app.observability import init_observability
 from app.telemetry_db import init_telemetry_db, log_query_trace
+from app.telemetry_sink import SupabaseTelemetrySink
+
+telemetry_sink = SupabaseTelemetrySink()
 from rag.graph import create_initial_state
 from rag.memory import build_memory_context, normalize_session_id
 from services.auth_service import get_current_user_from_supabase
@@ -73,47 +76,9 @@ logger = logging.getLogger(__name__)
 
 
 # Global instances
-class RequestCoalescer:
-    """
-    System Design Pattern 4.1: Coalesce Caching.
-    Merges identical concurrent requests to avoid redundant RAG runs.
-    Auto-cleans results after TTL to prevent unbounded memory growth.
-    """
+from app.coalescer import build_coalescer
 
-    def __init__(self, ttl: float = 60.0):
-        self._locks = {}
-        self._results = {}  # key -> (result, timestamp)
-        self._ttl = ttl
-
-    def _cleanup(self):
-        """Remove expired entries to prevent memory leak."""
-        now = time.time()
-        expired = [k for k, (_, ts) in self._results.items() if now - ts > self._ttl]
-        for k in expired:
-            self._results.pop(k, None)
-            self._locks.pop(k, None)
-
-    async def get_or_run(self, key: str, coro_func):
-        self._cleanup()
-
-        if key in self._results:
-            result, _ = self._results[key]
-            return result
-
-        if key not in self._locks:
-            self._locks[key] = asyncio.Lock()
-
-        async with self._locks[key]:
-            if key in self._results:
-                result, _ = self._results[key]
-                return result
-
-            result = await coro_func()
-            self._results[key] = (result, time.time())
-            return result
-
-
-coalescer = RequestCoalescer()
+coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
 # Configure JSON logging for production observability (Phase 10)
 import json
@@ -970,26 +935,33 @@ async def chat_endpoint(
             }
         )
 
-    query_data = {
-        "id": query_id,
-        "session_id": session_uuid,
-        "user_id": user_id,
-        "anon_user_id": str(uuid.uuid4()),
-        "query_text": user_msg,
-        "model": "askmukthiguru",
-        "latency_ms": int((time.time() - start_time) * 1000),
-        "status": "ok" if intent != "ERROR" else "error",
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "retrieval_metadata": retrieval_meta,
-        "trigger_events": trigger_events,
-    }
+    # Extract spans from LangGraph metrics
+    spans_data = []
+    if "result" in locals() and isinstance(result, dict) and result.get("metrics"):
+        for node_name, duration_sec in result["metrics"].items():
+            spans_data.append({
+                "span_name": node_name,
+                "start_ms": 0,
+                "duration_ms": int(duration_sec * 1000)
+            })
 
-    # Safely pull RAG eval scores if available
+    # Extract safety events
+    safety_events = []
+    if input_check.get("blocked"):
+        safety_events.append({
+            "event_type": "INPUT_GUARDRAIL",
+            "decision": "BLOCKED",
+            "reason": input_check.get("reason") or "Harmful input detected"
+        })
+    if output_check.get("blocked"):
+        safety_events.append({
+            "event_type": "OUTPUT_GUARDRAIL",
+            "decision": "BLOCKED",
+            "reason": output_check.get("reason") or "Harmful output detected"
+        })
+
     is_rag = intent == "QUERY"
     response_data = {
-        "id": str(uuid.uuid4()),
-        "response_text": final_answer,
-        "citations": citations,
         "faithfulness": result.get("faithfulness_score", 0.0)
         if is_rag and "result" in locals()
         else 1.0,
@@ -1003,7 +975,31 @@ async def chat_endpoint(
         if is_rag and "result" in locals()
         else "",
     }
-    background_tasks.add_task(log_query_trace, query_data, response_data)
+
+    background_tasks.add_task(
+        telemetry_sink.log_query_trace,
+        query_id=query_id,
+        session_id=session_uuid,
+        user_id=user_id,
+        query_text=user_msg,
+        model="askmukthiguru",
+        latency_ms=int((time.time() - start_time) * 1000),
+        status="ok" if intent != "ERROR" else "error",
+        created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        response_text=final_answer,
+        citations=citations,
+        faithfulness=response_data["faithfulness"],
+        answer_relevancy=response_data["answer_relevancy"],
+        context_precision=response_data["context_precision"],
+        context_recall=response_data["context_recall"],
+        hallucination_flag=response_data["hallucination_flag"],
+        confidence_score=result.get("confidence_score") if "result" in locals() and isinstance(result, dict) else None,
+        judge_reasoning=response_data["judge_reasoning"],
+        retrieval_metadata=retrieval_meta,
+        spans=spans_data,
+        trigger_events=trigger_events,
+        safety_events=safety_events
+    )
 
     return ChatResponse(
         response=final_answer,
@@ -1090,6 +1086,7 @@ async def chat_stream_endpoint(
                 return
 
             user_id = user.get("id", "anonymous")
+            start_time = time.time()
 
             # === Language Detection and Translation Setup ===
             # IMPORTANT: Do NOT reassign `is_indic` here — the outer scope's
@@ -1384,6 +1381,106 @@ async def chat_stream_endpoint(
                     follow_up_suggestions=[],
                 )
                 asyncio.create_task(container.user_profile.save_conversation_memory(memory))
+
+            # --- Telemetry Logging for Stream ---
+            try:
+                session_uuid = stable_session_id
+            except (ValueError, TypeError, AttributeError):
+                session_uuid = str(uuid.uuid4())
+
+            query_id = str(uuid.uuid4())
+
+            # Collect retrieval metadata from result
+            retrieval_meta = None
+            if citations:
+                retrieval_meta = {
+                    "chunk_ids": [c.get("id") if isinstance(c, dict) else "" for c in citations],
+                    "source_docs": [c.get("source_url") if isinstance(c, dict) else c for c in citations],
+                    "scores": [c.get("score", 0.0) if isinstance(c, dict) else 1.0 for c in citations],
+                    "top_k": len(citations),
+                    "hit": len(citations) > 0,
+                }
+
+            # Collect trigger events (Distress)
+            trigger_events = []
+            if "assessment" in locals() and assessment.level.value >= 2:
+                trigger_events.append(
+                    {
+                        "name": "DISTRESS",
+                        "metadata": {
+                            "level": assessment.level.name,
+                            "confidence": assessment.confidence,
+                            "signals": assessment.detected_signals,
+                        },
+                    }
+                )
+
+            # Extract spans from LangGraph metrics
+            spans_data = []
+            if "result" in locals() and isinstance(result, dict) and result.get("metrics"):
+                for node_name, duration_sec in result["metrics"].items():
+                    spans_data.append({
+                        "span_name": node_name,
+                        "start_ms": 0,
+                        "duration_ms": int(duration_sec * 1000)
+                    })
+
+            # Extract safety events
+            safety_events = []
+            if "input_check" in locals() and input_check.get("blocked"):
+                safety_events.append({
+                    "event_type": "INPUT_GUARDRAIL",
+                    "decision": "BLOCKED",
+                    "reason": input_check.get("reason") or "Harmful input detected"
+                })
+            if "output_check" in locals() and output_check.get("blocked"):
+                safety_events.append({
+                    "event_type": "OUTPUT_GUARDRAIL",
+                    "decision": "BLOCKED",
+                    "reason": output_check.get("reason") or "Harmful output detected"
+                })
+
+            is_rag = intent == "QUERY"
+            response_data = {
+                "faithfulness": result.get("faithfulness_score", 0.0)
+                if is_rag and "result" in locals()
+                else 1.0,
+                "answer_relevancy": 1.0,
+                "context_precision": 1.0,
+                "context_recall": 1.0,
+                "hallucination_flag": not result.get("faithful", True)
+                if is_rag and "result" in locals()
+                else False,
+                "judge_reasoning": result.get("verification_reason", "")
+                if is_rag and "result" in locals()
+                else "",
+            }
+
+            asyncio.create_task(
+                telemetry_sink.log_query_trace(
+                    query_id=query_id,
+                    session_id=session_uuid,
+                    user_id=user_id,
+                    query_text=user_msg,
+                    model="askmukthiguru",
+                    latency_ms=int((time.time() - start_time) * 1000),
+                    status="ok" if intent != "ERROR" else "error",
+                    created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    response_text=final_answer,
+                    citations=citations,
+                    faithfulness=response_data["faithfulness"],
+                    answer_relevancy=response_data["answer_relevancy"],
+                    context_precision=response_data["context_precision"],
+                    context_recall=response_data["context_recall"],
+                    hallucination_flag=response_data["hallucination_flag"],
+                    confidence_score=result.get("confidence_score") if "result" in locals() and isinstance(result, dict) else None,
+                    judge_reasoning=response_data["judge_reasoning"],
+                    retrieval_metadata=retrieval_meta,
+                    spans=spans_data,
+                    trigger_events=trigger_events,
+                    safety_events=safety_events
+                )
+            )
 
         except Exception as e:
             logger.error(f"SSE streaming error: {e}", exc_info=True)
@@ -1745,9 +1842,7 @@ async def ingest_endpoint(
             status = "failed"
             error_log = str(e)
             # Mark as error
-            if url in container.ingest_status:
-                container.ingest_status[url]["status"] = "error"
-                container.ingest_status[url]["message"] = str(e)
+            container.ingestion_tracker.mark_error(url, str(e))
         finally:
             duration_ms = int((time.time() - start_time) * 1000)
             try:
@@ -1895,7 +1990,7 @@ async def ingest_status_endpoint(
     """
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
-    return container.ingest_status
+    return container.ingestion_tracker.get_all()
 
 
 # === Entry Point ===
