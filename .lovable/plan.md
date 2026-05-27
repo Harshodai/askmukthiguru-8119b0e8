@@ -1,73 +1,77 @@
+# Admin console + chat polish plan
 
-# Plan: Security fixes, chat polish, admin drill-down repair, TTS verification
+## Root cause (what I found during exploration)
 
-Four parallel tracks. Frontend-only for tracks 1–3 unless noted; track 4 also touches backend Python.
+1. **Admin pages are mostly empty / broken** because the database only has 6 tables (`profiles`, `user_roles`, `conversations`, `chat_messages`, `meditation_sessions`, `daily_teachings`). Every admin query hits non-existent tables (`chat_queries`, `chat_responses`, `retrieval_events`, `trace_spans`, `prompt_versions`, `app_logs`, `alert_*`, `eval_*`, `ingestion_runs`, `golden_questions`, `model_pricing`, `query_clusters`, `safety_events`, `trigger_events`, `user_profiles`, `annotations`). Supabase silently returns errors → pages render empty / crash on `.length` on undefined.
+2. **Drill-down crashes on missing rows** even though `getQueryTrace` now uses `maybeSingle()` — `TraceDrawer` still dereferences `trace.response.citations.length`, `trace.retrieval.source_docs.map`, `trace.query.id`, `trace.prompt.name` without guards when the table doesn't exist or the row is partial.
+3. **Thinking pill misalignment**: assistant bubble is laid out as `avatar(28px) + gap(10px) + bubble`, so the bubble's left edge sits at 38px. Pill uses `pl-12` (48px) → 10px off, and on mobile it has `pl-0` so it jumps left entirely. Pill also has no avatar gutter, so width and indentation never match assistant column.
 
----
+## Scope
 
-## 1. Security fixes (from scan)
+### Track A — Database (Lovable Cloud migration)
+Create the admin telemetry schema in one migration:
 
-### Frontend / Lovable Cloud (will fix in this project)
-- **`src/hooks/useRequireAuth.ts`** — remove `console.log('[useRequireAuth] session:', …)` JWT leak. Gate any future debug behind `import.meta.env.DEV` with only `session?.user?.id`.
-- **Edge functions** (`sarvam-stt`, `sarvam-tts`, `delete-my-account`, `export-my-data`) — stop returning `(e as Error).message`. Log full error server-side, return generic `"An internal error occurred. Please try again."` with proper CORS headers.
-- **Supabase linter — `SECURITY DEFINER` callable by anon**: audit `has_role`, `whoami_diagnostics`, `ensure_profile_and_role`, `handle_new_user`. `handle_new_user` is a trigger (keep). For the other three, `REVOKE EXECUTE … FROM anon` via migration and keep `GRANT EXECUTE … TO authenticated` where needed. Update security memory to record that these are intentionally callable only by authenticated users.
+- Tables: `chat_queries`, `chat_responses`, `retrieval_events`, `trace_spans`, `trigger_events`, `safety_events`, `prompt_versions`, `alert_rules`, `alert_events`, `annotations`, `app_logs`, `eval_runs`, `eval_results`, `golden_questions`, `ingestion_runs`, `model_pricing`, `query_clusters`, `user_profiles`, `feedback_events`.
+- For each: `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated`, `GRANT ALL … TO service_role`, `ENABLE ROW LEVEL SECURITY`, plus admin-only RLS using existing `public.has_role(auth.uid(), 'admin')`. Insert policy for `service_role` only (backend writes).
+- Seed a tiny dev fixture (3 queries: one full trace, one missing response, one missing retrieval) gated behind a `seed_admin_demo()` SECURITY DEFINER function that only runs when caller is admin.
 
-### Python backend (out of this Lovable project's deploy scope — documented only)
-The findings for `backend/app/main.py`, `backend/app/gradio_ui.py`, `backend/services/auth_service.py`, `backend/scripts/seed_admin.py`, and the hardcoded Sarvam key in `backend/scratch_*` / `backend/test_chunk_extraction.py` live in the separate FastAPI repo. I will:
-- List them in `SECURITY_NOTES.md` at project root with exact remediation snippets (env-gated Gradio mount, JWT dep on STT/TTS, `ENABLE_TEST_AUTH` flag, generic 500 messages, env-only admin creds, Sarvam key rotation steps).
-- Mark them as "tracked, fix in backend repo" in the security memory so the scanner doesn't keep re-flagging from this side.
+### Track B — Frontend hardening
+- `TraceDrawer.tsx`: guard every `trace.response`, `trace.retrieval`, `trace.prompt`, `trace.query`, `trace.triggers`, `trace.feedback`, `citations`, `source_docs`, `spans` access. Render explicit empty-state cards ("No response recorded", "No retrieval recorded", "No spans") instead of crashing.
+- `mockData.ts`: catch Supabase errors per query so one missing table doesn't blank the whole page; return `[]` with a logged warning.
+- Each admin page (`OverviewPage`, `QueriesPage`, `QualityPage`, `RetrievalPage`, `TriggersPage`, `TopicsPage`, `PromptsPage`, `EvalsPage`, `IngestionPage`, `LogsPage`, `TelemetryPage`, `AlertsPage`, `SettingsPage`, `AdminsPage`, `FeedbackPage`, `DailyTeachingPage`): wrap in `AdminErrorBoundary`, ensure `EmptyState` renders on `[]`, fix any unguarded `.map`/`.length` against possibly-null data.
+- `useAdminData` hooks: switch to `useQuery` with `retry: false` and surface error toasts instead of infinite loading.
 
----
+### Track C — Thinking pill alignment (chat)
+Re-skin `ThinkingPills.tsx` to share the assistant-row geometry:
+- Wrap in the same `flex items-start gap-2.5 justify-start` shell with a 28px avatar slot (faded Sparkles icon) so the pill body starts at the exact same x as the assistant bubble.
+- Drop `pl-0 sm:pl-12`; rely on the shared shell padding from `MessageList`.
+- Constrain to `max-w-[85%] sm:max-w-[75%]` to match bubble width.
+- Mobile: avatar visible so left edge matches assistant.
 
-## 2. Chat scrolling & thinking-pill alignment (`/chat`)
+### Track D — E2E + unit tests
+- New `tests/e2e/admin-pages-smoke.spec.ts`: log in as admin, visit every admin route, assert no console error and either data or empty-state is visible.
+- New `tests/e2e/admin-trace-drilldown.spec.ts`: seed via `seed_admin_demo()`, open Queries page, click each of the 3 fixtures, assert drawer renders spans / chunks / response for the full trace, and renders empty-state strings for the partial traces, without crashing.
+- New `tests/e2e/chat-thinking-pill.spec.ts`: send a query, capture bounding box of the pill and of the next assistant bubble, assert `Math.abs(pill.left - bubble.left) < 2px`.
+- Vitest: extend `mockData.test.ts` with a "missing response row" case asserting `getQueryTrace` returns `null`-shaped fields without throwing.
 
-Files: `src/components/chat/ChatInterface.tsx`, `src/components/chat/MessageList.tsx`, `src/components/chat/ThinkingPills.tsx` (or wherever pills render), `src/components/chat/ChatMessage.tsx`.
+## Backend steps you need to do (FastAPI side)
 
-- Replace ad-hoc scroll calls with a single `useAutoScroll` hook that:
-  - Tracks `isNearBottom` (within 80px) via the scroll container.
-  - On new message / streaming token / regenerate / edit-resubmit, scrolls to bottom only when user was near bottom (avoids yanking during scroll-back reading).
-  - Uses `requestAnimationFrame` + `scrollIntoView({ block: 'end' })` on the sentinel after virtualizer commits.
-- Fix post-stream gap: when streaming ends, recompute `VirtualMessageWrapper` measured height immediately (call `measure()` / drop cached `defaultHeight` for the just-finished row).
-- Fix regenerate gap: ensure the old assistant row is removed in the same render tick the placeholder appears (no double-frame empty slot).
-- Fix inline edit jump: after edit-resubmit, scroll to the edited user message top, not bottom, until streaming starts.
-- Thinking pills alignment: render pills inside the same grid column / left-padding as guru messages (currently they sit at container left). Wrap in the same `<MessageRow role="assistant">` shell so avatar gutter + content column match.
+Once Track A migration lands, your backend has to start writing trace rows to Supabase. Concrete checklist:
 
----
+1. Add `SUPABASE_SERVICE_ROLE_KEY` to `backend/.env` (already in Lovable secrets — copy locally).
+2. `pip install supabase==2.*` in `backend/requirements.txt`.
+3. Create `backend/app/telemetry_sink.py` with a single `SupabaseTelemetrySink` class using `create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`.
+4. In `app/main.py` chat handler, after the LangGraph run completes, insert one row each into:
+   - `chat_queries` (id=request_id, user_id, query_text, model, latency_ms, prompt_tokens, completion_tokens, cost_estimate, status, created_at)
+   - `chat_responses` (query_id=request_id, response_text, citations jsonb, faithfulness, answer_relevancy, context_precision, context_recall, hallucination_flag, confidence, judge_reasoning)
+   - `retrieval_events` (query_id, source_docs text[], scores numeric[])
+   - `trace_spans` (query_id, span_name, start_ms, duration_ms) — one row per LangGraph node from `state['span_log']`.
+   - `trigger_events` / `safety_events` when the rails or detectors fire.
+5. Wrap inserts in a background task (`asyncio.create_task`) so telemetry never blocks the user response.
+6. Restart backend with `make docker-rebuild-web`. Verify in Supabase: `select count(*) from chat_queries;` grows after each chat.
+7. (Optional) Mirror Python logs into `app_logs` via a logging handler so the admin Logs page populates.
 
-## 3. Admin dashboard drill-downs + page audit
+After step 6 every admin page should populate with real data and the drill-down passes the E2E.
 
-Files: `src/admin/pages/*`, `src/admin/lib/api.ts`, `src/admin/lib/filtersStore.tsx`, `src/admin/hooks/useAdminData.ts`, route table in `src/App.tsx`.
+## Out of scope
+- Re-architecting the existing chat scrolling / inline edit work.
+- Building new admin features (golden-question editor, alert evaluator) — only making existing pages render reliably.
+- Backend Python changes — I will only document what you need to do (above), not edit Python files.
 
-- E2E sweep every admin route (Overview, Query Tracing, Conversations, Evals, Alerts, Users, Settings, Latency, etc.) via Playwright spec `tests/e2e/admin-drilldowns.spec.ts`:
-  - For each list page, click first row → assert detail route renders, no error boundary, key fields present.
-  - For each metric tile, click → assert filter applied + table populated.
-- Fix query tracing drill-down: the detail page likely 404s because the route param key or `getQueryTrace(id)` lookup is broken. Repair by:
-  - Verifying route path matches link (`/admin/queries/:id`).
-  - Fixing `api.ts:getQueryTrace` to handle the nullish-date defaults added previously (some traces had `null` from/to causing filter to drop them).
-- For any admin page that fails to open, capture the error, fix imports/missing exports/lazy-load issues.
-- Add a small "Drill-down health" panel on the Overview that runs the same checks at runtime in dev mode only.
+## Files touched
+- `supabase/migrations/<ts>_admin_telemetry.sql` (new, single migration)
+- `src/admin/components/TraceDrawer.tsx`
+- `src/admin/lib/mockData.ts`, `src/admin/lib/mockData.test.ts`
+- `src/admin/pages/*.tsx` (defensive guards + EmptyState only)
+- `src/admin/hooks/useAdminData.ts`
+- `src/components/chat/ThinkingPills.tsx`
+- `src/test/ThinkingPills.test.tsx`
+- `tests/e2e/admin-pages-smoke.spec.ts` (new)
+- `tests/e2e/admin-trace-drilldown.spec.ts` (new)
+- `tests/e2e/chat-thinking-pill.spec.ts` (new)
 
----
-
-## 4. TTS voice + metrics verification page
-
-New route: `/diagnostics/voice-metrics` (dev + admin-gated).
-
-- Page renders:
-  1. Current speaker from profile (`useProfile`), dropdown to switch (writes via existing profile update path).
-  2. "Speak sample" button — calls `useTextToSpeech().speak("Test")` and shows the actual `SpeechSynthesisUtterance.voice.name` used (proves the new speaker took effect on the next utterance, no reload needed).
-  3. "Fire test meditation event" button — dispatches `askmukthiguru:meditation_completed` and shows live counters from `MeditationStats` reading.
-  4. Pass/fail badges + last-event log.
-- Backed by a small Vitest unit test (`src/test/voiceMetricsDiagnostics.test.tsx`) asserting the speak callback uses the latest `speaker` value after change, and that the meditation event listener increments stats.
-
----
-
-## Confidence & rollout
-- Security track ships first (smallest blast radius, highest value).
-- Chat scroll + pills then admin drill-downs (largest surface, run Playwright before claiming done).
-- TTS verification page last; it's the safety net for the earlier TTS fix.
-
-### Out of scope
-- Rewriting the virtualization library.
-- Backend Python edits (documented, not changed here).
-- Any new business logic in chat — pure UI/scroll behavior.
+## Verification
+1. Run new Vitest + Playwright suites (must be green).
+2. Manually click every admin page in preview — none blank, none console errors.
+3. Open drill-down on full + partial traces — both render without crash.
+4. Inspect chat: pill left-edge aligns to assistant bubble within 2px on both mobile (375px) and desktop (1280px).
