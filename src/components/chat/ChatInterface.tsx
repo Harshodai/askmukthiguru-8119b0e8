@@ -48,6 +48,7 @@ import {
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger } from '@/lib/aiService';
+import { getLastCompletedMeditationTimestamp } from '@/lib/meditationStorage';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -578,12 +579,14 @@ export const ChatInterface = () => {
     let checkpointInterval: ReturnType<typeof setInterval> | undefined;
 
     try {
+      const lastSereneMindAt = getLastCompletedMeditationTimestamp();
       const stream = sendMessageStreaming(
         messageHistory,
         userMessage.content,
         meditationStep,
         currentConversation?.summary,
-        currentConversation?.id
+        currentConversation?.id,
+        lastSereneMindAt,
       );
 
       // Show pipeline thinking pills
@@ -688,19 +691,54 @@ export const ChatInterface = () => {
           setMeditationStep(streamedMedStep);
         }
 
-        // Trigger Serene Mind if distress or blocked detected in streaming
+        // Trigger Serene Mind based on response signals
         if (streamedBlocked) {
+          // Blocked content → gated Serene Mind (chat locked until completed)
+          const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Before we return, let us take a sacred pause together in Serene Mind.';
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: generateId(),
+              role: 'guru',
+              content: prelude,
+              timestamp: new Date(),
+            },
+          ]);
+          setTimeout(() => {
+            setIsAwaitingSereneMind(true);
+            setSereneMindOnComplete(() => () => {
+              setIsAwaitingSereneMind(false);
+              setSereneMindOnComplete(null);
+            });
+            openSereneMind('breathing', true);
+          }, 7000);
+        } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
+          // Voluntary request: open without gating — user asked for it
           openSereneMind('breathing');
         } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
           openSereneMind('audio');
         } else if (streamedProactiveSereneMind?.triggered) {
-          // Proactive: force open Serene Mind in gated mode — chat is locked until complete
-          setIsAwaitingSereneMind(true);
-          setSereneMindOnComplete(() => () => {
-            setIsAwaitingSereneMind(false);
-            setSereneMindOnComplete(null);
-          });
-          openSereneMind('breathing', true);
+          // Proactive: stream the teachings prelude as a guru message, then open gated after 7s
+          const preludeText =
+            (streamedProactiveSereneMind as any).teachings_prelude ||
+            'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Let us pause together in Serene Mind.';
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: generateId(),
+              role: 'guru',
+              content: preludeText,
+              timestamp: new Date(),
+            },
+          ]);
+          setTimeout(() => {
+            setIsAwaitingSereneMind(true);
+            setSereneMindOnComplete(() => () => {
+              setIsAwaitingSereneMind(false);
+              setSereneMindOnComplete(null);
+            });
+            openSereneMind('breathing', true);
+          }, 7000);
         }
 
         // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
@@ -752,12 +790,14 @@ export const ChatInterface = () => {
     setIsTyping(true);
 
     try {
+      const lastSereneMindAt = getLastCompletedMeditationTimestamp();
       const response = await sendMessage(
         messageHistory,
         userMessage.content,
         meditationStep,
         currentConversation?.summary,
-        currentConversation?.id
+        currentConversation?.id,
+        lastSereneMindAt,
       );
 
       if (response.blocked && response.blockReason) {
@@ -803,16 +843,33 @@ export const ChatInterface = () => {
           setMeditationStep(response.meditationStep);
         }
 
-        if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
+        if (response.intent === 'MEDITATION' || response.intent === 'MEDITATION_CONTINUE') {
+          // Voluntary request: non-gated
+          openSereneMind('breathing');
+        } else if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
         } else if (response.proactiveSereneMind?.triggered) {
-          // Proactive: force open Serene Mind in gated mode — chat is locked until complete
-          setIsAwaitingSereneMind(true);
-          setSereneMindOnComplete(() => () => {
-            setIsAwaitingSereneMind(false);
-            setSereneMindOnComplete(null);
-          });
-          openSereneMind('breathing', true);
+          // Proactive gated path with 7s teachings prelude
+          const preludeText =
+            (response.proactiveSereneMind as any).teachings_prelude ||
+            'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Let us pause together in Serene Mind.';
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: generateId(),
+              role: 'guru',
+              content: preludeText,
+              timestamp: new Date(),
+            },
+          ]);
+          setTimeout(() => {
+            setIsAwaitingSereneMind(true);
+            setSereneMindOnComplete(() => () => {
+              setIsAwaitingSereneMind(false);
+              setSereneMindOnComplete(null);
+            });
+            openSereneMind('breathing', true);
+          }, 7000);
         }
 
         // Heuristic fallback for non-streaming path (same logic as streaming)

@@ -211,4 +211,35 @@ class UserProfileService:
         return detected
 
 
+    async def get_last_meditation_session(self, user_id: str) -> float | None:
+        """
+        Return the Unix timestamp of the most recently completed meditation
+        session for this user, or None if no completed session exists.
+
+        Used by the proactive Serene Mind cooldown check.
+        """
+        if self._supabase:
+            try:
+                result = (
+                    self._supabase.table("meditation_sessions")
+                    .select("completed_at")
+                    .eq("user_id", user_id)
+                    .eq("completed", True)
+                    .order("completed_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if result.data:
+                    import datetime
+                    raw = result.data[0].get("completed_at")
+                    if raw:
+                        if isinstance(raw, str):
+                            dt = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                            return dt.timestamp()
+                        return float(raw)
+            except Exception as e:
+                logger.warning(f"get_last_meditation_session failed for {user_id}: {e}")
+        return None
+
+
 # Singleton instance will be managed by ServiceContainer
