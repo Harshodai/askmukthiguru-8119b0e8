@@ -47,7 +47,7 @@ import {
   updateConversationSummary,
 } from '@/lib/chatStorage';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger } from '@/lib/aiService';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -113,7 +113,8 @@ export const ChatInterface = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState<string>('');
-  const { open: openSereneMind } = useSereneMind();
+  const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
+  const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const { profile, loading: profileLoading, update: updateProfile } = useProfile();
@@ -484,7 +485,7 @@ export const ChatInterface = () => {
   ) => {
     e.preventDefault();
     const textToSend = overrideText ?? inputValue;
-    if (!textToSend.trim() || isTyping) {
+    if (!textToSend.trim() || isTyping || isAwaitingSereneMind) {
       return;
     }
 
@@ -621,7 +622,7 @@ export const ChatInterface = () => {
       let streamedMedStep = 0;
       let streamedBlocked = false;
       let streamedBlockReason: string | null = null;
-      let streamedProactiveSereneMind: any = null;
+      let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
       for await (const chunk of stream) {
         if (chunk.type === 'status') {
           // Pipeline status update → add or advance pills
@@ -693,19 +694,13 @@ export const ChatInterface = () => {
         } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
           openSereneMind('audio');
         } else if (streamedProactiveSereneMind?.triggered) {
-          // Proactive offer — gentle toast invite (non-blocking, user decides)
-          setTimeout(() => {
-            toast({
-              title: '🧘 A moment of stillness?',
-              description: 'I\'ve noticed some stress in our conversation. Would you like a Serene Mind practice?',
-              duration: 10000,
-              action: (
-                <ToastAction altText="Open Serene Mind" onClick={() => openSereneMind('breathing')}>
-                  Begin
-                </ToastAction>
-              ),
-            });
-          }, 1500); // slight delay so it appears after the response renders
+          // Proactive: force open Serene Mind in gated mode — chat is locked until complete
+          setIsAwaitingSereneMind(true);
+          setSereneMindOnComplete(() => () => {
+            setIsAwaitingSereneMind(false);
+            setSereneMindOnComplete(null);
+          });
+          openSereneMind('breathing', true);
         }
 
         // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
@@ -811,19 +806,13 @@ export const ChatInterface = () => {
         if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
         } else if (response.proactiveSereneMind?.triggered) {
-          // Proactive offer — gentle toast invite (non-blocking, user decides)
-          setTimeout(() => {
-            toast({
-              title: '🧘 A moment of stillness?',
-              description: "I've noticed some stress in our conversation. Would you like a Serene Mind practice?",
-              duration: 10000,
-              action: (
-                <ToastAction altText="Open Serene Mind" onClick={() => openSereneMind('breathing')}>
-                  Begin
-                </ToastAction>
-              ),
-            });
-          }, 1500);
+          // Proactive: force open Serene Mind in gated mode — chat is locked until complete
+          setIsAwaitingSereneMind(true);
+          setSereneMindOnComplete(() => () => {
+            setIsAwaitingSereneMind(false);
+            setSereneMindOnComplete(null);
+          });
+          openSereneMind('breathing', true);
         }
 
         // Heuristic fallback for non-streaming path (same logic as streaming)
@@ -1262,15 +1251,22 @@ export const ChatInterface = () => {
                     onKeyDown={handleKeyDown}
                     onFocus={() => setInputFocused(true)}
                     onBlur={() => setInputFocused(false)}
-                    placeholder={isListening ? 'Speak now…' : "Share what's on your heart…"}
+                    placeholder={
+                      isAwaitingSereneMind
+                        ? 'Complete the Serene Mind practice to continue…'
+                        : isListening
+                        ? 'Speak now…'
+                        : "Share what's on your heart…"
+                    }
+                    disabled={isAwaitingSereneMind}
                     rows={1}
                     aria-label="Your message"
-                    className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed"
+                    className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ minHeight: '36px' }}
                   />
                   <button
                     type="submit"
-                    disabled={!inputValue.trim() || isTyping || isStreaming}
+                    disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
                     className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
                     aria-label="Send message"
                   >

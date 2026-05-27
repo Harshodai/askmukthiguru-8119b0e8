@@ -13,6 +13,8 @@ interface SereneMindModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: SereneMindTab;
+  onComplete?: () => void;
+  isGated?: boolean; // When true: user cannot close until session completes
 }
 
 type BreathPhase = 'idle' | 'inhale' | 'hold' | 'exhale' | 'complete';
@@ -26,7 +28,7 @@ const MIN_DURATION = 180; // 3 minutes in seconds
 const SERENE_MIND_VIDEO_ID = 'igSp4H0OWLE';
 const SERENE_MIND_YOUTUBE_URL = `https://youtu.be/${SERENE_MIND_VIDEO_ID}`;
 
-export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing' }: SereneMindModalProps) => {
+export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onComplete, isGated = false }: SereneMindModalProps) => {
   const [activeTab, setActiveTab] = useState<SereneMindTab>(initialTab);
   const [isPlaying, setIsPlaying] = useState(false);
   const [phase, setPhase] = useState<BreathPhase>('idle');
@@ -62,7 +64,8 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing' }: S
       completeMeditationSession(sessionRef.current.id, duration, cycleCount);
     }
     setPhase('complete');
-  }, [totalTime, cycleCount]);
+    onComplete?.();
+  }, [totalTime, cycleCount, onComplete]);
 
   // Breathing phase loop — only runs when breathing tab is active
   useEffect(() => {
@@ -176,7 +179,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing' }: S
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-background/95 backdrop-blur-xl"
-            onClick={onClose}
+            onClick={isGated ? undefined : onClose}
           />
 
           <motion.div
@@ -187,14 +190,16 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing' }: S
             className="relative z-10 w-full max-w-lg mx-4"
           >
             <div className="glass-card p-6 sm:p-8 text-center shadow-xl">
-              {/* Close Button */}
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
-              </button>
+              {/* Close Button — hidden when gated (must complete session to dismiss) */}
+              {!isGated && (
+                <button
+                  onClick={onClose}
+                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              )}
 
               {/* Title */}
               <h2 className="text-2xl font-bold text-gradient-gold mb-1">Serene Mind</h2>

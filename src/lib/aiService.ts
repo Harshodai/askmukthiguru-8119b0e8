@@ -32,7 +32,16 @@ export interface AIResponse {
   meditationStep?: number;
   blocked?: boolean;
   blockReason?: string;
-  proactiveSereneMind?: any;
+  proactiveSereneMind?: ProactiveSereneMindTrigger | null;
+}
+
+/** Shape of the proactive Serene Mind trigger object returned by the backend */
+export interface ProactiveSereneMindTrigger {
+  triggered: boolean;
+  level?: string;
+  confidence?: number;
+  signals?: string[];
+  suggested_response?: string;
 }
 
 // Auto-detect backend URL: VITE_BACKEND_URL for local dev, relative path for production
@@ -109,7 +118,7 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
 export type StreamChunk =
   | { type: 'token'; text: string }
   | { type: 'status'; text: string }
-  | { type: 'done'; intent: string; citations: string[]; meditationStep: number; blocked?: boolean; blockReason?: string | null; proactiveSereneMind?: any }
+  | { type: 'done'; intent: string; citations: string[]; meditationStep: number; blocked?: boolean; blockReason?: string | null; proactiveSereneMind?: ProactiveSereneMindTrigger | null }
   | { type: 'error'; text: string };
 
 export async function* sendMessageStreaming(
