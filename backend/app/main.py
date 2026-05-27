@@ -54,6 +54,7 @@ from app.telemetry_db import init_telemetry_db, log_query_trace
 from rag.graph import create_initial_state
 from rag.memory import build_memory_context, normalize_session_id
 from services.auth_service import get_current_user_from_supabase
+from services.serene_mind_engine import DistressAssessment, DistressLevel
 from services.user_profile_service import LanguagePreference, SpiritualLevel
 
 # Correlation ID context variable — accessible from anywhere in the async call chain
@@ -473,6 +474,8 @@ class ChatResponse(BaseModel):
     citations: list[str] = Field(default_factory=list, description="Source URLs")
     blocked: bool = Field(default=False, description="Was the message blocked?")
     block_reason: str | None = Field(None, description="Why it was blocked")
+    proactive_serene_mind: dict | None = Field(None, description="Proactive Serene Mind trigger details")
+
 
 
 class IngestRequest(BaseModel):
@@ -710,6 +713,45 @@ async def chat_endpoint(
     except Exception as e:
         logger.warning(f"Serene Mind detection failed (non-fatal): {e}")
 
+    # === PROACTIVE SERENE MIND TRIGGERING ===
+    # Check if we should proactively offer Serene Mind based on conversation trend
+    try:
+        if container.serene_mind and container.user_profile:
+            # Use current assessment if available, otherwise create a neutral one
+            current_assessment = locals().get('assessment')
+            if current_assessment is None:
+                current_assessment = DistressAssessment(
+                    level=DistressLevel.NONE,
+                    confidence=0.0,
+                    detected_signals=[],
+                    language_detected=lang_detection.primary.value,
+                    recommended_response_type="normal"
+                )
+
+            proactive_assessment = await container.serene_mind.analyze_distress_trend(
+                user_id=user_id,
+                current_assessment=current_assessment,
+                user_profile_service=container.user_profile
+            )
+
+            if proactive_assessment:
+                # Log the proactive trigger (don't alter flow, just make available for frontend)
+                logger.info(
+                    f"Proactive Serene Mind triggered for user {user_id}: "
+                    f"level={proactive_assessment.level.name}, "
+                    f"confidence={proactive_assessment.confidence:.2f}"
+                )
+                # Store in state for frontend access
+                state["proactive_serene_mind"] = {
+                    "triggered": True,
+                    "level": proactive_assessment.level.name,
+                    "confidence": proactive_assessment.confidence,
+                    "signals": proactive_assessment.detected_signals,
+                    "suggested_response": container.serene_mind.get_response(proactive_assessment)
+                }
+    except Exception as e:
+        logger.warning(f"Proactive Serene Mind analysis failed (non-fatal): {e}")
+
     # === Layers 2-11: LangGraph RAG Pipeline ===
     try:
         # Coalesce identical concurrent requests (Sys 4.1)
@@ -945,6 +987,7 @@ async def chat_endpoint(
         citations=citations,
         blocked=output_check.get("blocked", False),
         block_reason=output_check.get("reason"),
+        proactive_serene_mind=state.get("proactive_serene_mind"),
     )
 
 
@@ -1104,6 +1147,43 @@ async def chat_stream_endpoint(
             except Exception as e:
                 logger.warning(f"Serene Mind detection failed in stream (non-fatal): {e}")
 
+            # === PROACTIVE SERENE MIND TRIGGERING ===
+            # Check if we should proactively offer Serene Mind based on conversation trend
+            proactive_serene_mind = None
+            try:
+                if container.serene_mind and container.user_profile:
+                    current_assessment = locals().get('assessment')
+                    if current_assessment is None:
+                        current_assessment = DistressAssessment(
+                            level=DistressLevel.NONE,
+                            confidence=0.0,
+                            detected_signals=[],
+                            language_detected=lang_detection.primary.value,
+                            recommended_response_type="normal"
+                        )
+
+                    proactive_assessment = await container.serene_mind.analyze_distress_trend(
+                        user_id=user_id,
+                        current_assessment=current_assessment,
+                        user_profile_service=container.user_profile
+                    )
+
+                    if proactive_assessment:
+                        logger.info(
+                            f"Stream: Proactive Serene Mind triggered for user {user_id}: "
+                            f"level={proactive_assessment.level.name}, "
+                            f"confidence={proactive_assessment.confidence:.2f}"
+                        )
+                        proactive_serene_mind = {
+                            "triggered": True,
+                            "level": proactive_assessment.level.name,
+                            "confidence": proactive_assessment.confidence,
+                            "signals": proactive_assessment.detected_signals,
+                            "suggested_response": container.serene_mind.get_response(proactive_assessment)
+                        }
+            except Exception as e:
+                logger.warning(f"Proactive Serene Mind analysis failed in stream (non-fatal): {e}")
+
             # === RAG Pipeline ===
             yield "event: status\ndata: Understanding your question...\n\n"
             initial_state = create_initial_state(
@@ -1225,6 +1305,7 @@ async def chat_stream_endpoint(
                     "intent": intent,
                     "citations": citations,
                     "meditation_step": med_step,
+                    "proactive_serene_mind": proactive_serene_mind,
                 }
             )
             yield f"event: done\ndata: {meta}\n\n"
