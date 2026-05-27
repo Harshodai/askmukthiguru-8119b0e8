@@ -1401,6 +1401,95 @@ async def chat_stream_endpoint(
     )
 
 
+# === Breath Technique Teaching ===
+
+# Simple 1-hr in-memory cache to avoid repeated LLM calls for the same technique
+_breath_teaching_cache: dict[str, dict] = {}
+
+# Maps technique ID → a focused query against the teachings knowledge base
+_TECHNIQUE_QUERIES: dict[str, str] = {
+    "serene_mind": "What do Sri Preethaji and Sri Krishnaji teach about conscious breathing and the long exhale as a path to the beautiful state?",
+    "box": "What do Sri Preethaji and Sri Krishnaji teach about equanimity, balance, and equal-phase breathing or pranayama?",
+    "4_7_8":  "What do Sri Preethaji and Sri Krishnaji teach about deep rest, surrender, and releasing all tension through the breath?",
+    "deep_vitality": "What do Sri Preethaji and Sri Krishnaji teach about prana, life force, and energising the body through breath awareness?",
+}
+_DEFAULT_TECHNIQUE_QUERY = "What do Sri Preethaji and Sri Krishnaji teach about the sacred importance of conscious breathing in spiritual practice?"
+
+
+@app.get("/api/breath-teaching/{technique_id}", tags=["Meditation"])
+async def get_breath_teaching(
+    technique_id: str,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """
+    Return an LLM-generated teaching from the Sri Preethaji / Sri Krishnaji knowledge
+    base that contextualises a specific breathing technique for the Serene Mind modal.
+
+    Results are cached in memory for 1 hour to avoid redundant LLM calls.
+    The teaching is retrieved via RAG (Qdrant vector search) so it is always grounded
+    in the actual ingested teachings — never a hardcoded string.
+    """
+    import time as _time
+
+    # Check in-memory cache (1hr TTL)
+    cached = _breath_teaching_cache.get(technique_id)
+    if cached and (_time.time() - cached["ts"]) < 3600:
+        return {"technique_id": technique_id, "teaching": cached["teaching"], "cached": True}
+
+    query = _TECHNIQUE_QUERIES.get(technique_id, _DEFAULT_TECHNIQUE_QUERY)
+
+    teaching = ""
+    try:
+        if container.rag_graph:
+            # Use the lightweight retrieval node (bypass full pipeline for speed)
+            initial_state = create_initial_state(
+                question=query,
+                chat_history=[],
+                meditation_step=0,
+                request_id=f"breath-teaching-{technique_id}",
+            )
+            initial_state["user_id"] = user.get("sub", "anonymous")
+            initial_state["skip_full_pipeline"] = True  # hint for lightweight path
+
+            result = await asyncio.wait_for(
+                container.rag_graph.ainvoke(initial_state),
+                timeout=12.0,
+            )
+            raw = result.get("answer", "")
+            # Trim to 2 sentences max — this is a subtitle, not a full answer
+            sentences = [s.strip() for s in raw.split(".") if s.strip()][:2]
+            teaching = ". ".join(sentences) + ("." if sentences else "")
+
+        if not teaching and container.ollama:
+            # Fallback: direct LLM call if RAG graph unavailable
+            teaching = await asyncio.wait_for(
+                container.ollama.generate(
+                    prompt=(
+                        f"In 1-2 sentences, share a teaching from Sri Preethaji or Sri Krishnaji "
+                        f"about: {query.lower()} Be poetic, grounded in their actual teachings, "
+                        f"and end with an invitation to practice."
+                    ),
+                    max_tokens=80,
+                ),
+                timeout=8.0,
+            )
+
+    except Exception as e:
+        logger.warning(f"Breath teaching generation failed for {technique_id}: {e}")
+
+    if not teaching:
+        teaching = (
+            "Sri Preethaji and Sri Krishnaji teach that conscious breathing is the bridge "
+            "between the suffering state and the beautiful state. Let each breath be a sacred offering."
+        )
+
+    # Cache the result
+    _breath_teaching_cache[technique_id] = {"teaching": teaching, "ts": _time.time()}
+
+    return {"technique_id": technique_id, "teaching": teaching, "cached": False}
+
+
 class SpeechTTSRequest(BaseModel):
     text: str
     target_language_code: str

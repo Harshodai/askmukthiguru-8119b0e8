@@ -486,7 +486,7 @@ export const ChatInterface = () => {
   ) => {
     e.preventDefault();
     const textToSend = overrideText ?? inputValue;
-    if (!textToSend.trim() || isTyping || isAwaitingSereneMind) {
+    if (!textToSend.trim() || isTyping) {
       return;
     }
 
@@ -570,213 +570,214 @@ export const ChatInterface = () => {
       }
     };
 
-    // Try streaming first
+    // Try streaming first (skip when awaiting Serene Mind to avoid leaking blocked content during stream)
     const streamingGuruId = generateId();
     let streamingWorked = false;
     let fullContent = '';
     let finalIntent = 'CASUAL';
-    // Declared OUTSIDE try so finally block can access it
     let checkpointInterval: ReturnType<typeof setInterval> | undefined;
 
-    try {
-      const lastSereneMindAt = getLastCompletedMeditationTimestamp();
-      const stream = sendMessageStreaming(
-        messageHistory,
-        userMessage.content,
-        meditationStep,
-        currentConversation?.summary,
-        currentConversation?.id,
-        lastSereneMindAt,
-      );
-
-      // Show pipeline thinking pills
-      setPipelineSteps([]);
-      setShowPipeline(true);
-
-      // Add an empty guru message that we'll fill progressively
-      const emptyGuru: Message = {
-        id: streamingGuruId,
-        role: 'guru',
-        content: '',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, emptyGuru]);
-      setIsStreaming(true);
-      setStreamingMessageId(streamingGuruId);
-      setIsTyping(false);
-
-      // ── 500ms stream persistence checkpoint ────────────────────────
-      checkpointInterval = setInterval(() => {
-        if (fullContent.length > 20) {
-          try {
-            sessionStorage.setItem('askmukthiguru_stream_checkpoint', JSON.stringify({
-              conversationId: currentConversation?.id ?? '',
-              messageId: streamingGuruId,
-              content: fullContent,
-              timestamp: Date.now(),
-            }));
-          } catch { /* storage full — ignore */ }
-        }
-      }, 500);
-      // ────────────────────────────────────────────────────────────────
-
-      let gotFirstToken = false;
-      let streamedCitations: string[] = [];
-      let streamedMedStep = 0;
-      let streamedBlocked = false;
-      let streamedBlockReason: string | null = null;
-      let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
-      for await (const chunk of stream) {
-        if (chunk.type === 'status') {
-          // Pipeline status update → add or advance pills
-          const label = mapStatusToLabel(chunk.text);
-          setPipelineSteps((prev) => {
-            // Mark all previous steps as done
-            const updated = prev.map((s) =>
-              s.status === 'active' ? { ...s, status: 'done' as const } : s
-            );
-            // Add new active step
-            return [...updated, { id: `step-${updated.length}`, label, status: 'active' as const }];
-          });
-          continue;
-        }
-
-        if (chunk.type === 'done') {
-          // Final metadata from backend — citations, intent, meditationStep, proactiveSereneMind
-          streamedCitations = chunk.citations;
-          finalIntent = chunk.intent;
-          streamedMedStep = chunk.meditationStep;
-          streamedBlocked = chunk.blocked ?? false;
-          streamedBlockReason = chunk.blockReason ?? null;
-          streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
-          continue;
-        }
-
-        if (chunk.type === 'error') {
-          toast({ title: 'Server error', description: chunk.text, variant: 'destructive' });
-          continue;
-        }
-
-        // First token → hide pipeline pills
-        if (!gotFirstToken) {
-          gotFirstToken = true;
-          // Mark all steps as done, then fade out
-          setPipelineSteps((prev) => prev.map((s) => ({ ...s, status: 'done' as const })));
-          setTimeout(() => setShowPipeline(false), 600);
-        }
-
-        // Update the streaming message state locally without mapping entire array
-        fullContent += chunk.text;
-        setStreamingContent(fullContent);
-        // Keep scrolling during streaming if near bottom
-        if (isNearBottomRef.current && scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-      }
-
-      if (fullContent) {
-        streamingWorked = true;
-        // Commit the final streamed content to the message list
-        setMessages((prev) =>
-          prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined } : m))
+    if (!isAwaitingSereneMind) {
+      try {
+        const lastSereneMindAt = getLastCompletedMeditationTimestamp();
+        const stream = sendMessageStreaming(
+          messageHistory,
+          userMessage.content,
+          meditationStep,
+          currentConversation?.summary,
+          currentConversation?.id,
+          lastSereneMindAt,
         );
 
-        setStreamingMessageId(undefined);
-        setStreamingContent('');
+        // Show pipeline thinking pills
+        setPipelineSteps([]);
+        setShowPipeline(true);
 
-        setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
+        // Add an empty guru message that we'll fill progressively
+        const emptyGuru: Message = {
+          id: streamingGuruId,
+          role: 'guru',
+          content: '',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, emptyGuru]);
+        setIsStreaming(true);
+        setStreamingMessageId(streamingGuruId);
+        setIsTyping(false);
 
-        // Update meditation step from streaming metadata
-        if (streamedMedStep !== undefined) {
-          setMeditationStep(streamedMedStep);
-        }
+        // ── 500ms stream persistence checkpoint ────────────────────────
+        checkpointInterval = setInterval(() => {
+          if (fullContent.length > 20) {
+            try {
+              sessionStorage.setItem('askmukthiguru_stream_checkpoint', JSON.stringify({
+                conversationId: currentConversation?.id ?? '',
+                messageId: streamingGuruId,
+                content: fullContent,
+                timestamp: Date.now(),
+              }));
+            } catch { /* storage full — ignore */ }
+          }
+        }, 500);
+        // ────────────────────────────────────────────────────────────────
 
-        // Trigger Serene Mind based on response signals
-        if (streamedBlocked) {
-          // Blocked content → gated Serene Mind (chat locked until completed)
-          const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Before we return, let us take a sacred pause together in Serene Mind.';
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: generateId(),
-              role: 'guru',
-              content: prelude,
-              timestamp: new Date(),
-            },
-          ]);
-          setTimeout(() => {
-            setIsAwaitingSereneMind(true);
-            setSereneMindOnComplete(() => () => {
-              setIsAwaitingSereneMind(false);
-              setSereneMindOnComplete(null);
+        let gotFirstToken = false;
+        let streamedCitations: string[] = [];
+        let streamedMedStep = 0;
+        let streamedBlocked = false;
+        let streamedBlockReason: string | null = null;
+        let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
+        for await (const chunk of stream) {
+          if (chunk.type === 'status') {
+            // Pipeline status update → add or advance pills
+            const label = mapStatusToLabel(chunk.text);
+            setPipelineSteps((prev) => {
+              // Mark all previous steps as done
+              const updated = prev.map((s) =>
+                s.status === 'active' ? { ...s, status: 'done' as const } : s
+              );
+              // Add new active step
+              return [...updated, { id: `step-${updated.length}`, label, status: 'active' as const }];
             });
-            openSereneMind('breathing', true);
-          }, 7000);
-        } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
-          // Voluntary request: open without gating — user asked for it
-          openSereneMind('breathing');
-        } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
-          openSereneMind('audio');
-        } else if (streamedProactiveSereneMind?.triggered) {
-          // Proactive: stream the teachings prelude as a guru message, then open gated after 7s
-          const preludeText =
-            streamedProactiveSereneMind.teachings_prelude ||
-            'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Let us pause together in Serene Mind.';
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: generateId(),
-              role: 'guru',
-              content: preludeText,
-              timestamp: new Date(),
-            },
-          ]);
-          setTimeout(() => {
-            setIsAwaitingSereneMind(true);
-            setSereneMindOnComplete(() => () => {
-              setIsAwaitingSereneMind(false);
-              setSereneMindOnComplete(null);
-            });
-            openSereneMind('breathing', true);
-          }, 7000);
-        }
+            continue;
+          }
 
-        // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
-        // but backend didn't flag DISTRESS (e.g. serene_mind module not running),
-        // open the modal so the real guided session plays alongside the text.
-        if (finalIntent !== 'DISTRESS' && !streamedProactiveSereneMind?.triggered) {
-          const t = fullContent.toLowerCase();
-          const looksLikeSereneMind =
-            t.includes('serene mind') ||
-            t.includes('step 1/') ||
-            (t.includes('close your eyes') && t.includes('breath')) ||
-            (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
-          if (looksLikeSereneMind && meditationStep === 0) {
-            openSereneMind('breathing');
+          if (chunk.type === 'done') {
+            // Final metadata from backend — citations, intent, meditationStep, proactiveSereneMind
+            streamedCitations = chunk.citations;
+            finalIntent = chunk.intent;
+            streamedMedStep = chunk.meditationStep;
+            streamedBlocked = chunk.blocked ?? false;
+            streamedBlockReason = chunk.blockReason ?? null;
+            streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
+            continue;
+          }
+
+          if (chunk.type === 'error') {
+            toast({ title: 'Server error', description: chunk.text, variant: 'destructive' });
+            continue;
+          }
+
+          // First token → hide pipeline pills
+          if (!gotFirstToken) {
+            gotFirstToken = true;
+            // Mark all steps as done, then fade out
+            setPipelineSteps((prev) => prev.map((s) => ({ ...s, status: 'done' as const })));
+            setTimeout(() => setShowPipeline(false), 600);
+          }
+
+          // Update the streaming message state locally without mapping entire array
+          fullContent += chunk.text;
+          setStreamingContent(fullContent);
+          // Keep scrolling during streaming if near bottom
+          if (isNearBottomRef.current && scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
           }
         }
-      }
-    } catch {
-      // Streaming failed — show toast if partial content was received
-      if (fullContent) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
-        );
-        toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
-        streamingWorked = true; // Keep partial content
-      }
-    } finally {
-      clearInterval(checkpointInterval);
-      setIsStreaming(false);
-      setStreamingMessageId(undefined);
-      setStreamingContent('');
-      setShowPipeline(false);
-      setPipelineSteps([]);
-      // Clear stream checkpoint on completion
-      try {
-        sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+
+        if (fullContent) {
+          streamingWorked = true;
+          // Commit the final streamed content to the message list
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined } : m))
+          );
+
+          setStreamingMessageId(undefined);
+          setStreamingContent('');
+
+          setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
+
+          // Update meditation step from streaming metadata
+          if (streamedMedStep !== undefined) {
+            setMeditationStep(streamedMedStep);
+          }
+
+          // Trigger Serene Mind based on response signals
+          if (streamedBlocked) {
+            // Blocked content → gated Serene Mind (chat locked until completed)
+            const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.';
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: generateId(),
+                role: 'guru',
+                content: prelude,
+                timestamp: new Date(),
+              },
+            ]);
+            setTimeout(() => {
+              setIsAwaitingSereneMind(true);
+              setSereneMindOnComplete(() => () => {
+                setIsAwaitingSereneMind(false);
+                setSereneMindOnComplete(null);
+              });
+              openSereneMind('breathing', true);
+            }, 7000);
+          } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
+            // Voluntary request: open without gating — user asked for it
+            openSereneMind('breathing');
+          } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
+            openSereneMind('audio');
+          } else if (streamedProactiveSereneMind?.triggered) {
+            // Proactive: stream the teachings prelude as a guru message, then open gated after 7s
+            const preludeText =
+              streamedProactiveSereneMind.teachings_prelude ||
+              'Sri Preethaji and Sri Krishnaji reminds us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Please do Serene Mind now to continue. You can type "do serene mind now" or click the button below to start.';
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: generateId(),
+                role: 'guru',
+                content: preludeText,
+                timestamp: new Date(),
+              },
+            ]);
+            setTimeout(() => {
+              setIsAwaitingSereneMind(true);
+              setSereneMindOnComplete(() => () => {
+                setIsAwaitingSereneMind(false);
+                setSereneMindOnComplete(null);
+              });
+              openSereneMind('breathing', true);
+            }, 7000);
+          }
+
+          // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
+          // but backend didn't flag DISTRESS (e.g. serene_mind module not running),
+          // open the modal so the real guided session plays alongside the text.
+          if (finalIntent !== 'DISTRESS' && !streamedProactiveSereneMind?.triggered) {
+            const t = fullContent.toLowerCase();
+            const looksLikeSereneMind =
+              t.includes('serene mind') ||
+              t.includes('step 1/') ||
+              (t.includes('close your eyes') && t.includes('breath')) ||
+              (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
+            if (looksLikeSereneMind && meditationStep === 0) {
+              openSereneMind('breathing');
+            }
+          }
+        }
       } catch {
-        // Storage can be unavailable in hardened browser modes.
+        // Streaming failed — show toast if partial content was received
+        if (fullContent) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
+          );
+          toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
+          streamingWorked = true; // Keep partial content
+        }
+      } finally {
+        clearInterval(checkpointInterval);
+        setIsStreaming(false);
+        setStreamingMessageId(undefined);
+        setStreamingContent('');
+        setShowPipeline(false);
+        setPipelineSteps([]);
+        // Clear stream checkpoint on completion
+        try {
+          sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+        } catch {
+          // Storage can be unavailable in hardened browser modes.
+        }
       }
     }
 
@@ -800,6 +801,24 @@ export const ChatInterface = () => {
         lastSereneMindAt,
       );
 
+      setIsTyping(false);
+
+      if (isAwaitingSereneMind) {
+        // If we are awaiting Serene Mind, we only allow MEDITATION/MEDITATION_CONTINUE intent
+        if (response.intent === 'MEDITATION' || response.intent === 'MEDITATION_CONTINUE') {
+          openSereneMind('breathing', true);
+        } else {
+          const blockedMsg: Message = {
+            id: generateId(),
+            role: 'guru',
+            content: 'Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.',
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, blockedMsg]);
+        }
+        return;
+      }
+
       if (response.blocked && response.blockReason) {
         const blockedMessage: Message = {
           id: generateId(),
@@ -808,7 +827,7 @@ export const ChatInterface = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, blockedMessage]);
-        openSereneMind('breathing');
+        openSereneMind('breathing', true);
       } else {
         if (response.errorCode === 'rate_limited') {
           toast({
@@ -852,7 +871,7 @@ export const ChatInterface = () => {
           // Proactive gated path with 7s teachings prelude
           const preludeText =
             response.proactiveSereneMind?.teachings_prelude ||
-            'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Let us pause together in Serene Mind.';
+            'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Please do Serene Mind now to continue. You can click the button below to start.';
           setMessages((prev) => [
             ...prev,
             {
@@ -885,511 +904,523 @@ export const ChatInterface = () => {
           }
         }
       }
+
     } catch (error) {
-      console.error('Error getting response:', error);
-      
-      // Local state-sync fallback check for offline / connectivity loss
-      const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
-      
-      let offlineContent = '';
-      if (isOffline) {
-        toast({
-          title: 'Connection Lost',
-          description: 'You are offline. Showing compassionate local guidance.',
-          variant: 'default',
-        });
-        
-        const qLower = userMessage.content.toLowerCase();
-        if (qLower.includes('meditat') || qLower.includes('breath') || qLower.includes('serene') || qLower.includes('calm')) {
-          offlineContent = "Namaste. I see you are offline, but peace is always within. Let us practice a simple **Serene Mind Breathing** together:\n\n1. Sit comfortably and gently close your eyes.\n2. Inhale deeply for a count of 4.\n3. Hold your breath gently for a count of 4.\n4. Exhale slowly for a count of 8, releasing all tension.\n\nRepeat this cycle 5 times. Feel your breath settling and your mind returning to its natural, beautiful state. 🙏";
-        } else {
-          offlineContent = "Namaste, dear seeker. I see your connection to the digital world is temporarily paused. Let us take this moment to disconnect from external noise and connect with the quiet wisdom within. Take a slow, deep breath, and feel your presence. I will be here to share the full teachings of Sri Preethaji and Sri Krishnaji as soon as your connection returns. 🙏";
-        }
+    console.error('Error getting response:', error);
+
+    // Local state-sync fallback check for offline / connectivity loss
+    const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
+
+    let offlineContent = '';
+    if (isOffline) {
+      toast({
+        title: 'Connection Lost',
+        description: 'You are offline. Showing compassionate local guidance.',
+        variant: 'default',
+      });
+
+      const qLower = userMessage.content.toLowerCase();
+      if (qLower.includes('meditat') || qLower.includes('breath') || qLower.includes('serene') || qLower.includes('calm')) {
+        offlineContent = "Namaste. I see you are offline, but peace is always within. Let us practice a simple **Serene Mind Breathing** together:\n\n1. Sit comfortably and gently close your eyes.\n2. Inhale deeply for a count of 4.\n3. Hold your breath gently for a count of 4.\n4. Exhale slowly for a count of 8, releasing all tension.\n\nRepeat this cycle 5 times. Feel your breath settling and your mind returning to its natural, beautiful state. 🙏";
       } else {
-        toast({
-          title: 'The Guru is meditating',
-          description: 'Our digital library is briefly resting. Please try again shortly.',
-          variant: 'default',
-        });
-        offlineContent = "Namaste. I am briefly unable to reach the sacred library right now. Let us rest in this silent pause together for a moment, and try asking again shortly. 🙏";
+        offlineContent = "Namaste, dear seeker. I see your connection to the digital world is temporarily paused. Let us take this moment to disconnect from external noise and connect with the quiet wisdom within. Take a slow, deep breath, and feel your presence. I will be here to share the full teachings of Sri Preethaji and Sri Krishnaji as soon as your connection returns. 🙏";
       }
-
-      const fallbackMsg: Message = {
-        id: generateId(),
-        role: 'guru',
-        content: offlineContent,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
-    } finally {
-      setIsTyping(false);
-      maybeSummarize();
+    } else {
+      toast({
+        title: 'The Guru is meditating',
+        description: 'Our digital library is briefly resting. Please try again shortly.',
+        variant: 'default',
+      });
+      offlineContent = "Namaste. I am briefly unable to reach the sacred library right now. Let us rest in this silent pause together for a moment, and try asking again shortly. 🙏";
     }
-  };
 
-  const handleSuggestionClick = (text: string) => {
-    setInputValue(text);
-  };
-
-  // ── Regenerate last guru response ─────────────────────────────────
-  const handleRegenerate = useCallback(() => {
-    if (isStreaming || isTyping) return;
-    // Capture last user text BEFORE mutating messages state
-    const lastUserIdx = (() => {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'user') return i;
-      }
-      return -1;
-    })();
-    const lastUserMsg = lastUserIdx >= 0 ? messages[lastUserIdx] : undefined;
-    if (!lastUserMsg) return;
-    const lastGuruIdx = (() => {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'guru') return i;
-      }
-      return -1;
-    })();
-    const baseMessages = lastGuruIdx >= 0
-      ? messages.filter((_, i) => i !== lastGuruIdx)
-      : messages;
-    const historyMessages = baseMessages.slice(0, lastUserIdx);
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, lastUserMsg.content, {
-      appendUser: false,
-      baseMessages,
-      historyMessages,
-      bypassCache: true,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isTyping, messages, currentLanguage]);
-  // ─────────────────────────────────────────────────────────────────
-
-  // Legacy fallback (kept for API stability): copy message text into composer.
-  // No longer wired into MessageList — inline edit (handleSubmitEdit) is preferred.
-
-  // ── Inline edit: replace a past user message and regenerate from there ──
-  const handleSubmitEdit = useCallback((messageId: string, newContent: string) => {
-    if (isStreaming || isTyping) return;
-    const idx = messages.findIndex((m) => m.id === messageId);
-    if (idx < 0) return;
-    const updatedUserMsg: Message = { ...messages[idx], content: newContent, timestamp: new Date() };
-    // Keep history up to (but not including) the edited message; we'll resubmit it.
-    const baseMessages = [...messages.slice(0, idx), updatedUserMsg];
-    const historyMessages = messages.slice(0, idx);
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, newContent, {
-      appendUser: false,
-      baseMessages,
-      historyMessages,
-      bypassCache: true,
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isTyping, messages]);
-
-  const handleNewConversation = () => {
-    stopSpeaking();
-    const newConversation = createNewConversation();
-
-    const welcomeMessage: Message = {
+    const fallbackMsg: Message = {
       id: generateId(),
       role: 'guru',
-      content: 'The slate is clean, dear one. Let us begin anew. What would you like to explore?',
+      content: offlineContent,
       timestamp: new Date(),
     };
+    setMessages((prev) => [...prev, fallbackMsg]);
+  } finally {
+    setIsTyping(false);
+    maybeSummarize();
+  }
+};
 
-    newConversation.messages = [welcomeMessage];
-    newConversation.preview = getConversationPreview([welcomeMessage]);
-    saveConversation(newConversation);
+const handleSuggestionClick = (text: string) => {
+  setInputValue(text);
+};
 
-    setCurrentConversation(newConversation);
-    setCurrentConversationId(newConversation.id);
-    setMessages([welcomeMessage]);
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleSelectConversation = (conversation: Conversation) => {
-    stopSpeaking();
-    setCurrentConversation(conversation);
-    setCurrentConversationId(conversation.id);
-    setMessages(conversation.messages);
-    // Scroll to bottom when switching conversations
-    isNearBottomRef.current = true;
-    requestAnimationFrame(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
-    });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
+// ── Regenerate last guru response ─────────────────────────────────
+const handleRegenerate = useCallback(() => {
+  if (isStreaming || isTyping) return;
+  // Capture last user text BEFORE mutating messages state
+  const lastUserIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') return i;
     }
+    return -1;
+  })();
+  const lastUserMsg = lastUserIdx >= 0 ? messages[lastUserIdx] : undefined;
+  if (!lastUserMsg) return;
+  const lastGuruIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'guru') return i;
+    }
+    return -1;
+  })();
+  const baseMessages = lastGuruIdx >= 0
+    ? messages.filter((_, i) => i !== lastGuruIdx)
+    : messages;
+  const historyMessages = baseMessages.slice(0, lastUserIdx);
+  const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+  handleSubmit(fakeEvent, lastUserMsg.content, {
+    appendUser: false,
+    baseMessages,
+    historyMessages,
+    bypassCache: true,
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isStreaming, isTyping, messages, currentLanguage]);
+// ─────────────────────────────────────────────────────────────────
+
+// Legacy fallback (kept for API stability): copy message text into composer.
+// No longer wired into MessageList — inline edit (handleSubmitEdit) is preferred.
+
+// ── Inline edit: replace a past user message and regenerate from there ──
+const handleSubmitEdit = useCallback((messageId: string, newContent: string) => {
+  if (isStreaming || isTyping) return;
+  const idx = messages.findIndex((m) => m.id === messageId);
+  if (idx < 0) return;
+  const updatedUserMsg: Message = { ...messages[idx], content: newContent, timestamp: new Date() };
+  // Keep history up to (but not including) the edited message; we'll resubmit it.
+  const baseMessages = [...messages.slice(0, idx), updatedUserMsg];
+  const historyMessages = messages.slice(0, idx);
+  const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+  handleSubmit(fakeEvent, newContent, {
+    appendUser: false,
+    baseMessages,
+    historyMessages,
+    bypassCache: true,
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isStreaming, isTyping, messages]);
+
+const handleNewConversation = () => {
+  stopSpeaking();
+  const newConversation = createNewConversation();
+
+  const welcomeMessage: Message = {
+    id: generateId(),
+    role: 'guru',
+    content: 'The slate is clean, dear one. Let us begin anew. What would you like to explore?',
+    timestamp: new Date(),
   };
 
-  // ── Keyboard shortcuts (Ctrl+Enter / Ctrl+Shift+O / Ctrl+/) ──────
-  useChatShortcuts({
-    onSubmit: () => {
-      if (inputValue.trim() && !isTyping && !isStreaming) {
-        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-      }
-    },
-    onNewChat: handleNewConversation,
-    onFocusInput: () => inputRef.current?.focus(),
+  newConversation.messages = [welcomeMessage];
+  newConversation.preview = getConversationPreview([welcomeMessage]);
+  saveConversation(newConversation);
+
+  setCurrentConversation(newConversation);
+  setCurrentConversationId(newConversation.id);
+  setMessages([welcomeMessage]);
+  setRefreshTrigger(prev => prev + 1);
+};
+
+const handleSelectConversation = (conversation: Conversation) => {
+  stopSpeaking();
+  setCurrentConversation(conversation);
+  setCurrentConversationId(conversation.id);
+  setMessages(conversation.messages);
+  // Scroll to bottom when switching conversations
+  isNearBottomRef.current = true;
+  requestAnimationFrame(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   });
+};
 
-  // ── Left-edge swipe opens mobile conversation sheet (D20) ────────
-  useSwipeGesture({
-    edgeOnly: true,
-    onSwipeRight: () => setShowMobileSheet(true),
-    enabled: !showMobileSheet,
-  });
+const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSubmit(e);
+  }
+};
 
-  const showStarters = messages.length <= 1 && messages[0]?.role === 'guru';
+// ── Keyboard shortcuts (Ctrl+Enter / Ctrl+Shift+O / Ctrl+/) ──────
+useChatShortcuts({
+  onSubmit: () => {
+    if (inputValue.trim() && !isTyping && !isStreaming) {
+      handleSubmit({ preventDefault: () => { } } as React.FormEvent);
+    }
+  },
+  onNewChat: handleNewConversation,
+  onFocusInput: () => inputRef.current?.focus(),
+});
 
-  return (
-    <div className="h-dvh flex bg-background relative overflow-hidden">
-      {/* Background */}
-      <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
-      <FloatingParticles />
+// ── Left-edge swipe opens mobile conversation sheet (D20) ────────
+useSwipeGesture({
+  edgeOnly: true,
+  onSwipeRight: () => setShowMobileSheet(true),
+  enabled: !showMobileSheet,
+});
 
-      {/* Desktop Sidebar */}
-      <DesktopSidebar
-        isCollapsed={sidebarCollapsed}
-        onToggleCollapse={toggleSidebar}
-        onNewConversation={handleNewConversation}
-        onOpenSereneMind={() => openSereneMind()}
-        onSelectConversation={handleSelectConversation}
-        currentConversationId={currentConversation?.id}
+const showStarters = messages.length <= 1 && messages[0]?.role === 'guru';
+
+return (
+  <div className="h-dvh flex bg-background relative overflow-hidden">
+    {/* Background */}
+    <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
+    <FloatingParticles />
+
+    {/* Desktop Sidebar */}
+    <DesktopSidebar
+      isCollapsed={sidebarCollapsed}
+      onToggleCollapse={toggleSidebar}
+      onNewConversation={handleNewConversation}
+      onOpenSereneMind={() => openSereneMind()}
+      onSelectConversation={handleSelectConversation}
+      currentConversationId={currentConversation?.id}
+    />
+
+    {/* Main Chat Area */}
+    <div className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10">
+      {/* Header */}
+      <ChatHeader
+        onClearChat={handleNewConversation}
+        onOpenMobileMenu={() => setShowMobileSheet(true)}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={toggleSidebar}
       />
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10">
-        {/* Header */}
-        <ChatHeader
-          onClearChat={handleNewConversation}
-          onOpenMobileMenu={() => setShowMobileSheet(true)}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={toggleSidebar}
-        />
+      {/* Messages Area — this is the scroll container */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
+      >
+        <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-3">
+          <MessageList
+            messages={messages}
+            streamingId={streamingMessageId}
+            streamingContent={streamingContent}
+            onRegenerate={handleRegenerate}
+            onEditUserMessage={undefined}
+            onSubmitEdit={handleSubmitEdit}
+            scrollContainerRef={scrollContainerRef}
+          />
 
-        {/* Messages Area — this is the scroll container */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
-        >
-          <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-3">
-            <MessageList
-              messages={messages}
-              streamingId={streamingMessageId}
-              streamingContent={streamingContent}
-              onRegenerate={handleRegenerate}
-              onEditUserMessage={undefined}
-              onSubmitEdit={handleSubmitEdit}
-              scrollContainerRef={scrollContainerRef}
-            />
-
-            {/* Suggested starters */}
-            {showStarters && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="space-y-4 pt-4"
-              >
-                {/* Compact daily teaching banner */}
-                {dailyTeaching && dailyTeaching.caption && (
-                  <div className="mx-auto max-w-md rounded-xl border border-ojas/20 bg-ojas/5 backdrop-blur-sm p-4 flex items-start gap-3">
-                    <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5 animate-pulse" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-ojas uppercase tracking-widest mb-1">Today&apos;s Wisdom</p>
-                      <p className="text-sm text-foreground/80 font-serif italic leading-relaxed line-clamp-3">
-                        &ldquo;{dailyTeaching.caption}&rdquo;
-                      </p>
-                    </div>
+          {/* Suggested starters */}
+          {showStarters && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="space-y-4 pt-4"
+            >
+              {/* Compact daily teaching banner */}
+              {dailyTeaching && dailyTeaching.caption && (
+                <div className="mx-auto max-w-md rounded-xl border border-ojas/20 bg-ojas/5 backdrop-blur-sm p-4 flex items-start gap-3">
+                  <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5 animate-pulse" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold text-ojas uppercase tracking-widest mb-1">Today&apos;s Wisdom</p>
+                    <p className="text-sm text-foreground/80 font-serif italic leading-relaxed line-clamp-3">
+                      &ldquo;{dailyTeaching.caption}&rdquo;
+                    </p>
                   </div>
-                )}
-                <div className="flex flex-wrap justify-center gap-2">
-                  {STARTER_SUGGESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className="px-4 py-2 rounded-full text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap justify-center gap-2">
+                {STARTER_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="px-4 py-2 rounded-full text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Pipeline Visualization */}
+          <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
+
+          {/* Streaming skeleton — only show before empty guru bubble is added */}
+          <AnimatePresence>
+            {isTyping && !isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
+              <OptimisticPlaceholder />
+            )}
+          </AnimatePresence>
+
+          {/* Typing Indicator */}
+          <AnimatePresence>
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-start gap-3"
+              >
+                <motion.div
+                  className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <div className="w-4 h-4 rounded-full bg-ojas/50" />
+                </motion.div>
+                <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-sm">
+                  <div className="flex gap-1.5">
+                    {[0, 0.15, 0.3].map((delay, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{
+                          y: [0, -6, 0],
+                          opacity: [0.4, 1, 0.4]
+                        }}
+                        transition={{
+                          duration: 0.8,
+                          repeat: Infinity,
+                          delay
+                        }}
+                        className="w-2 h-2 rounded-full bg-ojas"
+                      />
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}
+          </AnimatePresence>
 
-            {/* Pipeline Visualization */}
-            <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
-
-            {/* Streaming skeleton — only show before empty guru bubble is added */}
-            <AnimatePresence>
-              {isTyping && !isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
-                <OptimisticPlaceholder />
-              )}
-            </AnimatePresence>
-
-            {/* Typing Indicator */}
-            <AnimatePresence>
-              {isTyping && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="flex items-start gap-3"
-                >
-                  <motion.div
-                    className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30"
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <div className="w-4 h-4 rounded-full bg-ojas/50" />
-                  </motion.div>
-                  <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-sm">
-                    <div className="flex gap-1.5">
-                      {[0, 0.15, 0.3].map((delay, i) => (
-                        <motion.div
-                          key={i}
-                          animate={{
-                            y: [0, -6, 0],
-                            opacity: [0.4, 1, 0.4]
-                          }}
-                          transition={{
-                            duration: 0.8,
-                            repeat: Infinity,
-                            delay
-                          }}
-                          className="w-2 h-2 rounded-full bg-ojas"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Scroll anchor */}
-            <div ref={messagesEndRef} className="h-1" />
-          </div>
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} className="h-1" />
         </div>
-
-        {/* Scroll-to-bottom FAB — positioned relative to the chat column */}
-        <ScrollToBottomFab
-          visible={showScrollFab}
-          unreadCount={unreadCount}
-          onClick={() => scrollToBottom('smooth')}
-        />
-
-        {/* Input Area */}
-        <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
-          <div className="max-w-3xl mx-auto">
-            {/* Subtle practice chips */}
-            <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-2">
-              <button
-                onClick={() => openSereneMind()}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
-              >
-                <Flame className="w-3 h-3" />
-                <span>Serene Mind</span>
-              </button>
-              <button
-                onClick={() => setShowGuidedMeditation(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>Guided Meditation</span>
-              </button>
-              {/* Quick share last guru message */}
-              {messages.length > 1 && messages[messages.length - 1]?.role === 'guru' && (
-                <button
-                  onClick={() => setShowQuickWisdomCard(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
-                >
-                  <Share2 className="w-3 h-3" />
-                  <span>Share Wisdom</span>
-                </button>
-              )}
-            </div>
-
-            {/* Voice Recording Indicator */}
-            <AnimatePresence>
-              {isListening && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="flex items-center justify-center gap-2 mb-3"
-                >
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30">
-                    <motion.div
-                      className="w-2 h-2 rounded-full bg-ojas"
-                      animate={{ scale: [1, 1.3, 1] }}
-                      transition={{ duration: 0.8, repeat: Infinity }}
-                    />
-                    <span className="text-sm text-ojas font-medium">Listening...</span>
-                    {interimTranscript && (
-                      <span className="text-xs text-muted-foreground max-w-[200px] truncate">
-                        {interimTranscript}
-                      </span>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* TTS Speaking Indicator */}
-            <AnimatePresence>
-              {isSpeaking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="flex items-center justify-center gap-2 mb-3"
-                >
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30">
-                    <motion.div className="flex gap-0.5">
-                      {[0, 1, 2, 3].map((i) => (
-                        <motion.div
-                          key={i}
-                          className="w-1 bg-prana rounded-full"
-                          animate={{ height: ['8px', '16px', '8px'] }}
-                          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                        />
-                      ))}
-                    </motion.div>
-                    <span className="text-sm text-prana font-medium">Speaking...</span>
-                    <button
-                      onClick={stopSpeaking}
-                      className="text-xs text-prana/70 hover:text-prana underline ml-1"
-                    >
-                      Stop
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Voice Error Alert */}
-            <AnimatePresence>
-              {voiceError && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="flex items-center justify-center gap-2 mb-3"
-                >
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30">
-                    <AlertCircle className="w-4 h-4 text-destructive" />
-                    <span className="text-sm text-destructive">{voiceError}</span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Input Form */}
-            <div
-              className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${
-                inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
-              } ${isListening ? 'border-ojas/50 shadow-ojas/15 ring-1 ring-ojas/20' : ''}`}
-            >
-              <form onSubmit={handleSubmit}>
-                <div className="flex items-end gap-2 px-3 pt-2.5 pb-1.5">
-                  <textarea
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => setInputFocused(true)}
-                    onBlur={() => setInputFocused(false)}
-                    placeholder={
-                      isAwaitingSereneMind
-                        ? 'Complete the Serene Mind practice to continue…'
-                        : isListening
-                        ? 'Speak now…'
-                        : "Share what's on your heart…"
-                    }
-                    disabled={isAwaitingSereneMind}
-                    rows={1}
-                    aria-label="Your message"
-                    className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ minHeight: '36px' }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
-                    className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
-                    aria-label="Send message"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </form>
-
-              {/* Secondary controls row */}
-              <div className="flex items-center justify-between px-3 pb-2 pt-1">
-                <LanguageSelector
-                  value={currentLanguage}
-                  voiceEnabled={voiceEnabled}
-                  isListening={isListening}
-                  onVoiceToggle={handleVoiceToggle}
-                  onLanguageChange={handleLanguageChange}
-                  ttsEnabled={ttsEnabled}
-                  onTtsToggle={handleTtsToggle}
-                  isSpeaking={isSpeaking}
-                />
-
-                <p className="text-[10px] text-muted-foreground hidden sm:block">
-                  AI companion • Not a substitute for professional care
-                </p>
-              </div>
-            </div>
-
-            <p className="text-center text-[10px] text-muted-foreground mt-1.5 sm:hidden">
-              AI companion • Not a substitute for professional care
-            </p>
-          </div>
-        </footer>
       </div>
 
-      {/* Mobile Conversation Sheet */}
-      <MobileConversationSheet
-        isOpen={showMobileSheet}
-        onClose={() => setShowMobileSheet(false)}
-        onNewConversation={handleNewConversation}
-        onOpenSereneMind={() => openSereneMind()}
-        onSelectConversation={handleSelectConversation}
-        currentConversationId={currentConversation?.id}
+      {/* Scroll-to-bottom FAB — positioned relative to the chat column */}
+      <ScrollToBottomFab
+        visible={showScrollFab}
+        unreadCount={unreadCount}
+        onClick={() => scrollToBottom('smooth')}
       />
 
-      {/* Guided Meditation Full-Screen Flow */}
-      <GuidedMeditationFlow
-        isOpen={showGuidedMeditation}
-        onClose={() => setShowGuidedMeditation(false)}
-      />
+      {/* Input Area */}
+      <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
+        <div className="max-w-3xl mx-auto">
+          {/* Subtle practice chips */}
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-2">
+            <button
+              onClick={() => openSereneMind()}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+            >
+              <Flame className="w-3 h-3" />
+              <span>Serene Mind</span>
+            </button>
+            <button
+              onClick={() => setShowGuidedMeditation(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Guided Meditation</span>
+            </button>
+            {/* Quick share last guru message */}
+            {messages.length > 1 && messages[messages.length - 1]?.role === 'guru' && (
+              <button
+                onClick={() => setShowQuickWisdomCard(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
+              >
+                <Share2 className="w-3 h-3" />
+                <span>Share Wisdom</span>
+              </button>
+            )}
+          </div>
 
-      {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts */}
-      {showQuickWisdomCard && createPortal(
-        <WisdomCardGenerator
-          isOpen={showQuickWisdomCard}
-          onClose={() => setShowQuickWisdomCard(false)}
-          content={
-            messages.length > 0
-              ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
-              : ''
-          }
-        />,
-        document.body
-      )}
+          {/* Voice Recording Indicator */}
+          <AnimatePresence>
+            {isListening && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center justify-center gap-2 mb-3"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30">
+                  <motion.div
+                    className="w-2 h-2 rounded-full bg-ojas"
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity }}
+                  />
+                  <span className="text-sm text-ojas font-medium">Listening...</span>
+                  {interimTranscript && (
+                    <span className="text-xs text-muted-foreground max-w-[200px] truncate">
+                      {interimTranscript}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* Daily Teaching Modal */}
-      <DailyTeaching />
+          {/* TTS Speaking Indicator */}
+          <AnimatePresence>
+            {isSpeaking && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center justify-center gap-2 mb-3"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30">
+                  <motion.div className="flex gap-0.5">
+                    {[0, 1, 2, 3].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1 bg-prana rounded-full"
+                        animate={{ height: ['8px', '16px', '8px'] }}
+                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                      />
+                    ))}
+                  </motion.div>
+                  <span className="text-sm text-prana font-medium">Speaking...</span>
+                  <button
+                    onClick={stopSpeaking}
+                    className="text-xs text-prana/70 hover:text-prana underline ml-1"
+                  >
+                    Stop
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Voice Error Alert */}
+          <AnimatePresence>
+            {voiceError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center justify-center gap-2 mb-3"
+              >
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                  <span className="text-sm text-destructive">{voiceError}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Input Form */}
+          <div
+            className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
+              } ${isListening ? 'border-ojas/50 shadow-ojas/15 ring-1 ring-ojas/20' : ''}`}
+          >
+            {isAwaitingSereneMind && (
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-ojas/5 rounded-t-2xl">
+                <span className="text-xs text-ojas font-medium">
+                  Please do Serene Mind now to unlock the chat.
+                </span>
+                <button
+                  onClick={() => openSereneMind('breathing', true)}
+                  className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
+                >
+                  Open Serene Mind
+                </button>
+              </div>
+            )}
+            <form onSubmit={handleSubmit}>
+              <div className="flex items-end gap-2 px-3 pt-2.5 pb-1.5">
+                <textarea
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  placeholder={
+                    isAwaitingSereneMind
+                      ? 'Do Serene Mind now (say "open Serene Mind" to begin)…'
+                      : isListening
+                        ? 'Speak now…'
+                        : "Share what's on your heart…"
+                  }
+                  rows={1}
+                  aria-label="Your message"
+                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ minHeight: '36px' }}
+                />
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || isTyping || isStreaming}
+                  className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+                  aria-label="Send message"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+
+            {/* Secondary controls row */}
+            <div className="flex items-center justify-between px-3 pb-2 pt-1">
+              <LanguageSelector
+                value={currentLanguage}
+                voiceEnabled={voiceEnabled}
+                isListening={isListening}
+                onVoiceToggle={handleVoiceToggle}
+                onLanguageChange={handleLanguageChange}
+                ttsEnabled={ttsEnabled}
+                onTtsToggle={handleTtsToggle}
+                isSpeaking={isSpeaking}
+              />
+
+              <p className="text-[10px] text-muted-foreground hidden sm:block">
+                AI companion • Not a substitute for professional care
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-[10px] text-muted-foreground mt-1.5 sm:hidden">
+            AI companion • Not a substitute for professional care
+          </p>
+        </div>
+      </footer>
     </div>
-  );
+
+    {/* Mobile Conversation Sheet */}
+    <MobileConversationSheet
+      isOpen={showMobileSheet}
+      onClose={() => setShowMobileSheet(false)}
+      onNewConversation={handleNewConversation}
+      onOpenSereneMind={() => openSereneMind()}
+      onSelectConversation={handleSelectConversation}
+      currentConversationId={currentConversation?.id}
+    />
+
+    {/* Guided Meditation Full-Screen Flow */}
+    <GuidedMeditationFlow
+      isOpen={showGuidedMeditation}
+      onClose={() => setShowGuidedMeditation(false)}
+    />
+
+    {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts */}
+    {showQuickWisdomCard && createPortal(
+      <WisdomCardGenerator
+        isOpen={showQuickWisdomCard}
+        onClose={() => setShowQuickWisdomCard(false)}
+        content={
+          messages.length > 0
+            ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
+            : ''
+        }
+      />,
+      document.body
+    )}
+
+    {/* Daily Teaching Modal */}
+    <DailyTeaching />
+  </div>
+);
 };

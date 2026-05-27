@@ -147,7 +147,8 @@ describe('ChatInterface', () => {
         'How do I find peace?',
         0,
         undefined,
-        'test-conv-id'
+        'test-conv-id',
+        null
       );
     });
 

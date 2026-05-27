@@ -193,14 +193,35 @@ Focus on spiritual terminology and core concepts."""
 
 
 # === INTENT CLASSIFICATION PROMPT ===
+# Few-shot examples are drawn from counseling dialogue best practices
+# (ref: Mental-LLM / neuhai, sonia-health/llm-mental-health-risk-detection benchmark).
+# MEDITATION examples explicitly cover voluntary Serene Mind trigger phrases so the
+# LLM agent correctly routes user requests to the non-gated meditation flow.
 INTENT_CLASSIFICATION_PROMPT = """Classify the user's message into exactly one of these categories:
 
 DISTRESS - The user is expressing emotional pain, stress, anxiety, sadness, anger, fear, loneliness, hopelessness, or seeks emotional comfort.
 FACTUAL - The user is asking a specific question about spiritual teachings, concepts, or biographies that requires direct knowledge retrieval.
-RELATIONAL - The user is asking about the connection, relationship, or differences between multiple concepts, or asking a broad structural question (e.g., "How does observation relate to letting go?", "What is the relationship between karma and dharma?").
+RELATIONAL - The user is asking about the connection, relationship, or differences between multiple concepts, or asking a broad structural question.
 FOLLOW_UP - The user is asking a question that refers to previous parts of the conversation (using pronouns like 'that', 'it', 'him') or continues a thread.
-MEDITATION - The user is asking for a meditation practice, wants to start a session, or is participating in an active session.
+MEDITATION - The user is asking for a meditation practice, wants to start a Serene Mind session, or is participating in an active session. Also classify here when the user explicitly asks to open, start, or do Serene Mind, do breathwork, or mentions breathing exercises.
 CASUAL - The user is making small talk, greeting, or a general non-spiritual comment.
+
+Examples:
+User: "I feel completely hopeless and don't know how to go on." → DISTRESS
+User: "Can you open Serene Mind for me?" → MEDITATION
+User: "Do Serene Mind now." → MEDITATION
+User: "I need to breathe. Can you guide me?" → MEDITATION
+User: "Let's do a meditation session." → MEDITATION
+User: "Start the breathing exercise." → MEDITATION
+User: "I want to try Serene Mind." → MEDITATION
+User: "Guide me through breathwork." → MEDITATION
+User: "I'm ready for the next step." → MEDITATION
+User: "What is the Beautiful State according to Sri Preethaji?" → FACTUAL
+User: "How does suffering relate to consciousness in the teachings?" → RELATIONAL
+User: "Can you say more about what you just told me?" → FOLLOW_UP
+User: "Hi, how are you today?" → CASUAL
+User: "I'm feeling so anxious about everything lately." → DISTRESS
+User: "What did Krishnaji say about karma?" → FACTUAL
 
 RESPOND WITH ONLY ONE WORD: DISTRESS, FACTUAL, RELATIONAL, FOLLOW_UP, MEDITATION, or CASUAL"""
 
