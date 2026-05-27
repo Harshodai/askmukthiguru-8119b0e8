@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -6,6 +7,14 @@ from app.dependencies import ServiceContainer, get_container
 from app.main import app, get_current_user_from_supabase
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def mock_coalescer():
+    async def dummy_get_or_run(key, callback):
+        return await callback()
+    with patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run):
+        yield
 
 
 def mock_get_current_user():
