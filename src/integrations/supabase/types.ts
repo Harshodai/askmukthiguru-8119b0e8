@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_events: {
+        Row: {
+          fired_at: string
+          id: string
+          message: string | null
+          rule_id: string | null
+          value: number | null
+        }
+        Insert: {
+          fired_at?: string
+          id?: string
+          message?: string | null
+          rule_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          fired_at?: string
+          id?: string
+          message?: string | null
+          rule_id?: string | null
+          value?: number | null
+        }
+        Relationships: []
+      }
+      alert_rules: {
+        Row: {
+          comparator: string | null
+          created_at: string
+          enabled: boolean
+          id: string
+          metric: string
+          name: string
+          threshold: number | null
+        }
+        Insert: {
+          comparator?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          metric: string
+          name: string
+          threshold?: number | null
+        }
+        Update: {
+          comparator?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          metric?: string
+          name?: string
+          threshold?: number | null
+        }
+        Relationships: []
+      }
+      annotations: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          query_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          query_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          query_id?: string | null
+        }
+        Relationships: []
+      }
+      app_logs: {
+        Row: {
+          context: Json | null
+          created_at: string
+          id: string
+          level: string
+          message: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          level?: string
+          message: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          level?: string
+          message?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           citations: string[] | null
@@ -51,6 +153,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      chat_queries: {
+        Row: {
+          completion_tokens: number | null
+          cost_estimate: number | null
+          created_at: string
+          id: string
+          latency_ms: number | null
+          model: string | null
+          prompt_tokens: number | null
+          prompt_version_id: string | null
+          query_text: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          completion_tokens?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          model?: string | null
+          prompt_tokens?: number | null
+          prompt_version_id?: string | null
+          query_text: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          completion_tokens?: number | null
+          cost_estimate?: number | null
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          model?: string | null
+          prompt_tokens?: number | null
+          prompt_version_id?: string | null
+          query_text?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chat_responses: {
+        Row: {
+          answer_relevancy: number | null
+          citations: Json | null
+          confidence: number | null
+          context_precision: number | null
+          context_recall: number | null
+          created_at: string
+          faithfulness: number | null
+          hallucination_flag: boolean | null
+          id: string
+          judge_reasoning: string | null
+          query_id: string
+          response_text: string | null
+        }
+        Insert: {
+          answer_relevancy?: number | null
+          citations?: Json | null
+          confidence?: number | null
+          context_precision?: number | null
+          context_recall?: number | null
+          created_at?: string
+          faithfulness?: number | null
+          hallucination_flag?: boolean | null
+          id?: string
+          judge_reasoning?: string | null
+          query_id: string
+          response_text?: string | null
+        }
+        Update: {
+          answer_relevancy?: number | null
+          citations?: Json | null
+          confidence?: number | null
+          context_precision?: number | null
+          context_recall?: number | null
+          created_at?: string
+          faithfulness?: number | null
+          hallucination_flag?: boolean | null
+          id?: string
+          judge_reasoning?: string | null
+          query_id?: string
+          response_text?: string | null
+        }
+        Relationships: []
       }
       conversations: {
         Row: {
@@ -106,6 +295,141 @@ export type Database = {
         }
         Relationships: []
       }
+      eval_results: {
+        Row: {
+          answer: string | null
+          created_at: string
+          id: string
+          metrics: Json | null
+          question: string | null
+          run_id: string | null
+          score: number | null
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          question?: string | null
+          run_id?: string | null
+          score?: number | null
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          question?: string | null
+          run_id?: string | null
+          score?: number | null
+        }
+        Relationships: []
+      }
+      eval_runs: {
+        Row: {
+          finished_at: string | null
+          id: string
+          name: string
+          started_at: string
+          status: string
+          summary: Json | null
+        }
+        Insert: {
+          finished_at?: string | null
+          id?: string
+          name: string
+          started_at?: string
+          status?: string
+          summary?: Json | null
+        }
+        Update: {
+          finished_at?: string | null
+          id?: string
+          name?: string
+          started_at?: string
+          status?: string
+          summary?: Json | null
+        }
+        Relationships: []
+      }
+      feedback_events: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          query_id: string | null
+          rating: number
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          query_id?: string | null
+          rating?: number
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          query_id?: string | null
+          rating?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      golden_questions: {
+        Row: {
+          created_at: string
+          expected_answer: string | null
+          id: string
+          question: string
+          tags: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          expected_answer?: string | null
+          id?: string
+          question: string
+          tags?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          expected_answer?: string | null
+          id?: string
+          question?: string
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
+      ingestion_runs: {
+        Row: {
+          chunks_added: number | null
+          created_at: string
+          details: Json | null
+          id: string
+          source: string
+          status: string
+        }
+        Insert: {
+          chunks_added?: number | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          source: string
+          status?: string
+        }
+        Update: {
+          chunks_added?: number | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          source?: string
+          status?: string
+        }
+        Relationships: []
+      }
       meditation_sessions: {
         Row: {
           breath_cycles: number | null
@@ -139,6 +463,30 @@ export type Database = {
         }
         Relationships: []
       }
+      model_pricing: {
+        Row: {
+          id: string
+          input_per_1k: number
+          model: string
+          output_per_1k: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          input_per_1k?: number
+          model: string
+          output_per_1k?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          input_per_1k?: number
+          model?: string
+          output_per_1k?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -163,6 +511,189 @@ export type Database = {
           id?: string
           preferred_language?: string | null
           tts_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      prompt_versions: {
+        Row: {
+          active: boolean
+          body: string | null
+          created_at: string
+          id: string
+          name: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          body?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          body?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      query_clusters: {
+        Row: {
+          centroid: Json | null
+          created_at: string
+          id: string
+          label: string
+          size: number
+        }
+        Insert: {
+          centroid?: Json | null
+          created_at?: string
+          id?: string
+          label: string
+          size?: number
+        }
+        Update: {
+          centroid?: Json | null
+          created_at?: string
+          id?: string
+          label?: string
+          size?: number
+        }
+        Relationships: []
+      }
+      retrieval_events: {
+        Row: {
+          created_at: string
+          id: string
+          query_id: string
+          scores: number[] | null
+          source_docs: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          query_id: string
+          scores?: number[] | null
+          source_docs?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          query_id?: string
+          scores?: number[] | null
+          source_docs?: string[] | null
+        }
+        Relationships: []
+      }
+      safety_events: {
+        Row: {
+          action: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          query_id: string | null
+          rule: string
+          severity: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          query_id?: string | null
+          rule: string
+          severity?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          query_id?: string | null
+          rule?: string
+          severity?: string | null
+        }
+        Relationships: []
+      }
+      trace_spans: {
+        Row: {
+          created_at: string
+          duration_ms: number
+          id: string
+          query_id: string
+          span_name: string
+          start_ms: number
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          query_id: string
+          span_name: string
+          start_ms?: number
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          query_id?: string
+          span_name?: string
+          start_ms?: number
+        }
+        Relationships: []
+      }
+      trigger_events: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json | null
+          query_id: string | null
+          trigger_name: string | null
+          trigger_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          query_id?: string | null
+          trigger_name?: string | null
+          trigger_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json | null
+          query_id?: string | null
+          trigger_name?: string | null
+          trigger_type?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          first_seen: string
+          id: string
+          last_seen: string
+          total_queries: number
+          user_id: string
+        }
+        Insert: {
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          total_queries?: number
+          user_id: string
+        }
+        Update: {
+          first_seen?: string
+          id?: string
+          last_seen?: string
+          total_queries?: number
+          user_id?: string
         }
         Relationships: []
       }
@@ -197,6 +728,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      seed_admin_demo: { Args: never; Returns: Json }
       whoami_diagnostics: { Args: never; Returns: Json }
     }
     Enums: {
