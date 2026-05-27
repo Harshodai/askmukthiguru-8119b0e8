@@ -91,12 +91,21 @@ export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.95 }}
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -12, scale: 0.95, transition: { duration: 0.35 } }}
-          className="w-full flex justify-start my-3 pl-0 sm:pl-12"
+          exit={{ opacity: 0, y: -12, scale: 0.98, transition: { duration: 0.35 } }}
+          // Mirror the assistant message row geometry from ChatMessage:
+          // flex items-start gap-2.5 justify-start + 28px avatar so the pill body's
+          // left edge sits at exactly the same x as a guru bubble.
+          className="group flex items-start gap-2.5 justify-start my-3"
+          data-testid="thinking-pills"
         >
-          <div className="relative w-full max-w-md rounded-2xl border border-ojas/15 bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-xl shadow-xl shadow-ojas/5 p-5">
+          {/* Avatar placeholder — same dimensions as guru avatar in ChatMessage */}
+          <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <BookOpen className="w-3 h-3 text-ojas" />
+          </div>
+
+          <div className="relative max-w-[85%] sm:max-w-[75%] w-full rounded-2xl border border-ojas/15 bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-xl shadow-xl shadow-ojas/5 p-5">
             {/* Glowing accent ring */}
             <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-ojas/10 via-transparent to-ojas/5 pointer-events-none" />
 
