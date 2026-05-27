@@ -21,6 +21,18 @@ export interface MeditationStats {
 }
 
 const STORAGE_KEY = 'askmukthiguru_meditation_sessions';
+const LAST_COMPLETED_KEY = 'askmukthiguru_last_serene_mind_at';
+
+/**
+ * Returns the Unix timestamp (ms) of the last *fully completed* Serene Mind
+ * session, or null if the user has never completed one on this device.
+ */
+export const getLastCompletedMeditationTimestamp = (): number | null => {
+  const raw = localStorage.getItem(LAST_COMPLETED_KEY);
+  if (!raw) return null;
+  const ts = parseInt(raw, 10);
+  return isNaN(ts) ? null : ts;
+};
 
 const MeditationSessionSchema = z.object({
   id: z.string(),
@@ -97,7 +109,9 @@ export const completeMeditationSession = async (
   sessionId: string,
   durationSeconds: number,
   breathCycles: number,
-  extras?: { mood?: string; reflection?: string; gratitude?: string }
+  extras?: { mood?: string; reflection?: string; gratitude?: string },
+  /** Whether the user fully completed (true) or exited early (false). Defaults to true. */
+  completed = true
 ): Promise<void> => {
   const sessions = loadMeditationSessions();
   const existingIndex = sessions.findIndex(s => s.id === sessionId);
@@ -108,7 +122,7 @@ export const completeMeditationSession = async (
     completedAt: new Date(),
     durationSeconds,
     breathCycles,
-    completed: true,
+    completed,
     ...(extras ?? {}),
   };
 
@@ -130,11 +144,16 @@ export const completeMeditationSession = async (
         completed_at: completedSession.completedAt?.toISOString() ?? null,
         duration_seconds: durationSeconds,
         breath_cycles: breathCycles,
-        completed: true,
+        completed,
       });
     }
   } catch (err) {
     console.error('Failed to persist meditation session to DB:', err);
+  }
+
+  // Record timestamp of fully completed session for cooldown guard
+  if (completed && typeof window !== 'undefined') {
+    localStorage.setItem(LAST_COMPLETED_KEY, String(Date.now()));
   }
 
   // Dispatch event so UI components (like DailyTeaching) can react and reward the user

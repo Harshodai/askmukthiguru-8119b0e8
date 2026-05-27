@@ -463,6 +463,10 @@ class ChatRequest(BaseModel):
     session_id: str | None = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
     language: str | None = Field(default="en", description="Preferred language")
+    last_serene_mind_at: float | None = Field(
+        default=None,
+        description="Unix timestamp of the user's last completed Serene Mind session (client-reported)",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -735,20 +739,41 @@ async def chat_endpoint(
             )
 
             if proactive_assessment:
-                # Log the proactive trigger (don't alter flow, just make available for frontend)
-                logger.info(
-                    f"Proactive Serene Mind triggered for user {user_id}: "
-                    f"level={proactive_assessment.level.name}, "
-                    f"confidence={proactive_assessment.confidence:.2f}"
-                )
-                # Store in state for frontend access
-                state["proactive_serene_mind"] = {
-                    "triggered": True,
-                    "level": proactive_assessment.level.name,
-                    "confidence": proactive_assessment.confidence,
-                    "signals": proactive_assessment.detected_signals,
-                    "suggested_response": container.serene_mind.get_response(proactive_assessment)
-                }
+                # 15-minute cooldown: skip if user completed Serene Mind recently.
+                _client_ts = chat_body.last_serene_mind_at or 0.0
+                _now = time.time()
+                _COOLDOWN_SECS = 15 * 60  # 15 minutes
+                _skip_cooldown = (_now - _client_ts) < _COOLDOWN_SECS
+
+                # Also check Supabase for server-side verification
+                if not _skip_cooldown and container.user_profile:
+                    _db_ts = await container.user_profile.get_last_meditation_session(user_id)
+                    if _db_ts and (_now - _db_ts) < _COOLDOWN_SECS:
+                        _skip_cooldown = True
+
+                if not _skip_cooldown:
+                    logger.info(
+                        f"Proactive Serene Mind triggered for user {user_id}: "
+                        f"level={proactive_assessment.level.name}, "
+                        f"confidence={proactive_assessment.confidence:.2f}"
+                    )
+                    state["proactive_serene_mind"] = {
+                        "triggered": True,
+                        "level": proactive_assessment.level.name,
+                        "confidence": proactive_assessment.confidence,
+                        "signals": proactive_assessment.detected_signals,
+                        "suggested_response": container.serene_mind.get_response(proactive_assessment),
+                        "teachings_prelude": (
+                            "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
+                            "Every moment of pain is also a doorway to awakening. "
+                            "You are not alone in this — Mukti Guru is here with you. "
+                            "Before we continue, let\'s pause together in a moment of Serene Mind."
+                        ),
+                    }
+                else:
+                    logger.info(
+                        f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown."
+                    )
     except Exception as e:
         logger.warning(f"Proactive Serene Mind analysis failed (non-fatal): {e}")
 
@@ -1169,18 +1194,40 @@ async def chat_stream_endpoint(
                     )
 
                     if proactive_assessment:
-                        logger.info(
-                            f"Stream: Proactive Serene Mind triggered for user {user_id}: "
-                            f"level={proactive_assessment.level.name}, "
-                            f"confidence={proactive_assessment.confidence:.2f}"
-                        )
-                        proactive_serene_mind = {
-                            "triggered": True,
-                            "level": proactive_assessment.level.name,
-                            "confidence": proactive_assessment.confidence,
-                            "signals": proactive_assessment.detected_signals,
-                            "suggested_response": container.serene_mind.get_response(proactive_assessment)
-                        }
+                        # 15-minute cooldown check
+                        _client_ts = chat_body.last_serene_mind_at or 0.0
+                        _now = time.time()
+                        _COOLDOWN_SECS = 15 * 60
+                        _skip_cooldown = (_now - _client_ts) < _COOLDOWN_SECS
+
+                        if not _skip_cooldown and container.user_profile:
+                            _db_ts = await container.user_profile.get_last_meditation_session(user_id)
+                            if _db_ts and (_now - _db_ts) < _COOLDOWN_SECS:
+                                _skip_cooldown = True
+
+                        if not _skip_cooldown:
+                            logger.info(
+                                f"Stream: Proactive Serene Mind triggered for user {user_id}: "
+                                f"level={proactive_assessment.level.name}, "
+                                f"confidence={proactive_assessment.confidence:.2f}"
+                            )
+                            proactive_serene_mind = {
+                                "triggered": True,
+                                "level": proactive_assessment.level.name,
+                                "confidence": proactive_assessment.confidence,
+                                "signals": proactive_assessment.detected_signals,
+                                "suggested_response": container.serene_mind.get_response(proactive_assessment),
+                                "teachings_prelude": (
+                                    "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
+                                    "Every moment of pain is also a doorway to awakening. "
+                                    "You are not alone in this — Mukti Guru is here with you. "
+                                    "Before we continue, let\'s pause together in a moment of Serene Mind."
+                                ),
+                            }
+                        else:
+                            logger.info(
+                                f"Stream: Proactive Serene Mind skipped for {user_id} — within 15-min cooldown."
+                            )
             except Exception as e:
                 logger.warning(f"Proactive Serene Mind analysis failed in stream (non-fatal): {e}")
 

@@ -127,6 +127,8 @@ export async function* sendMessageStreaming(
   meditationStep: number = 0,
   summary?: string,
   sessionId?: string,
+  /** Unix ms of last completed Serene Mind session (from localStorage) */
+  lastSereneMindAt?: number | null,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -159,6 +161,9 @@ export async function* sendMessageStreaming(
       session_id: sessionId,
       language: currentConfig.language || 'en',
       stream: true,
+      ...(lastSereneMindAt != null
+        ? { last_serene_mind_at: lastSereneMindAt / 1000 }  // convert ms → seconds for Python
+        : {}),
     }),
   });
 
@@ -246,6 +251,8 @@ export const sendMessage = async (
   meditationStep: number = 0,
   summary?: string,
   sessionId?: string,
+  /** Unix ms of last completed Serene Mind session (from localStorage) */
+  lastSereneMindAt?: number | null,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -276,6 +283,9 @@ export const sendMessage = async (
           meditation_step: meditationStep,
           session_id: sessionId,
           language: currentConfig.language || 'en',
+          ...(lastSereneMindAt != null
+            ? { last_serene_mind_at: lastSereneMindAt / 1000 }
+            : {}),
         }),
       });
 
