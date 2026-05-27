@@ -1,10 +1,14 @@
 import asyncio
+import os
 
 import httpx
 
 
 async def main():
-    api_key = "sk_j2hvqcbz_J3hrGVe6VlKoDxl47Kxmr3V0"
+    api_key = os.environ.get("SARVAM_API_KEY", "")
+    if not api_key:
+        print("Error: SARVAM_API_KEY environment variable is not set.")
+        return
     headers = {
         "Content-Type": "application/json",
         "api-subscription-key": api_key,

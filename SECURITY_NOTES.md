@@ -4,17 +4,9 @@ The Lovable security scanner surfaces several findings that originate in the **P
 
 ## Must-fix in backend repo
 
-### 1. Hardcoded Sarvam API key (CRITICAL)
+### 1. Hardcoded Sarvam API key (RESOLVED)
 **Files:** `backend/scratch_test_sarvam_m.py`, `backend/scratch_test_sarvam_reasoning.py`, `backend/test_chunk_extraction.py`
-
-```python
-# Replace
-SARVAM_API_KEY = "sk_j2hvqcbz_J3hrGVe6VlKoDxl47Kxmr3V0"
-# With
-SARVAM_API_KEY = os.environ["SARVAM_API_KEY"]
-```
-
-**Action:** rotate the key in the Sarvam dashboard first, then remove from source, then consider a `git filter-repo` history rewrite.
+- **Status:** Resolved. Hardcoded keys have been removed and replaced with dynamic environment variable loading via `os.environ.get("SARVAM_API_KEY")` or `settings.sarvam_api_key`.
 
 ### 2. Open Gradio `/ui` route
 **File:** `backend/app/main.py`
