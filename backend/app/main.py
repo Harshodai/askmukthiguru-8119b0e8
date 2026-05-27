@@ -1479,10 +1479,18 @@ async def get_breath_teaching(
         logger.warning(f"Breath teaching generation failed for {technique_id}: {e}")
 
     if not teaching:
-        teaching = (
-            "Sri Preethaji and Sri Krishnaji teach that conscious breathing is the bridge "
-            "between the suffering state and the beautiful state. Let each breath be a sacred offering."
-        )
+        if technique_id == "serene_mind":
+            teaching = (
+                "Sri Preethaji and Sri Krishnaji teach that the Serene Mind practice calms the amygdala. "
+                "Sit erect, close your eyes, take deep abdominal breaths (4s inhale, 2s hold, 6s exhale), "
+                "observe your emotions/thoughts, and visualize a flame moving from your eyebrow center to the center of your brain."
+            )
+        else:
+            teaching = (
+                "Sri Preethaji and Sri Krishnaji teach that conscious breathing is the bridge "
+                "between the suffering state and the beautiful state. Let each breath be a sacred offering."
+            )
+
 
     # Cache the result
     _breath_teaching_cache[technique_id] = {"teaching": teaching, "ts": _time.time()}
