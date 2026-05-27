@@ -34,7 +34,7 @@ interface Props {
 }
 
 export function TraceDrawer({ queryId, onClose }: Props) {
-  const { data: trace, isLoading } = useQueryTrace(queryId);
+  const { data: trace, isLoading, error } = useQueryTrace(queryId);
 
   return (
     <Sheet open={!!queryId} onOpenChange={(o) => !o && onClose()}>
@@ -43,16 +43,26 @@ export function TraceDrawer({ queryId, onClose }: Props) {
           <SheetTitle className="text-base">Query trace</SheetTitle>
         </SheetHeader>
 
-        {isLoading || !trace ? (
+        {isLoading ? (
           <div className="text-sm text-muted-foreground py-10 text-center">Loading…</div>
+        ) : error ? (
+          <div className="text-sm text-destructive py-10 text-center">
+            Failed to load trace: {(error as Error).message}
+          </div>
+        ) : !trace || !trace.query ? (
+          <div className="text-sm text-muted-foreground py-10 text-center">
+            Trace not found. The query row may have been deleted or never recorded.
+          </div>
         ) : (
           <div className="space-y-5 mt-3">
             {/* Header strip */}
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium leading-snug">{trace.query.query_text}</div>
+                <div className="text-sm font-medium leading-snug">
+                  {trace.query.query_text ?? "(no query text)"}
+                </div>
                 <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                  <span>{fmtDateTime(trace.query.created_at)}</span>
+                  <span>{trace.query.created_at ? fmtDateTime(trace.query.created_at) : "—"}</span>
                   <span className="font-mono">{trace.query.id}</span>
                   <button
                     className="hover:text-foreground inline-flex items-center gap-1"
@@ -99,7 +109,11 @@ export function TraceDrawer({ queryId, onClose }: Props) {
             {/* Span waterfall */}
             <section>
               <h3 className="text-sm font-medium mb-2">Span waterfall</h3>
-              <SpanWaterfall spans={trace.spans} />
+              {trace.spans && trace.spans.length > 0 ? (
+                <SpanWaterfall spans={trace.spans} />
+              ) : (
+                <div className="text-xs text-muted-foreground">No spans recorded.</div>
+              )}
             </section>
 
             <Separator />
@@ -120,7 +134,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               <div>
                 <div className="text-xs text-muted-foreground">Tokens</div>
                 <div className="tabular-nums">
-                  {trace.query.prompt_tokens || 0} in · {trace.query.completion_tokens || 0} out
+                  {trace.query.prompt_tokens ?? 0} in · {trace.query.completion_tokens ?? 0} out
                 </div>
               </div>
               <div>
@@ -134,39 +148,41 @@ export function TraceDrawer({ queryId, onClose }: Props) {
             <Separator />
 
             {/* Judge */}
-            {trace.response && (
-              <section>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium">Judge scores (RAGAS)</h3>
-                  <HallucinationBadge flag={trace.response.hallucination_flag} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <JudgeScoreBar label="Faithfulness" value={trace.response.faithfulness} />
-                  <JudgeScoreBar
-                    label="Answer relevancy"
-                    value={trace.response.answer_relevancy}
-                  />
-                  <JudgeScoreBar
-                    label="Context precision"
-                    value={trace.response.context_precision}
-                  />
-                  <JudgeScoreBar label="Context recall" value={trace.response.context_recall} />
-                </div>
-                <div className="text-xs text-muted-foreground mt-3 italic">
-                  Judge: “{trace.response.judge_reasoning}” (confidence{" "}
-                  {fmtPct(trace.response.confidence)})
-                </div>
-              </section>
-            )}
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Judge scores (RAGAS)</h3>
+                {trace.response && (
+                  <HallucinationBadge flag={!!trace.response.hallucination_flag} />
+                )}
+              </div>
+              {trace.response ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <JudgeScoreBar label="Faithfulness" value={trace.response.faithfulness ?? 0} />
+                    <JudgeScoreBar label="Answer relevancy" value={trace.response.answer_relevancy ?? 0} />
+                    <JudgeScoreBar label="Context precision" value={trace.response.context_precision ?? 0} />
+                    <JudgeScoreBar label="Context recall" value={trace.response.context_recall ?? 0} />
+                  </div>
+                  {trace.response.judge_reasoning && (
+                    <div className="text-xs text-muted-foreground mt-3 italic">
+                      Judge: "{trace.response.judge_reasoning}" (confidence{" "}
+                      {fmtPct(trace.response.confidence ?? 0)})
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground">No response or judge scores recorded.</div>
+              )}
+            </section>
 
             <Separator />
 
             {/* Retrieved chunks */}
             <section>
               <h3 className="text-sm font-medium mb-2">Retrieved chunks</h3>
-              {trace.retrieval?.source_docs ? (
+              {trace.retrieval?.source_docs && trace.retrieval.source_docs.length > 0 ? (
                 <div className="space-y-1.5 text-xs">
-                  {trace.retrieval.source_docs.map((src, i) => (
+                  {trace.retrieval.source_docs.map((src: string, i: number) => (
                     <div
                       key={i}
                       className="flex items-center gap-2 border border-border rounded px-2 py-1"
@@ -189,37 +205,41 @@ export function TraceDrawer({ queryId, onClose }: Props) {
             <Separator />
 
             {/* Response */}
-            {trace.response && (
-              <section>
-                <h3 className="text-sm font-medium mb-2">Response</h3>
-                <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap">
-                  {trace.response.response_text}
-                </div>
-                {trace.response.citations.length > 0 && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Cited:{" "}
-                    {trace.response.citations.map((c, i) => (
-                      <Badge key={i} variant="outline" className="mr-1">
-                        {c.source}
-                      </Badge>
-                    ))}
+            <section>
+              <h3 className="text-sm font-medium mb-2">Response</h3>
+              {trace.response?.response_text ? (
+                <>
+                  <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap">
+                    {trace.response.response_text}
                   </div>
-                )}
-              </section>
-            )}
+                  {Array.isArray(trace.response.citations) && trace.response.citations.length > 0 && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Cited:{" "}
+                      {trace.response.citations.map((c: any, i: number) => (
+                        <Badge key={i} variant="outline" className="mr-1">
+                          {c?.source ?? c?.title ?? `#${i + 1}`}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground">No response recorded.</div>
+              )}
+            </section>
 
             {/* Triggers + feedback */}
-            {(trace.triggers.length > 0 || trace.feedback) && (
+            {((trace.triggers && trace.triggers.length > 0) || trace.feedback) && (
               <>
                 <Separator />
                 <section className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">Triggers</div>
-                    {trace.triggers.length ? (
+                    {trace.triggers && trace.triggers.length ? (
                       <div className="flex flex-wrap gap-1">
-                        {trace.triggers.map((t) => (
+                        {trace.triggers.map((t: any) => (
                           <Badge key={t.id} variant="secondary">
-                            {t.trigger_name}
+                            {t.trigger_name ?? t.trigger_type ?? "trigger"}
                           </Badge>
                         ))}
                       </div>
