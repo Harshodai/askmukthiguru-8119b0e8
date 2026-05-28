@@ -838,3 +838,15 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Premium Custom Audio Player**: Created a custom glass-card audio player UI for the Audio tab. The YouTube iframe is hidden, and seekers interact with custom Play/Pause/Reset buttons that send `postMessage` player commands to control the off-screen audio stream. Built a 3-minute simulated seekbar, showing elapsed/total time, and dynamically highlighted the active step of the 3-minute progression (0-30s Step 1, 30-60s Step 2, etc.) in a gorgeous indicator list.
   - **Video Practice Reference**: Styled the Video tab iframe with custom layout properties and rendered the step-by-step Serene Mind instructions directly below the video to align with official O&O Academy teachings.
 - **Lesson learned**: When integrating guided video/audio meditations into a custom web application, hide the raw cross-origin iframe to prevent generic player branding, and construct a bespoke frontend wrapper that communicates with the iframe via `postMessage`. This enables rich custom progress tracks, animated pulsing graphics, and interactive step highlights that synchronize directly with playback.
+
+### 65. Large-scale Technical Book Skill Generation & Asynchronous Supabase Telemetry (May 2026)
+- **Problem**: 
+  - **macOS Sleep Interruption**: Processing 10 large technical PDF books sequentially using local LLM extraction takes up to 20 hours. macOS automatically puts the host system to sleep on idle, suspending background processing, local network connections, and model inference.
+  - **Reasoning Runaway & Token Limits**: Using local reasoning models (`deepseek-r1:7b`) can cause completion exhaustion or CPU/memory bottlenecks, especially under massive contexts, requiring a larger context window (`num_ctx: 32768`) and lower temperatures.
+  - **Non-blocking Telemetry writes**: Logging RAG pipeline metadata (spans, safety, retrieval, queries, responses) must not increase user response latency or block the FastAPI main thread loop.
+- **Solution**:
+  - Spawns `caffeinate` to prevent macOS sleep cycles during execution.
+  - Developed `SupabaseTelemetrySink` to capture RAG metadata and offload all inserts to an asynchronous executor pool (`run_in_executor`) to prevent blocking the event loop.
+  - Corrected Redis connections in pytest execution to use authenticated credentials matching local host docker ports.
+- **Lesson learned**: Scale background indexing pipelines with system-level keep-alive processes (like `caffeinate`). When using reasoning models for bulk summarization, configure larger context sizes to accommodate reasoning token overhead, and delegate database telemetry operations to async thread pool executors.
+

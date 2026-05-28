@@ -1,12 +1,12 @@
 {
-  "ai-agents-langchain-mcp": "in-progress",
-  "ai-agents-in-action": "pending",
-  "ai-engineering-chip-huyen": "pending",
-  "build-llm-app-scratch": "pending",
-  "building-apps-ai-agents": "pending",
-  "designing-data-intensive-apps-2e": "pending",
-  "kleppmann-ddia-big-ideas": "pending",
-  "rag-made-simple": "pending",
-  "system-design-llm-era": "pending",
-  "ieee-innovative-trends-2019": "pending"
+  "ai-agents-langchain-mcp": "completed",
+  "ai-agents-in-action": "completed",
+  "ai-engineering-chip-huyen": "completed",
+  "build-llm-app-scratch": "completed",
+  "building-apps-ai-agents": "completed",
+  "designing-data-intensive-apps-2e": "completed",
+  "kleppmann-ddia-big-ideas": "completed",
+  "rag-made-simple": "completed",
+  "system-design-llm-era": "completed",
+  "ieee-innovative-trends-2019": "completed"
 }
