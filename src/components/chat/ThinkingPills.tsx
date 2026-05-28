@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -10,6 +11,7 @@ import {
   BookOpen,
   Circle,
   Loader2,
+  ChevronDown,
 } from 'lucide-react';
 
 export interface PipelineStep {
@@ -23,51 +25,19 @@ interface ThinkingPillsProps {
   visible: boolean;
 }
 
-// ── Pipeline stage definitions ────────────────────────────────────────────────
 interface StageConfig {
   icon: React.ReactNode;
   shortLabel: string;
-  description: string;
   color: string;
 }
 
 const STAGE_CONFIG: Record<string, StageConfig> = {
-  'Safety check': {
-    icon: <Shield className="w-3.5 h-3.5" />,
-    shortLabel: 'Safety',
-    description: 'Verifying message content',
-    color: 'text-amber-400',
-  },
-  Understanding: {
-    icon: <Brain className="w-3.5 h-3.5" />,
-    shortLabel: 'Intent',
-    description: 'Understanding your intent',
-    color: 'text-ojas',
-  },
-  'Searching wisdom': {
-    icon: <Search className="w-3.5 h-3.5" />,
-    shortLabel: 'Retrieving',
-    description: 'Searching sacred teachings',
-    color: 'text-prana',
-  },
-  Generating: {
-    icon: <Lightbulb className="w-3.5 h-3.5" />,
-    shortLabel: 'Analyzing',
-    description: 'Analyzing retrieved wisdom',
-    color: 'text-teal-400',
-  },
-  Composing: {
-    icon: <PenTool className="w-3.5 h-3.5" />,
-    shortLabel: 'Composing',
-    description: 'Composing the response',
-    color: 'text-indigo-400',
-  },
-  Verifying: {
-    icon: <Sparkles className="w-3.5 h-3.5" />,
-    shortLabel: 'Verifying',
-    description: 'Verifying faithfulness',
-    color: 'text-ojas',
-  },
+  'Safety check': { icon: <Shield className="w-3 h-3" />, shortLabel: 'Safety', color: 'text-amber-400' },
+  Understanding: { icon: <Brain className="w-3 h-3" />, shortLabel: 'Understanding', color: 'text-ojas' },
+  'Searching wisdom': { icon: <Search className="w-3 h-3" />, shortLabel: 'Searching', color: 'text-prana' },
+  Generating: { icon: <Lightbulb className="w-3 h-3" />, shortLabel: 'Analyzing', color: 'text-teal-400' },
+  Composing: { icon: <PenTool className="w-3 h-3" />, shortLabel: 'Composing', color: 'text-indigo-400' },
+  Verifying: { icon: <Sparkles className="w-3 h-3" />, shortLabel: 'Verifying', color: 'text-ojas' },
 };
 
 export const mapStatusToLabel = (raw: string): string => {
@@ -81,169 +51,105 @@ export const mapStatusToLabel = (raw: string): string => {
   return 'Processing';
 };
 
+/**
+ * Claude/ChatGPT/Gemini-style thinking indicator.
+ * Compact, left-aligned, shares the same row geometry as guru ChatMessage
+ * (avatar 28px + gap 10px). Click to expand and see the full pipeline.
+ */
 export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
+  const [expanded, setExpanded] = useState(false);
+
   if (!visible || steps.length === 0) return null;
 
   const latestStep = steps[steps.length - 1];
-  const progress = steps.length > 0 ? ((steps.filter(s => s.status === 'done').length + (latestStep.status === 'active' ? 0.5 : 0)) / 6) * 100 : 0;
+  const doneCount = steps.filter((s) => s.status === 'done').length;
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -12, scale: 0.98, transition: { duration: 0.35 } }}
-          // Mirror the assistant message row geometry from ChatMessage:
-          // flex items-start gap-2.5 justify-start + 28px avatar so the pill body's
-          // left edge sits at exactly the same x as a guru bubble.
-          className="group flex items-start gap-2.5 justify-start my-3"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4, transition: { duration: 0.2 } }}
+          className="group flex items-start gap-2.5 justify-start my-2"
           data-testid="thinking-pills"
         >
-          {/* Avatar placeholder — same dimensions as guru avatar in ChatMessage */}
+          {/* Avatar — identical to guru avatar in ChatMessage */}
           <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
             <BookOpen className="w-3 h-3 text-ojas" />
           </div>
 
-          <div className="relative max-w-[85%] sm:max-w-[75%] w-full rounded-2xl border border-ojas/15 bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-xl shadow-xl shadow-ojas/5 p-5">
-            {/* Glowing accent ring */}
-            <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-ojas/10 via-transparent to-ojas/5 pointer-events-none" />
+          {/* Compact pill column — aligns flush with assistant bubbles */}
+          <div className="flex flex-col items-start gap-1 max-w-[85%] sm:max-w-[75%] min-w-0">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/30 hover:bg-muted/50 transition-colors px-2.5 py-1 text-[12px] text-foreground/80"
+              aria-expanded={expanded}
+              aria-label="Toggle thinking details"
+            >
+              <Loader2 className="w-3 h-3 text-ojas animate-spin" />
+              <span className="font-medium">Thinking</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground truncate max-w-[140px] sm:max-w-[220px]">
+                {latestStep.label}
+              </span>
+              <span className="text-muted-foreground/70 text-[10px] tabular-nums">
+                {doneCount}/{Math.max(steps.length, 6)}
+              </span>
+              <ChevronDown
+                className={`w-3 h-3 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
+              />
+            </button>
 
-            {/* Header */}
-            <div className="relative flex items-center gap-3 mb-4">
-              <div className="relative">
+            <AnimatePresence initial={false}>
+              {expanded && (
                 <motion.div
-                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-ojas/20 to-ojas/5 border border-ojas/20 flex items-center justify-center"
-                  animate={{
-                    boxShadow: [
-                      '0 0 0 0 rgba(218, 165, 32, 0)',
-                      '0 0 0 8px rgba(218, 165, 32, 0.15)',
-                      '0 0 0 0 rgba(218, 165, 32, 0)',
-                    ],
-                  }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeOut' }}
+                  className="overflow-hidden w-full"
                 >
-                  <BookOpen className="w-5 h-5 text-ojas" />
-                </motion.div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-ojas animate-pulse" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground/90">
-                  Guru is contemplating
-                  <motion.span
-                    animate={{ opacity: [1, 0.3, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="ml-1"
-                  >
-                    …
-                  </motion.span>
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {latestStep.label}
-                </p>
-              </div>
-            </div>
-
-            {/* Vertical Stepper */}
-            <div className="relative space-y-0">
-              {steps.map((step, idx, arr) => {
-                const isDone = step.status === 'done';
-                const isActive = step.status === 'active';
-                const isLast = idx === arr.length - 1;
-                const config = STAGE_CONFIG[step.label] || {
-                  icon: <Circle className="w-3.5 h-3.5" />,
-                  shortLabel: step.label,
-                  description: 'Processing',
-                  color: 'text-muted-foreground',
-                };
-
-                return (
-                  <motion.div
-                    key={step.id}
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05, duration: 0.3 }}
-                    className="relative flex items-start gap-3"
-                  >
-                    {/* Connector line */}
-                    {idx < arr.length - 1 && (
-                      <div className="absolute left-[19px] top-7 w-px h-6 bg-border/30" />
-                    )}
-
-                    {/* Status icon */}
-                    <div className="relative flex-shrink-0 mt-0.5">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center border ${
-                          isDone
-                            ? 'bg-prana/15 border-prana/30 text-prana'
-                            : isActive
-                            ? 'bg-ojas/20 border-ojas/40 text-ojas'
-                            : 'bg-muted/40 border-border/30 text-muted-foreground'
-                        }`}
-                      >
-                        {isDone ? (
-                          <Check className="w-3.5 h-3.5" />
-                        ) : isActive ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <span className="text-[10px] font-medium">{idx + 1}</span>
-                        )}
-                      </div>
-                      {isActive && (
-                        <motion.div
-                          className="absolute inset-0 rounded-full border-2 border-ojas/40"
-                          animate={{ scale: [1, 1.3, 1], opacity: [0.8, 0, 0.8] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Step content */}
-                    <div className="flex-1 min-w-0 pb-1 pt-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`flex items-center gap-1.5 ${config.color}`}>
-                          {config.icon}
-                          <span className={`text-[13px] font-medium ${
-                            isActive ? 'text-ojas' : isDone ? 'text-foreground/80' : 'text-muted-foreground'
-                          }`}>
+                  <ul className="mt-1 ml-1 border-l border-border/40 pl-3 py-1 space-y-1.5">
+                    {steps.map((step) => {
+                      const isDone = step.status === 'done';
+                      const isActive = step.status === 'active';
+                      const config = STAGE_CONFIG[step.label] || {
+                        icon: <Circle className="w-3 h-3" />,
+                        shortLabel: step.label,
+                        color: 'text-muted-foreground',
+                      };
+                      return (
+                        <li key={step.id} className="flex items-center gap-2 text-[12px]">
+                          <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
+                            {isDone ? (
+                              <Check className="w-3 h-3 text-prana" />
+                            ) : isActive ? (
+                              <Loader2 className="w-3 h-3 text-ojas animate-spin" />
+                            ) : (
+                              <Circle className="w-2 h-2 text-muted-foreground/50" />
+                            )}
+                          </span>
+                          <span className={config.color}>{config.icon}</span>
+                          <span
+                            className={
+                              isActive
+                                ? 'text-foreground/90 font-medium'
+                                : isDone
+                                ? 'text-foreground/70'
+                                : 'text-muted-foreground'
+                            }
+                          >
                             {step.label}
                           </span>
-                        </span>
-                      </div>
-                      {isActive && (
-                        <motion.p
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="text-[11px] text-muted-foreground mt-0.5"
-                        >
-                          {config.description}
-                        </motion.p>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Bottom progress bar */}
-            <div className="mt-4 pt-3 border-t border-border/20">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                  Pipeline Progress
-                </span>
-                <span className="text-[10px] font-medium text-ojas">
-                  {Math.min(Math.round(progress), 100)}%
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-ojas/60 to-ojas"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(progress, 100)}%` }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
-                />
-              </div>
-            </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       )}
