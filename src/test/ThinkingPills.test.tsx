@@ -34,16 +34,19 @@ describe('ThinkingPills', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders pills with correct labels', () => {
+  it('shows the latest step in the collapsed pill and all steps when expanded', async () => {
+    const { fireEvent } = await import('@testing-library/react');
     const steps: PipelineStep[] = [
       { id: 'step-0', label: 'Safety check', status: 'done' },
       { id: 'step-1', label: 'Searching wisdom', status: 'active' },
       { id: 'step-2', label: 'Composing', status: 'pending' },
     ];
     render(<ThinkingPills steps={steps} visible={true} />);
-    expect(screen.getByText('Safety check')).toBeInTheDocument();
+    // Collapsed: latest step label is visible in the pill
     expect(screen.getByText('Searching wisdom')).toBeInTheDocument();
-    // Vertical stepper shows label text in multiple places; getAllByText avoids ambiguity
-    expect(screen.getAllByText('Composing').length).toBeGreaterThan(0);
+    // Expand
+    fireEvent.click(screen.getByRole('button', { name: /toggle thinking details/i }));
+    expect(screen.getByText('Safety check')).toBeInTheDocument();
+    expect(screen.getByText('Composing')).toBeInTheDocument();
   });
 });
