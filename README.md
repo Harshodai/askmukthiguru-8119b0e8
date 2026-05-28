@@ -147,7 +147,7 @@ the RAG context.
 
 ## Agent Technical Skills
 
-The repository features 10 pre-compiled technical agent skills containing structured summaries, patterns, and cheatsheets, stored locally under `.agents/skills/` and mirrored globally at `~/.config/agents/skills/`:
+The repository features 15 pre-compiled technical agent skills containing structured summaries, patterns, and cheatsheets, stored locally under `.agents/skills/` and mirrored globally at `~/.config/agents/skills/`:
 1. `ai-agents-langchain-mcp` — AI Agents with LangChain, LangGraph, and MCP
 2. `ai-agents-in-action` — AI Agents in Action
 3. `ai-engineering-chip-huyen` — AI Engineering: Foundation Models (Chip Huyen)
@@ -158,6 +158,11 @@ The repository features 10 pre-compiled technical agent skills containing struct
 8. `rag-made-simple` — RAG Made Simple: Visual Guide to RAG
 9. `system-design-llm-era` — System Design for the LLM Era
 10. `ieee-innovative-trends-2019` — IEEE 2019 Innovative Trends in Engineering
+11. `database-internals` — Database Internals
+12. `designing-distributed-systems` — Designing Distributed Systems
+13. `prompt-engineering-llms` — Prompt Engineering for LLMs
+14. `building-llms-for-production` — Building LLMs for Production
+15. `hands-on-llms` — Hands-On Large Language Models
 
 ## Project Structure
 

@@ -58,6 +58,26 @@ BOOKS = [
     {
         "filename": "[IEEE 2019 International Conference on Innovative Trends and Advances in Engineering and Technology (ICITAET) - SHEGAON, India… (Muddinagiri, Ruchika Ambavane etc.) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
         "slug": "ieee-innovative-trends-2019",
+    },
+    {
+        "filename": "Database Internals A Deep-Dive into How Distributed Data Systems Work (Alex Petrov) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "database-internals",
+    },
+    {
+        "filename": "Designing Distributed Systems, 2nd Edition Patterns and Paradigms for Scalable, Reliable Systems Using Kubernetes (Brendan Burns) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "designing-distributed-systems",
+    },
+    {
+        "filename": "Prompt Engineering for LLMs The Art and Science of Building Large Language Model-Based Applications (John Berryman, Albert Ziegler) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "prompt-engineering-llms",
+    },
+    {
+        "filename": "Building LLMs for Production Enhancing LLM Abilities and Reliability with Prompting, Fine-Tuning, and RAG (Louis-François Bouchard) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "building-llms-for-production",
+    },
+    {
+        "filename": "Hands-On Large Language Models Language Understanding and Generation (Jay Alammar, Maarten Grootendorst) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "hands-on-llms",
     }
 ]
 
