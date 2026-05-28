@@ -83,6 +83,8 @@ graph LR
 | `pipeline.py` | Orchestrator | E2E: URL → chunks in Qdrant |
 | ✅ `bulk_ingest_async.py` | Sequential queue stages (Phase 1: Retries/Backfills, Phase 2: New) | Circuit breaker, DLQ, ETA, dual-DB tracking |
 | ✅ `extract_transcripts.py` | Batch Apify extraction (359 videos) | `transcripts/_state.json` |
+| ✅ `generate_all_skills.py` | Compile 10 technical books into local and global agent skills | Checked in `.agents/skills` and `~/.config/agents/skills` |
+| ✅ `telemetry_sink.py` | Async Supabase telemetry sink for queries, responses, and events | Checked database count updates |
 
 **Trade-offs considered**:
 - ✅ 3-tier transcript (manual → whisper → auto-captions) — maximum coverage

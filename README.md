@@ -145,7 +145,22 @@ normalizes local browser conversation ids into stable UUIDs for Supabase memory
 tables, then injects a compact current-thread and prior-session memory block into
 the RAG context.
 
+## Agent Technical Skills
+
+The repository features 10 pre-compiled technical agent skills containing structured summaries, patterns, and cheatsheets, stored locally under `.agents/skills/` and mirrored globally at `~/.config/agents/skills/`:
+1. `ai-agents-langchain-mcp` — AI Agents with LangChain, LangGraph, and MCP
+2. `ai-agents-in-action` — AI Agents in Action
+3. `ai-engineering-chip-huyen` — AI Engineering: Foundation Models (Chip Huyen)
+4. `build-llm-app-scratch` — Build an LLM Application (from Scratch)
+5. `building-apps-ai-agents` — Building Applications with AI Agents
+6. `designing-data-intensive-apps-2e` — Designing Data-Intensive Applications, 2nd Edition
+7. `kleppmann-ddia-big-ideas` — Martin Kleppmann: DDIA The Big Ideas
+8. `rag-made-simple` — RAG Made Simple: Visual Guide to RAG
+9. `system-design-llm-era` — System Design for the LLM Era
+10. `ieee-innovative-trends-2019` — IEEE 2019 Innovative Trends in Engineering
+
 ## Project Structure
+
 
 ```
 ├── backend/              # FastAPI backend

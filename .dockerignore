@@ -1,39 +1,45 @@
-.git
+# Ignore all Git files
+.git/
 .gitignore
-.env
-.venv
-venv
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
-.tox
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
 
-.mypy_cache
-.pytest_cache
-.hydra
-.isort.cfg
-pylintrc
-.pdbrc
-.pypirc
-.slack_token
-.vscode
-.idea
-node_modules
-build
-dist
-backend/qdrant_data
-backend/colab/backup.zip
-**/*.zip
-**/*.tar.gz
+# Node modules and build files
+node_modules/
+dist/
+dist-ssr/
+build/
+
+# Ignore massive model caches and local databases
+hf_model_cache/
+qdrant_data/
+neo4j_data/
+redis_data/
+telemetry_data/
+.code-review-graph/
+.gemini/
+.claude/
+.agent/
+.agents/
+
+# Ignore Python virtual environments (including custom whisper & host environments)
+.venv/
+backend/.venv/
+venv/
+.venv_whisper/
+.venv_host/
+
+# Ignore cloned repos and PDF generators
+book-to-skill/
+backend/repos/
+
+# Ignore Kubernetes configuration directories
+k8s/
+
+# Ignore large log files (especially in scripts/ folder)
+**/*.log
+nohup.out
+
+# Editor files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
