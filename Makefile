@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format test docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache
+.PHONY: help install dev lint format test docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs
 
 # Colors for terminal output
 YELLOW=\033[1;33m
@@ -100,3 +100,35 @@ shell: ## Open a shell inside the running backend container
 deploy: ## Build production images and prepare for remote deployment
 	@chmod +x deploy.sh
 	@./deploy.sh
+
+# --- Minikube Kubernetes Demo ---
+
+minikube-up: ## Start Minikube and deploy via Helm one-shot
+	@chmod +x k8s/minikube/start.sh
+	@bash k8s/minikube/start.sh
+
+minikube-down: ## Delete the Minikube cluster and all resources
+	@echo "${YELLOW}Deleting Minikube cluster...${NC}"
+	@minikube delete -p mukthiguru
+
+minikube-rebuild: ## Rebuild Docker images and restart all deployments in Minikube
+	@echo "${GREEN}Rebuilding images in Minikube...${NC}"
+	@eval $$(minikube docker-env -p mukthiguru); \
+		docker build -t mukthiguru-backend:latest -f backend/Dockerfile . ; \
+		docker build -t mukthiguru-frontend:latest -f Dockerfile .
+	@echo "${GREEN}Rolling restart all deployments...${NC}"
+	@kubectl rollout restart deployment/mukthiguru-backend -n mukthiguru
+	@kubectl rollout restart deployment/mukthiguru-frontend -n mukthiguru
+
+minikube-test: ## Run a simple load test against the Minikube deployment
+	@echo "${GREEN}Testing deployment...${NC}"
+	@if minikube profile list | grep -q "mukthiguru"; then \
+		MIP=$$(minikube ip -p mukthiguru); \
+		curl -s "http://$$MIP/api/health" || echo "Health check failed"; \
+		curl -s "http://$$MIP/api/ready" || echo "Ready check failed"; \
+	else \
+		echo "Minikube not running, start it with: make minikube-up"; \
+	fi
+
+minikube-logs: ## Stream backend logs in Minikube
+	@kubectl logs -f deployment/mukthiguru-backend -n mukthiguru

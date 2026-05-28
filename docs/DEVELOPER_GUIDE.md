@@ -349,3 +349,27 @@ caffeinate_proc = subprocess.Popen(["caffeinate", "-w", str(os.getpid())])
 This forces the host system to maintain full CPU, disk, and network activity exactly for the lifespan of the parent ingestion process.
 
 Additionally, the pipeline writes successful step signatures to `scripts/ingestion_state.json`. If execution is manually aborted or interrupted by network dropouts, running the script again will resume exactly where it left off, avoiding redundant compute.
+
+## 17. Asynchronous Supabase Telemetry Sink & Custom Agent Skills
+
+### Asynchronous Telemetry Sink
+Observability events (queries, responses, retrieval events, spans, trigger events, and safety evaluations) are logged to Supabase via `SupabaseTelemetrySink` located in [telemetry_sink.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/telemetry_sink.py).
+To ensure database inserts do not impact client response latencies or block the main event loop, all database writes are delegated to a thread pool executor:
+```python
+loop = asyncio.get_running_loop()
+await loop.run_in_executor(None, do_inserts)
+```
+The sink reads `SUPABASE_SERVICE_ROLE_KEY` from the environment to perform safe, authenticated inserts.
+
+### Technical Agent Skills Compilation
+The workspace includes a generation script [generate_all_skills.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/generate_all_skills.py) that compiles large technical books into structured agent skills. These are installed in two locations:
+1. Local skills: `.agents/skills/<slug>/`
+2. Global user skills: `~/.config/agents/skills/<slug>/`
+
+Each compiled skill folder contains:
+- `skill.md`: Definition schema and entrypoints.
+- `chapters/`: Structured chapter-by-chapter summaries.
+- `glossary.md`: Key terms with definitions.
+- `patterns.md`: Concrete design patterns.
+- `cheatsheet.md`: Decision matrices and compare tables.
+
