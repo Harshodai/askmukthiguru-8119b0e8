@@ -928,7 +928,7 @@ async def rerank_documents(state: GraphState) -> dict:
         reranked = await _reranker.rerank(
             question,
             documents,
-            limit=10,  # Match cross_top_k for MMR diversification
+            top_k=10,  # Match cross_top_k for MMR diversification
             min_score=threshold,
         )
     else:
@@ -1325,25 +1325,51 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # Use Context Engineering layers if available
     layers = state.get("context_layers")
     if layers:
-        prompt = (
+        system_prompt = (
             f"PERSONA:\n{layers['persona']}\n\n"
+            f"INSTRUCTIONS:\n{layers['instructions']}"
+        )
+        if lang_suffix:
+            system_prompt += f"\n\n{lang_suffix}"
+
+        user_prompt = (
             f"USER STATE:\n{layers['user_state']}\n\n"
             f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}\n\n"
-            f"INSTRUCTIONS:\n{layers['instructions']}\n\n"
             f"QUESTION: {question}"
         )
+        if history_str:
+            user_prompt = f"{history_str}\n\n{user_prompt}"
     else:
-        # Legacy generation prompt with memory and language injection
-        memory = state.get("memory_context", "")
-        prompt = GENERATE_WITH_HINTS_PROMPT.format(
-            context=f"{memory}\n\n{context}",
-            question=question,
+        # Legacy/fallback prompt structured cleanly as system/user prompts
+        system_prompt = (
+            "You are Mukthi Guru, a compassionate spiritual guide grounded EXCLUSIVELY in the teachings of Sri Preethaji and Sri Krishnaji.\n"
+            "You understand users' situations deeply and without judgment. If the user is sharing their distress or life situation, listen carefully, offer a compassionate and apt response using real-time experiences, teachings from their books, video references, or podcasts.\n\n"
+            "Your goal is to walk with the user through their journey with deep empathy and zero judgment.\n\n"
+            "INSTRUCTIONS FOR DISTRESS/SITUATIONS:\n"
+            "1. LISTEN FIRST: If the user shares a situation or distress, let them explain it fully. Acknowledge their feelings with deep compassion.\n"
+            "2. NO JUDGMENT: Respond with warmth and validation, making them feel safe and heard.\n"
+            "3. TEACHING AS SUGGESTION: Once they have shared, offer an appropriate teaching from the Context as a gentle suggestion for their situation.\n"
+            "4. SERENE MIND: After sharing the wisdom, let them know that a Serene Mind meditation will follow to help settle their inner state.\n"
+            "5. REAL-WORLD CONTEXT: Use real-time experiences, book references, and video insights from the Context to make the answer apt for their specific question.\n\n"
+            "INSTRUCTIONS:\n"
+            "1. First, internally identify 3-5 key evidence phrases from the Context that directly address the question.\n"
+            "2. Then, formulate your answer based ONLY on those key evidence phrases, delivered as a warm, understanding Guru.\n"
+            "3. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as \"Watch more here: [URL]\".\n"
+            "4. If you cannot answer from the context, say: \"I am unable to find specific teachings on this topic.\"\n"
+            "5. NEVER fabricate teachings or add information from your training data.\n"
+            "6. Maintain a warm, compassionate, and wise tone.\n"
+            "7. Start with the most directly relevant teaching and end with an encouraging or reflective note."
         )
+        if lang_suffix:
+            system_prompt += f"\n\n{lang_suffix}"
 
-    prompt += lang_suffix
-
-    if history_str:
-        prompt = f"{history_str}\n\n{prompt}"
+        memory = state.get("memory_context", "")
+        user_prompt = (
+            f"CONTEXT (retrieved teachings):\n{memory}\n\n{context}\n\n"
+            f"Question: {question}"
+        )
+        if history_str:
+            user_prompt = f"{history_str}\n\n{user_prompt}"
 
     # Extract stream_queue from config
     configurable = {}
@@ -1366,14 +1392,16 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 logger.info("A/B Testing: Using Krutrim Pro for generation")
                 if stream_queue and hasattr(container.krutrim, "generate_stream"):
                     answer = ""
-                    async for chunk in container.krutrim.generate_stream(system_prompt="", user_prompt=prompt):
+                    async for chunk in container.krutrim.generate_stream(
+                        system_prompt=system_prompt, user_prompt=user_prompt
+                    ):
                         if chunk:
                             await stream_queue.put(chunk)
                             answer += chunk
                 else:
                     answer = await container.krutrim.generate(
-                        system_prompt="",  # Persona already in prompt
-                        user_prompt=prompt,
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
                     )
                     if stream_queue:
                         await stream_queue.put(answer)
@@ -1381,39 +1409,45 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 # Fallback to primary if krutrim not available
                 if stream_queue:
                     answer = ""
-                    async for chunk in _ollama.generate_stream(system_prompt="", user_prompt=prompt):
+                    async for chunk in _ollama.generate_stream(
+                        system_prompt=system_prompt, user_prompt=user_prompt
+                    ):
                         if chunk:
                             await stream_queue.put(chunk)
                             answer += chunk
                 else:
                     answer = await _ollama.generate(
-                        system_prompt="",
-                        user_prompt=prompt,
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
                     )
         except Exception as e:
             logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
             if stream_queue:
                 answer = ""
-                async for chunk in _ollama.generate_stream(system_prompt="", user_prompt=prompt):
+                async for chunk in _ollama.generate_stream(
+                    system_prompt=system_prompt, user_prompt=user_prompt
+                ):
                     if chunk:
                         await stream_queue.put(chunk)
                         answer += chunk
             else:
                 answer = await _ollama.generate(
-                    system_prompt="",
-                    user_prompt=prompt,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
                 )
     else:
         if stream_queue:
             answer = ""
-            async for chunk in _ollama.generate_stream(system_prompt="", user_prompt=prompt):
+            async for chunk in _ollama.generate_stream(
+                system_prompt=system_prompt, user_prompt=user_prompt
+            ):
                 if chunk:
                     await stream_queue.put(chunk)
                     answer += chunk
         else:
             answer = await _ollama.generate(
-                system_prompt="",  # System prompt is now embedded in the persona layer
-                user_prompt=prompt,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
             )
 
     if not answer or not answer.strip():

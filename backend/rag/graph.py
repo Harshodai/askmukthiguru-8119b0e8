@@ -40,13 +40,10 @@ from rag.nodes import (
     init_services,
     # Node functions
     intent_router,
-    merge_sub_results,
     navigate_knowledge_tree,
     reflect_on_answer,
     rerank_documents,
     retrieve_documents,
-    retrieve_single,
-    route_sub_queries,
     rewrite_query,
     route_after_grading,
     # Routing functions
@@ -90,19 +87,26 @@ def build_rag_graph(
         externally by the FastAPI route handler.
       - Layers 2-11 are implemented as graph nodes here.
 
-    Architecture (optimized — 5-6 LLM calls instead of 11-13):
+    Architecture (linear — reliable asyncio.gather parallelism within retrieve_documents):
 
     START → intent_router
       ├─ DISTRESS → handle_distress → END
       ├─ MEDITATION_CONTINUE → handle_meditation → END
       ├─ CASUAL → handle_casual → END
-      └─ QUERY → decompose_query → retrieve_documents → rerank_documents
-                → grade_documents
-                    ├─ relevant → generate_answer (with inline hints)
-                    │             → verify_answer (combined Self-RAG + CoVe)
-                    │             → format_final_answer → END
+      └─ QUERY → resolve_followup → decompose_query
+                → navigate_knowledge_tree → generate_hyde
+                → retrieve_documents (parallel sub-query fetch via asyncio.gather)
+                → rerank_documents → grade_documents → check_context_sufficiency
+                    ├─ relevant → enrich_context → context_engineer
+                    │             → [generate_answer + explain_retrieval] (parallel)
+                    │             → reflect_on_answer → verify_answer
+                    │             → check_contradiction → format_final_answer → END
                     ├─ rewrite (< 3x) → rewrite_query → retrieve_documents (loop)
                     └─ fallback (≥ 3x) → handle_fallback → END
+
+    Note: retrieve_documents handles parallel sub-query retrieval internally via
+    asyncio.gather() — this avoids LangGraph Send API version compatibility issues
+    while preserving full parallelism at the retrieval layer.
 
     Returns:
         Compiled LangGraph (CompiledStateGraph) ready for invocation
@@ -120,15 +124,12 @@ def build_rag_graph(
     graph.add_node("resolve_followup", resolve_followup)
     graph.add_node("decompose_query", decompose_query)
     graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
-    graph.add_node("retrieve_documents", retrieve_documents)  # kept for CRAG rewrite loop
-    graph.add_node("route_sub_queries", route_sub_queries)
-    graph.add_node("retrieve_single", retrieve_single)
-    graph.add_node("merge_sub_results", merge_sub_results)
+    graph.add_node("generate_hyde", generate_hyde)
+    graph.add_node("retrieve_documents", retrieve_documents)
     graph.add_node("rerank_documents", rerank_documents)
     graph.add_node("grade_documents", grade_documents)
     graph.add_node("enrich_context", enrich_context)
     graph.add_node("check_context_sufficiency", check_context_sufficiency)
-
     graph.add_node("rewrite_query", rewrite_query)
     graph.add_node("generate_answer", generate_answer)
     graph.add_node("reflect_on_answer", reflect_on_answer)
@@ -141,7 +142,6 @@ def build_rag_graph(
     graph.add_node("handle_distress", handle_distress)
     graph.add_node("handle_meditation", handle_meditation)
     graph.add_node("handle_fallback", handle_fallback)
-    graph.add_node("generate_hyde", generate_hyde)
 
     # === Set entry point ===
     graph.set_entry_point("intent_router")
@@ -164,20 +164,14 @@ def build_rag_graph(
     graph.add_edge("resolve_followup", "decompose_query")
 
     # === Linear edges for the RAG pipeline ===
-    # PageIndex-inspired: navigate tree & HyDE in parallel → route_sub_queries
-    # route_sub_queries returns List[Send] → LangGraph spawns retrieve_single branches
-    # All branches fan-in to merge_sub_results (via collect_sub_results reducer)
+    # Pre-retrieval optimization: tree navigation → HyDE → retrieval
     graph.add_edge("decompose_query", "navigate_knowledge_tree")
-    graph.add_edge("decompose_query", "generate_hyde")
+    graph.add_edge("navigate_knowledge_tree", "generate_hyde")
+    graph.add_edge("generate_hyde", "retrieve_documents")
 
-    # Both pre-retrieval nodes must complete before fan-out dispatch
-    graph.add_edge("navigate_knowledge_tree", "route_sub_queries")
-    graph.add_edge("generate_hyde", "route_sub_queries")
-
-    # route_sub_queries returns List[Send] — LangGraph handles fan-out automatically
-    # retrieve_single branches all converge to merge_sub_results via fan-in reducer
-    graph.add_edge("retrieve_single", "merge_sub_results")
-    graph.add_edge("merge_sub_results", "rerank_documents")
+    # retrieve_documents handles parallel sub-query retrieval internally
+    # via asyncio.gather — this is battle-tested and version-compatible
+    graph.add_edge("retrieve_documents", "rerank_documents")
     graph.add_edge("rerank_documents", "grade_documents")
     graph.add_edge("grade_documents", "check_context_sufficiency")
 
@@ -230,6 +224,8 @@ def build_rag_graph(
     compiled = graph.compile()
     logger.info("LangGraph RAG pipeline compiled successfully")
     return compiled
+
+
 
 
 def create_initial_state(
