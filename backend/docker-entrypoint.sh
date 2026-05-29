@@ -15,18 +15,21 @@ chown -R appuser:appuser /app/data || echo "Warning: Could not chown /app/data"
 
 # Detect available CPU cores and set worker count
 if [ -z "${WEB_CONCURRENCY}" ]; then
-    # Default: 2 workers per pod (lightweight, scale horizontally with HPA)
-    WEB_CONCURRENCY="2"
+    # Default: 1 worker (ML-heavy: embedding model ~1.4GB per process; don't OOM)
+    # Scale horizontally with multiple container replicas instead.
+    WEB_CONCURRENCY="1"
     export WEB_CONCURRENCY
     echo "Auto-setting WEB_CONCURRENCY to ${WEB_CONCURRENCY}"
 fi
 
-# If the command starts with python, uvicorn, or gunicorn, apply privilege drop
-if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]] || [[ "$1" == 'gunicorn' ]]; then
+# If the command starts with python/uvicorn, inject --workers from WEB_CONCURRENCY
+if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
+    echo "Starting uvicorn with WEB_CONCURRENCY=${WEB_CONCURRENCY} workers..."
     echo "Dropping privileges to appuser..."
-    # Exec gosu to run the actual command as appuser, replacing the current process (for SIGTERM)
-    exec gosu appuser "$@"
+    exec gosu appuser python -m uvicorn app.main:app \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --workers "${WEB_CONCURRENCY}" \
+        --timeout-keep-alive 300
 fi
 
-# Fallback: just execute the command as-is
-exec "$@"

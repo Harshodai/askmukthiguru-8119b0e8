@@ -105,7 +105,7 @@ services:
       # --- Sarvam Cloud API (config-driven — any model name works) ---
       - SARVAM_API_KEY=${SARVAM_API_KEY:-}
       - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
-      - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
+      - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-m}
       - SARVAM_BASE_URL=${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-120}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-2}
@@ -161,6 +161,14 @@ services:
       # Server
       - HOST=0.0.0.0
       - PORT=8000
+      # Workers: Force 1 worker to prevent OOM from multi-process ML model loading.
+      # The embedding model (multilingual-e5-large-instruct) uses ~1.4GB RAM per process.
+      # Use 1 worker + async concurrency (FastAPI/uvicorn handles concurrent requests).
+      - WEB_CONCURRENCY=1
+      # Disable Sarvam debug log (prevents unbounded sarvam_debug.json growth)
+      - SARVAM_DEBUG=false
+      # Reranker: FlashRank not installed in image, use CrossEncoder fallback
+      - USE_FLASHRANK=false
       # Auth
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       # Development only. In production, set this to allowed origins (e.g. https://myapp.com)

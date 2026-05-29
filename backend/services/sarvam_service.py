@@ -335,20 +335,17 @@ class SarvamCloudService:
             logger.warning("_call_api: No valid messages to send after validation")
             return ""
 
-        # Proactively cap default max_tokens to prevent HTTP 400 for starter tier
-        if model.startswith("sarvam-") and max_tokens == 8192:
-            if "sarvam-m" in model:
-                max_tokens = 2048
-            else:
-                max_tokens = 4096
-            capped_output_length = max_tokens
+        # Proactively cap max_tokens for sarvam-m (lighter model, smaller context window)
+        if "sarvam-m" in model and max_tokens > 2048:
+            max_tokens = 2048
             logger.info(
-                f"_call_api: Proactively capped default output length to {capped_output_length} for {model}"
+                f"_call_api: Capped max_tokens to {max_tokens} for sarvam-m (starter tier)"
             )
 
-        # Ensure reasoning models like sarvam-30b have a large enough max_tokens budget
+        # Ensure reasoning models like sarvam-30b and sarvam-105b have a large enough max_tokens budget
         # to generate both the thinking trace and the final content response.
-        if "sarvam-30b" in model and max_tokens < 4096:
+        # But we must cap/scale it to 4096 to prevent starter tier limit HTTP 400 errors.
+        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 4096:
             logger.info(
                 f"_call_api: Dynamically scaling max_tokens from {max_tokens} to 4096 for reasoning model {model}."
             )
@@ -842,7 +839,7 @@ class SarvamCloudService:
             else:
                 max_tokens = 4096
 
-        if "sarvam-30b" in self._gen_model and max_tokens < 4096:
+        if ("sarvam-30b" in self._gen_model or "sarvam-105b" in self._gen_model) and max_tokens != 4096:
             logger.info(
                 f"generate_stream: Scaling max_tokens to 4096 for reasoning model {self._gen_model}"
             )
