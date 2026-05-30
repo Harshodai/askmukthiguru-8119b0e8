@@ -190,18 +190,19 @@ import time
 
 
 def log_metrics(func):
-    """Decorator to log execution time of nodes."""
+    """Decorator to log execution time of nodes and record into GraphState.node_timings."""
 
     @functools.wraps(func)
     async def wrapper(state: GraphState, *args, **kwargs):
         start = time.time()
         result = await func(state, *args, **kwargs)
         duration = time.time() - start
+        duration_ms = round(duration * 1000, 1)
 
         node_name = func.__name__
         request_id = state.get("request_id")
         log_extra = {"request_id": request_id} if request_id else {}
-        logger.info(f"Node '{node_name}' finished in {duration:.4f}s", extra=log_extra)
+        logger.info(f"Node '{node_name}' finished in {duration:.4f}s ({duration_ms}ms)", extra=log_extra)
 
         # Record to Prometheus
         try:
@@ -209,15 +210,22 @@ def log_metrics(func):
         except Exception:
             pass
 
-        # Merge metrics into state
+        # Merge into legacy metrics dict (seconds)
         metrics = state.get("metrics") or {}
         metrics[node_name] = duration
 
-        # If result merges into state, ensure we preserve/update metrics
+        # Merge into node_timings dict (milliseconds — structured, telemetry-ready)
+        node_timings_update = {node_name: duration_ms}
+
+        # If result merges into state, ensure we preserve/update both dicts
         if isinstance(result, dict):
             existing_metrics = result.get("metrics", {})
             existing_metrics.update(metrics)
             result["metrics"] = existing_metrics
+            # Merge node_timings (add_dicts reducer will further merge on LangGraph side)
+            existing_timings = result.get("node_timings", {})
+            existing_timings.update(node_timings_update)
+            result["node_timings"] = existing_timings
 
         return result
 
