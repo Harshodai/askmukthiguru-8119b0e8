@@ -1,77 +1,129 @@
-# Admin console + chat polish plan
+# Admin console — make every page + drill-down actually work
 
-## Root cause (what I found during exploration)
+## Audit (what's broken today)
 
-1. **Admin pages are mostly empty / broken** because the database only has 6 tables (`profiles`, `user_roles`, `conversations`, `chat_messages`, `meditation_sessions`, `daily_teachings`). Every admin query hits non-existent tables (`chat_queries`, `chat_responses`, `retrieval_events`, `trace_spans`, `prompt_versions`, `app_logs`, `alert_*`, `eval_*`, `ingestion_runs`, `golden_questions`, `model_pricing`, `query_clusters`, `safety_events`, `trigger_events`, `user_profiles`, `annotations`). Supabase silently returns errors → pages render empty / crash on `.length` on undefined.
-2. **Drill-down crashes on missing rows** even though `getQueryTrace` now uses `maybeSingle()` — `TraceDrawer` still dereferences `trace.response.citations.length`, `trace.retrieval.source_docs.map`, `trace.query.id`, `trace.prompt.name` without guards when the table doesn't exist or the row is partial.
-3. **Thinking pill misalignment**: assistant bubble is laid out as `avatar(28px) + gap(10px) + bubble`, so the bubble's left edge sits at 38px. Pill uses `pl-12` (48px) → 10px off, and on mobile it has `pl-0` so it jumps left entirely. Pill also has no avatar gutter, so width and indentation never match assistant column.
+I walked every page in `src/admin/pages/*` and traced its hook → `api.ts` → `mockData.ts` → Supabase. The console has three classes of breakage:
 
-## Scope
+### A. Pages whose data layer returns hard-coded `[]` / `null`
+`mockData.ts` currently stubs these to empty results, so the page renders but shows nothing:
 
-### Track A — Database (Lovable Cloud migration)
-Create the admin telemetry schema in one migration:
+| Page | Stub returning empty |
+|---|---|
+| Retrieval (sources / sim trend / empty / dead) | `getRetrievalHealth`, `getSimilarityTrend`, `getEmptyRetrievals`, `getDeadDocs` |
+| Quality (disagreement / low-conf / RAGAS heatmap) | `getQualityData`, `getRagasHeatmap` |
+| Triggers (14-day stacked area) | `getTriggerTrend` |
+| Prompts (per-version metric bars) | `getPromptMetricsByVersion` |
+| Overview "Top sources" tab | depends on `getRetrievalHealth` |
 
-- Tables: `chat_queries`, `chat_responses`, `retrieval_events`, `trace_spans`, `trigger_events`, `safety_events`, `prompt_versions`, `alert_rules`, `alert_events`, `annotations`, `app_logs`, `eval_runs`, `eval_results`, `golden_questions`, `ingestion_runs`, `model_pricing`, `query_clusters`, `user_profiles`, `feedback_events`.
-- For each: `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated`, `GRANT ALL … TO service_role`, `ENABLE ROW LEVEL SECURITY`, plus admin-only RLS using existing `public.has_role(auth.uid(), 'admin')`. Insert policy for `service_role` only (backend writes).
-- Seed a tiny dev fixture (3 queries: one full trace, one missing response, one missing retrieval) gated behind a `seed_admin_demo()` SECURITY DEFINER function that only runs when caller is admin.
+### B. UI reads columns that don't exist in the DB
+The UI types were authored against a richer eventual schema. Today's tables are slimmer, so pages either render blank cells or silently 500:
 
-### Track B — Frontend hardening
-- `TraceDrawer.tsx`: guard every `trace.response`, `trace.retrieval`, `trace.prompt`, `trace.query`, `trace.triggers`, `trace.feedback`, `citations`, `source_docs`, `spans` access. Render explicit empty-state cards ("No response recorded", "No retrieval recorded", "No spans") instead of crashing.
-- `mockData.ts`: catch Supabase errors per query so one missing table doesn't blank the whole page; return `[]` with a logged warning.
-- Each admin page (`OverviewPage`, `QueriesPage`, `QualityPage`, `RetrievalPage`, `TriggersPage`, `TopicsPage`, `PromptsPage`, `EvalsPage`, `IngestionPage`, `LogsPage`, `TelemetryPage`, `AlertsPage`, `SettingsPage`, `AdminsPage`, `FeedbackPage`, `DailyTeachingPage`): wrap in `AdminErrorBoundary`, ensure `EmptyState` renders on `[]`, fix any unguarded `.map`/`.length` against possibly-null data.
-- `useAdminData` hooks: switch to `useQuery` with `retry: false` and surface error toasts instead of infinite loading.
+| Table | Columns UI expects but DB lacks |
+|---|---|
+| `alert_rules` | `active`, `window_minutes`, `channel`, `target` (DB has `enabled` only) |
+| `alert_events` | `rule_name`, `resolved_at` |
+| `eval_runs` | `triggered_by`, structured `summary.{passed,total,avg_*}` |
+| `golden_questions` | `active`, `expected_sources` |
+| `annotations` | `label`, `notes`, `promoted_to_golden`, `response_id` |
+| `safety_events` | `type`, `excerpt` (DB has `rule`, `details`) |
+| `ingestion_runs` | `duration_ms`, `error_log` |
+| `app_logs` | `request_id` (used to group logs) |
+| `chat_queries` | already OK; `prompt_version_id` exists |
 
-### Track C — Thinking pill alignment (chat)
-Re-skin `ThinkingPills.tsx` to share the assistant-row geometry:
-- Wrap in the same `flex items-start gap-2.5 justify-start` shell with a 28px avatar slot (faded Sparkles icon) so the pill body starts at the exact same x as the assistant bubble.
-- Drop `pl-0 sm:pl-12`; rely on the shared shell padding from `MessageList`.
-- Constrain to `max-w-[85%] sm:max-w-[75%]` to match bubble width.
-- Mobile: avatar visible so left edge matches assistant.
+### C. Mutations that are no-ops or impossible from client
+| Function | Issue |
+|---|---|
+| `promoteAdmin(email)` | Needs `auth.users` email lookup → must be a SECURITY DEFINER RPC |
+| `demoteAdmin`, `upsertAlertRule`, `upsertGoldenQuestion`, `deleteGoldenQuestion`, `upsertModelPricing`, `activatePromptVersion` | All currently no-op or partial; need straight upsert/delete |
+| `listAdmins` | Joins `auth_users:user_id(email)` which isn't a real FK → must be an RPC |
+| `triggerReingest(source)` | Hits FastAPI ingestion pipeline — out of Lovable's reach |
+| `askData(prompt)` | Needs LLM call against telemetry — backend |
+| `submitIngestion` (Ingestion page form) | Hits FastAPI — backend |
 
-### Track D — E2E + unit tests
-- New `tests/e2e/admin-pages-smoke.spec.ts`: log in as admin, visit every admin route, assert no console error and either data or empty-state is visible.
-- New `tests/e2e/admin-trace-drilldown.spec.ts`: seed via `seed_admin_demo()`, open Queries page, click each of the 3 fixtures, assert drawer renders spans / chunks / response for the full trace, and renders empty-state strings for the partial traces, without crashing.
-- New `tests/e2e/chat-thinking-pill.spec.ts`: send a query, capture bounding box of the pill and of the next assistant bubble, assert `Math.abs(pill.left - bubble.left) < 2px`.
-- Vitest: extend `mockData.test.ts` with a "missing response row" case asserting `getQueryTrace` returns `null`-shaped fields without throwing.
+### D. Trace drill-down
+`TraceDrawer` was already hardened in the previous turn (guarded `trace.prompt`, `trace.retrieval`, `trace.response`, `trace.feedback`, `trace.triggers`). I'll verify nothing regressed and that the seed produces a clickable trace end-to-end.
 
-## Backend steps you need to do (FastAPI side)
+---
 
-Once Track A migration lands, your backend has to start writing trace rows to Supabase. Concrete checklist:
+## What I'll change
 
-1. Add `SUPABASE_SERVICE_ROLE_KEY` to `backend/.env` (already in Lovable secrets — copy locally).
-2. `pip install supabase==2.*` in `backend/requirements.txt`.
-3. Create `backend/app/telemetry_sink.py` with a single `SupabaseTelemetrySink` class using `create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`.
-4. In `app/main.py` chat handler, after the LangGraph run completes, insert one row each into:
-   - `chat_queries` (id=request_id, user_id, query_text, model, latency_ms, prompt_tokens, completion_tokens, cost_estimate, status, created_at)
-   - `chat_responses` (query_id=request_id, response_text, citations jsonb, faithfulness, answer_relevancy, context_precision, context_recall, hallucination_flag, confidence, judge_reasoning)
-   - `retrieval_events` (query_id, source_docs text[], scores numeric[])
-   - `trace_spans` (query_id, span_name, start_ms, duration_ms) — one row per LangGraph node from `state['span_log']`.
-   - `trigger_events` / `safety_events` when the rails or detectors fire.
-5. Wrap inserts in a background task (`asyncio.create_task`) so telemetry never blocks the user response.
-6. Restart backend with `make docker-rebuild-web`. Verify in Supabase: `select count(*) from chat_queries;` grows after each chat.
-7. (Optional) Mirror Python logs into `app_logs` via a logging handler so the admin Logs page populates.
+### 1. One migration — extend existing tables + add the two RPCs we need
 
-After step 6 every admin page should populate with real data and the drill-down passes the E2E.
+```text
+ALTER alert_rules     ADD window_minutes int, channel text, target text;
+                      RENAME enabled → active (keep both via view if needed; pick rename)
+ALTER alert_events    ADD rule_name text, resolved_at timestamptz
+ALTER eval_runs       ADD triggered_by text DEFAULT 'manual', prompt_version_id uuid
+ALTER golden_questions ADD active boolean DEFAULT true, expected_sources text[] DEFAULT '{}'
+ALTER annotations     ADD label text, notes text, promoted_to_golden boolean DEFAULT false, response_id uuid
+ALTER safety_events   ADD type text, excerpt text
+ALTER ingestion_runs  ADD duration_ms int, error_log text
+ALTER app_logs        ADD request_id text DEFAULT ''
 
-## Out of scope
-- Re-architecting the existing chat scrolling / inline edit work.
-- Building new admin features (golden-question editor, alert evaluator) — only making existing pages render reliably.
-- Backend Python changes — I will only document what you need to do (above), not edit Python files.
+CREATE FUNCTION public.list_admins() …            -- joins auth.users for email
+CREATE FUNCTION public.promote_admin_by_email() … -- looks up auth.users
+CREATE FUNCTION public.demote_admin_by_id(uuid) …
 
-## Files touched
-- `supabase/migrations/<ts>_admin_telemetry.sql` (new, single migration)
-- `src/admin/components/TraceDrawer.tsx`
-- `src/admin/lib/mockData.ts`, `src/admin/lib/mockData.test.ts`
-- `src/admin/pages/*.tsx` (defensive guards + EmptyState only)
-- `src/admin/hooks/useAdminData.ts`
-- `src/components/chat/ThinkingPills.tsx`
-- `src/test/ThinkingPills.test.tsx`
-- `tests/e2e/admin-pages-smoke.spec.ts` (new)
-- `tests/e2e/admin-trace-drilldown.spec.ts` (new)
-- `tests/e2e/chat-thinking-pill.spec.ts` (new)
+-- extend seed_admin_demo() to also seed: 1 alert rule, 1 fired event,
+--   1 prompt v1+v2 with responses tagged, 1 eval run, 1 golden q,
+--   1 ingestion run, 1 annotation, 1 safety event, a few app_logs
+--   with a shared request_id, 1 trigger over 7 days for trend.
+```
 
-## Verification
-1. Run new Vitest + Playwright suites (must be green).
-2. Manually click every admin page in preview — none blank, none console errors.
-3. Open drill-down on full + partial traces — both render without crash.
-4. Inspect chat: pill left-edge aligns to assistant bubble within 2px on both mobile (375px) and desktop (1280px).
+All `GRANT`s, RLS unchanged (admin-only).
+
+### 2. Rewrite the stubs in `src/admin/lib/mockData.ts`
+
+Real Supabase queries for:
+- `getRetrievalHealth` → aggregate `retrieval_events` + `chat_responses.faithfulness` per source
+- `getSimilarityTrend` → bucketize `retrieval_events.scores[0]`
+- `getEmptyRetrievals` → `retrieval_events` where `array_length(source_docs)=0`
+- `getDeadDocs` → returns `[]` with a comment (needs document registry — backend doc)
+- `getQualityData` → disagreement (feedback rating vs faithfulness), low-confidence list
+- `getRagasHeatmap` → bucketize `chat_responses.{faithfulness,relevancy,precision,recall}`
+- `getTriggerTrend` → bucketize `trigger_events` grouped by `trigger_name` over N days
+- `getPromptMetricsByVersion` → group `chat_responses` joined to `chat_queries.prompt_version_id`
+- `upsertAlertRule`, `upsertGoldenQuestion`, `deleteGoldenQuestion`, `upsertModelPricing` → real upserts/deletes
+- `promoteAdmin`, `demoteAdmin`, `listAdmins` → call the new RPCs
+- `triggerReingest`, `askData` → keep as no-op + `toast.info("Backend required — see BACKEND_INTEGRATION.md")`
+
+### 3. New file `BACKEND_INTEGRATION.md`
+
+Step-by-step for the four things Lovable cannot do client-side:
+1. **Telemetry sink** — FastAPI `chat` handler writing into `chat_queries`, `chat_responses`, `retrieval_events`, `trace_spans`, `trigger_events`, `safety_events`, `app_logs` via `SUPABASE_SERVICE_ROLE_KEY`. Includes the exact `telemetry_sink.py` module skeleton.
+2. **Ingestion API** — `POST /api/ingest`, `GET /api/ingest/status` contract used by `IngestionPage`. Required env: `BACKEND_URL`, JWT verification using `SUPABASE_JWKS`.
+3. **AskData / NL→SQL** — backend endpoint that takes the KPI context + question, calls Lovable AI Gateway, returns markdown. Sample FastAPI route.
+4. **Document registry for dead-docs** — `document_registry` table populated at ingestion time; query in `getDeadDocs`.
+5. **Jaeger embed** — the `TelemetryPage` already iframes `VITE_JAEGER_UI_URL`; doc the reverse-proxy + CORS settings.
+
+Each section: env vars, table schema needed, exact endpoint signature, curl test command, expected admin page that lights up.
+
+### 4. Verification
+
+After migration runs and the seed RPC is re-executed:
+- Click "Seed demo traces" → invalidate React Query → every list page should show ≥1 row.
+- Open Queries → click row → drawer shows spans, retrieval, response, judge bars, triggers.
+- Open Prompts → bar chart renders v1/v2 metrics.
+- Open Retrieval → sources tab populated, sim trend chart has points.
+- Open Quality → RAGAS heatmap renders, low-conf list has the partial-trace row.
+- Open Triggers → 7-day stacked area shows data.
+- Open Alerts → rule list + fired event row.
+- Open Evals → run row + 1 golden question.
+- Open Logs → grouped-by-request-id button works.
+- Open Admins → current admin email shown via `list_admins()` RPC.
+- Ingestion + AskData + Reingest → show "Backend required" toast (expected).
+
+### 5. Files
+
+- `supabase/migrations/<ts>_admin_console_completeness.sql` (new)
+- `src/admin/lib/mockData.ts` (rewrite stubs)
+- `BACKEND_INTEGRATION.md` (new, at repo root)
+- `src/admin/types.ts` (only widen `AlertRule.active`/`enabled` union if needed — no breaking changes)
+
+### Out of scope
+
+- Building the FastAPI endpoints themselves (documented instead).
+- Re-skinning any admin page.
+- Touching `/chat` or auth flow.
+
+Approve and I'll execute the migration first, then the code + doc in one batch.
