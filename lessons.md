@@ -876,3 +876,19 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - `datetime.UTC` (Python 3.11+) must be replaced with `datetime.timezone.utc` for scripts that may run on Python 3.9 (system Python on macOS).
   - Docker internal hostnames (e.g., `neo4j:7687`) do not resolve on the host machine — scripts run outside Docker must auto-detect and fall back to `localhost`.
 
+
+### 68. ContextualChunkingService Was Dead Code — full_document Must Be Passed Explicitly (May 2026)
+- **Problem**: `ContextualChunkingService.enrich_chunks(full_document, chunks)` was implemented correctly but never called because all three `_augment_chunks()` call sites in `pipeline.py` passed no `full_document` argument (defaulted to `""`). The `if full_document:` guard inside `_augment_chunks` then silently skipped the enrichment step. This was undetected because the function returned successfully without raising errors.
+- **Solution**: Passed `full_document=clean_text` at all three `_augment_chunks()` call sites: `ingest_raw_text()` (L240), `_ingest_video()` (L354), and `_ingest_video_enhanced()` (L476).
+- **Lesson learned**: Default-mutable optional arguments that gate expensive logic (`if param:`) are a silent-failure pattern — the call path appears to work but the expensive step is skipped. When adding optional enrichment gated on a truthy parameter, also check every call site to confirm the argument is actually passed.
+
+### 69. ekimetrics/adaptive-chunking: Wrap Don't Fork (May 2026)
+- **Problem**: The homegrown `AdaptiveChunkingService` implements 2 of the 5 ekimetrics metrics (SC + ICC). The 3 missing metrics (DCC, BI, RC) provide additional signal for chunk quality evaluation and future threshold tuning.
+- **Solution**: Created `AdaptiveChunkingAdapter(AdaptiveChunkingService)` — a thin subclass that calls `super().chunk_document()` then runs DCC, BI, RC scoring on the result and logs them. No changes to the strategy selection logic. Single-line swap in `pipeline.py`.
+- **Lesson learned**: When integrating external library patterns into an existing service, prefer a thin adapter/decorator pattern over a full rewrite. This preserves all tested behavior while incrementally adding the new capabilities as additive logging/signals.
+
+### 70. Graceful Shutdown Drain Pattern for FastAPI + Gunicorn (May 2026)
+- **Problem**: No in-flight request tracking. When Kubernetes sends SIGTERM during rolling updates, the lifespan exit would immediately tear down services (Neo4j, Qdrant connections, embedding models) even with active requests in the 20-node LangGraph pipeline. Mid-graph requests would produce abrupt client errors.
+- **Solution**: Added a module-level `_INFLIGHT = 0` counter. An `@app.middleware("http")` decorator increments on entry and decrements in a `finally` block on exit. The lifespan shutdown block polls every 250ms and waits up to 30s for `_INFLIGHT` to reach 0 before calling `shutdown()`. CPython's GIL makes int increment/decrement safe without locks.
+- **Lesson learned**: The correct order for graceful Gunicorn shutdown is: (1) stop accepting new connections (handled by Gunicorn's `graceful_timeout`), (2) wait for in-flight requests (app-level drain), (3) teardown services. Step 2 requires explicit application-level tracking; Gunicorn alone does not wait for streaming SSE responses to complete.
+
