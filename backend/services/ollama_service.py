@@ -23,6 +23,7 @@ from enum import Enum
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
+from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
 from rag.prompts import (
@@ -179,43 +180,46 @@ class OllamaService:
         # Extract timeout from kwargs (pop so it's not passed to bind())
         timeout = kwargs.pop("timeout", settings.llm_timeout)
         max_retries = kwargs.pop("max_retries", 1)
-        last_err = None
 
         # Circuit breaker: fail-fast if too many consecutive failures
         if not self._circuit_breaker.can_execute():
-            self._circuit_breaker.record_failure()
             raise Exception(
                 f"Ollama circuit breaker is OPEN — failing fast. "
                 f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
             )
 
-        for attempt in range(max_retries):
-            try:
-                chain = self._llm.bind(**kwargs) if kwargs else self._llm
-                response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
-                content = response.content.strip()
-                import re
-                think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                content_outside_think = re.sub(
-                    r"<think>.*?</think>", "", content, flags=re.DOTALL
-                ).strip()
+        retryer = AsyncRetrying(
+            stop=stop_after_attempt(max_retries),
+            wait=wait_exponential(multiplier=0.5, min=0.5, max=5.0),
+            retry=retry_if_exception_type((asyncio.TimeoutError, httpx.HTTPError)),
+            reraise=True,
+        )
 
-                if content_outside_think:
-                    content = content_outside_think
-                elif think_match:
-                    content = think_match.group(1).strip()
-                else:
-                    content = content.strip()
-                return content
-            except asyncio.TimeoutError as e:
-                last_err = f"Ollama generate timeout after {timeout}s (attempt {attempt+1}/{max_retries})"
-                logger.warning(last_err)
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(0.5 * (attempt + 1))
-            except Exception as e:
-                logger.error(f"Ollama generation failed: {e}")
-                raise
-        raise TimeoutError(f"All {max_retries} retries exhausted after {timeout}s") from last_err
+        try:
+            async for attempt in retryer:
+                with attempt:
+                    chain = self._llm.bind(**kwargs) if kwargs else self._llm
+                    response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
+                    content = response.content.strip()
+                    import re
+                    think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                    content_outside_think = re.sub(
+                        r"<think>.*?</think>", "", content, flags=re.DOTALL
+                    ).strip()
+
+                    if content_outside_think:
+                        content = content_outside_think
+                    elif think_match:
+                        content = think_match.group(1).strip()
+                    else:
+                        content = content.strip()
+                    
+                    self._circuit_breaker.record_success()
+                    return content
+        except Exception as e:
+            self._circuit_breaker.record_failure()
+            logger.error(f"Ollama generation failed: {e}")
+            raise
 
     async def _generate_fast(
         self,
@@ -238,35 +242,46 @@ class OllamaService:
         _FAST_RETRIES = 2
         timeout = kwargs.pop("timeout", _FAST_TIMEOUT)
         max_retries = kwargs.pop("max_retries", _FAST_RETRIES)
-        last_err = None
-        for attempt in range(max_retries):
-            try:
-                chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
-                response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
-                content = response.content.strip()
-                import re
-                think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                content_outside_think = re.sub(
-                    r"<think>.*?</think>", "", content, flags=re.DOTALL
-                ).strip()
 
-                if content_outside_think:
-                    content = content_outside_think
-                elif think_match:
-                    content = think_match.group(1).strip()
-                else:
-                    content = content.strip()
-                return content
-            except asyncio.TimeoutError as e:
-                last_err = f"Ollama _generate_fast timeout after {timeout}s (attempt {attempt+1}/{max_retries})"
-                logger.warning(last_err)
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(0.5 * (attempt + 1))
-            except Exception as e:
-                logger.warning(f"Fast model failed: {e}, falling back to main model")
-                return await self.generate(system_prompt, user_prompt, **kwargs)
-        logger.warning(f"Fast model retries exhausted, falling back to main model")
-        return await self.generate(system_prompt, user_prompt, **kwargs)
+        # Circuit breaker: fail-fast if too many consecutive failures
+        if not self._circuit_breaker.can_execute():
+            raise Exception(
+                f"Ollama circuit breaker is OPEN — failing fast. "
+                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
+            )
+
+        retryer = AsyncRetrying(
+            stop=stop_after_attempt(max_retries),
+            wait=wait_exponential(multiplier=0.5, min=0.5, max=5.0),
+            retry=retry_if_exception_type((asyncio.TimeoutError, httpx.HTTPError)),
+            reraise=True,
+        )
+
+        try:
+            async for attempt in retryer:
+                with attempt:
+                    chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
+                    response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
+                    content = response.content.strip()
+                    import re
+                    think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                    content_outside_think = re.sub(
+                        r"<think>.*?</think>", "", content, flags=re.DOTALL
+                    ).strip()
+
+                    if content_outside_think:
+                        content = content_outside_think
+                    elif think_match:
+                        content = think_match.group(1).strip()
+                    else:
+                        content = content.strip()
+                    
+                    self._circuit_breaker.record_success()
+                    return content
+        except Exception as e:
+            self._circuit_breaker.record_failure()
+            logger.warning(f"Fast model failed: {e}, falling back to main model")
+            return await self.generate(system_prompt, user_prompt, **kwargs)
 
     async def generate_stream(
         self,
@@ -280,6 +295,12 @@ class OllamaService:
 
         Yields tokens as they are generated for SSE streaming.
         """
+        if not self._circuit_breaker.can_execute():
+            raise Exception(
+                f"Ollama circuit breaker is OPEN — failing fast. "
+                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
+            )
+
         messages = [SystemMessage(content=system_prompt)]
 
         if context:
@@ -294,7 +315,9 @@ class OllamaService:
             async for chunk in chain.astream(messages):
                 if chunk.content:
                     yield chunk.content
+            self._circuit_breaker.record_success()
         except Exception as e:
+            self._circuit_breaker.record_failure()
             logger.error(f"Ollama streaming failed: {e}")
             raise
 
