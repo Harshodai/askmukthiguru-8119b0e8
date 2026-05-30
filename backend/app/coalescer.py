@@ -87,11 +87,14 @@ class RedisCoalescer:
     async def _run_as_leader(
         self, coro_func: typing.Callable[[], typing.Any], result_key: str, lock_key: str
     ) -> typing.Any:
+        list_key = f"coalesce:list:{result_key.split(':')[-1]}"
         try:
             result = await coro_func()
             try:
                 serialized = json.dumps(result, default=str)
                 await self._redis.set(result_key, serialized, ex=self._ttl)
+                await self._redis.rpush(list_key, "done")
+                await self._redis.expire(list_key, self._ttl)
             except (TypeError, ValueError) as e:
                 logger.warning(f"Could not serialize coalescer result: {e}")
             return result
@@ -111,8 +114,9 @@ class RedisCoalescer:
         lock_key: str,
         coro_func: typing.Callable[[], typing.Any],
     ) -> typing.Any:
+        list_key = f"coalesce:list:{result_key.split(':')[-1]}"
         waited = 0.0
-        step = self._poll_interval
+        block_timeout = 2
         while waited < self._max_wait:
             # Check if result is available
             data = await self._redis.get(result_key)
@@ -130,8 +134,20 @@ class RedisCoalescer:
                 if acquired:
                     return await self._run_as_leader(coro_func, result_key, lock_key)
 
-            await asyncio.sleep(step)
-            waited += step
+            try:
+                res = await self._redis.blpop(list_key, timeout=block_timeout)
+                if res:
+                    await self._redis.rpush(list_key, "done")
+                    data = await self._redis.get(result_key)
+                    if data:
+                        return json.loads(data)
+            except Exception as e:
+                logger.warning(f"Error during blpop blocking wait: {e}")
+                await asyncio.sleep(0.1)
+                waited += 0.1
+                continue
+
+            waited += block_timeout
 
         # Timeout exceeded — run independently
         logger.warning(f"Coalesce timeout for {result_key}, running independently")
