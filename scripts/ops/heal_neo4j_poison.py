@@ -176,6 +176,19 @@ def call_sarvam_scrub(entity_name: str, contaminated_text: str) -> str | None:
             resp.raise_for_status()
             data = resp.json()
             content = data["choices"][0]["message"]["content"].strip()
+            import re
+            think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+            content_outside_think = re.sub(
+                r"<think>.*?</think>", "", content, flags=re.DOTALL
+            ).strip()
+
+            if content_outside_think:
+                content = content_outside_think
+            elif think_match:
+                content = think_match.group(1).strip()
+            else:
+                content = content.strip()
+
             if content == "UNPARSEABLE" or not content:
                 return None
             return content
