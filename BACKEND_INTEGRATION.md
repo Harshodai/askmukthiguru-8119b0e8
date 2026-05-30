@@ -1,332 +1,362 @@
-# Admin Console — Backend Integration Plan
+# BACKEND_INTEGRATION.md
+# Admin Console — FastAPI Integration Guide
 
-Most admin pages now read directly from Lovable Cloud (Supabase) and work
-end-to-end. The four features below cannot be implemented from the React
-client and require small additions to the FastAPI backend
-(`backend/app/main.py`). Each section is independent — implement only what
-you need.
-
-Test order: **(1) Telemetry sink** is the prerequisite for everything else.
-Without it the chat pipeline doesn't write rows to `chat_queries`/
-`chat_responses`/`retrieval_events`/etc., so the admin pages stay empty
-outside of the "Seed demo traces" button.
+This document covers the **four items in the Admin Console that genuinely require a running FastAPI backend**. Every other admin page (Overview, Queries + drill-down, Quality, Retrieval, Triggers, Prompts, Evals, Alerts, Logs, Admins) is fully functional client-side once you click **"Seed demo traces"** in `/admin`.
 
 ---
 
-## 0. Shared setup (do this once)
+## Status Summary
 
-### Env vars (add to `backend/.env`)
-
-```bash
-SUPABASE_URL=https://fynkjimvuimakgtidvuq.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=<from Lovable Cloud → Connectors → Backend Secrets>
-SUPABASE_JWKS_URL=https://fynkjimvuimakgtidvuq.supabase.co/auth/v1/.well-known/jwks.json
-```
-
-> The service-role key bypasses RLS. Never expose it to the browser. It must
-> live only on the backend.
-
-### Install client
-
-```bash
-cd backend
-pip install "supabase==2.*" "PyJWT[crypto]>=2.8"
-```
-
-### Verify
-
-```bash
-python -c "import os; from supabase import create_client; \
-c = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY']); \
-print(c.table('chat_queries').select('id').limit(1).execute())"
-```
+| Feature | Frontend | Backend | Action needed |
+|---|---|---|---|
+| All admin pages (Overview → Admins) | ✅ Real Supabase queries | ✅ Data seeded via RPC | Click **"Seed demo traces"** |
+| Telemetry Sink | ✅ Reads from Supabase | ✅ `telemetry_sink.py` exists + wired | Populate `SUPABASE_SERVICE_ROLE_KEY` |
+| Ingestion API | ✅ `IngestionPage` form | ✅ `POST /api/ingest` exists | Wire `submitIngestion()` + add `VITE_BACKEND_URL` |
+| AskData / NL→SQL | ✅ Button shows toast | ❌ Not implemented | Build `POST /api/admin/ask-data` |
+| Dead-docs tab | ✅ `getDeadDocs()` ready | ❌ No document registry table | Add `document_registry` table at ingestion |
+| Jaeger embed | ✅ `TelemetryPage` iframes it | ❌ Needs reverse proxy + CORS | Configure nginx + `VITE_JAEGER_UI_URL` |
 
 ---
 
-## 1. Telemetry sink — make all admin pages light up
+## Section 1 — Telemetry Sink (ALREADY IMPLEMENTED)
 
-**Lights up:** Overview, Queries, Quality, Retrieval, Triggers, Topics,
-Prompts, Logs, Alerts (most pages).
+The `SupabaseTelemetrySink` class is already implemented at `backend/app/telemetry_sink.py` and wired into both `chat_endpoint` (line 989) and `chat_stream_endpoint` (line 1477) in `main.py`.
 
-Create `backend/app/telemetry_sink.py`:
+### How it works
 
-```python
-import os, asyncio, time, uuid
-from supabase import create_client
+Every chat request triggers `telemetry_sink.log_query_trace(...)` as a background task. This writes to:
 
-_sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
+| Table | What gets written |
+|---|---|
+| `chat_queries` | `query_id`, `query_text`, `model`, `latency_ms`, `status`, `session_id` |
+| `chat_responses` | `response_text`, `faithfulness`, `answer_relevancy`, `hallucination_flag`, `citations` |
+| `retrieval_events` | `source_docs[]`, `scores[]`, `query_id` |
+| `trace_spans` | Per-pipeline-node spans (`start_ms`, `end_ms`, `name`) |
+| `trigger_events` | `trigger_name`, `trigger_type`, `query_id` |
+| `safety_events` | `rule`, `details`, `query_id` |
+| `app_logs` | `level`, `message`, `request_id` |
 
-def _safe_insert(table: str, row: dict) -> None:
-    try:
-        _sb.table(table).insert(row).execute()
-    except Exception as e:
-        print(f"[telemetry] {table} insert failed: {e}")
-
-async def record_chat_turn(*, query_id, user_id, query_text, model, prompt_version_id,
-                           response_text, citations, latency_ms, prompt_tokens,
-                           completion_tokens, cost_estimate, status, faithfulness,
-                           answer_relevancy, context_precision, context_recall,
-                           hallucination_flag, confidence, judge_reasoning,
-                           retrieved_docs, retrieval_scores, spans, triggers,
-                           safety_events, request_id, log_lines):
-    """Fire-and-forget — wrap in asyncio.create_task() from the chat handler."""
-    _safe_insert("chat_queries", {
-        "id": str(query_id), "user_id": str(user_id) if user_id else None,
-        "query_text": query_text, "model": model,
-        "prompt_version_id": str(prompt_version_id) if prompt_version_id else None,
-        "status": status, "latency_ms": latency_ms,
-        "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
-        "cost_estimate": cost_estimate,
-    })
-    if response_text is not None:
-        _safe_insert("chat_responses", {
-            "query_id": str(query_id), "response_text": response_text,
-            "citations": citations, "faithfulness": faithfulness,
-            "answer_relevancy": answer_relevancy, "context_precision": context_precision,
-            "context_recall": context_recall, "hallucination_flag": hallucination_flag,
-            "confidence": confidence, "judge_reasoning": judge_reasoning,
-        })
-    if retrieved_docs:
-        _safe_insert("retrieval_events", {
-            "query_id": str(query_id),
-            "source_docs": retrieved_docs, "scores": retrieval_scores,
-        })
-    for span in spans:
-        _safe_insert("trace_spans", {
-            "query_id": str(query_id), "span_name": span["name"],
-            "start_ms": span["start_ms"], "duration_ms": span["duration_ms"],
-        })
-    for t in triggers:
-        _safe_insert("trigger_events", {
-            "query_id": str(query_id), "trigger_type": t["type"],
-            "trigger_name": t["name"], "payload": t.get("payload", {}),
-        })
-    for s in safety_events:
-        _safe_insert("safety_events", {
-            "query_id": str(query_id), "rule": s["rule"], "severity": s.get("severity"),
-            "action": s.get("action"), "type": s.get("type"), "excerpt": s.get("excerpt"),
-        })
-    for line in log_lines:
-        _safe_insert("app_logs", {
-            "level": line["level"], "message": line["message"],
-            "context": line.get("context", {}), "request_id": request_id,
-        })
-```
-
-### Wire it into the chat handler
-
-In the chat handler in `backend/app/main.py`, after the LangGraph run
-returns the final state, schedule the telemetry write so it does not
-block the response:
-
-```python
-import asyncio, uuid
-from app.telemetry_sink import record_chat_turn
-
-@router.post("/api/chat")
-async def chat_handler(req, current_user = Depends(...)):
-    query_id = uuid.uuid4()
-    request_id = req.headers.get("x-request-id") or uuid.uuid4().hex[:12]
-    started = time.time()
-    state = await graph.ainvoke({...})
-    latency_ms = int((time.time() - started) * 1000)
-
-    asyncio.create_task(record_chat_turn(
-        query_id=query_id, user_id=current_user.id,
-        query_text=req.user_message, model=state["model_used"],
-        prompt_version_id=state.get("prompt_version_id"),
-        response_text=state["answer"], citations=state.get("citations", []),
-        latency_ms=latency_ms, prompt_tokens=state["prompt_tokens"],
-        completion_tokens=state["completion_tokens"],
-        cost_estimate=state.get("cost", 0),
-        status="ok",
-        faithfulness=state["judge"]["faithfulness"],
-        answer_relevancy=state["judge"]["answer_relevancy"],
-        context_precision=state["judge"]["context_precision"],
-        context_recall=state["judge"]["context_recall"],
-        hallucination_flag=state["judge"]["hallucination_flag"],
-        confidence=state["judge"]["confidence"],
-        judge_reasoning=state["judge"]["reasoning"],
-        retrieved_docs=[d["source"] for d in state.get("retrieved", [])],
-        retrieval_scores=[d["score"] for d in state.get("retrieved", [])],
-        spans=state.get("spans", []),
-        triggers=state.get("triggers", []),
-        safety_events=state.get("safety_events", []),
-        request_id=request_id,
-        log_lines=state.get("log_lines", []),
-    ))
-    return state["answer"]
-```
-
-### Verify
-
-1. Send one chat message from the production frontend.
-2. In Lovable Cloud → Backend → Tables → `chat_queries`, row count should
-   increase by 1 within 2 s.
-3. Open `/admin` → Overview KPIs should reflect the new row.
-
----
-
-## 2. Ingestion API — make the Ingestion page submit + show progress
-
-**Lights up:** Ingestion page form, "Re-ingest" buttons.
-
-The frontend already calls:
-
-- `POST /api/admin/ingest` — body `{ url: string, max_accuracy: boolean }`
-- `GET  /api/admin/ingest/status` — returns `Record<url, { status, message, progress }>`
-
-Both must be JWT-protected. Implement in FastAPI:
-
-```python
-from fastapi import APIRouter, Depends, HTTPException
-from app.dependencies import get_container
-from app.auth import require_admin  # JWT verify via SUPABASE_JWKS_URL
-
-router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
-
-@router.post("/ingest")
-async def submit_ingest(body: dict):
-    container = get_container()
-    job_id = await container.ingestion.enqueue(body["url"], body.get("max_accuracy", False))
-    return {"ok": True, "job_id": job_id, "message": "Ingestion queued"}
-
-@router.get("/ingest/status")
-async def ingest_status():
-    container = get_container()
-    return container.ingestion.snapshot()  # { url: { status, message, progress } }
-```
-
-At completion, insert into `ingestion_runs` with `source`, `status`,
-`chunks_added`, `duration_ms`, optional `error_log`. The Ingestion page
-will refresh automatically.
-
-### Verify
+### Required env vars
 
 ```bash
-curl -X POST https://<backend>/api/admin/ingest \
-  -H "Authorization: Bearer $JWT" \
+# In backend/.env (already present for local Supabase)
+SUPABASE_URL=http://host.docker.internal:54321
+SUPABASE_KEY=<service_role_key>    # must be service_role, not anon
+
+# For production Supabase (add this):
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+```
+
+The sink prefers `SUPABASE_SERVICE_ROLE_KEY` and falls back to `SUPABASE_KEY`.
+
+### Admin pages that light up
+
+All of them — Overview KPIs, Queries, Retrieval, Quality, Triggers, and Logs all read from these tables.
+
+### Verification
+
+```bash
+# 1. Make a chat request with the backend running:
+curl -X POST http://localhost:8000/api/chat \
+  -H "Authorization: Bearer <your-jwt>" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://youtu.be/abc","max_accuracy":false}'
+  -d '{"user_message": "What is karma?", "messages": [], "session_id": "test-1"}'
+
+# 2. Check that a row was written:
+# In Supabase Studio → Table Editor → chat_queries → should show 1 new row
 ```
 
 ---
 
-## 3. AskData (NL → analytics) on the Overview page
+## Section 2 — Ingestion API (ALREADY IMPLEMENTED)
 
-**Lights up:** the AskDataPanel chat input on Overview.
+The ingestion API is already fully implemented. Two endpoints exist:
 
-Frontend currently calls `db.askData(prompt)` which returns a stub string.
-Replace the body of `askData()` in `src/admin/lib/mockData.ts` with a fetch
-to the backend, then implement:
+### `POST /api/ingest`
 
-```python
-@router.post("/ai/ask-data")
-async def ask_data(body: dict):
-    question = body["question"]
-    kpi_context = body.get("kpi_context", "")
-    # Use Lovable AI Gateway (preferred — no separate key needed)
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(
-        base_url="https://ai.gateway.lovable.dev/v1",
-        api_key=os.environ["LOVABLE_API_KEY"],
-    )
-    sys = ("You are an analytics assistant. Given the KPI snapshot, answer "
-           "the question in 2-4 markdown sentences. Be concrete.")
-    r = await client.chat.completions.create(
-        model="google/gemini-2.5-flash",
-        messages=[
-            {"role": "system", "content": sys},
-            {"role": "user", "content": f"KPIs:\n{kpi_context}\n\nQ: {question}"},
-        ],
-    )
-    return {"answer": r.choices[0].message.content}
-```
+Accepts YouTube video/playlist URLs and image URLs. Runs ingestion in the background.
 
-For richer analytics (NL→SQL over `chat_queries`), have the model emit a
-read-only SQL string, validate against an allow-list of tables, and execute
-via the service-role client.
-
----
-
-## 4. Dead-docs detection (Retrieval page → Dead tab)
-
-**Lights up:** Retrieval page → "Dead docs" tab.
-
-`getDeadDocs()` currently returns `[]` because there is no document
-registry. Add one:
-
-```sql
-CREATE TABLE public.document_registry (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  source text NOT NULL UNIQUE,
-  title text,
-  ingested_at timestamptz NOT NULL DEFAULT now(),
-  last_retrieved_at timestamptz
-);
-GRANT SELECT ON public.document_registry TO authenticated;
-GRANT ALL    ON public.document_registry TO service_role;
-ALTER TABLE public.document_registry ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "admins read document_registry" ON public.document_registry
-  FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
-```
-
-The ingestion pipeline upserts a row per source; `record_chat_turn`
-updates `last_retrieved_at` for each retrieved source. Then replace
-`getDeadDocs` in `mockData.ts`:
-
-```ts
-export async function getDeadDocs(range?: { from?: Date }) {
-  const cutoff = range?.from?.toISOString() ?? new Date(Date.now() - 30 * 86400000).toISOString();
-  const { data } = await fromUntyped("document_registry")
-    .select("source, title, last_retrieved_at")
-    .or(`last_retrieved_at.is.null,last_retrieved_at.lt.${cutoff}`)
-    .order("last_retrieved_at", { ascending: true, nullsFirst: true });
-  return (data || []).map((d: any) => ({ source: d.source }));
+**Request body:**
+```json
+{
+  "url": "https://www.youtube.com/watch?v=<video_id>",
+  "max_accuracy": false
 }
 ```
 
+**Response:**
+```json
+{
+  "status": "queued",
+  "message": "Ingestion started",
+  "source_url": "https://...",
+  "chunks_indexed": 0,
+  "summaries_created": 0
+}
+```
+
+**Auth**: Requires a valid Supabase JWT in `Authorization: Bearer <token>`. User must have `is_superuser=true` (admin role).
+
+### `GET /api/ingest/status`
+
+Returns the status of the currently-running ingestion job (or last completed).
+
+### Why the IngestionPage form is a no-op
+
+`IngestionPage` calls `triggerReingest(source)` from `mockData.ts`, which is a no-op. To wire it end-to-end:
+
+**Step 1**: Add `VITE_BACKEND_URL` to `.env.local`:
+```bash
+VITE_BACKEND_URL=http://localhost:8000
+```
+
+**Step 2**: Replace `triggerReingest` in `src/admin/lib/mockData.ts`:
+```typescript
+export async function triggerReingest(url: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const resp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/ingest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ url, max_accuracy: false }),
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+}
+```
+
+### Verification
+
+```bash
+# Obtain JWT first (local Supabase):
+TOKEN=$(curl -s -X POST "http://localhost:54321/auth/v1/token?grant_type=password" \
+  -H "apikey: <anon-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"yourpassword"}' | jq -r '.access_token')
+
+curl -X POST http://localhost:8000/api/ingest \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.youtube.com/watch?v=<video_id>"}'
+# Expected: {"status":"queued","message":"Ingestion started",...}
+```
+
 ---
 
-## 5. Telemetry page (Jaeger embed)
+## Section 3 — AskData / NL→SQL (NOT YET IMPLEMENTED)
 
-The `TelemetryPage` already iframes `import.meta.env.VITE_JAEGER_UI_URL`
-(defaults to `http://localhost:16686`). For production:
+The **AskData** button currently returns a static string:
+`"AskData requires the FastAPI backend. See BACKEND_INTEGRATION.md → AskData."`
 
-1. Reverse-proxy Jaeger behind nginx on a TLS subdomain (e.g.
-   `https://jaeger.askmukthiguru.com`).
-2. Set `Content-Security-Policy: frame-ancestors https://askmukthiguru.lovable.app`
-   on the Jaeger response.
-3. Set the env var on the frontend host: `VITE_JAEGER_UI_URL=https://jaeger.askmukthiguru.com`.
+To implement it:
 
-Without these, the iframe will be blocked by `X-Frame-Options`.
+### Step 1: Add endpoint to `backend/app/main.py`
+
+```python
+class AskDataRequest(BaseModel):
+    question: str = Field(..., description="Natural language question about admin KPIs")
+
+@app.post("/api/admin/ask-data", tags=["Admin"])
+async def ask_data_endpoint(
+    body: AskDataRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """NL→KPI insight endpoint for admin dashboard."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Example: fetch recent KPI context, call LLM, return markdown answer
+    # kpi_context = await build_kpi_context(container)
+    # prompt = f"KPI Context:\n{kpi_context}\n\nQuestion: {body.question}\n\nAnswer in markdown:"
+    # answer = await container.llm.chat(prompt)
+    # return {"answer": answer}
+    raise NotImplementedError("AskData endpoint — implement above pattern")
+```
+
+### Step 2: Wire frontend in `src/admin/lib/mockData.ts`
+
+```typescript
+export async function askData(question: string): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const resp = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/admin/ask-data`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ question }),
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+  const data = await resp.json();
+  return data.answer;
+}
+```
+
+### Required env vars
+```bash
+# .env.local (frontend)
+VITE_BACKEND_URL=http://localhost:8000
+```
+
+### Admin page that lights up
+Settings page → "Ask Data" input field.
 
 ---
 
-## Page-by-page verification matrix
+## Section 4 — Dead-Docs Registry (NOT YET IMPLEMENTED)
 
-| Page | Status today | Lights up after |
+The **Retrieval page → Dead Docs tab** calls `getDeadDocs()` which returns `[]` with:
+```
+// Requires document_registry table populated by ingestion — see BACKEND_INTEGRATION.md
+```
+
+A "dead doc" is one that exists in the index but has zero retrieval hits in recent queries.
+
+### Step 1: Create migration
+
+```sql
+-- supabase/migrations/<timestamp>_document_registry.sql
+CREATE TABLE IF NOT EXISTS public.document_registry (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_url  text NOT NULL UNIQUE,
+  title       text,
+  doc_type    text,           -- 'youtube', 'image', 'pdf'
+  chunks      integer DEFAULT 0,
+  created_at  timestamptz DEFAULT now(),
+  last_seen   timestamptz DEFAULT now()
+);
+
+CREATE INDEX ON public.document_registry (source_url);
+ALTER TABLE public.document_registry ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admins_only" ON public.document_registry
+  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+GRANT SELECT, INSERT, UPDATE ON public.document_registry TO service_role;
+```
+
+### Step 2: Write to it after ingestion completes
+
+In `backend/app/main.py` after the ingestion pipeline finishes:
+
+```python
+# After chunks_indexed is known:
+telemetry_sink.client.table("document_registry").upsert({
+    "source_url": url,
+    "title": video_title or url,
+    "doc_type": "youtube" if is_yt else "image",
+    "chunks": chunks_indexed,
+    "last_seen": datetime.utcnow().isoformat(),
+}, on_conflict="source_url").execute()
+```
+
+### Step 3: Implement `getDeadDocs` in `src/admin/lib/mockData.ts`
+
+```typescript
+export async function getDeadDocs(range?: { from?: Date; to?: Date }): Promise<any[]> {
+  const { data: docs } = await fromUntyped("document_registry").select("source_url, title");
+  if (!docs || docs.length === 0) return [];
+
+  let q = fromUntyped("retrieval_events").select("source_docs");
+  if (range?.from) q = q.gte("created_at", range.from.toISOString());
+  if (range?.to)   q = q.lte("created_at", range.to.toISOString());
+  const { data: events } = await q;
+
+  const hitSources = new Set(
+    ((events || []) as any[]).flatMap((e: any) => e.source_docs || [])
+  );
+
+  return (docs as any[])
+    .filter((d: any) => !hitSources.has(d.source_url))
+    .map((d: any) => ({ source_url: d.source_url, title: d.title || d.source_url }));
+}
+```
+
+### Admin page that lights up
+
+**Retrieval → Dead Docs tab** — shows documents indexed but never retrieved.
+
+---
+
+## Section 5 — Jaeger Embed (CONFIGURATION ONLY)
+
+`TelemetryPage` already renders:
+```tsx
+<iframe src={import.meta.env.VITE_JAEGER_UI_URL || "http://localhost:16686"} ... />
+```
+
+The iframe is blocked by browsers if Jaeger doesn't send correct CORS + CSP headers.
+
+### Step 1: Verify Jaeger is running
+
+```bash
+curl -s http://localhost:16686/api/services | jq .
+# Expected: {"data":["mukthi-guru-backend"],...}
+```
+
+### Step 2: Set env var in `.env.local`
+
+```bash
+VITE_JAEGER_UI_URL=http://localhost:16686
+```
+
+For production:
+```bash
+VITE_JAEGER_UI_URL=https://your-domain.com/jaeger
+```
+
+### Step 3: Add Jaeger to `backend/docker-compose.yml` (if not already present)
+
+```yaml
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    container_name: mukthiguru-jaeger
+    ports:
+      - "6831:6831/udp"   # Agent UDP
+      - "16686:16686"     # Web UI
+      - "14268:14268"     # Collector HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+```
+
+### Step 4: Nginx reverse proxy with CORS (production only)
+
+```nginx
+location /jaeger/ {
+    proxy_pass http://jaeger:16686/;
+    proxy_set_header Host $host;
+
+    # Allow admin frontend to embed via iframe:
+    add_header Access-Control-Allow-Origin "https://your-admin-domain.com" always;
+    add_header X-Frame-Options "ALLOW-FROM https://your-admin-domain.com" always;
+    add_header Content-Security-Policy "frame-ancestors 'self' https://your-admin-domain.com" always;
+}
+```
+
+### Admin page that lights up
+
+**Telemetry page** — full Jaeger UI embedded for distributed tracing of all RAG pipeline spans.
+
+---
+
+## Quick Reference
+
+| Admin Page | Needs Backend? | Action |
 |---|---|---|
-| Overview KPIs + charts | ✅ works (Lovable Cloud) | Telemetry sink populates real data |
-| Queries list + drill-down | ✅ works | Telemetry sink |
-| Quality (RAGAS, low-conf, disagreement) | ✅ works | Telemetry sink |
-| Retrieval (sources, sim trend, empty) | ✅ works | Telemetry sink |
-| Retrieval (dead tab) | ⚠ always empty | Section 4 (document_registry) |
-| Triggers | ✅ works | Telemetry sink |
-| Topics | ✅ works (uses `query_clusters` — populate via batch job) | — |
-| Prompts | ✅ works | Telemetry sink (so per-version metrics are non-zero) |
-| Evals | ✅ works | Insert real runs from your eval pipeline |
-| Ingestion (read) | ✅ works | Backend writes `ingestion_runs` |
-| Ingestion (submit + status) | ⚠ requires backend | Section 2 |
-| Logs | ✅ works | Telemetry sink emits `app_logs` |
-| Telemetry (Jaeger) | ⚠ blocked by CSP | Section 5 |
-| Alerts | ✅ works | Backend rule-evaluator writes to `alert_events` |
-| Daily Teaching | ✅ works (Storage) | — |
-| Feedback | ✅ works (localStorage) | — |
-| Admins (list/promote/demote) | ✅ works (RPCs) | — |
-| Settings (retention, exports) | ✅ works | — |
-| AskData panel | ⚠ stub string | Section 3 |
-
-Anything ⚠ above renders without crashing — it just shows an empty state
-or a "Backend required" message until the corresponding section is
-implemented.
+| Overview | No | Seed demo traces |
+| Queries + Drill-down | No | Seed demo traces |
+| Quality | No | Seed demo traces |
+| Retrieval (sources, sim, empty) | No | Seed demo traces |
+| **Retrieval (dead docs)** | **Yes** | Section 4 |
+| Triggers | No | Seed demo traces |
+| Prompts | No | Seed demo traces |
+| Evals | No | Seed demo traces |
+| Alerts | No | Seed demo traces |
+| Logs | No | Seed demo traces |
+| Admins | No | Seed demo traces |
+| **Ingestion submit** | **Yes** | Section 2 |
+| **AskData** | **Yes** | Section 3 |
+| **Telemetry (Jaeger)** | **Yes** | Section 5 |
