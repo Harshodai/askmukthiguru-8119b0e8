@@ -859,3 +859,20 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Dynamic Token Capping at 4096**: Modified both `_call_api` and `generate_stream` in `backend/services/sarvam_service.py` to scale and cap the reasoning models' token budget to exactly `4096` tokens. This maximizes the token budget for private reasoning while avoiding HTTP 400 errors.
 - **Lesson learned**: When developing with deep reasoning models, always isolate persona constraints, instructions, and formatting rules into the `system` message role to keep reasoning private and prevent thought chains or formatting rules from leaking into user-facing content. Additionally, proactively scale and cap the token budget to the exact limit of the subscription tier (e.g., `4096` tokens) to ensure the model has enough room to complete its reasoning trace without triggering fatal Bad Request errors.
 
+
+### 67. Benchmark Cache Contamination and In-Place Neo4j Healing (May 2026)
+- **Problem**:
+  - **Cache Contamination During Benchmarks**: The evaluation benchmark used the same HTTP client as production (with `X-Test-Key` for auth bypass). Benchmark responses were being stored in the semantic cache and served back on repeat queries — inflating scores with incorrect cached answers. Additionally, old poisoned cache entries from earlier ingestion failures were being served to the benchmark.
+  - **Poisoned Neo4j Descriptions**: During ingestion, `sarvam-m` merge calls leaked raw developer prompt template text (`---Role---`, `Knowledge Graph Specialist`, `We need to produce a summary`) into Neo4j entity `description` properties instead of actual spiritual teachings. 131–220 nodes were affected.
+  - **docker-compose vs pydantic-settings priority**: Attempting to override `SEMANTIC_CACHE_SIMILARITY` in `backend/.env` alone was insufficient for Docker runs — docker-compose sets container environment variables which take precedence over pydantic-settings `env_file`. The override must go in `docker-compose.yml` directly or in the host environment.
+- **Solution**:
+  - **Cache bypass**: Added `is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret` in `main.py` at both `chat_endpoint` and the `generate_sse()` closure. Both cache get AND cache put are gated behind `if not is_benchmark:`. This reuses the existing auth-bypass header with zero protocol changes.
+  - **Threshold**: Changed `SEMANTIC_CACHE_SIMILARITY` default in `docker-compose.yml` from `0.92` to `0.96` to reduce false-positive cache hits on semantically similar but doctrinally distinct queries.
+  - **Sequential In-Place Healing**: Created `scripts/ops/heal_neo4j_poison.py` — backs up all poisoned nodes to `data/neo4j_poisoned_backup.json` BEFORE any writes, then processes one node at a time with a 1s sleep between API calls (60 RPM limit), writing cleaned descriptions back only after receiving a valid response from `sarvam-m`.
+- **Lesson learned**:
+  - Benchmark clients must bypass ALL caches — both reads and writes. A cache read bypass alone (serving real answers instead of cached ones) is not enough; cache write bypass is equally critical to prevent benchmark responses from polluting production cache.
+  - When using pydantic-settings with docker-compose, env vars set in `environment:` blocks take priority over `env_file`. Always override in docker-compose.yml (or host .env) for Docker-deployed services.
+  - For corrupted graph nodes, in-place healing with per-node backup is safer than full re-ingestion. Sequential processing respects API rate limits and allows partial success without data loss.
+  - `datetime.UTC` (Python 3.11+) must be replaced with `datetime.timezone.utc` for scripts that may run on Python 3.9 (system Python on macOS).
+  - Docker internal hostnames (e.g., `neo4j:7687`) do not resolve on the host machine — scripts run outside Docker must auto-detect and fall back to `localhost`.
+
