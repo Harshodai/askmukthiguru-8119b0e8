@@ -107,7 +107,15 @@ graph LR
 - [x] Heal 220 poisoned Neo4j entity descriptions via `scripts/ops/heal_neo4j_poison.py` (May 2026)
 - [x] Add benchmark cache bypass (`is_benchmark` guard in `main.py`) to prevent score inflation (May 2026)
 - [x] Raise `SEMANTIC_CACHE_SIMILARITY` threshold 0.92 → 0.96 (May 2026)
+- [x] Fix dead `ContextualChunkingService` — now passes `full_document` at all 3 `_augment_chunks` call sites (May 2026)
+- [x] Integrate ekimetrics DCC+BI+RC metrics via `AdaptiveChunkingAdapter` (May 2026)
+- [x] **R3**: Graceful shutdown drain — `_INFLIGHT` counter + 30s drain on SIGTERM (May 2026)
+- [x] **R4**: Per-node timing in `GraphState.node_timings` — accumulated by `log_metrics` at ms precision (May 2026)
 - [ ] Validate ingestion quality via `scripts/benchmarks/askmukthiguru_ruthless_benchmark.py` (target ≥80%)
+- [ ] **R5**: Circuit breaker on LLM provider via `tenacity` (Wave 1 remaining)
+- [ ] **Q1-Q4**: Chunk size evaluation, token budget guard, eval harness (Wave 2)
+- [ ] **S3**: Replace Redis coalescer `sleep(0.1)` with `BLPOP`-style blocking wait (Wave 3)
+- [ ] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4)
 
 ---
 
