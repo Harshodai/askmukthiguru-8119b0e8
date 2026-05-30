@@ -295,27 +295,283 @@ export async function listTopicClusters(): Promise<QueryCluster[]> {
 }
 
 export async function listAdmins(): Promise<AdminUser[]> {
-  const { data } = await fromUntyped("user_roles").select("*, auth_users:user_id(email)").eq("role", "admin");
-  return (data || []).map((row: any) => ({
-    id: row.user_id,
-    email: row.auth_users?.email || "Unknown",
-    role: row.role,
-    created_at: "2024-01-01T00:00:00Z"
+  const { data, error } = await (supabase as any).rpc("list_admins");
+  if (error) { console.error("list_admins RPC failed:", error); return []; }
+  return ((data as any[]) || []).map((row) => ({
+    id: row.id,
+    email: row.email,
+    role: "admin" as const,
+    created_at: row.created_at,
   })) as AdminUser[];
 }
 
-export async function getRetrievalHealth(range?: { from?: Date; to?: Date }): Promise<any> { return { sources: [] }; }
-export async function getQualityData(range?: { from?: Date; to?: Date }): Promise<any> { return { metrics: [] }; }
-export async function upsertAlertRule(rule: Partial<AlertRule>): Promise<void> {}
-export async function upsertGoldenQuestion(q: Partial<GoldenQuestion>): Promise<void> {}
-export async function deleteGoldenQuestion(id: string): Promise<void> {}
-export async function promoteAdmin(id: string): Promise<void> {}
-export async function demoteAdmin(id: string): Promise<void> {}
-export async function upsertModelPricing(p: ModelPricing): Promise<void> {}
-export async function askData(query: string): Promise<string> { return "AskData is not yet wired."; }
+// ============================================================================
+// Retrieval health, similarity, empty retrievals
+// ============================================================================
+function aggregateRetrieval(rows: any[]) {
+  const sourceMap = new Map<string, { count: number; faithSum: number; faithN: number }>();
+  let topScoreSum = 0, topScoreN = 0, empties = 0;
+  rows.forEach((r) => {
+    const docs: string[] = r.source_docs || [];
+    const scores: number[] = r.scores || [];
+    if (docs.length === 0) empties++;
+    if (scores.length > 0) { topScoreSum += scores[0]; topScoreN++; }
+    const cr = r.chat_responses;
+    const faith = Array.isArray(cr) ? cr[0]?.faithfulness : cr?.faithfulness;
+    docs.forEach((src) => {
+      const e = sourceMap.get(src) ?? { count: 0, faithSum: 0, faithN: 0 };
+      e.count++;
+      if (typeof faith === "number") { e.faithSum += faith; e.faithN++; }
+      sourceMap.set(src, e);
+    });
+  });
+  const sources = Array.from(sourceMap.entries())
+    .map(([source, v]) => ({ source, count: v.count, avgFaith: v.faithN ? v.faithSum / v.faithN : 0 }))
+    .sort((a, b) => b.count - a.count);
+  const total = rows.length;
+  return {
+    total_retrievals: total,
+    hit_rate: total ? (total - empties) / total : 0,
+    empty_retrievals: empties,
+    avg_top_score: topScoreN ? topScoreSum / topScoreN : 0,
+    avg_precision: 0,
+    avg_recall: 0,
+    miss_rate: total ? empties / total : 0,
+    avg_chunks_per_query: total ? rows.reduce((s, r) => s + (r.source_docs?.length || 0), 0) / total : 0,
+    top_missing_topics: [],
+    sources,
+  };
+}
+
+export async function getRetrievalHealth(range?: { from?: Date; to?: Date }): Promise<any> {
+  let q = fromUntyped("retrieval_events").select("query_id, source_docs, scores, created_at, chat_responses(faithfulness)");
+  if (range?.from) q = q.gte("created_at", range.from.toISOString());
+  if (range?.to) q = q.lte("created_at", range.to.toISOString());
+  const { data, error } = await q;
+  if (error) {
+    const { data: simple } = await fromUntyped("retrieval_events").select("query_id, source_docs, scores, created_at");
+    return aggregateRetrieval((simple || []) as any[]);
+  }
+  return aggregateRetrieval((data || []) as any[]);
+}
+
+// ============================================================================
+// Quality (disagreement + low confidence)
+// ============================================================================
+export async function getQualityData(range?: { from?: Date; to?: Date }): Promise<any> {
+  let q = fromUntyped("chat_responses").select("id, response_text, faithfulness, hallucination_flag, confidence, created_at, query_id");
+  if (range?.from) q = q.gte("created_at", range.from.toISOString());
+  if (range?.to) q = q.lte("created_at", range.to.toISOString());
+  const { data } = await q.limit(500);
+  const rows = (data || []) as any[];
+
+  const low_confidence = rows
+    .filter((r) => typeof r.confidence === "number" && r.confidence < 0.6)
+    .sort((a, b) => a.confidence - b.confidence)
+    .slice(0, 20)
+    .map((r) => ({ id: r.id, confidence: r.confidence, response_text: r.response_text || "", created_at: r.created_at }));
+
+  const { data: fb } = await fromUntyped("feedback_events").select("query_id, rating");
+  const fbMap = new Map<string, number>();
+  ((fb || []) as any[]).forEach((f) => fbMap.set(f.query_id, f.rating));
+
+  const disagreements: any[] = [];
+  rows.forEach((r) => {
+    if (!fbMap.has(r.query_id)) return;
+    const rating = fbMap.get(r.query_id)!;
+    const judgeGood = (r.faithfulness ?? 0) > 0.8;
+    if (judgeGood && rating < 0) disagreements.push({ id: r.id, kind: "judge_good_user_bad", faithfulness: r.faithfulness, response_text: r.response_text || "" });
+    else if (!judgeGood && rating > 0) disagreements.push({ id: r.id, kind: "judge_bad_user_good", faithfulness: r.faithfulness, response_text: r.response_text || "" });
+  });
+
+  return { disagreements: disagreements.slice(0, 20), low_confidence };
+}
+
+// ============================================================================
+// Timeseries helpers
+// ============================================================================
+function bucketize<T>(items: T[], from: Date, to: Date, buckets: number, getTime: (r: T) => number) {
+  const start = from.getTime(), end = to.getTime();
+  const w = Math.max(1, (end - start) / buckets);
+  const arr = Array.from({ length: buckets }, (_, i) => ({ bucket: new Date(start + i * w).toISOString(), items: [] as T[] }));
+  items.forEach((r) => {
+    let idx = Math.floor((getTime(r) - start) / w);
+    if (idx < 0) idx = 0; if (idx >= buckets) idx = buckets - 1;
+    arr[idx].items.push(r);
+  });
+  return arr;
+}
+
+export async function getRagasHeatmap(range?: { from?: Date; to?: Date }, buckets = 8): Promise<any[]> {
+  const from = range?.from ?? new Date(Date.now() - 7 * 86400000);
+  const to = range?.to ?? new Date();
+  const { data } = await fromUntyped("chat_responses")
+    .select("faithfulness, answer_relevancy, context_precision, context_recall, created_at")
+    .gte("created_at", from.toISOString()).lte("created_at", to.toISOString());
+  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.created_at).getTime());
+  return bs.map((b) => {
+    const n = b.items.length || 1;
+    const avg = (k: string) => b.items.reduce((s: number, r: any) => s + (r[k] ?? 0), 0) / n;
+    return {
+      bucket: b.bucket,
+      faithfulness: avg("faithfulness"),
+      answer_relevancy: avg("answer_relevancy"),
+      context_precision: avg("context_precision"),
+      context_recall: avg("context_recall"),
+      count: b.items.length,
+    };
+  });
+}
+
+export async function getTriggerTrend(range?: { from?: Date; to?: Date }, buckets = 14): Promise<any[]> {
+  const from = range?.from ?? new Date(Date.now() - buckets * 86400000);
+  const to = range?.to ?? new Date();
+  const { data } = await fromUntyped("trigger_events").select("trigger_name, created_at")
+    .gte("created_at", from.toISOString()).lte("created_at", to.toISOString());
+  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.created_at).getTime());
+  return bs.map((b) => {
+    const out: any = { bucket: b.bucket };
+    b.items.forEach((r: any) => { out[r.trigger_name] = (out[r.trigger_name] || 0) + 1; });
+    return out;
+  });
+}
+
+export async function getSimilarityTrend(range?: { from?: Date; to?: Date }, buckets = 14): Promise<any[]> {
+  const from = range?.from ?? new Date(Date.now() - buckets * 86400000);
+  const to = range?.to ?? new Date();
+  const { data } = await fromUntyped("retrieval_events").select("scores, created_at")
+    .gte("created_at", from.toISOString()).lte("created_at", to.toISOString());
+  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.created_at).getTime());
+  return bs.map((b) => {
+    const scores = b.items.map((r: any) => (r.scores?.[0] ?? 0)).filter((s: number) => s > 0);
+    return { bucket: b.bucket, avg_top_score: scores.length ? scores.reduce((s: number, x: number) => s + x, 0) / scores.length : 0 };
+  });
+}
+
+export async function getDeadDocs(_range?: { from?: Date; to?: Date }): Promise<any[]> {
+  // Requires document_registry table populated by ingestion — see BACKEND_INTEGRATION.md
+  return [];
+}
+
+export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, limit = 20): Promise<any[]> {
+  let q = fromUntyped("retrieval_events").select("query_id, source_docs, scores, created_at, chat_queries(query_text)");
+  if (range?.from) q = q.gte("created_at", range.from.toISOString());
+  if (range?.to) q = q.lte("created_at", range.to.toISOString());
+  const { data } = await q.order("created_at", { ascending: false });
+  return ((data || []) as any[])
+    .filter((r) => !r.source_docs || r.source_docs.length === 0 || (r.scores?.[0] ?? 0) < 0.3)
+    .slice(0, limit)
+    .map((r) => ({
+      query_id: r.query_id,
+      query_text: r.chat_queries?.query_text || "(unknown)",
+      top_score: r.scores?.[0] ?? 0,
+      created_at: r.created_at,
+    }));
+}
+
+export async function getIngestionHealth(): Promise<any> {
+  const { data } = await fromUntyped("ingestion_runs").select("*");
+  const runs = (data || []) as IngestionRun[];
+  let indexed_docs = 0, failed_docs = 0, ok = 0, partial = 0, failed = 0, total_chunks = 0;
+  let last_run = new Date(0).toISOString();
+  runs.forEach((r) => {
+    total_chunks += r.chunks_added || 0;
+    if (r.status === "ok") { ok++; indexed_docs++; }
+    else if (r.status === "partial") { partial++; indexed_docs++; }
+    else if (r.status === "failed") { failed++; failed_docs++; }
+    if (r.created_at && r.created_at > last_run) last_run = r.created_at;
+  });
+  return {
+    status: failed > 0 ? "Degraded" : (runs.length > 0 ? "Healthy" : "Unknown"),
+    last_run: last_run === new Date(0).toISOString() ? new Date().toISOString() : last_run,
+    indexed_docs, failed_docs, total_runs: runs.length, ok, partial, failed, total_chunks,
+  };
+}
+
+export async function getPromptMetricsByVersion(): Promise<any[]> {
+  const { data: prompts } = await fromUntyped("prompt_versions").select("id, name, version");
+  const { data: queries } = await fromUntyped("chat_queries").select("id, prompt_version_id, chat_responses(faithfulness, answer_relevancy, hallucination_flag)");
+  const pList = (prompts || []) as any[];
+  const qList = (queries || []) as any[];
+  return pList.map((p) => {
+    const matched = qList.filter((q) => q.prompt_version_id === p.id);
+    const resps = matched.flatMap((q) => Array.isArray(q.chat_responses) ? q.chat_responses : (q.chat_responses ? [q.chat_responses] : []));
+    const n = resps.length || 1;
+    const avg = (k: string) => resps.reduce((s, r) => s + (r[k] ?? 0), 0) / n;
+    const hallRate = resps.length ? resps.filter((r) => r.hallucination_flag).length / resps.length : 0;
+    return {
+      label: `${p.name} v${p.version}`,
+      faithfulness: avg("faithfulness"),
+      answer_relevancy: avg("answer_relevancy"),
+      hallucination_rate: hallRate,
+    };
+  });
+}
+
+export async function pollLiveFeed(): Promise<ChatQuery[]> {
+  return listQueries({ limit: 10 });
+}
+
+// ============================================================================
+// Mutations
+// ============================================================================
+export async function upsertAlertRule(rule: Partial<AlertRule> & { id?: string }): Promise<void> {
+  const payload: any = {
+    name: rule.name,
+    metric: rule.metric,
+    comparator: rule.comparator,
+    threshold: rule.threshold,
+    active: (rule as any).active ?? true,
+    enabled: (rule as any).active ?? true,
+    window_minutes: (rule as any).window_minutes ?? 15,
+    channel: (rule as any).channel ?? "email",
+    target: (rule as any).target ?? "",
+  };
+  if (rule.id) await fromUntyped("alert_rules").update(payload).eq("id", rule.id);
+  else await fromUntyped("alert_rules").insert(payload);
+}
+
+export async function upsertGoldenQuestion(q: Partial<GoldenQuestion> & { id?: string }): Promise<void> {
+  const payload: any = {
+    question: q.question,
+    expected_answer: (q as any).expected_answer ?? null,
+    tags: q.tags ?? [],
+    active: (q as any).active ?? true,
+    expected_sources: (q as any).expected_sources ?? [],
+  };
+  if (q.id) await fromUntyped("golden_questions").update(payload).eq("id", q.id);
+  else await fromUntyped("golden_questions").insert(payload);
+}
+
+export async function deleteGoldenQuestion(id: string): Promise<void> {
+  await fromUntyped("golden_questions").delete().eq("id", id);
+}
+
+export async function promoteAdmin(email: string): Promise<void> {
+  const { data, error } = await (supabase as any).rpc("promote_admin_by_email", { _email: email });
+  if (error) throw error;
+  if (data?.ok === false) throw new Error(data.reason || "promote_failed");
+}
+
+export async function demoteAdmin(userId: string): Promise<void> {
+  const { data, error } = await (supabase as any).rpc("demote_admin_by_id", { _user_id: userId });
+  if (error) throw error;
+  if (data?.ok === false) throw new Error(data.reason || "demote_failed");
+}
+
+export async function upsertModelPricing(p: ModelPricing): Promise<void> {
+  await fromUntyped("model_pricing").upsert(
+    { model: p.model, input_per_1k: p.input_per_1k, output_per_1k: p.output_per_1k },
+    { onConflict: "model" },
+  );
+}
+
+export async function askData(_query: string): Promise<string> {
+  return "AskData requires the FastAPI backend. See BACKEND_INTEGRATION.md → AskData.";
+}
 
 export async function listModels(): Promise<string[]> {
-  return ["sarvam-30b", "qwen3-30b"];
+  return ["sarvam-30b", "sarvam-105b", "qwen3-30b"];
 }
 
 export async function listTriggers(range?: { from?: Date; to?: Date }): Promise<TriggerEvent[]> {
@@ -330,75 +586,24 @@ export async function getTopFailures(range?: { from?: Date; to?: Date }, limit =
   let q = fromUntyped("chat_responses").select("*, chat_queries(*)");
   if (range?.from) q = q.gte("created_at", range.from.toISOString());
   if (range?.to) q = q.lte("created_at", range.to.toISOString());
-
-  // Sort by lowest faithfulness + relevancy
   const { data } = await q;
   if (!data) return [];
-
-  return data
-    .filter((r: any) => r.faithfulness !== null && r.answer_relevancy !== null)
-    .sort((a: any, b: any) => (a.faithfulness + a.answer_relevancy) - (b.faithfulness + b.answer_relevancy))
+  return (data as any[])
+    .filter((r) => r.faithfulness !== null && r.answer_relevancy !== null)
+    .sort((a, b) => (a.faithfulness + a.answer_relevancy) - (b.faithfulness + b.answer_relevancy))
     .slice(0, limit)
-    .map((r: any) => ({
+    .map((r) => ({
       query_id: r.query_id || r.id,
       query_text: r.chat_queries?.query_text || "Unknown query",
       faithfulness: r.faithfulness,
       answer_relevancy: r.answer_relevancy,
       created_at: r.created_at || new Date().toISOString(),
-      reason: "Low faithfulness score"
+      reason: "Low faithfulness score",
     }));
 }
 
-export async function getRagasHeatmap(range?: { from?: Date; to?: Date }, buckets = 8): Promise<any[]> { return []; }
-export async function getTriggerTrend(range?: { from?: Date; to?: Date }, buckets = 14): Promise<any[]> { return []; }
-export async function getSimilarityTrend(range?: { from?: Date; to?: Date }, buckets = 14): Promise<any[]> { return []; }
-export async function getDeadDocs(range?: { from?: Date; to?: Date }): Promise<any[]> { return []; }
-export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, limit = 20): Promise<any[]> { return []; }
-export async function getIngestionHealth(): Promise<any> {
-  const { data } = await fromUntyped("ingestion_runs").select("*");
-  const runs = (data || []) as IngestionRun[];
-
-  let indexed_docs = 0;
-  let failed_docs = 0;
-  let total_runs = runs.length;
-  let ok = 0;
-  let partial = 0;
-  let failed = 0;
-  let total_chunks = 0;
-  let last_run = new Date(0).toISOString();
-
-  runs.forEach(r => {
-    total_chunks += r.chunks_added || 0;
-    if (r.status === "ok") {
-      ok++;
-      indexed_docs++;
-    } else if (r.status === "partial") {
-      partial++;
-      indexed_docs++;
-    } else if (r.status === "failed") {
-      failed++;
-      failed_docs++;
-    }
-    if (r.created_at && r.created_at > last_run) {
-      last_run = r.created_at;
-    }
-  });
-
-  return {
-    status: failed > 0 ? "Degraded" : (total_runs > 0 ? "Healthy" : "Unknown"),
-    last_run: last_run === new Date(0).toISOString() ? new Date().toISOString() : last_run,
-    indexed_docs,
-    failed_docs,
-    total_runs,
-    ok,
-    partial,
-    failed,
-    total_chunks
-  };
-}
-export async function getPromptMetricsByVersion(): Promise<any> { return null; }
-export async function pollLiveFeed(): Promise<ChatQuery[]> {
-  return listQueries({ limit: 10 });
+export async function triggerReingest(_source: string): Promise<void> {
+  // No-op in Lovable Cloud — see BACKEND_INTEGRATION.md → Ingestion API.
 }
 
 export async function activatePromptVersion(id: string): Promise<void> {
@@ -406,8 +611,10 @@ export async function activatePromptVersion(id: string): Promise<void> {
   await fromUntyped("prompt_versions").update({ active: true }).eq("id", id);
 }
 
-export async function triggerReingest(_runId: string): Promise<void> {}
 export async function createPromptVersion(p: Partial<PromptVersion>): Promise<PromptVersion> {
-  const { data } = await fromUntyped("prompt_versions").insert(p).select().single();
+  const { data } = await fromUntyped("prompt_versions")
+    .insert({ name: p.name, version: p.version, body: (p as any).content ?? (p as any).body, active: false })
+    .select()
+    .single();
   return data as PromptVersion;
 }

@@ -19,52 +19,70 @@ export type Database = {
           fired_at: string
           id: string
           message: string | null
+          resolved_at: string | null
           rule_id: string | null
+          rule_name: string | null
           value: number | null
         }
         Insert: {
           fired_at?: string
           id?: string
           message?: string | null
+          resolved_at?: string | null
           rule_id?: string | null
+          rule_name?: string | null
           value?: number | null
         }
         Update: {
           fired_at?: string
           id?: string
           message?: string | null
+          resolved_at?: string | null
           rule_id?: string | null
+          rule_name?: string | null
           value?: number | null
         }
         Relationships: []
       }
       alert_rules: {
         Row: {
+          active: boolean
+          channel: string
           comparator: string | null
           created_at: string
           enabled: boolean
           id: string
           metric: string
           name: string
+          target: string
           threshold: number | null
+          window_minutes: number
         }
         Insert: {
+          active?: boolean
+          channel?: string
           comparator?: string | null
           created_at?: string
           enabled?: boolean
           id?: string
           metric: string
           name: string
+          target?: string
           threshold?: number | null
+          window_minutes?: number
         }
         Update: {
+          active?: boolean
+          channel?: string
           comparator?: string | null
           created_at?: string
           enabled?: boolean
           id?: string
           metric?: string
           name?: string
+          target?: string
           threshold?: number | null
+          window_minutes?: number
         }
         Relationships: []
       }
@@ -74,21 +92,33 @@ export type Database = {
           body: string
           created_at: string
           id: string
+          label: string | null
+          notes: string | null
+          promoted_to_golden: boolean
           query_id: string | null
+          response_id: string | null
         }
         Insert: {
           author_id?: string | null
           body: string
           created_at?: string
           id?: string
+          label?: string | null
+          notes?: string | null
+          promoted_to_golden?: boolean
           query_id?: string | null
+          response_id?: string | null
         }
         Update: {
           author_id?: string | null
           body?: string
           created_at?: string
           id?: string
+          label?: string | null
+          notes?: string | null
+          promoted_to_golden?: boolean
           query_id?: string | null
+          response_id?: string | null
         }
         Relationships: []
       }
@@ -99,6 +129,7 @@ export type Database = {
           id: string
           level: string
           message: string
+          request_id: string
         }
         Insert: {
           context?: Json | null
@@ -106,6 +137,7 @@ export type Database = {
           id?: string
           level?: string
           message: string
+          request_id?: string
         }
         Update: {
           context?: Json | null
@@ -113,6 +145,7 @@ export type Database = {
           id?: string
           level?: string
           message?: string
+          request_id?: string
         }
         Relationships: []
       }
@@ -330,25 +363,31 @@ export type Database = {
           finished_at: string | null
           id: string
           name: string
+          prompt_version_id: string | null
           started_at: string
           status: string
           summary: Json | null
+          triggered_by: string
         }
         Insert: {
           finished_at?: string | null
           id?: string
           name: string
+          prompt_version_id?: string | null
           started_at?: string
           status?: string
           summary?: Json | null
+          triggered_by?: string
         }
         Update: {
           finished_at?: string | null
           id?: string
           name?: string
+          prompt_version_id?: string | null
           started_at?: string
           status?: string
           summary?: Json | null
+          triggered_by?: string
         }
         Relationships: []
       }
@@ -381,22 +420,28 @@ export type Database = {
       }
       golden_questions: {
         Row: {
+          active: boolean
           created_at: string
           expected_answer: string | null
+          expected_sources: string[]
           id: string
           question: string
           tags: string[] | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           expected_answer?: string | null
+          expected_sources?: string[]
           id?: string
           question: string
           tags?: string[] | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           expected_answer?: string | null
+          expected_sources?: string[]
           id?: string
           question?: string
           tags?: string[] | null
@@ -408,6 +453,8 @@ export type Database = {
           chunks_added: number | null
           created_at: string
           details: Json | null
+          duration_ms: number
+          error_log: string | null
           id: string
           source: string
           status: string
@@ -416,6 +463,8 @@ export type Database = {
           chunks_added?: number | null
           created_at?: string
           details?: Json | null
+          duration_ms?: number
+          error_log?: string | null
           id?: string
           source: string
           status?: string
@@ -424,6 +473,8 @@ export type Database = {
           chunks_added?: number | null
           created_at?: string
           details?: Json | null
+          duration_ms?: number
+          error_log?: string | null
           id?: string
           source?: string
           status?: string
@@ -594,28 +645,34 @@ export type Database = {
           action: string | null
           created_at: string
           details: Json | null
+          excerpt: string | null
           id: string
           query_id: string | null
           rule: string
           severity: string | null
+          type: string | null
         }
         Insert: {
           action?: string | null
           created_at?: string
           details?: Json | null
+          excerpt?: string | null
           id?: string
           query_id?: string | null
           rule: string
           severity?: string | null
+          type?: string | null
         }
         Update: {
           action?: string | null
           created_at?: string
           details?: Json | null
+          excerpt?: string | null
           id?: string
           query_id?: string | null
           rule?: string
           severity?: string | null
+          type?: string | null
         }
         Relationships: []
       }
@@ -720,6 +777,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
       ensure_profile_and_role: { Args: never; Returns: Json }
       has_role: {
         Args: {
@@ -728,6 +786,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_admins: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+        }[]
+      }
+      promote_admin_by_email: { Args: { _email: string }; Returns: Json }
       seed_admin_demo: { Args: never; Returns: Json }
       whoami_diagnostics: { Args: never; Returns: Json }
     }
