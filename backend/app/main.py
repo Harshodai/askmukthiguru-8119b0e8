@@ -610,27 +610,35 @@ async def chat_endpoint(
             detail=f"Message too long. Please keep it under {settings.max_input_length} characters.",
         )
 
+    # === Benchmark cache bypass ===
+    # Requests from the evaluation benchmark carry X-Test-Key == jwt_secret.
+    # We skip both cache reads and cache writes for benchmark traffic so that:
+    #   (a) stale cache cannot inflate scores with pre-cached responses, and
+    #   (b) benchmark responses cannot pollute the production cache.
+    is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+
     # === Response Cache Check (Run output rail before returning cached responses) ===
-    cached = container.semantic_cache.get(cache_key)
-    if cached is not None:
-        REQUEST_COUNT.labels(status="cache_hit").inc()
-        # Run cached response through output guardrails to prevent bypass
-        cached_response = cached["response"]
-        output_check = await container.guardrails.check_output(cached_response)
-        final_response = (
-            output_check["moderated_response"] if output_check["blocked"] else cached_response
-        )
+    if not is_benchmark:
+        cached = container.semantic_cache.get(cache_key)
+        if cached is not None:
+            REQUEST_COUNT.labels(status="cache_hit").inc()
+            # Run cached response through output guardrails to prevent bypass
+            cached_response = cached["response"]
+            output_check = await container.guardrails.check_output(cached_response)
+            final_response = (
+                output_check["moderated_response"] if output_check["blocked"] else cached_response
+            )
 
-        # Translate back to native language if needed
-        if is_indic and final_response != cached_response:
-            final_response = await translate_text(final_response, "en", preferred_lang, container)
+            # Translate back to native language if needed
+            if is_indic and final_response != cached_response:
+                final_response = await translate_text(final_response, "en", preferred_lang, container)
 
-        return ChatResponse(
-            response=final_response,
-            intent=cached.get("intent"),
-            meditation_step=cached.get("meditation_step", 0),
-            citations=cached.get("citations", []),
-        )
+            return ChatResponse(
+                response=final_response,
+                intent=cached.get("intent"),
+                meditation_step=cached.get("meditation_step", 0),
+                citations=cached.get("citations", []),
+            )
 
     # Prepare request state (language detection, translation, memory preparation)
     state = await _prepare_request_state(container, chat_body, preferred_lang, user=user)
@@ -817,7 +825,8 @@ async def chat_endpoint(
             background_tasks.add_task(container.user_profile.save_conversation_memory, memory)
 
         # Populate cache for QUERY and CASUAL intents (Semantic Caching for fast routing)
-        if intent in ["QUERY", "CASUAL"]:
+        # Skip cache population for benchmark requests to prevent score inflation.
+        if not is_benchmark and intent in ["QUERY", "CASUAL"]:
             container.semantic_cache.put(
                 query=cache_key,
                 response=final_answer_native,
@@ -1056,8 +1065,15 @@ async def chat_stream_endpoint(
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
         try:
+            # === Benchmark cache bypass (captures request from outer scope via closure) ===
+            is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+
             # === Cache check (Run output rail before returning cached responses) ===
-            cached = container.semantic_cache.get(cache_key)
+            if not is_benchmark:
+                cached_raw = container.semantic_cache.get(cache_key)
+            else:
+                cached_raw = None
+            cached = cached_raw
             if cached is not None:
                 cached_response = cached["response"]
                 output_check = await container.guardrails.check_output(cached_response)
@@ -1336,7 +1352,8 @@ async def chat_stream_endpoint(
                         await asyncio.sleep(0.01)
 
             # Cache FACTUAL, QUERY, and CASUAL results (Semantic Caching)
-            if intent in ["QUERY", "CASUAL", "FACTUAL"]:
+            # Skip cache population for benchmark requests to prevent score inflation.
+            if not is_benchmark and intent in ["QUERY", "CASUAL", "FACTUAL"]:
                 container.semantic_cache.put(
                     cache_key, final_answer, intent, citations, meditation_step=med_step
                 )
