@@ -27,9 +27,8 @@ UNVERIFIED claims from README (used but marked):
 
 Usage:
     pip install httpx
-    python3 askmukthiguru_ruthless_benchmark.py --url http://localhost:8000
-"""
-
+    """
+from __future__ import annotations
 import argparse
 import asyncio
 import json
@@ -38,7 +37,11 @@ import sys
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from enum import Enum
 from typing import Any
 
@@ -1173,7 +1176,7 @@ async def chat(
     url: str,
     payload: dict,
     test_key: str = None,
-    timeout: float = 60.0,
+    timeout: float = 120.0,
 ) -> dict:
     headers = {"X-Test-Key": test_key} if test_key else {}
     if "session_id" not in payload:

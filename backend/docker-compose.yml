@@ -115,7 +115,7 @@ services:
       # --- Retrieval Quality ---
       - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.15}
       - SEMANTIC_CACHE_ENABLED=${SEMANTIC_CACHE_ENABLED:-true}
-      - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.92}
+      - SEMANTIC_CACHE_SIMILARITY=${SEMANTIC_CACHE_SIMILARITY:-0.96}
       # --- Observability ---
       - ENABLE_CORRELATION_IDS=${ENABLE_CORRELATION_IDS:-true}
       # --- Ollama (only used when LLM_PROVIDER=ollama) ---
