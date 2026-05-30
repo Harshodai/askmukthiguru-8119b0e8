@@ -170,3 +170,8 @@ class GraphState(TypedDict):
     memory_context: str | None
     ab_model: str | None  # "primary" or "krutrim" for A/B testing
     query_tier: str | None  # "tier2_simple" vs "tier3_complex"
+
+    # Per-node timing (R4 — structured observability)
+    # Each node appends {"node_name": latency_ms} so we get full pipeline breakdown.
+    # Reducer add_dicts merges timing dicts from parallel branches without overwriting.
+    node_timings: Annotated[dict, add_dicts]

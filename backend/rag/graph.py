@@ -304,4 +304,6 @@ def create_initial_state(
         memory_context="",
         ab_model="primary",
         query_tier=None,
+        # Per-node timing (R4)
+        node_timings={},
     )
