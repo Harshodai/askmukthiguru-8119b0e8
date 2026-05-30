@@ -36,7 +36,7 @@ import json
 import os
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -74,6 +74,16 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 SARVAM_BASE_URL = os.getenv("SARVAM_BASE_URL", "https://api.sarvam.ai/v1")
 SARVAM_CLASSIFY_MODEL = os.getenv("SARVAM_CLOUD_CLASSIFY_MODEL", "sarvam-m")
+
+# Auto-fallback: when running outside Docker the hostname "neo4j" won't resolve.
+# Replace it with localhost (the port is forwarded by docker-compose).
+if "neo4j:7687" in NEO4J_URI:
+    import socket
+    try:
+        socket.getaddrinfo("neo4j", 7687)
+    except socket.gaierror:
+        NEO4J_URI = NEO4J_URI.replace("neo4j:7687", "localhost:7687")
+        print(f"  ⚠️  'neo4j' hostname not resolvable — using localhost:7687 instead")
 
 BACKUP_PATH = _repo_root / "data" / "neo4j_poisoned_backup.json"
 
@@ -219,7 +229,7 @@ def main(dry_run: bool = False, limit: int | None = None) -> None:
     BACKUP_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     backup_data = {
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "total_poisoned": total_found,
         "nodes_in_this_backup": len(poisoned_nodes),
         "dry_run": dry_run,
