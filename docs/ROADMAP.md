@@ -104,7 +104,10 @@ graph LR
 **Tech Debt**:
 - [ ] Run `--retry-lightrag-missing` sweep for 72 Qdrant-only videos
 - [ ] Complete remaining 357-video ingestion run
-- [ ] Validate ingestion quality via `scripts/benchmarks/askmukthiguru_ruthless_benchmark.py`
+- [x] Heal 220 poisoned Neo4j entity descriptions via `scripts/ops/heal_neo4j_poison.py` (May 2026)
+- [x] Add benchmark cache bypass (`is_benchmark` guard in `main.py`) to prevent score inflation (May 2026)
+- [x] Raise `SEMANTIC_CACHE_SIMILARITY` threshold 0.92 → 0.96 (May 2026)
+- [ ] Validate ingestion quality via `scripts/benchmarks/askmukthiguru_ruthless_benchmark.py` (target ≥80%)
 
 ---
 
