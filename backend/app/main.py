@@ -80,6 +80,11 @@ from app.coalescer import build_coalescer
 
 coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
+# === Graceful shutdown in-flight request tracker (R3) ===
+import asyncio as _asyncio
+_INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
+_DRAIN_TIMEOUT_S = 30  # max seconds to wait for in-flight requests during shutdown
+
 # Configure JSON logging for production observability (Phase 10)
 import json
 
@@ -168,7 +173,16 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    logger.info("Shutting down...")
+    logger.info("Shutting down — waiting for in-flight requests (R3 graceful drain)...")
+    # Drain: wait until all in-flight requests finish or timeout expires
+    drain_waited = 0.0
+    while _INFLIGHT > 0 and drain_waited < _DRAIN_TIMEOUT_S:
+        await _asyncio.sleep(0.25)
+        drain_waited += 0.25
+    if _INFLIGHT > 0:
+        logger.warning(f"Graceful drain timeout after {_DRAIN_TIMEOUT_S}s — {_INFLIGHT} request(s) still active")
+    else:
+        logger.info(f"Graceful drain complete in {drain_waited:.1f}s")
     try:
         if callable(shutdown_scheduler):
             shutdown_scheduler()
@@ -275,6 +289,18 @@ class SecurityHeadersMiddleware:
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+# In-flight tracker middleware for graceful drain (R3)
+@app.middleware("http")
+async def inflight_tracker(request: Request, call_next):
+    """Increment/decrement global in-flight counter for graceful shutdown drain."""
+    global _INFLIGHT
+    _INFLIGHT += 1
+    try:
+        return await call_next(request)
+    finally:
+        _INFLIGHT -= 1
 
 
 app.state.limiter = limiter

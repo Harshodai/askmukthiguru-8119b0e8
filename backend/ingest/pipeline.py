@@ -55,7 +55,7 @@ from services.embedding_service import EmbeddingService
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
-from services.adaptive_chunking_service import AdaptiveChunkingService
+from services.adaptive_chunking_adapter import AdaptiveChunkingAdapter
 from services.proposition_service import PropositionService
 from services.contextual_chunking_service import ContextualChunkingService
 
@@ -98,7 +98,7 @@ class IngestionPipeline:
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
 
-        self._adaptive_chunker = AdaptiveChunkingService(self._embedder)
+        self._adaptive_chunker = AdaptiveChunkingAdapter(self._embedder)
         self._proposition_service = PropositionService(self._llm)
         self._contextual_chunker = ContextualChunkingService(self._llm)
 
@@ -236,8 +236,9 @@ class IngestionPipeline:
             chunks = self._split_text(clean_text, title=title, speaker=speaker, topic=topic)
 
             # Step 3: Document Augmentation (only for standard mode to avoid blowing up child chunk tokens)
+            # Pass clean_text as full_document so ContextualChunkingService can prepend situating context
             self._notify(on_progress, "Augmenting chunks...", 0.5)
-            final_chunks = await self._augment_chunks(chunks)
+            final_chunks = await self._augment_chunks(chunks, full_document=clean_text)
 
         if not final_chunks:
             return {"status": "error", "message": "No meaningful chunks", "source_url": source_url}
@@ -350,8 +351,9 @@ class IngestionPipeline:
             )
 
             # Step 4: Document Augmentation (Standard only)
+            # Pass clean_text as full_document to activate contextual enrichment
             self._notify(on_progress, "Augmenting chunks with potential questions...", 0.6)
-            final_chunks = await self._augment_chunks(chunks)
+            final_chunks = await self._augment_chunks(chunks, full_document=clean_text)
 
         if not final_chunks:
             return {
@@ -473,7 +475,8 @@ class IngestionPipeline:
                 else:
                     propositions = self._adaptive_chunker.chunk_document(parent_chunk)
 
-                augmented = await self._augment_chunks(propositions)
+                # Pass the full clean_text so ContextualChunkingService situates each proposition
+                augmented = await self._augment_chunks(propositions, full_document=clean_text)
 
                 # Prepend contextual header to each child chunk to guarantee UI clarity
                 header_parts = [f"Source: {video_title}"]
