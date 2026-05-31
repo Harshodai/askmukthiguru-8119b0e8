@@ -371,7 +371,7 @@ const AuthPage = () => {
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6 text-ojas" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">AskMukthiGuru</h1>
+          <h1 className="text-xl font-semibold text-foreground">Sign in to AskMukthiGuru</h1>
           <p className="text-sm text-muted-foreground">
             {isSignUp ? 'Create your account' : 'Welcome back, dear seeker'}
           </p>
