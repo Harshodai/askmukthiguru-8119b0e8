@@ -6,7 +6,6 @@ Uses Redis SETNX for distributed locking and key TTL for auto-cleanup.
 """
 
 import asyncio
-import hashlib
 import json
 import logging
 import time
@@ -155,7 +154,10 @@ class RedisCoalescer:
 
     async def close(self):
         try:
-            await self._redis.close()
+            if hasattr(self._redis, "aclose"):
+                await self._redis.aclose()
+            else:
+                await self._redis.close()
         except Exception:
             pass
 

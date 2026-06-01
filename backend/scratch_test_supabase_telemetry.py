@@ -1,4 +1,5 @@
 import sys
+
 from supabase import create_client
 
 url = "http://localhost:54321"
@@ -17,7 +18,7 @@ tables = [
     "retrieval_events",
     "trace_spans",
     "trigger_events",
-    "safety_events"
+    "safety_events",
 ]
 
 for table in tables:

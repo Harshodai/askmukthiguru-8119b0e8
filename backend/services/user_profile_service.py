@@ -210,7 +210,6 @@ class UserProfileService:
 
         return detected
 
-
     async def get_last_meditation_session(self, user_id: str) -> float | None:
         """
         Return the Unix timestamp of the most recently completed meditation
@@ -231,6 +230,7 @@ class UserProfileService:
                 )
                 if result.data:
                     import datetime
+
                     raw = result.data[0].get("completed_at")
                     if raw:
                         if isinstance(raw, str):

@@ -20,8 +20,8 @@ from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
 from services.cache_service import SemanticCacheAdapter, init_llm_cache
 from services.embedding_service import EmbeddingService
-from services.ingestion_tracker import build_tracker as build_ingestion_tracker
 from services.ingestion_tracker import IngestionTracker
+from services.ingestion_tracker import build_tracker as build_ingestion_tracker
 from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
@@ -181,7 +181,6 @@ class ServiceContainer:
 
     def update_progress(self, url: str, message: str, percent: float) -> None:
         """Update progress for a specific ingestion URL."""
-        import time
 
         self.ingestion_tracker.update(url, message, percent)
 

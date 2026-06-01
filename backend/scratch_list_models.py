@@ -1,5 +1,7 @@
-import httpx
 import asyncio
+
+import httpx
+
 
 async def main():
     api_key = "sk_ssncd4ha_x9XJumPZYpGPS1lqw8x6pH6G"
@@ -21,6 +23,7 @@ async def main():
                 print(resp.text[:500])
         else:
             print(resp.text)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

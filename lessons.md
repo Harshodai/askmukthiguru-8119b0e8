@@ -930,3 +930,15 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - Routed adversarial doctrine questions through the RAG pipeline instead of casual short-circuit responses, so provocative questions are grounded in retrieved evidence and citations.
 - **Lesson learned**: Agent benchmarks should not score only `input -> final output`. A production-grade harness needs `input -> route/intent -> retrieval/citations -> verification metadata -> final output`, with explicit category weights and reports. Otherwise the benchmark can look consolidated while still missing the failure modes that cause production instability.
 
+### 76. Dynamic Agentic Routing, Tenacity Circuit Breakers, and Deterministic UUID Coercion for Telemetry (June 2026)
+- **Problem**: 
+  - **Hardcoded Intent Keywords**: Using hardcoded keywords in RAG routers is brittle and easily bypassed or misclassified on complex queries.
+  - **Stateful Circuit Breakers & Retries**: Wrapping raw LLM calls with tenacity retries is helpful but requires a stateful circuit breaker to prevent credit/API exhaustion when services are down.
+  - **UUID Formatting Failures in Mock Data Telemetry**: Storing telemetry in standard Postgres tables with UUID primary/foreign keys often throws `22P02` (invalid text representation) exceptions when mock/local testing uses arbitrary string identifiers (like `"test-user-id"` or `"test-session"`).
+- **Solution**:
+  - **Dynamic Router**: Replaced all hardcoded keyword lists in `intent_router` with a structured `sarvam-30b` reasoning-model intent classifier using Pydantic schemas.
+  - **Stateful Tenacity Integration**: Standardized on tenacity retry structures paired with stateful circuit breakers to enforce immediate fail-fast during service downtime.
+  - **Deterministic UUID Coercion**: Implemented a sanitization method `_coerce_uuid(val_str)` using deterministic `uuid.uuid5(uuid.NAMESPACE_DNS, val_str)` to safely map arbitrary local string identifiers (e.g. `"test-user-id"`, `"test-session"`) to compliant UUID formats, preventing database syntax errors on inserts.
+- **Lesson learned**: When writing system telemetry that enforces UUID constraints, always sanitize and coerce incoming string identifiers into valid UUID formats using a deterministic hashing algorithm (`uuid.uuid5`) to maintain relational integrity and support mock testing profiles seamlessly.
+
+

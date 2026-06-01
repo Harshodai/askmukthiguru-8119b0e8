@@ -1,7 +1,7 @@
-import os
-import httpx
-import json
 import asyncio
+
+import httpx
+
 
 async def main():
     api_key = "sk_ssncd4ha_x9XJumPZYpGPS1lqw8x6pH6G"
@@ -14,12 +14,12 @@ async def main():
         "model": "sarvam-30b",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Tell me in 2 sentences: What is Deeksha?"}
+            {"role": "user", "content": "Tell me in 2 sentences: What is Deeksha?"},
         ],
         "temperature": 0.1,
         "max_tokens": 1024,
     }
-    
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
         print("Status Code:", resp.status_code)
@@ -34,6 +34,7 @@ async def main():
         except Exception as e:
             print("Failed to decode json:", e)
             print(resp.text[:500])
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from services.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
+
 
 class AdaptiveChunkingService:
     """
@@ -38,10 +39,12 @@ class AdaptiveChunkingService:
     def _split_into_sentences(self, text: str) -> list[str]:
         """Split text into sentences using regex boundary detection."""
         # Split on sentence terminals (.!?), keeping the punctuation, followed by whitespace
-        sentence_ends = re.split(r'(?<=[.!?])\s+', text)
+        sentence_ends = re.split(r"(?<=[.!?])\s+", text)
         return [s.strip() for s in sentence_ends if s.strip()]
 
-    def _cosine_similarity(self, v1: list[float] | np.ndarray, v2: list[float] | np.ndarray) -> float:
+    def _cosine_similarity(
+        self, v1: list[float] | np.ndarray, v2: list[float] | np.ndarray
+    ) -> float:
         """Calculate cosine similarity between two vectors."""
         a = np.array(v1)
         b = np.array(v2)
@@ -51,16 +54,18 @@ class AdaptiveChunkingService:
             return 0.0
         return float(np.dot(a, b) / (norm_a * norm_b))
 
-    def _split_recursively(self, text: str, chunk_size: int = 800, chunk_overlap: int = 150) -> list[str]:
+    def _split_recursively(
+        self, text: str, chunk_size: int = 800, chunk_overlap: int = 150
+    ) -> list[str]:
         """Simple recursive character splitter (fallback and baseline)."""
         if not text:
             return []
-            
+
         paragraphs = text.split("\n\n")
         chunks = []
         current_chunk = []
         current_len = 0
-        
+
         for p in paragraphs:
             p_len = len(p)
             if p_len > chunk_size:
@@ -99,10 +104,10 @@ class AdaptiveChunkingService:
                     current_len = overlap_size
                 current_chunk.append(p)
                 current_len += p_len
-                
+
         if current_chunk:
             chunks.append("\n\n".join(current_chunk))
-            
+
         return [c.strip() for c in chunks if c.strip()]
 
     def _split_semantically(self, text: str, threshold: float = 0.72) -> list[str]:
@@ -114,17 +119,17 @@ class AdaptiveChunkingService:
         try:
             # Batch encode all sentences for efficiency
             sentence_embeddings = self.embedding_service.encode(sentences)
-            
+
             # Compute similarities between consecutive sentences
             similarities = []
             for i in range(len(sentences) - 1):
-                sim = self._cosine_similarity(sentence_embeddings[i], sentence_embeddings[i+1])
+                sim = self._cosine_similarity(sentence_embeddings[i], sentence_embeddings[i + 1])
                 similarities.append(sim)
-                
+
             # Form chunks based on similarity threshold splits
             chunks = []
             current_sentences = [sentences[0]]
-            
+
             for i, sim in enumerate(similarities):
                 # If similarity is below threshold, start a new chunk
                 # Also cap individual chunk size to avoid building massive single-chunk structures
@@ -133,10 +138,10 @@ class AdaptiveChunkingService:
                     chunks.append(" ".join(current_sentences))
                     current_sentences = []
                 current_sentences.append(sentences[i + 1])
-                
+
             if current_sentences:
                 chunks.append(" ".join(current_sentences))
-                
+
             # Merge tiny chunks to preserve context
             merged_chunks = []
             current_chunk = ""
@@ -150,7 +155,7 @@ class AdaptiveChunkingService:
                     current_chunk = chunk
             if current_chunk:
                 merged_chunks.append(current_chunk)
-                
+
             return merged_chunks
 
         except Exception as e:
@@ -176,17 +181,17 @@ class AdaptiveChunkingService:
             if len(sentences) <= 1:
                 cohesions.append(1.0)
                 continue
-                
+
             try:
                 # Get embeddings for chunk's sentences
                 sent_embs = self.embedding_service.encode(sentences)
                 # Chunk embedding is the centroid of sentence embeddings
                 chunk_emb = np.mean(sent_embs, axis=0)
-                
+
                 # Cohesion is average similarity of each sentence to chunk centroid
-                chunk_cohesion = np.mean([
-                    self._cosine_similarity(emb, chunk_emb) for emb in sent_embs
-                ])
+                chunk_cohesion = np.mean(
+                    [self._cosine_similarity(emb, chunk_emb) for emb in sent_embs]
+                )
                 cohesions.append(float(chunk_cohesion))
             except Exception as e:
                 logger.warning(f"Error calculating cohesion for chunk: {e}")
@@ -196,13 +201,15 @@ class AdaptiveChunkingService:
 
         # Weighted average: 40% size constraints, 60% semantic cohesion
         total_score = (0.4 * sc) + (0.6 * icc)
-        logger.debug(f"Chunk set evaluated: size={len(chunks)}, SC={sc:.4f}, ICC={icc:.4f}, Score={total_score:.4f}")
+        logger.debug(
+            f"Chunk set evaluated: size={len(chunks)}, SC={sc:.4f}, ICC={icc:.4f}, Score={total_score:.4f}"
+        )
         return total_score
 
     def chunk_document(self, text: str) -> list[str]:
         """
         Dynamically chooses the best chunking strategy for the text.
-        
+
         Args:
             text: Entire text of the document to be split.
 
@@ -216,8 +223,12 @@ class AdaptiveChunkingService:
 
         # Baseline fast-path for short documents or if disabled
         if doc_len < settings.adaptive_chunking_min_chars or not settings.use_adaptive_chunking:
-            logger.info(f"Skipping adaptive chunking evaluation (length={doc_len} chars). Defaulting to Recursive Splitter.")
-            return self._split_recursively(text, settings.rag_chunk_size, settings.rag_chunk_overlap)
+            logger.info(
+                f"Skipping adaptive chunking evaluation (length={doc_len} chars). Defaulting to Recursive Splitter."
+            )
+            return self._split_recursively(
+                text, settings.rag_chunk_size, settings.rag_chunk_overlap
+            )
 
         logger.info(f"Running Adaptive Chunking evaluation on document (length={doc_len} chars)...")
         start_time = time.perf_counter()
@@ -233,7 +244,7 @@ class AdaptiveChunkingService:
         # Score candidates
         logger.info("Scoring Recursive splitter candidate set...")
         recursive_score = self._score_chunks(recursive_chunks)
-        
+
         logger.info("Scoring Semantic splitter candidate set...")
         semantic_score = self._score_chunks(semantic_chunks)
 
@@ -245,9 +256,13 @@ class AdaptiveChunkingService:
             result_chunks = self._split_semantically(text, threshold=0.72)
         else:
             logger.info("✅ Selected: RECURSIVE splitter.")
-            result_chunks = self._split_recursively(text, settings.rag_chunk_size, settings.rag_chunk_overlap)
+            result_chunks = self._split_recursively(
+                text, settings.rag_chunk_size, settings.rag_chunk_overlap
+            )
 
         duration = time.perf_counter() - start_time
-        logger.info(f"Document chunking completed in {duration:.4f}s. Total chunks: {len(result_chunks)}")
-        
+        logger.info(
+            f"Document chunking completed in {duration:.4f}s. Total chunks: {len(result_chunks)}"
+        )
+
         return result_chunks

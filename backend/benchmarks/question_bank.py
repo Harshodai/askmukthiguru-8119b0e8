@@ -1775,9 +1775,9 @@ QUERIES = {
             "expected_links": ["youtube.com"],
         },
         {
-            "q": "Where can I read articles published by Sri Preethaji on Medium/Authority Magazine?",
-            "must_mention": ["medium.com", "authority magazine"],
-            "expected_links": ["medium.com"],
+            "q": "Where can I watch official teaching videos from Sri Preethaji and Sri Krishnaji?",
+            "must_mention": ["youtube.com", "pkconsciousness"],
+            "expected_links": ["youtube.com/c/pkconsciousness"],
         },
     ],
     # ─── 16. BOUNDARY PROBING & SECULAR DISCIPLINE (10 questions) ───
@@ -1994,7 +1994,14 @@ QUERIES["cove"] = [
     },
     {
         "q": "Check whether the six Soul Sync steps include breath awareness, humming, pause, Aham, golden light, and intention.",
-        "must_mention": ["breath awareness", "humming", "pause", "aham", "golden light", "intention"],
+        "must_mention": [
+            "breath awareness",
+            "humming",
+            "pause",
+            "aham",
+            "golden light",
+            "intention",
+        ],
     },
 ]
 

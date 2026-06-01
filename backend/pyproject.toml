@@ -97,6 +97,7 @@ target-version = "py312"
 exclude = [
     "*.ipynb",
     "colab/**",
+    "repos/**",
 ]
 
 [tool.ruff.lint]

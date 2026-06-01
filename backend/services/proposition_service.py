@@ -15,6 +15,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class PropositionService:
     """
     Service for splitting text into independent, atomic propositions using LLM inference.
@@ -30,7 +31,7 @@ class PropositionService:
     def should_apply_propositions(self, doc_text: str) -> bool:
         """
         Determine if proposition chunking should be applied to this document.
-        
+
         Rules:
           - If use_proposition_chunking is "always", return True.
           - If use_proposition_chunking is "never", return False.
@@ -41,10 +42,12 @@ class PropositionService:
             return False
         if strategy == "always":
             return True
-            
+
         doc_len = len(doc_text)
         is_above_threshold = doc_len >= settings.proposition_char_limit
-        logger.info(f"Proposition strategy auto-check: len={doc_len}, limit={settings.proposition_char_limit}. apply={is_above_threshold}")
+        logger.info(
+            f"Proposition strategy auto-check: len={doc_len}, limit={settings.proposition_char_limit}. apply={is_above_threshold}"
+        )
         return is_above_threshold
 
     async def extract_propositions(self, text: str) -> list[str]:
@@ -52,10 +55,10 @@ class PropositionService:
         Decompose a chunk of text into atomic, independent propositions.
         Each proposition is a complete, grammatically correct sentence that can
         stand on its own without context or pronoun references.
-        
+
         Args:
             text: Input chunk text.
-            
+
         Returns:
             List of individual proposition strings.
         """
@@ -71,7 +74,7 @@ class PropositionService:
                 "Return each proposition on a new line prefixed with '- '. "
                 "Do not include any intro, outro, headers, or conversational preamble."
             )
-            
+
             response = await self._llm.generate(
                 prompt,
                 f"Teaching:\n{text}",
@@ -94,7 +97,9 @@ class PropositionService:
                 logger.warning("LLM returned no propositions. Falling back to original chunk.")
                 return [text]
 
-            logger.info(f"Proposition chunking succeeded: split chunk into {len(propositions)} propositions.")
+            logger.info(
+                f"Proposition chunking succeeded: split chunk into {len(propositions)} propositions."
+            )
             return propositions
 
         except Exception as e:

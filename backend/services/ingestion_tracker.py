@@ -13,6 +13,7 @@ import typing
 _redis = None
 try:
     import redis as _redis_module
+
     _redis = _redis_module.Redis
 except ImportError:
     _redis = None  # type: ignore[assignment]
@@ -94,9 +95,7 @@ class RedisIngestionTracker(IngestionTracker):
             data = self._client.hgetall(key)  # type: ignore[no-untyped-call]
             if data:
                 url = key.replace(f"{self._KEY_PREFIX}:", "")
-                result[url] = {
-                    k: v for k, v in data.items()
-                }
+                result[url] = {k: v for k, v in data.items()}
         return result
 
     def mark_error(self, url: str, error_message: str) -> None:

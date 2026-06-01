@@ -1,6 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.dependencies import ServiceContainer, get_container
@@ -13,6 +13,7 @@ client = TestClient(app)
 def mock_coalescer():
     async def dummy_get_or_run(key, callback):
         return await callback()
+
     with patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run):
         yield
 
@@ -102,10 +103,8 @@ def mock_get_container():
 app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
 app.dependency_overrides[get_container] = mock_get_container
 
-from unittest.mock import patch
 
-
-@patch("app.main.log_query_trace")
+@patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_success(mock_log_query_trace):
     """Verify that the chat endpoint correctly returns a ChatResponse."""
     payload = {"user_message": "Hello Mukthi Guru", "session_id": "test-session", "messages": []}
@@ -118,7 +117,7 @@ def test_chat_endpoint_success(mock_log_query_trace):
     assert data.get("blocked") is not True
 
 
-@patch("app.main.log_query_trace")
+@patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_empty_message(mock_log_query_trace):
     """Verify that an empty message returns a 400 error."""
     payload = {"user_message": "   ", "session_id": "test-session", "messages": []}
@@ -126,7 +125,7 @@ def test_chat_endpoint_empty_message(mock_log_query_trace):
     assert response.status_code == 400
 
 
-@patch("app.main.log_query_trace")
+@patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_indic_translation(mock_log_query_trace):
     """Verify that the chat endpoint translates Indic languages to and from English."""
     payload = {
@@ -144,7 +143,7 @@ def test_chat_endpoint_indic_translation(mock_log_query_trace):
     assert data["response"] == "translated_This is a mocked response"
 
 
-@patch("app.main.log_query_trace")
+@patch("app.main.telemetry_sink.log_query_trace")
 def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     """Verify that cached responses are checked by output guardrails before returning."""
     # Setup mock container with a cached response that would be blocked by guardrails

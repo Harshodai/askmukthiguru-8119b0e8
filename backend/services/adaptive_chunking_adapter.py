@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections import Counter
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -67,7 +66,7 @@ class AdaptiveChunkingAdapter(AdaptiveChunkingService):
 
         def bigrams(text: str) -> set[str]:
             words = re.findall(r"\w+", text.lower())
-            return {f"{words[i]} {words[i+1]}" for i in range(len(words) - 1)}
+            return {f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)}
 
         scores = []
         for i in range(len(chunks) - 1):

@@ -50,10 +50,11 @@ from app.dependencies import ServiceContainer, get_container, shutdown, startup
 from app.language_utils import detect_and_prepare_language_info
 from app.metrics import REQUEST_COUNT, REQUEST_LATENCY, metrics_endpoint
 from app.observability import init_observability
-from app.telemetry_db import init_telemetry_db, log_query_trace
-from app.telemetry_sink import SupabaseTelemetrySink
+from app.telemetry_db import init_telemetry_db
+from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
 
 telemetry_sink = SupabaseTelemetrySink()
+telemetry_worker = TelemetryWorker(telemetry_sink)
 from rag.graph import create_initial_state
 from rag.memory import build_memory_context, normalize_session_id
 from services.auth_service import get_current_user_from_supabase
@@ -82,6 +83,7 @@ coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=
 
 # === Graceful shutdown in-flight request tracker (R3) ===
 import asyncio as _asyncio
+
 _INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
 _DRAIN_TIMEOUT_S = 30  # max seconds to wait for in-flight requests during shutdown
 
@@ -169,6 +171,9 @@ async def lifespan(app: FastAPI):
     # 7. Initialize GPTCache to intercept identical LLM calls
     init_llm_cache()
 
+    # 8. Start Telemetry Background Worker (Phase 4)
+    telemetry_worker.start()
+
     logger.info("=== Mukthi Guru Backend Ready ===")
     yield
 
@@ -180,7 +185,9 @@ async def lifespan(app: FastAPI):
         await _asyncio.sleep(0.25)
         drain_waited += 0.25
     if _INFLIGHT > 0:
-        logger.warning(f"Graceful drain timeout after {_DRAIN_TIMEOUT_S}s — {_INFLIGHT} request(s) still active")
+        logger.warning(
+            f"Graceful drain timeout after {_DRAIN_TIMEOUT_S}s — {_INFLIGHT} request(s) still active"
+        )
     else:
         logger.info(f"Graceful drain complete in {drain_waited:.1f}s")
     try:
@@ -188,6 +195,10 @@ async def lifespan(app: FastAPI):
             shutdown_scheduler()
     except Exception as e:
         logger.warning(f"Scheduler shutdown error: {e}")
+
+    # Stop Telemetry Background Worker
+    telemetry_worker.stop()
+
     shutdown()
 
 
@@ -469,13 +480,24 @@ class ChatResponse(BaseModel):
     citations: list[str] = Field(default_factory=list, description="Source URLs")
     blocked: bool = Field(default=False, description="Was the message blocked?")
     block_reason: str | None = Field(None, description="Why it was blocked")
-    proactive_serene_mind: dict | None = Field(None, description="Proactive Serene Mind trigger details")
+    proactive_serene_mind: dict | None = Field(
+        None, description="Proactive Serene Mind trigger details"
+    )
     faithfulness_score: float | None = Field(None, description="Self-RAG faithfulness score")
     relevancy_score: float | None = Field(None, description="Answer relevancy score")
     confidence_score: float | None = Field(None, description="Verifier confidence score")
     verification: dict | None = Field(None, description="CoVe/Self-RAG verification result")
-    hallucination_flag: bool | None = Field(None, description="Whether verification flagged hallucination risk")
-
+    hallucination_flag: bool | None = Field(
+        None, description="Whether verification flagged hallucination risk"
+    )
+    trace_id: str | None = Field(None, description="Trace/query ID for observability")
+    latency_ms: int | None = Field(None, description="End-to-end response latency in milliseconds")
+    node_timings: dict | None = Field(
+        None, description="Per-node LangGraph timings in milliseconds"
+    )
+    evaluation_trace: dict | None = Field(
+        None, description="Trajectory metadata for benchmark and production AI evaluation"
+    )
 
 
 class IngestRequest(BaseModel):
@@ -662,7 +684,9 @@ async def chat_endpoint(
 
             # Translate back to native language if needed
             if is_indic and final_response != cached_response:
-                final_response = await translate_text(final_response, "en", preferred_lang, container)
+                final_response = await translate_text(
+                    final_response, "en", preferred_lang, container
+                )
 
             return ChatResponse(
                 response=final_response,
@@ -726,20 +750,20 @@ async def chat_endpoint(
     try:
         if container.serene_mind and container.user_profile:
             # Use current assessment if available, otherwise create a neutral one
-            current_assessment = locals().get('assessment')
+            current_assessment = locals().get("assessment")
             if current_assessment is None:
                 current_assessment = DistressAssessment(
                     level=DistressLevel.NONE,
                     confidence=0.0,
                     detected_signals=[],
                     language_detected=lang_detection.primary.value,
-                    recommended_response_type="normal"
+                    recommended_response_type="normal",
                 )
 
             proactive_assessment = await container.serene_mind.analyze_distress_trend(
                 user_id=user_id,
                 current_assessment=current_assessment,
-                user_profile_service=container.user_profile
+                user_profile_service=container.user_profile,
             )
 
             if proactive_assessment:
@@ -766,12 +790,14 @@ async def chat_endpoint(
                         "level": proactive_assessment.level.name,
                         "confidence": proactive_assessment.confidence,
                         "signals": proactive_assessment.detected_signals,
-                        "suggested_response": container.serene_mind.get_response(proactive_assessment),
+                        "suggested_response": container.serene_mind.get_response(
+                            proactive_assessment
+                        ),
                         "teachings_prelude": (
                             "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
                             "Every moment of pain is also a doorway to awakening. "
                             "You are not alone in this — Mukti Guru is here with you. "
-                            "Before we continue, let\'s pause together in a moment of Serene Mind."
+                            "Before we continue, let's pause together in a moment of Serene Mind."
                         ),
                     }
                 else:
@@ -949,6 +975,7 @@ async def chat_endpoint(
         session_uuid = str(uuid.uuid4())
 
     query_id = str(uuid.uuid4())
+    latency_ms = int((time.time() - start_time) * 1000)
 
     # Collect retrieval metadata from result
     retrieval_meta = None
@@ -979,26 +1006,28 @@ async def chat_endpoint(
     spans_data = []
     if "result" in locals() and isinstance(result, dict) and result.get("metrics"):
         for node_name, duration_sec in result["metrics"].items():
-            spans_data.append({
-                "span_name": node_name,
-                "start_ms": 0,
-                "duration_ms": int(duration_sec * 1000)
-            })
+            spans_data.append(
+                {"span_name": node_name, "start_ms": 0, "duration_ms": int(duration_sec * 1000)}
+            )
 
     # Extract safety events
     safety_events = []
     if input_check.get("blocked"):
-        safety_events.append({
-            "event_type": "INPUT_GUARDRAIL",
-            "decision": "BLOCKED",
-            "reason": input_check.get("reason") or "Harmful input detected"
-        })
+        safety_events.append(
+            {
+                "event_type": "INPUT_GUARDRAIL",
+                "decision": "BLOCKED",
+                "reason": input_check.get("reason") or "Harmful input detected",
+            }
+        )
     if output_check.get("blocked"):
-        safety_events.append({
-            "event_type": "OUTPUT_GUARDRAIL",
-            "decision": "BLOCKED",
-            "reason": output_check.get("reason") or "Harmful output detected"
-        })
+        safety_events.append(
+            {
+                "event_type": "OUTPUT_GUARDRAIL",
+                "decision": "BLOCKED",
+                "reason": output_check.get("reason") or "Harmful output detected",
+            }
+        )
 
     is_rag = intent == "QUERY"
     response_data = {
@@ -1023,7 +1052,7 @@ async def chat_endpoint(
         user_id=user_id,
         query_text=user_msg,
         model="askmukthiguru",
-        latency_ms=int((time.time() - start_time) * 1000),
+        latency_ms=latency_ms,
         status="ok" if intent != "ERROR" else "error",
         created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         response_text=final_answer,
@@ -1033,12 +1062,14 @@ async def chat_endpoint(
         context_precision=response_data["context_precision"],
         context_recall=response_data["context_recall"],
         hallucination_flag=response_data["hallucination_flag"],
-        confidence_score=result.get("confidence_score") if "result" in locals() and isinstance(result, dict) else None,
+        confidence_score=result.get("confidence_score")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
         judge_reasoning=response_data["judge_reasoning"],
         retrieval_metadata=retrieval_meta,
         spans=spans_data,
         trigger_events=trigger_events,
-        safety_events=safety_events
+        safety_events=safety_events,
     )
 
     return ChatResponse(
@@ -1049,11 +1080,29 @@ async def chat_endpoint(
         blocked=output_check.get("blocked", False),
         block_reason=output_check.get("reason"),
         proactive_serene_mind=state.get("proactive_serene_mind"),
-        faithfulness_score=result.get("faithfulness_score") if "result" in locals() and isinstance(result, dict) else None,
-        relevancy_score=result.get("relevancy_score") if "result" in locals() and isinstance(result, dict) else None,
-        confidence_score=result.get("confidence_score") if "result" in locals() and isinstance(result, dict) else None,
-        verification=result.get("verification") if "result" in locals() and isinstance(result, dict) else None,
-        hallucination_flag=response_data.get("hallucination_flag") if "response_data" in locals() else None,
+        faithfulness_score=result.get("faithfulness_score")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
+        relevancy_score=result.get("relevancy_score")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
+        confidence_score=result.get("confidence_score")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
+        verification=result.get("verification")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
+        hallucination_flag=response_data.get("hallucination_flag")
+        if "response_data" in locals()
+        else None,
+        trace_id=query_id,
+        latency_ms=latency_ms,
+        node_timings=result.get("node_timings")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
+        evaluation_trace=result.get("evaluation_trace")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
     )
 
 
@@ -1226,20 +1275,20 @@ async def chat_stream_endpoint(
             proactive_serene_mind = None
             try:
                 if container.serene_mind and container.user_profile:
-                    current_assessment = locals().get('assessment')
+                    current_assessment = locals().get("assessment")
                     if current_assessment is None:
                         current_assessment = DistressAssessment(
                             level=DistressLevel.NONE,
                             confidence=0.0,
                             detected_signals=[],
                             language_detected=lang_detection.primary.value,
-                            recommended_response_type="normal"
+                            recommended_response_type="normal",
                         )
 
                     proactive_assessment = await container.serene_mind.analyze_distress_trend(
                         user_id=user_id,
                         current_assessment=current_assessment,
-                        user_profile_service=container.user_profile
+                        user_profile_service=container.user_profile,
                     )
 
                     if proactive_assessment:
@@ -1250,7 +1299,9 @@ async def chat_stream_endpoint(
                         _skip_cooldown = (_now - _client_ts) < _COOLDOWN_SECS
 
                         if not _skip_cooldown and container.user_profile:
-                            _db_ts = await container.user_profile.get_last_meditation_session(user_id)
+                            _db_ts = await container.user_profile.get_last_meditation_session(
+                                user_id
+                            )
                             if _db_ts and (_now - _db_ts) < _COOLDOWN_SECS:
                                 _skip_cooldown = True
 
@@ -1265,12 +1316,14 @@ async def chat_stream_endpoint(
                                 "level": proactive_assessment.level.name,
                                 "confidence": proactive_assessment.confidence,
                                 "signals": proactive_assessment.detected_signals,
-                                "suggested_response": container.serene_mind.get_response(proactive_assessment),
+                                "suggested_response": container.serene_mind.get_response(
+                                    proactive_assessment
+                                ),
                                 "teachings_prelude": (
                                     "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
                                     "Every moment of pain is also a doorway to awakening. "
                                     "You are not alone in this — Mukti Guru is here with you. "
-                                    "Before we continue, let\'s pause together in a moment of Serene Mind."
+                                    "Before we continue, let's pause together in a moment of Serene Mind."
                                 ),
                             }
                         else:
@@ -1341,7 +1394,7 @@ async def chat_stream_endpoint(
                         escaped = item.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
                     queue.task_done()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
 
             # Wait for pipeline completion to get final state
@@ -1395,6 +1448,10 @@ async def chat_stream_endpoint(
                 )
 
             REQUEST_COUNT.labels(status="success").inc()
+            query_id = str(uuid.uuid4())
+            latency_ms = int((time.time() - start_time) * 1000)
+            approx_tokens = max(1, len(final_answer.split()))
+            tokens_per_second = round(approx_tokens / max(latency_ms / 1000, 0.001), 2)
 
             # Final metadata
             meta = json.dumps(
@@ -1403,6 +1460,15 @@ async def chat_stream_endpoint(
                     "citations": citations,
                     "meditation_step": med_step,
                     "proactive_serene_mind": proactive_serene_mind,
+                    "trace_id": query_id,
+                    "latency_ms": latency_ms,
+                    "tokens_per_second": tokens_per_second,
+                    "node_timings": result.get("node_timings")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
+                    "evaluation_trace": result.get("evaluation_trace")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
                     "faithfulness_score": result.get("faithfulness_score")
                     if "result" in locals() and isinstance(result, dict)
                     else None,
@@ -1453,15 +1519,17 @@ async def chat_stream_endpoint(
             except (ValueError, TypeError, AttributeError):
                 session_uuid = str(uuid.uuid4())
 
-            query_id = str(uuid.uuid4())
-
             # Collect retrieval metadata from result
             retrieval_meta = None
             if citations:
                 retrieval_meta = {
                     "chunk_ids": [c.get("id") if isinstance(c, dict) else "" for c in citations],
-                    "source_docs": [c.get("source_url") if isinstance(c, dict) else c for c in citations],
-                    "scores": [c.get("score", 0.0) if isinstance(c, dict) else 1.0 for c in citations],
+                    "source_docs": [
+                        c.get("source_url") if isinstance(c, dict) else c for c in citations
+                    ],
+                    "scores": [
+                        c.get("score", 0.0) if isinstance(c, dict) else 1.0 for c in citations
+                    ],
                     "top_k": len(citations),
                     "hit": len(citations) > 0,
                 }
@@ -1484,26 +1552,32 @@ async def chat_stream_endpoint(
             spans_data = []
             if "result" in locals() and isinstance(result, dict) and result.get("metrics"):
                 for node_name, duration_sec in result["metrics"].items():
-                    spans_data.append({
-                        "span_name": node_name,
-                        "start_ms": 0,
-                        "duration_ms": int(duration_sec * 1000)
-                    })
+                    spans_data.append(
+                        {
+                            "span_name": node_name,
+                            "start_ms": 0,
+                            "duration_ms": int(duration_sec * 1000),
+                        }
+                    )
 
             # Extract safety events
             safety_events = []
             if "input_check" in locals() and input_check.get("blocked"):
-                safety_events.append({
-                    "event_type": "INPUT_GUARDRAIL",
-                    "decision": "BLOCKED",
-                    "reason": input_check.get("reason") or "Harmful input detected"
-                })
+                safety_events.append(
+                    {
+                        "event_type": "INPUT_GUARDRAIL",
+                        "decision": "BLOCKED",
+                        "reason": input_check.get("reason") or "Harmful input detected",
+                    }
+                )
             if "output_check" in locals() and output_check.get("blocked"):
-                safety_events.append({
-                    "event_type": "OUTPUT_GUARDRAIL",
-                    "decision": "BLOCKED",
-                    "reason": output_check.get("reason") or "Harmful output detected"
-                })
+                safety_events.append(
+                    {
+                        "event_type": "OUTPUT_GUARDRAIL",
+                        "decision": "BLOCKED",
+                        "reason": output_check.get("reason") or "Harmful output detected",
+                    }
+                )
 
             is_rag = intent == "QUERY"
             response_data = {
@@ -1538,12 +1612,14 @@ async def chat_stream_endpoint(
                     context_precision=response_data["context_precision"],
                     context_recall=response_data["context_recall"],
                     hallucination_flag=response_data["hallucination_flag"],
-                    confidence_score=result.get("confidence_score") if "result" in locals() and isinstance(result, dict) else None,
+                    confidence_score=result.get("confidence_score")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
                     judge_reasoning=response_data["judge_reasoning"],
                     retrieval_metadata=retrieval_meta,
                     spans=spans_data,
                     trigger_events=trigger_events,
-                    safety_events=safety_events
+                    safety_events=safety_events,
                 )
             )
 
@@ -1572,7 +1648,7 @@ _breath_teaching_cache: dict[str, dict] = {}
 _TECHNIQUE_QUERIES: dict[str, str] = {
     "serene_mind": "What do Sri Preethaji and Sri Krishnaji teach about conscious breathing and the long exhale as a path to the beautiful state?",
     "box": "What do Sri Preethaji and Sri Krishnaji teach about equanimity, balance, and equal-phase breathing or pranayama?",
-    "4_7_8":  "What do Sri Preethaji and Sri Krishnaji teach about deep rest, surrender, and releasing all tension through the breath?",
+    "4_7_8": "What do Sri Preethaji and Sri Krishnaji teach about deep rest, surrender, and releasing all tension through the breath?",
     "deep_vitality": "What do Sri Preethaji and Sri Krishnaji teach about prana, life force, and energising the body through breath awareness?",
 }
 _DEFAULT_TECHNIQUE_QUERY = "What do Sri Preethaji and Sri Krishnaji teach about the sacred importance of conscious breathing in spiritual practice?"
@@ -1652,7 +1728,6 @@ async def get_breath_teaching(
                 "Sri Preethaji and Sri Krishnaji teach that conscious breathing is the bridge "
                 "between the suffering state and the beautiful state. Let each breath be a sacred offering."
             )
-
 
     # Cache the result
     _breath_teaching_cache[technique_id] = {"teaching": teaching, "ts": _time.time()}

@@ -11,6 +11,7 @@ Design Patterns:
 All LLM calls funnel through this service. No other module talks to Ollama directly.
 This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -23,7 +24,7 @@ from enum import Enum
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
-from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import settings
 from rag.prompts import (
@@ -44,8 +45,8 @@ logger = logging.getLogger(__name__)
 
 
 class CircuitState(Enum):
-    CLOSED = "closed"    # Normal operation
-    OPEN = "open"        # Failing — reject requests immediately
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing — reject requests immediately
     HALF_OPEN = "half_open"  # Testing if recovered
 
 
@@ -131,7 +132,9 @@ class OllamaService:
             num_predict=1024,  # Max output tokens (increased for richer spiritual explanations)
             timeout=settings.llm_timeout,  # CRITICAL: prevents unbounded LLM hangs
         )
-        logger.info(f"Ollama main model ready: {gen_model} (preset: {settings.model_preset}, timeout={settings.llm_timeout}s)")
+        logger.info(
+            f"Ollama main model ready: {gen_model} (preset: {settings.model_preset}, timeout={settings.llm_timeout}s)"
+        )
 
         # Fast model — for classification tasks (shorter timeout)
         self._llm_fast = ChatOllama(
@@ -202,6 +205,7 @@ class OllamaService:
                     response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
                     content = response.content.strip()
                     import re
+
                     think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
                     content_outside_think = re.sub(
                         r"<think>.*?</think>", "", content, flags=re.DOTALL
@@ -213,7 +217,7 @@ class OllamaService:
                         content = think_match.group(1).strip()
                     else:
                         content = content.strip()
-                    
+
                     self._circuit_breaker.record_success()
                     return content
         except Exception as e:
@@ -264,6 +268,7 @@ class OllamaService:
                     response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
                     content = response.content.strip()
                     import re
+
                     think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
                     content_outside_think = re.sub(
                         r"<think>.*?</think>", "", content, flags=re.DOTALL
@@ -275,7 +280,7 @@ class OllamaService:
                         content = think_match.group(1).strip()
                     else:
                         content = content.strip()
-                    
+
                     self._circuit_breaker.record_success()
                     return content
         except Exception as e:
@@ -345,18 +350,24 @@ class OllamaService:
 
     async def classify_intent(self, message: str, **kwargs) -> str:
         """
-        Classify user message into one of three intents.
+        Classify user message into one of the designated intents.
 
-        Returns: 'DISTRESS' | 'FACTUAL' | 'RELATIONAL' | 'FOLLOW_UP' | 'MEDITATION' | 'CASUAL'
-
-        Uses the fast model for ~10x speed improvement.
+        Uses the high-accuracy main model exclusively.
         """
-        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
+        result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
         if "DISTRESS" in result_upper:
             return "DISTRESS"
+        elif (
+            "SAFETY_VIOLATION" in result_upper
+            or "SAFETY" in result_upper
+            or "VIOLATION" in result_upper
+        ):
+            return "SAFETY_VIOLATION"
+        elif "ADVERSARIAL" in result_upper:
+            return "ADVERSARIAL"
         elif "FACTUAL" in result_upper or "QUERY" in result_upper:
             return "FACTUAL"
         elif "RELATIONAL" in result_upper:

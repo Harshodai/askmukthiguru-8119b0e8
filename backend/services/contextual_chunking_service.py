@@ -73,7 +73,7 @@ class ContextualChunkingService:
 
     def __init__(
         self,
-        llm: "OllamaService",
+        llm: OllamaService,
         max_doc_chars: int = 8_000,
         concurrency: int = 3,
     ) -> None:
@@ -170,7 +170,7 @@ class ContextualChunkingService:
                 context_text = await self._llm.generate(
                     system_prompt=_CONTEXTUAL_SYSTEM,
                     user_prompt=prompt,
-                    timeout=20,   # Short timeout — context generation should be fast
+                    timeout=20,  # Short timeout — context generation should be fast
                     max_retries=1,
                 )
                 context_text = context_text.strip()
@@ -178,9 +178,7 @@ class ContextualChunkingService:
                     return chunk
                 return f"[Context: {context_text}]\n{chunk}"
             except Exception as exc:
-                raise RuntimeError(
-                    f"LLM contextual enrichment failed for chunk {index}"
-                ) from exc
+                raise RuntimeError(f"LLM contextual enrichment failed for chunk {index}") from exc
 
     def _truncate_document(self, doc: str) -> str:
         """

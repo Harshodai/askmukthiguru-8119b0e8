@@ -66,6 +66,12 @@ class QuotaExceededError(Exception):
     pass
 
 
+class NonRetryableError(Exception):
+    """Raised when an error occurs that should not be retried (e.g. client errors 4xx)."""
+
+    pass
+
+
 # ---------------------------------------------------------------------------
 # Circuit Breaker — fail-fast when API is down, auto-recover
 # ---------------------------------------------------------------------------
@@ -338,9 +344,7 @@ class SarvamCloudService:
         # Proactively cap max_tokens for sarvam-m (lighter model, smaller context window)
         if "sarvam-m" in model and max_tokens > 2048:
             max_tokens = 2048
-            logger.info(
-                f"_call_api: Capped max_tokens to {max_tokens} for sarvam-m (starter tier)"
-            )
+            logger.info(f"_call_api: Capped max_tokens to {max_tokens} for sarvam-m (starter tier)")
 
         # Ensure reasoning models like sarvam-30b and sarvam-105b have a large enough max_tokens budget
         # to generate both the thinking trace and the final content response.
@@ -367,309 +371,294 @@ class SarvamCloudService:
             if reasoning_effort in ("low", "medium", "high"):
                 payload["reasoning_effort"] = reasoning_effort
 
-        last_error = None
-        for attempt in range(1, request_retries + 1):
-            # Enforce rate limiting to stay under subscription/API tier RPM limit (e.g. 60 RPM = 1.0s interval)
-            rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
-            if rpm_limit > 0:
-                min_interval = 60.0 / rpm_limit
-                async with self._rate_limit_lock:
-                    now = time.time()
-                    elapsed = now - self._last_request_time
-                    if elapsed < min_interval:
-                        sleep_time = min_interval - elapsed
-                        logger.info(
-                            f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit"
-                        )
-                        await asyncio.sleep(sleep_time)
-                    self._last_request_time = time.time()
+        from tenacity import (
+            AsyncRetrying,
+            retry_if_not_exception_type,
+            stop_after_attempt,
+            wait_exponential,
+        )
 
-            start_time = time.time()
-            with self._start_llm_span(model=model, operation=operation, attempt=attempt) as span:
-                try:
-                    client = await self._get_http_client()
-                    # We use an adjustment loop (up to 3 total attempts) to dynamically heal parameter mismatches
-                    adjustment_attempts = 0
-                    while adjustment_attempts < 3:
-                        resp = await client.post(
-                            f"{self._base_url}/chat/completions",
-                            headers=headers,
-                            json=payload,
-                            timeout=request_timeout,
-                        )
+        try:
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(request_retries),
+                wait=wait_exponential(multiplier=1, min=1, max=8),
+                retry=retry_if_not_exception_type((NonRetryableError, QuotaExceededError)),
+                before_sleep=lambda retry_state: logger.warning(
+                    f"Sarvam API call failed (attempt {retry_state.attempt_number}). Retrying..."
+                ),
+            ):
+                with attempt:
+                    # Enforce rate limiting to stay under subscription/API tier RPM limit (e.g. 60 RPM = 1.0s interval)
+                    rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
+                    if rpm_limit > 0:
+                        min_interval = 60.0 / rpm_limit
+                        async with self._rate_limit_lock:
+                            now = time.time()
+                            elapsed = now - self._last_request_time
+                            if elapsed < min_interval:
+                                sleep_time = min_interval - elapsed
+                                logger.info(
+                                    f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit"
+                                )
+                                await asyncio.sleep(sleep_time)
+                            self._last_request_time = time.time()
 
-                        # Self-healing for max_tokens limits on starter tier (HTTP 400)
-                        if resp.status_code == 400:
-                            m = re.search(
-                                r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
-                                resp.text,
-                            )
-                            if m:
-                                tier_limit = int(m.group(1))
-                                logger.warning(
-                                    f"Sarvam API max_tokens ({payload.get('max_tokens')}) exceeded subscription tier limit. "
-                                    f"Automatically capping to {tier_limit} and retrying immediately."
+                    start_time = time.time()
+                    with self._start_llm_span(
+                        model=payload.get("model", model),
+                        operation=operation,
+                        attempt=attempt.retry_state.attempt_number,
+                    ) as span:
+                        try:
+                            client = await self._get_http_client()
+                            # We use an adjustment loop (up to 3 total attempts) to dynamically heal parameter mismatches
+                            adjustment_attempts = 0
+                            while adjustment_attempts < 3:
+                                resp = await client.post(
+                                    f"{self._base_url}/chat/completions",
+                                    headers=headers,
+                                    json=payload,
+                                    timeout=request_timeout,
                                 )
-                                payload["max_tokens"] = tier_limit
-                                adjustment_attempts += 1
-                                continue
-                            else:
-                                break
 
-                        # Self-healing for context window limits (HTTP 422)
-                        elif (
-                            resp.status_code == 422
-                            and "exceeds the model context window" in resp.text
-                        ):
-                            if payload.get("model") == "sarvam-m":
-                                logger.warning(
-                                    "Sarvam API context window exceeded for sarvam-m. "
-                                    "Automatically upgrading model to sarvam-30b and retrying immediately."
-                                )
-                                payload["model"] = "sarvam-30b"
-                                # Cap to sarvam-30b's subscription tier limit (4096)
-                                payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
-                                model = (
-                                    "sarvam-30b"  # Update outer scope model variable for logging
-                                )
-                                adjustment_attempts += 1
-                                continue
-                            else:
-                                # Try parsing the allowed limit and prompt tokens to dynamically cap max_tokens
-                                m = re.search(
-                                    r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
-                                    resp.text,
-                                )
-                                if m:
-                                    prompt_t = int(m.group(1))
-                                    window_t = int(m.group(2))
-                                    allowed_max = (
-                                        window_t - prompt_t - 50
-                                    )  # 50 tokens safety margin
-                                    if allowed_max > 0:
+                                # Self-healing for max_tokens limits on starter tier (HTTP 400)
+                                if resp.status_code == 400:
+                                    m = re.search(
+                                        r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
+                                        resp.text,
+                                    )
+                                    if m:
+                                        tier_limit = int(m.group(1))
                                         logger.warning(
-                                            f"Sarvam API context window exceeded for {model}. "
-                                            f"Prompt tokens: {prompt_t}, Context window: {window_t}. "
-                                            f"Automatically reducing max_tokens to {allowed_max} and retrying immediately."
+                                            f"Sarvam API max_tokens ({payload.get('max_tokens')}) exceeded subscription tier limit. "
+                                            f"Automatically capping to {tier_limit} and retrying immediately."
                                         )
-                                        payload["max_tokens"] = allowed_max
+                                        payload["max_tokens"] = tier_limit
                                         adjustment_attempts += 1
                                         continue
                                     else:
-                                        # Cannot fit the prompt even with minimal max_tokens, stop retrying
                                         break
+
+                                # Self-healing for context window limits (HTTP 422)
+                                elif (
+                                    resp.status_code == 422
+                                    and "exceeds the model context window" in resp.text
+                                ):
+                                    if payload.get("model") == "sarvam-m":
+                                        logger.warning(
+                                            "Sarvam API context window exceeded for sarvam-m. "
+                                            "Automatically upgrading model to sarvam-30b and retrying immediately."
+                                        )
+                                        payload["model"] = "sarvam-30b"
+                                        payload["max_tokens"] = min(
+                                            payload.get("max_tokens", 4096), 4096
+                                        )
+                                        adjustment_attempts += 1
+                                        continue
+                                    else:
+                                        # Try parsing the allowed limit and prompt tokens to dynamically cap max_tokens
+                                        m = re.search(
+                                            r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
+                                            resp.text,
+                                        )
+                                        if m:
+                                            prompt_t = int(m.group(1))
+                                            window_t = int(m.group(2))
+                                            allowed_max = (
+                                                window_t - prompt_t - 50
+                                            )  # 50 tokens safety margin
+                                            if allowed_max > 0:
+                                                logger.warning(
+                                                    f"Sarvam API context window exceeded for {payload.get('model')}. "
+                                                    f"Prompt tokens: {prompt_t}, Context window: {window_t}. "
+                                                    f"Automatically reducing max_tokens to {allowed_max} and retrying immediately."
+                                                )
+                                                payload["max_tokens"] = allowed_max
+                                                adjustment_attempts += 1
+                                                continue
+                                            else:
+                                                break
+                                        else:
+                                            break
                                 else:
                                     break
-                        else:
-                            # If we succeeded or hit a different status code, break out of adjustment loop
-                            break
 
-                    latency_ms = (time.time() - start_time) * 1000
-                    self._set_span_attr(span, "http.status_code", resp.status_code)
-                    self._set_span_attr(span, "llm.request.max_tokens", max_tokens)
-                    self._set_span_attr(span, "llm.request.temperature", temperature)
-                    self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
-
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        # Debug logging gated behind SARVAM_DEBUG=true to prevent
-                        # unbounded file growth and avoid logging sensitive prompt content.
-                        if os.environ.get("SARVAM_DEBUG", "false").lower() == "true":
-                            try:
-                                import json as _json
-
-                                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                                debug_file = os.path.join(base_dir, "app", "sarvam_debug.json")
-                                # Rotate if file exceeds 50MB
-                                if (
-                                    os.path.exists(debug_file)
-                                    and os.path.getsize(debug_file) > 50 * 1024 * 1024
-                                ):
-                                    os.rename(debug_file, debug_file + ".bak")
-                                with open(debug_file, "a") as df:
-                                    df.write(
-                                        _json.dumps(
-                                            {
-                                                "timestamp": time.time(),
-                                                "operation": operation,
-                                                "max_tokens": max_tokens,
-                                                "temperature": temperature,
-                                                "payload_messages_len": len(
-                                                    payload.get("messages", [])
-                                                ),
-                                                "prompt_example": payload.get("messages", [])[
-                                                    -1
-                                                ].get("content")[:500]
-                                                if payload.get("messages")
-                                                else "",
-                                                "choice_0": data.get("choices", [{}])[0],
-                                                "usage": data.get("usage", {}),
-                                            },
-                                            indent=2,
-                                        )
-                                        + "\n\n"
-                                    )
-                            except Exception as e:
-                                logger.error(f"Failed to write sarvam debug info: {e}")
-
-                        choice_message = data.get("choices", [{}])[0].get("message", {})
-                        content = choice_message.get("content") or ""
-                        reasoning_content = choice_message.get("reasoning_content") or ""
-
-                        # Check if the current call is a structured operation
-                        is_structured = kwargs.get("is_structured", False)
-                        structured_ops = {
-                            "extraction",
-                            "grading",
-                            "classification",
-                            "classification_fallback",
-                            "correction",
-                            "translation",
-                            "extract",
-                            "summarize",
-                        }
-
-                        # Fallback: if content is empty but reasoning_content exists, use reasoning_content
-                        # This happens if the model gets cut off by max_tokens/context limit during reasoning.
-                        if not content.strip() and reasoning_content.strip():
-                            if is_structured or operation in structured_ops:
-                                recovered = self._extract_structured_content(
-                                    reasoning_content, operation
-                                )
-                                if recovered:
-                                    logger.info(
-                                        f"Sarvam API: Successfully recovered structured output from reasoning_content "
-                                        f"(len={len(recovered)}) for operation '{operation}'."
-                                    )
-                                    content = recovered
-                                else:
-                                    logger.warning(
-                                        f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}) "
-                                        f"for structured operation '{operation}'. Unable to extract clean structure. "
-                                        f"Falling back to raw reasoning_content."
-                                    )
-                                    content = reasoning_content
-                            else:
-                                logger.warning(
-                                    f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}). "
-                                    "Using reasoning_content as fallback."
-                                )
-                                content = reasoning_content
-
-                        usage = data.get("usage", {}) or {}
-                        tokens_used = usage.get("total_tokens", 0)
-                        self._record_usage(span, usage)
-
-                        # Strip <think> tags from reasoning models
-                        # Sarvam-30b sometimes puts ALL content inside <think>...</think>,
-                        # especially for classification/grading tasks.
-                        # Strategy: First check if there's content OUTSIDE think tags.
-                        # If not, extract the meaningful output FROM the think tags.
-                        think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                        content_outside_think = re.sub(
-                            r"<think>.*?</think>", "", content, flags=re.DOTALL
-                        ).strip()
-
-                        if content_outside_think:
-                            # Normal case: real content exists outside think tags
-                            content = content_outside_think
-                        elif think_match:
-                            # Reasoning model put EVERYTHING in think tags
-                            think_text = think_match.group(1).strip()
-                            if operation in ("classification", "classification_fallback"):
-                                lines = [
-                                    line.strip() for line in think_text.splitlines() if line.strip()
-                                ]
-                                if lines:
-                                    # For classification: use the last line (usually the final answer)
-                                    content = lines[-1]
-                                    logger.debug(
-                                        f"Extracted classification from <think> tags: '{content[:100]}'"
-                                    )
-                                else:
-                                    content = ""
-                            else:
-                                # For generate/extract: Keep the ENTIRE content, otherwise LightRAG extractions are destroyed!
-                                content = think_text
-                                logger.debug(
-                                    "Reasoning model wrapped entire generation in <think>. Using full block."
-                                )
-                        else:
-                            content = content.strip()
-
-                        self._set_span_attr(span, "llm.response.content_length", len(content))
-                        logger.info(
-                            f"Sarvam API OK — model={model}, "
-                            f"latency={latency_ms:.0f}ms, tokens={tokens_used}, "
-                            f"response_len={len(content)}"
-                        )
-
-                        # Prometheus instrumentation
-                        try:
-                            from app.metrics import LLM_LATENCY, LLM_TOKENS
-
-                            LLM_LATENCY.labels(model=model, operation=operation).observe(
-                                latency_ms / 1000
+                            latency_ms = (time.time() - start_time) * 1000
+                            self._set_span_attr(span, "http.status_code", resp.status_code)
+                            self._set_span_attr(
+                                span, "llm.request.max_tokens", payload.get("max_tokens")
                             )
-                            if tokens_used:
-                                LLM_TOKENS.labels(model=model).inc(tokens_used)
-                        except Exception:
-                            pass  # Metrics are optional
+                            self._set_span_attr(span, "llm.request.temperature", temperature)
+                            self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
 
-                        self._circuit.record_success()
-                        return content
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                if os.environ.get("SARVAM_DEBUG", "false").lower() == "true":
+                                    try:
+                                        import json as _json
 
-                    # Handle specific error codes
-                    status = resp.status_code
-                    body = resp.text[:500]
+                                        base_dir = os.path.dirname(
+                                            os.path.dirname(os.path.abspath(__file__))
+                                        )
+                                        debug_file = os.path.join(
+                                            base_dir, "app", "sarvam_debug.json"
+                                        )
+                                        if (
+                                            os.path.exists(debug_file)
+                                            and os.path.getsize(debug_file) > 50 * 1024 * 1024
+                                        ):
+                                            os.rename(debug_file, debug_file + ".bak")
+                                        with open(debug_file, "a") as df:
+                                            df.write(
+                                                _json.dumps(
+                                                    {
+                                                        "timestamp": time.time(),
+                                                        "operation": operation,
+                                                        "max_tokens": payload.get("max_tokens"),
+                                                        "temperature": temperature,
+                                                        "payload_messages_len": len(
+                                                            payload.get("messages", [])
+                                                        ),
+                                                        "prompt_example": payload.get(
+                                                            "messages", []
+                                                        )[-1].get("content")[:500]
+                                                        if payload.get("messages")
+                                                        else "",
+                                                        "choice_0": data.get("choices", [{}])[0],
+                                                        "usage": data.get("usage", {}),
+                                                    },
+                                                    indent=2,
+                                                )
+                                                + "\n\n"
+                                            )
+                                    except Exception as e:
+                                        logger.error(f"Failed to write sarvam debug info: {e}")
 
-                    if status == 429 or "credits" in body.lower():
-                        self._circuit.record_failure()
-                        raise QuotaExceededError(
-                            f"Sarvam API quota exceeded (HTTP {status}): {body}"
-                        )
+                                choice_message = data.get("choices", [{}])[0].get("message", {})
+                                content = choice_message.get("content") or ""
+                                reasoning_content = choice_message.get("reasoning_content") or ""
 
-                    if status >= 500:
-                        # Server error — retry
-                        logger.warning(
-                            f"Sarvam API server error (attempt {attempt}/{request_retries}): "
-                            f"HTTP {status} — {body}"
-                        )
-                        last_error = Exception(f"HTTP {status}: {body}")
-                        self._record_span_exception(span, last_error)
-                        await asyncio.sleep(min(2**attempt, 8))  # Exponential backoff
-                        continue
+                                is_structured = kwargs.get("is_structured", False)
+                                structured_ops = {
+                                    "extraction",
+                                    "grading",
+                                    "classification",
+                                    "classification_fallback",
+                                    "correction",
+                                    "translation",
+                                    "extract",
+                                    "summarize",
+                                }
 
-                    # Client error (4xx) — don't retry
-                    self._circuit.record_failure()
-                    raise Exception(f"Sarvam API client error: HTTP {status} — {body}")
+                                if not content.strip() and reasoning_content.strip():
+                                    if is_structured or operation in structured_ops:
+                                        recovered = self._extract_structured_content(
+                                            reasoning_content, operation
+                                        )
+                                        if recovered:
+                                            logger.info(
+                                                f"Sarvam API: Successfully recovered structured output from reasoning_content "
+                                                f"(len={len(recovered)}) for operation '{operation}'."
+                                            )
+                                            content = recovered
+                                        else:
+                                            logger.warning(
+                                                f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}) "
+                                                f"for structured operation '{operation}'. Unable to extract clean structure. "
+                                                f"Falling back to raw reasoning_content."
+                                            )
+                                            content = reasoning_content
+                                    else:
+                                        logger.warning(
+                                            f"Sarvam API returned empty content but has reasoning_content (len={len(reasoning_content)}). "
+                                            "Using reasoning_content as fallback."
+                                        )
+                                        content = reasoning_content
 
-                except QuotaExceededError as exc:
-                    self._record_span_exception(span, exc)
-                    raise
-                except httpx.TimeoutException as exc:
-                    latency_ms = (time.time() - start_time) * 1000
-                    self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
-                    self._record_span_exception(span, exc)
-                    logger.warning(
-                        f"Sarvam API timeout (attempt {attempt}/{request_retries}): "
-                        f"{latency_ms:.0f}ms"
-                    )
-                    last_error = Exception(f"Timeout after {latency_ms:.0f}ms")
-                    await asyncio.sleep(min(2**attempt, 8))  # Exponential backoff
-                except Exception as e:
-                    if isinstance(e, QuotaExceededError):
-                        raise
-                    latency_ms = (time.time() - start_time) * 1000
-                    self._set_span_attr(span, "llm.response.latency_ms", latency_ms)
-                    self._record_span_exception(span, e)
-                    logger.warning(f"Sarvam API error (attempt {attempt}/{request_retries}): {e}")
-                    last_error = e
-                    await asyncio.sleep(min(2**attempt, 8))
+                                usage = data.get("usage", {}) or {}
+                                tokens_used = usage.get("total_tokens", 0)
+                                self._record_usage(span, usage)
 
-        # All retries exhausted
-        self._circuit.record_failure()
-        raise last_error or Exception("Sarvam API call failed after all retries")
+                                think_match = re.search(
+                                    r"<think>(.*?)</think>", content, flags=re.DOTALL
+                                )
+                                content_outside_think = re.sub(
+                                    r"<think>.*?</think>", "", content, flags=re.DOTALL
+                                ).strip()
+
+                                if content_outside_think:
+                                    content = content_outside_think
+                                elif think_match:
+                                    think_text = think_match.group(1).strip()
+                                    if operation in ("classification", "classification_fallback"):
+                                        lines = [
+                                            line.strip()
+                                            for line in think_text.splitlines()
+                                            if line.strip()
+                                        ]
+                                        if lines:
+                                            content = lines[-1]
+                                            logger.debug(
+                                                f"Extracted classification from <think> tags: '{content[:100]}'"
+                                            )
+                                        else:
+                                            content = ""
+                                    else:
+                                        content = think_text
+                                        logger.debug(
+                                            "Reasoning model wrapped entire generation in <think>. Using full block."
+                                        )
+                                else:
+                                    content = content.strip()
+
+                                self._set_span_attr(
+                                    span, "llm.response.content_length", len(content)
+                                )
+                                logger.info(
+                                    f"Sarvam API OK — model={payload.get('model', model)}, "
+                                    f"latency={latency_ms:.0f}ms, tokens={tokens_used}, "
+                                    f"response_len={len(content)}"
+                                )
+
+                                try:
+                                    from app.metrics import LLM_LATENCY, LLM_TOKENS
+
+                                    LLM_LATENCY.labels(
+                                        model=payload.get("model", model), operation=operation
+                                    ).observe(latency_ms / 1000)
+                                    if tokens_used:
+                                        LLM_TOKENS.labels(model=payload.get("model", model)).inc(
+                                            tokens_used
+                                        )
+                                except Exception:
+                                    pass
+
+                                self._circuit.record_success()
+                                return content
+
+                            status = resp.status_code
+                            body = resp.text[:500]
+
+                            if status == 429 or "credits" in body.lower():
+                                raise QuotaExceededError(
+                                    f"Sarvam API quota/rate limit exceeded (HTTP {status}): {body}"
+                                )
+
+                            if status >= 500:
+                                raise Exception(f"HTTP Server Error {status}: {body}")
+
+                            raise NonRetryableError(
+                                f"Sarvam API client error: HTTP {status} — {body}"
+                            )
+
+                        except Exception as inner_exc:
+                            self._record_span_exception(span, inner_exc)
+                            raise inner_exc
+        except Exception as exc:
+            self._circuit.record_failure()
+            if isinstance(exc, NonRetryableError):
+                raise Exception(str(exc))
+            raise exc
 
     def _start_llm_span(self, model: str, operation: str, attempt: int):
         """Create an optional OTel span for a Sarvam request."""
@@ -839,7 +828,9 @@ class SarvamCloudService:
             else:
                 max_tokens = 4096
 
-        if ("sarvam-30b" in self._gen_model or "sarvam-105b" in self._gen_model) and max_tokens != 4096:
+        if (
+            "sarvam-30b" in self._gen_model or "sarvam-105b" in self._gen_model
+        ) and max_tokens != 4096:
             logger.info(
                 f"generate_stream: Scaling max_tokens to 4096 for reasoning model {self._gen_model}"
             )
@@ -909,23 +900,11 @@ class SarvamCloudService:
 
     async def classify_intent(self, message: str, **kwargs) -> str:
         """
-        Classify user message into one of three intents.
+        Classify user message into one of the designated intents.
 
-        Speculative Execution (Sys 2.2):
-        Races the high-accuracy model against the fast model for minimum latency.
+        Uses the high-accuracy main model (sarvam-30b) exclusively.
         """
-        # If we have two models, we could race them using asyncio.wait(..., return_when=FIRST_COMPLETED)
-        # For now, we'll use the fast model but with a tight timeout for speculation.
-        try:
-            # Speculative "Fast Path"
-            result = await asyncio.wait_for(
-                self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message, **kwargs), timeout=3.0
-            )
-        except (TimeoutError, asyncio.TimeoutError):
-            logger.warning(
-                "Speculative intent classification timed out. Falling back to main model."
-            )
-            result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
+        result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
@@ -940,6 +919,14 @@ class SarvamCloudService:
 
         if "DISTRESS" in result_upper:
             return "DISTRESS"
+        elif (
+            "SAFETY_VIOLATION" in result_upper
+            or "SAFETY" in result_upper
+            or "VIOLATION" in result_upper
+        ):
+            return "SAFETY_VIOLATION"
+        elif "ADVERSARIAL" in result_upper:
+            return "ADVERSARIAL"
         elif "MEDITATION" in result_upper:
             return "MEDITATION"
         elif "FACTUAL" in result_upper:
