@@ -109,5 +109,10 @@ backend/repos/raptor/
 playwright-report/
 test-results/
 
+# MCP Server Builds, Databases, and Outputs
+mcp-servers/
+graphify-out/
+.codegraph/
+
 
 
