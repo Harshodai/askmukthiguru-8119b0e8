@@ -302,6 +302,9 @@ def create_initial_state(
         memory_context="",
         ab_model="primary",
         query_tier=None,
+        model_used=None,
+        model_provider=None,
+        route_decision=None,
         # Per-node timing (R4)
         node_timings={},
         # Production AI reliability trajectory metadata

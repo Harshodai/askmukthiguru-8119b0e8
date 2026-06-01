@@ -953,4 +953,7 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Restored Adversarial Queries & Excluded Guardrails**: Restored the 8 spiritual adversarial questions to `question_bank.py` and filtered out guardrail, intent-trap, and admin query responses from the citation denominator.
 - **Lesson learned**: Standardize timeout margins cascading from client to backend. Exclude non-citation intent categories from RAG citation denominators. Always add flexible substring indicators to truncate reasoning monologues when working with models that think aloud outside system tags.
 
-
+### 78. Full Query and LLM Response Output in RAG Benchmarking (June 2026)
+- **Problem**: When evaluating RAG pipelines, truncating query strings (e.g. `q[:60]`) and LLM responses (e.g. `resp[:200]`) in benchmark records makes it difficult to debug reasoning errors, false positive guardrail blocks, or semantic retrieval drift from the JSON report.
+- **Solution**: Modified `backend/benchmarks/ruthless_benchmark.py` to record and output the complete, untruncated queries and answers in the `SingleResult` objects across standard query categories, multi-turn suites, and stability test runs. This ensures the full response payload is visible in both the `results` and the `errors` keys of `ruthless_report.json`.
+- **Lesson learned**: Retain full query and response payloads in benchmarking datasets. Slicing logs for display convenience should be done at the presentation layer (CLI printing) rather than inside the raw dataset structure, ensuring that the full context is preserved for diagnostic and fine-tuning purposes.

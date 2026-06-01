@@ -7,7 +7,7 @@ evaluations, and user feedback via Supabase.
 
 import logging
 import re
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from supabase import Client, create_client
@@ -915,36 +915,198 @@ async def get_top_failures(
         return []
 
 
+def _parse_dt(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    safe = validate_iso_date(value)
+    return datetime.fromisoformat(safe.replace("Z", "+00:00"))
+
+
+def _parse_range_start(value: str | None, days: int) -> datetime:
+    parsed = _parse_dt(value)
+    if parsed:
+        return parsed
+    return datetime.now(UTC) - timedelta(days=days)
+
+
+def _parse_range_end(value: str | None) -> datetime:
+    parsed = _parse_dt(value)
+    if parsed:
+        return parsed
+    return datetime.now(UTC)
+
+
+def _bucket_rows(
+    rows: list[dict[str, Any]],
+    start: datetime,
+    end: datetime,
+    buckets: int,
+    time_key: str,
+) -> list[dict[str, Any]]:
+    buckets = max(1, buckets)
+    width = max((end - start).total_seconds() / buckets, 1)
+    out = [
+        {"bucket": (start + timedelta(seconds=i * width)).isoformat(), "items": []}
+        for i in range(buckets)
+    ]
+    for row in rows:
+        raw = row.get(time_key)
+        if not raw:
+            continue
+        ts = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        idx = int((ts - start).total_seconds() / width)
+        idx = min(max(idx, 0), buckets - 1)
+        out[idx]["items"].append(row)
+    return out
+
+
 async def get_ragas_heatmap(
     from_date: str | None = None, to_date: str | None = None, buckets: int = 8
 ) -> list[dict[str, Any]]:
     """Get RAGAS heatmap data."""
-    # Placeholder implementation
-    return []
+    client = _get_client()
+    if not client:
+        return []
+
+    metrics = ("faithfulness", "answer_relevancy", "context_precision", "context_recall")
+    try:
+        start = _parse_range_start(from_date, days=7)
+        end = _parse_range_end(to_date)
+        query = (
+            client.table("chat_responses")
+            .select("faithfulness, answer_relevancy, context_precision, context_recall, created_at")
+            .gte("created_at", start.isoformat())
+            .lte("created_at", end.isoformat())
+        )
+        rows = query.execute().data or []
+        bucketed = _bucket_rows(rows, start, end, buckets, "created_at")
+        out: list[dict[str, Any]] = []
+        for bucket in bucketed:
+            for metric in metrics:
+                vals = [
+                    float(r.get(metric) or 0) for r in bucket["items"] if r.get(metric) is not None
+                ]
+                out.append(
+                    {
+                        "bucket": bucket["bucket"],
+                        "metric": metric,
+                        "value": sum(vals) / len(vals) if vals else 0,
+                        "count": len(vals),
+                    }
+                )
+        return out
+    except Exception as e:
+        logger.error(f"Failed to get RAGAS heatmap: {e}")
+        return []
 
 
 async def get_trigger_trend(
     from_date: str | None = None, to_date: str | None = None, buckets: int = 14
 ) -> list[dict[str, Any]]:
     """Get trigger trend data."""
-    # Placeholder implementation
-    return []
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        start = _parse_range_start(from_date, days=buckets)
+        end = _parse_range_end(to_date)
+        rows = (
+            client.table("trigger_events")
+            .select("trigger_name, trigger_type, created_at")
+            .gte("created_at", start.isoformat())
+            .lte("created_at", end.isoformat())
+            .execute()
+            .data
+            or []
+        )
+        bucketed = _bucket_rows(rows, start, end, buckets, "created_at")
+        out = []
+        for bucket in bucketed:
+            point: dict[str, Any] = {"bucket": bucket["bucket"]}
+            for row in bucket["items"]:
+                name = row.get("trigger_name") or row.get("trigger_type") or "unknown"
+                point[name] = point.get(name, 0) + 1
+            out.append(point)
+        return out
+    except Exception as e:
+        logger.error(f"Failed to get trigger trend: {e}")
+        return []
 
 
 async def get_similarity_trend(
     from_date: str | None = None, to_date: str | None = None, buckets: int = 14
 ) -> list[dict[str, Any]]:
     """Get similarity trend data."""
-    # Placeholder implementation
-    return []
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        start = _parse_range_start(from_date, days=buckets)
+        end = _parse_range_end(to_date)
+        rows = (
+            client.table("retrieval_events")
+            .select("scores, chat_queries!inner(created_at)")
+            .gte("chat_queries.created_at", start.isoformat())
+            .lte("chat_queries.created_at", end.isoformat())
+            .execute()
+            .data
+            or []
+        )
+        for row in rows:
+            row["bucket_created_at"] = (row.get("chat_queries") or {}).get("created_at")
+        bucketed = _bucket_rows(rows, start, end, buckets, "bucket_created_at")
+        out = []
+        for bucket in bucketed:
+            scores = []
+            for row in bucket["items"]:
+                row_scores = row.get("scores") or []
+                if row_scores:
+                    scores.append(float(row_scores[0] or 0))
+            out.append(
+                {
+                    "bucket": bucket["bucket"],
+                    "avg_top_score": sum(scores) / len(scores) if scores else 0,
+                }
+            )
+        return out
+    except Exception as e:
+        logger.error(f"Failed to get similarity trend: {e}")
+        return []
 
 
 async def get_dead_docs(
     from_date: str | None = None, to_date: str | None = None
 ) -> list[dict[str, Any]]:
     """Get dead documents."""
-    # Placeholder implementation
-    return []
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        docs = client.table("document_registry").select("source").execute().data or []
+    except Exception:
+        # No document registry exists in the current schema, so this metric cannot
+        # be computed truthfully. Return an empty list instead of fabricated rows.
+        return []
+
+    try:
+        query = client.table("retrieval_events").select("source_docs")
+        if from_date:
+            query = query.gte("created_at", validate_iso_date(from_date))
+        if to_date:
+            query = query.lte("created_at", validate_iso_date(to_date))
+        rows = query.execute().data or []
+        retrieved = {src for row in rows for src in (row.get("source_docs") or [])}
+        return [
+            {"source": row.get("source")}
+            for row in docs
+            if row.get("source") and row.get("source") not in retrieved
+        ]
+    except Exception as e:
+        logger.error(f"Failed to get dead docs: {e}")
+        return []
 
 
 async def get_empty_retrievals(
@@ -1086,8 +1248,55 @@ async def get_ingestion_health() -> dict[str, Any]:
 
 async def get_prompt_metrics_by_version() -> Any:
     """Get prompt metrics by version."""
-    # Placeholder implementation
-    return None
+    client = _get_client()
+    if not client:
+        return []
+
+    try:
+        prompts = client.table("prompt_versions").select("*").execute().data or []
+        queries = (
+            client.table("chat_queries")
+            .select("prompt_version_id, latency_ms, chat_responses(faithfulness, answer_relevancy)")
+            .execute()
+            .data
+            or []
+        )
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for row in queries:
+            key = row.get("prompt_version_id")
+            if key:
+                grouped.setdefault(key, []).append(row)
+
+        out = []
+        for prompt in prompts:
+            rows = grouped.get(prompt.get("id"), [])
+            faith = []
+            rel = []
+            latencies = []
+            for row in rows:
+                if row.get("latency_ms") is not None:
+                    latencies.append(float(row["latency_ms"]))
+                for response in row.get("chat_responses") or []:
+                    if response.get("faithfulness") is not None:
+                        faith.append(float(response["faithfulness"]))
+                    if response.get("answer_relevancy") is not None:
+                        rel.append(float(response["answer_relevancy"]))
+            out.append(
+                {
+                    "prompt_version_id": prompt.get("id"),
+                    "name": prompt.get("name"),
+                    "version": prompt.get("version"),
+                    "active": prompt.get("active"),
+                    "query_count": len(rows),
+                    "avg_latency_ms": sum(latencies) / len(latencies) if latencies else 0,
+                    "avg_faithfulness": sum(faith) / len(faith) if faith else 0,
+                    "avg_answer_relevancy": sum(rel) / len(rel) if rel else 0,
+                }
+            )
+        return out
+    except Exception as e:
+        logger.error(f"Failed to get prompt metrics: {e}")
+        return []
 
 
 async def get_live_feed() -> list[dict[str, Any]]:
@@ -1128,7 +1337,11 @@ async def get_query_trace(query_id: str) -> dict[str, Any] | None:
             .order("start_ms")
             .execute()
         )
-        spans = spans_resp.data or []
+        spans = []
+        for span in spans_resp.data or []:
+            if "name" not in span and span.get("span_name"):
+                span["name"] = span["span_name"]
+            spans.append(span)
 
         # Fetch triggers
         triggers_resp = (

@@ -72,7 +72,17 @@ async def fetch_prompts(
 ) -> list[dict[str, Any]]:
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
-    return []
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        return []
+    try:
+        res = client.table("prompt_versions").select("*").execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Failed to fetch prompts: {e}")
+        return []
 
 
 @admin_router.get("/evaluations")
@@ -81,7 +91,7 @@ async def fetch_evaluations(
 ) -> list[dict[str, Any]]:
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
-    return []
+    return await get_eval_runs()
 
 
 @admin_router.get("/kpis")

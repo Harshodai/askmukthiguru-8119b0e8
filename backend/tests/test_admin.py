@@ -59,3 +59,40 @@ def test_fetch_query_trace_not_found(mock_get_query_trace):
     mock_get_query_trace.return_value = None
     response = client.get("/api/admin/traces/trace-not-found")
     assert response.status_code == 404
+
+
+@patch("routers.admin.get_eval_runs")
+def test_fetch_evaluations_success(mock_get_eval_runs):
+    mock_get_eval_runs.return_value = [{"id": "eval-1", "score": 0.98}]
+    response = client.get("/api/admin/evaluations")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "eval-1"
+    mock_get_eval_runs.assert_called_once()
+
+
+@patch("app.telemetry_db._get_client")
+def test_fetch_prompts_success(mock_get_client):
+    from unittest.mock import MagicMock
+
+    mock_supabase = MagicMock()
+    mock_get_client.return_value = mock_supabase
+
+    mock_table = MagicMock()
+    mock_supabase.table.return_value = mock_table
+
+    mock_select = MagicMock()
+    mock_table.select.return_value = mock_select
+
+    mock_execute = MagicMock()
+    mock_select.execute.return_value = mock_execute
+
+    mock_execute.data = [{"id": "prompt-1", "name": "System Prompt"}]
+
+    response = client.get("/api/admin/prompts")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == "prompt-1"
+    mock_supabase.table.assert_called_once_with("prompt_versions")

@@ -104,6 +104,13 @@ backend/repos/HippoRAG/
 backend/repos/RAG_Techniques/
 backend/repos/adaptive-chunking/
 backend/repos/raptor/
+backend/repos/dspy/
+backend/repos/ragas/
+backend/repos/phoenix/
+backend/repos/langfuse/
+backend/repos/opik/
+backend/repos/deepeval/
+backend/repos/docling/
 
 # Playwright Test Outputs
 playwright-report/

@@ -278,6 +278,44 @@ def _generation_kwargs(state: GraphState) -> dict:
     return {"num_predict": 768}
 
 
+def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
+    """
+    Select generation model via config, not benchmark-answer hardcoding.
+
+    The optional Sarvam complex model is disabled by default until account access
+    is verified. When enabled, only genuinely complex/long-context requests are
+    routed there; all paths remain observable through state telemetry.
+    """
+    kwargs = _generation_kwargs(state)
+    provider = getattr(settings, "llm_provider", "unknown")
+    default_model = getattr(settings, "sarvam_cloud_model", None) or getattr(
+        settings, "ollama_model", None
+    )
+    model = default_model
+    decision = state.get("query_tier") or "default"
+
+    complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
+    complex_model = getattr(settings, "sarvam_cloud_complex_model", "")
+    threshold = getattr(settings, "sarvam_complex_context_chars", 20000)
+    is_complex = state.get("query_tier") == "tier3_complex" or bool(state.get("is_complex"))
+    is_long_context = context_chars >= threshold
+    is_high_risk = state.get("intent") in {"ADVERSARIAL", "RELATIONAL"}
+
+    if complex_enabled and complex_model and (is_complex or is_long_context or is_high_risk):
+        model = complex_model
+        decision = "complex_model"
+
+    if model and provider.lower() == "sarvam_cloud":
+        kwargs["model"] = model
+
+    kwargs["_route_metadata"] = {
+        "model_used": model,
+        "model_provider": provider,
+        "route_decision": decision,
+    }
+    return kwargs
+
+
 def init_services(
     ollama: OllamaService,
     embedder: EmbeddingService,
@@ -1519,7 +1557,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     # A/B Testing: Choose model
     ab_model = state.get("ab_model", "primary")
-    generation_kwargs = _generation_kwargs(state)
+    generation_kwargs = _generation_route(state, context_chars=len(context))
+    route_metadata = generation_kwargs.pop("_route_metadata", {})
 
     if ab_model == "krutrim":
         try:
@@ -1611,12 +1650,16 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     return {
         "answer": answer,
         "citations": citations,
+        **route_metadata,
         "citation_reasoning": {},
         "evaluation_trace": _trace_update(
             state,
             generated_answer_chars=len(answer),
             citation_urls=citations,
             memory_used=bool(state.get("memory_context")),
+            model_used=route_metadata.get("model_used"),
+            model_provider=route_metadata.get("model_provider"),
+            route_decision=route_metadata.get("route_decision"),
         ),
     }
 
