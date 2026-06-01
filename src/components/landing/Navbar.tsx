@@ -54,6 +54,9 @@ export const Navbar = () => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="md:hidden p-2 text-foreground hover:text-ojas transition-colors"
+              aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isOpen}
+              aria-controls="mobile-nav"
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

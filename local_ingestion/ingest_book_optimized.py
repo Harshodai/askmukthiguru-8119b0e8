@@ -30,7 +30,8 @@ os.environ["OLLAMA_MODEL"] = "deepseek-r1:7b"
 os.environ["SARVAM_API_KEY"] = "none"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
-os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+if "REDIS_URL" not in os.environ:
+    raise RuntimeError("REDIS_URL env var is required")
 
 from app.dependencies import get_container
 

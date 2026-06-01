@@ -37,7 +37,7 @@ async def cleanup():
     logger.info("Connecting to Neo4j...")
     try:
         # Use proper auth from config/env if possible, but hardcoded for now as per original script
-        driver = GraphDatabase.driver("bolt://neo4j:7687", auth=("neo4j", "mukthiguru_neo4j_pass"))
+        driver = GraphDatabase.driver("bolt://neo4j:7687", auth=("neo4j", __import__("os").environ["NEO4J_PASSWORD"]))
         with driver.session() as session:
             logger.info("Deleting ALL Neo4j data...")
             session.run("MATCH (n) DETACH DELETE n")
@@ -51,7 +51,7 @@ async def cleanup():
     try:
         import redis
 
-        r = redis.from_url("redis://:mukthiguru_redis_pass@redis:6379/0")
+        r = redis.from_url(f"redis://:{__import__('os').environ['REDIS_PASSWORD']}@redis:6379/0")
         r.flushall()
         logger.info("✅ Redis cleared.")
     except Exception as e:
