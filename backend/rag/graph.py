@@ -226,8 +226,6 @@ def build_rag_graph(
     return compiled
 
 
-
-
 def create_initial_state(
     question: str,
     chat_history: list[dict] | None = None,
@@ -306,4 +304,6 @@ def create_initial_state(
         query_tier=None,
         # Per-node timing (R4)
         node_timings={},
+        # Production AI reliability trajectory metadata
+        evaluation_trace={},
     )

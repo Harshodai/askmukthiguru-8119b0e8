@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 
 from app.telemetry_db import (
     get_admins,
@@ -365,7 +368,6 @@ async def poll_live_feed_endpoint(
 
 from typing import Any
 
-import httpx
 from pydantic import BaseModel
 
 
@@ -405,7 +407,9 @@ async def ask_admin_question(
             temperature=0.3,
         )
         if not answer or not answer.strip():
-            logger.warning("LLM returned empty or whitespace response for admin ask. Using fallback response.")
+            logger.warning(
+                "LLM returned empty or whitespace response for admin ask. Using fallback response."
+            )
             answer = "I apologize, but I am currently unable to retrieve a response from the analytics engine. Please ensure that platform metrics are populated and try again."
         return {"response": answer.strip()}
     except Exception as e:

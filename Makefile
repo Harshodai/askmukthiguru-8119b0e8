@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format test docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs
+.PHONY: help install dev lint format test eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs
 
 # Colors for terminal output
 YELLOW=\033[1;33m
@@ -36,6 +36,11 @@ format: ## Run Ruff formatter on backend
 test: ## Run backend unit tests
 	@echo "${GREEN}Running tests...${NC}"
 	@cd backend && pytest
+
+eval: ## Run tests plus the >95% benchmark release gate against a running backend
+	@echo "${GREEN}Running production eval gate...${NC}"
+	@cd backend && pytest
+	@cd backend && python3 benchmarks/ruthless_benchmark.py --endpoint "$${BENCHMARK_ENDPOINT:-http://localhost:8000}" --test-key "$${BENCHMARK_TEST_KEY:-$${JWT_SECRET:-}}" --min-score 0.95 --min-category-score 0.90 --stability-runs "$${BENCHMARK_STABILITY_RUNS:-3}"
 
 # --- Docker Deployment ---
 

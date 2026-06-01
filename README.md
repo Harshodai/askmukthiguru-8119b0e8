@@ -255,20 +255,20 @@ python3 backend/benchmarks/ruthless_benchmark.py --endpoint http://localhost:800
 Use the directory below to redirect to specific documentation files and sections based on your questions:
 
 *   **Q: How do I set up my local environment and start developing?**
-    *   👉 Read the **[DEVELOPER_GUIDE.md Day-1 Setup](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/DEVELOPER_GUIDE.md#4-day-1-setup)**.
+    *   👉 Read the **[DEVELOPER_GUIDE.md Day-1 Setup](docs/DEVELOPER_GUIDE.md#4-day-1-setup)**.
 *   **Q: Where can I see a detailed map of all the backend 12-layer RAG modules?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 3: 12-Layer RAG Pipeline](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/COMPLETE_SYSTEM_REFERENCE.md#3-fastapi-backend--12-layer-rag-pipeline)**.
+    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 3: 12-Layer RAG Pipeline](docs/COMPLETE_SYSTEM_REFERENCE.md#3-fastapi-backend--12-layer-rag-pipeline)**.
 *   **Q: How does the ingestion pipeline handle Whisper transcribing and YouTube cookie extraction?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 4: Ingestion & RAPTOR Pipeline](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/COMPLETE_SYSTEM_REFERENCE.md#4-ingestion--raptor-indexing-pipeline)**.
+    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 4: Ingestion & RAPTOR Pipeline](docs/COMPLETE_SYSTEM_REFERENCE.md#4-ingestion--raptor-indexing-pipeline)**.
 *   **Q: Where can I inspect the PostgreSQL migration table definitions and RLS policies?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 5: Database Schema & SQL Table Definitions](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/COMPLETE_SYSTEM_REFERENCE.md#5-database-schema--sql-table-definitions)**.
+    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 5: Database Schema & SQL Table Definitions](docs/COMPLETE_SYSTEM_REFERENCE.md#5-database-schema--sql-table-definitions)**.
 *   **Q: What is the configuration schema for the main backend singletons?**
-    *   👉 Read the **[app/config.py](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/backend/app/config.py)** configuration file or its summary in the **[COMPLETE_SYSTEM_REFERENCE.md config reference](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/COMPLETE_SYSTEM_REFERENCE.md#33-backend-services--caching)**.
+    *   👉 Read the **[app/config.py](backend/app/config.py)** configuration file or its summary in the **[COMPLETE_SYSTEM_REFERENCE.md config reference](docs/COMPLETE_SYSTEM_REFERENCE.md#33-backend-services--caching)**.
 *   **Q: How are database backups and vector collection restores automated?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 6.2: Backups & DB Management](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/COMPLETE_SYSTEM_REFERENCE.md#62-backups--db-management-snapshot_managerpy)**.
+    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 6.2: Backups & DB Management](docs/COMPLETE_SYSTEM_REFERENCE.md#62-backups--db-management-snapshot_managerpy)**.
 *   **Q: Where are the system latency and accuracy benchmark scores tracked?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 6.3: Ruthless Benchmark Suite](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/COMPLETE_SYSTEM_REFERENCE.md#63-ruthless-benchmark-suite)**.
+    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 6.3: Ruthless Benchmark Suite](docs/COMPLETE_SYSTEM_REFERENCE.md#63-ruthless-benchmark-suite)**.
 *   **Q: How do I deploy the entire stack to staging or production using Docker?**
-    *   👉 Read **[DEPLOYMENT.md](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/DEPLOYMENT.md)**.
+    *   👉 Read **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 *   **Q: What is the current developmental roadmap and outstanding backlog?**
-    *   👉 Read **[ROADMAP.md](file:///c:/Users/khars/PycharmProjects/askmukthiguru-8119b0e8/docs/ROADMAP.md)**.
+    *   👉 Read **[ROADMAP.md](docs/ROADMAP.md)**.

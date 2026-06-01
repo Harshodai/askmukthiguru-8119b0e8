@@ -565,10 +565,7 @@ class SereneMindEngine:
         return assessment
 
     async def analyze_distress_trend(
-        self,
-        user_id: str,
-        current_assessment: DistressAssessment,
-        user_profile_service
+        self, user_id: str, current_assessment: DistressAssessment, user_profile_service
     ) -> DistressAssessment | None:
         """
         Analyze distress trend across conversation history to determine
@@ -587,23 +584,27 @@ class SereneMindEngine:
         distress_timeline = []
         for memory in recent_memories:
             for emotional_point in memory.emotional_arc:
-                distress_timeline.append({
-                    'timestamp': emotional_point['timestamp'],
-                    'level': emotional_point['distress_level'],
-                    'topic': emotional_point.get('topic', 'unknown')
-                })
+                distress_timeline.append(
+                    {
+                        "timestamp": emotional_point["timestamp"],
+                        "level": emotional_point["distress_level"],
+                        "topic": emotional_point.get("topic", "unknown"),
+                    }
+                )
 
         # Sort by timestamp (oldest first)
-        distress_timeline.sort(key=lambda x: x['timestamp'])
+        distress_timeline.sort(key=lambda x: x["timestamp"])
 
         # Keep only last 10 data points for trend analysis
-        recent_distress = distress_timeline[-10:] if len(distress_timeline) > 10 else distress_timeline
+        recent_distress = (
+            distress_timeline[-10:] if len(distress_timeline) > 10 else distress_timeline
+        )
 
         if len(recent_distress) < 3:
             return None  # Need minimum data for trend analysis
 
         # Calculate trend metrics
-        levels = [point['level'] for point in recent_distress]
+        levels = [point["level"] for point in recent_distress]
 
         # Metric 1: Average distress level over recent turns
         avg_distress = sum(levels) / len(levels)
@@ -625,11 +626,12 @@ class SereneMindEngine:
         # Get configuration settings (with defaults)
         try:
             from app.config import settings
-            PROACTIVE_ENABLED = getattr(settings, 'proactive_serene_mind_enabled', True)
-            AVG_THRESHOLD = getattr(settings, 'proactive_distress_avg_threshold', 1.5)
-            TREND_THRESHOLD = getattr(settings, 'proactive_distress_trend_threshold', 0.5)
-            FREQ_THRESHOLD = getattr(settings, 'proactive_distress_frequency_threshold', 0.6)
-            MIN_POINTS = getattr(settings, 'proactive_min_conversation_points', 3)
+
+            PROACTIVE_ENABLED = getattr(settings, "proactive_serene_mind_enabled", True)
+            AVG_THRESHOLD = getattr(settings, "proactive_distress_avg_threshold", 1.5)
+            TREND_THRESHOLD = getattr(settings, "proactive_distress_trend_threshold", 0.5)
+            FREQ_THRESHOLD = getattr(settings, "proactive_distress_frequency_threshold", 0.6)
+            MIN_POINTS = getattr(settings, "proactive_min_conversation_points", 3)
         except Exception:
             # Fallback defaults if config import fails
             PROACTIVE_ENABLED = True
@@ -659,11 +661,14 @@ class SereneMindEngine:
         # Triggering Conditions
         SHOULD_TRIGGER = (
             # Condition 1: Consistently elevated distress
-            (avg_distress >= AVG_THRESHOLD and len(recent_distress) >= MIN_POINTS) or
+            (avg_distress >= AVG_THRESHOLD and len(recent_distress) >= MIN_POINTS)
+            or
             # Condition 2: Clear escalation trend
-            (escalation_rate >= TREND_THRESHOLD and avg_distress >= DistressLevel.MILD.value) or
+            (escalation_rate >= TREND_THRESHOLD and avg_distress >= DistressLevel.MILD.value)
+            or
             # Condition 3: High frequency of moderate distress
-            (distress_frequency >= FREQ_THRESHOLD and len(recent_distress) >= MIN_POINTS + 1) or
+            (distress_frequency >= FREQ_THRESHOLD and len(recent_distress) >= MIN_POINTS + 1)
+            or
             # Condition 4: Recent severe distress with any elevation
             (max(levels) >= DistressLevel.SEVERE.value and avg_distress >= DistressLevel.MILD.value)
         )
@@ -673,9 +678,11 @@ class SereneMindEngine:
             return DistressAssessment(
                 level=DistressLevel.MODERATE,  # Always suggest at least moderate level
                 confidence=min(0.9, 0.5 + (avg_distress / 10)),  # Scale confidence with distress
-                detected_signals=[f"Proactive trigger: avg={avg_distress:.1f}, trend={escalation_rate:.1f}, freq={distress_frequency:.1f}"],
+                detected_signals=[
+                    f"Proactive trigger: avg={avg_distress:.1f}, trend={escalation_rate:.1f}, freq={distress_frequency:.1f}"
+                ],
                 language_detected=current_assessment.language_detected,
-                recommended_response_type="meditation"
+                recommended_response_type="meditation",
             )
 
         return None

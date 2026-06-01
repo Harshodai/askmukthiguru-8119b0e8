@@ -5,11 +5,12 @@ Verifies that simple queries bypass heavy nodes and that token streaming works.
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 import rag.nodes as nodes
-from rag.states import GraphState
 from rag.resolve_followup import resolve_followup
+from rag.states import GraphState
 
 
 class MockEmbeddingService:
@@ -241,12 +242,13 @@ async def test_context_compression_threshold(mock_services):
     mock_ollama.compress_context = AsyncMock(return_value="compressed text")
     mock_ollama.generate = AsyncMock(return_value="dummy response")
     mock_ollama.generate_stream = None  # Force synchronous fallback for simplicity
-    
+
     from app.config import settings
+
     # Ensure it's enabled for the test
     settings.rag_use_context_compression = True
     settings.rag_context_compression_threshold = 100
-    
+
     try:
         # 1. Total character length below threshold (should not compress)
         state_short = GraphState(
@@ -258,24 +260,31 @@ async def test_context_compression_threshold(mock_services):
             detected_language="en",
             ab_model="primary",
         )
-        
+
         await nodes.generate_answer(state_short)
         mock_ollama.compress_context.assert_not_called()
-        
+
         # 2. Total character length above threshold (should compress)
         state_long = GraphState(
             question="What is meditation?",
             chat_history=[],
             request_id="test-long",
             query_tier="tier2_simple",
-            relevant_docs=[{"text": "This is a very long context that will definitely exceed the threshold of 100 characters because it contains lots and lots of repetitive filler words to make it extremely long.", "source_url": "url1"}],
+            relevant_docs=[
+                {
+                    "text": "This is a very long context that will definitely exceed the threshold of 100 characters because it contains lots and lots of repetitive filler words to make it extremely long.",
+                    "source_url": "url1",
+                }
+            ],
             detected_language="en",
             ab_model="primary",
         )
-        
+
         mock_ollama.compress_context.reset_mock()
         await nodes.generate_answer(state_long)
-        mock_ollama.compress_context.assert_called_once_with("What is meditation?", state_long["relevant_docs"][0]["text"])
+        mock_ollama.compress_context.assert_called_once_with(
+            "What is meditation?", state_long["relevant_docs"][0]["text"]
+        )
     finally:
         # Reset settings defaults
         settings.rag_use_context_compression = False

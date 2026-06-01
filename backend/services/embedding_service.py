@@ -9,6 +9,7 @@ bge-m3 produces dense, sparse (lexical), and ColBERT vectors in a single encode(
 enabling native hybrid search without a separate BM25/sparse encoder. Supports 100+
 languages including all 10 target Indian languages.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,6 +48,7 @@ class EmbeddingService:
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
         # Embedding cache to avoid redundant encodes
         from services.cache_service import EmbeddingCache
+
         self._embed_cache = EmbeddingCache(max_size=1000)
         logger.info("Embedding service initialized (lazy load)")
 
@@ -56,6 +58,7 @@ class EmbeddingService:
             return
         with self._lock:
             import torch
+
             device = "cpu"
             if torch.cuda.is_available():
                 device = "cuda"
@@ -250,7 +253,7 @@ class EmbeddingService:
                     sparse_results[idx] = sparse_weights[i]
 
                 # Cache the newly computed embeddings (using prefixed text as key)
-                for i, idx in enumerate(uncached_indices):
+                for i, _idx in enumerate(uncached_indices):
                     prefixed_text = uncached_prefixed_texts[i]
                     embedding_result = {
                         "dense": dense_vecs[i],
