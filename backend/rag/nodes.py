@@ -143,9 +143,34 @@ _reranker = None
 
 _COT_PATTERNS = [
     r"<think>.*?</think>",
-    r"(?is)^\s*(we are given|we need to|we must|let me analyze|i need to analyze|analysis:).*?(?=\n\n|beloved|dear one|seeker|friend|the teaching|according to|$)",
+    # Catch standard CoT preambles
+    r"(?is)^\s*(we are given|we need to|we must|let me analyze|i need to analyze|analysis:|let's draft|now,?\s*count|we have used|we can write|we have cited|we must check|we must ensure|we must not|we must output).*?(?=\n\n|beloved|dear one|seeker|friend|the teaching|according to|$)",
     r"(?im)^\s*(step\s*\d+|reasoning|chain of thought|scratchpad)\s*[:.-].*$",
     r"(?im)^\s*(first,?\s*)?i(?:'| a)?ll analyze.*$",
+    # Sarvam-specific: catch lines that are purely internal verification
+    r"(?im)^\s*(?:Note|Checklist|Verification|Important):.*$",
+]
+
+# Markers that signal start of Sarvam's internal reasoning monologue
+# when they appear AFTER the real answer has already started.
+_SARVAM_REASONING_MARKERS = [
+    "now, count words:",
+    "we must check:",
+    "we must ensure",
+    "we must not",
+    "we can write:",
+    "let's draft:",
+    "we have cited",
+    "we have used",
+    "we have not repeated",
+    "that's within",
+    "that's acceptable",
+    "we must output",
+    "now, we must",
+    "we must keep it within",
+    "count words:",
+    "we are consistent",
+    "we must check the token count",
 ]
 
 
@@ -217,11 +242,22 @@ def strip_cot(text: str) -> str:
     for pattern in _COT_PATTERNS:
         cleaned = re.sub(pattern, "", cleaned, flags=re.DOTALL).strip()
 
+    # Truncate at Sarvam's untagged internal reasoning blocks.
+    # These appear AFTER the real answer when the model "thinks aloud" about
+    # its own output — e.g. "Now, count words:", "We must check:".
+    # Only truncate if the marker appears after at least 100 chars of real content.
+    cleaned_lower = cleaned.lower()
+    for marker in _SARVAM_REASONING_MARKERS:
+        idx = cleaned_lower.find(marker)
+        if idx != -1 and idx > 100:
+            cleaned = cleaned[:idx].strip()
+            cleaned_lower = cleaned.lower()  # Update for subsequent marker checks
+
     # Some reasoning models emit a preamble followed by the real answer after a divider.
     for marker in ["Final answer:", "Answer:", "Mukthi Guru:"]:
         idx = cleaned.lower().find(marker.lower())
         if idx != -1:
-            cleaned = cleaned[idx + len(marker) :].strip()
+            cleaned = cleaned[idx + len(marker):].strip()
 
     return cleaned or text.strip()
 
