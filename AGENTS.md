@@ -134,3 +134,20 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 2. Use `detect_changes` for code review.
 3. Use `get_affected_flows` to understand impact.
 4. Use `query_graph` pattern="tests_for" to check coverage.
+
+## Local Codebase Intelligence & Memory MCP Layer
+
+In addition to `code-review-graph`, this workspace is integrated with three dedicated local/global MCP servers under `mcp-servers/`:
+1. **Graphify**: Offline AST codebase graph tool (provides `code-review-graph` MCP tools).
+2. **Claude-Mem**: Long-term episodic/semantic memory worker (SQLite + ChromaDB).
+3. **CodeGraph**: AST query engine using WASM-compiled tree-sitter grammars.
+
+### Strict Environment Constraints
+- **Node.js v22 LTS Only**: Do **NOT** upgrade Node.js to Node `25.x` or run CodeGraph commands under Node 25. Node 25 has a critical WASM compiler Zone allocation bug that causes out-of-memory crashes (`Zone allocation constraints`) during tree-sitter compilation. Always keep the shell environment linked to Node 22 LTS (`/opt/homebrew/opt/node@22/bin`).
+- **Bun Dependency for Claude-Mem**: Claude-Mem's background worker service runs on Bun for high-performance sqlite bindings. Ensure `bun` is available at `/opt/homebrew/bin/bun`.
+- **Git Worktree Cleanup**: In agentic sessions, temporary git worktrees (`.claude/worktrees/agent-*`) can accumulate. This causes severe local git indexing lag. You **MUST** run `git worktree prune` and explicitly delete any temporary worktrees you created (`git worktree remove --force <path>`) before finishing your session.
+
+### Utilizing Local MCP Tools
+- **Explore first, grep last**: Use CodeGraph and Graphify MCP tools (`semantic_search_nodes`, `query_graph`, `get_impact_radius`) rather than running heavy recursive glob/grep commands across thousands of files. It saves token costs, prevents host memory thrashing, and respects structural linkages.
+- **Memory Recalls**: Leverage `claude-mem` to recall key patterns or historical insights across conversation checkpoints.
+

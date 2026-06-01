@@ -373,3 +373,36 @@ Each compiled skill folder contains:
 - `patterns.md`: Concrete design patterns.
 - `cheatsheet.md`: Decision matrices and compare tables.
 
+## 18. Local Codebase Intelligence & Memory MCP Layer
+
+To enable maximum agent productivity and completely offline codebase analysis, three custom Model Context Protocol (MCP) servers reside in the `mcp-servers/` directory.
+
+### Architecture and Components
+
+1. **Graphify (`mcp-servers/graphify`)**:
+   - Python-based codebase graph indexing framework using Abstract Syntax Tree (AST) scanning.
+   - Outputs a structural graph index in `graphify-out/graph.json`.
+   - Exposes robust semantic graph and impact radius tools.
+   
+2. **Claude-Mem (`mcp-servers/claude-mem`)**:
+   - TypeScript/Node memory server running on Bun.
+   - Manages episodic and semantic memory context with a background SQLite worker service.
+   
+3. **CodeGraph (`mcp-servers/codegraph`)**:
+   - TypeScript/Node AST query engine leveraging WASM-compiled tree-sitter grammars.
+   - Initializes a fast SQLite FTS5 index under `.codegraph/`.
+
+### Strict Developer Constraints
+
+- **Node 22 LTS (Strict Requirement)**: CodeGraph leverages WASM-based tree-sitter bindings. Modern Node `25.x` has a critical JIT Zone allocation bug that will crash during grammar parsing. Ensure your environment links explicitly to Node 22 (e.g. `/opt/homebrew/opt/node@22/bin` on macOS).
+- **Bun Installation**: The memory worker uses Bun's fast SQLite/ChromaDB native bindings and requires `bun` to be installed on the host (`/opt/homebrew/bin/bun`).
+- **Worktree Accumulation**: Make sure to run `git worktree prune` and delete any locked temporary agent worktrees under `.claude/worktrees/agent-*` regularly to prevent local shell lag.
+
+### Local and Global Integration
+
+These servers are fully registered:
+- **Local Codex/Antigravity IDE**: Defined in `.mcp.json` at the project root.
+- **Global Claude CLI**: Registered in `~/.claude.json`.
+- **Global Hermes Agent CLI**: Registered in `~/.hermes/config.yaml`.
+
+
