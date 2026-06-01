@@ -312,9 +312,31 @@ class OllamaService:
 
         try:
             chain = self._llm.bind(**kwargs) if kwargs else self._llm
+            in_think_block = False
             async for chunk in chain.astream(messages):
-                if chunk.content:
-                    yield chunk.content
+                if not chunk.content:
+                    continue
+
+                text = chunk.content
+                while text:
+                    if in_think_block:
+                        end = text.find("</think>")
+                        if end == -1:
+                            text = ""
+                        else:
+                            text = text[end + len("</think>") :]
+                            in_think_block = False
+                        continue
+
+                    start = text.find("<think>")
+                    if start == -1:
+                        yield text
+                        text = ""
+                    else:
+                        if start > 0:
+                            yield text[:start]
+                        text = text[start + len("<think>") :]
+                        in_think_block = True
             self._circuit_breaker.record_success()
         except Exception as e:
             self._circuit_breaker.record_failure()

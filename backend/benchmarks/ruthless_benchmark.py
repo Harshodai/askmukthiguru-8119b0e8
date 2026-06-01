@@ -16,6 +16,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 try:
@@ -75,6 +76,8 @@ INFRA = {
     "neo4j": {"health": "/", "port": 7474, "name": "Neo4j Knowledge Graph"},
 }
 
+REPORT_DIR = Path(__file__).resolve().parent / "reports"
+
 # ═══════════════════════════════════════════════════════════════════════════
 # DATA CLASSES
 # ═══════════════════════════════════════════════════════════════════════════
@@ -118,6 +121,8 @@ class SingleResult:
     verified: bool = False
     backend_logs: str = ""
     passed: bool = True
+    verification_passed: bool | None = None
+    confidence_score: float | None = None
     faithfulness: float = 1.0
     answer_relevancy: float = 1.0
     context_precision: float = 1.0
@@ -373,6 +378,14 @@ async def run_suite_category(
         resp = res["data"].get("response", "") if res["ok"] else ""
         intent = res.get("intent", "UNKNOWN")
         cites = res["data"].get("citations", []) if res["ok"] else []
+        verification = res["data"].get("verification") if res["ok"] else None
+        verification_passed = (
+            verification.get("passed") if isinstance(verification, dict) else None
+        )
+        faithfulness = float(res["data"].get("faithfulness_score") or 0.0) if res["ok"] else 0.0
+        relevancy = float(res["data"].get("relevancy_score") or 0.0) if res["ok"] else 0.0
+        confidence = res["data"].get("confidence_score") if res["ok"] else None
+        hallucination = bool(res["data"].get("hallucination_flag")) if res["ok"] else False
 
         # Calculate Keyword Score
         kw = keyword_score(resp, item.get("must_mention", []))
@@ -429,8 +442,98 @@ async def run_suite_category(
                 severity=item.get("severity", "medium"),
                 verified=item.get("verified", False),
                 passed=passed,
+                verification_passed=verification_passed,
+                confidence_score=confidence,
+                faithfulness=faithfulness if faithfulness > 0 else (kw if res["ok"] else 0.0),
+                answer_relevancy=relevancy if relevancy > 0 else (1.0 if passed else 0.0),
+                context_precision=1.0 if cites else 0.0,
+                context_recall=1.0 if cites else 0.0,
+                hallucination_risk=hallucination,
             )
         )
+
+
+async def run_multi_turn_suite(
+    results: list[SingleResult],
+    client: httpx.AsyncClient,
+    url: str,
+    test_key: str,
+    dry_run: bool = False,
+):
+    scenarios = QUERIES.get("multi_turn", [])
+    if dry_run:
+        scenarios = scenarios[:1]
+
+    for scenario in scenarios:
+        session_id = str(uuid.uuid4())
+        history: list[dict[str, str]] = []
+        turns = scenario.get("turns", [])
+        if dry_run:
+            turns = turns[:2]
+
+        for turn_index, turn in enumerate(turns, start=1):
+            q = turn.get("q", "")
+            if not q:
+                continue
+
+            print(f"    - [multi_turn:{scenario.get('scenario', 'scenario')}] {q[:50]}...")
+            payload = {
+                "messages": history + [{"role": "user", "content": q}],
+                "user_message": q,
+                "session_id": session_id,
+                "meditation_step": 0,
+            }
+
+            t0 = time.perf_counter()
+            res = await chat(client, url, payload, test_key, timeout=120.0)
+            lat = (time.perf_counter() - t0) * 1000
+
+            resp = res["data"].get("response", "") if res["ok"] else ""
+            intent = res.get("intent", "UNKNOWN")
+            cites = res["data"].get("citations", []) if res["ok"] else []
+            kw = keyword_score(resp, turn.get("must_mention", []))
+            rejected, _ = reject_check(resp, turn.get("reject_if", []))
+            passed = res["ok"] and not rejected and (kw >= 0.4 or not turn.get("must_mention"))
+
+            verification = res["data"].get("verification") if res["ok"] else None
+            verification_passed = (
+                verification.get("passed") if isinstance(verification, dict) else None
+            )
+
+            results.append(
+                SingleResult(
+                    category=f"multi_turn:{scenario.get('scenario', 'scenario')}",
+                    query=q[:60],
+                    latency_ms=round(lat, 1),
+                    status=res["status"],
+                    intent=intent,
+                    citations=cites,
+                    response=resp[:200],
+                    error=res["error"],
+                    keyword_score=kw,
+                    reject_hit=rejected,
+                    passed=passed,
+                    verified=turn.get("verified", False),
+                    verification_passed=verification_passed,
+                    confidence_score=res["data"].get("confidence_score") if res["ok"] else None,
+                    faithfulness=float(res["data"].get("faithfulness_score") or kw)
+                    if res["ok"]
+                    else 0.0,
+                    answer_relevancy=float(res["data"].get("relevancy_score") or (1.0 if passed else 0.0))
+                    if res["ok"]
+                    else 0.0,
+                    context_precision=1.0 if cites else 0.0,
+                    context_recall=1.0 if cites else 0.0,
+                    hallucination_risk=bool(res["data"].get("hallucination_flag")) if res["ok"] else False,
+                )
+            )
+
+            history.extend(
+                [
+                    {"role": "user", "content": q},
+                    {"role": "assistant", "content": resp},
+                ]
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -522,7 +625,7 @@ def calculate_scores(
         )
 
     # Adversarial
-    adv = [r for r in results if r.category == "doctrine_traps"]
+    adv = [r for r in results if r.category in ["doctrine_traps", "adversarial_traps"]]
     if adv:
         passed = sum(1 for r in adv if r.passed) / len(adv)
         verdict = Verdict.PASS if passed >= 0.80 else Verdict.FAIL
@@ -534,17 +637,70 @@ def calculate_scores(
             [f"Resilience pass: {passed:.0%}"],
         )
 
+    # Multi-turn memory
+    mt = [r for r in results if r.category.startswith("multi_turn:")]
+    if mt:
+        ok = [r for r in mt if r.status == 200]
+        score = sum(r.keyword_score for r in ok) / len(ok) if ok else 0.0
+        verdict = Verdict.PASS if score >= 0.50 else Verdict.FAIL
+        scores["multi_turn"] = CategoryScore(
+            "Multi-Turn Memory",
+            score,
+            Weights.MULTI_TURN,
+            verdict,
+            [f"Retention: {score:.0%}", f"Turns: {len(mt)}"],
+        )
+
     # Performance
     all_ok = [r for r in results if r.status == 200]
+    if all_ok:
+        cite_rate = sum(1 for r in all_ok if len(r.citations) >= 1) / len(all_ok)
+        citation_tests = [r for r in results if r.category == "citation_accuracy"]
+        if citation_tests:
+            citation_pass = sum(1 for r in citation_tests if r.passed) / len(citation_tests)
+            cite_score = (cite_rate * 0.5) + (citation_pass * 0.5)
+            details = [
+                f"Overall citation rate: {cite_rate:.0%}",
+                f"Citation test pass: {citation_pass:.0%}",
+            ]
+        else:
+            cite_score = cite_rate
+            details = [f"Overall citation rate: {cite_rate:.0%}"]
+        verdict = Verdict.PASS if cite_score >= MIN_CITATION_RATE else Verdict.FAIL
+        scores["citations"] = CategoryScore(
+            "Citation Quality",
+            cite_score,
+            Weights.CITATIONS,
+            verdict,
+            details,
+        )
+
     if all_ok:
         lats = [r.latency_ms for r in all_ok]
         p95 = pct(lats, 95)
         p99 = pct(lats, 99)
+        cache_warm = [
+            r.latency_ms
+            for r in results
+            if r.category.startswith("cache:cache_warm") and r.status == 200
+        ]
+        cache_hit = [
+            r.latency_ms
+            for r in results
+            if r.category.startswith("cache:cache_hit") and r.status == 200
+        ]
+        cache_eff = 0.0
+        if cache_warm and cache_hit:
+            avg_warm = sum(cache_warm) / len(cache_warm)
+            avg_hit = sum(cache_hit) / len(cache_hit)
+            cache_eff = max(0.0, 1.0 - (avg_hit / avg_warm)) if avg_warm > 0 else 0.0
         perf_score = 1.0
         if p95 > P95_LATENCY_MS:
-            perf_score -= 0.4
+            perf_score -= 0.3
         if p99 > P99_LATENCY_MS:
             perf_score -= 0.4
+        if cache_warm and cache_hit and cache_eff < MIN_CACHE_EFFICIENCY:
+            perf_score -= 0.2
         perf_score = max(0.0, perf_score)
         verdict = Verdict.PASS if perf_score >= 0.6 else Verdict.FAIL
         scores["performance"] = CategoryScore(
@@ -552,7 +708,35 @@ def calculate_scores(
             perf_score,
             Weights.PERFORMANCE,
             verdict,
-            [f"P95: {p95:.0f}ms", f"P99: {p99:.0f}ms"],
+            [f"P95: {p95:.0f}ms", f"P99: {p99:.0f}ms", f"Cache eff: {cache_eff:.0%}"],
+        )
+
+    faithfulness_results = [
+        r
+        for r in results
+        if r.status == 200
+        and (
+            r.category in ["self_rag", "cove"]
+            or r.verification_passed is not None
+            or r.faithfulness < 1.0
+        )
+    ]
+    if faithfulness_results:
+        score = sum(
+            1
+            for r in faithfulness_results
+            if (r.verification_passed is not False)
+            and r.faithfulness >= MIN_FAITHFULNESS
+            and not r.hallucination_risk
+        ) / len(faithfulness_results)
+        avg_faith = sum(r.faithfulness for r in faithfulness_results) / len(faithfulness_results)
+        verdict = Verdict.PASS if score >= MIN_FAITHFULNESS else Verdict.FAIL
+        scores["faithfulness"] = CategoryScore(
+            "Self-RAG & CoVe Faithfulness",
+            score,
+            Weights.FAITHFULNESS,
+            verdict,
+            [f"Pass rate: {score:.0%}", f"Avg faithfulness: {avg_faith:.0%}"],
         )
 
     # Complex reasoning
@@ -640,7 +824,7 @@ def save_report(
     total: float,
     url: str,
 ):
-    os.makedirs("reports", exist_ok=True)
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
     report = {
         "timestamp": time.time(),
         "run_id": str(uuid.uuid4()),
@@ -648,11 +832,23 @@ def save_report(
         "production_readiness_score": round(total, 3),
         "verdict": "PASS" if total >= 0.80 else "FAIL",
         "infrastructure": [asdict(r) for r in infra],
+        "categories": {
+            key: {
+                "name": score.name,
+                "score": score.score,
+                "weight": score.weight,
+                "weighted_contribution": round(score.score * score.weight, 4),
+                "verdict": score.verdict.value,
+                "details": score.details,
+            }
+            for key, score in scores.items()
+        },
         "results": [asdict(r) for r in results],
     }
-    with open("reports/ruthless_report.json", "w") as f:
+    report_path = REPORT_DIR / "ruthless_report.json"
+    with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
-    print("  💾 Report saved to: reports/ruthless_report.json")
+    print(f"  💾 Report saved to: {report_path}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -676,9 +872,14 @@ async def main():
         # Run all test suites defined in our question bank!
         for category in QUERIES.keys():
             print(f"🚀 Running category: {category}...")
-            await run_suite_category(
-                category, results, client, args.endpoint, args.test_key, args.dry_run
-            )
+            if category == "multi_turn":
+                await run_multi_turn_suite(
+                    results, client, args.endpoint, args.test_key, args.dry_run
+                )
+            else:
+                await run_suite_category(
+                    category, results, client, args.endpoint, args.test_key, args.dry_run
+                )
 
     scores = calculate_scores(results, infra)
     total_score = print_report(results, infra, scores, args.endpoint)

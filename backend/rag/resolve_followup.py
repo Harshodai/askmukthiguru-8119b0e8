@@ -79,12 +79,14 @@ async def resolve_followup(state: GraphState) -> dict:
         logger.warning("resolve_followup: OllamaService not initialized, skipping")
         return {}
 
-    # Build history string from last 4 messages (2 turns)
-    recent = chat_history[-4:]
+    # Build history string from last 10 messages (5 turns) so benchmark follow-ups
+    # retain the doctrine anchors from earlier answers.
+    recent = chat_history[-10:]
     history_lines = []
     for msg in recent:
         role = msg.get("role", "user").capitalize()
-        content = msg.get("content", "")[:300]  # truncate long messages
+        limit = 400 if role == "Assistant" else 260
+        content = msg.get("content", "")[:limit]
         history_lines.append(f"{role}: {content}")
 
     history_str = "\n".join(history_lines)
