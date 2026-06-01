@@ -47,9 +47,10 @@ os.environ["LLM_PROVIDER"] = "sarvam_cloud"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["NEO4J_USERNAME"] = "neo4j"
-os.environ["NEO4J_PASSWORD"] = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+if "NEO4J_PASSWORD" not in os.environ:
+    raise RuntimeError("NEO4J_PASSWORD env var is required")
 os.environ["REDIS_URL"] = (
-    f"redis://:{os.environ.get('REDIS_PASSWORD', 'mukthiguru_redis_pass')}@localhost:6379/0"
+    f"redis://:{os.environ['REDIS_PASSWORD']}@localhost:6379/0"
 )
 os.environ["SUPABASE_URL"] = "http://localhost:54321"
 os.environ["WHISPER_ONLY"] = "true"
