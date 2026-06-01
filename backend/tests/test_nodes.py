@@ -11,6 +11,23 @@ import rag.nodes as nodes
 from rag.states import GraphState
 
 
+def test_strip_cot_removes_reasoning_scaffolding():
+    raw = """We are given a conversation history and a knowledge base.
+
+Beloved, the Four Sacred Secrets are spiritual vision, inner truth, universal intelligence, and spiritual right action."""
+
+    cleaned = nodes.strip_cot(raw)
+
+    assert "We are given" not in cleaned
+    assert "Four Sacred Secrets" in cleaned
+
+
+def test_generation_kwargs_bound_by_intent():
+    assert nodes._generation_kwargs({"intent": "DISTRESS"})["num_predict"] == 2048
+    assert nodes._generation_kwargs({"query_tier": "tier2_simple"})["num_predict"] == 512
+    assert nodes._generation_kwargs({"intent": "ADVERSARIAL"})["num_predict"] == 768
+
+
 class MockEmbeddingService:
     def encode_single_full(self, text):
         return {"dense": [0.1] * 384, "sparse": {}}

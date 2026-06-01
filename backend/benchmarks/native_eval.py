@@ -44,7 +44,7 @@ async def run_native_evaluation(limit: int = 5):
         "doctrine_four_secrets",
         "doctrine_ekam_architecture",
         "complex_multi_hop",
-        "adversarial_traps",
+        "doctrine_traps",
         "emotional_gradients",
     ]:
         if category in QUERIES:
@@ -162,8 +162,9 @@ async def run_native_evaluation(limit: int = 5):
     print(f"Average Turn Latency               : {avg_lat:.2f}s")
     print("=" * 60 + "\n")
 
-    os.makedirs("reports", exist_ok=True)
-    with open("reports/native_eval_report.json", "w") as f:
+    report_dir = Path(__file__).resolve().parent / "reports"
+    os.makedirs(report_dir, exist_ok=True)
+    with open(report_dir / "native_eval_report.json", "w") as f:
         json.dump(results, f, indent=2)
 
 

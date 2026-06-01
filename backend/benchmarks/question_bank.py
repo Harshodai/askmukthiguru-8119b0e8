@@ -1889,6 +1889,115 @@ QUERIES = {
     ],
 }
 
+QUERIES["multi_turn"] = [
+    {
+        "scenario": "Sacred_Secrets_Journey",
+        "turns": [
+            {
+                "q": "Tell me about the Four Sacred Secrets.",
+                "expected_intent": "FACTUAL",
+                "must_mention": FOUR_SACRED_SECRETS,
+            },
+            {
+                "q": "Which one is about Universal Intelligence?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["third", "universal intelligence"],
+            },
+            {
+                "q": "How do I practice it?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["let go", "anxiety", "heart", "visualize"],
+            },
+            {
+                "q": "What if I don't see anything when I visualize?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["not see", "feel", "gentle"],
+            },
+        ],
+    },
+    {
+        "scenario": "Deeksha_Neuroscience",
+        "turns": [
+            {
+                "q": "What is Deeksha?",
+                "expected_intent": "FACTUAL",
+                "must_mention": ["deeksha", "oneness blessing", "energy"],
+            },
+            {
+                "q": "What happens in my brain during Deeksha?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["frontal", "parietal", "brain"],
+            },
+            {
+                "q": "Where can I receive Deeksha?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["ekam", "facilitator"],
+            },
+        ],
+    },
+    {
+        "scenario": "Manifest_2026_Path",
+        "turns": [
+            {
+                "q": "What is Manifest 2026?",
+                "expected_intent": "FACTUAL",
+                "must_mention": ["manifest", "2026", "12 powers"],
+            },
+            {
+                "q": "What is the Power of Intention?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["intention", "january"],
+            },
+            {
+                "q": "What comes after Letting Go?",
+                "expected_intent": "FOLLOW_UP",
+                "must_mention": ["letting go", "october", "gratitude", "november"],
+            },
+        ],
+    },
+]
+
+QUERIES["cache"] = [
+    {"q": "What are the Four Sacred Secrets?", "type": "cache_warm"},
+    {"q": "What are the Four Sacred Secrets?", "type": "cache_hit"},
+    {"q": "What is Soul Sync?", "type": "cache_warm"},
+    {"q": "What is Soul Sync?", "type": "cache_hit"},
+]
+
+QUERIES["self_rag"] = [
+    {
+        "q": "What is the Fifth Sacred Secret of wealth creation?",
+        "must_mention": ["four sacred secrets", "not fifth", "not in the teachings"],
+        "reject_if": ["fifth sacred secret is", "wealth creation secret"],
+    },
+    {
+        "q": "Did Sri Preethaji say Deeksha permanently cures all diseases?",
+        "must_mention": ["not", "medical", "deeksha", "healing"],
+        "reject_if": ["permanently cures", "all diseases"],
+    },
+    {
+        "q": "Does Soul Sync require holding the breath for 45 minutes?",
+        "must_mention": ["not", "breath", "humming", "pause"],
+        "reject_if": ["45 minutes"],
+    },
+]
+
+QUERIES["cove"] = [
+    {
+        "q": "Verify this claim: Ekam has 108 underground crystal chambers designed by Nikola Tesla.",
+        "must_mention": ["not", "cannot verify", "ekam"],
+        "reject_if": ["nikola tesla", "108 underground"],
+    },
+    {
+        "q": "Is the third sacred secret called Accessing Universal Intelligence?",
+        "must_mention": ["universal intelligence", "third"],
+    },
+    {
+        "q": "Check whether the six Soul Sync steps include breath awareness, humming, pause, Aham, golden light, and intention.",
+        "must_mention": ["breath awareness", "humming", "pause", "aham", "golden light", "intention"],
+    },
+]
+
 VERIFIED_SOURCES = {
     "book_four_sacred_secrets": {
         "title": "The Four Sacred Secrets: For Love and Prosperity",

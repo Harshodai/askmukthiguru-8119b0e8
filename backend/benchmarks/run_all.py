@@ -54,8 +54,9 @@ def run_script(script_name: str, args: list[str]) -> bool:
 
 
 def show_readiness_scorecard():
-    report_path = Path("reports/ruthless_report.json")
-    native_report_path = Path("reports/native_eval_report.json")
+    report_dir = Path(__file__).resolve().parent / "reports"
+    report_path = report_dir / "ruthless_report.json"
+    native_report_path = report_dir / "native_eval_report.json"
 
     print("\n" + "=" * 70)
     print("🏆   PRODUCTION-READINESS SCORECARD   🏆")

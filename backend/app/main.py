@@ -470,6 +470,11 @@ class ChatResponse(BaseModel):
     blocked: bool = Field(default=False, description="Was the message blocked?")
     block_reason: str | None = Field(None, description="Why it was blocked")
     proactive_serene_mind: dict | None = Field(None, description="Proactive Serene Mind trigger details")
+    faithfulness_score: float | None = Field(None, description="Self-RAG faithfulness score")
+    relevancy_score: float | None = Field(None, description="Answer relevancy score")
+    confidence_score: float | None = Field(None, description="Verifier confidence score")
+    verification: dict | None = Field(None, description="CoVe/Self-RAG verification result")
+    hallucination_flag: bool | None = Field(None, description="Whether verification flagged hallucination risk")
 
 
 
@@ -1003,7 +1008,7 @@ async def chat_endpoint(
         "answer_relevancy": 1.0,
         "context_precision": 1.0,
         "context_recall": 1.0,
-        "hallucination_flag": not result.get("faithful", True)
+        "hallucination_flag": not result.get("is_faithful", True)
         if is_rag and "result" in locals()
         else False,
         "judge_reasoning": result.get("verification_reason", "")
@@ -1044,6 +1049,11 @@ async def chat_endpoint(
         blocked=output_check.get("blocked", False),
         block_reason=output_check.get("reason"),
         proactive_serene_mind=state.get("proactive_serene_mind"),
+        faithfulness_score=result.get("faithfulness_score") if "result" in locals() and isinstance(result, dict) else None,
+        relevancy_score=result.get("relevancy_score") if "result" in locals() and isinstance(result, dict) else None,
+        confidence_score=result.get("confidence_score") if "result" in locals() and isinstance(result, dict) else None,
+        verification=result.get("verification") if "result" in locals() and isinstance(result, dict) else None,
+        hallucination_flag=response_data.get("hallucination_flag") if "response_data" in locals() else None,
     )
 
 
@@ -1393,6 +1403,18 @@ async def chat_stream_endpoint(
                     "citations": citations,
                     "meditation_step": med_step,
                     "proactive_serene_mind": proactive_serene_mind,
+                    "faithfulness_score": result.get("faithfulness_score")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
+                    "relevancy_score": result.get("relevancy_score")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
+                    "confidence_score": result.get("confidence_score")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
+                    "verification": result.get("verification")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
                 }
             )
             yield f"event: done\ndata: {meta}\n\n"
@@ -1491,7 +1513,7 @@ async def chat_stream_endpoint(
                 "answer_relevancy": 1.0,
                 "context_precision": 1.0,
                 "context_recall": 1.0,
-                "hallucination_flag": not result.get("faithful", True)
+                "hallucination_flag": not result.get("is_faithful", True)
                 if is_rag and "result" in locals()
                 else False,
                 "judge_reasoning": result.get("verification_reason", "")
