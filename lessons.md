@@ -907,3 +907,18 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Solution**: Added `<think>` block stripping logic to `heal_neo4j_poison.py` to prevent writing back reasoning traces. For dummy nodes that have absolutely no spiritual value, we developed a parameterized Cypher script utilizing `DETACH DELETE` to safely clean the knowledge graph.
 - **Lesson learned**: Combining automated regex-based cleaning with surgical deletion of placeholder nodes guarantees 100% database sanitization, preventing semantic context contamination during RAG retrieval.
 
+
+### 74. Multi-Platform Local MCP Server Setup & Integration (June 2026)
+- **Problem**: Setting up advanced MCP servers (`graphify`, `claude-mem`, `codegraph`) as custom intelligence and memory layers for different agents (Google Antigravity, Codex, Claude Code, Hermes) requires compiling multiple project types (Python and TypeScript), orchestrating database structures (ChromaDB, SQLite), and registering them across multiple global/project configs (`.mcp.json`, `~/.claude.json`, `~/.hermes/config.yaml`) without runtime clashes or dependency conflicts.
+- **Solution**:
+  - **Graphify**: Installed in editable mode inside the project `.venv` using `/venv/bin/pip install -e "mcp-servers/graphify[mcp]"`, and ran `graphify update . --force` for a 100% offline local AST scan (162K nodes and 269K edges indexed with 0 cloud LLM cost).
+  - **Claude-Mem**: Node/TypeScript codebase compiled using `npm run build` and runs its background worker on native Homebrew-installed Bun `1.3.14` to support Bun's SQLite/ChromaDB bindings.
+  - **CodeGraph**: Node/TypeScript codebase built using `npm run build` and initialized via `node dist/bin/codegraph.js init`. Resolved a Node.js 25.x wasm compiler Zone allocator JIT crash bug by downgrading Node to `22.22.3` via Homebrew link/unlink.
+  - **Multi-Config Registration**: Integrated all three stdio servers with verified absolute paths locally in `.mcp.json`, globally in `~/.claude.json`, and globally inside the user's Hermes config `~/.hermes/config.yaml`.
+- **Lesson learned**:
+  - Offline AST codebase indexing is incredibly cost-efficient and constructs massive graphs locally without cloud LLM overhead.
+  - Node 25.x has a known JIT Zone allocator bug that crashes during tree-sitter WASM grammar compilation. Always default to Node 22 LTS for tree-sitter based MCP tools.
+  - Using Homebrew to manage tool runtime dependencies (like Bun for SQLite/ChromaDB and Node 22 for WASM parsing) provides a 100% stable integration stack on macOS.
+  - A surgical Python-based configuration parsing script guarantees zero syntax errors or duplicate entries when automating edits across multi-format config files (`JSON`, `YAML`).
+
+
