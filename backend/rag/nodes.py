@@ -51,6 +51,7 @@ The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with ad
 import asyncio
 import logging
 import re
+
 from langgraph.types import Send
 
 # -----------------------------------------------------------------------
@@ -116,7 +117,6 @@ from rag.meditation import (
 from rag.prompts import (
     CASUAL_SYSTEM_PROMPT,
     FALLBACK_RESPONSE,
-    GENERATE_WITH_HINTS_PROMPT,
     GURU_SYSTEM_PROMPT,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
@@ -147,6 +147,65 @@ _COT_PATTERNS = [
     r"(?im)^\s*(step\s*\d+|reasoning|chain of thought|scratchpad)\s*[:.-].*$",
     r"(?im)^\s*(first,?\s*)?i(?:'| a)?ll analyze.*$",
 ]
+
+
+def _grounded_citation_urls(docs: list[dict]) -> list[str]:
+    urls = []
+    seen = set()
+    for doc in docs:
+        url = (doc.get("source_url") or "").strip()
+        if not url or url.lower() in {"none", "n/a", "knowledge_graph"}:
+            continue
+        if url not in seen:
+            seen.add(url)
+            urls.append(url)
+    return urls
+
+
+def _trace_update(state: GraphState, **updates) -> dict:
+    trace = dict(state.get("evaluation_trace") or {})
+    trace.update(updates)
+    return trace
+
+
+async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
+    """Ask the model to propose retrieval-only reformulations without encoding doctrine in code."""
+    if _ollama is None:
+        return []
+
+    question = state.get("rewritten_query") or state["question"]
+    history = state.get("chat_history", [])[-6:]
+    history_lines = []
+    for msg in history:
+        role = msg.get("role", "user")
+        content = (msg.get("content") or "")[:300]
+        history_lines.append(f"{role}: {content}")
+
+    prompt = (
+        "You are the retrieval planner for Mukthi Guru. Generate up to 3 search queries "
+        "that would help retrieve source teachings for the user's question. Use only "
+        "terms implied by the question and conversation history. Do not answer the "
+        "question. Do not invent facts. Return one query per line, no numbering.\n\n"
+        f"Conversation history:\n{chr(10).join(history_lines) if history_lines else '(none)'}\n\n"
+        f"User question:\n{question}\n\nSearch queries:"
+    )
+    try:
+        raw = await _ollama._generate_fast(
+            system_prompt="You create concise retrieval search queries only.",
+            user_prompt=prompt,
+            timeout=getattr(settings, "node_timeout_fast", 15),
+            max_retries=1,
+        )
+    except Exception as e:
+        logger.warning(f"LLM retrieval expansion failed; continuing without expansion: {e}")
+        return []
+
+    queries: list[str] = []
+    for line in raw.splitlines():
+        cleaned = re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip().strip('"')
+        if cleaned and cleaned.lower() != question.lower() and len(cleaned) <= 240:
+            queries.append(cleaned)
+    return list(dict.fromkeys(queries))[:3]
 
 
 def strip_cot(text: str) -> str:
@@ -216,6 +275,7 @@ def init_services(
 
     # Initialize RerankerService
     from services.reranker_service import RerankerService
+
     _reranker = RerankerService()
 
     # Initialize LettuceDetect Service using the injected embedder
@@ -244,7 +304,9 @@ def log_metrics(func):
         node_name = func.__name__
         request_id = state.get("request_id")
         log_extra = {"request_id": request_id} if request_id else {}
-        logger.info(f"Node '{node_name}' finished in {duration:.4f}s ({duration_ms}ms)", extra=log_extra)
+        logger.info(
+            f"Node '{node_name}' finished in {duration:.4f}s ({duration_ms}ms)", extra=log_extra
+        )
 
         # Record to Prometheus
         try:
@@ -282,62 +344,14 @@ def log_metrics(func):
 @log_metrics
 async def intent_router(state: GraphState) -> dict:
     """
-    Classify user message → DISTRESS / QUERY / CASUAL.
+    Classify user message → DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION.
 
-    Uses a two-stage approach:
-    1. Serene Mind Engine (fast keyword detection) for distress pre-screening
-    2. LLM classification for nuanced intent routing
-
-    This is the first decision point. Determines the entire pipeline path:
-    - DISTRESS → meditation flow (bypass RAG)
-    - QUERY → full 11-layer RAG pipeline
-    - CASUAL → simple conversational response
+    Completely dynamic. Zero-hardcoded keyword checks. Delegates all intent/safety/adversarial
+    boundaries to context-aware LLM reasoning under the primary sarvam-30b model.
     """
     question = state["question"]
-    chat_history = state.get("chat_history", [])
 
-    medical_keywords = [
-        "bipolar",
-        "lithium",
-        "medication",
-        "prescribe",
-        "diagnosis",
-        "treatment",
-        "doctor said",
-    ]
-    for kw in medical_keywords:
-        if kw in question.lower():
-            return {
-                "intent": "ERROR",
-                "error": "I cannot provide medical advice. Please consult a qualified healthcare professional.",
-                "final_answer": "I cannot provide medical advice. Please consult a qualified healthcare professional.",
-            }
-
-    if all(kw in question.lower() for kw in ["manifest", "1m"]):
-        return {
-            "intent": "ERROR",
-            "error": "I cannot guarantee financial results from spiritual practices.",
-            "final_answer": "I cannot guarantee financial results from spiritual practices. Spiritual practices are for inner growth.",
-        }
-
-    # Adversarial keyword checks
-    adversarial_keywords = [
-        "trust krishnaji",
-        "repackaging buddhism",
-        "just repackaging",
-        "is deeksha a form of reiki",
-        "pranic healing",
-        "why charge money",
-        "bring back my dead",
-        "dead parent",
-        "world poverty",
-        "spiritual people should be greedy",
-        "fortune 500",
-    ]
-    if any(kw in question.lower() for kw in adversarial_keywords):
-        return {"intent": "ADVERSARIAL"}
-
-    # Check if we're in an active meditation session
+    # Check if we're in an active meditation session (state machine check)
     meditation_step = state.get("meditation_step", 0)
     if meditation_step > 0:
         if is_meditation_complete(meditation_step):
@@ -346,67 +360,16 @@ async def intent_router(state: GraphState) -> dict:
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
 
-    # Also route new meditation requests
-    q_lower = question.lower()
-    asks_about_practice = any(
-        phrase in q_lower
-        for phrase in [
-            "what is",
-            "why does",
-            "how does",
-            "is meditation",
-            "about meditation",
-            "which is it",
-            "explain",
-            "tell me about",
-        ]
-    )
-    if (
-        any(m in q_lower for m in ["meditate", "meditation", "serene mind", "soul sync"])
-        and not asks_about_practice
-    ):
-        return {"intent": "MEDITATION_CONTINUE", "meditation_step": 1}
-
-    # Stage 1: Serene Mind pre-screening (fast, no LLM call)
-    if _serene_mind:
-        assessment = _serene_mind.assess_distress(question, chat_history)
-        if assessment.level >= DistressLevel.MODERATE:
-            logger.info(
-                f"Serene Mind: Distress detected (level={assessment.level.name}, "
-                f"confidence={assessment.confidence:.2f}, "
-                f"signals={assessment.detected_signals})"
-            )
-            return {"intent": "DISTRESS"}
-
-    # Intelligence Layer: Fast Semantic Routing for common greetings
-    import string
-
-    normalized_q = question.strip().lower().translate(str.maketrans("", "", string.punctuation))
-    casual_greetings = {
-        "namaste",
-        "hello",
-        "hi",
-        "hey",
-        "how are you",
-        "who are you",
-        "good morning",
-        "good evening",
-        "good afternoon",
-        "thanks",
-        "thank you",
-    }
-    if normalized_q in casual_greetings:
-        logger.info(f"Intent Router: Semantic routing mapped '{question}' to CASUAL (fast path)")
-        return {"intent": "CASUAL"}
-
-    # Stage 2: LLM classification (nuanced)
+    # Route all intent/safety checks to the primary reasoning model exclusively
     try:
         intent = await _ollama.classify_intent(question, timeout=12, max_retries=1)
     except Exception as e:
-        logger.warning(f"Intent router classification failed/timed out: {e}. Falling back to FACTUAL.")
+        logger.warning(
+            f"Intent router classification failed/timed out: {e}. Falling back to FACTUAL."
+        )
         intent = "FACTUAL"
 
-    # Adaptive Retrieval: map older labels to new ones if necessary
+    # Adaptive Retrieval: map older or synonymous labels
     if intent == "QUERY":
         intent = "FACTUAL"
 
@@ -425,7 +388,13 @@ async def intent_router(state: GraphState) -> dict:
     logger.info(
         f"Intent Router: classified '{question[:80]}...' → {intent} | tier → {query_tier} (question_len={len(question)})"
     )
-    return {"intent": intent, "query_tier": query_tier}
+    return {
+        "intent": intent,
+        "query_tier": query_tier,
+        "evaluation_trace": _trace_update(
+            state, intent=intent, query_tier=query_tier, routing_reason="classifier"
+        ),
+    }
 
 
 # ===================================================================
@@ -508,10 +477,14 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
             logger.info("Tree navigation: No summary nodes in DB, skipping")
             return {"selected_clusters": []}
 
-        selected = await navigate_tree(question, summary_nodes, _ollama, max_clusters=3, timeout=12, max_retries=1)
+        selected = await navigate_tree(
+            question, summary_nodes, _ollama, max_clusters=3, timeout=12, max_retries=1
+        )
         return {"selected_clusters": selected}
     except Exception as e:
-        logger.warning(f"navigate_knowledge_tree node failed/timed out: {e}. Searching all clusters.")
+        logger.warning(
+            f"navigate_knowledge_tree node failed/timed out: {e}. Searching all clusters."
+        )
         return {"selected_clusters": []}
 
 
@@ -713,21 +686,50 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if stream_queue:
         await stream_queue.put({"event": "status", "data": "Searching knowledge base..."})
 
-    sub_queries = state.get("sub_queries", [state["question"]])
+    base_question = state.get("rewritten_query") or state["question"]
+    sub_queries = state.get("sub_queries", [base_question]) or [base_question]
+    expansion_queries = await _llm_retrieval_expansions(state)
+    if expansion_queries:
+        logger.info(
+            f"LLM retrieval planner: adding {len(expansion_queries)} expansion query/queries"
+        )
+        sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
     hyde_text = state.get("hyde_text")
     intent = state.get("intent", "FACTUAL")
 
-    # Run all sub-query retrievals in parallel
+    # Run all sub-query retrievals in parallel, with a hard cap to prevent
+    # benchmark expansion from creating a latency cliff.
+    retrieval_queries = sub_queries[:6]
     all_results = await asyncio.gather(
         *[
-            retrieve_for_single_query(
-                q, chat_history, hyde_text, intent, selected_clusters, _embedder, _qdrant, _lightrag
+            asyncio.wait_for(
+                retrieve_for_single_query(
+                    q,
+                    chat_history,
+                    hyde_text,
+                    intent,
+                    selected_clusters,
+                    _embedder,
+                    _qdrant,
+                    _lightrag,
+                ),
+                timeout=getattr(settings, "node_timeout_main", 60),
             )
-            for q in sub_queries
-        ]
+            for q in retrieval_queries
+        ],
+        return_exceptions=True,
     )
+
+    normalized_results = []
+    for res in all_results:
+        if isinstance(res, Exception):
+            logger.warning(f"Sub-query retrieval failed but pipeline will continue: {res}")
+            normalized_results.append([])
+        else:
+            normalized_results.append(res)
+    all_results = normalized_results
 
     # ── RRF across sub-query results ────────────────────────────────────
     # Each sub-query produces its own RRF-merged ranked list.  We apply a
@@ -799,7 +801,16 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         )
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
-    return {"documents": all_docs}
+    return {
+        "documents": all_docs,
+        "evaluation_trace": _trace_update(
+            state,
+            retrieval_queries=retrieval_queries,
+            retrieved_count=len(all_docs),
+            llm_expansion_count=len(expansion_queries),
+            retrieved_sources=_grounded_citation_urls(all_docs),
+        ),
+    }
 
 
 # ===================================================================
@@ -839,9 +850,7 @@ def route_sub_queries(state: GraphState) -> list[Send]:
     intent = state.get("intent", "FACTUAL")
     selected_clusters = state.get("selected_clusters", [])
 
-    logger.info(
-        f"route_sub_queries: dispatching {len(sub_queries)} parallel branch(es) via Send"
-    )
+    logger.info(f"route_sub_queries: dispatching {len(sub_queries)} parallel branch(es) via Send")
 
     return [
         Send(
@@ -1038,7 +1047,14 @@ async def rerank_documents(state: GraphState) -> dict:
         f"Reranked {len(documents)} → {len(reranked)} documents "
         f"(complex={is_complex}, threshold={threshold:.2f}, MMR applied)"
     )
-    return {"reranked_docs": reranked}
+    return {
+        "reranked_docs": reranked,
+        "evaluation_trace": _trace_update(
+            state,
+            reranked_count=len(reranked),
+            reranked_sources=_grounded_citation_urls(reranked),
+        ),
+    }
 
 
 # ===================================================================
@@ -1102,7 +1118,14 @@ async def grade_documents(state: GraphState) -> dict:
         RETRIEVAL_RELEVANCE_RATIO.set(len(relevant) / len(reranked_docs))
 
     logger.info(f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check")
-    return {"relevant_docs": relevant}
+    return {
+        "relevant_docs": relevant,
+        "evaluation_trace": _trace_update(
+            state,
+            relevant_count=len(relevant),
+            relevant_sources=_grounded_citation_urls(relevant),
+        ),
+    }
 
 
 @log_metrics
@@ -1293,7 +1316,9 @@ async def explain_retrieval(state: GraphState) -> dict:
             return None
         try:
             user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
-            resp = await _ollama.generate(CITATION_REASONING_PROMPT, user_prompt, timeout=12, max_retries=1)
+            resp = await _ollama.generate(
+                CITATION_REASONING_PROMPT, user_prompt, timeout=12, max_retries=1
+            )
             return url, resp.strip()
         except Exception as e:
             logger.warning(f"Reasoning failed for {url}: {e}")
@@ -1348,8 +1373,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         total_raw_len = sum(len(doc.get("text", "")) for doc in relevant_docs)
         use_compression = getattr(settings, "rag_use_context_compression", False)
         threshold = getattr(settings, "rag_context_compression_threshold", 10000)
-        
+
         if use_compression and total_raw_len > threshold:
+
             async def compress_and_format(doc):
                 compressed_text = await _ollama.compress_context(question, doc["text"])
                 if compressed_text:
@@ -1383,21 +1409,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     else:
         context = ""
 
-    # Build citations list (deterministic ordering for reproducibility)
-    question_lower = state.get("question", "").lower()
-    citations_set = set(doc.get("source_url", "") for doc in relevant_docs if doc.get("source_url"))
-
-    if "deeksha neuroscience" in question_lower or "research" in question_lower:
-        citations_set.add("https://www.youtube.com/watch?v=DeekshaNeuroscienceResearch")
-    if "four sacred secrets" in question_lower or "book" in question_lower:
-        citations_set.add(
-            "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
-        )
-        citations_set.add("https://www.simonandschuster.com/books/The-Four-Sacred-Secrets")
-    if "soul sync" in question_lower:
-        citations_set.add("https://www.youtube.com/watch?v=RAOQ3ZubQGM")
-
-    citations = sorted(citations_set)
+    # Build grounded citations from retrieved document metadata only.
+    # Do not inject canonical URLs after the fact; B7 requires citations to
+    # originate in evidence that entered the RAG context.
+    citations = _grounded_citation_urls(relevant_docs)
 
     # Build chat history context (last 5 turns for multi-turn awareness)
     history_str = ""
@@ -1415,10 +1430,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # Use Context Engineering layers if available
     layers = state.get("context_layers")
     if layers:
-        system_prompt = (
-            f"PERSONA:\n{layers['persona']}\n\n"
-            f"INSTRUCTIONS:\n{layers['instructions']}"
-        )
+        system_prompt = f"PERSONA:\n{layers['persona']}\n\nINSTRUCTIONS:\n{layers['instructions']}"
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
 
@@ -1444,8 +1456,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "INSTRUCTIONS:\n"
             "1. First, internally identify 3-5 key evidence phrases from the Context that directly address the question.\n"
             "2. Then, formulate your answer based ONLY on those key evidence phrases, delivered as a warm, understanding Guru.\n"
-            "3. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as \"Watch more here: [URL]\".\n"
-            "4. If you cannot answer from the context, say: \"I am unable to find specific teachings on this topic.\"\n"
+            '3. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
+            '4. If you cannot answer from the context, say: "I am unable to find specific teachings on this topic."\n'
             "5. NEVER fabricate teachings or add information from your training data.\n"
             "6. Maintain a warm, compassionate, and wise tone.\n"
             "7. Start with the most directly relevant teaching and end with an encouraging or reflective note."
@@ -1455,8 +1467,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
         memory = state.get("memory_context", "")
         user_prompt = (
-            f"CONTEXT (retrieved teachings):\n{memory}\n\n{context}\n\n"
-            f"Question: {question}"
+            f"CONTEXT (retrieved teachings):\n{memory}\n\n{context}\n\nQuestion: {question}"
         )
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
@@ -1561,7 +1572,17 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     logger.info(
         f"Generated answer ({len(answer)} chars, {len(citations)} citations, model={ab_model})"
     )
-    return {"answer": answer, "citations": citations, "citation_reasoning": {}}
+    return {
+        "answer": answer,
+        "citations": citations,
+        "citation_reasoning": {},
+        "evaluation_trace": _trace_update(
+            state,
+            generated_answer_chars=len(answer),
+            citation_urls=citations,
+            memory_used=bool(state.get("memory_context")),
+        ),
+    }
 
 
 # ===================================================================
@@ -1705,10 +1726,12 @@ async def format_final_answer(state: GraphState) -> dict:
             f"verified={verified}, confidence={confidence}, "
             f"citations={len(citations)})"
         )
-    elif state.get("intent") == "DISTRESS" and answer:
-        # Distress queries might not have strong factual citations,
-        # but we MUST return the compassionate answer generated by the LLM
-        logger.info("Final: Allowing DISTRESS answer through despite verification failure")
+    elif state.get("intent") in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"] and answer:
+        # Distress, safety violations, and adversarial answers might not have strong factual citations,
+        # but we MUST return the compassionate answer or refusal generated by the LLM
+        logger.info(
+            f"Final: Allowing {state.get('intent')} answer through despite verification failure"
+        )
     else:
         # No citations or very low confidence — reject
         logger.warning(
@@ -1733,50 +1756,12 @@ async def format_final_answer(state: GraphState) -> dict:
     if intent == "?":
         intent = "CASUAL"
 
-    if citations or intent in ["FACTUAL", "QUERY", "RELATIONAL", "SPIRITUAL_QUERY", "ADVERSARIAL"]:
+    if citations:
         reasoning = state.get("citation_reasoning") or {}
         citation_lines = []
 
-        # Canonical links for enrichment (Verified Research)
-        BOOK_LINK = "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
-        SIMON_SCHUSTER_LINK = "https://www.simonandschuster.com/books/The-Four-Sacred-Secrets"
-        YOUTUBE_LINK = "https://www.youtube.com/c/pkconsciousness"
-        SOUL_SYNC_LINK = "https://www.youtube.com/watch?v=RAOQ3ZubQGM"
-
-        # Deduplicate and prioritize official links
-        enriched_citations = list(citations)
-
-        content_to_check = (answer + " " + state.get("question", "")).lower()
-        has_book_keyword = any(
-            kw in content_to_check
-            for kw in ["sacred", "secret", "preethaji", "krishnaji", "book", "teaching"]
-        )
-        has_video_keyword = any(
-            kw in content_to_check
-            for kw in ["youtube", "video", "watch", "channel", "meditation", "session"]
-        )
-
-        if has_book_keyword and BOOK_LINK not in enriched_citations:
-            enriched_citations.insert(0, BOOK_LINK)
-        if has_book_keyword and SIMON_SCHUSTER_LINK not in enriched_citations:
-            enriched_citations.insert(0, SIMON_SCHUSTER_LINK)
-        if has_video_keyword and YOUTUBE_LINK not in enriched_citations:
-            pos = 1 if BOOK_LINK in enriched_citations else 0
-            enriched_citations.insert(pos, YOUTUBE_LINK)
-        if "soul sync" in content_to_check and SOUL_SYNC_LINK not in enriched_citations:
-            enriched_citations.insert(0, SOUL_SYNC_LINK)
-
-        # Ensure both are present for deep spiritual queries
-        if intent in ["FACTUAL", "SPIRITUAL_QUERY", "ADVERSARIAL"] and len(enriched_citations) < 2:
-            if SIMON_SCHUSTER_LINK not in enriched_citations:
-                enriched_citations.append(SIMON_SCHUSTER_LINK)
-            if BOOK_LINK not in enriched_citations:
-                enriched_citations.append(BOOK_LINK)
-            if YOUTUBE_LINK not in enriched_citations:
-                enriched_citations.append(YOUTUBE_LINK)
-
         seen_urls = set()
-        for url in enriched_citations[:5]:
+        for url in citations[:5]:
             if url in seen_urls:
                 continue
             seen_urls.add(url)
@@ -1784,18 +1769,10 @@ async def format_final_answer(state: GraphState) -> dict:
             line = f"- {url}"
             if url in reasoning:
                 line += f" ({reasoning[url]})"
-            elif url == SIMON_SCHUSTER_LINK:
-                line += " (The Four Sacred Secrets — Simon & Schuster)"
-            elif url == BOOK_LINK:
-                line += " (The Four Sacred Secrets — Official Book)"
-            elif url == YOUTUBE_LINK:
-                line += " (Sri Preethaji & Sri Krishnaji — Official YouTube)"
-            elif url == SOUL_SYNC_LINK:
-                line += " (Soul Sync guided practice)"
             citation_lines.append(line)
 
         if citation_lines:
-            citation_block = "\n\n📚 *Sources & Teachings:*\n" + "\n".join(citation_lines)
+            citation_block = "\n\n*Sources & Teachings:*\n" + "\n".join(citation_lines)
             if citation_block not in answer:
                 answer += citation_block
 
@@ -1803,6 +1780,13 @@ async def format_final_answer(state: GraphState) -> dict:
         "final_answer": answer,
         "citations": citations,
         "intent": intent,
+        "evaluation_trace": _trace_update(
+            state,
+            final_answer_chars=len(answer),
+            final_citations=citations,
+            verification_passed=verified,
+            confidence_score=confidence,
+        ),
     }  # Preserve original citations for state
     if state.get("intent") == "DISTRESS":
         result["meditation_step"] = 1
@@ -1990,7 +1974,14 @@ def route_by_intent(state: GraphState) -> str:
         return "query"  # Route distress through RAG to fetch teachings; intercepted after grading for Serene Mind
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL"]:
+    elif intent in [
+        "QUERY",
+        "FACTUAL",
+        "RELATIONAL",
+        "FOLLOW_UP",
+        "ADVERSARIAL",
+        "SAFETY_VIOLATION",
+    ]:
         return "query"
     elif intent in ["ERROR"]:
         return "casual"  # Return directly without running RAG pipeline
@@ -2009,6 +2000,11 @@ def route_after_grading(state: GraphState) -> str:
     relevant = state.get("relevant_docs", [])
     rewrite_count = state.get("rewrite_count", 0)
     intent = state.get("intent", "FACTUAL")
+
+    if intent in ["SAFETY_VIOLATION", "ADVERSARIAL"]:
+        # Safety violations and adversarial inputs bypass retrieval adequacy checks
+        # and route directly to the generator for context-specific refusals/refutations.
+        return "relevant"
 
     if relevant:
         if intent == "DISTRESS":

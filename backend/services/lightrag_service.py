@@ -75,7 +75,7 @@ class LightRAGService:
             if settings.llm_provider == "sarvam_cloud":
                 sys_prompt_str = system_prompt or ""
                 prompt_str = prompt or ""
-                
+
                 # All LightRAG operations run on sarvam-m for high throughput and zero reasoning overhead
                 kwargs["model"] = "sarvam-m"
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)

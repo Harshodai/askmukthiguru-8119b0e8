@@ -8,11 +8,10 @@ Supports:
   - Deterministic point IDs for ingestion deduplication
   - Docker mode (QDRANT_URL) and local mode (QDRANT_LOCAL_PATH)
 """
+
 from __future__ import annotations
 
 import functools
-import hashlib
-import json
 import logging
 import time
 import uuid

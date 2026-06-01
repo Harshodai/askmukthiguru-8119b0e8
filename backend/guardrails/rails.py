@@ -12,6 +12,7 @@ Design Patterns:
   - Proxy Pattern: Wraps the RAG pipeline with input/output safety rails
   - Fail-Open → Fail-Safe: If NeMo unavailable, use lightweight (NOT disabled)
 """
+
 from __future__ import annotations
 
 import logging

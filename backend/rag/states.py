@@ -175,3 +175,7 @@ class GraphState(TypedDict):
     # Each node appends {"node_name": latency_ms} so we get full pipeline breakdown.
     # Reducer add_dicts merges timing dicts from parallel branches without overwriting.
     node_timings: Annotated[dict, add_dicts]
+
+    # Evaluation trace (production AI reliability)
+    # Machine-readable trajectory data for benchmarks and trace dashboards.
+    evaluation_trace: Annotated[dict, add_dicts]

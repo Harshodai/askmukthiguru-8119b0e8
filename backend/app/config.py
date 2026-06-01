@@ -66,8 +66,8 @@ class Settings(BaseSettings):
 
     # --- Timeout Budget ---
     pipeline_timeout_budget: int = 120  # Total pipeline timeout budget in seconds
-    node_timeout_fast: int = 15        # Default fast-model node timeout
-    node_timeout_main: int = 60        # Default main-model node timeout
+    node_timeout_fast: int = 15  # Default fast-model node timeout
+    node_timeout_main: int = 60  # Default main-model node timeout
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
@@ -179,7 +179,9 @@ class Settings(BaseSettings):
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
     rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
-    rag_context_compression_threshold: int = 10000  # Only compress context if character length exceeds this threshold
+    rag_context_compression_threshold: int = (
+        10000  # Only compress context if character length exceeds this threshold
+    )
 
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True

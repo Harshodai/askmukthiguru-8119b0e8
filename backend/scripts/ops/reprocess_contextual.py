@@ -56,8 +56,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointIdsList
 
 from app.config import settings
-from services.ollama_service import OllamaService
 from services.contextual_chunking_service import ContextualChunkingService
+from services.ollama_service import OllamaService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,6 +71,7 @@ STATE_FILE = Path(__file__).parent / "contextual_reprocess_state.json"
 
 # ── State helpers ──────────────────────────────────────────────────────────────
 
+
 def _load_state() -> set[str]:
     if STATE_FILE.exists():
         return set(json.loads(STATE_FILE.read_text()))
@@ -82,6 +83,7 @@ def _save_state(done: set[str]) -> None:
 
 
 # ── Core ───────────────────────────────────────────────────────────────────────
+
 
 async def reprocess(
     *,
@@ -106,11 +108,9 @@ async def reprocess(
 
     # ── Step 1: Scroll all leaf chunks ────────────────────────────────────────
     logger.info("Scrolling collection for raptor_level=0 chunks…")
-    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
 
-    scroll_filter = Filter(
-        must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]
-    )
+    scroll_filter = Filter(must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))])
 
     points_by_source: dict[str, list[dict]] = {}
     offset = None
@@ -128,9 +128,7 @@ async def reprocess(
             src = pt.payload.get("source_url", "")
             if source_url_filter and src != source_url_filter:
                 continue
-            points_by_source.setdefault(src, []).append(
-                {"id": pt.id, "payload": pt.payload}
-            )
+            points_by_source.setdefault(src, []).append({"id": pt.id, "payload": pt.payload})
         if next_offset is None:
             break
         offset = next_offset
@@ -174,7 +172,9 @@ async def reprocess(
 
         if dry_run:
             for orig, enr in zip(chunks[:3], enriched[:3]):
-                logger.info("    DRY-RUN sample:\n      ORIG: %s\n      ENRI: %s", orig[:80], enr[:120])
+                logger.info(
+                    "    DRY-RUN sample:\n      ORIG: %s\n      ENRI: %s", orig[:80], enr[:120]
+                )
             logger.info("    (dry-run — no writes)")
             done.add(src)
             continue
@@ -201,7 +201,10 @@ async def reprocess(
             for pt_id, payload in batch:
                 client.set_payload(
                     collection_name=collection,
-                    payload={"text": payload["text"], "text_original": payload.get("text_original", "")},
+                    payload={
+                        "text": payload["text"],
+                        "text_original": payload.get("text_original", ""),
+                    },
                     points=[pt_id],
                 )
 
@@ -218,6 +221,7 @@ async def reprocess(
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
+
 
 def _parse() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Reprocess Qdrant chunks with contextual headers")

@@ -316,7 +316,7 @@ function aggregateRetrieval(rows: any[]) {
     const scores: number[] = r.scores || [];
     if (docs.length === 0) empties++;
     if (scores.length > 0) { topScoreSum += scores[0]; topScoreN++; }
-    const cr = r.chat_responses;
+    const cr = r.chat_responses ?? r.chat_queries?.chat_responses;
     const faith = Array.isArray(cr) ? cr[0]?.faithfulness : cr?.faithfulness;
     docs.forEach((src) => {
       const e = sourceMap.get(src) ?? { count: 0, faithSum: 0, faithN: 0 };
@@ -344,12 +344,13 @@ function aggregateRetrieval(rows: any[]) {
 }
 
 export async function getRetrievalHealth(range?: { from?: Date; to?: Date }): Promise<any> {
-  let q = fromUntyped("retrieval_events").select("query_id, source_docs, scores, created_at, chat_responses(faithfulness)");
-  if (range?.from) q = q.gte("created_at", range.from.toISOString());
-  if (range?.to) q = q.lte("created_at", range.to.toISOString());
+  let q = fromUntyped("retrieval_events").select("query_id, source_docs, scores, chat_queries!inner(created_at, chat_responses(faithfulness))");
+  if (range?.from) q = q.gte("chat_queries.created_at", range.from.toISOString());
+  if (range?.to) q = q.lte("chat_queries.created_at", range.to.toISOString());
   const { data, error } = await q;
   if (error) {
-    const { data: simple } = await fromUntyped("retrieval_events").select("query_id, source_docs, scores, created_at");
+    console.error("Error in getRetrievalHealth:", error);
+    const { data: simple } = await fromUntyped("retrieval_events").select("query_id, source_docs, scores, chat_queries!inner(created_at)");
     return aggregateRetrieval((simple || []) as any[]);
   }
   return aggregateRetrieval((data || []) as any[]);
@@ -439,9 +440,9 @@ export async function getTriggerTrend(range?: { from?: Date; to?: Date }, bucket
 export async function getSimilarityTrend(range?: { from?: Date; to?: Date }, buckets = 14): Promise<any[]> {
   const from = range?.from ?? new Date(Date.now() - buckets * 86400000);
   const to = range?.to ?? new Date();
-  const { data } = await fromUntyped("retrieval_events").select("scores, created_at")
-    .gte("created_at", from.toISOString()).lte("created_at", to.toISOString());
-  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.created_at).getTime());
+  const { data } = await fromUntyped("retrieval_events").select("scores, chat_queries!inner(created_at)")
+    .gte("chat_queries.created_at", from.toISOString()).lte("chat_queries.created_at", to.toISOString());
+  const bs = bucketize((data || []) as any[], from, to, buckets, (r) => new Date(r.chat_queries?.created_at || r.created_at).getTime());
   return bs.map((b) => {
     const scores = b.items.map((r: any) => (r.scores?.[0] ?? 0)).filter((s: number) => s > 0);
     return { bucket: b.bucket, avg_top_score: scores.length ? scores.reduce((s: number, x: number) => s + x, 0) / scores.length : 0 };
@@ -454,10 +455,10 @@ export async function getDeadDocs(_range?: { from?: Date; to?: Date }): Promise<
 }
 
 export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, limit = 20): Promise<any[]> {
-  let q = fromUntyped("retrieval_events").select("query_id, source_docs, scores, created_at, chat_queries(query_text)");
-  if (range?.from) q = q.gte("created_at", range.from.toISOString());
-  if (range?.to) q = q.lte("created_at", range.to.toISOString());
-  const { data } = await q.order("created_at", { ascending: false });
+  let q = fromUntyped("retrieval_events").select("query_id, source_docs, scores, chat_queries!inner(created_at, query_text)");
+  if (range?.from) q = q.gte("chat_queries.created_at", range.from.toISOString());
+  if (range?.to) q = q.lte("chat_queries.created_at", range.to.toISOString());
+  const { data } = await q.order("created_at", { referencedTable: "chat_queries", ascending: false });
   return ((data || []) as any[])
     .filter((r) => !r.source_docs || r.source_docs.length === 0 || (r.scores?.[0] ?? 0) < 0.3)
     .slice(0, limit)
@@ -465,7 +466,7 @@ export async function getEmptyRetrievals(range?: { from?: Date; to?: Date }, lim
       query_id: r.query_id,
       query_text: r.chat_queries?.query_text || "(unknown)",
       top_score: r.scores?.[0] ?? 0,
-      created_at: r.created_at,
+      created_at: r.chat_queries?.created_at,
     }));
 }
 

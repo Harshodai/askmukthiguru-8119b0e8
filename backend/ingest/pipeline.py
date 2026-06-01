@@ -51,13 +51,13 @@ from ingest.youtube_loader import (
     is_channel_url,
     is_playlist_url,
 )
+from services.adaptive_chunking_adapter import AdaptiveChunkingAdapter
+from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
-from services.qdrant_service import QdrantService
-from services.adaptive_chunking_adapter import AdaptiveChunkingAdapter
 from services.proposition_service import PropositionService
-from services.contextual_chunking_service import ContextualChunkingService
+from services.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
 
@@ -926,9 +926,7 @@ class IngestionPipeline:
         # Step 1: Contextual enrichment (situate each chunk in the document)
         if full_document:
             try:
-                chunks = await self._contextual_chunker.enrich_chunks(
-                    full_document, chunks
-                )
+                chunks = await self._contextual_chunker.enrich_chunks(full_document, chunks)
             except Exception as e:
                 logger.warning(f"Contextual enrichment failed (non-fatal): {e}")
 

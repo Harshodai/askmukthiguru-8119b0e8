@@ -116,11 +116,10 @@ graph LR
 - [x] Housekeeping: Prune locked dead git worktrees (agent-*) and delete stale merged local branches to eliminate shell lag (June 2026)
 - [x] Consolidate benchmark execution under `backend/benchmarks/` with explicit multi-turn, cache, Self-RAG, CoVe, citation, and category-score reporting (June 2026)
 - [x] Expose `/api/chat` evaluation metadata (`faithfulness_score`, `relevancy_score`, `confidence_score`, `verification`, `hallucination_flag`) for production benchmark scoring (June 2026)
-- [ ] Validate ingestion quality via `backend/benchmarks/run_all.py` (target ≥90%)
-- [ ] **R5**: Circuit breaker on LLM provider via `tenacity` (Wave 1 remaining)
+- [x] **R5**: Circuit breaker on LLM provider via `tenacity` (Wave 1, completed June 2026)
 - [ ] **Q1-Q4**: Chunk size evaluation, token budget guard, eval harness (Wave 2)
-- [ ] **S3**: Replace Redis coalescer `sleep(0.1)` with `BLPOP`-style blocking wait (Wave 3)
-- [ ] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4)
+- [x] **S3**: Replace Redis coalescer `sleep(0.1)` with `BLPOP`-style blocking wait (Wave 3, completed June 2026)
+- [x] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4, completed June 2026)
 
 
 ---
