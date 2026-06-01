@@ -279,7 +279,28 @@ Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
 
 ---
 
-## 11. Troubleshooting
+## 11. Production Benchmarking
+
+The production-readiness harness lives under `backend/benchmarks/`.
+
+```bash
+# Full coordinated suite: HTTP ruthless benchmark + native faithfulness eval
+python3 backend/benchmarks/run_all.py --endpoint http://localhost:8000
+
+# Fast CLI/import check
+python3 backend/benchmarks/run_all.py --help
+
+# HTTP-only benchmark
+python3 backend/benchmarks/ruthless_benchmark.py --endpoint http://localhost:8000
+```
+
+Reports are written to `backend/benchmarks/reports/`. The HTTP benchmark expects `/api/chat` to expose `faithfulness_score`, `relevancy_score`, `confidence_score`, `verification`, and `hallucination_flag` so the suite can score answer quality, trajectory-adjacent verification, citations, multi-turn retention, and performance without relying only on exact output matching.
+
+Use `.venv/bin/python` or `backend/.venv/bin/python` for local verification. The macOS system Python 3.9 cannot import the backend because the project uses Python 3.10+ type syntax.
+
+---
+
+## 12. Troubleshooting
 
 | Symptom                                           | Likely cause / fix                                                 |
 | ------------------------------------------------- | ------------------------------------------------------------------ |
@@ -292,7 +313,7 @@ Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
 
 ---
 
-## 12. Glossary
+## 13. Glossary
 
 - **Stimulus RAG** — extract key hint phrases from retrieved docs before generation.
 - **CRAG** — Corrective RAG; grade docs and rewrite query (≤ 3 loops).
@@ -304,7 +325,7 @@ Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
 
 ---
 
-## 13. Where to look next
+## 14. Where to look next
 
 - `docs/ROADMAP.md` — prioritized backlog of pain points and benchmark moves.
 - `SETUP.md` — focused environment-variable reference.
@@ -404,5 +425,4 @@ These servers are fully registered:
 - **Local Codex/Antigravity IDE**: Defined in `.mcp.json` at the project root.
 - **Global Claude CLI**: Registered in `~/.claude.json`.
 - **Global Hermes Agent CLI**: Registered in `~/.hermes/config.yaml`.
-
 

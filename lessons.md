@@ -921,4 +921,12 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - Using Homebrew to manage tool runtime dependencies (like Bun for SQLite/ChromaDB and Node 22 for WASM parsing) provides a 100% stable integration stack on macOS.
   - A surgical Python-based configuration parsing script guarantees zero syntax errors or duplicate entries when automating edits across multi-format config files (`JSON`, `YAML`).
 
+### 75. Production Agent Benchmarks Must Score Behavior, Verification, and Trajectory Signals (June 2026)
+- **Problem**: The consolidated `backend/benchmarks/` suite existed, but the production-readiness score was incomplete: it did not restore explicit multi-turn memory scoring, citation scoring, cache/performance reporting, or Self-RAG/CoVe scoring. The `/api/chat` response also hid verifier metadata, forcing benchmarks to infer quality only from final text.
+- **Solution**:
+  - Extended `/api/chat` with `faithfulness_score`, `relevancy_score`, `confidence_score`, `verification`, and `hallucination_flag`.
+  - Restored benchmark categories for multi-turn conversations, cache warm/hit comparisons, Self-RAG traps, and CoVe verification probes.
+  - Added deterministic CoT stripping and response-length/token-budget controls in `nodes.py` so leaked reasoning does not become user-facing output.
+  - Routed adversarial doctrine questions through the RAG pipeline instead of casual short-circuit responses, so provocative questions are grounded in retrieved evidence and citations.
+- **Lesson learned**: Agent benchmarks should not score only `input -> final output`. A production-grade harness needs `input -> route/intent -> retrieval/citations -> verification metadata -> final output`, with explicit category weights and reports. Otherwise the benchmark can look consolidated while still missing the failure modes that cause production instability.
 

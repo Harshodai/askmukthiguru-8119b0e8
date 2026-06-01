@@ -1,0 +1,135 @@
+# Production K8s overrides (EKS/GKE/AKS)
+# Use with: helm install mukthiguru -f values-production.yaml
+
+minikube:
+  enabled: false
+
+replicaCount: 3
+
+backend:
+  image:
+    repository: <YOUR_REGISTRY>/mukthiguru-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+
+frontend:
+  image:
+    repository: <YOUR_REGISTRY>/mukthiguru-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# --- Ingress Configuration (Cloud-specific) ---
+ingress:
+  enabled: true
+  className: "nginx"  # Change to "alb" for AWS ALB, "gce" for GKE, etc.
+  annotations:
+    # AWS ALB example:
+    # kubernetes.io/ingress.class: "alb"
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+    # cert-manager example:
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  tls:
+    - secretName: mukthiguru-tls
+      hosts:
+        - mukthiguru.example.com
+
+# --- Autoscaling (Production) ---
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# --- Secrets (Production: use external secret manager + ESO) ---
+secrets:
+  enabled: true
+  # In production, inject via External Secrets Operator pointing to:
+  # AWS Secrets Manager, GCP Secret Manager, or Azure Key Vault
+  # SARVAM_API_KEY: <base64 encoded>
+  # NEO4J_PASSWORD: <base64 encoded>
+  # JWT_SECRET: <base64 encoded>
+
+# --- Infrastructure Services (Production) ---
+redis:
+  enabled: true
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+  master:
+    persistence:
+      size: 10Gi
+
+qdrant:
+  enabled: true
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+  persistence:
+    size: 50Gi
+
+neo4j:
+  enabled: true
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+  persistence:
+    size: 20Gi
+
+jaeger:
+  enabled: false  # Use external APM in production (e.g., AWS X-Ray, GCP Cloud Trace)
