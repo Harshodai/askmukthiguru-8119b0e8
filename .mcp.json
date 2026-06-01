@@ -9,6 +9,34 @@
       ],
       "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
       "type": "stdio"
+    },
+    "graphify": {
+      "command": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python",
+      "args": [
+        "-m",
+        "graphify.serve",
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/graphify-out/graph.json"
+      ],
+      "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
+      "type": "stdio"
+    },
+    "claude-mem": {
+      "command": "node",
+      "args": [
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/mcp-servers/claude-mem/plugin/scripts/mcp-server.cjs"
+      ],
+      "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
+      "type": "stdio"
+    },
+    "codegraph": {
+      "command": "node",
+      "args": [
+        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/mcp-servers/codegraph/dist/bin/codegraph.js",
+        "serve",
+        "--mcp"
+      ],
+      "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
+      "type": "stdio"
     }
   }
 }
