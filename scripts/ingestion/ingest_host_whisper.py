@@ -27,7 +27,8 @@ load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 os.environ["LLM_PROVIDER"] = "sarvam_cloud"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
-os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+if "REDIS_URL" not in os.environ:
+    raise RuntimeError("REDIS_URL env var is required")
 os.environ["SUPABASE_URL"] = "http://localhost:54321"
 os.environ["ENABLE_TRANSCRIPT_COUNCIL"] = "false"
 os.environ["WHISPER_ONLY"] = "true"
