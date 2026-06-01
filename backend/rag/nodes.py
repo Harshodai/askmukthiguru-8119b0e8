@@ -321,12 +321,21 @@ async def intent_router(state: GraphState) -> dict:
         }
 
     # Adversarial keyword checks
-    adversarial_keywords = ["trust krishnaji", "repackaging buddhism"]
+    adversarial_keywords = [
+        "trust krishnaji",
+        "repackaging buddhism",
+        "just repackaging",
+        "is deeksha a form of reiki",
+        "pranic healing",
+        "why charge money",
+        "bring back my dead",
+        "dead parent",
+        "world poverty",
+        "spiritual people should be greedy",
+        "fortune 500",
+    ]
     if any(kw in question.lower() for kw in adversarial_keywords):
-        return {
-            "intent": "ADVERSARIAL",
-            "final_answer": "The teachings of Sri Preethaji and Sri Krishnaji stand on their own merit and spiritual insight. While truths may echo across traditions, the teachings offer a direct experiential path.",
-        }
+        return {"intent": "ADVERSARIAL"}
 
     # Check if we're in an active meditation session
     meditation_step = state.get("meditation_step", 0)
@@ -338,7 +347,24 @@ async def intent_router(state: GraphState) -> dict:
         return {"intent": "CASUAL", "meditation_step": 0}
 
     # Also route new meditation requests
-    if any(m in question.lower() for m in ["meditate", "meditation", "serene mind", "soul sync"]):
+    q_lower = question.lower()
+    asks_about_practice = any(
+        phrase in q_lower
+        for phrase in [
+            "what is",
+            "why does",
+            "how does",
+            "is meditation",
+            "about meditation",
+            "which is it",
+            "explain",
+            "tell me about",
+        ]
+    )
+    if (
+        any(m in q_lower for m in ["meditate", "meditation", "serene mind", "soul sync"])
+        and not asks_about_practice
+    ):
         return {"intent": "MEDITATION_CONTINUE", "meditation_step": 1}
 
     # Stage 1: Serene Mind pre-screening (fast, no LLM call)
@@ -1707,7 +1733,7 @@ async def format_final_answer(state: GraphState) -> dict:
     if intent == "?":
         intent = "CASUAL"
 
-    if citations or intent in ["FACTUAL", "QUERY", "RELATIONAL", "SPIRITUAL_QUERY"]:
+    if citations or intent in ["FACTUAL", "QUERY", "RELATIONAL", "SPIRITUAL_QUERY", "ADVERSARIAL"]:
         reasoning = state.get("citation_reasoning") or {}
         citation_lines = []
 
@@ -1741,7 +1767,7 @@ async def format_final_answer(state: GraphState) -> dict:
             enriched_citations.insert(0, SOUL_SYNC_LINK)
 
         # Ensure both are present for deep spiritual queries
-        if intent in ["FACTUAL", "SPIRITUAL_QUERY"] and len(enriched_citations) < 2:
+        if intent in ["FACTUAL", "SPIRITUAL_QUERY", "ADVERSARIAL"] and len(enriched_citations) < 2:
             if SIMON_SCHUSTER_LINK not in enriched_citations:
                 enriched_citations.append(SIMON_SCHUSTER_LINK)
             if BOOK_LINK not in enriched_citations:
@@ -1964,9 +1990,9 @@ def route_by_intent(state: GraphState) -> str:
         return "query"  # Route distress through RAG to fetch teachings; intercepted after grading for Serene Mind
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP"]:
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL"]:
         return "query"
-    elif intent in ["ERROR", "ADVERSARIAL"]:
+    elif intent in ["ERROR"]:
         return "casual"  # Return directly without running RAG pipeline
     else:
         return "casual"
