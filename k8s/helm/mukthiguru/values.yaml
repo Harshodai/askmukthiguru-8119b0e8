@@ -1,0 +1,224 @@
+nameOverride: ""
+fullnameOverride: ""
+
+# --- Environment ---
+environment: production
+
+# --- Minikube vs Production switching ---
+minikube:
+  enabled: true
+
+# --- Application Configuration ---
+replicaCount: 2
+
+imagePullSecrets: []
+
+# --- Backend ---
+backend:
+  enabled: true
+  image:
+    repository: mukthiguru-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 8000
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+  # Probes configured for slow startup (model loading, vector DB init)
+  probes:
+    startup:
+      httpGet:
+        path: /api/health
+        port: 8000
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      failureThreshold: 30
+    liveness:
+      httpGet:
+        path: /api/health
+        port: 8000
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+    readiness:
+      httpGet:
+        path: /api/ready
+        port: 8000
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+# --- Frontend ---
+frontend:
+  enabled: true
+  image:
+    repository: mukthiguru-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# --- Ingress ---
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  hosts:
+    - host: mukthiguru.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /ui
+          pathType: Prefix
+          service: backend
+  tls: []
+
+# --- Autoscaling (HPA) ---
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+
+# --- Pod Disruption Budget ---
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# --- Environment Variables ---
+env:
+  - name: LLM_PROVIDER
+    value: "sarvam_cloud"
+  - name: WEB_CONCURRENCY
+    value: "2"
+
+# --- Secrets ---
+secrets:
+  enabled: true
+  # Base64-encoded secret values. Override these in production!
+  SARVAM_API_KEY: ""  # Base64 encoded
+  NEO4J_PASSWORD: ""  # Base64 encoded
+  REDIS_PASSWORD: ""  # Base64 encoded
+  JWT_SECRET: ""      # Base64 encoded
+
+# --- Infrastructure Services ---
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: mukthiguru-redis-pass
+  master:
+    persistence:
+      enabled: true
+      size: 5Gi
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1"
+      limits:
+        memory: "4Gi"
+        cpu: "2"
+
+qdrant:
+  enabled: true
+  image:
+    repository: qdrant/qdrant
+    tag: v1.17.1
+  persistence:
+    enabled: true
+    size: 20Gi
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+
+neo4j:
+  enabled: true
+  image:
+    repository: neo4j
+    tag: "5.17"
+  auth:
+    enabled: true
+    password: mukthiguru-neo4j-pass
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "2"
+    limits:
+      memory: "8Gi"
+      cpu: "4"
+
+jaeger:
+  enabled: true
+  image:
+    repository: jaegertracing/all-in-one
+    tag: "1.76"
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+
+# --- Service Account ---
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+# --- Resource Constraints ---
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

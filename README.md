@@ -239,10 +239,13 @@ Private — All rights reserved.
 npx vitest run src/tests/auth.e2e.test.ts
 
 # Native Benchmark Evaluation
-python3 backend/tests/eval_ragas_native.py
+python3 backend/benchmarks/native_eval.py
 
-# Production-grade "Ruthless" benchmark (requires running Docker stack)
-python3 scripts/benchmarks/askmukthiguru_ruthless_benchmark.py --url http://localhost:8000
+# Unified production-readiness benchmark suite (requires running Docker stack)
+python3 backend/benchmarks/run_all.py --endpoint http://localhost:8000
+
+# HTTP-only ruthless benchmark
+python3 backend/benchmarks/ruthless_benchmark.py --endpoint http://localhost:8000
 ```
 
 ---

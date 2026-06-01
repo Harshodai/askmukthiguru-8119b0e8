@@ -1,0 +1,31 @@
+apiVersion: skaffold/v4beta7
+kind: Config
+metadata:
+  name: mukthiguru
+
+profiles:
+  - name: minikube
+    build:
+      local: {}
+      artifacts:
+        - image: mukthiguru-backend
+          context: .
+          docker:
+            dockerfile: backend/Dockerfile
+        - image: mukthiguru-frontend
+          context: .
+          docker:
+            dockerfile: Dockerfile  # Root Dockerfile for frontend
+    deploy:
+      helm:
+        releases:
+          - name: mukthiguru
+            chartPath: helm/mukthiguru
+            valuesFiles:
+              - helm/mukthiguru/values-minikube.yaml
+            setValues:
+              backend.image.repository: mukthiguru-backend
+              frontend.image.repository: mukthiguru-frontend
+            setValueTemplates:
+              backend.image.tag: "{{.IMAGE_TAG_mukthiguru_backend}}"
+              frontend.image.tag: "{{.IMAGE_TAG_mukthiguru_frontend}}"

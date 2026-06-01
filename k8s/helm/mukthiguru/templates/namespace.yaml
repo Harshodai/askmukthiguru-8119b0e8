@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Namespace }}
+  annotations:
+    {{- if .Values.minikube.enabled }}
+    helm.sh/resource-policy: "keep"
+    {{- end }}
+  labels:
+    {{- include "mukthiguru.labels" . | nindent 4 }}
