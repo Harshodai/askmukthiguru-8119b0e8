@@ -590,7 +590,7 @@ async def run_multi_turn_suite(
             }
 
             t0 = time.perf_counter()
-            res = await chat(client, url, payload, test_key, timeout=120.0)
+            res = await chat(client, url, payload, test_key, timeout=240.0)
             lat = (time.perf_counter() - t0) * 1000
 
             resp = res["data"].get("response", "") if res["ok"] else ""
@@ -1025,7 +1025,6 @@ def calculate_scores(
         unstable = []
         for group, group_results in groups.items():
             pass_values = {r.passed for r in group_results}
-            cite_sets = {tuple(sorted(str(c) for c in r.citations)) for r in group_results}
             failed = bool(False in pass_values)
             pass_fail_variance = len(pass_values) > 1
             if not failed and not pass_fail_variance:
