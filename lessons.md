@@ -942,3 +942,15 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Lesson learned**: When writing system telemetry that enforces UUID constraints, always sanitize and coerce incoming string identifiers into valid UUID formats using a deterministic hashing algorithm (`uuid.uuid5`) to maintain relational integrity and support mock testing profiles seamlessly.
 
 
+### 77. Benchmark Recovery: Timeout Escalation, Chain-of-Thought Stripping, and Citation Metric Filtering (June 2026)
+- **Problem**:
+  - **Cascade Timeout Outages**: Upstream deep reasoning model requests take longer to run. This caused the benchmark client and stability suites (60s and 120s timeouts) to fail with timeout errors before the backend (180s timeout budget) finished generating responses.
+  - **CoT Leaks in Output**: Under complex queries, reasoning models like `sarvam-30b` occasionally output internal monologue markers (e.g., "Now, count words:", "We must check:") directly into user responses after the answer block, bypassing standard `<think>` tag stripping.
+  - **Ungrounded Adversarial Scoring & Incorrect Denominator**: The question bank was missing the `adversarial_traps` query set, and the citation accuracy metric was dragging down the global score by counting non-citation categories (like input guardrails or intent traps) in the denominator.
+- **Solution**:
+  - **Escalated HTTP Timeout Budgets**: Raised the benchmark client's request timeouts to 180s, the backend configuration `pipeline_timeout` to 240s, and the `pipeline_timeout_budget` to 180s, allowing sufficient execution margin.
+  - **Expanded CoT Markers Truncation**: Enhanced `strip_cot` in `backend/rag/nodes.py` to truncate responses at specific reasoning patterns (e.g. `_SARVAM_REASONING_MARKERS` like "now, count words:") when detected after at least 100 characters of valid response.
+  - **Restored Adversarial Queries & Excluded Guardrails**: Restored the 8 spiritual adversarial questions to `question_bank.py` and filtered out guardrail, intent-trap, and admin query responses from the citation denominator.
+- **Lesson learned**: Standardize timeout margins cascading from client to backend. Exclude non-citation intent categories from RAG citation denominators. Always add flexible substring indicators to truncate reasoning monologues when working with models that think aloud outside system tags.
+
+

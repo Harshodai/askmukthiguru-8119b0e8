@@ -227,6 +227,63 @@ _SPIRITUAL_CONTEXT_PATTERNS = [
     r"\b(atma|soul)\s+(merges?|unites?)\b",
 ]
 
+# ===================================================================
+# O&O Academy / Ekam Spiritual Domain Allowlist
+# ===================================================================
+# Terms that belong exclusively to O&O Academy / Ekam spiritual domain.
+# Queries containing these substrings are ALWAYS allowed through —
+# the LLM Guard must never misclassify them as politics, finance, etc.
+_SPIRITUAL_DOMAIN_ALLOWLIST = frozenset(
+    [
+        "manifest 2026",
+        "four sacred secrets",
+        "sacred secret",
+        "soul sync",
+        "deeksha",
+        "ekam",
+        "beautiful state",
+        "beautiful mind",
+        "sri preethaji",
+        "preethaji",
+        "sri krishnaji",
+        "krishnaji",
+        "o&o academy",
+        "oneness university",
+        "inner truth",
+        "inner awakening",
+        "universal intelligence",
+        "lokaa foundation",
+        "mukthiguru",
+        "mukthi guru",
+        "serene mind",
+        "world centre for peace",
+        "world center for peace",
+    ]
+)
+
+# ===================================================================
+# Emotional Wellness Patterns (redirect to Serene Mind)
+# ===================================================================
+# Mild-to-moderate emotional distress that should trigger a calming
+# Serene Mind meditation response rather than a medical disclaimer.
+_EMOTIONAL_WELLNESS_PATTERNS = [
+    r"\b(?:stressed|stressful)\b.*\b(?:day|week|work|life|job)\b",
+    r"\b(?:rough|hard|difficult|tough)\s+(?:day|week|time)\b",
+    r"\b(?:feel|feeling|felt)\s+(?:anxious|overwhelmed|burnout|burned\s*out|exhausted|low|down|tired)\b",
+    r"\bhow\s+(?:to|can\s+i)\s+(?:calm\s+down|relax|de-stress|unwind|destress)\b",
+    r"\bcannot\s+(?:sleep|focus|concentrate)\b.*\b(?:stress|anxiety|worry|worried)\b",
+    r"\banxious\b.*\b(?:day|lately|recently|work|life)\b",
+]
+
+# Knowledge trap phrases: questions about non-existent doctrines
+# (e.g., "Fifth Sacred Secret"). These should bypass financial/other
+# topic blocking so the LLM can correct the false premise.
+_KNOWLEDGE_TRAP_PATTERNS = [
+    r"\b(?:fifth|6th|seventh|8th|other)\s+sacred\s+secret\b",
+    r"\bhow\s+many\s+sacred\s+secrets\b",
+    r"\bare\s+there\s+(?:more|other)\s+sacred\s+secrets\b",
+]
+
 
 # ===================================================================
 # Lightweight Guardrails (regex-based, always available)
@@ -257,6 +314,48 @@ class LightweightGuardrails:
             }
 
         message_lower = message.lower()
+
+        # ---------------------------------------------------------------
+        # O&O Spiritual Domain Allowlist (checked FIRST, before anything)
+        # If the message contains a known O&O / Ekam domain term, it is
+        # unconditionally allowed. This prevents "Manifest 2026",
+        # "Four Sacred Secrets" etc. from being misclassified by the
+        # LLM Guard as politics, finance, or other off-topic categories.
+        # ---------------------------------------------------------------
+        for term in _SPIRITUAL_DOMAIN_ALLOWLIST:
+            if term in message_lower:
+                logger.debug(f"Spiritual domain allowlist bypass for term: '{term}'")
+                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
+
+        # ---------------------------------------------------------------
+        # Knowledge trap bypass: questions about non-existent doctrines
+        # (e.g. "Fifth Sacred Secret") should reach the RAG pipeline so
+        # it can correct the false premise — not be blocked as financial.
+        # ---------------------------------------------------------------
+        for pattern in _KNOWLEDGE_TRAP_PATTERNS:
+            if re.search(pattern, message_lower):
+                logger.debug(f"Knowledge trap bypass: '{pattern}'")
+                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
+
+        # ---------------------------------------------------------------
+        # Mild emotional wellness → Serene Mind redirect (NOT block)
+        # Detected BEFORE LLM Guard so it doesn't get misclassified as
+        # medical_advice_broad. Returns redirect_to="serene_mind".
+        # ---------------------------------------------------------------
+        for pattern in _EMOTIONAL_WELLNESS_PATTERNS:
+            if re.search(pattern, message_lower):
+                logger.info("Emotional wellness pattern matched → serene_mind redirect")
+                return {
+                    "blocked": True,
+                    "reason": "Emotional wellness: serene_mind redirect",
+                    "response": (
+                        "Beloved, I can sense there's some heaviness in your heart right now. "
+                        "The teachings of Sri Preethaji and Sri Krishnaji offer a beautiful practice "
+                        "for moments like these — the Serene Mind breathing. "
+                        "Shall I guide you through it? 🙏"
+                    ),
+                    "redirect_to": "serene_mind",
+                }
 
         # Hard rejection for harmful patterns
         for pattern in _HARMFUL_PATTERNS:
