@@ -13,7 +13,7 @@ Usage:
 Environment:
     NEO4J_URI       — Bolt URI (default: bolt://localhost:7687)
     NEO4J_USER      — Username (default: neo4j)
-    NEO4J_PASSWORD  — Password (default: mukthiguru_neo4j_pass)
+    NEO4J_PASSWORD  — Password (required, no default)
     BACKUP_BASE_DIR — Where dumps are stored (default: ./backups/neo4j)
 
 Docker (recommended):
@@ -34,7 +34,7 @@ from pathlib import Path
 
 NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+NEO4J_PASSWORD = os.environ["NEO4J_PASSWORD"]  # required
 NEO4J_CONTAINER = os.environ.get("NEO4J_CONTAINER", "mukthiguru-neo4j")
 NEO4J_DB_NAME = os.environ.get("NEO4J_DB_NAME", "neo4j")  # default database
 

@@ -7,7 +7,8 @@ logger = logging.getLogger("db_rectify")
 
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "mukthiguru_neo4j_pass"
+import os
+NEO4J_PASSWORD = os.environ["NEO4J_PASSWORD"]  # required
 
 
 def rectify_isolated_nodes():
