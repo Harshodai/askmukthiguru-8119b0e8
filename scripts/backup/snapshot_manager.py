@@ -28,7 +28,8 @@ import urllib.request
 # Host service endpoints
 QDRANT_HOST_URL = "http://localhost:6333"
 NEO4J_CONTAINER = "mukthiguru-neo4j"
-NEO4J_PASS = "mukthiguru_neo4j_pass"
+import os as _os
+NEO4J_PASS = _os.environ["NEO4J_PASSWORD"]  # required
 
 # Backup directories on host
 BACKUP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backups"))
