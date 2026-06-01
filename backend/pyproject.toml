@@ -77,6 +77,12 @@ heavy = [
     "openinference-instrumentation-langchain>=0.1.33",
     "ragas>=0.2.1",
 ]
+eval = [
+    "dspy-ai>=2.4.0",
+    "ragas>=0.2.1",
+    "arize-phoenix>=4.38.0",
+    "openinference-instrumentation-langchain>=0.1.33",
+]
 
 [dependency-groups]
 dev = [
@@ -110,6 +116,16 @@ ignore = [
     "B008",  # Depends function calls in FastAPI defaults
     "B904",  # exception chaining (raise from)
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [
+    "repos",
+    ".git",
+    ".venv",
+    "__pycache__",
+]
+python_files = ["test_*.py"]
 
 [tool.mypy]
 python_version = "3.12"
