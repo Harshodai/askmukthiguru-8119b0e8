@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 # Set environment variables for local testing (pointing to localhost instead of Docker hostnames)
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
-os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+os.environ.setdefault("REDIS_URL", os.environ.get("REDIS_URL") or (_ for _ in ()).throw(RuntimeError("REDIS_URL env var is required")))
 os.environ["SUPABASE_URL"] = "http://localhost:54321"
 
 from app.dependencies import get_container

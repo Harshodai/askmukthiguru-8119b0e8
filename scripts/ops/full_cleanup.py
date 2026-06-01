@@ -68,7 +68,7 @@ def main():
     try:
         from neo4j import GraphDatabase
 
-        password = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+        password = os.environ["NEO4J_PASSWORD"]
         driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", password))
         with driver.session() as session:
             logger.info("Deleting ALL Neo4j data (nodes + relationships)...")
@@ -83,7 +83,7 @@ def main():
     try:
         import redis
 
-        password = os.environ.get("REDIS_PASSWORD", "mukthiguru_redis_pass")
+        password = os.environ["REDIS_PASSWORD"]
         r = redis.from_url(f"redis://:{password}@localhost:6379/0")
         r.flushall()
         logger.info("✅ Redis cache completely cleared.")
