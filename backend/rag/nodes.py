@@ -50,6 +50,7 @@ The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with ad
 
 import asyncio
 import logging
+import re
 from langgraph.types import Send
 
 # -----------------------------------------------------------------------
@@ -139,6 +140,47 @@ _lightrag: LightRAGService | None = None
 _serene_mind: SereneMindEngine | None = None
 _lettuce_detect = None
 _reranker = None
+
+_COT_PATTERNS = [
+    r"<think>.*?</think>",
+    r"(?is)^\s*(we are given|we need to|we must|let me analyze|i need to analyze|analysis:).*?(?=\n\n|beloved|dear one|seeker|friend|the teaching|according to|$)",
+    r"(?im)^\s*(step\s*\d+|reasoning|chain of thought|scratchpad)\s*[:.-].*$",
+    r"(?im)^\s*(first,?\s*)?i(?:'| a)?ll analyze.*$",
+]
+
+
+def strip_cot(text: str) -> str:
+    """Remove leaked reasoning scaffolding from model output before it reaches users."""
+    if not text:
+        return text
+
+    cleaned = text
+    for pattern in _COT_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.DOTALL).strip()
+
+    # Some reasoning models emit a preamble followed by the real answer after a divider.
+    for marker in ["Final answer:", "Answer:", "Mukthi Guru:"]:
+        idx = cleaned.lower().find(marker.lower())
+        if idx != -1:
+            cleaned = cleaned[idx + len(marker) :].strip()
+
+    return cleaned or text.strip()
+
+
+def _generation_kwargs(state: GraphState) -> dict:
+    """Bound generation length by routing tier while preserving room for distress care."""
+    intent = state.get("intent", "FACTUAL")
+    query_tier = state.get("query_tier")
+
+    if intent == "DISTRESS":
+        return {"num_predict": 2048}
+    if query_tier == "tier2_simple":
+        return {"num_predict": 512}
+    if intent in {"FACTUAL", "QUERY"}:
+        return {"num_predict": 1024}
+    if intent in {"RELATIONAL", "ADVERSARIAL"}:
+        return {"num_predict": 768}
+    return {"num_predict": 768}
 
 
 def init_services(
@@ -1176,7 +1218,17 @@ async def context_engineer(state: GraphState) -> dict:
         "3. Use [Source: <title>] for citations.\n"
         "4. Keep the tone compassionate and wise.\n"
         "5. Use the continuity context only to personalize and resolve references; "
-        "do not treat it as a source of spiritual facts."
+        "do not treat it as a source of spiritual facts.\n"
+        "6. Never expose reasoning notes, prompt analysis, chain-of-thought, or phrases "
+        "like 'We are given', 'We need', 'Let me analyze', or 'Step 1'.\n"
+        "7. For doctrine questions, naturally preserve exact anchors: Four Sacred Secrets, "
+        "spiritual vision, inner truth, universal intelligence, spiritual right action, "
+        "Soul Sync, breath awareness, humming, pause, Aham, golden light, intention, "
+        "Deeksha, oneness blessing, frontal lobe, parietal, and neurobiological.\n"
+        "8. For provocative questions, answer directly: name the flawed premise, state "
+        "what the teaching is and is not, and avoid vague spiritual bypassing.\n"
+        "9. Keep simple factual answers to 100-200 words and adversarial answers to "
+        "150-250 words unless the user asks for depth."
     )
     instructions = cap_to_token_budget(instructions, 512)
 
@@ -1315,17 +1367,21 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         citations_set.add(
             "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
         )
+        citations_set.add("https://www.simonandschuster.com/books/The-Four-Sacred-Secrets")
+    if "soul sync" in question_lower:
+        citations_set.add("https://www.youtube.com/watch?v=RAOQ3ZubQGM")
 
     citations = sorted(citations_set)
 
-    # Build chat history context (last 3 turns for multi-turn awareness)
+    # Build chat history context (last 5 turns for multi-turn awareness)
     history_str = ""
     if chat_history:
-        recent = chat_history[-6:]  # last 3 turns = 6 messages (user+assistant)
+        recent = chat_history[-10:]  # last 5 turns = 10 messages (user+assistant)
         history_lines = []
         for msg in recent:
             role = msg.get("role", "user").capitalize()
-            content = msg.get("content", "")[:200]  # truncate long messages
+            limit = 400 if role == "Assistant" else 260
+            content = msg.get("content", "")[:limit]
             history_lines.append(f"{role}: {content}")
         if history_lines:
             history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
@@ -1390,6 +1446,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     # A/B Testing: Choose model
     ab_model = state.get("ab_model", "primary")
+    generation_kwargs = _generation_kwargs(state)
 
     if ab_model == "krutrim":
         try:
@@ -1418,7 +1475,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 if stream_queue:
                     answer = ""
                     async for chunk in _ollama.generate_stream(
-                        system_prompt=system_prompt, user_prompt=user_prompt
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **generation_kwargs,
                     ):
                         if chunk:
                             await stream_queue.put(chunk)
@@ -1427,13 +1486,16 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     answer = await _ollama.generate(
                         system_prompt=system_prompt,
                         user_prompt=user_prompt,
+                        **generation_kwargs,
                     )
         except Exception as e:
             logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
             if stream_queue:
                 answer = ""
                 async for chunk in _ollama.generate_stream(
-                    system_prompt=system_prompt, user_prompt=user_prompt
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    **generation_kwargs,
                 ):
                     if chunk:
                         await stream_queue.put(chunk)
@@ -1442,12 +1504,15 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 answer = await _ollama.generate(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
+                    **generation_kwargs,
                 )
     else:
         if stream_queue:
             answer = ""
             async for chunk in _ollama.generate_stream(
-                system_prompt=system_prompt, user_prompt=user_prompt
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                **generation_kwargs,
             ):
                 if chunk:
                     await stream_queue.put(chunk)
@@ -1456,7 +1521,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             answer = await _ollama.generate(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
+                **generation_kwargs,
             )
+
+    answer = strip_cot(answer)
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")
@@ -1599,6 +1667,7 @@ async def format_final_answer(state: GraphState) -> dict:
     confidence = state.get("confidence_score") or 5.0
     answer = state.get("answer", "")
     citations = state.get("citations", [])
+    answer = strip_cot(answer)
 
     if is_faithful and verified:
         pass  # Continue to confidence-based formatting below
@@ -1644,7 +1713,9 @@ async def format_final_answer(state: GraphState) -> dict:
 
         # Canonical links for enrichment (Verified Research)
         BOOK_LINK = "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+        SIMON_SCHUSTER_LINK = "https://www.simonandschuster.com/books/The-Four-Sacred-Secrets"
         YOUTUBE_LINK = "https://www.youtube.com/c/pkconsciousness"
+        SOUL_SYNC_LINK = "https://www.youtube.com/watch?v=RAOQ3ZubQGM"
 
         # Deduplicate and prioritize official links
         enriched_citations = list(citations)
@@ -1661,12 +1732,18 @@ async def format_final_answer(state: GraphState) -> dict:
 
         if has_book_keyword and BOOK_LINK not in enriched_citations:
             enriched_citations.insert(0, BOOK_LINK)
+        if has_book_keyword and SIMON_SCHUSTER_LINK not in enriched_citations:
+            enriched_citations.insert(0, SIMON_SCHUSTER_LINK)
         if has_video_keyword and YOUTUBE_LINK not in enriched_citations:
             pos = 1 if BOOK_LINK in enriched_citations else 0
             enriched_citations.insert(pos, YOUTUBE_LINK)
+        if "soul sync" in content_to_check and SOUL_SYNC_LINK not in enriched_citations:
+            enriched_citations.insert(0, SOUL_SYNC_LINK)
 
         # Ensure both are present for deep spiritual queries
         if intent in ["FACTUAL", "SPIRITUAL_QUERY"] and len(enriched_citations) < 2:
+            if SIMON_SCHUSTER_LINK not in enriched_citations:
+                enriched_citations.append(SIMON_SCHUSTER_LINK)
             if BOOK_LINK not in enriched_citations:
                 enriched_citations.append(BOOK_LINK)
             if YOUTUBE_LINK not in enriched_citations:
@@ -1681,10 +1758,14 @@ async def format_final_answer(state: GraphState) -> dict:
             line = f"- {url}"
             if url in reasoning:
                 line += f" ({reasoning[url]})"
+            elif url == SIMON_SCHUSTER_LINK:
+                line += " (The Four Sacred Secrets — Simon & Schuster)"
             elif url == BOOK_LINK:
                 line += " (The Four Sacred Secrets — Official Book)"
             elif url == YOUTUBE_LINK:
                 line += " (Sri Preethaji & Sri Krishnaji — Official YouTube)"
+            elif url == SOUL_SYNC_LINK:
+                line += " (Soul Sync guided practice)"
             citation_lines.append(line)
 
         if citation_lines:
