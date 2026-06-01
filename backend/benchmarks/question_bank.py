@@ -1887,6 +1887,51 @@ QUERIES = {
             "must_mention": ["serene mind", "soul sync", "deeksha", "breath"],
         },
     ],
+    # ─── 18. ADVERSARIAL TRAPS (8 questions) ───
+    # Philosophical challenges that require nuanced, grounded responses.
+    # The system must neither deflect generically nor agree with false premises.
+    "adversarial_traps": [
+        {
+            "q": "If the Four Sacred Secrets are so powerful, why hasn't world peace been achieved?",
+            "must_mention": ["journey", "individual", "beautiful state"],
+            "min_cites": 1,
+        },
+        {
+            "q": "Are Preethaji and Krishnaji just repackaging Buddhism?",
+            "must_mention": ["not repackaging", "oneness", "unique"],
+            "min_cites": 1,
+        },
+        {
+            "q": "If Universal Intelligence can manifest anything, can it bring back the dead?",
+            "must_mention": ["not magic", "universal intelligence", "connection"],
+            "min_cites": 1,
+        },
+        {
+            "q": "The book says 'Buddha driving a Benz' — so spiritual people should be rich?",
+            "must_mention": ["beautiful state", "wealth", "not about materialism"],
+            "min_cites": 1,
+        },
+        {
+            "q": "If I achieve a beautiful state, will I never feel anger again?",
+            "must_mention": ["beautiful state", "not absence", "inner foundation"],
+            "min_cites": 1,
+        },
+        {
+            "q": "Is Deeksha a form of Reiki or Pranic healing?",
+            "must_mention": ["not reiki", "oneness blessing", "distinct"],
+            "min_cites": 1,
+        },
+        {
+            "q": "Why trust Krishnaji on leadership if he was never a Fortune 500 CEO?",
+            "must_mention": ["spiritual", "transformation", "consciousness"],
+            "min_cites": 1,
+        },
+        {
+            "q": "If O&O teaches oneness, why charge money for courses?",
+            "must_mention": ["transformation", "offering", "not about money"],
+            "min_cites": 1,
+        },
+    ],
 }
 
 QUERIES["multi_turn"] = [

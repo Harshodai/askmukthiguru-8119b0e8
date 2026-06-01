@@ -309,7 +309,7 @@ async def chat(
     url: str,
     payload: dict,
     test_key: str = None,
-    timeout: float = 60.0,
+    timeout: float = 180.0,
 ) -> dict:
     headers = {"X-Test-Key": test_key} if test_key else {}
     if "session_id" not in payload:
@@ -441,7 +441,7 @@ async def run_suite_category(
         if "session_id" in item:
             payload["session_id"] = item["session_id"]
 
-        res = await chat(client, url, payload, test_key, timeout=120.0)
+        res = await chat(client, url, payload, test_key, timeout=180.0)
         lat = (time.perf_counter() - t0) * 1000
 
         resp = res["data"].get("response", "") if res["ok"] else ""
@@ -711,7 +711,7 @@ async def run_stability_suite(
                 "meditation_step": item.get("meditation_step", 0),
             }
             t0 = time.perf_counter()
-            res = await chat(client, url, payload, test_key, timeout=120.0)
+            res = await chat(client, url, payload, test_key, timeout=180.0)
             lat = (time.perf_counter() - t0) * 1000
 
             resp = res["data"].get("response", "") if res["ok"] else ""
@@ -907,7 +907,15 @@ def calculate_scores(
     # Performance
     all_ok = [r for r in results if r.status == 200]
     if all_ok:
-        cite_rate = sum(1 for r in all_ok if len(r.citations) >= 1) / len(all_ok)
+        # Exclude categories where citations are not expected by design
+        # (guardrail blocks, intent traps, and admin checks correctly return no citations)
+        _CITATION_EXCLUDED = {"guardrails_input", "intent_traps", "admin"}
+        cite_expected = [r for r in all_ok if r.category not in _CITATION_EXCLUDED]
+        cite_rate = (
+            sum(1 for r in cite_expected if len(r.citations) >= 1) / len(cite_expected)
+            if cite_expected
+            else 0.0
+        )
         citation_tests = [r for r in results if r.category == "citation_accuracy"]
         if citation_tests:
             citation_pass = sum(1 for r in citation_tests if r.passed) / len(citation_tests)

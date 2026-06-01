@@ -61,11 +61,11 @@ class Settings(BaseSettings):
     llm_timeout: int = 120
     # Total outer pipeline timeout — must comfortably exceed (llm_timeout × num_retries × num_calls).
     # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 180s gives healthy headroom.
-    pipeline_timeout: int = 180
+    pipeline_timeout: int = 240
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # --- Timeout Budget ---
-    pipeline_timeout_budget: int = 120  # Total pipeline timeout budget in seconds
+    pipeline_timeout_budget: int = 180  # Total pipeline timeout budget in seconds
     node_timeout_fast: int = 15  # Default fast-model node timeout
     node_timeout_main: int = 60  # Default main-model node timeout
 
