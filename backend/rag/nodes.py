@@ -81,7 +81,7 @@ NODE_TIMEOUTS = {
 class TimeoutBudget:
     """Tracks remaining pipeline budget and dynamically reduces per-call timeouts."""
 
-    def __init__(self, total_budget: float = 120.0):
+    def __init__(self, total_budget: float = 180.0):
         self.total = total_budget
         self._start = time.monotonic()
 
@@ -257,7 +257,7 @@ def strip_cot(text: str) -> str:
     for marker in ["Final answer:", "Answer:", "Mukthi Guru:"]:
         idx = cleaned.lower().find(marker.lower())
         if idx != -1:
-            cleaned = cleaned[idx + len(marker):].strip()
+            cleaned = cleaned[idx + len(marker) :].strip()
 
     return cleaned or text.strip()
 
