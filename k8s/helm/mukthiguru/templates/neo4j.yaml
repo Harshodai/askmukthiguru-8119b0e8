@@ -1,0 +1,70 @@
+{{- if .Values.neo4j.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mukthiguru.fullname" . }}-neo4j
+  labels:
+    {{- include "mukthiguru.labels" . | nindent 4 }}
+    app.kubernetes.io/component: neo4j
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7687
+      targetPort: 7687
+      protocol: TCP
+      name: bolt
+    - port: 7474
+      targetPort: 7474
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/component: neo4j
+    {{- include "mukthiguru.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "mukthiguru.fullname" . }}-neo4j
+  labels:
+    {{- include "mukthiguru.labels" . | nindent 4 }}
+    app.kubernetes.io/component: neo4j
+spec:
+  replicas: 1
+  serviceName: {{ include "mukthiguru.fullname" . }}-neo4j
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: neo4j
+      {{- include "mukthiguru.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: neo4j
+        {{- include "mukthiguru.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: neo4j
+          image: "{{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }}"
+          env:
+            - name: NEO4J_AUTH
+              value: neo4j/{{ .Values.neo4j.auth.password }}
+            - name: NEO4J_PLUGINS
+              value: "[\"apoc\"]"
+          ports:
+            - containerPort: 7687
+              name: bolt
+            - containerPort: 7474
+              name: http
+          resources:
+            {{- toYaml .Values.neo4j.resources | nindent 12 }}
+          volumeMounts:
+            - name: neo4j-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: neo4j-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.neo4j.persistence.size }}
+{{- end }}
