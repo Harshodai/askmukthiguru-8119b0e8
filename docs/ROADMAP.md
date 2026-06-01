@@ -111,11 +111,15 @@ graph LR
 - [x] Integrate ekimetrics DCC+BI+RC metrics via `AdaptiveChunkingAdapter` (May 2026)
 - [x] **R3**: Graceful shutdown drain — `_INFLIGHT` counter + 30s drain on SIGTERM (May 2026)
 - [x] **R4**: Per-node timing in `GraphState.node_timings` — accumulated by `log_metrics` at ms precision (May 2026)
+- [x] Build and integrate three codebase graph & memory MCP servers: Graphify, Claude-Mem, and CodeGraph locally/globally (June 2026)
+- [x] Resolve Node 25 WASM compiler Zone allocation memory crashes by linking explicitly to Node 22 LTS (June 2026)
+- [x] Housekeeping: Prune locked dead git worktrees (agent-*) and delete stale merged local branches to eliminate shell lag (June 2026)
 - [ ] Validate ingestion quality via `scripts/benchmarks/askmukthiguru_ruthless_benchmark.py` (target ≥80%)
 - [ ] **R5**: Circuit breaker on LLM provider via `tenacity` (Wave 1 remaining)
 - [ ] **Q1-Q4**: Chunk size evaluation, token budget guard, eval harness (Wave 2)
 - [ ] **S3**: Replace Redis coalescer `sleep(0.1)` with `BLPOP`-style blocking wait (Wave 3)
 - [ ] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4)
+
 
 ---
 

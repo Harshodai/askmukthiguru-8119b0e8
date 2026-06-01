@@ -164,7 +164,29 @@ The repository features 15 pre-compiled technical agent skills containing struct
 14. `building-llms-for-production` — Building LLMs for Production
 15. `hands-on-llms` — Hands-On Large Language Models
 
+## Codebase Intelligence & Memory Layer (Local MCP Servers)
+
+To streamline local pair-programming, codebase exploration, and long-term memory across session boundaries, three isolated codebase-intelligence Model Context Protocol (MCP) servers are fully integrated:
+1. **Graphify**: Offline AST-based codebase graph generator and visualizer.
+2. **Claude-Mem**: Persistent SQLite and ChromaDB semantic memory database.
+3. **CodeGraph**: Fast tree-sitter AST parser, search, and semantic intelligence engine.
+
+These are registered:
+- **Locally**: In [.mcp.json](.mcp.json) for Codex/Antigravity IDE.
+- **Globally (Claude)**: In `~/.claude.json` for Claude Code CLI.
+- **Globally (Hermes)**: In `~/.hermes/config.yaml` for Hermes Agent CLI.
+
+### Runtime Requirements
+- **Node.js v22 LTS (Strict)**: CodeGraph leverages WASM-compiled tree-sitter grammars. Future environments must run under Node 22 (e.g., linked via Homebrew `/opt/homebrew/opt/node@22/bin`). Node 25.x has a WASM Zone allocation compiler bug and will crash with Out Of Memory errors.
+- **Bun v1.3.14+**: Claude-Mem's background worker uses native SQLite and ChromaDB bindings which execute via Bun.
+
+### Re-Indexing and Setup
+To re-build or update the codebase indexes, run the following commands:
+- **Graphify**: `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python -m graphify update . --force`
+- **CodeGraph**: `node mcp-servers/codegraph/dist/bin/codegraph.js init`
+
 ## Project Structure
+
 
 
 ```
