@@ -88,6 +88,15 @@ class SupabaseTelemetrySink:
         spans: list[dict[str, Any]] | None = None,
         trigger_events: list[dict[str, Any]] | None = None,
         safety_events: list[dict[str, Any]] | None = None,
+        provider: str | None = None,
+        route_decision: str | None = None,
+        cache_hit: bool | None = None,
+        ttft_ms: int | None = None,
+        tokens_per_second: float | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        cost_estimate: float | None = None,
+        evaluation_trace: dict[str, Any] | None = None,
     ) -> None:
         """
         Serialize trace data and append to Redis Stream.
@@ -119,6 +128,15 @@ class SupabaseTelemetrySink:
             "spans": spans,
             "trigger_events": trigger_events,
             "safety_events": safety_events,
+            "provider": provider,
+            "route_decision": route_decision,
+            "cache_hit": cache_hit,
+            "ttft_ms": ttft_ms,
+            "tokens_per_second": tokens_per_second,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "cost_estimate": cost_estimate,
+            "evaluation_trace": evaluation_trace,
         }
 
         if self.redis:
@@ -158,6 +176,15 @@ class SupabaseTelemetrySink:
         spans: list[dict[str, Any]] | None = None,
         trigger_events: list[dict[str, Any]] | None = None,
         safety_events: list[dict[str, Any]] | None = None,
+        provider: str | None = None,
+        route_decision: str | None = None,
+        cache_hit: bool | None = None,
+        ttft_ms: int | None = None,
+        tokens_per_second: float | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
+        cost_estimate: float | None = None,
+        evaluation_trace: dict[str, Any] | None = None,
     ) -> None:
         """
         Asynchronously write telemetry data into all relevant Supabase tables.
@@ -182,10 +209,16 @@ class SupabaseTelemetrySink:
             "latency_ms": latency_ms,
             "status": status,
             "created_at": created_at,
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "cost_estimate": 0.0,
+            "prompt_tokens": prompt_tokens or 0,
+            "completion_tokens": completion_tokens or 0,
+            "cost_estimate": cost_estimate or 0.0,
+            "provider": provider,
+            "route_decision": route_decision,
+            "cache_hit": cache_hit,
+            "ttft_ms": ttft_ms,
+            "tokens_per_second": tokens_per_second,
         }
+        query_payload = {k: v for k, v in query_payload.items() if v is not None}
 
         # 2. chat_responses
         response_payload = None
@@ -202,6 +235,7 @@ class SupabaseTelemetrySink:
                 "hallucination_flag": hallucination_flag,
                 "confidence": confidence_score,
                 "judge_reasoning": judge_reasoning,
+                "evaluation_trace": evaluation_trace or {},
                 "created_at": created_at,
             }
 
@@ -223,9 +257,10 @@ class SupabaseTelemetrySink:
                 span_payloads.append(
                     {
                         "query_id": query_id,
-                        "name": span["span_name"],
+                        "span_name": span.get("span_name") or span.get("name"),
                         "start_ms": span["start_ms"],
                         "duration_ms": span["duration_ms"],
+                        "attributes": span.get("attributes", {}),
                     }
                 )
 
@@ -236,8 +271,9 @@ class SupabaseTelemetrySink:
                 trigger_payloads.append(
                     {
                         "query_id": query_id,
+                        "trigger_type": te.get("type") or te.get("name") or "event",
                         "trigger_name": te.get("name"),
-                        "metadata": te.get("metadata", {}),
+                        "payload": te.get("metadata", {}),
                         "created_at": created_at,
                     }
                 )
@@ -249,9 +285,10 @@ class SupabaseTelemetrySink:
                 safety_payloads.append(
                     {
                         "query_id": query_id,
-                        "type": se.get("event_type"),
+                        "rule": se.get("event_type") or "guardrail",
                         "severity": se.get("decision"),
-                        "excerpt": se.get("reason"),
+                        "action": se.get("decision"),
+                        "details": {"reason": se.get("reason")},
                         "created_at": created_at,
                     }
                 )

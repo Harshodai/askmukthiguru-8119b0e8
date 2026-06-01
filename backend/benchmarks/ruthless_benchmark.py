@@ -21,6 +21,13 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
+try:
     import httpx
 except ImportError:
     print("ERROR: pip install httpx")
@@ -527,12 +534,12 @@ async def run_suite_category(
         results.append(
             SingleResult(
                 category=category,
-                query=q[:60],
+                query=q,
                 latency_ms=round(lat, 1),
                 status=res["status"],
                 intent=intent,
                 citations=cites,
-                response=resp[:200],
+                response=resp,
                 error=res["error"],
                 keyword_score=kw,
                 safety_pass=safe,
@@ -635,12 +642,12 @@ async def run_multi_turn_suite(
             results.append(
                 SingleResult(
                     category=f"multi_turn:{scenario.get('scenario', 'scenario')}",
-                    query=q[:60],
+                    query=q,
                     latency_ms=round(lat, 1),
                     status=res["status"],
                     intent=intent,
                     citations=cites,
-                    response=resp[:200],
+                    response=resp,
                     error=res["error"],
                     keyword_score=kw,
                     reject_hit=rejected,
@@ -751,12 +758,12 @@ async def run_stability_suite(
             results.append(
                 SingleResult(
                     category=f"stability:{category}",
-                    query=q[:60],
+                    query=q,
                     latency_ms=round(lat, 1),
                     status=res["status"],
                     intent=res.get("intent", "UNKNOWN"),
                     citations=cites,
-                    response=resp[:200],
+                    response=resp,
                     error=res["error"],
                     keyword_score=kw,
                     safety_pass=safe,
@@ -1160,11 +1167,40 @@ def save_report(
     min_score: float = 0.95,
 ):
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Collect errors and failures from results and infra
+    errors = []
+    for r in results:
+        if not r.passed or r.error or r.status != 200:
+            errors.append(
+                {
+                    "category": r.category,
+                    "query": r.query,
+                    "status": r.status,
+                    "error": r.error,
+                    "failure_type": r.failure_type,
+                    "response": r.response,
+                    "latency_ms": r.latency_ms,
+                }
+            )
+    for inf in infra:
+        if not inf.reachable or inf.error or inf.status != 200:
+            errors.append(
+                {
+                    "category": "infrastructure",
+                    "service": inf.service,
+                    "status": inf.status,
+                    "error": inf.error,
+                    "latency_ms": inf.latency_ms,
+                }
+            )
+
     report = {
         "timestamp": time.time(),
         "run_id": str(uuid.uuid4()),
         "backend": url,
         "production_readiness_score": round(total, 3),
+        "overall_score": round(total, 3),
         "verdict": "PASS" if total >= min_score else "FAIL",
         "infrastructure": [asdict(r) for r in infra],
         "categories": {
@@ -1178,6 +1214,7 @@ def save_report(
             }
             for key, score in scores.items()
         },
+        "errors": errors,
         "results": [asdict(r) for r in results],
     }
     report_path = REPORT_DIR / "ruthless_report.json"
@@ -1194,7 +1231,7 @@ def save_report(
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--endpoint", default="http://localhost:8000")
-    parser.add_argument("--test-key")
+    parser.add_argument("--test-key", default=os.getenv("JWT_SECRET"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--min-score", type=float, default=0.95)
     parser.add_argument("--min-category-score", type=float, default=0.90)

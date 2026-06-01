@@ -498,6 +498,9 @@ class ChatResponse(BaseModel):
     evaluation_trace: dict | None = Field(
         None, description="Trajectory metadata for benchmark and production AI evaluation"
     )
+    model_used: str | None = Field(None, description="Underlying LLM model used")
+    model_provider: str | None = Field(None, description="Underlying LLM provider")
+    route_decision: str | None = Field(None, description="Model/routing decision")
 
 
 class IngestRequest(BaseModel):
@@ -688,11 +691,38 @@ async def chat_endpoint(
                     final_response, "en", preferred_lang, container
                 )
 
+            query_id = str(uuid.uuid4())
+            latency_ms = int((time.time() - start_time) * 1000)
+            user_id = user.get("id", "anonymous")
+            background_tasks.add_task(
+                telemetry_sink.log_query_trace,
+                query_id=query_id,
+                session_id=normalize_session_id(chat_body.session_id, user_id),
+                user_id=user_id,
+                query_text=user_msg,
+                model=getattr(settings, "sarvam_cloud_model", None)
+                or getattr(settings, "ollama_model", None)
+                or "cache",
+                latency_ms=latency_ms,
+                status="ok",
+                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                response_text=final_response,
+                citations=cached.get("citations", []),
+                provider=getattr(settings, "llm_provider", None),
+                route_decision="semantic_cache",
+                cache_hit=True,
+            )
             return ChatResponse(
                 response=final_response,
                 intent=cached.get("intent"),
                 meditation_step=cached.get("meditation_step", 0),
                 citations=cached.get("citations", []),
+                trace_id=query_id,
+                latency_ms=latency_ms,
+                model_used=getattr(settings, "sarvam_cloud_model", None)
+                or getattr(settings, "ollama_model", None),
+                model_provider=getattr(settings, "llm_provider", None),
+                route_decision="semantic_cache",
             )
 
     # Prepare request state (language detection, translation, memory preparation)
@@ -1045,13 +1075,28 @@ async def chat_endpoint(
         else "",
     }
 
+    model_used = (
+        result.get("model_used")
+        if "result" in locals() and isinstance(result, dict)
+        else getattr(settings, "sarvam_cloud_model", None)
+        or getattr(settings, "ollama_model", None)
+    )
+    model_provider = (
+        result.get("model_provider")
+        if "result" in locals() and isinstance(result, dict)
+        else getattr(settings, "llm_provider", None)
+    )
+    route_decision = (
+        result.get("route_decision") if "result" in locals() and isinstance(result, dict) else None
+    )
+
     background_tasks.add_task(
         telemetry_sink.log_query_trace,
         query_id=query_id,
         session_id=session_uuid,
         user_id=user_id,
         query_text=user_msg,
-        model="askmukthiguru",
+        model=model_used or "unknown",
         latency_ms=latency_ms,
         status="ok" if intent != "ERROR" else "error",
         created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -1070,6 +1115,15 @@ async def chat_endpoint(
         spans=spans_data,
         trigger_events=trigger_events,
         safety_events=safety_events,
+        provider=model_provider,
+        route_decision=route_decision,
+        cache_hit=False,
+        tokens_per_second=round(
+            max(1, len(final_answer.split())) / max(latency_ms / 1000, 0.001), 2
+        ),
+        evaluation_trace=result.get("evaluation_trace")
+        if "result" in locals() and isinstance(result, dict)
+        else None,
     )
 
     return ChatResponse(
@@ -1103,6 +1157,9 @@ async def chat_endpoint(
         evaluation_trace=result.get("evaluation_trace")
         if "result" in locals() and isinstance(result, dict)
         else None,
+        model_used=model_used,
+        model_provider=model_provider,
+        route_decision=route_decision,
     )
 
 
@@ -1150,6 +1207,7 @@ async def chat_stream_endpoint(
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
         try:
+            stream_start_time = time.time()
             # === Benchmark cache bypass (captures request from outer scope via closure) ===
             is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
 
@@ -1176,14 +1234,43 @@ async def chat_stream_endpoint(
 
                 escaped = final_response.replace("\n", "\\n")
                 yield f"event: token\ndata: {escaped}\n\n"
+                query_id = str(uuid.uuid4())
+                latency_ms = int((time.time() - stream_start_time) * 1000)
                 meta = json.dumps(
                     {
                         "intent": cached.get("intent"),
                         "citations": cached.get("citations", []),
                         "meditation_step": cached.get("meditation_step", 0),
+                        "trace_id": query_id,
+                        "cache_hit": True,
+                        "route_decision": "semantic_cache",
+                        "model_used": getattr(settings, "sarvam_cloud_model", None)
+                        or getattr(settings, "ollama_model", None),
+                        "model_provider": getattr(settings, "llm_provider", None),
                     }
                 )
                 yield f"event: done\ndata: {meta}\n\n"
+                asyncio.create_task(
+                    telemetry_sink.log_query_trace(
+                        query_id=query_id,
+                        session_id=normalize_session_id(
+                            chat_body.session_id, user.get("id", "anonymous")
+                        ),
+                        user_id=user.get("id", "anonymous"),
+                        query_text=user_msg,
+                        model=getattr(settings, "sarvam_cloud_model", None)
+                        or getattr(settings, "ollama_model", None)
+                        or "cache",
+                        latency_ms=latency_ms,
+                        status="ok",
+                        created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        response_text=final_response,
+                        citations=cached.get("citations", []),
+                        provider=getattr(settings, "llm_provider", None),
+                        route_decision="semantic_cache",
+                        cache_hit=True,
+                    )
+                )
                 return
 
             user_id = user.get("id", "anonymous")
@@ -1452,6 +1539,13 @@ async def chat_stream_endpoint(
             latency_ms = int((time.time() - start_time) * 1000)
             approx_tokens = max(1, len(final_answer.split()))
             tokens_per_second = round(approx_tokens / max(latency_ms / 1000, 0.001), 2)
+            model_used = (
+                result.get("model_used")
+                or getattr(settings, "sarvam_cloud_model", None)
+                or getattr(settings, "ollama_model", None)
+            )
+            model_provider = result.get("model_provider") or getattr(settings, "llm_provider", None)
+            route_decision = result.get("route_decision")
 
             # Final metadata
             meta = json.dumps(
@@ -1463,6 +1557,9 @@ async def chat_stream_endpoint(
                     "trace_id": query_id,
                     "latency_ms": latency_ms,
                     "tokens_per_second": tokens_per_second,
+                    "model_used": model_used,
+                    "model_provider": model_provider,
+                    "route_decision": route_decision,
                     "node_timings": result.get("node_timings")
                     if "result" in locals() and isinstance(result, dict)
                     else None,
@@ -1601,7 +1698,7 @@ async def chat_stream_endpoint(
                     session_id=session_uuid,
                     user_id=user_id,
                     query_text=user_msg,
-                    model="askmukthiguru",
+                    model=model_used or "unknown",
                     latency_ms=int((time.time() - start_time) * 1000),
                     status="ok" if intent != "ERROR" else "error",
                     created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -1620,6 +1717,13 @@ async def chat_stream_endpoint(
                     spans=spans_data,
                     trigger_events=trigger_events,
                     safety_events=safety_events,
+                    provider=model_provider,
+                    route_decision=route_decision,
+                    cache_hit=False,
+                    tokens_per_second=tokens_per_second,
+                    evaluation_trace=result.get("evaluation_trace")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
                 )
             )
 

@@ -743,14 +743,31 @@ class SarvamCloudService:
         model = kwargs.pop("model", self._gen_model)
         operation = kwargs.pop("operation", "generate")
 
-        return await self._call_api(
-            messages=messages,
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            operation=operation,
-            **kwargs,
-        )
+        try:
+            return await self._call_api(
+                messages=messages,
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                operation=operation,
+                **kwargs,
+            )
+        except QuotaExceededError:
+            raise
+        except Exception as e:
+            if model != self._gen_model:
+                logger.warning(
+                    f"Sarvam model {model} failed for {operation}; falling back to {self._gen_model}: {e}"
+                )
+                return await self._call_api(
+                    messages=messages,
+                    model=self._gen_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    operation=f"{operation}_fallback",
+                    **kwargs,
+                )
+            raise
 
     async def _generate_fast(
         self,
@@ -821,23 +838,20 @@ class SarvamCloudService:
             "api-subscription-key": self._api_key,
         }
 
+        model = kwargs.get("model", self._gen_model)
         max_tokens = kwargs.get("max_tokens", 8192)
         if max_tokens == 8192:
-            if "sarvam-m" in self._gen_model:
+            if "sarvam-m" in model:
                 max_tokens = 2048
             else:
                 max_tokens = 4096
 
-        if (
-            "sarvam-30b" in self._gen_model or "sarvam-105b" in self._gen_model
-        ) and max_tokens != 4096:
-            logger.info(
-                f"generate_stream: Scaling max_tokens to 4096 for reasoning model {self._gen_model}"
-            )
+        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 4096:
+            logger.info(f"generate_stream: Scaling max_tokens to 4096 for reasoning model {model}")
             max_tokens = 4096
 
         payload = {
-            "model": self._gen_model,
+            "model": model,
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.1),
             "max_tokens": max_tokens,
@@ -854,6 +868,7 @@ class SarvamCloudService:
 
         try:
             client = await self._get_http_client()
+            yielded_any = False
             async with client.stream(
                 "POST",
                 f"{self._base_url}/chat/completions",
@@ -877,8 +892,10 @@ class SarvamCloudService:
                             reasoning_delta = delta_msg.get("reasoning_content") or ""
                             if delta:
                                 buffer += delta
+                                yielded_any = True
                                 yield delta
                             elif reasoning_delta:
+                                yielded_any = True
                                 yield reasoning_delta
                         except json.JSONDecodeError:
                             pass
@@ -888,6 +905,19 @@ class SarvamCloudService:
         except Exception as e:
             logger.error(f"Sarvam Cloud streaming failed: {e}")
             self._circuit.record_failure()
+            if model != self._gen_model and not locals().get("yielded_any", False):
+                logger.warning(
+                    f"Sarvam stream model {model} failed before tokens; falling back to {self._gen_model}."
+                )
+                fallback_kwargs = {**kwargs, "model": self._gen_model}
+                async for chunk in self.generate_stream(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    context=context,
+                    **fallback_kwargs,
+                ):
+                    yield chunk
+                return
             if "credits" in str(e).lower() or "429" in str(e).lower():
                 logger.warning("Quota exceeded for Sarvam Cloud API in streaming.")
                 yield "The essence of spiritual practice is compassion and mindfulness. Even in stillness, your presence is heard."

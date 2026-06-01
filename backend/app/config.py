@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     sarvam_cloud_classify_model: str = (
         "sarvam-m"  # Classification model — can be same or different from generation model
     )
+    sarvam_cloud_complex_model: str = "sarvam-105b"  # Optional long-context/complex-question model; runtime falls back if unavailable
+    sarvam_complex_routing_enabled: bool = (
+        False  # Enable only after account/model access is verified
+    )
+    sarvam_complex_context_chars: int = (
+        20000  # Route long packed contexts to complex model when enabled
+    )
     sarvam_base_url: str = (
         "https://api.sarvam.ai/v1"  # Sarvam API base URL (override for proxy/staging)
     )
