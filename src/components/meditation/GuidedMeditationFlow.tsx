@@ -92,17 +92,20 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
     return () => clearInterval(id);
   }, [isPlaying, step, breathPhase]);
 
-  // Save session on completion
+  // Save session on completion. Keep startTimeRef intact so the reflection
+  // step can compute the final duration accurately when the user submits.
+  const savedOnCompleteRef = useRef(false);
   useEffect(() => {
-    if (isComplete && startTimeRef.current > 0) {
+    if (isComplete && startTimeRef.current > 0 && !savedOnCompleteRef.current) {
+      savedOnCompleteRef.current = true;
       const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
       completeMeditationSession(sessionIdRef.current, durationSec, 0);
-      startTimeRef.current = 0;
     }
+    if (!isComplete) savedOnCompleteRef.current = false;
   }, [isComplete]);
 
   const handleClose = useCallback(() => {
-    if (isPlaying && !isComplete) {
+    if (isPlaying && !isComplete && startTimeRef.current > 0) {
       // Save partial session
       const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
       if (durationSec > 10) {
@@ -225,8 +228,11 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
                 />
                 <button
                   onClick={async () => {
-                    // Save reflection extras to existing session
-                    const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
+                    // Save reflection extras to existing session.
+                    // Guard against a zeroed startTimeRef (defensive).
+                    const durationSec = startTimeRef.current > 0
+                      ? Math.round((Date.now() - startTimeRef.current) / 1000)
+                      : 0;
                     await completeMeditationSession(sessionIdRef.current, durationSec, 0, {
                       mood: selectedMood,
                       reflection: journalText.trim() || undefined,
