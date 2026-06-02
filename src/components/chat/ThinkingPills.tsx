@@ -61,7 +61,10 @@ export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
 
   if (!visible || steps.length === 0) return null;
 
-  const latestStep = steps[steps.length - 1];
+  // Prefer the currently active step; fall back to last done; else last entry.
+  const activeStep = [...steps].reverse().find((s) => s.status === 'active');
+  const lastDone = [...steps].reverse().find((s) => s.status === 'done');
+  const latestStep = activeStep ?? lastDone ?? steps[steps.length - 1];
   const doneCount = steps.filter((s) => s.status === 'done').length;
 
   return (
