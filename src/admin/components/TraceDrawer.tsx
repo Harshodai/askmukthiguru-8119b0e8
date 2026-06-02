@@ -215,7 +215,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
                   {Array.isArray(trace.response.citations) && trace.response.citations.length > 0 && (
                     <div className="mt-2 text-xs text-muted-foreground">
                       Cited:{" "}
-                      {trace.response.citations.map((c: any, i: number) => (
+                      {(trace.response.citations as Array<{ source?: string; title?: string }>).map((c, i: number) => (
                         <Badge key={i} variant="outline" className="mr-1">
                           {c?.source ?? c?.title ?? `#${i + 1}`}
                         </Badge>
@@ -237,7 +237,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
                     <div className="text-xs text-muted-foreground mb-1">Triggers</div>
                     {trace.triggers && trace.triggers.length ? (
                       <div className="flex flex-wrap gap-1">
-                        {trace.triggers.map((t: any) => (
+                        {trace.triggers.map((t: { id: string; trigger_name?: string; trigger_type?: string }) => (
                           <Badge key={t.id} variant="secondary">
                             {t.trigger_name ?? t.trigger_type ?? "trigger"}
                           </Badge>

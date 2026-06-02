@@ -644,7 +644,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
 
   const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&modestbranding=1&rel=0&controls=${mode === 'video' ? 1 : 0}`;
 
-  const sendPlayerCommand = (func: string, args: any[] = []) => {
+  const sendPlayerCommand = (func: string, args: (string | number)[] = []) => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ event: 'command', func, args }),
