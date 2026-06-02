@@ -176,10 +176,10 @@ export async function* sendMessageStreaming(
   // Guard against Vite/SPA HTML fallback (when backend isn't running, the dev
   // server returns index.html for /api/chat/stream, which the SSE parser will
   // happily hang on). Detect it early and surface a clear error.
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('text/event-stream') && !contentType.includes('application/x-ndjson')) {
+  const contentType = response.headers?.get?.('content-type') || '';
+  if (contentType && !contentType.includes('text/event-stream') && !contentType.includes('application/x-ndjson')) {
     throw new Error(
-      `Streaming endpoint returned non-SSE response (content-type: ${contentType || 'unknown'}). ` +
+      `Streaming endpoint returned non-SSE response (content-type: ${contentType}). ` +
       `The chat backend is not reachable.`,
     );
   }
