@@ -12,7 +12,7 @@ export function SeedDemoButton() {
   const onClick = async () => {
     setLoading(true);
     try {
-      const { data, error } = await (supabase as any).rpc("seed_admin_demo");
+      const { data, error } = await (supabase as unknown as { rpc: (fn: string) => Promise<{ data: { ok?: boolean; reason?: string } | null; error: Error | null }> }).rpc("seed_admin_demo");
       if (error) throw error;
       if (data?.ok === false) {
         toast.error(`Seed failed: ${data.reason ?? "unknown"}`);
@@ -20,8 +20,9 @@ export function SeedDemoButton() {
         toast.success("Demo traces seeded. Open Queries to drill in.");
         qc.invalidateQueries({ queryKey: ["admin"] });
       }
-    } catch (e: any) {
-      toast.error(`Seed failed: ${e?.message ?? String(e)}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(`Seed failed: ${msg}`);
     } finally {
       setLoading(false);
     }
