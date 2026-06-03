@@ -433,8 +433,11 @@ export const checkConnection = async (): Promise<{ connected: boolean; mode: str
   }
 
   if (provider === 'custom' && endpoint) {
+    // Edge-function endpoints don't expose /api/health — treat as connected.
+    if (endpoint.includes('/functions/v1/')) {
+      return { connected: true, mode: 'Connected to Guru' };
+    }
     try {
-      // Handle both relative and absolute endpoints safely
       const healthUrl = endpoint.startsWith('http')
         ? new URL('/api/health', new URL(endpoint).origin).href
         : '/api/health';
@@ -446,6 +449,7 @@ export const checkConnection = async (): Promise<{ connected: boolean; mode: str
       return { connected: false, mode: 'Reconnecting…' };
     }
   }
+
 
   return { connected: true, mode: 'Cloud Mode' };
 };
