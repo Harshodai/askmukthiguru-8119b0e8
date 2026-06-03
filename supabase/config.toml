@@ -1,1 +1,4 @@
 project_id = "fynkjimvuimakgtidvuq"
+
+[functions.guru-chat]
+verify_jwt = false
