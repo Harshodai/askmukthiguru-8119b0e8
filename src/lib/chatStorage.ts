@@ -136,6 +136,54 @@ export const clearChatHistory = (): void => {
   }
 };
 
+// ── Cloud sync ────────────────────────────────────────────────────
+// Mirrors a conversation + its messages into Supabase for authenticated users.
+// Fire-and-forget: never blocks the local-first save. Failures are logged only.
+async function syncConversationToDb(conversation: Conversation): Promise<void> {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const title = conversation.preview || 'New conversation';
+    await supabase.from('conversations').upsert(
+      {
+        id: conversation.id,
+        user_id: userId,
+        title,
+        preview: title,
+        created_at: conversation.startedAt.toISOString(),
+        updated_at: conversation.updatedAt.toISOString(),
+      },
+      { onConflict: 'id' },
+    );
+
+    if (!conversation.messages.length) return;
+    const { data: existing } = await supabase
+      .from('chat_messages')
+      .select('id')
+      .eq('conversation_id', conversation.id);
+    const have = new Set((existing ?? []).map((r) => r.id));
+    const toInsert = conversation.messages
+      .filter((m) => !have.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        conversation_id: conversation.id,
+        role: m.role === 'guru' ? 'assistant' : 'user',
+        content: m.content,
+        citations: m.citations ?? null,
+        confidence_score: m.confidenceScore ?? null,
+        created_at: m.timestamp.toISOString(),
+      }));
+    if (toInsert.length) {
+      await supabase.from('chat_messages').insert(toInsert);
+    }
+  } catch (e) {
+    console.warn('Conversation cloud-sync skipped:', e);
+  }
+}
+
 // Multi-conversation functions
 export const saveConversation = (conversation: Conversation, notify: boolean = true): void => {
   try {
@@ -154,11 +202,16 @@ export const saveConversation = (conversation: Conversation, notify: boolean = t
 
     // Notify sidebar (DesktopSidebar listens for this to reload its list).
     // Streaming checkpoints can opt out to avoid sidebar reload jank every 500ms.
-    if (notify) window.dispatchEvent(new CustomEvent('conversation:updated'));
+    if (notify) {
+      window.dispatchEvent(new CustomEvent('conversation:updated'));
+      // Mirror to DB on user-visible checkpoints (not every streaming tick).
+      void syncConversationToDb(conversation);
+    }
   } catch (error) {
     console.error('Failed to save conversation:', error);
   }
 };
+
 
 export const loadConversations = (): Conversation[] => {
   try {
@@ -195,6 +248,18 @@ export const deleteConversation = (id: string): void => {
     const conversations = loadConversations();
     const filtered = conversations.filter(c => c.id !== id);
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(filtered));
+    // Mirror delete to DB (cascade removes chat_messages via RLS-scoped query)
+    void (async () => {
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        await supabase.from('chat_messages').delete().eq('conversation_id', id);
+        await supabase.from('conversations').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Cloud delete skipped:', e);
+      }
+    })();
   } catch (error) {
     console.error('Failed to delete conversation:', error);
   }
@@ -208,11 +273,25 @@ export const renameConversation = (id: string, newTitle: string): void => {
       conversations[index].preview = newTitle;
       conversations[index].updatedAt = new Date();
       localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+      void (async () => {
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user?.id) return;
+          await supabase
+            .from('conversations')
+            .update({ title: newTitle, preview: newTitle, updated_at: new Date().toISOString() })
+            .eq('id', id);
+        } catch (e) {
+          console.warn('Cloud rename skipped:', e);
+        }
+      })();
     }
   } catch (error) {
     console.error('Failed to rename conversation:', error);
   }
 };
+
 
 export const updateConversationSummary = (id: string, summary: string): void => {
   try {
