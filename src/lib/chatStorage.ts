@@ -248,6 +248,18 @@ export const deleteConversation = (id: string): void => {
     const conversations = loadConversations();
     const filtered = conversations.filter(c => c.id !== id);
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(filtered));
+    // Mirror delete to DB (cascade removes chat_messages via RLS-scoped query)
+    void (async () => {
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        await supabase.from('chat_messages').delete().eq('conversation_id', id);
+        await supabase.from('conversations').delete().eq('id', id);
+      } catch (e) {
+        console.warn('Cloud delete skipped:', e);
+      }
+    })();
   } catch (error) {
     console.error('Failed to delete conversation:', error);
   }
@@ -261,11 +273,25 @@ export const renameConversation = (id: string, newTitle: string): void => {
       conversations[index].preview = newTitle;
       conversations[index].updatedAt = new Date();
       localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+      void (async () => {
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user?.id) return;
+          await supabase
+            .from('conversations')
+            .update({ title: newTitle, preview: newTitle, updated_at: new Date().toISOString() })
+            .eq('id', id);
+        } catch (e) {
+          console.warn('Cloud rename skipped:', e);
+        }
+      })();
     }
   } catch (error) {
     console.error('Failed to rename conversation:', error);
   }
 };
+
 
 export const updateConversationSummary = (id: string, summary: string): void => {
   try {
