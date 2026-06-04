@@ -11,11 +11,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Play, Loader2 } from "lucide-react";
 import { fmtDateTime, fmtPct } from "@/admin/lib/formatters";
 import { MetricDelta } from "@/admin/components/MetricDelta";
 import { GoldenQuestionDialog } from "@/admin/components/GoldenQuestionDialog";
 import { deleteGoldenQuestion } from "@/admin/lib/mockData";
+import { runEval } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import type { GoldenQuestion } from "@/admin/types";
 import { toast } from "sonner";
@@ -26,6 +27,20 @@ export default function EvalsPage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState<GoldenQuestion | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  async function handleRunEval() {
+    setRunning(true);
+    try {
+      const res = await runEval();
+      toast.success(`Eval complete — ${res?.summary?.passed}/${res?.summary?.total} passed`);
+      qc.invalidateQueries({ queryKey: ["admin", "evals"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Eval failed");
+    } finally {
+      setRunning(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
