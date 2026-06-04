@@ -76,8 +76,8 @@ class LightRAGService:
                 sys_prompt_str = system_prompt or ""
                 prompt_str = prompt or ""
 
-                # All LightRAG operations run on sarvam-m for high throughput and zero reasoning overhead
-                kwargs["model"] = "sarvam-m"
+                # All LightRAG operations run on classification model for high throughput and zero reasoning overhead
+                kwargs["model"] = settings.model_for_classification
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
 
                 is_extraction = (
@@ -95,7 +95,7 @@ class LightRAGService:
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "extraction"
                     logger.info(
-                        "LightRAG: Routing extraction/keyword task to sarvam-m to prevent reasoning runaway"
+                        f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
                     )
                 elif (
                     "summary" in sys_prompt_str.lower()
@@ -106,18 +106,18 @@ class LightRAGService:
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "summarize"
                     logger.info(
-                        "LightRAG: Routing summarization task to sarvam-m to prevent reasoning runaway"
+                        f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
                     )
                 else:
                     logger.info(
-                        "LightRAG: Routing generic query task to sarvam-m to prevent reasoning runaway"
+                        f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
                     )
 
             # Route LightRAG calls to the fast model (no reasoning).
             # The main reasoning model produces 15+ KB thinking traces on broad queries,
             # causing 30s timeouts in LightRAG's internal keyword extraction pipeline.
             # The fast model (llama3.2:3b / qwen3:3b) handles extraction in 1-3s with zero overhead.
-            # sarvam_cloud already routes to sarvam-m above; this handles the Ollama path.
+            # sarvam_cloud already routes to classification model above; this handles the Ollama path.
             if settings.llm_provider == "sarvam_cloud":
                 return await container.ollama.generate(
                     system_prompt=system_prompt or "You are a helpful assistant.",
