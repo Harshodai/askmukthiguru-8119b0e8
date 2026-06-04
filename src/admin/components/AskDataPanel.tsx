@@ -3,16 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Search, Loader2 } from "lucide-react";
-import { sendMessage } from "@/lib/aiService";
-
-const ADMIN_SYSTEM_PROMPT = `You are an AI analytics assistant for the AskMukthiGuru admin dashboard.
-You have access to platform metrics. Answer admin questions about query volume, latency, hallucination rates,
-costs, serene mind triggers, and platform health concisely and accurately.
-If you don't have specific data, say so — don't fabricate numbers.
-Respond in 2-4 sentences maximum. Be direct and data-focused.`;
+import { supabase } from "@/integrations/supabase/client";
 
 interface AskDataPanelProps {
-  /** Optional KPI snapshot to provide as context to the LLM */
   kpiContext?: string;
 }
 
@@ -27,46 +20,18 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
     setLoading(true);
     setError(null);
     setResult(null);
-
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
-      const contextBlock = kpiContext
-        ? `Current platform metrics:\n${kpiContext}\n\n`
-        : "";
-
-      const res = await fetch(`${backendUrl}/api/admin/ask`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          question: question,
-          kpi_context: kpiContext || "",
-        }),
+      const { data, error: fnErr } = await supabase.functions.invoke("admin-ask", {
+        body: { question, kpi_context: kpiContext ?? "" },
       });
-
-      if (!res.ok) {
-        try {
-          const err = await res.json();
-          setError(err.detail || `Backend returned ${res.status}`);
-        } catch {
-          setError(`Backend returned ${res.status} — is Docker running?`);
-        }
+      if (fnErr) {
+        setError(fnErr.message);
         return;
       }
-      const data = await res.json();
-      const text = data.response || data.choices?.[0]?.message?.content || data.content;
-      if (text) {
-        setResult(text);
-      } else {
-        setError("Empty response from backend.");
-      }
-    } catch {
-      setError("Connection failed — check that the backend is running.");
+      if (data?.response) setResult(data.response);
+      else setError(data?.error ?? "Empty response.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Request failed");
     } finally {
       setLoading(false);
     }
@@ -101,11 +66,7 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
             disabled={loading}
           />
           <Button type="submit" size="icon" disabled={loading || !q.trim()}>
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </form>
 
@@ -130,14 +91,12 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
         {loading && (
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             <Loader2 className="h-3 w-3 animate-spin" />
-            Consulting Sarvam 30B…
+            Thinking…
           </div>
         )}
 
         {error && (
-          <div className="text-xs text-destructive bg-destructive/10 rounded p-2">
-            {error}
-          </div>
+          <div className="text-xs text-destructive bg-destructive/10 rounded p-2">{error}</div>
         )}
 
         {result && !loading && (
