@@ -67,7 +67,7 @@ import {
   derivePrePracticeInsights,
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
-import { getMeditationStats, loadMeditationSessions } from '@/lib/meditationStorage';
+import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
@@ -133,8 +133,25 @@ const ProfilePage = () => {
     setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true });
   }, [tab, setSearchParams]);
 
-  const stats = useMemo(() => getMeditationStats(), [profile.updatedAt]);
-  const conversationCount = useMemo(() => loadConversations().length, [profile.updatedAt]);
+  const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
+  const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const dbStats = await getMeditationStatsFromDb();
+      if (!cancelled) setStats(dbStats);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { count } = await supabase
+          .from('conversations')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+        if (!cancelled && typeof count === 'number') setConversationCount(count);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile.updatedAt]);
 
   const patch = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
