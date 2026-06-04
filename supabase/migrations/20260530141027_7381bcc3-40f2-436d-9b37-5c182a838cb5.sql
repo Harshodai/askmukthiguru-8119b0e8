@@ -6,7 +6,9 @@ ALTER TABLE public.alert_rules
   ADD COLUMN IF NOT EXISTS channel text NOT NULL DEFAULT 'email',
   ADD COLUMN IF NOT EXISTS target text NOT NULL DEFAULT '';
 
-UPDATE public.alert_rules SET active = enabled WHERE active IS DISTINCT FROM enabled;
+-- active column added above with DEFAULT true; no data migration needed.
+-- (was: UPDATE public.alert_rules SET active = enabled ... but `enabled` column never existed)
+
 
 ALTER TABLE public.alert_events
   ADD COLUMN IF NOT EXISTS rule_name text,
