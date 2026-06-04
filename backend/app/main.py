@@ -916,7 +916,7 @@ async def chat_endpoint(
 
         # Populate cache for QUERY and CASUAL intents (both exact and semantic caching)
         # Skip cache population for benchmark requests to prevent score inflation.
-        if not is_benchmark and intent in ["QUERY", "CASUAL"]:
+        if not is_benchmark and intent in ["QUERY", "CASUAL", "FACTUAL"]:
             container.exact_cache.put(
                 query=cache_key,
                 response=final_answer_native,

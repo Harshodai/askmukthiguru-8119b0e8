@@ -176,6 +176,50 @@ _SARVAM_REASONING_MARKERS = [
 ]
 
 
+def _remove_repetition_loops(text: str) -> str:
+    """Detect and remove generation loops: lines/paragraphs repeating 3+ times.
+
+    sarvam-30b can get stuck generating the same segment (e.g. a citation header
+    or a Knowledge Graph sentence) dozens of times. This detects any line
+    ≥ 20 chars that appears 3+ times and truncates to just before the 3rd occurrence.
+    Also checks paragraph-level repetitions.
+    """
+    if not text or len(text) < 120:
+        return text
+
+    # Line-level: track cumulative count of each substantial line.
+    lines = text.split("\n")
+    seen_counts: dict[str, int] = {}
+    result_lines: list[str] = []
+    for line in lines:
+        key = line.strip()
+        if len(key) >= 20:
+            seen_counts[key] = seen_counts.get(key, 0) + 1
+            if seen_counts[key] > 2:
+                # Third occurrence — stop here, the rest is a loop.
+                logger.warning(
+                    f"Repetition loop detected at line #{len(result_lines)}: '{key[:60]}...' — truncating."
+                )
+                return "\n".join(result_lines).rstrip()
+        result_lines.append(line)
+
+    # Paragraph-level: same logic for double-newline-separated blocks.
+    paragraphs = re.split(r"\n{2,}", "\n".join(result_lines))
+    if len(paragraphs) >= 4:
+        seen_paras: dict[str, int] = {}
+        result_paras: list[str] = []
+        for para in paragraphs:
+            key = para.strip()[:120]
+            if len(key) >= 30:
+                seen_paras[key] = seen_paras.get(key, 0) + 1
+                if seen_paras[key] > 2:
+                    logger.warning("Paragraph repetition loop detected — truncating.")
+                    return "\n\n".join(result_paras).rstrip()
+            result_paras.append(para)
+
+    return "\n".join(result_lines)
+
+
 def _grounded_citation_urls(docs: list[dict]) -> list[str]:
     """Extract citable web URLs from retrieved docs.
 
@@ -330,6 +374,10 @@ def strip_cot(text: str) -> str:
         idx = cleaned.lower().find(marker.lower())
         if idx != -1:
             cleaned = cleaned[idx + len(marker) :].strip()
+
+    # Detect and remove generation loops (same line/paragraph repeating 3+ times).
+    # This handles the sarvam-30b runaway where citation headers repeat 41 times.
+    cleaned = _remove_repetition_loops(cleaned)
 
     return cleaned or text.strip()
 
@@ -775,12 +823,19 @@ async def retrieve_for_single_query(
     lightrag_index = -1
     if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
         lightrag_index = len(tasks)
-        tasks.append(lightrag.aquery(query, mode="hybrid", only_need_context=True))
+        # Hard 30s timeout: LightRAG graph traversal can stall for 70+ seconds
+        # on poisoned/dense subgraphs. If it times out, fall through to Qdrant-only.
+        tasks.append(
+            asyncio.wait_for(
+                lightrag.aquery(query, mode="hybrid", only_need_context=True),
+                timeout=30.0,
+            )
+        )
 
-    results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    summary_results = results[0]
-    chunk_results = results[1]
+    summary_results = results[0] if not isinstance(results[0], Exception) else []
+    chunk_results = results[1] if not isinstance(results[1], Exception) else []
 
     # Phase 2.5: Parent-Child Resolution (Hierarchical Retrieval)
     # Replaces the matching child chunk with its full parent context for better reasoning
@@ -804,17 +859,37 @@ async def retrieve_for_single_query(
     lightrag_results = []
     if lightrag_index != -1 and results[lightrag_index]:
         graph_answer = results[lightrag_index]
-        lightrag_results.append(
-            {
-                "text": graph_answer,
-                "title": "Knowledge Graph (LightRAG)",
-                "source_url": "knowledge_graph",
-                "content_type": "graph_summary",
-                "chunk_index": 0,
-                "raptor_level": 0,
-                "score": 1.0,
-            }
-        )
+        if isinstance(graph_answer, (asyncio.TimeoutError, Exception)):
+            logger.warning(f"LightRAG returned an exception (timeout or error): {graph_answer}")
+            graph_answer = ""
+        if graph_answer and isinstance(graph_answer, str):
+            # Deduplicate repeated lines within the LightRAG text
+            # (poisoned nodes can cause the same sentence to appear 40+ times).
+            seen_lg: set[str] = set()
+            deduped_lines: list[str] = []
+            for lg_line in graph_answer.splitlines():
+                key = lg_line.strip()
+                if key and key not in seen_lg:
+                    seen_lg.add(key)
+                    deduped_lines.append(lg_line)
+                elif not key:  # preserve blank lines for formatting
+                    deduped_lines.append(lg_line)
+            graph_answer = "\n".join(deduped_lines)
+            # Cap LightRAG context to 5 unique knowledge nodes (~2k tokens max)
+            lg_node_lines = [l for l in deduped_lines if l.strip()]
+            if len(lg_node_lines) > 50:  # rough proxy: 50 non-empty lines ≈ 5 dense nodes
+                graph_answer = "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
+            lightrag_results.append(
+                {
+                    "text": graph_answer,
+                    "title": "Knowledge Graph (LightRAG)",
+                    "source_url": "knowledge_graph",
+                    "content_type": "graph_summary",
+                    "chunk_index": 0,
+                    "raptor_level": 0,
+                    "score": 1.0,
+                }
+            )
 
     # ── Reciprocal Rank Fusion (RRF) across the three retrieval sources ────
     # RRF formula: score(d) = Σ_r  1 / (k + rank_r(d))   k=60 (industry std)
