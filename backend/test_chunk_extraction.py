@@ -63,8 +63,8 @@ async def main():
         print("Error: SARVAM_API_KEY is not set in settings or .env file.")
         return
     service = SarvamCloudService()
-    # Temporarily set gen_model to sarvam-m for the test
-    service._gen_model = "sarvam-m"
+    # Temporarily set gen_model to sarvam-30b for the test
+    service._gen_model = "sarvam-30b"
 
     print("\n--- Testing Entity Extraction with 1500-char spiritual chunk ---")
     try:

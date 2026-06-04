@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     sarvam_api_key: str = ""  # API subscription key from dashboard.sarvam.ai
     sarvam_cloud_model: str = "sarvam-30b"  # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
     sarvam_cloud_classify_model: str = (
-        "sarvam-m"  # Classification model — can be same or different from generation model
+        "sarvam-30b"  # Classification model — can be same or different from generation model
     )
     sarvam_cloud_complex_model: str = "sarvam-105b"  # Optional long-context/complex-question model; runtime falls back if unavailable
     sarvam_complex_routing_enabled: bool = (

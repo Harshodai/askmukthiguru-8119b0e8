@@ -78,6 +78,22 @@ BOOKS = [
     {
         "filename": "Hands-On Large Language Models Language Understanding and Generation (Jay Alammar, Maarten Grootendorst) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
         "slug": "hands-on-llms",
+    },
+    {
+        "filename": "Agentic Design Patterns A Hands-On Guide to Building Intelligent Systems (Antonio Gullí) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "agentic-design-patterns",
+    },
+    {
+        "filename": "Build a Large Language Model (From Scratch) (Sebastian Raschka) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "build-llm-from-scratch",
+    },
+    {
+        "filename": "How to Build Your Career in AI (Andrew Ng) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "career-in-ai",
+    },
+    {
+        "filename": "LLMs in Production From language models to successful products (Christopher Brousseau, Matthew Sharp) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "slug": "llms-in-production",
     }
 ]
 
@@ -139,48 +155,112 @@ def call_ollama(prompt, system_prompt=""):
                 backoff *= 2
     return ""
 
-def split_into_chapters(text):
+def split_into_chapters(slug, text):
     lines = text.splitlines()
     chapters = []
     
-    for i, line in enumerate(lines):
-        line_stripped = line.strip()
-        if not line_stripped:
-            continue
-        
-        match_ch = re.search(r"^\s*(?:CHAPTER|Chapter)\s+(\d+|[IVXLCDM]+)\b", line_stripped)
-        if match_ch:
-            chapters.append((i, line_stripped))
-            continue
-            
-        match_num = re.search(r"^\s*(\d+)\.?\s+([A-Z][a-zA-Z\s,:-]{3,60})$", line_stripped)
-        if match_num:
-            chapters.append((i, line_stripped))
-            
-    cleaned = []
-    prev_line = -100
-    for idx, title in chapters:
-        if idx - prev_line > 50:
-            cleaned.append((idx, title))
-            prev_line = idx
-            
-    if len(cleaned) < 3:
-        pages = text.split("\f")
-        if len(pages) > 5:
-            num_pages = len(pages)
-            pages_per_chapter = max(1, num_pages // 12)
-            cleaned = []
-            for ch_idx in range(0, num_pages, pages_per_chapter):
-                ch_num = (ch_idx // pages_per_chapter) + 1
-                page_start_line = sum(len(pages[p].splitlines()) for p in range(ch_idx))
-                cleaned.append((page_start_line, f"Section {ch_num} (Pages {ch_idx+1}-{min(num_pages, ch_idx+pages_per_chapter)})"))
+    if slug == "agentic-design-patterns":
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            m = re.match(r"^Chapter\s+(\d+):\s*(.*)$", line_stripped)
+            if m:
+                ch_num = int(m.group(1))
+                ch_title = m.group(2).strip()
+                chapters.append((i, f"Chapter {ch_num}: {ch_title}"))
                 
-    if len(cleaned) < 3:
-        lines_count = len(lines)
-        chunk_size = lines_count // 10
-        cleaned = [(i * chunk_size, f"Section {i+1}") for i in range(10)]
+    elif slug == "build-llm-from-scratch":
+        titles = {
+            1: "Understanding large language models",
+            2: "Working with text data",
+            3: "Coding attention mechanisms",
+            4: "Implementing a GPT model from scratch to generate text",
+            5: "Pretraining on unlabeled data",
+            6: "Fine-tuning for classification",
+            7: "Fine-tuning to follow instructions"
+        }
+        for n in range(1, 8):
+            for i, line in enumerate(lines):
+                if line.strip() == f"CHAPTER {n}":
+                    found = False
+                    for j in range(i+1, min(i+5, len(lines))):
+                        if lines[j].strip().lower() in titles[n].lower() or titles[n].lower() in lines[j].strip().lower():
+                            found = True
+                            break
+                    if found or i > 1000:
+                        chapters.append((i, f"Chapter {n}: {titles[n]}"))
+                        break
+                        
+    elif slug == "career-in-ai":
+        titles = {
+            1: "Three Steps to Career Growth",
+            2: "Learning Technical Skills for a Promising AI Career",
+            3: "Should You Learn Math to Get a Job in AI?",
+            4: "Scoping Successful AI Projects",
+            5: "Finding Projects that Complement Your Career Goals",
+            6: "Building a Portfolio of Projects that Shows Skill Progression",
+            7: "A Simple Framework for Starting Your AI Job Search",
+            8: "Using Informational Interviews to Find the Right Job",
+            9: "Finding the Right AI Job for You",
+            10: "Keys to Building a Career in AI",
+            11: "Overcoming Imposter Syndrome",
+            12: "Final Thoughts: Make Every Day Count"
+        }
+        for n in range(1, 12):
+            for i, line in enumerate(lines):
+                if re.match(rf"^\s*(?:Chapter|CHAPTER)\s+{n}\b", line, re.IGNORECASE):
+                    chapters.append((i, f"Chapter {n}: {titles[n]}"))
+                    break
+        for i, line in enumerate(lines):
+            if "Final Thoughts:" in line or "Make Every Day Count" in line:
+                chapters.append((i, "Chapter 12: Final Thoughts - Make Every Day Count"))
+                break
+                
+    elif slug == "llms-in-production":
+        titles = {
+            1: "Words' awakening: Why large language models have captured attention",
+            2: "Large language models: A deep dive into language modeling",
+            3: "Large language model operations: Building a platform",
+            4: "Data engineering for large language models: Setting up",
+            5: "Training large language models: How to generate",
+            6: "Large language model services: A practical guide",
+            7: "Prompt engineering: Becoming an LLM whisperer",
+            8: "Large language model applications: Building",
+            9: "Creating an LLM project: Reimplementing Llama 3",
+            10: "Creating a coding copilot project",
+            11: "Deploying an LLM on a Raspberry Pi: How low can you go?",
+            12: "Production, an ever-changing landscape"
+        }
+        for n in range(1, 13):
+            for i, line in enumerate(lines):
+                if line.strip() == f"CHAPTER {n}":
+                    chapters.append((i, f"Chapter {n}: {titles[n]}"))
+                    break
+                    
+    chapters = sorted(list(set(chapters)), key=lambda x: x[0])
+    
+    if len(chapters) < 3:
+        # generic splitter
+        generic_chaps = []
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            if not line_stripped:
+                continue
+            match_ch = re.search(r"^\s*(?:CHAPTER|Chapter)\s+(\d+|[IVXLCDM]+)\b", line_stripped)
+            if match_ch:
+                generic_chaps.append((i, line_stripped))
+                continue
+            match_num = re.search(r"^\s*(\d+)\.?\s+([A-Z][a-zA-Z\s,:-]{3,60})$", line_stripped)
+            if match_num:
+                generic_chaps.append((i, line_stripped))
+        cleaned = []
+        prev_line = -100
+        for idx, title in generic_chaps:
+            if idx - prev_line > 50:
+                cleaned.append((idx, title))
+                prev_line = idx
+        chapters = cleaned
         
-    return cleaned
+    return chapters
 
 def generate_skill_for_book(book):
     filename = book["filename"]
@@ -197,7 +277,7 @@ def generate_skill_for_book(book):
     
     # 1. Run extraction script
     os.environ["BOOK_SKILL_WORKDIR"] = str(work_dir)
-    cmd = f'python3 "{EXTRACT_SCRIPT}" "{pdf_path}" --mode text --install-missing yes'
+    cmd = f'"{sys.executable}" "{EXTRACT_SCRIPT}" "{pdf_path}" --mode text --install-missing yes'
     log(f"Running extraction: {cmd}")
     ret = os.system(cmd)
     if ret != 0:
@@ -220,7 +300,7 @@ def generate_skill_for_book(book):
         meta = json.load(f)
         
     # 2. Slice into chapters
-    chapters = split_into_chapters(text)
+    chapters = split_into_chapters(slug, text)
     log(f"Detected {len(chapters)} chapters/sections.")
     
     local_out = LOCAL_SKILLS_DIR / slug

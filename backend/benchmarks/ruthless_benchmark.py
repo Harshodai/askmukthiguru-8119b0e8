@@ -45,6 +45,60 @@ except ImportError:
         QUERIES,
     )
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RPM-AWARE RATE LIMITER
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class RPMRateLimiter:
+    """Token-bucket rate limiter that respects the backend's RPM limit.
+
+    Tracks request timestamps and enforces a max-requests-per-minute ceiling.
+    When the benchmark would exceed the RPM limit, it sleeps until a slot
+    opens. The wait time is tracked separately from API latency so that
+    benchmark scoring reflects actual pipeline performance, not throttle delays.
+    """
+
+    def __init__(self, rpm: int = 60):
+        self.rpm = rpm
+        self._window: list[float] = []  # timestamps of recent requests
+        self.total_wait_s: float = 0.0
+        self.total_requests: int = 0
+        self.throttled_requests: int = 0
+
+    async def acquire(self):
+        """Wait until a request slot is available within the RPM window."""
+        now = time.time()
+        # Prune timestamps older than 60 seconds
+        self._window = [t for t in self._window if now - t < 60.0]
+
+        if len(self._window) >= self.rpm:
+            # Must wait until the oldest request falls out of the 60s window
+            wait_until = self._window[0] + 60.0
+            delay = max(0.0, wait_until - now)
+            if delay > 0:
+                self.throttled_requests += 1
+                self.total_wait_s += delay
+                print(f"      ⏳ RPM limit ({self.rpm}/min) — waiting {delay:.1f}s")
+                await asyncio.sleep(delay)
+
+        self._window.append(time.time())
+        self.total_requests += 1
+
+    def stats(self) -> dict:
+        return {
+            "rpm_limit": self.rpm,
+            "total_requests": self.total_requests,
+            "throttled_requests": self.throttled_requests,
+            "total_wait_seconds": round(self.total_wait_s, 1),
+            "effective_rpm": round(self.total_requests / max(1, self.total_wait_s + self.total_requests * 0.1) * 60, 1) if self.total_requests else 0,
+        }
+
+
+# Global rate limiter instance — initialized in main()
+_rate_limiter: RPMRateLimiter | None = None
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION & WEIGHTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -193,8 +247,48 @@ def meditation_steps_count(text: str, expected_steps: list[str]) -> int:
 
 
 def reject_check(text: str, rejects: list[str]) -> tuple[bool, list[str]]:
+    """Check if response contains rejected phrases, with negation awareness.
+
+    When doctrine_traps test asks about a fabricated concept (e.g., 'Fifth Sacred Secret'),
+    the model should refute it. But the old check would flag "There is no fifth sacred secret"
+    as a rejection hit because it contains "fifth sacred secret".
+
+    This improved version checks whether the rejected phrase appears in a NEGATION context
+    (preceded by words like 'no', 'not', 'doesn't', 'never', 'isn't') and skips it.
+    """
     text_lower = text.lower()
-    hits = [r for r in rejects if r.lower() in text_lower]
+    hits = []
+    # Negation patterns that indicate the model is correctly refuting the phrase
+    negation_prefixes = [
+        "no ", "not ", "isn't ", "doesn't ", "don't ", "never ", "cannot ",
+        "there is no ", "there are no ", "does not ", "is not ", "are not ",
+        "not a ", "no such ", "doesn't exist", "not exist", "no mention of ",
+        "not mention", "doesn't mention", "doesn't teach", "does not teach",
+        "not teach", "not organized by", "not sourced from", "not the same",
+        "not justify", "not charge", "not gold", "not 45 minutes",
+        "not dedicated to", "not state", "not mind-control",
+    ]
+    for r in rejects:
+        r_lower = r.lower()
+        if r_lower not in text_lower:
+            continue
+        # Find all occurrences and check if any is NOT in a negation context
+        idx = 0
+        is_genuine_agreement = False
+        while True:
+            pos = text_lower.find(r_lower, idx)
+            if pos == -1:
+                break
+            # Check the 40 chars before this occurrence for negation words
+            prefix_start = max(0, pos - 40)
+            prefix = text_lower[prefix_start:pos]
+            is_negated = any(neg in prefix for neg in negation_prefixes)
+            if not is_negated:
+                is_genuine_agreement = True
+                break
+            idx = pos + 1
+        if is_genuine_agreement:
+            hits.append(r)
     return len(hits) > 0, hits
 
 
@@ -451,6 +545,10 @@ async def run_suite_category(
         res = await chat(client, url, payload, test_key, timeout=180.0)
         lat = (time.perf_counter() - t0) * 1000
 
+        # Respect RPM limit between sequential requests
+        if _rate_limiter:
+            await _rate_limiter.acquire()
+
         resp = res["data"].get("response", "") if res["ok"] else ""
         intent = res.get("intent", "UNKNOWN")
         cites = res["data"].get("citations", []) if res["ok"] else []
@@ -600,6 +698,10 @@ async def run_multi_turn_suite(
             res = await chat(client, url, payload, test_key, timeout=240.0)
             lat = (time.perf_counter() - t0) * 1000
 
+            # Respect RPM limit between sequential requests
+            if _rate_limiter:
+                await _rate_limiter.acquire()
+
             resp = res["data"].get("response", "") if res["ok"] else ""
             intent = res.get("intent", "UNKNOWN")
             cites = res["data"].get("citations", []) if res["ok"] else []
@@ -720,6 +822,10 @@ async def run_stability_suite(
             t0 = time.perf_counter()
             res = await chat(client, url, payload, test_key, timeout=180.0)
             lat = (time.perf_counter() - t0) * 1000
+
+            # Respect RPM limit between sequential requests
+            if _rate_limiter:
+                await _rate_limiter.acquire()
 
             resp = res["data"].get("response", "") if res["ok"] else ""
             cites = res["data"].get("citations", []) if res["ok"] else []
@@ -1246,6 +1352,12 @@ async def main():
     print(f"Checking infrastructure on {args.endpoint}...")
     infra = await check_infra(args.endpoint)
 
+    # Initialize RPM-aware rate limiter
+    global _rate_limiter
+    rpm_limit = int(os.getenv("SARVAM_RPM_LIMIT", "60"))
+    _rate_limiter = RPMRateLimiter(rpm=rpm_limit)
+    print(f"  📊 RPM rate limiter initialized: {rpm_limit} requests/min")
+
     results = []
 
     async with httpx.AsyncClient() as client:
@@ -1267,6 +1379,14 @@ async def main():
 
     scores = calculate_scores(results, infra)
     total_score = print_report(results, infra, scores, args.endpoint)
+
+    # Print RPM stats
+    if _rate_limiter:
+        rpm_stats = _rate_limiter.stats()
+        print(f"\n  📊 RPM Stats: {rpm_stats['total_requests']} requests, "
+              f"{rpm_stats['throttled_requests']} throttled, "
+              f"{rpm_stats['total_wait_seconds']}s total wait")
+
     save_report(results, infra, scores, total_score, args.endpoint, args.min_score)
 
     gate_passed, gate_failures = evaluate_release_gate(

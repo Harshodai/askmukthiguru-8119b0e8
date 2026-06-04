@@ -30,6 +30,7 @@ dependencies = [
     "umap-learn>=0.5.7",
     "scikit-learn>=1.6.0,<2.0",
     "lightrag-hku>=1.0.0",
+    "llmlingua>=0.2.2,<0.3.0",
     "neo4j>=5.17.0",
 
     # Ingestion & Media
