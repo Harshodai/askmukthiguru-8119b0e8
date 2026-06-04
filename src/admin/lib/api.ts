@@ -450,14 +450,26 @@ export async function pollLiveFeed(): Promise<ChatTrace[]> {
   );
 }
 
-// ── Ingestion Submit (wired to backend) ─────────────────────────────────────
+// ── Ingestion Submit (Lovable Cloud edge function) ──────────────────────────
 export async function submitIngestion(url: string, maxAccuracy: boolean = false) {
-  return fetchWithAuth('/api/ingest', {
-    method: 'POST',
-    body: JSON.stringify({ url, max_accuracy: maxAccuracy }),
+  const { data, error } = await supabase.functions.invoke('ingest-source', {
+    body: { source: url, max_accuracy: maxAccuracy },
   });
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function getIngestionStatus() {
-  return fetchWithAuth('/api/ingest/status');
+  // Polling endpoint is not yet implemented for the edge-function-backed
+  // pipeline; ingestion runs are visible in the runs table once queued.
+  return {};
+}
+
+// ── Eval runner (admin only) ────────────────────────────────────────────────
+export async function runEval(name?: string) {
+  const { data, error } = await supabase.functions.invoke('eval-run', {
+    body: { name },
+  });
+  if (error) throw new Error(error.message);
+  return data;
 }
