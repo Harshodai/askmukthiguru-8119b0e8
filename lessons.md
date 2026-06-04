@@ -957,3 +957,34 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Problem**: When evaluating RAG pipelines, truncating query strings (e.g. `q[:60]`) and LLM responses (e.g. `resp[:200]`) in benchmark records makes it difficult to debug reasoning errors, false positive guardrail blocks, or semantic retrieval drift from the JSON report.
 - **Solution**: Modified `backend/benchmarks/ruthless_benchmark.py` to record and output the complete, untruncated queries and answers in the `SingleResult` objects across standard query categories, multi-turn suites, and stability test runs. This ensures the full response payload is visible in both the `results` and the `errors` keys of `ruthless_report.json`.
 - **Lesson learned**: Retain full query and response payloads in benchmarking datasets. Slicing logs for display convenience should be done at the presentation layer (CLI printing) rather than inside the raw dataset structure, ensuring that the full context is preserved for diagnostic and fine-tuning purposes.
+
+### 79. Model Constraints: Unconditional Avoidance of sarvam-m (June 2026)
+- **Problem**: Lower-tier or faster models like `sarvam-m` may be deprecated, missing key features, or restricted in the current environment. Routing classification, extraction, or indexing queries to `sarvam-m` introduces integration failures or API access outages.
+- **Solution**: Explicitly avoided the use of `sarvam-m` across the entire backend configuration and pipeline endpoints. Reverted all routing settings (including `SARVAM_CLOUD_CLASSIFY_MODEL`) to `sarvam-30b` to ensure all operations run consistently on the primary model suite.
+- **Lesson learned**: Do not use `sarvam-m` in this workspace. All core reasoning, classification, and internal pipeline tasks must route to standard primary models (such as `sarvam-30b`) to maintain API stability and feature compliance.
+
+
+### 80. Sarvam API Token Limits & Free Tier Behavior (June 2026)
+
+**Web-researched findings (June 2026):**
+
+- **No hard "free tier" token cap**: Sarvam does NOT enforce a daily/monthly free token quota. Every new account receives **₹100 in free credits** (universal across all APIs, no expiry).
+- **Context window limits** (architectural, not subscription-gated):
+  - `sarvam-30b`: **32K token** context window
+  - `sarvam-105b`: **128K token** context window
+- **Rate limits** (per minute, per account plan): Starter: 60 RPM · Pro: 200 RPM · Business: 1,000 RPM
+- **Why `max_tokens=32768` triggers HTTP 400**: NOT a tier limit — it is a context window overflow. Formula: `prompt_tokens + max_tokens > context_window`. Self-healing in `_call_api` parses the error regex and auto-reduces `max_tokens` dynamically.
+- **Do NOT use `sarvam-m`**: Restricted/unavailable in this environment. Route to `sarvam-30b` (standard) or `sarvam-105b` (complex) only.
+- **Open-source option**: Both models are Apache 2.0 on Hugging Face / AI Kosh for self-hosted, limit-free deployment.
+
+### 81. `trace_spans` Schema Cross-Environment Divergence (June 2026)
+
+- **Root cause**: Two migration paths created conflicting schemas:
+  - **Local Docker DB**: `trace_spans` has `name TEXT NOT NULL` (original schema). Later migration `20260527060500` used `CREATE TABLE IF NOT EXISTS` with `span_name` — **silently skipped** since table already existed.
+  - **Lovable cloud DB** (fresh DB): `trace_spans` has `span_name TEXT NOT NULL` from the `20260527060500` migration.
+- **Fix applied**:
+  - `telemetry_sink.py`: Always inserts with `"name"` key, normalizing from `"span_name"` key in intermediate dicts built by `main.py`.
+  - `telemetry_db.py`: Read-side shim normalizes back: `if "name" not in span and span.get("span_name"): span["name"] = span["span_name"]`.
+  - Migration `20260604000001_fix_trace_spans_span_name_compat.sql`: Adds `span_name` column to local DB + backfills 627 rows. Both envs now have both columns.
+- **Never again rule**: `CREATE TABLE IF NOT EXISTS` is silently skipped on existing DBs. Always use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for additive schema changes.
+- **Broken migration fix**: `20260530141027` had `UPDATE alert_rules SET active = enabled` where `enabled` never existed — removed the broken UPDATE line.

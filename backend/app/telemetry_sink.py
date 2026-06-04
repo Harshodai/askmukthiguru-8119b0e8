@@ -257,12 +257,16 @@ class SupabaseTelemetrySink:
                 span_payloads.append(
                     {
                         "query_id": query_id,
-                        "span_name": span.get("span_name") or span.get("name"),
-                        "start_ms": span["start_ms"],
-                        "duration_ms": span["duration_ms"],
-                        "attributes": span.get("attributes", {}),
+                        # DB column is `name` (original schema). main.py uses `span_name` key
+                        # in intermediate dicts — normalize here before DB write.
+                        "name": span.get("span_name") or span.get("name") or "unknown",
+                        "start_ms": span.get("start_ms", 0),
+                        "duration_ms": span.get("duration_ms", 0),
+                        # attributes column added by migration 20260601090000
+                        "attributes": span.get("attributes") or {},
                     }
                 )
+
 
         # 5. trigger_events
         trigger_payloads = []
