@@ -229,6 +229,56 @@ export const getMeditationStats = (): MeditationStats => {
 };
 
 /**
+ * DB-backed meditation stats for authenticated users. Falls back to localStorage
+ * stats when the user is not signed in or the query fails.
+ */
+export const getMeditationStatsFromDb = async (): Promise<MeditationStats> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return getMeditationStats();
+
+    const { data, error } = await supabase
+      .from('meditation_sessions')
+      .select('duration_seconds, breath_cycles, completed, completed_at, started_at')
+      .eq('user_id', session.user.id)
+      .eq('completed', true)
+      .order('completed_at', { ascending: false });
+
+    if (error || !data) return getMeditationStats();
+
+    const totalSeconds = data.reduce((a, s) => a + (s.duration_seconds ?? 0), 0);
+    const totalCycles = data.reduce((a, s) => a + (s.breath_cycles ?? 0), 0);
+
+    // Streak from DB rows
+    const dates = new Set(
+      data
+        .map((s) => (s.completed_at ?? s.started_at)?.toString().slice(0, 10))
+        .filter(Boolean) as string[],
+    );
+    let streak = 0;
+    const cur = new Date();
+    while (dates.has(cur.toISOString().slice(0, 10))) {
+      streak++;
+      cur.setDate(cur.getDate() - 1);
+    }
+
+    return {
+      totalSessions: data.length,
+      totalMinutes: Math.round(totalSeconds / 60),
+      totalCycles,
+      streakDays: streak,
+      lastSessionDate: data[0]?.completed_at
+        ? new Date(data[0].completed_at)
+        : data[0]?.started_at
+          ? new Date(data[0].started_at)
+          : null,
+    };
+  } catch {
+    return getMeditationStats();
+  }
+};
+
+/**
  * Clear all meditation data
  */
 export const clearMeditationData = (): void => {
