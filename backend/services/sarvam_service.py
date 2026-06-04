@@ -348,11 +348,12 @@ class SarvamCloudService:
 
         # Ensure reasoning models like sarvam-30b and sarvam-105b have a large enough max_tokens budget
         # to generate both the thinking trace and the final content response.
-        # Scaling to 32768 (32k) to allow full context generation.
-        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 32768:
-            logger.info(
-                f"_call_api: Dynamically scaling max_tokens from {max_tokens} to 32768 for reasoning model {model}."
-            )
+        # Always set 32768 (32k) unconditionally for these models.
+        if "sarvam-30b" in model or "sarvam-105b" in model:
+            if max_tokens != 32768:
+                logger.info(
+                    f"_call_api: Setting max_tokens={max_tokens} → 32768 for reasoning model {model}."
+                )
             max_tokens = 32768
 
         payload = {
@@ -363,13 +364,31 @@ class SarvamCloudService:
             "stream": stream,
         }
 
-        # Inject reasoning_effort parameter for Sarvam Cloud models to prevent infinite reasoning loops
+        # Inject reasoning_effort for Sarvam models.
+        # Priority: (1) explicit kwarg override, (2) operation-based tier, (3) config default.
         if "reasoning_effort" in kwargs:
-            payload["reasoning_effort"] = kwargs["reasoning_effort"]
+            # Caller explicitly requested an effort level — honor it.
+            _effort = kwargs["reasoning_effort"]
         elif model.startswith("sarvam-"):
-            reasoning_effort = getattr(settings, "sarvam_reasoning_effort", "low")
-            if reasoning_effort in ("low", "medium", "high"):
-                payload["reasoning_effort"] = reasoning_effort
+            # Auto-select effort tier from operation name:
+            #   classification / fast / intent / grade / followup → "low"  (SARVAM_REASONING_EFFORT_FAST)
+            #   complex / cove / multi_hop / verify / reflect     → "high" (SARVAM_REASONING_EFFORT_COMPLEX)
+            #   generate / answer / stream / default              → config  (SARVAM_REASONING_EFFORT)
+            _op = (operation or "").lower()
+            _fast_tags = ("classification", "intent", "grade", "followup", "decompose", "tree", "hyde", "sufficiency", "rerank")
+            _complex_tags = ("complex", "cove", "multi_hop", "verify", "faithfulness", "self_rag", "reflect")
+            if any(tag in _op for tag in _fast_tags):
+                _effort = getattr(settings, "sarvam_reasoning_effort_fast", "low")
+            elif any(tag in _op for tag in _complex_tags):
+                _effort = getattr(settings, "sarvam_reasoning_effort_complex", "high")
+            else:
+                _effort = getattr(settings, "sarvam_reasoning_effort", "medium")
+        else:
+            _effort = None
+
+        if _effort and _effort in ("low", "medium", "high"):
+            payload["reasoning_effort"] = _effort
+            logger.debug(f"_call_api: reasoning_effort={_effort!r} for op={operation!r} model={model!r}")
 
         from tenacity import (
             AsyncRetrying,
@@ -850,8 +869,9 @@ class SarvamCloudService:
             else:
                 max_tokens = 32768
 
-        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 32768:
-            logger.info(f"generate_stream: Scaling max_tokens to 32768 for reasoning model {model}")
+        if "sarvam-30b" in model or "sarvam-105b" in model:
+            if max_tokens != 32768:
+                logger.info(f"generate_stream: Setting max_tokens={max_tokens} → 32768 for reasoning model {model}")
             max_tokens = 32768
 
         payload = {
@@ -862,13 +882,16 @@ class SarvamCloudService:
             "stream": True,
         }
 
-        # Inject reasoning_effort parameter for Sarvam Cloud models to prevent infinite reasoning loops
+        # Inject reasoning_effort using the same 3-tier system as _call_api.
+        # Streaming is always a generation operation → defaults to "medium" tier.
         if "reasoning_effort" in kwargs:
-            payload["reasoning_effort"] = kwargs["reasoning_effort"]
+            _stream_effort = kwargs["reasoning_effort"]
         elif self._gen_model.startswith("sarvam-"):
-            reasoning_effort = getattr(settings, "sarvam_reasoning_effort", "low")
-            if reasoning_effort in ("low", "medium", "high"):
-                payload["reasoning_effort"] = reasoning_effort
+            _stream_effort = getattr(settings, "sarvam_reasoning_effort", "medium")
+        else:
+            _stream_effort = None
+        if _stream_effort and _stream_effort in ("low", "medium", "high"):
+            payload["reasoning_effort"] = _stream_effort
 
         try:
             client = await self._get_http_client()

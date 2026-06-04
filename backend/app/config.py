@@ -61,20 +61,22 @@ class Settings(BaseSettings):
     sarvam_base_url: str = (
         "https://api.sarvam.ai/v1"  # Sarvam API base URL (override for proxy/staging)
     )
-    sarvam_reasoning_effort: str = "low"  # Reasoning effort for Sarvam models (low, medium, high)
+    sarvam_reasoning_effort: str = "medium"  # Default reasoning effort for main generation (low | medium | high)
+    sarvam_reasoning_effort_fast: str = "low"   # Effort for fast/classification calls (intent routing, grading)
+    sarvam_reasoning_effort_complex: str = "high"  # Effort for complex multi-hop, CoVe, and deep-reasoning queries
     # Per-call HTTP timeout. Sarvam Cloud has a 30s server-side limit; Ollama tends to hang on
     # slow models. Must be smaller than pipeline_timeout. Individual LLM calls that exceed this
     # trigger retry logic in OllamaService.generate() (max_retries attempts with backoff).
-    llm_timeout: int = 120
+    llm_timeout: int = 300
     # Total outer pipeline timeout — must comfortably exceed (llm_timeout × num_retries × num_calls).
-    # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 180s gives healthy headroom.
-    pipeline_timeout: int = 240
+    # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 360s gives healthy headroom.
+    pipeline_timeout: int = 360
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # --- Timeout Budget ---
-    pipeline_timeout_budget: int = 180  # Total pipeline timeout budget in seconds
-    node_timeout_fast: int = 15  # Default fast-model node timeout
-    node_timeout_main: int = 60  # Default main-model node timeout
+    pipeline_timeout_budget: int = 300  # Total pipeline timeout budget in seconds
+    node_timeout_fast: int = 30  # Default fast-model node timeout
+    node_timeout_main: int = 120  # Default main-model node timeout
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
