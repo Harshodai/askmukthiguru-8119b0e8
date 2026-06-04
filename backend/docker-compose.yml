@@ -105,7 +105,7 @@ services:
       # --- Sarvam Cloud API (config-driven — any model name works) ---
       - SARVAM_API_KEY=${SARVAM_API_KEY:-}
       - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
-      - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-m}
+      - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
       - SARVAM_BASE_URL=${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-120}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-2}

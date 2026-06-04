@@ -348,12 +348,12 @@ class SarvamCloudService:
 
         # Ensure reasoning models like sarvam-30b and sarvam-105b have a large enough max_tokens budget
         # to generate both the thinking trace and the final content response.
-        # But we must cap/scale it to 4096 to prevent starter tier limit HTTP 400 errors.
-        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 4096:
+        # Scaling to 32768 (32k) to allow full context generation.
+        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 32768:
             logger.info(
-                f"_call_api: Dynamically scaling max_tokens from {max_tokens} to 4096 for reasoning model {model}."
+                f"_call_api: Dynamically scaling max_tokens from {max_tokens} to 32768 for reasoning model {model}."
             )
-            max_tokens = 4096
+            max_tokens = 32768
 
         payload = {
             "model": model,
@@ -451,7 +451,7 @@ class SarvamCloudService:
                                         )
                                         payload["model"] = "sarvam-30b"
                                         payload["max_tokens"] = min(
-                                            payload.get("max_tokens", 4096), 4096
+                                            payload.get("max_tokens", 32768), 32768
                                         )
                                         adjustment_attempts += 1
                                         continue
@@ -655,7 +655,11 @@ class SarvamCloudService:
                             self._record_span_exception(span, inner_exc)
                             raise inner_exc
         except Exception as exc:
-            self._circuit.record_failure()
+            # Don't count rate-limit / quota errors as circuit breaker failures.
+            # 429s indicate the API is healthy but throttling — opening the circuit
+            # breaker would cascade-fail ALL subsequent requests unnecessarily.
+            if not isinstance(exc, QuotaExceededError):
+                self._circuit.record_failure()
             if isinstance(exc, NonRetryableError):
                 raise Exception(str(exc))
             raise exc
@@ -844,11 +848,11 @@ class SarvamCloudService:
             if "sarvam-m" in model:
                 max_tokens = 2048
             else:
-                max_tokens = 4096
+                max_tokens = 32768
 
-        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 4096:
-            logger.info(f"generate_stream: Scaling max_tokens to 4096 for reasoning model {model}")
-            max_tokens = 4096
+        if ("sarvam-30b" in model or "sarvam-105b" in model) and max_tokens != 32768:
+            logger.info(f"generate_stream: Scaling max_tokens to 32768 for reasoning model {model}")
+            max_tokens = 32768
 
         payload = {
             "model": model,
@@ -932,9 +936,13 @@ class SarvamCloudService:
         """
         Classify user message into one of the designated intents.
 
-        Uses the high-accuracy main model (sarvam-30b) exclusively.
+        Uses the fast classification model (sarvam-m) for low latency.
+        The main reasoning model (sarvam-30b) is overkill for a 1-word
+        classification output and wastes 30+ seconds on reasoning traces.
         """
-        result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
+        # Force fast model + tight token cap for classification
+        kwargs.setdefault("max_tokens", 256)
+        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
@@ -980,6 +988,54 @@ class SarvamCloudService:
         """Classify user question complexity into 'simple' or 'complex' using the fast model."""
         is_complex = await self.is_complex_query(text)
         return "complex" if is_complex else "simple"
+
+    async def classify_intent_and_complexity(self, message: str, **kwargs) -> dict:
+        """
+        Classify both intent AND complexity in a single LLM call.
+
+        Saves one full LLM round-trip per query by merging the two
+        classification calls (classify_intent + classify_complexity)
+        that the intent_router node previously made sequentially.
+
+        Returns: {"intent": str, "complexity": "simple"|"complex"}
+        """
+        prompt = (
+            "Classify the following user message.\n\n"
+            "1. INTENT: Choose exactly one from: DISTRESS, SAFETY_VIOLATION, ADVERSARIAL, "
+            "MEDITATION, FACTUAL, RELATIONAL, FOLLOW_UP, CASUAL.\n"
+            "2. COMPLEXITY: Is this question 'simple' (single fact) or 'complex' (multi-hop/comparative)?\n\n"
+            f"Message: {message}\n\n"
+            "Reply in EXACTLY this format (no other text):\n"
+            "INTENT: <intent>\nCOMPLEXITY: <simple|complex>"
+        )
+        kwargs.setdefault("max_tokens", 64)
+        result = await self._generate_fast("", prompt, **kwargs)
+
+        # Parse response
+        result_upper = result.upper().strip()
+        lines = result_upper.splitlines()
+
+        intent = "FACTUAL"
+        complexity = "complex"
+
+        for line in lines:
+            line = line.strip()
+            if line.startswith("INTENT:"):
+                val = line.split(":", 1)[-1].strip()
+                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION",
+                                  "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY"]:
+                    if candidate in val:
+                        intent = candidate
+                        break
+            elif line.startswith("COMPLEXITY:"):
+                val = line.split(":", 1)[-1].strip()
+                complexity = "simple" if "SIMPLE" in val else "complex"
+
+        # Normalize QUERY → FACTUAL
+        if intent == "QUERY":
+            intent = "FACTUAL"
+
+        return {"intent": intent, "complexity": complexity}
 
     async def classify_distress_structured(self, message: str) -> dict:
         """

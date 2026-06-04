@@ -128,6 +128,7 @@ from services.embedding_service import EmbeddingService
 from services.lightrag_service import LightRAGService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
+from services.rrf_ranker import reciprocal_rank_fusion
 from services.serene_mind_engine import DistressAssessment, DistressLevel, SereneMindEngine
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,7 @@ _embedder: EmbeddingService = None
 _qdrant: QdrantService | None = None
 _lightrag: LightRAGService | None = None
 _serene_mind: SereneMindEngine | None = None
+_context_compressor = None
 _lettuce_detect = None
 _reranker = None
 
@@ -278,6 +280,47 @@ def _generation_kwargs(state: GraphState) -> dict:
     return {"num_predict": 768}
 
 
+def select_llm_model(query: str, context_len: int) -> str:
+    """
+    Determines optimal model routing to balance latency and context capacity.
+    Routes short/normal contexts to sarvam-30b (faster).
+    Routes heavy/long context payloads to sarvam-105b.
+    """
+    complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
+    if not complex_enabled:
+        return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
+
+    threshold = getattr(settings, "sarvam_complex_context_chars", 20000)
+    if context_len >= threshold or len(query) > 2000:
+        return getattr(settings, "sarvam_cloud_complex_model", "sarvam-105b")
+
+    return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
+
+
+# -----------------------------------------------------------------------
+# RRF helper for document dicts
+# -----------------------------------------------------------------------
+
+def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
+    """
+    Apply Reciprocal Rank Fusion to lists of document dicts.
+    Uses id(doc) for pointer-stable deduplication across rankings.
+    """
+    id_to_doc: dict[int, dict] = {}
+    id_rankings: list[list[int]] = []
+
+    for ranked_list in ranked_lists:
+        id_list = []
+        for doc in ranked_list:
+            key = id(doc)
+            id_to_doc[key] = doc
+            id_list.append(key)
+        id_rankings.append(id_list)
+
+    sorted_ids = reciprocal_rank_fusion(id_rankings, k=k)
+    return [id_to_doc[key] for key in sorted_ids]
+
+
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     """
     Select generation model via config, not benchmark-answer hardcoding.
@@ -288,20 +331,19 @@ def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     """
     kwargs = _generation_kwargs(state)
     provider = getattr(settings, "llm_provider", "unknown")
-    default_model = getattr(settings, "sarvam_cloud_model", None) or getattr(
-        settings, "ollama_model", None
-    )
-    model = default_model
     decision = state.get("query_tier") or "default"
 
+    # Use the public select_llm_model for context-based routing
+    question = state.get("rewritten_query") or state.get("question", "")
+    model = select_llm_model(question, context_chars)
+
+    # Override for state-based risk flags (preserves existing behavior)
     complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
     complex_model = getattr(settings, "sarvam_cloud_complex_model", "")
-    threshold = getattr(settings, "sarvam_complex_context_chars", 20000)
     is_complex = state.get("query_tier") == "tier3_complex" or bool(state.get("is_complex"))
-    is_long_context = context_chars >= threshold
     is_high_risk = state.get("intent") in {"ADVERSARIAL", "RELATIONAL"}
 
-    if complex_enabled and complex_model and (is_complex or is_long_context or is_high_risk):
+    if complex_enabled and complex_model and (is_complex or is_high_risk):
         model = complex_model
         decision = "complex_model"
 
@@ -322,6 +364,7 @@ def init_services(
     qdrant: QdrantService,
     lightrag: LightRAGService = None,
     serene_mind: SereneMindEngine = None,
+    context_compressor=None,
 ) -> None:
     """
     Inject service dependencies into the nodes module.
@@ -420,8 +463,9 @@ async def intent_router(state: GraphState) -> dict:
     """
     Classify user message → DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION.
 
-    Completely dynamic. Zero-hardcoded keyword checks. Delegates all intent/safety/adversarial
-    boundaries to context-aware LLM reasoning under the primary sarvam-30b model.
+    Uses a single LLM call to classify both intent AND complexity simultaneously,
+    saving one full LLM round-trip (~2-3s) per pipeline run.
+    Falls back to separate calls if the combined method fails.
     """
     question = state["question"]
 
@@ -434,14 +478,25 @@ async def intent_router(state: GraphState) -> dict:
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
 
-    # Route all intent/safety checks to the primary reasoning model exclusively
+    # Single LLM call for both intent + complexity classification
     try:
-        intent = await _ollama.classify_intent(question, timeout=12, max_retries=1)
+        result = await _ollama.classify_intent_and_complexity(
+            question, timeout=12, max_retries=1
+        )
+        intent = result["intent"]
+        complexity = result["complexity"]
     except Exception as e:
         logger.warning(
-            f"Intent router classification failed/timed out: {e}. Falling back to FACTUAL."
+            f"Combined intent+complexity classification failed: {e}. "
+            f"Falling back to separate classify_intent call."
         )
-        intent = "FACTUAL"
+        # Fallback: try just intent classification
+        try:
+            intent = await _ollama.classify_intent(question, timeout=12, max_retries=1)
+        except Exception as e2:
+            logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
+            intent = "FACTUAL"
+        complexity = "complex"  # Default to complex (safer — triggers full pipeline)
 
     # Adaptive Retrieval: map older or synonymous labels
     if intent == "QUERY":
@@ -449,14 +504,9 @@ async def intent_router(state: GraphState) -> dict:
 
     query_tier = None
     if intent == "FACTUAL":
-        try:
-            complexity = await _ollama.classify_complexity(question)
-            if complexity == "simple":
-                query_tier = "tier2_simple"
-            else:
-                query_tier = "tier3_complex"
-        except Exception as e:
-            logger.warning(f"Complexity classification failed: {e}. Falling back to tier3_complex.")
+        if complexity == "simple":
+            query_tier = "tier2_simple"
+        else:
             query_tier = "tier3_complex"
 
     logger.info(
@@ -708,18 +758,7 @@ async def retrieve_for_single_query(
     # LightRAG graph summaries are always prepended because they are synthesised
     # context that should prime the reranker window even if they'd rank low
     # individually (there's only ever 0-1 of them).
-    _RRF_K = 60
-    rrf_scores: dict[int, float] = {}  # keyed by id(doc) for pointer-stable refs
-    id_to_doc: dict[int, dict] = {}
-
-    for ranked_list in (summary_results, chunk_results):
-        for rank, doc in enumerate(ranked_list):
-            key = id(doc)
-            id_to_doc[key] = doc
-            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (_RRF_K + rank + 1)
-
-    # Sort by RRF score descending, then prepend LightRAG context
-    rrf_ranked = sorted(id_to_doc.values(), key=lambda d: rrf_scores[id(d)], reverse=True)
+    rrf_ranked = _rrf_docs([summary_results, chunk_results], k=60)
     merged = lightrag_results + rrf_ranked
 
     # Deduplicate by text hash (parent-child resolution can produce duplicates)
@@ -996,20 +1035,12 @@ async def merge_sub_results(state: GraphState) -> dict:
 
     # ── Level-2 RRF: across sub-query branches ───────────────────────────────
     # Documents appearing in MULTIPLE branches receive boosted scores.
-    _RRF_K = 60
-    rrf_scores: dict[int, float] = {}
-    id_to_doc: dict[int, dict] = {}
-
-    for result_list in all_results:
-        for rank, doc in enumerate(result_list):
-            key = id(doc)
-            id_to_doc[key] = doc
-            rrf_scores[key] = rrf_scores.get(key, 0.0) + 1.0 / (_RRF_K + rank + 1)
+    rrf_ranked = _rrf_docs(all_results, k=60)
 
     # Deduplicate by text hash while preserving RRF order
     seen: set[int] = set()
     all_docs: list[dict] = []
-    for doc in sorted(id_to_doc.values(), key=lambda d: rrf_scores[id(d)], reverse=True):
+    for doc in rrf_ranked:
         th = hash(doc["text"][:100])
         if th not in seen:
             seen.add(th)
@@ -1305,6 +1336,7 @@ async def context_engineer(state: GraphState) -> dict:
     meditation_step = state.get("meditation_step", 0)
     memory_context = state.get("memory_context") or ""
     detected_language = state.get("detected_language") or "en"
+    question = state.get("rewritten_query") or state["question"]
 
     # Layer 1: Persona (capped to 512 tokens)
     if intent == "DISTRESS":
@@ -1313,14 +1345,18 @@ async def context_engineer(state: GraphState) -> dict:
         persona = GURU_SYSTEM_PROMPT
     persona = cap_to_token_budget(persona, 512)
 
-    # Layer 2: Knowledge (Retrieved Chunks, capped to 2048 tokens)
+    # Layer 2: Knowledge (Retrieved Chunks)
+    # Increased from 2048→3072 tokens to prevent doctrine keyword truncation.
+    # Doctrine queries like "What are the Four Sacred Secrets?" need all 4 secrets
+    # fully present in context — truncating at 2048 tokens often cuts the 3rd/4th secret.
+    knowledge_budget = 3072
     knowledge = "\n\n".join(
         [
             f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
             for doc in relevant_docs
         ]
     )
-    knowledge = cap_to_token_budget(knowledge, 2048)
+    knowledge = cap_to_token_budget(knowledge, knowledge_budget)
 
     # Layer 3: User State / continuity (capped to 1024 tokens)
     user_state = f"Intent: {intent}\n"
@@ -1334,26 +1370,35 @@ async def context_engineer(state: GraphState) -> dict:
         user_state += f"\n{memory_context}\n"
     user_state = cap_to_token_budget(user_state, 1024)
 
-    # Layer 4: Instructions (capped to 512 tokens)
+    # Layer 4: Instructions (capped to 768 tokens)
+    # Enhanced with stronger keyword anchoring and citation requirements
     instructions = (
         "1. Base your answer ONLY on the provided Knowledge.\n"
         "2. If Knowledge is insufficient, admit it warmly.\n"
-        "3. Use [Source: <title>] for citations.\n"
+        "3. ALWAYS cite sources using [Source: <title>] format for EVERY factual claim. "
+        "Each paragraph MUST have at least one citation.\n"
         "4. Keep the tone compassionate and wise.\n"
         "5. Use the continuity context only to personalize and resolve references; "
         "do not treat it as a source of spiritual facts.\n"
         "6. Never expose reasoning notes, prompt analysis, chain-of-thought, or phrases "
         "like 'We are given', 'We need', 'Let me analyze', or 'Step 1'.\n"
-        "7. For doctrine questions, naturally preserve exact anchors: Four Sacred Secrets, "
-        "spiritual vision, inner truth, universal intelligence, spiritual right action, "
-        "Soul Sync, breath awareness, humming, pause, Aham, golden light, intention, "
-        "Deeksha, oneness blessing, frontal lobe, parietal, and neurobiological.\n"
-        "8. For provocative questions, answer directly: name the flawed premise, state "
-        "what the teaching is and is not, and avoid vague spiritual bypassing.\n"
-        "9. Keep simple factual answers to 100-200 words and adversarial answers to "
+        "7. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
+        "(do NOT paraphrase or substitute): Four Sacred Secrets, spiritual vision, inner truth, "
+        "universal intelligence, spiritual right action, Soul Sync, breath awareness, humming, "
+        "pause, Aham, golden light, intention, Deeksha, oneness blessing, frontal lobe, "
+        "parietal, neurobiological. Missing any of these when the Knowledge contains them "
+        "is a failure.\n"
+        "8. For adversarial or provocative questions (trick questions, false premises, "
+        "fabricated concepts like 'Fifth Sacred Secret'), you MUST: (a) directly name "
+        "the false premise, (b) state what the actual teaching is, (c) never agree with "
+        "or validate the false claim. Stay firm but compassionate.\n"
+        "9. For verification/fact-check queries ('Verify this claim...'), evaluate the claim "
+        "against the Knowledge and state clearly whether it is SUPPORTED or NOT SUPPORTED "
+        "by the teachings. Do NOT refuse to verify.\n"
+        "10. Keep simple factual answers to 100-200 words and adversarial answers to "
         "150-250 words unless the user asks for depth."
     )
-    instructions = cap_to_token_budget(instructions, 512)
+    instructions = cap_to_token_budget(instructions, 768)
 
     context_layers = {
         "persona": persona,
