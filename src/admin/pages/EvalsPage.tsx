@@ -44,11 +44,17 @@ export default function EvalsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Evals</h1>
-        <p className="text-sm text-muted-foreground">
-          Golden dataset and regression history. See <code>docs/admin/evals.md</code>.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Evals</h1>
+          <p className="text-sm text-muted-foreground">
+            Golden dataset and regression history. See <code>docs/admin/evals.md</code>.
+          </p>
+        </div>
+        <Button onClick={handleRunEval} disabled={running} size="sm">
+          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          {running ? "Running…" : "Run eval"}
+        </Button>
       </div>
 
       <Card>
