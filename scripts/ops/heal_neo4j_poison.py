@@ -73,7 +73,7 @@ NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 SARVAM_BASE_URL = os.getenv("SARVAM_BASE_URL", "https://api.sarvam.ai/v1")
-SARVAM_CLASSIFY_MODEL = os.getenv("SARVAM_CLOUD_CLASSIFY_MODEL", "sarvam-m")
+SARVAM_CLASSIFY_MODEL = os.getenv("SARVAM_CLOUD_CLASSIFY_MODEL", "sarvam-30b")
 
 # Auto-fallback: when running outside Docker the hostname "neo4j" won't resolve.
 # Replace it with localhost (the port is forwarded by docker-compose).

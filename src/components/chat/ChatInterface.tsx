@@ -1132,7 +1132,7 @@ return (
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap justify-start gap-2 pl-[38px]">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}

@@ -21,7 +21,8 @@ def _rate_limit_key_func(request: Request) -> str:
 
     if jwt_secret and test_key == jwt_secret:
         # Return a unique per-request key so it never accumulates
-        return "benchmark_exempt"
+        import uuid
+        return f"benchmark_exempt_{uuid.uuid4().hex}"
 
     return get_remote_address(request)
 

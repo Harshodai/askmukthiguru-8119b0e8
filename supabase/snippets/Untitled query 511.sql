@@ -1,1 +1,1 @@
-select id, email from auth.users;
+GRANT pg_write_server_files TO postgres; GRANT pg_read_server_files TO postgres;

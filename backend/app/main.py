@@ -675,7 +675,10 @@ async def chat_endpoint(
 
     # === Response Cache Check (Run output rail before returning cached responses) ===
     if not is_benchmark:
-        cached = container.semantic_cache.get(cache_key)
+        # Check exact-match Redis cache first to bypass embedding calculation
+        cached = container.exact_cache.get(cache_key)
+        if cached is None:
+            cached = container.semantic_cache.get(cache_key)
         if cached is not None:
             REQUEST_COUNT.labels(status="cache_hit").inc()
             # Run cached response through output guardrails to prevent bypass
@@ -911,9 +914,16 @@ async def chat_endpoint(
             )
             background_tasks.add_task(container.user_profile.save_conversation_memory, memory)
 
-        # Populate cache for QUERY and CASUAL intents (Semantic Caching for fast routing)
+        # Populate cache for QUERY and CASUAL intents (both exact and semantic caching)
         # Skip cache population for benchmark requests to prevent score inflation.
         if not is_benchmark and intent in ["QUERY", "CASUAL"]:
+            container.exact_cache.put(
+                query=cache_key,
+                response=final_answer_native,
+                intent=intent,
+                citations=citations,
+                meditation_step=med_step,
+            )
             container.semantic_cache.put(
                 query=cache_key,
                 response=final_answer_native,
@@ -1213,7 +1223,10 @@ async def chat_stream_endpoint(
 
             # === Cache check (Run output rail before returning cached responses) ===
             if not is_benchmark:
-                cached_raw = container.semantic_cache.get(cache_key)
+                # Check exact-match Redis cache first to bypass embedding calculation
+                cached_raw = container.exact_cache.get(cache_key)
+                if cached_raw is None:
+                    cached_raw = container.semantic_cache.get(cache_key)
             else:
                 cached_raw = None
             cached = cached_raw
@@ -1527,9 +1540,12 @@ async def chat_stream_endpoint(
                         yield f"event: token\ndata: {escaped}\n\n"
                         await asyncio.sleep(0.01)
 
-            # Cache FACTUAL, QUERY, and CASUAL results (Semantic Caching)
+            # Cache FACTUAL, QUERY, and CASUAL results (both exact and semantic caching)
             # Skip cache population for benchmark requests to prevent score inflation.
             if not is_benchmark and intent in ["QUERY", "CASUAL", "FACTUAL"]:
+                container.exact_cache.put(
+                    cache_key, final_answer, intent, citations, meditation_step=med_step
+                )
                 container.semantic_cache.put(
                     cache_key, final_answer, intent, citations, meditation_step=med_step
                 )
@@ -2079,6 +2095,7 @@ async def ingest_endpoint(
                 chunks_added = result.get("chunks_indexed", result.get("chunks_added", 0))
 
             # Invalidate response cache after new content ingestion
+            container.exact_cache.invalidate_all()
             container.semantic_cache.invalidate_all()
 
         except Exception as e:

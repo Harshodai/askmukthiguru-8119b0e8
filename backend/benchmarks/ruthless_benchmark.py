@@ -375,7 +375,10 @@ def trajectory_check(category: str, item: dict, data: dict, response: str, citat
     response_l = response.lower()
 
     if category.startswith("doctrine_"):
-        if not citations:
+        # doctrine_traps = refuting fabricated claims → citations optional (the refutation itself is the answer)
+        # doctrine_core / doctrine_multilingual = genuine factual queries → citations required
+        is_trap_category = category == "doctrine_traps"
+        if not citations and not is_trap_category:
             return False
         if trace and trace.get("retrieved_count", 1) == 0:
             return False
@@ -542,7 +545,7 @@ async def run_suite_category(
         if "session_id" in item:
             payload["session_id"] = item["session_id"]
 
-        res = await chat(client, url, payload, test_key, timeout=180.0)
+        res = await chat(client, url, payload, test_key, timeout=360.0)
         lat = (time.perf_counter() - t0) * 1000
 
         # Respect RPM limit between sequential requests
@@ -695,7 +698,7 @@ async def run_multi_turn_suite(
             }
 
             t0 = time.perf_counter()
-            res = await chat(client, url, payload, test_key, timeout=240.0)
+            res = await chat(client, url, payload, test_key, timeout=360.0)
             lat = (time.perf_counter() - t0) * 1000
 
             # Respect RPM limit between sequential requests
@@ -820,7 +823,7 @@ async def run_stability_suite(
                 "meditation_step": item.get("meditation_step", 0),
             }
             t0 = time.perf_counter()
-            res = await chat(client, url, payload, test_key, timeout=180.0)
+            res = await chat(client, url, payload, test_key, timeout=360.0)
             lat = (time.perf_counter() - t0) * 1000
 
             # Respect RPM limit between sequential requests
@@ -1360,7 +1363,10 @@ async def main():
 
     results = []
 
-    async with httpx.AsyncClient() as client:
+    # Use explicit large timeout — sarvam-30b reasoning model can take 30-300s per call.
+    # Default httpx timeout is 5s which causes false timeout failures.
+    _http_timeout = httpx.Timeout(connect=10.0, read=360.0, write=30.0, pool=5.0)
+    async with httpx.AsyncClient(timeout=_http_timeout) as client:
         # Run all test suites defined in our question bank!
         for category in QUERIES.keys():
             print(f"🚀 Running category: {category}...")

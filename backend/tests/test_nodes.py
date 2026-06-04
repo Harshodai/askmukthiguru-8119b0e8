@@ -190,7 +190,7 @@ async def test_verify_answer_node(mock_services):
         documents=[],
         reranked_docs=[],
         hyde_text=None,
-        relevant_docs=[{"text": "Sri Preethaji teaches...", "source_url": "url1"}],
+        relevant_docs=[{"text": "Sri Preethaji teaches that the Beautiful State is a state of connection, a state of oneness, a state of peace, a state of love, a state of joy, and a state of compassion. It is not just an absence of suffering, but a positive presence of connection.", "source_url": "url1"}],
         grading_reasons=[],
         rewrite_count=0,
         rewritten_query=None,
