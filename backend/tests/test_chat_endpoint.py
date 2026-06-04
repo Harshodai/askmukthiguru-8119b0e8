@@ -47,6 +47,8 @@ def mock_get_container():
     }
 
     # Mock semantic cache
+    mock_container.exact_cache = MagicMock()
+    mock_container.exact_cache.get.return_value = None
     mock_container.semantic_cache = MagicMock()
     mock_container.semantic_cache.get.return_value = None
     mock_container.semantic_cache.is_available = True
@@ -174,6 +176,8 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     }
 
     # Mock semantic cache to return a cached response
+    mock_container.exact_cache = MagicMock()
+    mock_container.exact_cache.get.return_value = None
     mock_container.semantic_cache = MagicMock()
     mock_container.semantic_cache.get.return_value = {
         "response": "Take 2 aspirin and call me in the morning.",  # This would be blocked by medical advice guardrails

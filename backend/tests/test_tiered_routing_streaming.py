@@ -41,7 +41,15 @@ def mock_services():
 @pytest.mark.asyncio
 async def test_intent_router_tiered_classification(mock_services):
     mock_ollama, _ = mock_services
-    mock_ollama.classify_intent.return_value = "FACTUAL"
+    
+    # Mock the merged intent & complexity classification call
+    async def mock_classify_intent_and_complexity(question, **kwargs):
+        if "karma" in question:
+            return {"intent": "FACTUAL", "complexity": "simple"}
+        else:
+            return {"intent": "FACTUAL", "complexity": "complex"}
+    
+    mock_ollama.classify_intent_and_complexity = mock_classify_intent_and_complexity
 
     # Test simple query classification
     state_simple = GraphState(
@@ -51,7 +59,6 @@ async def test_intent_router_tiered_classification(mock_services):
         intent=None,
         query_tier=None,
     )
-    mock_ollama.classify_complexity.return_value = "simple"
 
     res = await nodes.intent_router(state_simple)
     assert res["intent"] == "FACTUAL"
@@ -65,7 +72,6 @@ async def test_intent_router_tiered_classification(mock_services):
         intent=None,
         query_tier=None,
     )
-    mock_ollama.classify_complexity.return_value = "complex"
 
     res_complex = await nodes.intent_router(state_complex)
     assert res_complex["intent"] == "FACTUAL"

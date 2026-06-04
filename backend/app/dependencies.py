@@ -94,7 +94,9 @@ class ServiceContainer:
         # Layer 4: Guardrails (depends on config)
         self.guardrails = GuardrailsService()
 
-        # Layer 4b: Semantic Cache (depends on embedding + redis + qdrant)
+        # Layer 4b: Semantic Cache & Exact Cache (depends on embedding + redis + qdrant)
+        from services.cache_service import RedisCacheAdapter
+        self.exact_cache = RedisCacheAdapter(redis_url=settings.redis_url)
         self.semantic_cache = SemanticCacheAdapter(
             redis_url=settings.redis_url,
             qdrant_url=settings.qdrant_url if not settings.qdrant_local_path else None,
