@@ -1,8 +1,9 @@
 # Pending Items — Mukthi Guru Architecture Enhancement
 
+> **⚠️ Superseded**: See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) for the comprehensive, up-to-date status report.
 > **Source**: `/goal` plan (14 units) from `.claude/plans/elegant-snacking-kite.md`
-> **Last Updated**: 2026-06-05
-> **Current Git Head**: `636a707d` (post-development)
+> **Last Updated**: 2026-06-06
+> **Current Git Head**: `2cb9bbdc` (post-development, worktrees cleaned)
 
 ## Development Completion Summary
 
