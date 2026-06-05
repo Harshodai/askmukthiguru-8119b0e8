@@ -41,12 +41,7 @@ COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.
 COPY --from=deps /usr/local/bin /usr/local/bin
 
 # Copy application code
-# Copy application code
 COPY backend/ .
-# Copy Ingestion UI static files
-COPY ingest-ui/ /app/ingest-ui/
-# Copy Chat UI static files
-COPY chat-ui/ /app/chat-ui/
 
 # Copy the entrypoint script
 COPY backend/docker-entrypoint.sh /app/docker-entrypoint.sh

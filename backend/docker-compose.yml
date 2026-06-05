@@ -225,9 +225,6 @@ services:
       - hf_model_cache:/app/.cache
       # Persist SQLite telemetry database
       - telemetry_data:/app/data
-      # Mount UIs for development
-      - ../ingest-ui:/app/ingest-ui
-      - ../chat-ui:/app/chat-ui
       # Mount backend code and scripts for live-reloading/direct execution
       - ./app:/app/app
       - ./rag:/app/rag
@@ -247,9 +244,10 @@ services:
       dockerfile: frontend.Dockerfile
       args:
         VITE_SUPABASE_URL: ${PUBLIC_SUPABASE_URL:-http://localhost:54321}
-        VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_KEY}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_ANON_KEY}
         VITE_USE_NATIVE_OAUTH: ${USE_NATIVE_OAUTH:-true}
         VITE_JAEGER_UI_URL: ${VITE_JAEGER_UI_URL:-http://localhost:16686}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     container_name: mukthiguru-frontend
     ports:
       - "80:80"
