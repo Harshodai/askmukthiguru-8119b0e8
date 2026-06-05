@@ -1115,3 +1115,18 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Solution**: Implemented [load_test.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/load_test.py) featuring realistic simulation patterns for Chat, Streaming, and Health Check endpoints. It checks that SLO thresholds (latency < 2s, error rate < 1%) are met.
 - **Lesson learned**: Continuous performance verification via simulated load testing (with realistic concurrency and task profiles) is crucial to uncover connection pooling exhaustion, memory leaks, and CPU bottlenecks before production deployment.
 
+
+### 96. Docker Build Arg Passthrough for VITE Environment Variables (June 2026)
+- **Problem**: `VITE_GOOGLE_CLIENT_ID` was initialized in frontend code for Google One Tap but not declared as a Docker `ARG` in `frontend.Dockerfile`, causing the variable to be empty in Docker builds even when set in `.env`.
+- **Solution**: Added `ARG VITE_GOOGLE_CLIENT_ID` and `ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID` to `frontend.Dockerfile`, and added `VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}` to the frontend build `args` in `backend/docker-compose.yml`.
+- **Lesson learned**: Every `VITE_*` environment variable needed at build time in a Docker-based Vite build must be declared as both an `ARG` (to receive it from docker-compose) and `ENV` (so Vite picks it up during `npm run build`). Missing either step silently produces an empty string in the bundle.
+
+### 97. Frontend Must Use Anon Key, Not Service Role Key (June 2026)
+- **Problem**: `docker-compose.yml` was passing `${SUPABASE_KEY}` (the service role key) as `VITE_SUPABASE_PUBLISHABLE_KEY` to the frontend build, effectively embedding a privileged server-side credential in the browser-accessible JavaScript bundle.
+- **Solution**: Changed the frontend docker-compose build arg to use `${SUPABASE_ANON_KEY}` which is the safe, public-facing anon key designed to be exposed in client-side code.
+- **Lesson learned**: Always use the Supabase **anon key** (row-level security enforced, safe for browser) for `VITE_SUPABASE_PUBLISHABLE_KEY`. The **service role key** bypasses all RLS and must never be embedded in frontend code or Docker images.
+
+### 98. Removing Stale COPY Directives for Non-Existent Directories (June 2026)
+- **Problem**: `backend/Dockerfile` and `frontend.Dockerfile` had `COPY ingest-ui/` and `COPY chat-ui/` directives referencing directories that no longer exist in the repo. This caused Docker builds to fail with `failed to compute cache key: ... not found`.
+- **Solution**: Removed the stale `COPY` directives and volume mount references from all Dockerfiles and docker-compose configurations.
+- **Lesson learned**: When removing a feature or directory from a monorepo, search all Dockerfiles and docker-compose files for `COPY` and volume mount references. Stale directives are silent until the next full Docker build and can block CI/CD pipelines.
