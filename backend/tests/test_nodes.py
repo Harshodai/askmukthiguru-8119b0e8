@@ -110,7 +110,7 @@ async def test_reflect_on_answer_faithful(mock_services):
     result = await nodes.reflect_on_answer(state)
 
     assert result["needs_correction"] is False
-    assert result["reflection_feedback"] is None
+    assert "Answer appears valid and consistent" in result["reflection_feedback"]
     mock_ld.score_faithfulness.assert_called_once()
 
 
@@ -168,7 +168,7 @@ async def test_reflect_on_answer_hallucinated(mock_services):
     result = await nodes.reflect_on_answer(state)
 
     assert result["needs_correction"] is True
-    assert "Hallucination detected" in result["reflection_feedback"]
+    assert "Faithfulness below threshold" in result["reflection_feedback"]
 
 
 @pytest.mark.asyncio

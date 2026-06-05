@@ -18,7 +18,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Optional, Any
 
 try:
     from dotenv import load_dotenv
@@ -175,16 +175,16 @@ class SingleResult:
     safety_pass: bool = True
     hallucination_risk: bool = False
     reject_hit: bool = False
-    serene_triggered: bool | None = None
+    serene_triggered: Optional[bool] = None
     meditation_steps_found: int = 0
     layer_tested: Any = 0
-    cache_hit: bool | None = None
+    cache_hit: Optional[bool] = None
     severity: str = "medium"
     verified: bool = False
     backend_logs: str = ""
     passed: bool = True
-    verification_passed: bool | None = None
-    confidence_score: float | None = None
+    verification_passed: Optional[bool] = None
+    confidence_score: Optional[float] = None
     faithfulness: float = 1.0
     answer_relevancy: float = 1.0
     context_precision: float = 1.0
@@ -355,7 +355,7 @@ def classify_failure(
     rejected: bool,
     keyword: float,
     min_keyword: float,
-    expected_links: list[str] | None = None,
+    expected_links: Optional[list[str]] = None,
     trajectory_pass: bool = True,
     require_citation: bool = False,
 ) -> str:

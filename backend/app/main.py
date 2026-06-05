@@ -15,6 +15,8 @@ The /api/chat endpoint orchestrates the full flow:
   NeMo Input Rail → LangGraph RAG Pipeline → NeMo Output Rail → Response
 """
 
+from typing import Optional
+
 import asyncio
 import contextvars
 import logging
@@ -490,10 +492,10 @@ class ChatRequest(BaseModel):
 
     messages: list[MessagePayload] = Field(..., description="Conversation history")
     user_message: str = Field(..., description="Current user message")
-    session_id: str | None = Field(None, description="Optional session ID")
+    session_id: Optional[str] = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
-    language: str | None = Field(default="en", description="Preferred language")
-    last_serene_mind_at: float | None = Field(
+    language: Optional[str] = Field(default="en", description="Preferred language")
+    last_serene_mind_at: Optional[float] = Field(
         default=None,
         description="Unix timestamp of the user's last completed Serene Mind session (client-reported)",
     )
@@ -503,32 +505,32 @@ class ChatResponse(BaseModel):
     """Chat API response body."""
 
     response: str = Field(..., description="Guru's response")
-    intent: str | None = Field(None, description="Detected intent")
+    intent: Optional[str] = Field(None, description="Detected intent")
     meditation_step: int = Field(default=0, description="Next meditation step")
     citations: list[str] = Field(default_factory=list, description="Source URLs")
     blocked: bool = Field(default=False, description="Was the message blocked?")
-    block_reason: str | None = Field(None, description="Why it was blocked")
-    proactive_serene_mind: dict | None = Field(
+    block_reason: Optional[str] = Field(None, description="Why it was blocked")
+    proactive_serene_mind: Optional[dict] = Field(
         None, description="Proactive Serene Mind trigger details"
     )
-    faithfulness_score: float | None = Field(None, description="Self-RAG faithfulness score")
-    relevancy_score: float | None = Field(None, description="Answer relevancy score")
-    confidence_score: float | None = Field(None, description="Verifier confidence score")
-    verification: dict | None = Field(None, description="CoVe/Self-RAG verification result")
-    hallucination_flag: bool | None = Field(
+    faithfulness_score: Optional[float] = Field(None, description="Self-RAG faithfulness score")
+    relevancy_score: Optional[float] = Field(None, description="Answer relevancy score")
+    confidence_score: Optional[float] = Field(None, description="Verifier confidence score")
+    verification: Optional[dict] = Field(None, description="CoVe/Self-RAG verification result")
+    hallucination_flag: Optional[bool] = Field(
         None, description="Whether verification flagged hallucination risk"
     )
-    trace_id: str | None = Field(None, description="Trace/query ID for observability")
-    latency_ms: int | None = Field(None, description="End-to-end response latency in milliseconds")
-    node_timings: dict | None = Field(
+    trace_id: Optional[str] = Field(None, description="Trace/query ID for observability")
+    latency_ms: Optional[int] = Field(None, description="End-to-end response latency in milliseconds")
+    node_timings: Optional[dict] = Field(
         None, description="Per-node LangGraph timings in milliseconds"
     )
-    evaluation_trace: dict | None = Field(
+    evaluation_trace: Optional[dict] = Field(
         None, description="Trajectory metadata for benchmark and production AI evaluation"
     )
-    model_used: str | None = Field(None, description="Underlying LLM model used")
-    model_provider: str | None = Field(None, description="Underlying LLM provider")
-    route_decision: str | None = Field(None, description="Model/routing decision")
+    model_used: Optional[str] = Field(None, description="Underlying LLM model used")
+    model_provider: Optional[str] = Field(None, description="Underlying LLM provider")
+    route_decision: Optional[str] = Field(None, description="Model/routing decision")
 
 
 class IngestRequest(BaseModel):
@@ -595,7 +597,7 @@ async def _prepare_request_state(
     container: ServiceContainer,
     chat_body: ChatRequest,
     preferred_lang: str,
-    user: dict | None = None,
+    user: Optional[dict] = None,
 ) -> dict:
     """
     Prepare the common state for both chat endpoints.
@@ -1886,13 +1888,13 @@ async def get_breath_teaching(
 class SpeechTTSRequest(BaseModel):
     text: str
     target_language_code: str
-    speaker: str | None = None
+    speaker: Optional[str] = None
 
 
 @app.post("/api/speech/stt", tags=["Speech"])
 async def speech_to_text_endpoint(
     file: UploadFile = File(...),
-    language_code: str | None = Form(None),
+    language_code: Optional[str] = Form(None),
     model: str = Form("saaras:v3"),
     container: ServiceContainer = Depends(get_container),
 ):

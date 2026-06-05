@@ -12,6 +12,8 @@ Usage:
   text = transcribe_with_whisper(video_id, audio)
 """
 
+from typing import Optional
+
 import logging
 import os
 import subprocess
@@ -21,7 +23,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def download_audio(video_id: str, output_dir: str) -> str | None:
+def download_audio(video_id: str, output_dir: str) -> Optional[str]:
     """
     Download YouTube audio as mono 16kHz MP3 using yt-dlp.
     Returns the path to the downloaded file, or None on failure.
@@ -153,9 +155,9 @@ def download_audio(video_id: str, output_dir: str) -> str | None:
 def transcribe_with_whisper(
     video_id: str,
     audio_path: str,
-    model: str | None = None,
+    model: Optional[str] = None,
     language: str = "en",
-) -> str | None:
+) -> Optional[str]:
     """
     Transcribe audio using local Whisper via mlx-whisper.
 
@@ -313,8 +315,8 @@ def score_transcript(text: str, video_id: str = "") -> float:
 
 
 def council_pick_best(
-    youtube_text: str | None,
-    whisper_text: str | None,
+    youtube_text: Optional[str],
+    whisper_text: Optional[str],
     video_id: str = "",
 ) -> dict:
     """

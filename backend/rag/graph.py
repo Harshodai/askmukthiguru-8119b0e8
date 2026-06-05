@@ -16,6 +16,8 @@ The graph handles:
   - Quality gates: faithfulness check, CoVe verification
 """
 
+from typing import Optional
+
 import logging
 
 from langgraph.graph import END, StateGraph
@@ -228,9 +230,9 @@ def build_rag_graph(
 
 def create_initial_state(
     question: str,
-    chat_history: list[dict] | None = None,
+    chat_history: Optional[list[dict]] = None,
     meditation_step: int = 0,
-    request_id: str | None = None,
+    request_id: Optional[str] = None,
 ) -> GraphState:
     """
     Create the initial state for a pipeline invocation.

@@ -8,6 +8,8 @@ Shared validation and sanitization helpers for critical security fixes:
 - CSRF token generation and validation
 """
 
+from typing import Optional
+
 import hashlib
 import hmac
 import os
@@ -58,7 +60,7 @@ def is_valid_youtube_url(url: str) -> bool:
     return bool(domain_match)
 
 
-def validate_session_id(session_id: str | None) -> str | None:
+def validate_session_id(session_id: Optional[str]) -> Optional[str]:
     """
     Validate a session ID before use in logs / DB queries.
     Returns None if input is None, otherwise a sanitized string.
@@ -74,7 +76,7 @@ def validate_session_id(session_id: str | None) -> str | None:
     return session_id
 
 
-def validate_correlation_id(cid: str | None) -> str | None:
+def validate_correlation_id(cid: Optional[str]) -> Optional[str]:
     """
     Validate a correlation ID from X-Correlation-ID header.
     Returns a safe value or None if invalid (caller should generate a new one).
@@ -87,7 +89,7 @@ def validate_correlation_id(cid: str | None) -> str | None:
     return cid
 
 
-def validate_iso_date(date_str: str | None) -> str | None:
+def validate_iso_date(date_str: Optional[str]) -> Optional[str]:
     """
     Validate an ISO-8601 date string before using in DB queries.
     Returns None if input is None, otherwise the string.
@@ -103,7 +105,7 @@ def validate_iso_date(date_str: str | None) -> str | None:
     return date_str
 
 
-def validate_user_id(user_id: str | None) -> str | None:
+def validate_user_id(user_id: Optional[str]) -> Optional[str]:
     """
     Validate a user ID before use in DB queries.
     Returns None if input is None, otherwise a sanitized string.
@@ -119,7 +121,7 @@ def validate_user_id(user_id: str | None) -> str | None:
     return user_id
 
 
-def sanitize_path(path: str, base_dir: str | None = None) -> str:
+def sanitize_path(path: str, base_dir: Optional[str] = None) -> str:
     """
     Sanitize a filesystem path to prevent path traversal.
     If base_dir is provided, ensures the resolved path is within base_dir.
@@ -179,7 +181,7 @@ def validate_csrf_token(
     return True
 
 
-def validate_origin_referer(origin: str | None, allowed_origins: list[str]) -> bool:
+def validate_origin_referer(origin: Optional[str], allowed_origins: list[str]) -> bool:
     """
     Validate an Origin or Referer header against a list of allowed origins.
     """

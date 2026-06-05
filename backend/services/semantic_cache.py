@@ -17,6 +17,8 @@ Design: Grounded in teachings — cached responses are ALWAYS from the RAG pipel
 never AI-generated. The cache only skips re-running the pipeline for similar questions.
 """
 
+from typing import Optional
+
 import hashlib
 import json
 import logging
@@ -82,7 +84,7 @@ class SemanticCacheService:
         """Key for the list of all cache entry IDs."""
         return "mukthiguru:semcache:index"
 
-    def get(self, query: str, query_embedding: list[float] | None = None) -> dict | None:
+    def get(self, query: str, query_embedding: Optional[list[float]] = None) -> Optional[dict]:
         """
         Look up a semantically similar cached response.
 
@@ -166,7 +168,7 @@ class SemanticCacheService:
         response: str,
         intent: str,
         citations: list[str],
-        query_embedding: list[float] | None = None,
+        query_embedding: Optional[list[float]] = None,
         meditation_step: int = 0,
     ) -> None:
         """Store a response in the semantic cache with its embedding."""

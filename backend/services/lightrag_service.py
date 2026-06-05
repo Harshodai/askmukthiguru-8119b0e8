@@ -1,3 +1,5 @@
+from typing import Optional
+
 import asyncio
 import logging
 import os
@@ -242,7 +244,7 @@ class LightRAGService:
             return ""
 
     async def ainsert(
-        self, text: str, file_paths: str | list[str] | None = None, timeout: float = 180.0
+        self, text: str, file_paths: str | Optional[list[str]] = None, timeout: float = 180.0
     ):
         """Insert new content into the graph asynchronously.
 
@@ -284,7 +286,7 @@ class LightRAGService:
                 raise
 
     async def safe_ainsert(
-        self, text: str, file_paths: str | list[str] | None = None, timeout: float = 180.0
+        self, text: str, file_paths: str | Optional[list[str]] = None, timeout: float = 180.0
     ) -> bool:
         """Insert into graph with full error suppression. Returns True on success, False on failure.
 
@@ -301,7 +303,7 @@ class LightRAGService:
     async def ainsert_chunked(
         self,
         text: str,
-        file_paths: str | list[str] | None = None,
+        file_paths: str | Optional[list[str]] = None,
         max_chunk_size: int = 8000,
         overlap: int = 500,
         sleep_between: float = 3.0,

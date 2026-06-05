@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import uuid
-from typing import Any
+from typing import Optional, Any
 
 import redis.asyncio as Redis
 from supabase import Client, create_client
@@ -56,7 +56,7 @@ class SupabaseTelemetrySink:
         except Exception as e:
             logger.error(f"Failed to insert into {table}: {e}")
 
-    def _coerce_uuid(self, val: Any) -> str | None:
+    def _coerce_uuid(self, val: Any) -> Optional[str]:
         if not val:
             return None
         val_str = str(val).strip()
@@ -75,28 +75,28 @@ class SupabaseTelemetrySink:
         latency_ms: int,
         status: str,
         created_at: str,
-        response_text: str | None = None,
-        citations: list[str] | None = None,
+        response_text: Optional[str] = None,
+        citations: Optional[list[str]] = None,
         faithfulness: float = 1.0,
         answer_relevancy: float = 1.0,
         context_precision: float = 1.0,
         context_recall: float = 1.0,
         hallucination_flag: bool = False,
-        confidence_score: float | None = None,
+        confidence_score: Optional[float] = None,
         judge_reasoning: str = "",
-        retrieval_metadata: dict[str, Any] | None = None,
-        spans: list[dict[str, Any]] | None = None,
-        trigger_events: list[dict[str, Any]] | None = None,
-        safety_events: list[dict[str, Any]] | None = None,
-        provider: str | None = None,
-        route_decision: str | None = None,
-        cache_hit: bool | None = None,
-        ttft_ms: int | None = None,
-        tokens_per_second: float | None = None,
-        prompt_tokens: int | None = None,
-        completion_tokens: int | None = None,
-        cost_estimate: float | None = None,
-        evaluation_trace: dict[str, Any] | None = None,
+        retrieval_metadata: Optional[dict[str, Any]] = None,
+        spans: Optional[list[dict[str, Any]]] = None,
+        trigger_events: Optional[list[dict[str, Any]]] = None,
+        safety_events: Optional[list[dict[str, Any]]] = None,
+        provider: Optional[str] = None,
+        route_decision: Optional[str] = None,
+        cache_hit: Optional[bool] = None,
+        ttft_ms: Optional[int] = None,
+        tokens_per_second: Optional[float] = None,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        cost_estimate: Optional[float] = None,
+        evaluation_trace: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Serialize trace data and append to Redis Stream.
@@ -163,28 +163,28 @@ class SupabaseTelemetrySink:
         latency_ms: int,
         status: str,
         created_at: str,
-        response_text: str | None = None,
-        citations: list[str] | None = None,
+        response_text: Optional[str] = None,
+        citations: Optional[list[str]] = None,
         faithfulness: float = 1.0,
         answer_relevancy: float = 1.0,
         context_precision: float = 1.0,
         context_recall: float = 1.0,
         hallucination_flag: bool = False,
-        confidence_score: float | None = None,
+        confidence_score: Optional[float] = None,
         judge_reasoning: str = "",
-        retrieval_metadata: dict[str, Any] | None = None,
-        spans: list[dict[str, Any]] | None = None,
-        trigger_events: list[dict[str, Any]] | None = None,
-        safety_events: list[dict[str, Any]] | None = None,
-        provider: str | None = None,
-        route_decision: str | None = None,
-        cache_hit: bool | None = None,
-        ttft_ms: int | None = None,
-        tokens_per_second: float | None = None,
-        prompt_tokens: int | None = None,
-        completion_tokens: int | None = None,
-        cost_estimate: float | None = None,
-        evaluation_trace: dict[str, Any] | None = None,
+        retrieval_metadata: Optional[dict[str, Any]] = None,
+        spans: Optional[list[dict[str, Any]]] = None,
+        trigger_events: Optional[list[dict[str, Any]]] = None,
+        safety_events: Optional[list[dict[str, Any]]] = None,
+        provider: Optional[str] = None,
+        route_decision: Optional[str] = None,
+        cache_hit: Optional[bool] = None,
+        ttft_ms: Optional[int] = None,
+        tokens_per_second: Optional[float] = None,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        cost_estimate: Optional[float] = None,
+        evaluation_trace: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Asynchronously write telemetry data into all relevant Supabase tables.

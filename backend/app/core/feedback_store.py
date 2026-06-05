@@ -1,3 +1,5 @@
+from typing import Optional
+
 import json
 import os
 from datetime import datetime
@@ -22,7 +24,7 @@ class FeedbackStore:
         query: str,
         response: str,
         feedback: str,  # "positive" | "negative" | "neutral"
-        reason: str | None = None,
+        reason: Optional[str] = None,
         chunks_used: list[str] = None,
         latency_ms: float = 0.0,
     ):

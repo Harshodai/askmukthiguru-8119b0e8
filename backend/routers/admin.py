@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -96,8 +96,8 @@ async def fetch_evaluations(
 
 @admin_router.get("/kpis")
 async def fetch_kpis(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(get_current_user_from_supabase),
 ) -> dict[str, Any]:
     """Fetch aggregated KPIs for Admin UI. Requires admin authentication."""
@@ -133,8 +133,8 @@ async def get_timeseries(
 
 @admin_router.get("/triggers")
 async def list_triggers(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
     """List trigger events. Requires admin authentication."""
@@ -145,8 +145,8 @@ async def list_triggers(
 
 @admin_router.get("/safety-events")
 async def list_safety_events(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
     """List safety events. Requires admin authentication."""
@@ -167,8 +167,8 @@ async def list_topic_clusters(
 
 @admin_router.get("/retrieval-health")
 async def get_retrieval_health_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(get_current_user_from_supabase),
 ) -> dict[str, Any]:
     """Get retrieval health metrics. Requires admin authentication."""
@@ -179,8 +179,8 @@ async def get_retrieval_health_endpoint(
 
 @admin_router.get("/quality-data")
 async def get_quality_data_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(get_current_user_from_supabase),
 ) -> dict[str, Any]:
     """Get quality data metrics. Requires admin authentication."""
@@ -271,8 +271,8 @@ async def list_model_pricing(
 
 @admin_router.get("/top-failures")
 async def get_top_failures_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     limit: int = Query(8, ge=1, le=100),
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
@@ -284,8 +284,8 @@ async def get_top_failures_endpoint(
 
 @admin_router.get("/ragas-heatmap")
 async def get_ragas_heatmap_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     buckets: int = Query(8, ge=1, le=100),
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
@@ -297,8 +297,8 @@ async def get_ragas_heatmap_endpoint(
 
 @admin_router.get("/trigger-trend")
 async def get_trigger_trend_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     buckets: int = Query(14, ge=1, le=100),
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
@@ -310,8 +310,8 @@ async def get_trigger_trend_endpoint(
 
 @admin_router.get("/similarity-trend")
 async def get_similarity_trend_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     buckets: int = Query(14, ge=1, le=100),
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
@@ -323,8 +323,8 @@ async def get_similarity_trend_endpoint(
 
 @admin_router.get("/dead-docs")
 async def get_dead_docs_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:
     """Get dead documents. Requires admin authentication."""
@@ -335,8 +335,8 @@ async def get_dead_docs_endpoint(
 
 @admin_router.get("/empty-retrievals")
 async def get_empty_retrievals_endpoint(
-    from_date: str | None = None,
-    to_date: str | None = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     limit: int = Query(20, ge=1, le=100),
     user: dict = Depends(get_current_user_from_supabase),
 ) -> list[dict[str, Any]]:

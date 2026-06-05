@@ -17,6 +17,8 @@ Distress Levels:
   - CRISIS → Immediate danger, helpline information first
 """
 
+from typing import Optional
+
 import asyncio
 import logging
 import re
@@ -425,7 +427,7 @@ class SereneMindEngine:
     def assess_distress(
         self,
         message: str,
-        conversation_history: list[dict] | None = None,
+        conversation_history: Optional[list[dict]] = None,
     ) -> DistressAssessment:
         """
         Assess the distress level of a user message.
@@ -509,7 +511,7 @@ class SereneMindEngine:
     async def async_assess_distress(
         self,
         message: str,
-        conversation_history: list[dict] | None = None,
+        conversation_history: Optional[list[dict]] = None,
     ) -> DistressAssessment:
         """
         Three-stage distress assessment:

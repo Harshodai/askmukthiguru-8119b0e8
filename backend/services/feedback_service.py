@@ -1,3 +1,5 @@
+from typing import Optional
+
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +20,7 @@ class FeedbackService:
         self.db = db
 
     async def create_feedback(
-        self, feedback_in: FeedbackCreate, user_id: str | None = None
+        self, feedback_in: FeedbackCreate, user_id: Optional[str] = None
     ) -> Feedback:
         """
         Store a new feedback entry in the database.

@@ -39,6 +39,7 @@ Safety
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import argparse
 import asyncio
@@ -88,8 +89,8 @@ def _save_state(done: set[str]) -> None:
 async def reprocess(
     *,
     dry_run: bool = False,
-    source_url_filter: str | None = None,
-    limit: int | None = None,
+    source_url_filter: Optional[str] = None,
+    limit: Optional[int] = None,
     batch_size: int = 100,
     concurrency: int = 2,
 ) -> None:

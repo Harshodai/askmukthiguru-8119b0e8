@@ -14,7 +14,7 @@ import asyncio
 import logging
 import platform
 import time
-from typing import Any
+from typing import Optional, Any
 
 from app.config import settings
 
@@ -135,8 +135,8 @@ class RerankerService:
         self,
         query: str,
         documents: list[dict[str, Any]],
-        top_k: int | None = None,
-        min_score: float | None = None,
+        top_k: Optional[int] = None,
+        min_score: Optional[float] = None,
     ) -> list[dict[str, Any]]:
         """
         Rerank documents using FlashRank (ONNX) with sentence-transformers fallback.
@@ -148,8 +148,8 @@ class RerankerService:
         self,
         query: str,
         documents: list[dict[str, Any]],
-        top_k: int | None = None,
-        min_score: float | None = None,
+        top_k: Optional[int] = None,
+        min_score: Optional[float] = None,
     ) -> list[dict[str, Any]]:
         """
         Synchronous core reranking method.

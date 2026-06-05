@@ -10,6 +10,7 @@ Supports:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import functools
 import logging
@@ -171,7 +172,7 @@ class QdrantService:
         texts: list[str],
         vectors: list[list[float]],
         metadatas: list[dict],
-        sparse_vectors: list[dict] | None = None,
+        sparse_vectors: Optional[list[dict]] = None,
     ) -> int:
         """
         Batch upsert text chunks with dense + optional sparse vectors.
@@ -231,9 +232,9 @@ class QdrantService:
         self,
         query_vector: list[float],
         limit: int = 20,
-        content_type: str | None = None,
-        sparse_vector: dict | None = None,
-        raptor_level: int | None = None,
+        content_type: Optional[str] = None,
+        sparse_vector: Optional[dict] = None,
+        raptor_level: Optional[int] = None,
         **kwargs,
     ) -> list[dict]:
         """
@@ -555,7 +556,7 @@ class QdrantService:
             return False
 
     def get_summary_nodes(
-        self, query_vector: list[float] | None = None, limit: int = 15
+        self, query_vector: Optional[list[float]] = None, limit: int = 15
     ) -> list[dict]:
         """
         Retrieve RAPTOR level-1 summary nodes for tree navigation.

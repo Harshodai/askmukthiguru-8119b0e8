@@ -21,6 +21,8 @@ API Reference:
 All LLM calls funnel through this service. No other module talks to Sarvam directly.
 """
 
+from typing import Optional
+
 import asyncio
 import json
 import logging
@@ -92,7 +94,7 @@ class CircuitBreaker:
     half_open_max_calls: int = 3
     # Mutable state — use field(default_factory)
     _failures: int = field(default=0, repr=False)
-    _last_failure_time: float | None = field(default=None, repr=False)
+    _last_failure_time: Optional[float] = field(default=None, repr=False)
     _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
     _half_open_calls: int = field(default=0, repr=False)
 
@@ -204,7 +206,7 @@ class SarvamCloudService:
                 self._http_client = None
                 logger.info("HTTP client closed")
 
-    def _extract_structured_content(self, text: str, operation: str) -> str | None:
+    def _extract_structured_content(self, text: str, operation: str) -> Optional[str]:
         """
         Attempt to extract structured data (JSON, markdown code blocks, tab-separated entity tables)
         from reasoning_content when the main content field is returned empty.
