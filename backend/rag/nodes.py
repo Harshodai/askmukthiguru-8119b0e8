@@ -946,12 +946,14 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     base_question = state.get("rewritten_query") or state["question"]
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
-    expansion_queries = await _llm_retrieval_expansions(state)
-    if expansion_queries:
-        logger.info(
-            f"LLM retrieval planner: adding {len(expansion_queries)} expansion query/queries"
-        )
-        sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
+    query_tier = state.get("query_tier")
+    if query_tier != "tier2_simple":
+        expansion_queries = await _llm_retrieval_expansions(state)
+        if expansion_queries:
+            logger.info(
+                f"LLM retrieval planner: adding {len(expansion_queries)} expansion query/queries"
+            )
+            sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
     hyde_text = state.get("hyde_text")
@@ -971,7 +973,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     selected_clusters,
                     _embedder,
                     _qdrant,
-                    _lightrag,
+                    _lightrag if query_tier != "tier2_simple" else None,
                 ),
                 timeout=getattr(settings, "node_timeout_main", 60),
             )

@@ -300,6 +300,9 @@ class OllamaService:
 
         Yields tokens as they are generated for SSE streaming.
         """
+        timeout = kwargs.pop("timeout", settings.llm_timeout)
+        max_retries = kwargs.pop("max_retries", 1)
+
         if not self._circuit_breaker.can_execute():
             raise Exception(
                 f"Ollama circuit breaker is OPEN — failing fast. "
@@ -307,41 +310,48 @@ class OllamaService:
             )
 
         messages = [SystemMessage(content=system_prompt)]
-
         if context:
             full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}"
         else:
             full_prompt = user_prompt
-
         messages.append(HumanMessage(content=full_prompt))
 
+        retryer = AsyncRetrying(
+            stop=stop_after_attempt(max_retries),
+            wait=wait_exponential(multiplier=0.5, min=0.5, max=5.0),
+            retry=retry_if_exception_type((asyncio.TimeoutError, httpx.HTTPError)),
+            reraise=True,
+        )
+
         try:
-            chain = self._llm.bind(**kwargs) if kwargs else self._llm
-            in_think_block = False
-            async for chunk in chain.astream(messages):
-                if not chunk.content:
-                    continue
-
-                text = chunk.content
-                while text:
-                    if in_think_block:
-                        end = text.find("</think>")
-                        if end == -1:
-                            text = ""
-                        else:
-                            text = text[end + len("</think>") :]
-                            in_think_block = False
-                        continue
-
-                    start = text.find("<think>")
-                    if start == -1:
-                        yield text
-                        text = ""
-                    else:
-                        if start > 0:
-                            yield text[:start]
-                        text = text[start + len("<think>") :]
-                        in_think_block = True
+            async for attempt in retryer:
+                with attempt:
+                    chain = self._llm.bind(**kwargs) if kwargs else self._llm
+                    in_think_block = False
+                    async for chunk in await asyncio.wait_for(
+                        chain.astream(messages), timeout=timeout
+                    ):
+                        if not chunk.content:
+                            continue
+                        text = chunk.content
+                        while text:
+                            if in_think_block:
+                                end = text.find("</think>")
+                                if end == -1:
+                                    text = ""
+                                else:
+                                    text = text[end + 8:]
+                                    in_think_block = False
+                                continue
+                            start = text.find("<think>")
+                            if start == -1:
+                                yield text
+                                text = ""
+                            else:
+                                if start > 0:
+                                    yield text[:start]
+                                text = text[start + 7:]
+                                in_think_block = True
             self._circuit_breaker.record_success()
         except Exception as e:
             self._circuit_breaker.record_failure()

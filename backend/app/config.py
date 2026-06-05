@@ -67,10 +67,10 @@ class Settings(BaseSettings):
     # Per-call HTTP timeout. Sarvam Cloud has a 30s server-side limit; Ollama tends to hang on
     # slow models. Must be smaller than pipeline_timeout. Individual LLM calls that exceed this
     # trigger retry logic in OllamaService.generate() (max_retries attempts with backoff).
-    llm_timeout: int = 300
+    llm_timeout: int = 30
     # Total outer pipeline timeout — must comfortably exceed (llm_timeout × num_retries × num_calls).
-    # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 360s gives healthy headroom.
-    pipeline_timeout: int = 360
+    # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 120s gives healthy headroom.
+    pipeline_timeout: int = 120
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # --- Timeout Budget ---
