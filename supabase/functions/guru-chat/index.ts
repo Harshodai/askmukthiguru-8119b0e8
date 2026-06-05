@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
           controller.enqueue(
             sseEvent("error", `upstream ${upstream.status}: ${text.slice(0, 200)}`),
           );
-          controller.enqueue(sseEvent("done", { intent: "CASUAL", citations: [], meditation_step: 0 }));
+          controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
           controller.close();
           return;
         }
