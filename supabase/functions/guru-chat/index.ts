@@ -38,7 +38,6 @@ Keep replies grounded, concrete, and under 6 short paragraphs.`;
 
 const MODEL = "google/gemini-2.5-flash";
 
-const MODEL = "google/gemini-2.5-flash";
 
 // ── In-memory sliding-window rate limit (per edge instance) ───────────
 const RL_WINDOW_MS = 60_000;
