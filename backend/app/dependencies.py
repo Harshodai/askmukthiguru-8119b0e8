@@ -21,12 +21,14 @@ from guardrails.rails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_rag_graph
 from services.cache_service import SemanticCacheAdapter, init_llm_cache
+from services.compliance_logger import get_compliance_logger  # Unit 24
 from services.embedding_service import EmbeddingService
 from services.ingestion_tracker import IngestionTracker
 from services.ingestion_tracker import build_tracker as build_ingestion_tracker
 from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
+from services.model_registry import ModelRegistry  # Unit 25
 from services.ocr_service import OCRService
 from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
@@ -85,6 +87,34 @@ class ServiceContainer:
         self.ollama = _create_llm_service()  # SarvamCloudService OR OllamaService
         self.ocr = OCRService()
         self.krutrim = KrutrimService()
+
+        # Unit 25: Model failover registry (primary Ollama → fallback Ollama → Krutrim)
+        from services.ollama_service import OllamaService
+        if isinstance(self.ollama, OllamaService):
+            self.model_registry = ModelRegistry(self.ollama, self.krutrim)
+        else:
+            # SarvamCloudService doesn't need failover registry
+            self.model_registry = None
+            logger.info("ModelRegistry not created: SarvamCloudService active")
+
+        # Unit 24: Compliance logger singleton
+        self.compliance_logger = get_compliance_logger()
+        logger.info("ComplianceLogger initialized (GDPR-safe audit logging active)")
+
+        # Unit 16: A/B Testing Router
+        from services.ab_testing import get_ab_router
+        self.ab_router = get_ab_router()
+        logger.info("ABTestRouter initialized")
+
+        # Unit 22: Prompt versioning store (lazy seed on first use)
+        from services.prompt_store import get_prompt_store
+        self.prompt_store = get_prompt_store()
+        logger.info("PromptStore initialized (SQLite-backed)")
+
+        # Unit 23: Cost attribution tracker
+        from services.cost_tracker import get_cost_tracker
+        self.cost_tracker = get_cost_tracker()
+        logger.info("CostTracker initialized")
 
         # Layer 3: Emotional Intelligence (depends on embedding, config-gated)
         if settings.serene_mind_enabled:

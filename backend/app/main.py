@@ -175,6 +175,10 @@ async def lifespan(app: FastAPI):
     # 8. Start Telemetry Background Worker (Phase 4)
     telemetry_worker.start()
 
+    # 9. Unit 17: Hot Reload Config Watcher (watchfiles / polling fallback)
+    from services.config_watcher import start_config_watcher
+    _config_watcher = await start_config_watcher()
+
     logger.info("=== Mukthi Guru Backend Ready ===")
     yield
 
@@ -199,6 +203,10 @@ async def lifespan(app: FastAPI):
 
     # Stop Telemetry Background Worker
     telemetry_worker.stop()
+
+    # Stop Config Watcher (Unit 17)
+    from services.config_watcher import stop_config_watcher
+    await stop_config_watcher()
 
     shutdown()
 
@@ -368,6 +376,10 @@ app.include_router(auth_router, prefix="/api/auth")
 # (Other routers moved down to avoid circular deps if any, or just kept here)
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
+
+# Unit 24: Compliance router (GDPR audit log access)
+from routers.compliance import router as compliance_router
+app.include_router(compliance_router)
 
 # Mount trace dashboard routes
 from datetime import timezone
