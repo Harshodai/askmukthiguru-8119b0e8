@@ -13,6 +13,7 @@ This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import asyncio
 import logging
@@ -65,7 +66,7 @@ class CircuitBreaker:
     half_open_max_calls: int = 1
     # Mutable state — use field(default_factory) to avoid shared state across instances
     _failures: int = field(default=0, repr=False)
-    _last_failure_time: float | None = field(default=None, repr=False)
+    _last_failure_time: Optional[float] = field(default=None, repr=False)
     _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
     _half_open_calls: int = field(default=0, repr=False)
 

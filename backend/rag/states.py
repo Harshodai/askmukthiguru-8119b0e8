@@ -10,7 +10,7 @@ This state flows through all 11 layers of the anti-hallucination pipeline.
 Every node reads what it needs and writes what it produces.
 """
 
-from typing import Annotated
+from typing import Optional, Annotated
 
 from typing_extensions import TypedDict
 
@@ -95,21 +95,21 @@ class GraphState(TypedDict):
     chat_history: list[dict]
 
     # Request correlation ID ( propagated through every node for log correlation )
-    request_id: str | None
+    request_id: Optional[str]
 
     # Routing
-    intent: str | None
+    intent: Optional[str]
 
     # Retrieval
     documents: list[dict]
     reranked_docs: list[dict]
-    hyde_text: str | None  # Hypothetical answer for HyDE retrieval
+    hyde_text: Optional[str]  # Hypothetical answer for HyDE retrieval
 
     # CRAG
     relevant_docs: list[dict]
     grading_reasons: list[str]  # Reasoning for document relevance/irrelevance
     rewrite_count: int
-    rewritten_query: str | None
+    rewritten_query: Optional[str]
 
     # Decomposition
     sub_queries: list[str]
@@ -118,7 +118,7 @@ class GraphState(TypedDict):
     # LangGraph Send API — parallel sub-query retrieval
     # sub_query: injected per-branch via Send({"sub_query": q, ...})
     # sub_results: fan-in collector; each branch appends its result list
-    sub_query: str | None
+    sub_query: Optional[str]
     sub_results: Annotated[list, collect_sub_results]
 
     # Tree Navigation (PageIndex-inspired)
@@ -128,35 +128,35 @@ class GraphState(TypedDict):
     hints: list[str]
 
     # Generation
-    answer: str | None
+    answer: Optional[str]
     citations: list[str]
 
     # Self-RAG
-    is_faithful: bool | None
+    is_faithful: Optional[bool]
 
     # Self-Reflection RAG (Nir Diamant pattern)
     needs_correction: bool
-    reflection_feedback: str | None
+    reflection_feedback: Optional[str]
 
     # CoVe
-    verification: dict | None
-    confidence_score: float | None  # 1-10 confidence from combined verification
+    verification: Optional[dict]
+    confidence_score: Optional[float]  # 1-10 confidence from combined verification
 
     # Guardrails
     input_blocked: bool
     output_blocked: bool
-    block_reason: str | None
+    block_reason: Optional[str]
 
     # Meditation
     meditation_step: int
-    meditation_response: str | None
+    meditation_response: Optional[str]
 
     # Final
-    final_answer: str | None
-    error: str | None
+    final_answer: Optional[str]
+    error: Optional[str]
 
     # Context Engineering
-    context_layers: dict | None  # {persona, knowledge, instructions, user_state}
+    context_layers: Optional[dict]  # {persona, knowledge, instructions, user_state}
 
     # Explainable Retrieval
     citation_reasoning: Annotated[dict, add_dicts]  # {url: reasoning}
@@ -165,14 +165,14 @@ class GraphState(TypedDict):
     metrics: Annotated[dict, add_dicts]
 
     # NEW: User & Language Context
-    user_id: str | None
-    detected_language: str | None
-    memory_context: str | None
-    ab_model: str | None  # "primary" or "krutrim" for A/B testing
-    query_tier: str | None  # "tier2_simple" vs "tier3_complex"
-    model_used: str | None
-    model_provider: str | None
-    route_decision: str | None
+    user_id: Optional[str]
+    detected_language: Optional[str]
+    memory_context: Optional[str]
+    ab_model: Optional[str]  # "primary" or "krutrim" for A/B testing
+    query_tier: Optional[str]  # "tier2_simple" vs "tier3_complex"
+    model_used: Optional[str]
+    model_provider: Optional[str]
+    route_decision: Optional[str]
 
     # Per-node timing (R4 — structured observability)
     # Each node appends {"node_name": latency_ms} so we get full pipeline breakdown.

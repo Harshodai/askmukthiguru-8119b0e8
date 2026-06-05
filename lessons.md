@@ -1039,4 +1039,8 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 4. Benchmark scoring logic for adversarial/trap categories needs category-aware special rules — a correct refusal IS a pass.
 5. Cache intent coverage must match ALL user-facing intents, not just conversational ones (FACTUAL, RELATIONAL missed).
 6. Generation loop detection (same line repeating 3× = truncate) is essential for reasoning models with large max_tokens budgets.
+7. **Python 3.9 Type Compatibility Refactoring**:
+   - Refactored 32 files to replace PEP 604 union syntax (`str | None`) and native generic types (`list[...]`, `dict[...]`) with Python 3.9 compatible type annotations (`Optional[str]`, `List[...]`, `Dict[...]`) using `backend/scripts/fix_py39_types.py`.
+   - When introducing typing imports automatically (like `from typing import Optional`), ensure they are not inserted *before* any `from __future__ import annotations` imports. If a file contains `from __future__` imports, they must remain the absolute first statement in the file (excluding docstrings) to avoid a `SyntaxError: from __future__ imports must occur at the beginning of the file`.
+
 

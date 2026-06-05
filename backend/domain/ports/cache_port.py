@@ -1,3 +1,5 @@
+from typing import Optional
+
 from abc import ABC, abstractmethod
 
 
@@ -5,7 +7,7 @@ class ICacheRepository(ABC):
     """Abstract port for response caching (BE-6)."""
 
     @abstractmethod
-    def get(self, query: str) -> dict | None:
+    def get(self, query: str) -> Optional[dict]:
         """Retrieve cached response payload by query key."""
         pass
 

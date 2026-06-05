@@ -1,3 +1,5 @@
+from typing import Optional
+
 #!/usr/bin/env python3
 """Verify Sarvam Cloud API connectivity and report latency."""
 
@@ -12,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.config import settings  # noqa: E402
 
 
-def verify_sarvam() -> tuple[bool, str, float | None]:
+def verify_sarvam() -> tuple[bool, str, Optional[float]]:
     """Check Sarvam API with a minimal, authenticated call."""
     api_key = settings.sarvam_api_key
     base_url = settings.sarvam_base_url

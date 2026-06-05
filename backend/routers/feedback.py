@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +17,7 @@ jsonl_store = FeedbackStore()
 async def submit_feedback(
     feedback_in: FeedbackCreate,
     db: AsyncSession = Depends(get_db),
-    user: dict | None = Depends(get_current_user_from_supabase),
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
 ):
     """
     Submit feedback (rating and optional text) for a generated answer.

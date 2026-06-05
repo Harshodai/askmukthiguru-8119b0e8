@@ -1,3 +1,5 @@
+from typing import Optional
+
 import json
 import logging
 import re
@@ -37,7 +39,7 @@ class UserProfile:
     preferred_language: LanguagePreference = LanguagePreference.ENGLISH
     spiritual_level: SpiritualLevel = SpiritualLevel.BEGINNER
     topics_of_interest: list[str] = None  # ["meditation", "relationships", "suffering"]
-    last_distress_assessment: dict | None = None
+    last_distress_assessment: Optional[dict] = None
     total_conversations: int = 0
     total_meditations_completed: int = 0
     favorite_teachings: list[str] = None  # Source URLs they engaged with
@@ -210,7 +212,7 @@ class UserProfileService:
 
         return detected
 
-    async def get_last_meditation_session(self, user_id: str) -> float | None:
+    async def get_last_meditation_session(self, user_id: str) -> Optional[float]:
         """
         Return the Unix timestamp of the most recently completed meditation
         session for this user, or None if no completed session exists.

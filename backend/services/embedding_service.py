@@ -11,6 +11,7 @@ languages including all 10 target Indian languages.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import logging
 import os
@@ -307,8 +308,8 @@ class EmbeddingService:
         self,
         query: str,
         documents: list[dict],
-        top_k: int | None = None,
-        min_score: float | None = None,
+        top_k: Optional[int] = None,
+        min_score: Optional[float] = None,
     ) -> list[dict]:
         """
         Rerank documents using CrossEncoder for maximum precision.
@@ -386,7 +387,7 @@ class EmbeddingService:
         documents: list[dict],
         colbert_top_k: int = 15,
         cross_top_k: int = 5,
-        min_score: float | None = None,
+        min_score: Optional[float] = None,
     ) -> list[dict]:
         """
         Cascaded Pipeline:

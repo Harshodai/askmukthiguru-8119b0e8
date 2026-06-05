@@ -51,6 +51,7 @@ The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with ad
 import asyncio
 import logging
 import re
+from typing import Optional
 
 from langgraph.types import Send
 
@@ -130,7 +131,6 @@ from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
 from services.rrf_ranker import reciprocal_rank_fusion
 from services.serene_mind_engine import DistressAssessment, DistressLevel, SereneMindEngine
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

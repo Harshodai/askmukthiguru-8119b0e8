@@ -6,6 +6,7 @@ retrieval/generation prompts without requiring a new database migration.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import hashlib
 import uuid
@@ -14,7 +15,7 @@ from collections.abc import Iterable
 _SESSION_NAMESPACE = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
 
-def normalize_session_id(session_id: str | None, user_id: str) -> str:
+def normalize_session_id(session_id: Optional[str], user_id: str) -> str:
     """
     Return a stable UUID for any frontend conversation id.
 

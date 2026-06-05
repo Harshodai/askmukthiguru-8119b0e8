@@ -5,6 +5,8 @@ Provides regex-based validators and cleaners for user-facing identifiers
 and free-form text to reduce injection and poisoning surfaces.
 """
 
+from typing import Optional
+
 import re
 
 # Regex constants
@@ -21,7 +23,7 @@ _USER_INPUT_SCRIPT_RE = re.compile(
 )
 
 
-def sanitize_session_id(value: str | None) -> str:
+def sanitize_session_id(value: Optional[str]) -> str:
     """
     Validate and normalize a session identifier.
 
@@ -40,7 +42,7 @@ def sanitize_session_id(value: str | None) -> str:
     return (allowed or "default")[:64]
 
 
-def sanitize_correlation_id(value: str | None) -> str:
+def sanitize_correlation_id(value: Optional[str]) -> str:
     """
     Validate and normalize a correlation / request ID.
 
@@ -58,7 +60,7 @@ def sanitize_correlation_id(value: str | None) -> str:
     return (allowed or "corr-0000")[:64]
 
 
-def sanitize_user_input(text: str | None, max_length: int = 2000) -> str:
+def sanitize_user_input(text: Optional[str], max_length: int = 2000) -> str:
     """
     Clean free-form user input before logging, embedding, or forwarding to LLMs.
 

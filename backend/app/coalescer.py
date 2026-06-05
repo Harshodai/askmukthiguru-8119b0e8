@@ -5,6 +5,8 @@ Merges identical concurrent requests across pods to avoid redundant RAG runs.
 Uses Redis SETNX for distributed locking and key TTL for auto-cleanup.
 """
 
+from typing import Optional
+
 import asyncio
 import json
 import logging
@@ -162,7 +164,7 @@ class RedisCoalescer:
             pass
 
 
-def build_coalescer(redis_url: str | None = None, ttl: float = 60.0):
+def build_coalescer(redis_url: Optional[str] = None, ttl: float = 60.0):
     """
     Build the best available coalescer.
 
