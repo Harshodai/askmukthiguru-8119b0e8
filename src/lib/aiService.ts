@@ -122,6 +122,17 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
   return 'unknown';
 };
 
+async function recordMetric(metric: { type: string; value: number; tags?: Record<string, string> }) {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch(`${DEFAULT_ENDPOINT}/api/telemetry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...metric, timestamp: Date.now() }),
+    });
+  } catch { /* silent */ }
+}
+
 /**
  * Streaming variant of sendMessage. Yields content chunks as they arrive
  * from an SSE/chunked endpoint. Falls back by throwing if streaming is
@@ -156,6 +167,7 @@ export async function* sendMessageStreaming(
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
+  const startMs = Date.now();
   const response = await fetch(streamEndpoint, {
     method: 'POST',
     headers: {
@@ -215,7 +227,10 @@ export async function* sendMessageStreaming(
         }
         if (!line.startsWith('data: ')) continue;
         const payload = line.slice(6);
-        if (payload.trim() === '[DONE]') return;
+        if (payload.trim() === '[DONE]') {
+          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'stream' } });
+          return;
+        }
 
         // Yield status events as pipeline step updates
         if (currentEvent === 'status') {
@@ -263,6 +278,7 @@ export async function* sendMessageStreaming(
         }
       }
     }
+    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {
     reader.releaseLock();
   }
@@ -291,6 +307,7 @@ export const sendMessage = async (
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
+      const startMs = Date.now();
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -323,6 +340,7 @@ export const sendMessage = async (
       }
 
       const data = await response.json();
+      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'non-stream' } });
       return {
         content: data.response || data.choices?.[0]?.message?.content || data.content,
         intent: data.intent,
