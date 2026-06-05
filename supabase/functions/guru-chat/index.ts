@@ -38,6 +38,26 @@ Keep replies grounded, concrete, and under 6 short paragraphs.`;
 
 const MODEL = "google/gemini-2.5-flash";
 
+const MODEL = "google/gemini-2.5-flash";
+
+// ── In-memory sliding-window rate limit (per edge instance) ───────────
+const RL_WINDOW_MS = 60_000;
+const RL_AUTH_LIMIT = 20;
+const RL_ANON_LIMIT = 5;
+type Bucket = { count: number; resetAt: number };
+const rlBuckets = new Map<string, Bucket>();
+function rlConsume(key: string, limit: number) {
+  const now = Date.now();
+  const b = rlBuckets.get(key);
+  if (!b || now > b.resetAt) {
+    rlBuckets.set(key, { count: 1, resetAt: now + RL_WINDOW_MS });
+    return { allowed: true, remaining: limit - 1, resetAt: now + RL_WINDOW_MS };
+  }
+  if (b.count >= limit) return { allowed: false, remaining: 0, resetAt: b.resetAt };
+  b.count += 1;
+  return { allowed: true, remaining: limit - b.count, resetAt: b.resetAt };
+}
+
 function sseEvent(event: string, data: unknown): Uint8Array {
   const payload =
     typeof data === "string" ? data : JSON.stringify(data ?? null);
