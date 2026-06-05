@@ -5,9 +5,8 @@ Provides regex-based validators and cleaners for user-facing identifiers
 and free-form text to reduce injection and poisoning surfaces.
 """
 
-from typing import Optional
-
 import re
+from typing import Optional
 
 # Regex constants
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")

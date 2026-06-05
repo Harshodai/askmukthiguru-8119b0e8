@@ -1,8 +1,9 @@
-from typing import Optional
+from __future__ import annotations
 
 import asyncio
 import logging
 import os
+from typing import Optional
 
 from lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc

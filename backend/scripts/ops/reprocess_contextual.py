@@ -39,7 +39,6 @@ Safety
 """
 
 from __future__ import annotations
-from typing import Optional
 
 import argparse
 import asyncio
@@ -48,6 +47,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 # ── Bootstrap sys.path so backend modules resolve ──────────────────────────────
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent  # backend/

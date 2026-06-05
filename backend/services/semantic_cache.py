@@ -17,12 +17,11 @@ Design: Grounded in teachings — cached responses are ALWAYS from the RAG pipel
 never AI-generated. The cache only skips re-running the pipeline for similar questions.
 """
 
-from typing import Optional
-
 import hashlib
 import json
 import logging
 import time
+from typing import Optional
 
 import numpy as np
 

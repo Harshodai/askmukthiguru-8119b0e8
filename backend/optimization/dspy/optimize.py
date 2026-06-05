@@ -5,13 +5,13 @@ prompts or production routing by itself.
 """
 
 from __future__ import annotations
-from typing import Optional
 
 import argparse
 import json
 import time
 from dataclasses import asdict
 from pathlib import Path
+from typing import Optional
 
 from optimization.dspy.dataset import (
     examples_from_benchmark_report,

@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import uuid
-from typing import Optional, Any
+from typing import Any, Optional
 
 import redis.asyncio as Redis
 from supabase import Client, create_client

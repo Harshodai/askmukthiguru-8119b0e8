@@ -1,10 +1,11 @@
-from typing import Optional
+from __future__ import annotations
 
 import asyncio
 import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import jwt
 from fastapi import Depends, HTTPException, Request

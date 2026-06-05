@@ -21,8 +21,6 @@ API Reference:
 All LLM calls funnel through this service. No other module talks to Sarvam directly.
 """
 
-from typing import Optional
-
 import asyncio
 import json
 import logging
@@ -32,6 +30,7 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Optional
 
 import httpx
 

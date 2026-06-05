@@ -15,8 +15,6 @@ The /api/chat endpoint orchestrates the full flow:
   NeMo Input Rail → LangGraph RAG Pipeline → NeMo Output Rail → Response
 """
 
-from typing import Optional
-
 import asyncio
 import contextvars
 import logging
@@ -24,6 +22,7 @@ import sys
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
+from typing import Optional
 
 from fastapi import (
     BackgroundTasks,
@@ -371,7 +370,9 @@ app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
 
 # Mount trace dashboard routes
-from datetime import UTC
+from datetime import timezone
+
+UTC = timezone.utc
 
 from app.trace_dashboard import router as trace_router
 

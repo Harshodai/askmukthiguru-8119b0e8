@@ -5,13 +5,12 @@ Merges identical concurrent requests across pods to avoid redundant RAG runs.
 Uses Redis SETNX for distributed locking and key TTL for auto-cleanup.
 """
 
-from typing import Optional
-
 import asyncio
 import json
 import logging
 import time
 import typing
+from typing import Optional
 
 try:
     import redis.asyncio as Redis

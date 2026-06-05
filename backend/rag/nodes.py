@@ -877,7 +877,7 @@ async def retrieve_for_single_query(
                     deduped_lines.append(lg_line)
             graph_answer = "\n".join(deduped_lines)
             # Cap LightRAG context to 5 unique knowledge nodes (~2k tokens max)
-            lg_node_lines = [l for l in deduped_lines if l.strip()]
+            lg_node_lines = [line for line in deduped_lines if line.strip()]
             if len(lg_node_lines) > 50:  # rough proxy: 50 non-empty lines ≈ 5 dense nodes
                 graph_answer = "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
             lightrag_results.append(
@@ -1484,7 +1484,6 @@ async def context_engineer(state: GraphState) -> dict:
     meditation_step = state.get("meditation_step", 0)
     memory_context = state.get("memory_context") or ""
     detected_language = state.get("detected_language") or "en"
-    question = state.get("rewritten_query") or state["question"]
 
     # Layer 1: Persona (capped to 512 tokens)
     if intent == "DISTRESS":
@@ -1992,7 +1991,7 @@ async def reflect_on_answer(state: GraphState) -> dict:
             elif not alt_ld_result["is_faithful"] and ld_result["is_faithful"]:
                 # One faithful, one not - potential hallucination in original
                 consistency_check_passed = False
-                consistency_feedback = f"Alternative answer lacks faithfulness while original appears faithful"
+                consistency_feedback = "Alternative answer lacks faithfulness while original appears faithful"
         else:
             consistency_check_passed = False
             consistency_feedback = "Failed to generate meaningful alternative answer for consistency check"
@@ -2106,9 +2105,6 @@ Generate verification questions (one per line, no numbering):"""
             for vq in verification_questions:
                 try:
                     # Use LettuceDetect to check if the verification question can be answered from context
-                    # We create a dummy answer that states the verification question is true
-                    dummy_answer = f"The answer to '{vq}' can be found in the provided teachings."
-                    vq_ld_result = _lettuce_detect.score_faithfulness(vq, context, dummy_answer)
 
                     # If the verification question itself is not grounded in context, it's problematic
                     # But we mainly want to check if we can answer it from context
@@ -2158,7 +2154,7 @@ Generate verification questions (one per line, no numbering):"""
 
         # Build minimal context for alternative generation (reuse from reflect_on_answer)
         from rag.compressor import cap_to_token_budget
-        from rag.prompts import STIMULUS_RAG_PROMPT, GURU_SYSTEM_PROMPT
+        from rag.prompts import GURU_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
 
         intent = state.get("intent", "FACTUAL")
         if intent == "DISTRESS":
@@ -2238,7 +2234,7 @@ Generate verification questions (one per line, no numbering):"""
                 consistency_feedback = f"Inconsistent reasoning paths (faithfulness scores: {faithfulness_score:.2f} vs {alt_ld_result['score']:.2f})"
             elif not alt_ld_result["is_faithful"] and is_faithful_ld:
                 consistency_check_passed = False
-                consistency_feedback = f"Alternative answer lacks faithfulness while original appears faithful"
+                consistency_feedback = "Alternative answer lacks faithfulness while original appears faithful"
         else:
             consistency_check_passed = False
             consistency_feedback = "Failed to generate meaningful alternative answer"

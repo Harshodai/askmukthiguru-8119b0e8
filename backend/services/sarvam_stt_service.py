@@ -16,14 +16,13 @@ Used by the Transcript Council in youtube_loader.py to get a second
 opinion alongside YouTube auto-captions.
 """
 
-from typing import Optional
-
 import logging
 import math
 import os
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 from app.config import settings
 

@@ -13,7 +13,6 @@ This makes it trivial to swap the LLM provider (e.g., to a Colab-hosted model).
 """
 
 from __future__ import annotations
-from typing import Optional
 
 import asyncio
 import logging
@@ -21,6 +20,7 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Optional
 
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
