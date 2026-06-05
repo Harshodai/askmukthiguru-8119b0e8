@@ -191,6 +191,9 @@ class Settings(BaseSettings):
     rag_context_compression_threshold: int = (
         10000  # Only compress context if character length exceeds this threshold
     )
+    # MMR (Maximal Marginal Relevance) diversity re-ranking
+    rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
+    max_tokens_per_request: int = 2000  # Maximum tokens per LLM request for cost control and speed
 
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True
