@@ -130,15 +130,16 @@ from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
 from services.rrf_ranker import reciprocal_rank_fusion
 from services.serene_mind_engine import DistressAssessment, DistressLevel, SereneMindEngine
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Module-level service references (set during graph construction)
 _ollama: OllamaService = None
 _embedder: EmbeddingService = None
-_qdrant: QdrantService | None = None
-_lightrag: LightRAGService | None = None
-_serene_mind: SereneMindEngine | None = None
+_qdrant: Optional[QdrantService] = None
+_lightrag: Optional[LightRAGService] = None
+_serene_mind: Optional[SereneMindEngine] = None
 _context_compressor = None
 _lettuce_detect = None
 _reranker = None
@@ -774,12 +775,12 @@ async def check_context_sufficiency(state: GraphState) -> dict:
 async def retrieve_for_single_query(
     query: str,
     chat_history: list,
-    hyde_text: str | None,
+    hyde_text: Optional[str],
     intent: str,
     selected_clusters: list,
     embedder: EmbeddingService,
     qdrant: QdrantService,
-    lightrag: LightRAGService | None,
+    lightrag: Optional[LightRAGService],
 ) -> list[dict]:
     """Retrieve documents for a single sub-query, decoupled from state."""
     # Augment query with last user message from history for follow-up context

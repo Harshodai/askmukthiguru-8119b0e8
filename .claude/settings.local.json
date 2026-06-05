@@ -27,7 +27,19 @@
       "mcp__code-review-graph__get_hub_nodes_tool",
       "mcp__code-review-graph__list_communities_tool",
       "mcp__code-review-graph__get_bridge_nodes_tool",
-      "mcp__code-review-graph__get_minimal_context_tool"
+      "mcp__code-review-graph__get_minimal_context_tool",
+      "Bash(timeout 10 tail -20 /private/tmp/claude-501/-Users-harshodaikolluru-Public-askmukthiguru-8119b0e8/b50a00f9-9b6a-438b-8695-bf4d7d8cb88e/tasks/a55574859591940e1.output)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "Bash(git merge *)",
+      "Bash(chmod +x *)",
+      "Bash(python -m pytest tests/ -x --tb=short)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(unset http_proxy https_proxy all_proxy)"
     ]
   },
   "enableAllProjectMcpServers": true,
