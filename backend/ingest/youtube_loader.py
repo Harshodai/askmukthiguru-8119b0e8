@@ -25,6 +25,7 @@ import re
 import tempfile
 import time
 from collections.abc import Callable
+from typing import Optional
 
 from app.config import settings
 
@@ -89,7 +90,7 @@ def _get_js_runtime_opts() -> dict:
 # ============================================================
 
 
-def extract_video_id(url: str) -> str | None:
+def extract_video_id(url: str) -> Optional[str]:
     """Extract YouTube video ID from various URL formats."""
     patterns = [
         r"(?:v=|/)([0-9A-Za-z_-]{11})(?:\?|&|$)",
@@ -185,7 +186,7 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
 
 def _fetch_youtube_captions(
     video_id: str, languages: list[str], allow_auto: bool = True
-) -> str | None:
+) -> Optional[str]:
     """
     Fetch captions using youtube-transcript-api v1.x instance-based API.
 
@@ -254,7 +255,7 @@ def _fetch_youtube_captions(
 # ============================================================
 
 
-def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> str | None:
+def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]:
     """
     Download subtitles via yt-dlp and parse VTT/SRT format.
 
@@ -319,7 +320,7 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> str | None:
         return None
 
 
-def _parse_subtitle_file(filepath: str) -> str | None:
+def _parse_subtitle_file(filepath: str) -> Optional[str]:
     """Parse VTT or SRT subtitle file into plain text. Removes timestamps and duplicates."""
     try:
         with open(filepath, encoding="utf-8") as f:
@@ -545,7 +546,7 @@ def fetch_transcript_hybrid(
     }
 
 
-def _run_whisper_stt(video_id: str) -> str | None:
+def _run_whisper_stt(video_id: str) -> Optional[str]:
     """Download audio and transcribe via local Whisper STT. Returns text or None."""
     try:
         from services.whisper_local_service import download_audio, transcribe_with_whisper
@@ -569,8 +570,8 @@ def _run_whisper_stt(video_id: str) -> str | None:
 
 async def fetch_transcripts_concurrent(
     video_list: list[dict],
-    max_workers: int | None = None,
-    on_progress: Callable | None = None,
+    max_workers: Optional[int] = None,
+    on_progress: Optional[Callable] = None,
 ) -> list[dict]:
     """
     Fetch transcripts for multiple videos sequentially to avoid YouTube 429 rate limits.

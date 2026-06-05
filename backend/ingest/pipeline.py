@@ -15,7 +15,7 @@ import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 class IngestionCheckpoint:
@@ -83,8 +83,8 @@ class IngestionPipeline:
         qdrant_service: QdrantService,
         embedding_service: EmbeddingService,
         ollama_service: OllamaService,
-        lightrag_service: Any | None = None,
-        ocr_service: OCRService | None = None,
+        lightrag_service: Optional[Any] = None,
+        ocr_service: Optional[OCRService] = None,
     ) -> None:
         """
         Dependency Injection: All services are injected, not created internally.
@@ -119,7 +119,7 @@ class IngestionPipeline:
         self,
         file_path: str,
         max_accuracy: bool = False,
-        on_progress: Callable | None = None,
+        on_progress: Optional[Callable] = None,
     ) -> dict:
         """
         Ingest a local PDF or TXT file.
@@ -158,7 +158,7 @@ class IngestionPipeline:
         self,
         url: str,
         max_accuracy: bool = False,
-        on_progress: Callable[[str, float], None] | None = None,
+        on_progress: Optional[Callable[[str, float], None]] = None,
     ) -> dict:
         """
         Main entry point: ingest content from any supported URL.
@@ -211,7 +211,7 @@ class IngestionPipeline:
         topic: str = "Spiritual",
         content_type: str = "migration",
         max_accuracy: bool = False,
-        on_progress: Callable | None = None,
+        on_progress: Optional[Callable] = None,
     ) -> dict:
         """
         Ingest raw text directly, bypassing any fetching/loaders.
@@ -285,7 +285,7 @@ class IngestionPipeline:
         self,
         url: str,
         max_accuracy: bool = False,
-        on_progress: Callable | None = None,
+        on_progress: Optional[Callable] = None,
     ) -> dict:
         """Ingest a single YouTube video."""
         video_id = extract_video_id(url)
@@ -407,7 +407,7 @@ class IngestionPipeline:
     async def _ingest_video_enhanced(
         self,
         url: str,
-        on_progress: Callable | None = None,
+        on_progress: Optional[Callable] = None,
     ) -> dict:
         """
         Production Ingestion (Phase 3): Enhanced video processing.
@@ -572,7 +572,7 @@ class IngestionPipeline:
         self,
         url: str,
         max_accuracy: bool = False,
-        on_progress: Callable | None = None,
+        on_progress: Optional[Callable] = None,
     ) -> dict:
         """Ingest all videos in a YouTube playlist/channel using concurrent extraction."""
         self._notify(on_progress, "Fetching playlist/channel videos...", 0.05)
@@ -719,7 +719,7 @@ class IngestionPipeline:
     async def _ingest_image(
         self,
         url: str,
-        on_progress: Callable | None = None,
+        on_progress: Optional[Callable] = None,
     ) -> dict:
         """Ingest text from an image via OCR."""
         self._notify(on_progress, "Extracting text from image...", 0.3)
@@ -763,7 +763,7 @@ class IngestionPipeline:
         content_type: str,
         speaker: str = "Unknown",
         topic: str = "Spiritual",
-        extra_metadatas: list[dict] | None = None,
+        extra_metadatas: Optional[list[dict]] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -1006,7 +1006,7 @@ class IngestionPipeline:
         return chunks
 
     @staticmethod
-    def _notify(callback: Callable | None, message: str, progress: float) -> None:
+    def _notify(callback: Optional[Callable], message: str, progress: float) -> None:
         """Helper to send progress updates if callback is provided."""
         if callback:
             try:
