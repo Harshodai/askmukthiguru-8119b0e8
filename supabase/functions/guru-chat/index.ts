@@ -38,6 +38,25 @@ Keep replies grounded, concrete, and under 6 short paragraphs.`;
 
 const MODEL = "google/gemini-2.5-flash";
 
+
+// ── In-memory sliding-window rate limit (per edge instance) ───────────
+const RL_WINDOW_MS = 60_000;
+const RL_AUTH_LIMIT = 20;
+const RL_ANON_LIMIT = 5;
+type Bucket = { count: number; resetAt: number };
+const rlBuckets = new Map<string, Bucket>();
+function rlConsume(key: string, limit: number) {
+  const now = Date.now();
+  const b = rlBuckets.get(key);
+  if (!b || now > b.resetAt) {
+    rlBuckets.set(key, { count: 1, resetAt: now + RL_WINDOW_MS });
+    return { allowed: true, remaining: limit - 1, resetAt: now + RL_WINDOW_MS };
+  }
+  if (b.count >= limit) return { allowed: false, remaining: 0, resetAt: b.resetAt };
+  b.count += 1;
+  return { allowed: true, remaining: limit - b.count, resetAt: b.resetAt };
+}
+
 function sseEvent(event: string, data: unknown): Uint8Array {
   const payload =
     typeof data === "string" ? data : JSON.stringify(data ?? null);
@@ -139,6 +158,33 @@ Deno.serve(async (req) => {
     } catch {
       // anonymous
     }
+  }
+
+  // ── Rate limit ──────────────────────────────────────────────────
+  const rlKey = userId
+    ? `u:${userId}`
+    : `anon:${req.headers.get("x-forwarded-for") ?? "unknown"}`;
+  const rlLimit = userId ? RL_AUTH_LIMIT : RL_ANON_LIMIT;
+  const rl = rlConsume(rlKey, rlLimit);
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: "rate_limited",
+        detail: "Too many messages. Please slow down.",
+        reset_at: rl.resetAt,
+      }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Limit": String(rlLimit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(rl.resetAt),
+          "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
   }
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
