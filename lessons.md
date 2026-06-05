@@ -1044,3 +1044,13 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
    - When introducing typing imports automatically (like `from typing import Optional`), ensure they are not inserted *before* any `from __future__ import annotations` imports. If a file contains `from __future__` imports, they must remain the absolute first statement in the file (excluding docstrings) to avoid a `SyntaxError: from __future__ imports must occur at the beginning of the file`.
 
 
+### 83. End-to-End Python 3.9 Import Compatibility & Mock Test Warnings (June 2026)
+- **Problem**: 
+  - **TypeError on Union Annotations**: Even after PEP 604 `|` types are replaced, compound type annotations like `str | Optional[list[str]]` (e.g. in `lightrag_service.py`) cause runtime `TypeError: unsupported operand type(s) for |` under Python 3.9 because they are evaluated at definition time.
+  - **datetime.UTC ImportError**: The `datetime.UTC` alias was introduced in Python 3.11, causing an `ImportError` when run under Python 3.9.
+  - **Unawaited Coroutine Warning**: The unit test `test_verify_answer_node` threw a `RuntimeWarning` because the mocked `_ollama.generate` method returned an unawaited coroutine by default.
+- **Solution**:
+  - **Add Future Annotations**: Added `from __future__ import annotations` at the absolute top of `lightrag_service.py`, `serene_mind_engine.py`, `dependencies.py`, `auth_service.py`, and `telemetry_db.py` to postpone annotation evaluation, making modern type annotations valid under Python 3.9 at runtime.
+  - **Use timezone.utc**: Replaced `from datetime import UTC` with `from datetime import timezone; UTC = timezone.utc` in `telemetry_db.py` and `main.py` for backward compatibility.
+  - **Mock generate Return Value**: Configured `mock_ollama.generate.return_value` in the test fixture to return dummy text, resolving the unawaited coroutine warning, and updated the call count assertions.
+- **Lesson learned**: When maintaining compatibility with older Python runtimes like 3.9, use `from __future__ import annotations` as a blanket safety net for modern type signatures, replace Python 3.11 features like `datetime.UTC` with backward-compatible equivalents (`timezone.utc`), and ensure mocked async functions return static values in test fixtures to avoid unawaited coroutines.
