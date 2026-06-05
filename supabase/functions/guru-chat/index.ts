@@ -326,12 +326,13 @@ Deno.serve(async (req) => {
         status: "ok",
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
+        citations,
       });
       return new Response(
         JSON.stringify({
           response: content,
           intent: "CASUAL",
-          citations: [],
+          citations,
           meditation_step: body.meditation_step ?? 0,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
