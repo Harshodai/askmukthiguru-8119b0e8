@@ -40,6 +40,7 @@ class MockEmbeddingService:
 def mock_services():
     # Setup mock services
     mock_ollama = AsyncMock()
+    mock_ollama.generate.return_value = "Alternative answer content\nQuestion 1\nQuestion 2"
     mock_embedder = MockEmbeddingService()
     mock_qdrant = MagicMock()
     mock_lightrag = MagicMock()
@@ -111,7 +112,7 @@ async def test_reflect_on_answer_faithful(mock_services):
 
     assert result["needs_correction"] is False
     assert "Answer appears valid and consistent" in result["reflection_feedback"]
-    mock_ld.score_faithfulness.assert_called_once()
+    assert mock_ld.score_faithfulness.call_count == 2
 
 
 @pytest.mark.asyncio

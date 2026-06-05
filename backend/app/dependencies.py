@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Mukthi Guru — FastAPI Dependency Injection
 

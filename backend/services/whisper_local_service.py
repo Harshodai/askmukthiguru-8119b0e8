@@ -12,11 +12,10 @@ Usage:
   text = transcribe_with_whisper(video_id, audio)
 """
 
-from typing import Optional
-
 import logging
 import os
 import subprocess
+from typing import Optional
 
 from app.config import settings
 

@@ -8,14 +8,13 @@ Shared validation and sanitization helpers for critical security fixes:
 - CSRF token generation and validation
 """
 
-from typing import Optional
-
 import hashlib
 import hmac
 import os
 import re
 import secrets
 import time
+from typing import Optional
 
 # YouTube video ID: exactly 11 characters, alphanumeric, hyphen, underscore
 _YOUTUBE_VIDEO_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{11}$")

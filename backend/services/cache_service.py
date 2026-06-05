@@ -10,11 +10,10 @@ Zero-cost caching using Python stdlib. No external dependencies.
 Invalidated automatically when new content is ingested.
 """
 
-from typing import Optional
-
 import hashlib
 import logging
 import time
+from typing import Optional
 
 from cachetools import TTLCache
 

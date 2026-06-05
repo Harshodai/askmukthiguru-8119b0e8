@@ -5,12 +5,11 @@ Automates unlocking the macOS keychain and extracting cookies from Chrome or Saf
 using yt-dlp, resolving any keychain password prompts automatically.
 """
 
-from typing import Optional
-
 import logging
 import os
 import platform
 import subprocess
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

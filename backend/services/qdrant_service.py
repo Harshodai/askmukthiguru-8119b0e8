@@ -10,12 +10,12 @@ Supports:
 """
 
 from __future__ import annotations
-from typing import Optional
 
 import functools
 import logging
 import time
 import uuid
+from typing import Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Mukthi Guru — Admin Telemetry Database (Supabase Version)
 
@@ -7,8 +9,10 @@ evaluations, and user feedback via Supabase.
 
 import logging
 import re
-from datetime import UTC, datetime, timedelta
-from typing import Optional, Any
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
+from typing import Any, Optional
 
 from supabase import Client, create_client
 

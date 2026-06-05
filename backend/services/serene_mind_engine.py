@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Mukthi Guru — Serene Mind Emotional Intelligence Engine
 
@@ -17,13 +19,12 @@ Distress Levels:
   - CRISIS → Immediate danger, helpline information first
 """
 
-from typing import Optional
-
 import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import Optional
 
 import numpy as np
 

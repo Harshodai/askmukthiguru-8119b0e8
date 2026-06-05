@@ -1,11 +1,10 @@
-from typing import Optional
-
 import json
 import logging
 import re
 import time
 from dataclasses import asdict, dataclass
 from enum import Enum
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

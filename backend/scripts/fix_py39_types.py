@@ -1,4 +1,3 @@
-from typing import Optional
 
 #!/usr/bin/env python3
 """
@@ -6,9 +5,10 @@ Replace Python 3.10+ type annotations (Optional[str], list[str], dict[K,V])
 with Python 3.9 compatible versions (Optional[str], List[str], Dict[K,V]).
 Adds from typing import Optional, List, Dict, Any where needed.
 """
+import os
 import re
 import sys
-import os
+
 
 def fix_file(filepath):
     with open(filepath) as f:
