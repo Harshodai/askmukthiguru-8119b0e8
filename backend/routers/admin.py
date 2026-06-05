@@ -425,3 +425,131 @@ async def ask_admin_question(
     except Exception as e:
         logger.error(f"Error in ask_admin_question: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Unit 23: Cost Attribution Endpoints ──────────────────────────────
+
+@admin_router.get("/cost/usage")
+async def get_cost_usage(
+    tenant_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    days: int = Query(30, ge=1, le=365),
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Get token usage and cost report. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from dataclasses import asdict
+    from services.cost_tracker import get_cost_tracker
+    tracker = get_cost_tracker()
+    report = tracker.get_usage_report(tenant_id=tenant_id, user_id=user_id, days=days)
+    return {
+        "tenant_id": report.tenant_id,
+        "period_days": report.period_days,
+        "total_tokens_in": report.total_tokens_in,
+        "total_tokens_out": report.total_tokens_out,
+        "total_tokens": report.total_tokens,
+        "total_cost_usd": report.total_cost_usd,
+        "unique_users": report.unique_users,
+        "unique_sessions": report.unique_sessions,
+        "by_model": report.by_model,
+        "by_provider": report.by_provider,
+    }
+
+
+@admin_router.get("/cost/daily/{tenant_id}")
+async def get_daily_cost(
+    tenant_id: str,
+    days: int = Query(7, ge=1, le=90),
+    user: dict = Depends(get_current_user_from_supabase),
+) -> list[dict[str, Any]]:
+    """Get day-by-day cost breakdown for a tenant. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.cost_tracker import get_cost_tracker
+    return get_cost_tracker().get_daily_usage(tenant_id, days=days)
+
+
+# ── Unit 22: Prompt Versioning Endpoints ─────────────────────────────
+
+@admin_router.get("/prompt-store/names")
+async def list_prompt_names(
+    user: dict = Depends(get_current_user_from_supabase),
+) -> list[str]:
+    """List all prompt names in the prompt store. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.prompt_store import get_prompt_store
+    return get_prompt_store().list_prompt_names()
+
+
+@admin_router.get("/prompt-store/{name}/versions")
+async def list_prompt_versions(
+    name: str,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> list[dict[str, Any]]:
+    """List all versions of a prompt. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.prompt_store import get_prompt_store
+    store = get_prompt_store()
+    versions = store.list_versions(name)
+    return [
+        {
+            "id": v.id, "name": v.name, "version": v.version,
+            "description": v.description, "author": v.author,
+            "created_at": v.created_iso, "is_active": v.is_active,
+            "content_length": len(v.content),
+        }
+        for v in versions
+    ]
+
+
+@admin_router.post("/prompt-store/{name}/rollback/{version}")
+async def rollback_prompt(
+    name: str,
+    version: str,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Rollback a prompt to a specific version. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.prompt_store import get_prompt_store
+    result = get_prompt_store().rollback(name, version)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Version {version} of {name} not found")
+    return {"status": "rolled_back", "name": name, "version": version}
+
+
+# ── Unit 16: A/B Testing Endpoints ───────────────────────────────────
+
+@admin_router.get("/ab-tests")
+async def list_ab_experiments(
+    user: dict = Depends(get_current_user_from_supabase),
+) -> list[dict[str, Any]]:
+    """List all registered A/B experiments. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.ab_testing import get_ab_router
+    return get_ab_router().list_experiments()
+
+
+@admin_router.get("/ab-tests/{experiment}/assign")
+async def preview_ab_assignment(
+    experiment: str,
+    user_id: str = Query(..., description="User UUID to preview assignment for"),
+    caller: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Preview A/B variant assignment for a user. Admin only."""
+    if not caller.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.ab_testing import get_ab_router
+    result = get_ab_router().assign(user_id, experiment)
+    return {
+        "experiment": result.experiment_name,
+        "user_id": result.user_id,
+        "variant": result.variant,
+        "is_control": result.is_control,
+        "assignment_hash": result.assignment_hash,
+    }
+
