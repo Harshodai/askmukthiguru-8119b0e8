@@ -27,6 +27,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from services.streaming_hardening import StreamInterruptedError, guarded_stream  # Unit 18
+
 from app.config import settings
 from rag.prompts import (
     BATCH_GRADE_PROMPT,
@@ -43,6 +45,17 @@ from rag.prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ModelUnavailableError(Exception):  # Unit 25
+    """Raised when the primary Ollama model is unreachable or circuit-open.
+
+    ``is_transient`` hints whether a retry with a different provider might succeed.
+    """
+
+    def __init__(self, reason: str, is_transient: bool = True) -> None:
+        self.is_transient = is_transient
+        super().__init__(reason)
 
 
 class CircuitState(Enum):
@@ -206,11 +219,12 @@ class OllamaService:
         timeout = kwargs.pop("timeout", settings.llm_timeout)
         max_retries = kwargs.pop("max_retries", 1)
 
-        # Circuit breaker: fail-fast if too many consecutive failures
+        # Circuit breaker: fail-fast if too many consecutive failures (Unit 25)
         if not self._circuit_breaker.can_execute():
-            raise Exception(
+            raise ModelUnavailableError(
                 f"Ollama circuit breaker is OPEN — failing fast. "
-                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
+                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout.",
+                is_transient=True,
             )
 
         retryer = AsyncRetrying(
@@ -250,6 +264,10 @@ class OllamaService:
 
                     self._circuit_breaker.record_success()
                     return content
+        except (asyncio.TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            self._circuit_breaker.record_failure()
+            logger.error(f"Ollama generation failed (transient): {type(e).__name__}: {e}")
+            raise ModelUnavailableError(str(e), is_transient=True) from e
         except Exception as e:
             self._circuit_breaker.record_failure()
             logger.error(f"Ollama generation failed: {e}")
@@ -277,11 +295,12 @@ class OllamaService:
         timeout = kwargs.pop("timeout", _FAST_TIMEOUT)
         max_retries = kwargs.pop("max_retries", _FAST_RETRIES)
 
-        # Circuit breaker: fail-fast if too many consecutive failures
+        # Circuit breaker: fail-fast if too many consecutive failures (Unit 25)
         if not self._circuit_breaker.can_execute():
-            raise Exception(
+            raise ModelUnavailableError(
                 f"Ollama circuit breaker is OPEN — failing fast. "
-                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
+                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout.",
+                is_transient=True,
             )
 
         retryer = AsyncRetrying(
@@ -334,9 +353,10 @@ class OllamaService:
         max_retries = kwargs.pop("max_retries", 1)
 
         if not self._circuit_breaker.can_execute():
-            raise Exception(
+            raise ModelUnavailableError(
                 f"Ollama circuit breaker is OPEN — failing fast. "
-                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout."
+                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout.",
+                is_transient=True,
             )
 
         messages = [SystemMessage(content=system_prompt)]
@@ -353,7 +373,8 @@ class OllamaService:
             reraise=True,
         )
 
-        try:
+        async def _raw_stream() -> AsyncIterator[str]:
+            """Inner generator — yields filtered tokens from the chain."""
             async for attempt in retryer:
                 with attempt:
                     chain = self._llm.bind(**kwargs) if kwargs else self._llm
@@ -383,6 +404,19 @@ class OllamaService:
                                 text = text[start + 7:]
                                 in_think_block = True
             self._circuit_breaker.record_success()
+
+        # Unit 18: wrap in guarded_stream to handle mid-stream failures gracefully
+        try:
+            async for token in guarded_stream(_raw_stream()):
+                yield token
+        except StreamInterruptedError:
+            self._circuit_breaker.record_failure()
+            # StreamInterruptedError already yielded the sentinel; just log
+            logger.error("Ollama streaming interrupted mid-stream")
+        except (asyncio.TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            self._circuit_breaker.record_failure()
+            logger.error(f"Ollama streaming failed (transient): {type(e).__name__}: {e}")
+            raise ModelUnavailableError(str(e), is_transient=True) from e
         except Exception as e:
             self._circuit_breaker.record_failure()
             logger.error(f"Ollama streaming failed: {e}")
