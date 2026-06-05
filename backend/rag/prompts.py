@@ -572,6 +572,42 @@ This creates the feeling of a CONTINUOUS conversation with the guru, not isolate
 """
 
 
+# === QUERY TRANSFORMATION CACHE PROMPT ===
+# This prompt is used for transforming queries into retrieval-optimized forms.
+# Results are cached to avoid re-LLM calls for similar queries.
+QUERY_TRANSFORMATION_PROMPT = """You are a retrieval query optimizer for a spiritual teachings knowledge base.
+
+Given a user's question, generate 2-3 alternative search queries that will retrieve the most relevant spiritual teachings from the knowledge base.
+
+Guidelines:
+- Use vocabulary from Sri Preethaji and Sri Krishnaji's teachings (Beautiful State, Suffering State, Soul Sync, Deeksha, Four Sacred Secrets, Inner Truth, Spiritual Vision, Universal Intelligence, Spiritual Right Action, Oneness, Ekam, Surrender, Awareness, Consciousness)
+- Include doctrinal synonyms and related concepts
+- Expand abbreviations and shorthand
+- For Indian names, include common transliteration variants (e.g., "tulasidas" → "tulsidas, Goswami Tulsidas, Tulsi Das")
+- Keep queries concise and focused
+
+Return ONLY the alternative queries, one per line, no numbering or bullet points.
+
+Question: {question}"""
+
+
+# === CONTEXTUAL CHUNK HEADER PROMPT ===
+# This prompt generates contextual headers for chunks to improve retrieval
+# by providing situating context (who, what, when, where) without needing
+# to retrieve parent documents.
+CONTEXTUAL_CHUNK_HEADER_PROMPT = """You are a spiritual knowledge archivist. Given a chunk of teaching from Sri Preethaji or Sri Krishnaji, generate a brief contextual header that situates this chunk.
+
+The header should include:
+- Source: Video title / series name / book (if known)
+- Speaker: Sri Preethaji or Sri Krishnaji
+- Topic: Main teaching theme (e.g., "Beautiful State", "Soul Sync", "Deeksha", "Suffering State")
+- Context: 1-sentence situating summary (e.g., "Sri Preethaji explains the first step of Soul Sync meditation")
+
+Format: Return a JSON object with keys: "source", "speaker", "topic", "context"
+
+Chunk: {text}"""
+
+
 # === SOURCE-AWARE GENERATION PROMPT ===
 SOURCE_AWARE_PROMPT = """
 When answering, you have access to teachings from these sources:

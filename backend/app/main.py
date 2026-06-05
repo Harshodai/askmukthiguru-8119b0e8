@@ -314,6 +314,34 @@ async def inflight_tracker(request: Request, call_next):
         _INFLIGHT -= 1
 
 
+# ── Global request-level timeout middleware ──
+# Caps every HTTP request at pipeline_timeout_budget (default 300s).
+# Streaming (SSE) paths are excluded — they intentionally hold the connection open.
+_STREAMING_PATHS: frozenset[str] = frozenset({"/api/chat/stream"})
+
+
+@app.middleware("http")
+async def request_timeout_middleware(request: Request, call_next):
+    """Global request timeout — belt-and-suspenders safety net for all routes."""
+    if request.url.path in _STREAMING_PATHS:
+        return await call_next(request)
+    timeout_val: float = float(getattr(settings, "pipeline_timeout_budget", 300))
+    try:
+        return await asyncio.wait_for(call_next(request), timeout=timeout_val)
+    except asyncio.TimeoutError:
+        logger.error(
+            f"Global request timeout ({timeout_val:.0f}s) on {request.method} {request.url.path}"
+        )
+        REQUEST_COUNT.labels(status="timeout").inc()
+        return JSONResponse(
+            status_code=504,
+            content={
+                "error": "Gateway Timeout",
+                "message": "The request took too long to process. Please try again.",
+            },
+        )
+
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

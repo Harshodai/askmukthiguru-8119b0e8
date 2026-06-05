@@ -32,7 +32,10 @@
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "code-review-graph"
+    "code-review-graph",
+    "graphify",
+    "claude-mem",
+    "codegraph"
   ],
   "sandbox": {
     "enabled": true,
