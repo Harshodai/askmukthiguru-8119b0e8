@@ -481,6 +481,83 @@ export type Database = {
         }
         Relationships: []
       }
+      kb_chunks: {
+        Row: {
+          created_at: string
+          embedding: string | null
+          id: string
+          ord: number
+          source_id: string
+          text: string
+          token_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          ord?: number
+          source_id: string
+          text: string
+          token_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          ord?: number
+          source_id?: string
+          text?: string
+          token_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "kb_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_sources: {
+        Row: {
+          chunk_count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          metadata: Json
+          status: string
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          chunk_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          status?: string
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          chunk_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       meditation_sessions: {
         Row: {
           breath_cycles: number | null
@@ -792,6 +869,22 @@ export type Database = {
           created_at: string
           email: string
           id: string
+        }[]
+      }
+      match_kb_chunks: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          query_embedding: string
+        }
+        Returns: {
+          id: string
+          ord: number
+          similarity: number
+          source_id: string
+          source_title: string
+          source_url: string
+          text: string
         }[]
       }
       promote_admin_by_email: { Args: { _email: string }; Returns: Json }

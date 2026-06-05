@@ -63,6 +63,69 @@ function sseEvent(event: string, data: unknown): Uint8Array {
   return new TextEncoder().encode(`event: ${event}\ndata: ${payload}\n\n`);
 }
 
+interface Citation {
+  source_id: string;
+  title: string;
+  url: string | null;
+  ord: number;
+  similarity: number;
+  snippet: string;
+}
+
+// ── Retrieval: embed query → top-K pgvector search ────────────────
+async function retrieveContext(
+  admin: ReturnType<typeof createClient>,
+  apiKey: string,
+  query: string,
+): Promise<{ context: string; citations: Citation[] }> {
+  try {
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "google/text-embedding-004", input: [query] }),
+    });
+    if (!r.ok) {
+      console.warn("embed_failed", r.status, (await r.text()).slice(0, 200));
+      return { context: "", citations: [] };
+    }
+    const j = await r.json();
+    const embedding: number[] | undefined = j.data?.[0]?.embedding;
+    if (!embedding) return { context: "", citations: [] };
+
+    const { data, error } = await admin.rpc("match_kb_chunks", {
+      query_embedding: embedding as unknown as string,
+      match_count: 6,
+      min_similarity: 0.35,
+    });
+    if (error || !Array.isArray(data) || data.length === 0) {
+      return { context: "", citations: [] };
+    }
+
+    const citations: Citation[] = data.map((d: {
+      source_id: string; source_title: string; source_url: string | null;
+      ord: number; text: string; similarity: number;
+    }) => ({
+      source_id: d.source_id,
+      title: d.source_title,
+      url: d.source_url,
+      ord: d.ord,
+      similarity: Number(d.similarity?.toFixed?.(3) ?? d.similarity),
+      snippet: d.text.slice(0, 220),
+    }));
+
+    const context = data
+      .map((d: { source_title: string; text: string }, i: number) =>
+        `[${i + 1}] ${d.source_title}\n${d.text}`,
+      )
+      .join("\n\n---\n\n");
+
+    return { context, citations };
+  } catch (e) {
+    console.error("retrieve failed", e);
+    return { context: "", citations: [] };
+  }
+}
+
 async function persistTelemetry(
   admin: ReturnType<typeof createClient>,
   args: {
@@ -73,6 +136,7 @@ async function persistTelemetry(
     status: "ok" | "error";
     promptTokens?: number;
     completionTokens?: number;
+    citations?: Citation[];
   },
 ) {
   try {
@@ -95,7 +159,7 @@ async function persistTelemetry(
       await admin.from("chat_responses").insert({
         query_id: q.id,
         response_text: args.answer,
-        citations: [],
+        citations: args.citations ?? [],
       });
     }
   } catch (e) {
@@ -199,9 +263,22 @@ Deno.serve(async (req) => {
       )
     : [];
 
+  // ── RAG retrieval (best-effort; no-op if KB is empty) ───────────
+  const { context: ragContext, citations } = await retrieveContext(
+    admin,
+    LOVABLE_API_KEY,
+    body.user_message,
+  );
+
+  const ragSystem = ragContext
+    ? `\n\nUse the following grounded teachings to answer when relevant. Cite them inline as [1], [2], etc., matching the numbered context blocks. If they are not relevant, answer from your own grounding without citing.\n\nGROUNDED CONTEXT:\n${ragContext}`
+    : "";
+
   const hasSystem = history.some((m) => m.role === "system");
   const llmMessages: IncomingMessage[] = [
-    ...(hasSystem ? [] : [{ role: "system" as const, content: DEFAULT_SYSTEM_PROMPT }]),
+    ...(hasSystem
+      ? []
+      : [{ role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem }]),
     ...history,
     { role: "user" as const, content: body.user_message },
   ];
@@ -249,12 +326,13 @@ Deno.serve(async (req) => {
         status: "ok",
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
+        citations,
       });
       return new Response(
         JSON.stringify({
           response: content,
           intent: "CASUAL",
-          citations: [],
+          citations,
           meditation_step: body.meditation_step ?? 0,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -306,7 +384,7 @@ Deno.serve(async (req) => {
           controller.enqueue(
             sseEvent("error", `upstream ${upstream.status}: ${text.slice(0, 200)}`),
           );
-          controller.enqueue(sseEvent("done", { intent: "CASUAL", citations: [], meditation_step: 0 }));
+          controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
           controller.close();
           return;
         }
@@ -343,14 +421,14 @@ Deno.serve(async (req) => {
         controller.enqueue(
           sseEvent("done", {
             intent: "CASUAL",
-            citations: [],
+            citations,
             meditation_step: body.meditation_step ?? 0,
           }),
         );
       } catch (e) {
         status = "error";
         controller.enqueue(sseEvent("error", String(e)));
-        controller.enqueue(sseEvent("done", { intent: "CASUAL", citations: [], meditation_step: 0 }));
+        controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
       } finally {
         controller.close();
         await persistTelemetry(admin, {
@@ -359,6 +437,7 @@ Deno.serve(async (req) => {
           answer: fullAnswer,
           latencyMs: Date.now() - startedAt,
           status,
+          citations,
         });
       }
     },
