@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
@@ -347,7 +347,155 @@ const AuthPage = () => {
     }
   };
 
+  // Facebook OAuth handler
+  const [facebookStep, setFacebookStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
+  
+  const handleFacebookSignIn = async () => {
+    setLoading(true);
+    setError(null);
+    setFacebookStep('connecting');
+    startAuthRun('facebook');
+    const clickT0 = performance.now();
+    recordStep('click_facebook', 'ok', 0);
+    
+    const redirectTimer = window.setTimeout(() => {
+      setFacebookStep((s) => (s === 'connecting' ? 'redirecting' : s));
+    }, 400);
+    
+    try {
+      const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
+      sessionStorage.setItem('askmukthiguru_facebook_step', '1');
+      
+      if (useNativeOAuth) {
+        const initT0 = performance.now();
+        const { error: supabaseError } = await supabase.auth.signInWithOAuth({
+          provider: 'facebook',
+          options: {
+            redirectTo: window.location.href,
+          },
+        });
+        recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+          error: supabaseError?.message,
+          meta: { mode: 'native', provider: 'facebook' },
+        });
+        if (supabaseError) throw supabaseError;
+        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+        return;
+      }
+      
+      // Lovable wrapper for Facebook
+      const initT0 = performance.now();
+      const result = await lovable.auth.signInWithOAuth('facebook' as any, {
+        redirect_uri: window.location.origin,
+      });
+      recordStep('oauth_init', result.error ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+        error: result.error instanceof Error ? result.error.message : undefined,
+        meta: { mode: 'lovable', provider: 'facebook', redirected: !!result.redirected },
+      });
+      
+      if (result.error) {
+        const message = result.error instanceof Error ? result.error.message : 'Facebook sign-in failed. Please try again.';
+        setError(message);
+        sessionStorage.removeItem('askmukthiguru_facebook_step');
+        setFacebookStep('idle');
+        endAuthRun('error', message);
+        return;
+      }
+      if (result.redirected) {
+        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+        return;
+      }
+      
+      setFacebookStep('finalizing');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not connect to Facebook.';
+      console.error('[Facebook Auth Error]', err);
+      setError('Could not connect to Facebook. Please try again.');
+      sessionStorage.removeItem('askmukthiguru_facebook_step');
+      setFacebookStep('idle');
+      endAuthRun('error', message);
+    } finally {
+      window.clearTimeout(redirectTimer);
+      setLoading(false);
+    }
+  };
+
   const googleBusy = googleStep !== 'idle';
+  const facebookBusy = facebookStep !== 'idle';
+  
+  // Google One Tap initialization
+  useEffect(() => {
+    // Skip if already authenticated or in sign-up mode
+    if (loading || isSignUp) return;
+    
+    const initializeGoogleOneTap = () => {
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        console.warn('[Google One Tap] VITE_GOOGLE_CLIENT_ID not configured');
+        return;
+      }
+      
+      // Load Google Identity Services script
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if (typeof window.google !== 'undefined') {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleOneTapResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+          
+          // Display the One Tap prompt
+          window.google.accounts.id.prompt((notification: any) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              console.log('[Google One Tap]', notification.getNotDisplayedReason() || notification.getSkippedReason());
+            }
+          });
+        }
+      };
+      document.body.appendChild(script);
+      
+      return () => {
+        document.body.removeChild(script);
+      };
+    };
+    
+    const timer = setTimeout(initializeGoogleOneTap, 1000);
+    return () => clearTimeout(timer);
+  }, [loading, isSignUp]);
+  
+  const handleGoogleOneTapResponse = useCallback(async (response: any) => {
+    try {
+      setLoading(true);
+      startAuthRun('google_one_tap');
+      
+      // Exchange the credential with Supabase
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.credential,
+      });
+      
+      if (error) throw error;
+      
+      recordStep('google_one_tap', 'ok', 0);
+      endAuthRun('ok');
+      
+      toast({
+        title: 'Welcome back!',
+        description: 'Signed in with Google One Tap',
+      });
+    } catch (err) {
+      console.error('[Google One Tap Error]', err);
+      setError('Google One Tap sign-in failed. Please try again.');
+      endAuthRun('error', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
   const googleStepLabel: Record<GoogleStep, string> = {
     idle: 'Continue with Google',
     connecting: 'Connecting to Google…',
@@ -442,6 +590,31 @@ const AuthPage = () => {
               })}
             </ol>
           )}
+          
+          {/* Facebook Sign-In Button */}
+          <Button
+            variant="outline"
+            className="w-full h-11 gap-2 relative overflow-hidden"
+            onClick={handleFacebookSignIn}
+            disabled={loading || facebookBusy}
+            aria-live="polite"
+          >
+            {facebookBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#1877F2" d="M48 24C48 10.745 37.255 0 24 0S0 10.745 0 24c0 11.979 8.776 21.908 20.25 23.708v-16.77h-6.094V24h6.094v-5.288c0-6.014 3.583-9.337 9.065-9.337 2.625 0 5.372.469 5.372.469v5.906h-3.026c-2.981 0-3.911 1.850-3.911 3.75V24h6.656l-1.064 6.938H27.75v16.77C39.224 45.908 48 35.978 48 24z"/>
+              <path fill="#fff" d="M33.342 30.938L34.406 24H27.75v-4.5c0-1.9.93-3.75 3.911-3.75h3.026V9.844s-2.747-.469-5.372-.469c-5.482 0-9.065 3.323-9.065 9.337V24h-6.094v6.938h6.094v16.77a24.175 24.175 0 007.5 0v-16.77h5.592z"/>
+            </svg>
+            <span className="text-sm">
+              {facebookBusy ? 'Connecting to Facebook…' : 'Continue with Facebook'}
+            </span>
+            {facebookBusy && (
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 left-0 h-0.5 bg-[#1877F2]/70 transition-all duration-500 ease-out"
+                style={{ width: '50%' }}
+              />
+            )}
+          </Button>
         </div>
 
 
