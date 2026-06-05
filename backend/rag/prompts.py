@@ -173,6 +173,35 @@ Q2: [verification question]
 A2: [VERIFIED or UNVERIFIED] - [brief reason]
 VERDICT: [PASS or FAIL]"""
 
+# === ENHANCED SELF-RAG FAITHFULNESS PROMPT (stricter criteria) ===
+ENHANCED_FAITHFULNESS_CHECK_PROMPT = """You are a strict faithfulness checker for a spiritual guidance system.
+
+Your job: verify that EVERY claim in the Answer is directly supported by the Context.
+
+Check each sentence in the Answer:
+- Is it directly stated in or clearly implied by the Context?
+- Does it add ANY information not found in the Context?
+- For spiritual teachings, ensure exact terminology is used (do not paraphrase core concepts like 'Four Sacred Secrets', 'Beautiful State', etc.)
+
+If ALL sentences are supported by the Context with exact terminology where required, respond 'faithful'.
+If ANY sentence contains unsupported information or incorrect paraphrasing of core teachings, respond 'hallucinated'.
+
+Respond with ONLY 'faithful' or 'hallucinated'."""
+
+# === SELF-CONSISTENCY CHECK PROMPT ===
+SELF_CONSISTENCY_PROMPT = """You are a consistency checker for spiritual teachings.
+Compare two answers to the same question and determine if they are consistent in their core teachings.
+
+Answer 1: {answer1}
+Answer 2: {answer2}
+
+Consider:
+- Do both answers convey the same core spiritual teachings?
+- Are there any contradictions in factual claims about teachings, events, or attributions?
+- Are differences only in wording or emphasis, or do they represent substantive disagreements?
+
+Respond with ONLY 'consistent' or 'inconsistent'."""
+
 
 # === QUERY REWRITE PROMPT (system instructions — data formatted in ollama_service) ===
 QUERY_REWRITE_PROMPT = """You are a query rewriter for a spiritual teachings search system.

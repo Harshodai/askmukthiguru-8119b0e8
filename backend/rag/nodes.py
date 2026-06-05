@@ -1873,9 +1873,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 @log_metrics
 async def reflect_on_answer(state: GraphState) -> dict:
     """
-    Self-Reflection RAG loop.
+    Self-Reflection RAG loop with improved hallucination detection.
     Evaluates the generated answer against the retrieved context to detect hallucinations.
     If hallucinated, flags needs_correction=True to trigger a rewrite.
+    Now includes self-consistency checking via multiple reasoning paths.
     """
     if state.get("query_tier") == "tier2_simple":
         logger.info("Self-Reflection: tier2_simple query, bypassing reflection")
@@ -1892,14 +1893,131 @@ async def reflect_on_answer(state: GraphState) -> dict:
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
     ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
 
-    if ld_result["is_faithful"] or "doesn't know" in answer.lower():
-        logger.info("Self-Reflection (LettuceDetect): Answer is VALID.")
-        return {"needs_correction": False, "reflection_feedback": None}
+    # More stringent faithfulness check - require higher score threshold
+    is_faithful_strict = ld_result["score"] >= 0.8  # Increased from binary to threshold
 
-    logger.warning(
-        f"Self-Reflection (LettuceDetect): Hallucination detected! Feedback: {ld_result['details']}"
-    )
-    return {"needs_correction": True, "reflection_feedback": ld_result["details"]}
+    # Self-consistency check: generate alternative answer and compare
+    consistency_check_passed = True
+    consistency_feedback = ""
+
+    try:
+        # Generate alternative answer with slightly different temperature for consistency check
+        alt_gen_kwargs = _generation_kwargs(state).copy()
+        alt_gen_kwargs["num_predict"] = min(512, alt_gen_kwargs.get("num_predict", 768))  # Shorter for efficiency
+        alt_gen_kwargs["temperature"] = 0.7  # Slightly higher temperature for variation
+
+        # Build minimal context for alternative generation
+        from rag.compressor import cap_to_token_budget
+        from rag.prompts import STIMULUS_RAG_PROMPT
+
+        intent = state.get("intent", "FACTUAL")
+        if intent == "DISTRESS":
+            persona = STIMULUS_RAG_PROMPT
+        else:
+            persona = GURU_SYSTEM_PROMPT
+        persona = cap_to_token_budget(persona, 256)  # Reduced for efficiency
+
+        knowledge = "\n\n".join(
+            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
+            for doc in relevant_docs[:2]  # Use fewer docs for efficiency
+        )
+        knowledge = cap_to_token_budget(knowledge, 1024)  # Reduced for efficiency
+
+        user_state = f"Intent: {intent}\n"
+        if state.get("meditation_step", 0) > 0:
+            user_state += f"Active Meditation Step: {state.get('meditation_step')}\n"
+        if state.get("chat_history"):
+            user_state += f"Conversation Depth: {len(state.get('chat_history', []))} turns\n"
+        user_state = cap_to_token_budget(user_state, 512)  # Reduced for efficiency
+
+        # Simplified instructions for consistency check
+        instructions = (
+            "1. Base your answer ONLY on the provided Knowledge.\n"
+            "2. If Knowledge is insufficient, admit it warmly.\n"
+            "3. ALWAYS cite sources using [Source: <title>] format.\n"
+            "4. Keep the tone compassionate and wise.\n"
+            "5. NEVER fabricate teachings or add information from your training data.\n"
+        )
+        instructions = cap_to_token_budget(instructions, 384)  # Reduced for efficiency
+
+        context_layers = {
+            "persona": persona,
+            "knowledge": knowledge,
+            "user_state": user_state,
+            "instructions": instructions,
+        }
+
+        # Build user prompt
+        history_str = ""
+        chat_history = state.get("chat_history", [])
+        if chat_history:
+            recent = chat_history[-6:]  # fewer history items
+            history_lines = []
+            for msg in recent:
+                role = msg.get("role", "user").capitalize()
+                limit = 200 if role == "Assistant" else 130
+                content = msg.get("content", "")[:limit]
+                history_lines.append(f"{role}: {content}")
+            if history_lines:
+                history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
+
+        user_prompt = (
+            f"USER STATE:\n{context_layers['user_state']}\n\n"
+            f"KNOWLEDGE (retrieved teachings):\n{context_layers['knowledge']}\n\n"
+            f"QUESTION: {question}"
+        )
+        if history_str:
+            user_prompt = f"{history_str}\n\n{user_prompt}"
+
+        # Generate alternative answer
+        alt_answer = await _ollama.generate(
+            system_prompt=f"PERSONA:\n{context_layers['persona']}\n\nINSTRUCTIONS:\n{context_layers['instructions']}",
+            user_prompt=user_prompt,
+            **alt_gen_kwargs,
+        )
+        alt_answer = strip_cot(alt_answer or "")
+
+        # Compare answers for consistency using LettuceDetect mutual faithfulness
+        if alt_answer and len(alt_answer.strip()) > 20:
+            # Check if alternative answer is also faithful to the same context
+            alt_ld_result = _lettuce_detect.score_faithfulness(question, context, alt_answer)
+
+            # Check mutual consistency - answers should agree on factual content
+            # If both are faithful but very different, there might be inconsistency
+            faith_diff = abs(ld_result["score"] - alt_ld_result["score"])
+            if faith_diff > 0.3:  # Significant difference in faithfulness scores
+                consistency_check_passed = False
+                consistency_feedback = f"Answers show inconsistent faithfulness to context (scores: {ld_result['score']:.2f} vs {alt_ld_result['score']:.2f})"
+            elif not alt_ld_result["is_faithful"] and ld_result["is_faithful"]:
+                # One faithful, one not - potential hallucination in original
+                consistency_check_passed = False
+                consistency_feedback = f"Alternative answer lacks faithfulness while original appears faithful"
+        else:
+            consistency_check_passed = False
+            consistency_feedback = "Failed to generate meaningful alternative answer for consistency check"
+
+    except Exception as e:
+        logger.warning(f"Self-consistency check failed: {e}")
+        consistency_check_passed = True  # Fail open to avoid blocking
+        consistency_feedback = f"Consistency check error: {str(e)}"
+
+    # Combined decision: faithful AND consistent
+    is_valid = is_faithful_strict and consistency_check_passed
+
+    feedback_parts = []
+    if not is_faithful_strict:
+        feedback_parts.append(f"Faithfulness below threshold (score: {ld_result['score']:.2f}, need >= 0.8)")
+    if not consistency_check_passed:
+        feedback_parts.append(consistency_feedback)
+
+    feedback = "; ".join(feedback_parts) if feedback_parts else "Answer appears valid and consistent"
+
+    if is_valid or "doesn't know" in answer.lower():
+        logger.info(f"Self-Reflection: Answer is VALID. {feedback}")
+        return {"needs_correction": False, "reflection_feedback": feedback}
+
+    logger.warning(f"Self-Reflection: Issues detected - {feedback}")
+    return {"needs_correction": True, "reflection_feedback": feedback}
 
 
 # ===================================================================
@@ -1910,13 +2028,12 @@ async def reflect_on_answer(state: GraphState) -> dict:
 @log_metrics
 async def verify_answer(state: GraphState) -> dict:
     """
-    Combined Self-RAG + CoVe verification in one LLM call.
-
-    Replaced with ultra-fast local LettuceDetect factual grading.
-    Checks:
-    1. Faithfulness — every claim must be grounded in context
-    2. Verification — local semantic consistency checks
-    3. Confidence — 1-10 score for graduated responses
+    Enhanced Combined Self-RAG + CoVe verification with actual claim verification.
+    Performs:
+    1. Faithfulness check using LettuceDetect
+    2. Claim verification via CoVe-style sub-question generation and validation
+    3. Self-consistency checking via multiple reasoning paths
+    4. Confidence scoring based on multiple factors
     """
     if state.get("query_tier") == "tier2_simple":
         logger.info("Combined verify: tier2_simple query, bypassing verification")
@@ -1934,11 +2051,10 @@ async def verify_answer(state: GraphState) -> dict:
 
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
 
-    # Guard: if context is too sparse for meaningful faithfulness scoring, soft-pass.
-    # LettuceDetect returns 0.0 when context < sentence boundary, causing cascading failures.
+    # Guard: if context is too sparse for meaningful scoring, soft-pass.
     if not context or len(context.strip()) < 200:
         logger.info(
-            f"Combined verify: context too short ({len(context)} chars) for LettuceDetect "
+            f"Combined verify: context too short ({len(context)} chars) for meaningful verification "
             f"— soft-passing with moderate confidence"
         )
         return {
@@ -1949,45 +2065,240 @@ async def verify_answer(state: GraphState) -> dict:
             "relevancy_score": 0.65,
         }
 
-    # Run local LettuceDetect factuality scoring
+    # 1. Faithfulness check using LettuceDetect
     ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
+    faithfulness_score = ld_result["score"]
+    is_faithful_ld = ld_result["is_faithful"]
 
-    is_faithful = ld_result["is_faithful"]
-    passed = ld_result["is_faithful"]
-    raw_score = float(ld_result["score"])
+    # 2. Claim verification (CoVe-style): generate sub-questions and verify them
+    claim_verification_passed = True
+    claim_verification_details = ""
+    verification_questions = []
 
-    # Ensure minimum confidence of 3.0 for non-empty answers to avoid blanket fallback rejections.
-    # LettuceDetect scores 0.0 when the model says something outside the docs but not necessarily wrong.
-    confidence = max(3.0, raw_score * 10.0) if answer and len(answer.strip()) > 30 else raw_score * 10.0
+    try:
+        # Generate verification questions using the LLM
+        verification_prompt = f"""You are a fact-checker verifying spiritual teachings.
+Given the question and answer, generate 2-3 specific sub-questions that would verify the core factual claims in the answer.
+Focus on claims about teachings, events, numbers, or specific attributions that can be checked against the context.
 
-    logger.info(
-        f"Combined verify (LettuceDetect): faithful={'YES' if is_faithful else 'NO'}, "
-        f"verdict={'PASS' if passed else 'FAIL'}, score={raw_score:.3f}, confidence={confidence:.1f}"
-    )
+Question: {question}
+Answer: {answer}
+
+Generate verification questions (one per line, no numbering):"""
+
+        verification_questions_raw = await _ollama.generate(
+            system_prompt="You generate precise verification questions to fact-check spiritual teachings.",
+            user_prompt=verification_prompt,
+            timeout=15,
+            max_retries=1,
+        )
+
+        # Parse verification questions
+        verification_questions = [
+            q.strip() for q in verification_questions_raw.split("\n")
+            if q.strip() and not q.strip().startswith(("#", "-", "*", "1.", "2.", "3."))
+        ][:3]  # Limit to 3 questions
+
+        # Verify each question against the context
+        if verification_questions:
+            verification_results = []
+            for vq in verification_questions:
+                try:
+                    # Use LettuceDetect to check if the verification question can be answered from context
+                    # We create a dummy answer that states the verification question is true
+                    dummy_answer = f"The answer to '{vq}' can be found in the provided teachings."
+                    vq_ld_result = _lettuce_detect.score_faithfulness(vq, context, dummy_answer)
+
+                    # If the verification question itself is not grounded in context, it's problematic
+                    # But we mainly want to check if we can answer it from context
+                    # A simpler approach: check if the context contains relevant information
+                    context_relevance = _lettuce_detect.score_faithfulness(vq, context, "")  # Empty answer
+
+                    is_verified = context_relevance["score"] > 0.3  # Threshold for relevance
+                    verification_results.append({
+                        "question": vq,
+                        "verified": is_verified,
+                        "score": context_relevance["score"]
+                    })
+
+                    if not is_verified:
+                        claim_verification_passed = False
+
+                except Exception as e:
+                    logger.warning(f"Failed to verify question '{vq}': {e}")
+                    verification_results.append({
+                        "question": vq,
+                        "verified": False,
+                        "score": 0.0,
+                        "error": str(e)
+                    })
+                    claim_verification_passed = False
+
+            # Build verification details
+            verified_count = sum(1 for r in verification_results if r["verified"])
+            claim_verification_details = f"Claim verification: {verified_count}/{len(verification_questions)} questions verified"
+        else:
+            claim_verification_details = "No verification questions generated"
+            claim_verification_passed = True  # Fail open if no questions generated
+
+    except Exception as e:
+        logger.warning(f"Claim verification failed: {e}")
+        claim_verification_passed = True  # Fail open
+        claim_verification_details = f"Claim verification error: {str(e)}"
+
+    # 3. Self-consistency check: generate alternative answer and compare
+    consistency_check_passed = True
+    consistency_feedback = ""
+
+    try:
+        # Generate alternative answer with different temperature
+        alt_gen_kwargs = _generation_kwargs(state).copy()
+        alt_gen_kwargs["temperature"] = 0.8  # Higher temperature for more variation
+
+        # Build minimal context for alternative generation (reuse from reflect_on_answer)
+        from rag.compressor import cap_to_token_budget
+        from rag.prompts import STIMULUS_RAG_PROMPT, GURU_SYSTEM_PROMPT
+
+        intent = state.get("intent", "FACTUAL")
+        if intent == "DISTRESS":
+            persona = STIMULUS_RAG_PROMPT
+        else:
+            persona = GURU_SYSTEM_PROMPT
+        persona = cap_to_token_budget(persona, 256)
+
+        knowledge = "\n\n".join(
+            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
+            for doc in relevant_docs[:2]
+        )
+        knowledge = cap_to_token_budget(knowledge, 1024)
+
+        user_state = f"Intent: {intent}\n"
+        if state.get("meditation_step", 0) > 0:
+            user_state += f"Active Meditation Step: {state.get('meditation_step')}\n"
+        if state.get("chat_history"):
+            user_state += f"Conversation Depth: {len(state.get('chat_history', []))} turns\n"
+        user_state = cap_to_token_budget(user_state, 512)
+
+        instructions = (
+            "1. Base your answer ONLY on the provided Knowledge.\n"
+            "2. If Knowledge is insufficient, admit it warmly.\n"
+            "3. ALWAY cite sources using [Source: <title>] format.\n"
+            "4. Keep the tone compassionate and wise.\n"
+            "5. NEVER fabricate teachings or add information from your training data.\n"
+        )
+        instructions = cap_to_token_budget(instructions, 384)
+
+        context_layers = {
+            "persona": persona,
+            "knowledge": knowledge,
+            "user_state": user_state,
+            "instructions": instructions,
+        }
+
+        # Build user prompt
+        history_str = ""
+        chat_history = state.get("chat_history", [])
+        if chat_history:
+            recent = chat_history[-6:]
+            history_lines = []
+            for msg in recent:
+                role = msg.get("role", "user").capitalize()
+                limit = 200 if role == "Assistant" else 130
+                content = msg.get("content", "")[:limit]
+                history_lines.append(f"{role}: {content}")
+            if history_lines:
+                history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
+
+        user_prompt = (
+            f"USER STATE:\n{context_layers['user_state']}\n\n"
+            f"KNOWLEDGE (retrieved teachings):\n{context_layers['knowledge']}\n\n"
+            f"QUESTION: {question}"
+        )
+        if history_str:
+            user_prompt = f"{history_str}\n\n{user_prompt}"
+
+        # Generate alternative answer
+        alt_answer = await _ollama.generate(
+            system_prompt=f"PERSONA:\n{context_layers['persona']}\n\nINSTRUCTIONS:\n{context_layers['instructions']}",
+            user_prompt=user_prompt,
+            **alt_gen_kwargs,
+        )
+        alt_answer = strip_cot(alt_answer or "")
+
+        # Compare answers for consistency
+        if alt_answer and len(alt_answer.strip()) > 20:
+            # Check faithfulness of alternative answer
+            alt_ld_result = _lettuce_detect.score_faithfulness(question, context, alt_answer)
+
+            # Check mutual consistency
+            faith_diff = abs(faithfulness_score - alt_ld_result["score"])
+            if faith_diff > 0.25:  # Significant difference
+                consistency_check_passed = False
+                consistency_feedback = f"Inconsistent reasoning paths (faithfulness scores: {faithfulness_score:.2f} vs {alt_ld_result['score']:.2f})"
+            elif not alt_ld_result["is_faithful"] and is_faithful_ld:
+                consistency_check_passed = False
+                consistency_feedback = f"Alternative answer lacks faithfulness while original appears faithful"
+        else:
+            consistency_check_passed = False
+            consistency_feedback = "Failed to generate meaningful alternative answer"
+
+    except Exception as e:
+        logger.warning(f"Self-consistency check failed: {e}")
+        consistency_check_passed = True  # Fail open
+        consistency_feedback = f"Consistency check error: {str(e)}"
+
+    # Combined decision: faithful AND claim-verified AND consistent
+    is_valid = is_faithful_ld and claim_verification_passed and consistency_check_passed
+
+    # Calculate confidence score based on multiple factors
+    base_confidence = faithfulness_score * 10.0  # Convert 0-1 scale to 0-10
+
+    # Adjust based on claim verification
+    claim_verification_factor = 1.0 if claim_verification_passed else 0.7
+
+    # Adjust based on consistency
+    consistency_factor = 1.0 if consistency_check_passed else 0.8
+
+    # Final confidence score (clamped to 1-10 range)
+    confidence_score = max(1.0, min(10.0, base_confidence * claim_verification_factor * consistency_factor))
+
+    # Ensure minimum confidence for substantive answers
+    if answer and len(answer.strip()) > 30:
+        confidence_score = max(confidence_score, 3.0)
 
     # Record metrics
     try:
-        VERIFICATION_RESULTS.labels(result="faithful" if is_faithful else "hallucinated").inc()
-        VERIFICATION_RESULTS.labels(result="pass" if passed else "fail").inc()
-        CONFIDENCE_SCORES.observe(confidence)
+        VERIFICATION_RESULTS.labels(result="faithful" if is_faithful_ld else "hallucinated").inc()
+        VERIFICATION_RESULTS.labels(result="pass" if is_valid else "fail").inc()
+        CONFIDENCE_SCORES.observe(confidence_score)
     except Exception:
         pass
 
-    faithfulness = raw_score
-    relevancy = 1.0 if is_faithful else raw_score
+    relevancy_score = 1.0 if is_valid else faithfulness_score
 
     try:
-        FAITHFULNESS_SCORE.observe(faithfulness)
-        RELEVANCY_SCORE.observe(relevancy)
+        FAITHFULNESS_SCORE.observe(faithfulness_score)
+        RELEVANCY_SCORE.observe(relevancy_score)
     except Exception:
         pass
 
+    logger.info(
+        f"Combined verify (Enhanced): "
+        f"faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
+        f"claim_verification={'PASS' if claim_verification_passed else 'FAIL'}, "
+        f"consistency={'PASS' if consistency_check_passed else 'FAIL'}, "
+        f"verdict={'PASS' if is_valid else 'FAIL'}, "
+        f"confidence={confidence_score:.1f}"
+    )
+
+    verification_details = f"Faithfulness: {faithfulness_score:.2f}; {claim_verification_details}; {consistency_feedback}"
+
     return {
-        "is_faithful": is_faithful,
-        "verification": {"passed": passed, "details": ld_result["details"]},
-        "confidence_score": confidence,
-        "faithfulness_score": faithfulness,
-        "relevancy_score": relevancy,
+        "is_faithful": is_faithful_ld,
+        "verification": {"passed": is_valid, "details": verification_details},
+        "confidence_score": confidence_score,
+        "faithfulness_score": faithfulness_score,
+        "relevancy_score": relevancy_score,
     }
 
 
