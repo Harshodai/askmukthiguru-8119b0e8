@@ -1054,3 +1054,64 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
   - **Use timezone.utc**: Replaced `from datetime import UTC` with `from datetime import timezone; UTC = timezone.utc` in `telemetry_db.py` and `main.py` for backward compatibility.
   - **Mock generate Return Value**: Configured `mock_ollama.generate.return_value` in the test fixture to return dummy text, resolving the unawaited coroutine warning, and updated the call count assertions.
 - **Lesson learned**: When maintaining compatibility with older Python runtimes like 3.9, use `from __future__ import annotations` as a blanket safety net for modern type signatures, replace Python 3.11 features like `datetime.UTC` with backward-compatible equivalents (`timezone.utc`), and ensure mocked async functions return static values in test fixtures to avoid unawaited coroutines.
+
+### 84. Distributed Tracing in Asynchronous Pipelines without OpenTelemetry Overhead (June 2026)
+- **Problem**: Custom backend pipelines (like multi-node LangGraph setups) execute complex asynchronous functions, making sequential logs hard to correlate. Injecting full OpenTelemetry (OTEL) collectors adds container memory overhead and external network dependencies that can block dev environments when tracing servers are down.
+- **Solution**: Developed a dual-mode tracing framework inside [tracing.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/tracing.py). It implements a lightweight, native context manager (`rag_span`) and a decorator (`trace_rag_node`) that compute elapsed time and record exceptions, seamlessly integrating with OTEL if installed, and cleanly failing back to standard logging when OTEL is disabled.
+- **Lesson learned**: Observability code should be decoupled from specific APM tools. Designing trace libraries with simple in-memory context managers that fallback to logging ensures the core application remains fully functional even if tracing servers are down.
+
+### 85. A/B Testing Assignment via Stateless Deterministic Hashing (June 2026)
+- **Problem**: In A/B testing, randomly assigning users to experiment variants can cause inconsistent experiences within a single session (e.g. changing model temperatures mid-conversation). Storing assignments in Redis or relational databases adds network round-trips and DB load to every user request.
+- **Solution**: Built a stateless hash-routing system in [ab_testing.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/ab_testing.py). It uses `hashlib.sha256(f"{user_id}:{experiment_salt}".encode())` and computes the modulo against 100 to map users deterministically into experiment buckets.
+- **Lesson learned**: Deterministic hashing of user identifiers is the most performant way to implement consistent, zero-state variant mapping in distributed applications, eliminating DB queries for variant assignment.
+
+### 86. File System Hot Reloading Watchers in Containerized Environments (June 2026)
+- **Problem**: Updating prompts or similarity thresholds dynamically normally requires a service restart. Native OS filesystem events (like `inotify` or `kqueue`) are often blocked or fail to propagate through virtualized Docker volume mounts, making standard file-watchers unreliable in local Docker or Kubernetes environments.
+- **Solution**: Built a config-watcher service in [config_watcher.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/config_watcher.py) that uses `watchfiles` for native filesystem changes but automatically falls back to an active 5-second polling loop to inspect config file modification times when OS events fail.
+- **Lesson learned**: When writing filesystem monitors that run inside containers, always include a time-based polling fallback. Do not rely exclusively on native OS file events, as virtualized hypervisor filesystems do not always dispatch events to guests.
+
+### 87. Sentinel-Driven Streaming Response Hardening (June 2026)
+- **Problem**: Mid-stream errors (e.g., token timeouts, DB disconnects) during Server-Sent Events (SSE) streaming result in truncated TCP connections or unhandled exceptions that leave client applications waiting indefinitely on active loader states.
+- **Solution**: Developed a generator wrapper in [streaming_hardening.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/streaming_hardening.py) that intercepts all exceptions in stream generators and yields a clean, structured JSON sentinel chunk containing explicit error details before safely closing the loop.
+- **Lesson learned**: Never expose raw generators to ASGI servers without enclosing exception filters. Intercepting exceptions at the generator level and yielding explicit, user-friendly sentinel error payloads allows frontend clients to terminate loaders gracefully instead of hanging.
+
+### 88. Thread-Safe Implicit Multi-Tenant Context Propagation using ContextVars (June 2026)
+- **Problem**: Explicitly passing a `tenant_id` parameter through dozens of nested utility functions, RAG retrievers, and DB clients introduces massive signature bloat, increasing code complexity and the risk of data leaks if a function forgets to propagate the ID.
+- **Solution**: Implemented implicit request-scoped isolation in [tenant_context.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/tenant_context.py) using Python's thread-safe and async-safe `contextvars`. Developed a soft partition migration script [migrate_tenant_collections.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/migrate_tenant_collections.py) to manage safe collection splits with dry-run protection.
+- **Lesson learned**: Implicit context propagation using `ContextVar` is the cleanest and safest way to enforce tenant-isolation boundaries across internal library calls, eliminating function signature bloat while preventing cross-tenant data leaks.
+
+### 89. Dynamic Segment Defragmentation & HNSW Tuning in Vector Indexes (June 2026)
+- **Problem**: High-velocity insert and delete operations in vector databases (like Qdrant) accumulate tombstone markers and fragment memory segments. This degrades HNSW graph connectivity, slowing down retrieval speeds and lowering overall recall.
+- **Solution**: Developed an index monitoring service in [vector_optimizer.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/vector_optimizer.py) that tracks index segment fragment metrics and triggers Qdrant index optimization APIs programmatically when tombstones or memory fragmentation exceed safe thresholds.
+- **Lesson learned**: Production-grade RAG systems require automated index health monitoring. Running periodic segment defragmentation and optimizing HNSW construction parameters dynamically prevents query degradation after bulk ingestion workloads.
+
+### 90. Tiered Database Failover and Semantic Router Fallback (June 2026)
+- **Problem**: If the primary vector search database (Qdrant) suffers a crash or network isolation, the RAG pipeline is blinded, causing all downstream query generation to fail and producing application-wide downtime.
+- **Solution**: Built a tiered semantic router fallback in [semantic_router_fallback.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/semantic_router_fallback.py). It cascades searches through: Qdrant vector retrieval ➔ Neo4j FTS (Full-Text Search) keyword index ➔ LightRAG local graph traversal, ensuring successful context acquisition even if Qdrant is completely offline.
+- **Lesson learned**: Implement multi-tier database fallback mechanisms. If the primary vector index becomes unavailable, cascading gracefully to relational keyword indexes or graph layers ensures the LLM still receives helpful context rather than throwing system errors.
+
+### 91. SQLite-Backed Database Prompt Versioning and Auto-Seeding (June 2026)
+- **Problem**: Hardcoding system prompts directly in source code requires full application deployments to update model instructions. Conversely, pulling prompts from external web systems adds network dependency risks during application bootstrap.
+- **Solution**: Created [prompt_store.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/prompt_store.py) using SQLite for local persistent storage. It supports semantic versioning (`major.minor.patch`), rollbacks, and automatically seeds from codebase default configurations on first-run.
+- **Lesson learned**: Local database prompt stores combine the agility of runtime prompt updates with the reliability of local filesystem fallback seeding, eliminating external network dependencies during application bootstrap.
+
+### 92. Asynchronous Token Counting and Cost Attribution (June 2026)
+- **Problem**: Logging input and output token consumption in real-time adds latency to user chat responses if it blocks the main execution thread while updating relational databases.
+- **Solution**: Created [cost_tracker.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/cost_tracker.py) which extracts token counts from LLM metadata, attributes costs using model-specific rate tables, and writes logs asynchronously via thread-pool executors (`run_in_executor`) to prevent blocking FastAPI request threads.
+- **Lesson learned**: Telemetry, auditing, and cost-attribution operations must be offloaded from the main user-facing execution flow. Using asynchronous thread executors or task queues prevents secondary database writes from degrading user latency.
+
+### 93. Privacy-by-Design and GDPR-Safe Auditable Logging (June 2026)
+- **Problem**: Storing raw user prompts and chat histories in plaintext logs violates GDPR and other data privacy regulations, yet omitting logs completely makes it impossible to audit usage patterns or troubleshoot runtime errors.
+- **Solution**: Implemented [compliance_logger.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/compliance_logger.py) to hash sensitive inputs (like prompts) using SHA-256 before writing to persistent logs, while preserving metadata (token counts, timestamps, user IDs) for auditing.
+- **Lesson learned**: GDPR compliance requires a "privacy-by-design" approach to logging. Hash sensitive inputs (like prompts) using SHA-256 before writing to persistent logs, while preserving metadata (token counts, timestamps, user IDs) for auditing.
+
+### 94. Three-Tiered Multi-Provider LLM Failover Registries (June 2026)
+- **Problem**: Relying on a single LLM API provider creates a single point of failure. If the provider experiences an outage, the RAG chat application goes down.
+- **Solution**: Implemented a failover registry in [model_registry.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/services/model_registry.py) that implements a 3-tier cascade: Ollama (Primary) ➔ Fallback Ollama (Secondary) ➔ Krutrim API (Cloud). If the primary provider raises availability errors, it automatically falls back.
+- **Lesson learned**: Build multi-provider LLM failover registries with automatic routing. If a provider raises availability errors, automatically cascade to a backup cloud provider or local model.
+
+### 95. SLO-Driven Concurrency Load Testing for Production Verification (June 2026)
+- **Problem**: Applications can pass standard unit tests but fail under high concurrent load due to database connection leaks, thread exhaustion, or CPU bottlenecks.
+- **Solution**: Implemented [load_test.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/load_test.py) featuring realistic simulation patterns for Chat, Streaming, and Health Check endpoints. It checks that SLO thresholds (latency < 2s, error rate < 1%) are met.
+- **Lesson learned**: Continuous performance verification via simulated load testing (with realistic concurrency and task profiles) is crucial to uncover connection pooling exhaustion, memory leaks, and CPU bottlenecks before production deployment.
+
