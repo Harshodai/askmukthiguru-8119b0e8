@@ -123,3 +123,9 @@ graphify-out/
 
 
 
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
