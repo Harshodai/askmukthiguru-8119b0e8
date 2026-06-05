@@ -263,9 +263,22 @@ Deno.serve(async (req) => {
       )
     : [];
 
+  // ── RAG retrieval (best-effort; no-op if KB is empty) ───────────
+  const { context: ragContext, citations } = await retrieveContext(
+    admin,
+    LOVABLE_API_KEY,
+    body.user_message,
+  );
+
+  const ragSystem = ragContext
+    ? `\n\nUse the following grounded teachings to answer when relevant. Cite them inline as [1], [2], etc., matching the numbered context blocks. If they are not relevant, answer from your own grounding without citing.\n\nGROUNDED CONTEXT:\n${ragContext}`
+    : "";
+
   const hasSystem = history.some((m) => m.role === "system");
   const llmMessages: IncomingMessage[] = [
-    ...(hasSystem ? [] : [{ role: "system" as const, content: DEFAULT_SYSTEM_PROMPT }]),
+    ...(hasSystem
+      ? []
+      : [{ role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem }]),
     ...history,
     { role: "user" as const, content: body.user_message },
   ];
