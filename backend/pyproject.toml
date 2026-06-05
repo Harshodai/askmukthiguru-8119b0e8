@@ -100,7 +100,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py39"
 exclude = [
     "*.ipynb",
     "colab/**",
@@ -116,6 +116,8 @@ ignore = [
     "B905",  # zip() strict= parameter (breaks compatibility with Python < 3.10)
     "B008",  # Depends function calls in FastAPI defaults
     "B904",  # exception chaining (raise from)
+    "UP047", # PEP 695 generics (def func[T]...) break compatibility with Python < 3.12
+    "UP045", # Prefer X | None over Optional[X] (Optional is required for Python 3.9 compatibility without future imports)
 ]
 
 [tool.pytest.ini_options]

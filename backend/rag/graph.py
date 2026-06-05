@@ -16,9 +16,8 @@ The graph handles:
   - Quality gates: faithfulness check, CoVe verification
 """
 
-from typing import Optional
-
 import logging
+from typing import Optional
 
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph

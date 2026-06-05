@@ -12,9 +12,9 @@ Includes configs for:
 """
 
 from __future__ import annotations
-from typing import Optional
 
 from functools import lru_cache
+from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

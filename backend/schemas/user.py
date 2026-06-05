@@ -1,6 +1,5 @@
-from typing import Optional
-
 import uuid
+from typing import Optional
 
 from fastapi_users import schemas
 

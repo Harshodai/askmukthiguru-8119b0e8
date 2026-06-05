@@ -9,11 +9,10 @@ Trace data is stored in Redis with 24h TTL. Each request generates a trace
 containing all pipeline stages with timing, doc counts, and decisions.
 """
 
-from typing import Optional
-
 import json
 import logging
 import time
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 

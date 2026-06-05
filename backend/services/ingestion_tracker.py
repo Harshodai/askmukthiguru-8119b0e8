@@ -6,10 +6,9 @@ so that /api/ingest/status returns consistent data regardless
 of which backend pod handles the request.
 """
 
-from typing import Optional
-
 import time
 import typing
+from typing import Optional
 
 # Try to import sync Redis first
 _redis = None

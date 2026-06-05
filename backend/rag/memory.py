@@ -6,11 +6,11 @@ retrieval/generation prompts without requiring a new database migration.
 """
 
 from __future__ import annotations
-from typing import Optional
 
 import hashlib
 import uuid
 from collections.abc import Iterable
+from typing import Optional
 
 _SESSION_NAMESPACE = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 

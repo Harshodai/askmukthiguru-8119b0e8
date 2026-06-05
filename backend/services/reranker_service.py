@@ -14,7 +14,7 @@ import asyncio
 import logging
 import platform
 import time
-from typing import Optional, Any
+from typing import Any, Optional
 
 from app.config import settings
 

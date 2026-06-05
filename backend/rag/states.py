@@ -10,7 +10,7 @@ This state flows through all 11 layers of the anti-hallucination pipeline.
 Every node reads what it needs and writes what it produces.
 """
 
-from typing import Optional, Annotated
+from typing import Annotated, Optional
 
 from typing_extensions import TypedDict
 

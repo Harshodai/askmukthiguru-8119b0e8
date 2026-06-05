@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
 from services.concurrent_retriever import ConcurrentRetriever
 
 

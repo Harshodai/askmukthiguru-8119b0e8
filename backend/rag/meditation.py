@@ -9,9 +9,8 @@ Design Patterns:
 This is the meditation flow triggered by DISTRESS intent detection.
 """
 
-from typing import Optional
-
 import logging
+from typing import Optional
 
 from rag.prompts import MEDITATION_STEPS
 
