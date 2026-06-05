@@ -160,6 +160,33 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── Rate limit ──────────────────────────────────────────────────
+  const rlKey = userId
+    ? `u:${userId}`
+    : `anon:${req.headers.get("x-forwarded-for") ?? "unknown"}`;
+  const rlLimit = userId ? RL_AUTH_LIMIT : RL_ANON_LIMIT;
+  const rl = rlConsume(rlKey, rlLimit);
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: "rate_limited",
+        detail: "Too many messages. Please slow down.",
+        reset_at: rl.resetAt,
+      }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "X-RateLimit-Limit": String(rlLimit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(rl.resetAt),
+          "Retry-After": String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
+  }
+
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
   const startedAt = Date.now();
 
