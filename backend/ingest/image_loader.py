@@ -11,6 +11,7 @@ ready for the ingestion pipeline.
 
 import logging
 import re
+from typing import Optional
 
 from services.ocr_service import OCRService
 
@@ -28,7 +29,7 @@ def is_image_url(url: str) -> bool:
     return bool(IMAGE_EXTENSIONS.search(url))
 
 
-async def process_image_url(url: str, ocr_service: OCRService | None = None) -> dict:
+async def process_image_url(url: str, ocr_service: Optional[OCRService] = None) -> dict:
     """
     Download an image URL and extract text via OCR.
 

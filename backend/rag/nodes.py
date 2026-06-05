@@ -89,7 +89,7 @@ class TimeoutBudget:
         elapsed = time.monotonic() - self._start
         return max(0.0, self.total - elapsed)
 
-    def allocate(self, node_name: str, default_timeout: float | None = None) -> float:
+    def allocate(self, node_name: str, default_timeout: Optional[float] = None) -> float:
         """Allocate timeout for a node. Uses min of node default and remaining budget."""
         if default_timeout is None:
             default_timeout = NODE_TIMEOUTS.get(node_name, 30)
