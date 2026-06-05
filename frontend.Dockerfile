@@ -17,12 +17,14 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_USE_NATIVE_OAUTH
 ARG VITE_JAEGER_UI_URL
+ARG VITE_GOOGLE_CLIENT_ID
 
 # Set them as environment variables for the build process
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_USE_NATIVE_OAUTH=$VITE_USE_NATIVE_OAUTH
 ENV VITE_JAEGER_UI_URL=$VITE_JAEGER_UI_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 # Copy source code and build
 COPY index.html vite.config.ts tsconfig*.json tailwind.config.ts postcss.config.js components.json ./
@@ -40,10 +42,6 @@ RUN rm -rf /usr/share/nginx/html/*
 
 # Copy the built React app
 COPY --from=builder /app/dist /usr/share/nginx/html/app
-
-# Copy static UI folders (lightweight chat & ingest widgets) - Renamed to avoid shadowing React routes
-COPY ingest-ui/ /usr/share/nginx/html/static-ingest/
-COPY chat-ui/ /usr/share/nginx/html/static-chat/
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
