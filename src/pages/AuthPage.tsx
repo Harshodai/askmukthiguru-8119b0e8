@@ -59,6 +59,7 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const redirectingRef = useRef(false);
+  const sessionHandleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
   useEffect(() => {
@@ -86,8 +87,31 @@ const AuthPage = () => {
     };
 
     const handleSession = async (session: import('@supabase/supabase-js').Session) => {
-      if (redirectingRef.current) return;
+      if (redirectingRef.current) {
+        console.log('[Auth] handleSession blocked - already redirecting');
+        return;
+      }
       redirectingRef.current = true;
+      console.log('[Auth] handleSession starting', { userId: session.user.id });
+      
+      // Set a timeout to recover from stuck states
+      if (sessionHandleTimeoutRef.current) {
+        clearTimeout(sessionHandleTimeoutRef.current);
+      }
+      sessionHandleTimeoutRef.current = setTimeout(() => {
+        console.error('[Auth] Session handling timed out after 15s');
+        redirectingRef.current = false;
+        setGoogleStep('idle');
+        setFacebookStep('idle');
+        setLoading(false);
+        setError('Authentication timeout. Please try again.');
+        toast({
+          title: 'Connection Timeout',
+          description: 'Please try signing in again.',
+          variant: 'destructive'
+        });
+      }, 15000); // 15 second timeout
+      
       try {
       // Only show the Google "finalizing" step if a Google attempt is actually
       // in progress. Avoids a misleading "Signing you in…" flash for users who
@@ -95,8 +119,21 @@ const AuthPage = () => {
       const isGoogleReturn =
         sessionStorage.getItem(GOOGLE_STEP_KEY) === '1' ||
         getActiveRun()?.provider === 'google';
-      if (isGoogleReturn) setGoogleStep('finalizing');
+      const isFacebookReturn = 
+        sessionStorage.getItem('askmukthiguru_facebook_step') === '1' ||
+        getActiveRun()?.provider === 'facebook';
+        
+      if (isGoogleReturn) {
+        console.log('[Auth] Detected Google OAuth return');
+        setGoogleStep('finalizing');
+      }
+      if (isFacebookReturn) {
+        console.log('[Auth] Detected Facebook OAuth return');
+        setFacebookStep('finalizing');
+      }
+      
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
+      sessionStorage.removeItem('askmukthiguru_facebook_step');
 
 
       // If this session is the tail end of a Google round-trip, record it.
@@ -179,10 +216,34 @@ const AuthPage = () => {
         navigate('/chat', { replace: true });
       }
       endAuthRun('ok');
+      
+      // Clear timeout on success
+      if (sessionHandleTimeoutRef.current) {
+        clearTimeout(sessionHandleTimeoutRef.current);
+        sessionHandleTimeoutRef.current = null;
+      }
       } catch (err) {
         console.error('[Auth] handleSession failed', err);
+        
+        // Clear timeout on error
+        if (sessionHandleTimeoutRef.current) {
+          clearTimeout(sessionHandleTimeoutRef.current);
+          sessionHandleTimeoutRef.current = null;
+        }
+        
+        setGoogleStep('idle');
+        setFacebookStep('idle');
+        setLoading(false);
+        setError('Authentication failed. Please try again.');
         redirectingRef.current = false;
         endAuthRun('error', err instanceof Error ? err.message : String(err));
+        
+        // Show user-friendly error toast
+        toast({
+          title: 'Sign-in Failed',
+          description: err instanceof Error ? err.message : 'Please try signing in again.',
+          variant: 'destructive'
+        });
       }
     };
 
@@ -198,7 +259,12 @@ const AuthPage = () => {
       if (session?.user) handleSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (sessionHandleTimeoutRef.current) {
+        clearTimeout(sessionHandleTimeoutRef.current);
+      }
+    };
   }, [navigate, toast]);
 
 
@@ -422,6 +488,39 @@ const AuthPage = () => {
 
   const googleBusy = googleStep !== 'idle';
   const facebookBusy = facebookStep !== 'idle';
+  const [showResetButton, setShowResetButton] = useState(false);
+  
+  // Show reset button after 5 seconds of being stuck
+  useEffect(() => {
+    if (googleBusy || facebookBusy) {
+      const timer = setTimeout(() => {
+        setShowResetButton(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowResetButton(false);
+    }
+  }, [googleBusy, facebookBusy]);
+  
+  // Manual reset function for stuck states
+  const handleResetAuth = useCallback(() => {
+    console.log('[Auth] Manual reset triggered');
+    redirectingRef.current = false;
+    setGoogleStep('idle');
+    setFacebookStep('idle');
+    setLoading(false);
+    setError(null);
+    sessionStorage.removeItem(GOOGLE_STEP_KEY);
+    sessionStorage.removeItem('askmukthiguru_facebook_step');
+    if (sessionHandleTimeoutRef.current) {
+      clearTimeout(sessionHandleTimeoutRef.current);
+      sessionHandleTimeoutRef.current = null;
+    }
+    toast({
+      title: 'Reset Complete',
+      description: 'You can try signing in again.',
+    });
+  }, [toast]);
   
   // Google One Tap initialization
   useEffect(() => {
@@ -589,6 +688,20 @@ const AuthPage = () => {
                 );
               })}
             </ol>
+          )}
+          
+          {/* Reset button for stuck states */}
+          {showResetButton && (googleBusy || facebookBusy) && (
+            <div className="text-center pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetAuth}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Taking too long? Click here to reset and try again
+              </Button>
+            </div>
           )}
           
           {/* Facebook Sign-In Button */}
