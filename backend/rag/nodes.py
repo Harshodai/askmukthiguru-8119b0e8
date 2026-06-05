@@ -51,7 +51,8 @@ The Anti-Hallucination Pipeline (expanded beyond original 12-layer model with ad
 import asyncio
 import logging
 import re
-from typing import Optional
+import time
+from typing import Any, Optional
 
 from langgraph.types import Send
 
@@ -129,6 +130,7 @@ from services.embedding_service import EmbeddingService
 from services.lightrag_service import LightRAGService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
+from services.cache_service import InMemoryCacheAdapter
 from services.rrf_ranker import reciprocal_rank_fusion
 from services.serene_mind_engine import DistressAssessment, DistressLevel, SereneMindEngine
 
@@ -140,6 +142,8 @@ _embedder: EmbeddingService = None
 _qdrant: Optional[QdrantService] = None
 _lightrag: Optional[LightRAGService] = None
 _serene_mind: Optional[SereneMindEngine] = None
+# Module-level semantic cache instance (lazy-initialized)
+_semantic_cache: Optional[Any] = None
 _context_compressor = None
 _lettuce_detect = None
 _reranker = None
@@ -175,6 +179,100 @@ _SARVAM_REASONING_MARKERS = [
     "we are consistent",
     "we must check the token count",
 ]
+
+# -----------------------------------------------------------------------
+# Doctrinal Synonyms — Query Expansion for Spiritual Teachings
+# -----------------------------------------------------------------------
+# Maps colloquial / alternate spiritual terms to canonical teachings terms
+# used in Sri Preethaji & Sri Krishnaji's corpus.  *Only* labels listed
+# here get substituted — everything else is passed through verbatim.
+
+DOCTRINE_SYNONYMS: dict[str, list[str]] = {
+    # Core teachings
+    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy"],
+    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain"],
+    "surrender": ["surrender", "letting go", "giving up control", "relinquishing", "total surrender"],
+    "oneness": ["oneness", "unity", "non-duality", "non-dual", "advaita", "non separation"],
+    "consciousness": ["consciousness", "awareness", "higher consciousness", "divine consciousness", "universal consciousness"],
+    "ekam": ["ekam", "ekam world", "world centre for enlightenment", "world center for enlightenment"],
+    "deeksha": ["deeksha", "oneness blessing", "divine blessing", "energy transmission", "sacred transfer"],
+    "soul sync": ["soul sync", "soul synchronization", "breath meditation", "breath awareness meditation"],
+    "four sacred secrets": ["four sacred secrets", "4 sacred secrets", "sacred secrets", "the four secrets"],
+    "sri preethaji": ["sri preethaji", "preethaji", "preetha ji", "sree preethaji"],
+    "sri krishnaji": ["sri krishnaji", "krishnaji", "krishna ji", "sree krishnaji"],
+    "meditation": ["meditation", "dhyana", "dhyan", "contemplation", "mindfulness practice"],
+    "dharma": ["dharma", "righteousness", "righteous path", "duty", "cosmic order"],
+    "karma": ["karma", "karmic", "action and consequence", "law of cause and effect"],
+    "moksha": ["moksha", "liberation", "enlightenment", "spiritual freedom", "self-realization"],
+    "atma": ["atma", "atman", "soul", "inner self", "higher self", "true self"],
+    "brahman": ["brahman", "brahman", "universal self", "supreme reality", "absolute reality"],
+    "samsara": ["samsara", "cycle of birth", "rebirth", "worldly cycle"],
+    "guru": ["guru", "master", "spiritual teacher", "spiritual guide", "enlightened master"],
+    "sadhna": ["sadhna", "sadhana", "spiritual practice", "spiritual discipline", "spiritual sadhana"],
+    "sadhak": ["sadhak", "seeker", "spiritual seeker", "practitioner", "devotee"],
+    "mahavakya": ["mahavakya", "great saying", "great pronouncement", "vedic statement"],
+    "satsang": ["satsang", "spiritual gathering", "spiritual discourse", "divine gathering"],
+    "sankalpa": ["sankalpa", "intention", "resolve", "sacred intention", "spiritual resolve"],
+    "vairagya": ["vairagya", "dispassion", "detachment", "non-attachment", "renunciation"],
+    "bhakti": ["bhakti", "devotion", "divine devotion", "loving devotion", "devotional practice"],
+    "jnana": ["jnana", "knowledge", "spiritual knowledge", "divine wisdom", "higher knowledge"],
+    "kriya": ["kriya", "action", "spiritual action", "sacred action", "purificatory practice"],
+    "mantra": ["mantra", "sacred sound", "sacred syllable", "divine chant", "spiritual chant"],
+    "mayic force": ["mayic force", "illusion force", "deluding force", "maya", "illusory power"],
+    "dharma prabhu": ["dharma prabhu", "lord of dharma", "lord of righteousness", "divine lawkeeper"],
+    "jeevan mukta": ["jeevan mukta", "jeevanmukta", "liberated while living", "living liberated one"],
+    "paramatma": ["paramatma", "paramatman", "supreme soul", "universal soul", "supreme self"],
+    "prarabdha": ["prarabdha", "prarabdha karma", "matured karma", "destined karma", "fruit of past actions"],
+}
+
+
+class TokenBudgetExceeded(Exception):
+    """Raised when an LLM call would exceed its per-node token budget."""
+
+    def __init__(self, node: str, estimated: int, budget: int):
+        self.node = node
+        self.estimated = estimated
+        self.budget = budget
+        super().__init__(
+            f"[{node}] Estimated tokens ({estimated:,}) exceed budget ({budget:,}). "
+            "Reduce context or increase budget."
+        )
+
+
+def _estimate_tokens(text: str) -> int:
+    """Fast heuristic: ~1.3 tokens per word (works for English + Indic)."""
+    if not text:
+        return 0
+    return int(len(text.split()) * 1.3)
+
+
+def _enforce_token_budget(node_name: str, text: str, budget: int) -> None:
+    """Hard enforcement: raises TokenBudgetExceeded if text exceeds budget."""
+    estimated = _estimate_tokens(text)
+    if estimated > budget:
+        raise TokenBudgetExceeded(node_name, estimated, budget)
+
+
+def expand_query_with_synonyms(query: str) -> str:
+    """Expand user query with doctrinal synonyms for better retrieval coverage.
+
+    scans DOCTRINE_SYNONYMS for any canonical key present in the query;
+    if found, appends the alternate forms as OR clauses. This improves
+    recall for queries written in colloquial / non-canonical language.
+    """
+    query_lower = query.lower()
+    expansions: list[str] = []
+    for canonical, alternates in DOCTRINE_SYNONYMS.items():
+        if canonical in query_lower:
+            # Add alternate forms not already in the query
+            for alt in alternates:
+                if alt not in query_lower and alt != canonical:
+                    expansions.append(alt)
+    if expansions:
+        expanded = f"{query} (also: {', '.join(expansions[:5])})"
+        logger.info(f"Query expansion: added {len(expansions)} synonym(s) → {expanded[:120]}...")
+        return expanded
+    return query
 
 
 def _remove_repetition_loops(text: str) -> str:
@@ -663,8 +761,9 @@ async def decompose_query(state: GraphState) -> dict:
 
     sub_queries = await _ollama.decompose_query(question)
     is_complex = len(sub_queries) > 1
+    expanded = [expand_query_with_synonyms(q) for q in sub_queries]
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
-    return {"sub_queries": sub_queries, "is_complex": is_complex}
+    return {"sub_queries": expanded, "is_complex": is_complex}
 
 
 @log_metrics
@@ -936,6 +1035,23 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     If query was decomposed, retrieves for all sub-queries in parallel.
     """
     configurable = {}
+
+    # Check semantic cache before expensive retrieval
+    if getattr(settings, "SEMANTIC_CACHE_ENABLED", True):
+        query = state.get("rewritten_query") or state["question"]
+        # Create a simple module-level cache instance if not present
+        global _semantic_cache
+        if _semantic_cache is None:
+            _semantic_cache = InMemoryCacheAdapter()
+        cached = _semantic_cache.get(query)
+        if cached:
+            logger.info("Cache HIT in retrieve_documents — returning cached answer")
+            return {
+                "answer": cached["response"],
+                "citations": cached.get("citations", []),
+                "intent": cached.get("intent", "QUERY"),
+                "cache_hit": True,
+            }
     if config:
         if hasattr(config, "get"):
             configurable = config.get("configurable", {})
@@ -2410,6 +2526,20 @@ async def format_final_answer(state: GraphState) -> dict:
     if state.get("intent") == "DISTRESS":
         result["meditation_step"] = 1
 
+
+    # Cache the final answer if the pipeline produced one
+    if getattr(settings, "SEMANTIC_CACHE_ENABLED", True) and not state.get("cache_hit"):
+        try:
+            if _semantic_cache is None:
+                _semantic_cache = InMemoryCacheAdapter()
+            _semantic_cache.put(
+                state["question"],
+                response=answer,
+                intent=state.get("intent", "QUERY"),
+                citations=citations,
+            )
+        except Exception:
+            pass  # Cache failure should not break the pipeline
     return result
 
 

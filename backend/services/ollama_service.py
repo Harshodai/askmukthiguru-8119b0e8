@@ -156,6 +156,22 @@ class OllamaService:
             failure_threshold=3, recovery_timeout=60.0, half_open_max_calls=1
         )
 
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Fast heuristic: ~1.3 tokens per word (works for English + Indic)."""
+        if not text:
+            return 0
+        return int(len(text.split()) * 1.3)
+
+    @classmethod
+    def _enforce_token_budget(cls, prompt_text: str, budget: int, node: str = "generate") -> None:
+        """Hard enforcement: raises if prompt tokens exceed budget."""
+        estimated = cls._estimate_tokens(prompt_text)
+        if estimated > budget:
+            raise Exception(
+                f"TokenBudgetExceeded: [{node}] Estimated {estimated} tokens exceed budget {budget}."
+            )
+
     async def generate(
         self,
         system_prompt: str,
@@ -180,6 +196,11 @@ class OllamaService:
             full_prompt = user_prompt
 
         messages.append(HumanMessage(content=full_prompt))
+
+        # Hard per-call token budget enforcement (Unit 12)
+        full_prompt_text = " ".join([m.content for m in messages])
+        max_budget = getattr(settings, "max_tokens_per_request", 2000)
+        self._enforce_token_budget(full_prompt_text, max_budget, node="generate")
 
         # Extract timeout from kwargs (pop so it's not passed to bind())
         timeout = kwargs.pop("timeout", settings.llm_timeout)
@@ -218,6 +239,14 @@ class OllamaService:
                         content = think_match.group(1).strip()
                     else:
                         content = content.strip()
+
+                    # Token usage logging (Unit 12)
+                    tokens_sent = self._estimate_tokens(system_prompt + user_prompt)
+                    tokens_received = self._estimate_tokens(content)
+                    logger.info(
+                        f"tokens_sent={tokens_sent}, tokens_received={tokens_received}, "
+                        f"content_len={len(content)}, model={self._llm.model}"
+                    )
 
                     self._circuit_breaker.record_success()
                     return content
