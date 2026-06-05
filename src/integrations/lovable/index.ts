@@ -9,10 +9,35 @@ type SignInOptions = {
   extraParams?: Record<string, string>;
 };
 
+// Extend supported providers to include Facebook
+type OAuthProvider = "google" | "apple" | "microsoft" | "lovable" | "facebook";
+
 export const lovable = {
   auth: {
-    signInWithOAuth: async (provider: "google" | "apple" | "microsoft" | "lovable", opts?: SignInOptions) => {
-      const result = await lovableAuth.signInWithOAuth(provider, {
+    signInWithOAuth: async (provider: OAuthProvider, opts?: SignInOptions) => {
+      // For Facebook, use native Supabase if Lovable doesn't support it yet
+      if (provider === "facebook") {
+        try {
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'facebook',
+            options: {
+              redirectTo: opts?.redirect_uri || window.location.origin,
+            },
+          });
+          
+          if (error) {
+            return { error, redirected: false };
+          }
+          
+          // OAuth redirect happened
+          return { redirected: true };
+        } catch (e) {
+          return { error: e instanceof Error ? e : new Error(String(e)), redirected: false };
+        }
+      }
+      
+      // For other providers, use Lovable Cloud
+      const result = await lovableAuth.signInWithOAuth(provider as "google" | "apple" | "microsoft" | "lovable", {
         redirect_uri: opts?.redirect_uri,
         extraParams: {
           ...opts?.extraParams,
