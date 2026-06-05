@@ -421,14 +421,14 @@ Deno.serve(async (req) => {
         controller.enqueue(
           sseEvent("done", {
             intent: "CASUAL",
-            citations: [],
+            citations,
             meditation_step: body.meditation_step ?? 0,
           }),
         );
       } catch (e) {
         status = "error";
         controller.enqueue(sseEvent("error", String(e)));
-        controller.enqueue(sseEvent("done", { intent: "CASUAL", citations: [], meditation_step: 0 }));
+        controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
       } finally {
         controller.close();
         await persistTelemetry(admin, {
@@ -437,6 +437,7 @@ Deno.serve(async (req) => {
           answer: fullAnswer,
           latencyMs: Date.now() - startedAt,
           status,
+          citations,
         });
       }
     },
