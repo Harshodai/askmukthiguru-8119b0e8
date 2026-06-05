@@ -1132,12 +1132,12 @@ return (
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap justify-start gap-2 pl-[38px]">
+              <div className="flex flex-wrap justify-center gap-2 px-2 sm:justify-start sm:px-0 sm:pl-[38px]">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-4 py-2 rounded-full text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all"
+                    className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-[13px] sm:text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all whitespace-nowrap max-w-full truncate"
                   >
                     {suggestion}
                   </button>
