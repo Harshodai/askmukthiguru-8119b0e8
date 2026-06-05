@@ -16,6 +16,8 @@ Used by the Transcript Council in youtube_loader.py to get a second
 opinion alongside YouTube auto-captions.
 """
 
+from typing import Optional
+
 import logging
 import math
 import os
@@ -28,7 +30,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def download_audio(video_id: str, output_dir: str) -> str | None:
+def download_audio(video_id: str, output_dir: str) -> Optional[str]:
     """
     Download YouTube audio as mono 16kHz MP3 using yt-dlp.
 
@@ -169,7 +171,7 @@ def chunk_audio(audio_path: str, output_dir: str, chunk_minutes: int) -> list[st
     return chunks
 
 
-def transcribe_with_sarvam(video_id: str, audio_path: str) -> str | None:
+def transcribe_with_sarvam(video_id: str, audio_path: str) -> Optional[str]:
     """
     Transcribe audio using Sarvam Saaras v3 Batch API.
 
@@ -385,8 +387,8 @@ def score_transcript(text: str, video_id: str = "") -> float:
 
 
 def council_pick_best(
-    youtube_text: str | None,
-    sarvam_text: str | None,
+    youtube_text: Optional[str],
+    sarvam_text: Optional[str],
     video_id: str = "",
 ) -> dict:
     """

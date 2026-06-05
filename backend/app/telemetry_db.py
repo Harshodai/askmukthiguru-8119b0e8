@@ -8,7 +8,7 @@ evaluations, and user feedback via Supabase.
 import logging
 import re
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Optional, Any
 
 from supabase import Client, create_client
 
@@ -187,7 +187,7 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
         return []
 
 
-async def get_kpis(from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
+async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = None) -> dict[str, Any]:
     """Fetch aggregated KPI snapshot from Supabase."""
     client = _get_client()
     if not client:
@@ -460,7 +460,7 @@ async def get_timeseries_data(
 
 
 async def get_trigger_events(
-    from_date: str | None = None, to_date: str | None = None
+    from_date: Optional[str] = None, to_date: Optional[str] = None
 ) -> list[dict[str, Any]]:
     """Get trigger events."""
     client = _get_client()
@@ -485,7 +485,7 @@ async def get_trigger_events(
 
 
 async def get_safety_events(
-    from_date: str | None = None, to_date: str | None = None
+    from_date: Optional[str] = None, to_date: Optional[str] = None
 ) -> list[dict[str, Any]]:
     """Get safety events."""
     client = _get_client()
@@ -525,7 +525,7 @@ async def get_topic_clusters() -> list[dict[str, Any]]:
 
 
 async def get_retrieval_health(
-    from_date: str | None = None, to_date: str | None = None
+    from_date: Optional[str] = None, to_date: Optional[str] = None
 ) -> dict[str, Any]:
     """Get retrieval health metrics."""
     client = _get_client()
@@ -635,7 +635,7 @@ async def get_retrieval_health(
 
 
 async def get_quality_data(
-    from_date: str | None = None, to_date: str | None = None
+    from_date: Optional[str] = None, to_date: Optional[str] = None
 ) -> dict[str, Any]:
     """Get quality data metrics."""
     client = _get_client()
@@ -859,7 +859,7 @@ async def get_model_pricing() -> list[dict[str, Any]]:
 
 
 async def get_top_failures(
-    from_date: str | None = None, to_date: str | None = None, limit: int = 8
+    from_date: Optional[str] = None, to_date: Optional[str] = None, limit: int = 8
 ) -> list[dict[str, Any]]:
     """Get top failures by faithfulness."""
     client = _get_client()
@@ -915,21 +915,21 @@ async def get_top_failures(
         return []
 
 
-def _parse_dt(value: str | None) -> datetime | None:
+def _parse_dt(value: Optional[str]) -> datetime | None:
     if not value:
         return None
     safe = validate_iso_date(value)
     return datetime.fromisoformat(safe.replace("Z", "+00:00"))
 
 
-def _parse_range_start(value: str | None, days: int) -> datetime:
+def _parse_range_start(value: Optional[str], days: int) -> datetime:
     parsed = _parse_dt(value)
     if parsed:
         return parsed
     return datetime.now(UTC) - timedelta(days=days)
 
 
-def _parse_range_end(value: str | None) -> datetime:
+def _parse_range_end(value: Optional[str]) -> datetime:
     parsed = _parse_dt(value)
     if parsed:
         return parsed
@@ -961,7 +961,7 @@ def _bucket_rows(
 
 
 async def get_ragas_heatmap(
-    from_date: str | None = None, to_date: str | None = None, buckets: int = 8
+    from_date: Optional[str] = None, to_date: Optional[str] = None, buckets: int = 8
 ) -> list[dict[str, Any]]:
     """Get RAGAS heatmap data."""
     client = _get_client()
@@ -1001,7 +1001,7 @@ async def get_ragas_heatmap(
 
 
 async def get_trigger_trend(
-    from_date: str | None = None, to_date: str | None = None, buckets: int = 14
+    from_date: Optional[str] = None, to_date: Optional[str] = None, buckets: int = 14
 ) -> list[dict[str, Any]]:
     """Get trigger trend data."""
     client = _get_client()
@@ -1035,7 +1035,7 @@ async def get_trigger_trend(
 
 
 async def get_similarity_trend(
-    from_date: str | None = None, to_date: str | None = None, buckets: int = 14
+    from_date: Optional[str] = None, to_date: Optional[str] = None, buckets: int = 14
 ) -> list[dict[str, Any]]:
     """Get similarity trend data."""
     client = _get_client()
@@ -1077,7 +1077,7 @@ async def get_similarity_trend(
 
 
 async def get_dead_docs(
-    from_date: str | None = None, to_date: str | None = None
+    from_date: Optional[str] = None, to_date: Optional[str] = None
 ) -> list[dict[str, Any]]:
     """Get dead documents."""
     client = _get_client()
@@ -1110,7 +1110,7 @@ async def get_dead_docs(
 
 
 async def get_empty_retrievals(
-    from_date: str | None = None, to_date: str | None = None, limit: int = 20
+    from_date: Optional[str] = None, to_date: Optional[str] = None, limit: int = 20
 ) -> list[dict[str, Any]]:
     """Get empty retrievals."""
     client = _get_client()
@@ -1304,7 +1304,7 @@ async def get_live_feed() -> list[dict[str, Any]]:
     return await get_recent_traces(limit=10)
 
 
-async def get_query_trace(query_id: str) -> dict[str, Any] | None:
+async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
     """Fetch a complete query trace by query_id from Supabase."""
     client = _get_client()
     if not client:

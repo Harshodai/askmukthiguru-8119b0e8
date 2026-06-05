@@ -1,3 +1,5 @@
+from typing import Optional
+
 import asyncio
 import logging
 import time
@@ -71,7 +73,7 @@ class AuthStrategy(ABC):
     @abstractmethod
     async def authenticate(
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
-    ) -> dict | None:
+    ) -> Optional[dict]:
         pass
 
 
@@ -80,7 +82,7 @@ class LocalAuthStrategy(AuthStrategy):
 
     async def authenticate(
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
-    ) -> dict | None:
+    ) -> Optional[dict]:
         # This uses the internal FastAPI-Users dependency resolution
         try:
             user = await fastapi_users.get_current_user(active=True, optional=True)(request)
@@ -101,7 +103,7 @@ class TestAuthStrategy(AuthStrategy):
 
     async def authenticate(
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
-    ) -> dict | None:
+    ) -> Optional[dict]:
         test_key = request.headers.get("X-Test-Key")
         if test_key and test_key == settings.jwt_secret:
             return {
@@ -156,7 +158,7 @@ class SupabaseAuthStrategy(AuthStrategy):
         self,
         request: Request,
         credentials: HTTPAuthorizationCredentials | None,
-    ) -> dict | None:
+    ) -> Optional[dict]:
         if not credentials:
             return None
 

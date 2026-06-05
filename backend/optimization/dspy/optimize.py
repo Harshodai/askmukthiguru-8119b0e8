@@ -5,6 +5,7 @@ prompts or production routing by itself.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import argparse
 import json
@@ -22,7 +23,7 @@ ARTIFACT_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "dspy"
 
 
 def build_artifact(
-    limit: int | None, report: Path | None, artifact_dir: Path = ARTIFACT_DIR
+    limit: Optional[int], report: Path | None, artifact_dir: Path = ARTIFACT_DIR
 ) -> Path:
     examples = examples_from_question_bank(limit=limit)
     if report:

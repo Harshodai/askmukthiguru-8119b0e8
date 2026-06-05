@@ -6,6 +6,8 @@ so that /api/ingest/status returns consistent data regardless
 of which backend pod handles the request.
 """
 
+from typing import Optional
+
 import time
 import typing
 
@@ -111,7 +113,7 @@ class RedisIngestionTracker(IngestionTracker):
         self._client.expire(key, self._TTL)  # type: ignore[no-untyped-call]
 
 
-def build_tracker(redis_url: str | None = None) -> IngestionTracker:
+def build_tracker(redis_url: Optional[str] = None) -> IngestionTracker:
     if redis_url and _redis is not None:
         return RedisIngestionTracker(redis_url)
     return _InMemoryIngestionTracker()

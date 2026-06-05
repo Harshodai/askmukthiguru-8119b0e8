@@ -10,6 +10,8 @@ Zero-cost caching using Python stdlib. No external dependencies.
 Invalidated automatically when new content is ingested.
 """
 
+from typing import Optional
+
 import hashlib
 import logging
 import time
@@ -43,7 +45,7 @@ class EmbeddingCache:
     def _key(self, text: str) -> str:
         return hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()
 
-    def get(self, text: str) -> dict | None:
+    def get(self, text: str) -> Optional[dict]:
         """Return cached embedding dict or None."""
         key = self._key(text)
         cached = self._cache.get(key)
@@ -98,7 +100,7 @@ class InMemoryCacheAdapter(ICacheRepository):
         normalized = query.strip().lower()
         return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
-    def get(self, query: str) -> dict | None:
+    def get(self, query: str) -> Optional[dict]:
         """
         Look up a cached response for the given query.
 
@@ -184,7 +186,7 @@ class RedisCacheAdapter(ICacheRepository):
         key_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
         return f"mukthiguru:cache:{key_hash}"
 
-    def get(self, query: str) -> dict | None:
+    def get(self, query: str) -> Optional[dict]:
         """Look up a cached response for the given query."""
         if not self._redis:
             return None
@@ -311,7 +313,7 @@ class SemanticCacheAdapter(ICacheRepository):
         namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
         return str(uuid.uuid5(namespace, normalized))
 
-    def get(self, query: str) -> dict | None:
+    def get(self, query: str) -> Optional[dict]:
         """Look up a cached response semantically."""
         # Encode query
         emb = self._embedder.encode_single(query)
@@ -425,9 +427,9 @@ class SearchResultCache:
     def _make_key(
         self,
         query_vector_hash: str,
-        content_type: str | None,
-        cluster_ids: list[int] | None,
-        raptor_level: int | None,
+        content_type: Optional[str],
+        cluster_ids: Optional[list[int]],
+        raptor_level: Optional[int],
     ) -> str:
         raw = (
             f"{query_vector_hash}|{content_type or ''}|"
@@ -438,10 +440,10 @@ class SearchResultCache:
     def get(
         self,
         query_vector_hash: str,
-        content_type: str | None = None,
-        cluster_ids: list[int] | None = None,
-        raptor_level: int | None = None,
-    ) -> list[dict] | None:
+        content_type: Optional[str] = None,
+        cluster_ids: Optional[list[int]] = None,
+        raptor_level: Optional[int] = None,
+    ) -> Optional[list[dict]]:
         """Look up cached search results. Returns None on miss."""
         key = self._make_key(query_vector_hash, content_type, cluster_ids, raptor_level)
         result = self._cache.get(key)
@@ -456,9 +458,9 @@ class SearchResultCache:
         self,
         query_vector_hash: str,
         results: list[dict],
-        content_type: str | None = None,
-        cluster_ids: list[int] | None = None,
-        raptor_level: int | None = None,
+        content_type: Optional[str] = None,
+        cluster_ids: Optional[list[int]] = None,
+        raptor_level: Optional[int] = None,
     ) -> None:
         """Store search results in the cache."""
         key = self._make_key(query_vector_hash, content_type, cluster_ids, raptor_level)

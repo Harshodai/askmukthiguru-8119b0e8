@@ -12,6 +12,7 @@ Includes configs for:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 from functools import lru_cache
 
@@ -102,7 +103,7 @@ class Settings(BaseSettings):
     # --- Supabase (Docker Local) ---
     supabase_url: str = "http://host.docker.internal:54321"
     supabase_key: str = ""  # SERVICE_ROLE_KEY for backend write access
-    qdrant_local_path: str | None = None  # Set for local mode (no Docker)
+    qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
     # --- Neo4j ---
     neo4j_uri: str = "bolt://localhost:7687"
@@ -157,7 +158,7 @@ class Settings(BaseSettings):
     port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"
     # --- Security ---
-    csrf_secret: str | None = (
+    csrf_secret: Optional[str] = (
         None  # Secret for CSRF token signing (generate with secrets.token_hex(32))
     )
     csrf_token_ttl: int = 3600  # CSRF token lifetime in seconds
@@ -165,7 +166,7 @@ class Settings(BaseSettings):
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
     # --- Auth & Rate Limiting ---
-    jwt_secret: str | None = None  # Shared with Supabase for token validation
+    jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
     # /api/auth/register endpoint has no legitimate public use case and would
     # otherwise expose an email-enumeration surface. Override with the

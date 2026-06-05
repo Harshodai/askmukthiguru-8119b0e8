@@ -9,6 +9,8 @@ Design Patterns:
 This is the meditation flow triggered by DISTRESS intent detection.
 """
 
+from typing import Optional
+
 import logging
 
 from rag.prompts import MEDITATION_STEPS
@@ -70,7 +72,7 @@ def get_distress_response() -> str:
     )
 
 
-def get_meditation_step(step: int) -> dict | None:
+def get_meditation_step(step: int) -> Optional[dict]:
     """
     Get a specific meditation step.
 

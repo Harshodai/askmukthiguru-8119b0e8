@@ -5,6 +5,8 @@ Automates unlocking the macOS keychain and extracting cookies from Chrome or Saf
 using yt-dlp, resolving any keychain password prompts automatically.
 """
 
+from typing import Optional
+
 import logging
 import os
 import platform
@@ -72,7 +74,7 @@ def unlock_keychain() -> bool:
         return False
 
 
-def ensure_cookies_file(force_refresh: bool = False) -> str | None:
+def ensure_cookies_file(force_refresh: bool = False) -> Optional[str]:
     """
     Ensure a valid cookies.txt file exists. If missing or force_refresh=True,
     it unlocks the macOS keychain and extracts cookies from Chrome using yt-dlp.

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Optional, Any
 
 
 @dataclass(frozen=True)
@@ -14,12 +14,12 @@ class OptimizationExample:
     expected_terms: list[str]
     expected_sources: list[str]
     category: str
-    response: str | None = None
-    citations: list[str] | None = None
-    score: float | None = None
+    response: Optional[str] = None
+    citations: Optional[list[str]] = None
+    score: Optional[float] = None
 
 
-def examples_from_question_bank(limit: int | None = None) -> list[OptimizationExample]:
+def examples_from_question_bank(limit: Optional[int] = None) -> list[OptimizationExample]:
     """Convert backend benchmark questions into compact optimization examples."""
     from benchmarks.question_bank import QUERIES
 

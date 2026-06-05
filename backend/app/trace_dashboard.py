@@ -9,6 +9,8 @@ Trace data is stored in Redis with 24h TTL. Each request generates a trace
 containing all pipeline stages with timing, doc counts, and decisions.
 """
 
+from typing import Optional
+
 import json
 import logging
 import time
@@ -44,7 +46,7 @@ class TraceCollector:
         self.start_time = time.time()
         self.metadata: dict = {}
 
-    def add_stage(self, name: str, duration: float, metadata: dict | None = None):
+    def add_stage(self, name: str, duration: float, metadata: Optional[dict] = None):
         """Record a pipeline stage completion."""
         self.stages.append(
             {
@@ -98,7 +100,7 @@ def _store_trace_redis(request_id: str, trace_data: dict):
         pass
 
 
-def _get_trace_redis(request_id: str) -> dict | None:
+def _get_trace_redis(request_id: str) -> Optional[dict]:
     """Get trace from Redis."""
     try:
         import redis
