@@ -777,117 +777,169 @@ async def chat_endpoint(
                 route_decision="semantic_cache",
             )
 
-    # Prepare request state (language detection, translation, memory preparation)
-    state = await _prepare_request_state(container, chat_body, preferred_lang, user=user)
-    user_msg_en = state["user_msg_en"]
-    is_indic = state["is_indic"]
-    preferred_lang = state["preferred_lang"]
-    user_id = state["user_id"]
-    stable_session_id = state["stable_session_id"]
-    chat_history = [m.model_dump() for m in chat_body.messages]
-    chat_history_en = state["chat_history_en"]
-    memory_context = state["memory_context"]
-    distress_history = state["distress_history"]
-    lang_detection = state["lang_detection"]
+    is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+    if settings.is_sarvam_cloud:
+        if not container.ollama._circuit.can_execute():
+            logger.warning(
+                "Sarvam API circuit breaker is OPEN in chat_endpoint pre-check — failing fast"
+            )
+            if is_benchmark:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Service temporarily unavailable - circuit breaker is OPEN",
+                )
+            else:
+                return ChatResponse(
+                    response="I apologize, but the service is temporarily unavailable. Please try again in a moment.",
+                    intent="ERROR",
+                    meditation_step=0,
+                    citations=[],
+                    trace_id=str(uuid.uuid4()),
+                    latency_ms=0,
+                    model_used=getattr(settings, "sarvam_cloud_model", None)
+                    or getattr(settings, "ollama_model", None),
+                    model_provider=getattr(settings, "llm_provider", None),
+                    route_decision="error",
+                )
 
-    # === Layer 1: NeMo Input Rail ===
-    with REQUEST_LATENCY.labels(stage="guardrails").time():
-        input_check = await container.guardrails.check_input(user_msg_en)
+    try:
+        # Prepare request state (language detection, translation, memory preparation)
+        state = await _prepare_request_state(container, chat_body, preferred_lang, user=user)
+        user_msg_en = state["user_msg_en"]
+        is_indic = state["is_indic"]
+        preferred_lang = state["preferred_lang"]
+        user_id = state["user_id"]
+        stable_session_id = state["stable_session_id"]
+        chat_history = [m.model_dump() for m in chat_body.messages]
+        chat_history_en = state["chat_history_en"]
+        memory_context = state["memory_context"]
+        distress_history = state["distress_history"]
+        lang_detection = state["lang_detection"]
 
-    if input_check["blocked"]:
-        logger.info(f"Input blocked: {input_check['reason']}")
-        REQUEST_COUNT.labels(status="blocked").inc()
-        blocked_resp = input_check["response"]
-        if is_indic:
-            blocked_resp = await translate_text(blocked_resp, "en", preferred_lang, container)
-        return ChatResponse(
-            response=blocked_resp,
-            blocked=True,
-            block_reason=input_check["reason"],
+        # === Layer 1: NeMo Input Rail ===
+        with REQUEST_LATENCY.labels(stage="guardrails").time():
+            input_check = await container.guardrails.check_input(user_msg_en)
+
+        if input_check["blocked"]:
+            logger.info(f"Input blocked: {input_check['reason']}")
+            REQUEST_COUNT.labels(status="blocked").inc()
+            blocked_resp = input_check["response"]
+            if is_indic:
+                blocked_resp = await translate_text(blocked_resp, "en", preferred_lang, container)
+            return ChatResponse(
+                response=blocked_resp,
+                blocked=True,
+                block_reason=input_check["reason"],
+            )
+
+        # === Depression Detection (Council Recommendation) ===
+        # We log the distress assessment here, but no longer fail-fast.
+        # We let the query proceed to the RAG pipeline so Mukti Guru can
+        # provide a compassionate teaching-based response first.
+        try:
+            if container.serene_mind:
+                assessment_history = (
+                    [
+                        {
+                            "role": "system",
+                            "content": f"Previous distress history: {distress_history}",
+                        }
+                    ]
+                    if distress_history
+                    else []
+                )
+                assessment = await container.serene_mind.analyze_with_history(
+                    user_msg_en, history=chat_history_en + assessment_history
+                )
+                if assessment.level.value >= 2:
+                    logger.info(
+                        f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response."
+                    )
+        except Exception as e:
+            logger.warning(f"Serene Mind detection failed (non-fatal): {e}")
+
+        # === PROACTIVE SERENE MIND TRIGGERING ===
+        # Check if we should proactively offer Serene Mind based on conversation trend
+        try:
+            if container.serene_mind and container.user_profile:
+                # Use current assessment if available, otherwise create a neutral one
+                current_assessment = locals().get("assessment")
+                if current_assessment is None:
+                    current_assessment = DistressAssessment(
+                        level=DistressLevel.NONE,
+                        confidence=0.0,
+                        detected_signals=[],
+                        language_detected=lang_detection.primary.value,
+                        recommended_response_type="normal",
+                    )
+
+                proactive_assessment = await container.serene_mind.analyze_distress_trend(
+                    user_id=user_id,
+                    current_assessment=current_assessment,
+                    user_profile_service=container.user_profile,
+                )
+
+                if proactive_assessment:
+                    # 15-minute cooldown: skip if user completed Serene Mind recently.
+                    _client_ts = chat_body.last_serene_mind_at or 0.0
+                    _now = time.time()
+                    _COOLDOWN_SECS = 15 * 60  # 15 minutes
+                    _skip_cooldown = (_now - _client_ts) < _COOLDOWN_SECS
+
+                    # Also check Supabase for server-side verification
+                    if not _skip_cooldown and container.user_profile:
+                        _db_ts = await container.user_profile.get_last_meditation_session(user_id)
+                        if _db_ts and (_now - _db_ts) < _COOLDOWN_SECS:
+                            _skip_cooldown = True
+
+                    if not _skip_cooldown:
+                        logger.info(
+                            f"Proactive Serene Mind triggered for user {user_id}: "
+                            f"level={proactive_assessment.level.name}, "
+                            f"confidence={proactive_assessment.confidence:.2f}"
+                        )
+                        state["proactive_serene_mind"] = {
+                            "triggered": True,
+                            "level": proactive_assessment.level.name,
+                            "confidence": proactive_assessment.confidence,
+                            "signals": proactive_assessment.detected_signals,
+                            "suggested_response": container.serene_mind.get_response(
+                                proactive_assessment
+                            ),
+                            "teachings_prelude": (
+                                "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
+                                "Every moment of pain is also a doorway to awakening. "
+                                "You are not alone in this — Mukti Guru is here with you. "
+                                "Before we continue, let's pause together in a moment of Serene Mind."
+                            ),
+                        }
+                    else:
+                        logger.info(
+                            f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown."
+                        )
+        except Exception as e:
+            logger.warning(f"Proactive Serene Mind analysis failed (non-fatal): {e}")
+    except CircuitOpenException:
+        logger.warning(
+            "Sarvam API circuit breaker is OPEN in chat_endpoint outer check — failing fast"
         )
-
-    # === Depression Detection (Council Recommendation) ===
-    # We log the distress assessment here, but no longer fail-fast.
-    # We let the query proceed to the RAG pipeline so Mukti Guru can
-    # provide a compassionate teaching-based response first.
-    try:
-        if container.serene_mind:
-            assessment_history = (
-                [{"role": "system", "content": f"Previous distress history: {distress_history}"}]
-                if distress_history
-                else []
+        if is_benchmark:
+            raise HTTPException(
+                status_code=503, detail="Service temporarily unavailable - circuit breaker is OPEN"
             )
-            assessment = await container.serene_mind.analyze_with_history(
-                user_msg_en, history=chat_history_en + assessment_history
+        else:
+            return ChatResponse(
+                response="I apologize, but the service is temporarily unavailable. Please try again in a moment.",
+                intent="ERROR",
+                meditation_step=0,
+                citations=[],
+                trace_id=str(uuid.uuid4()),
+                latency_ms=int((time.time() - start_time) * 1000),
+                model_used=getattr(settings, "sarvam_cloud_model", None)
+                or getattr(settings, "ollama_model", None),
+                model_provider=getattr(settings, "llm_provider", None),
+                route_decision="error",
             )
-            if assessment.level.value >= 2:
-                logger.info(
-                    f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response."
-                )
-    except Exception as e:
-        logger.warning(f"Serene Mind detection failed (non-fatal): {e}")
-
-    # === PROACTIVE SERENE MIND TRIGGERING ===
-    # Check if we should proactively offer Serene Mind based on conversation trend
-    try:
-        if container.serene_mind and container.user_profile:
-            # Use current assessment if available, otherwise create a neutral one
-            current_assessment = locals().get("assessment")
-            if current_assessment is None:
-                current_assessment = DistressAssessment(
-                    level=DistressLevel.NONE,
-                    confidence=0.0,
-                    detected_signals=[],
-                    language_detected=lang_detection.primary.value,
-                    recommended_response_type="normal",
-                )
-
-            proactive_assessment = await container.serene_mind.analyze_distress_trend(
-                user_id=user_id,
-                current_assessment=current_assessment,
-                user_profile_service=container.user_profile,
-            )
-
-            if proactive_assessment:
-                # 15-minute cooldown: skip if user completed Serene Mind recently.
-                _client_ts = chat_body.last_serene_mind_at or 0.0
-                _now = time.time()
-                _COOLDOWN_SECS = 15 * 60  # 15 minutes
-                _skip_cooldown = (_now - _client_ts) < _COOLDOWN_SECS
-
-                # Also check Supabase for server-side verification
-                if not _skip_cooldown and container.user_profile:
-                    _db_ts = await container.user_profile.get_last_meditation_session(user_id)
-                    if _db_ts and (_now - _db_ts) < _COOLDOWN_SECS:
-                        _skip_cooldown = True
-
-                if not _skip_cooldown:
-                    logger.info(
-                        f"Proactive Serene Mind triggered for user {user_id}: "
-                        f"level={proactive_assessment.level.name}, "
-                        f"confidence={proactive_assessment.confidence:.2f}"
-                    )
-                    state["proactive_serene_mind"] = {
-                        "triggered": True,
-                        "level": proactive_assessment.level.name,
-                        "confidence": proactive_assessment.confidence,
-                        "signals": proactive_assessment.detected_signals,
-                        "suggested_response": container.serene_mind.get_response(
-                            proactive_assessment
-                        ),
-                        "teachings_prelude": (
-                            "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
-                            "Every moment of pain is also a doorway to awakening. "
-                            "You are not alone in this — Mukti Guru is here with you. "
-                            "Before we continue, let's pause together in a moment of Serene Mind."
-                        ),
-                    }
-                else:
-                    logger.info(
-                        f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown."
-                    )
-    except Exception as e:
-        logger.warning(f"Proactive Serene Mind analysis failed (non-fatal): {e}")
 
     # === Layers 2-11: LangGraph RAG Pipeline ===
     try:
