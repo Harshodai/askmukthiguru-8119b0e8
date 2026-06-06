@@ -56,6 +56,8 @@ def mock_get_container():
     # Mock Ollama
     mock_container.ollama = AsyncMock()
     mock_container.ollama.health_check.return_value = True
+    mock_container.ollama._circuit = MagicMock()
+    mock_container.ollama._circuit.can_execute.return_value = True
 
     async def dummy_translate(text, src, tgt):
         return f"translated_{text}"
@@ -189,6 +191,8 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
 
     mock_container.ollama = AsyncMock()
     mock_container.ollama.health_check.return_value = True
+    mock_container.ollama._circuit = MagicMock()
+    mock_container.ollama._circuit.can_execute.return_value = True
 
     async def dummy_translate(text, src, tgt):
         return f"translated_{text}"
