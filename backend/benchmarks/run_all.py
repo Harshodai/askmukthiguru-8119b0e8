@@ -109,6 +109,7 @@ def main():
     parser.add_argument("--endpoint", default="http://localhost:8000")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--test-key")
+    parser.add_argument("--complex-variants", action="store_true", help="Generate and run complex query variants dynamically")
     args = parser.parse_args()
 
     # Preflight Check: Make sure backend is up
@@ -124,6 +125,8 @@ def main():
         ruthless_args += ["--test-key", args.test_key]
     if args.dry_run:
         ruthless_args.append("--dry-run")
+    if args.complex_variants:
+        ruthless_args.append("--complex-variants")
 
     native_args = ["--limit", "2" if args.dry_run else "10"]
 
@@ -133,7 +136,10 @@ def main():
     # 2. Run Native Ollama Ragas Evaluator
     success_native = run_script("native_eval.py", native_args)
 
-    # 3. Print Final Consolidated Dashboard
+    # 3. Generate HTML Dashboard
+    run_script("generate_dashboard.py", [])
+
+    # 4. Print Final Consolidated Dashboard
     show_readiness_scorecard()
 
     if not success_ruthless or not success_native:
