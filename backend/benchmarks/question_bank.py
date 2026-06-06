@@ -1339,6 +1339,21 @@ QUERIES = {
             "must_mention": ["parietal", "deeksha", "golden light", "soul sync", "neurological"],
             "min_cites": 2,
         },
+        {
+            "q": "How does the story of the two monks Yesmi and Nomi illustrate the application of Spiritual Right Action (4th secret), and how does this conscious action correlate with the activation of the frontal lobes during Deeksha?",
+            "must_mention": ["yesmi", "nomi", "spiritual right action", "frontal", "deeksha", "action"],
+            "min_cites": 2,
+        },
+        {
+            "q": "Explain how transitioning from a 'me-centric' suffering state to a 'beautiful state' is facilitated sequentially by the Power of Letting Go in October and the Power of Gratitude in November in the Manifest 2026 teachings.",
+            "must_mention": ["me-centric", "beautiful state", "letting go", "gratitude", "october", "november"],
+            "min_cites": 2,
+        },
+        {
+            "q": "Synthesize the Oneness movement concept of the 'unitary fabric of life' with the Lokaa Foundation's clean water and healthcare initiatives in the villages surrounding Ekam.",
+            "must_mention": ["unitary fabric", "lokaa foundation", "villages", "water", "healthcare", "ekam"],
+            "min_cites": 2,
+        },
     ],
     # ─── 11. HINGLISH & MULTILINGUAL SPIRITUALITY (20 questions) ───
     "multilingual_hinglish": [
