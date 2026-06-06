@@ -59,6 +59,7 @@ class OCRService:
                 self._reader = easyocr.Reader(
                     self._languages,
                     gpu=False,  # CPU only — GPU reserved for LLM
+                    model_storage_directory="/app/.cache/easyocr",
                 )
                 logger.info("EasyOCR reader loaded")
 
