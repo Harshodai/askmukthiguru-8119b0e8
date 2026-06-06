@@ -42,7 +42,7 @@ export interface AuthStep {
 
 export interface AuthRun {
   id: string;
-  provider: 'google' | 'email' | 'unknown';
+  provider: 'google' | 'google_one_tap' | 'facebook' | 'email' | 'unknown';
   startedAt: number;
   endedAt: number | null;
   totalMs: number | null;
