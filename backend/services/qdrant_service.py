@@ -267,8 +267,14 @@ class QdrantService:
 
         # Hybrid search with Multi-Vector Prefetching (Ch 6 RAG Made Simple)
         if sparse_vector:
+            sparse_qvec = self._sparse_dict_to_vector(sparse_vector)
+            # ONLY include sparse prefetch if vector has meaningful data
+            if len(sparse_qvec.indices) == 0 or len(sparse_qvec.values) == 0:
+                logger.warning("Sparse vector is empty, skipping sparse lexical match prefetch")
+                sparse_vector = None  # Disable sparse prefetch
+
+        if sparse_vector:
             try:
-                sparse_qvec = self._sparse_dict_to_vector(sparse_vector)
                 prefetch_queries = [
                     # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
@@ -297,15 +303,10 @@ class QdrantService:
                     ),
                 ]
 
-                # Prefetch 4: Indic Phonetic Matching (Fuzzy search fallback)
+                # Prefetch 4: Indic Phonetic Matching (Payload-only filter)
                 if query_phonetic_tokens:
                     prefetch_queries.append(
                         Prefetch(
-                            query=SparseVector(
-                                indices=[], values=[]
-                            ),  # Empty sparse query for filtering
-                            using="sparse",
-                            limit=limit // 2,
                             filter=Filter(
                                 should=[
                                     FieldCondition(
@@ -314,6 +315,8 @@ class QdrantService:
                                     for tok in query_phonetic_tokens
                                 ]
                             ),
+                            limit=limit // 2,
+                            # NOTE: No query parameter = payload-only search
                         )
                     )
                 results = self._client.query_points(
@@ -407,13 +410,15 @@ class QdrantService:
                 with_payload=True,
             )
             return results.points
-        except Exception:
+        except Exception as e:
+            logger.error(f"Dense search failed: {e}. Falling back to default vector.")
             # Final fallback for legacy collections without named vectors
             results = self._client.query_points(
                 collection_name=self._collection,
                 query=query_vector,
                 limit=limit,
                 query_filter=search_filter,
+                with_payload=True,
             )
             return results.points
 

@@ -73,6 +73,7 @@ from app.core.limiter import limiter
 from routers.admin import admin_router
 from routers.feedback import router as feedback_router
 from services.cache_service import init_llm_cache
+from services.sarvam_service import CircuitOpenException
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,7 @@ async def lifespan(app: FastAPI):
 
     # 9. Unit 17: Hot Reload Config Watcher (watchfiles / polling fallback)
     from services.config_watcher import start_config_watcher
+
     _config_watcher = await start_config_watcher()
 
     logger.info("=== Mukthi Guru Backend Ready ===")
@@ -206,6 +208,7 @@ async def lifespan(app: FastAPI):
 
     # Stop Config Watcher (Unit 17)
     from services.config_watcher import stop_config_watcher
+
     await stop_config_watcher()
 
     shutdown()
@@ -379,6 +382,7 @@ app.include_router(feedback_router, prefix="/api")
 
 # Unit 24: Compliance router (GDPR audit log access)
 from routers.compliance import router as compliance_router
+
 app.include_router(compliance_router)
 
 # Mount trace dashboard routes
@@ -534,7 +538,9 @@ class ChatResponse(BaseModel):
         None, description="Whether verification flagged hallucination risk"
     )
     trace_id: Optional[str] = Field(None, description="Trace/query ID for observability")
-    latency_ms: Optional[int] = Field(None, description="End-to-end response latency in milliseconds")
+    latency_ms: Optional[int] = Field(
+        None, description="End-to-end response latency in milliseconds"
+    )
     node_timings: Optional[dict] = Field(
         None, description="Per-node LangGraph timings in milliseconds"
     )
@@ -988,6 +994,17 @@ async def chat_endpoint(
         intent = "ERROR"
         med_step = 0
         citations = []
+    except CircuitOpenException:
+        logger.warning("Sarvam API circuit breaker is OPEN in chat_endpoint — failing fast")
+        if is_benchmark:
+            raise HTTPException(
+                status_code=503, detail="Service temporarily unavailable - circuit breaker is OPEN"
+            )
+        else:
+            final_answer = "I apologize, but the service is temporarily unavailable. Please try again in a moment."
+            intent = "ERROR"
+            med_step = 0
+            citations = []
     except Exception as e:
         citations = []
         from services.sarvam_service import QuotaExceededError
@@ -1256,6 +1273,23 @@ async def chat_stream_endpoint(
             yield f"event: error\ndata: Message too long. Please keep it under {settings.max_input_length} characters.\n\n"
 
         return StreamingResponse(length_error_stream(), media_type="text/event-stream")
+
+    is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+    if settings.is_sarvam_cloud:
+        if not container.ollama._circuit.can_execute():
+            if is_benchmark:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Service temporarily unavailable - circuit breaker is OPEN",
+                )
+            else:
+
+                async def circuit_error_stream():
+                    yield "event: token\ndata: I apologize, but the service is temporarily unavailable. Please try again in a moment.\n\n"
+                    meta = json.dumps({"intent": "ERROR", "citations": [], "meditation_step": 0})
+                    yield f"event: done\ndata: {meta}\n\n"
+
+                return StreamingResponse(circuit_error_stream(), media_type="text/event-stream")
 
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
@@ -1786,6 +1820,17 @@ async def chat_stream_endpoint(
                 )
             )
 
+        except CircuitOpenException as e:
+            logger.warning(f"CircuitOpenException caught in generate_sse: {e}")
+            if is_benchmark:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Service temporarily unavailable - circuit breaker is OPEN",
+                )
+            else:
+                yield "event: token\ndata: I apologize, but the service is temporarily unavailable. Please try again in a moment.\n\n"
+                meta = json.dumps({"intent": "ERROR", "citations": [], "meditation_step": 0})
+                yield f"event: done\ndata: {meta}\n\n"
         except Exception as e:
             logger.error(f"SSE streaming error: {e}", exc_info=True)
             REQUEST_COUNT.labels(status="error").inc()
