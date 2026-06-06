@@ -352,25 +352,22 @@ const AuthPage = () => {
       setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
     }, 400);
     try {
-      const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
       sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
 
-      if (useNativeOAuth) {
-        const initT0 = performance.now();
-        const { error: supabaseError } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin,
-          },
-        });
-        recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
-          error: supabaseError?.message,
-          meta: { mode: 'native', provider: 'google' },
-        });
-        if (supabaseError) throw supabaseError;
-        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
-        return;
-      }
+      const initT0 = performance.now();
+      const { error: supabaseError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+        error: supabaseError?.message,
+        meta: { mode: 'native', provider: 'google' },
+      });
+      if (supabaseError) throw supabaseError;
+      recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+      return;
 
       /* Commented out Lovable Cloud managed Google OAuth
       const initT0 = performance.now();
@@ -397,12 +394,10 @@ const AuthPage = () => {
 
       setGoogleStep('finalizing');
       */
-
-      throw new Error("Lovable OAuth is disabled. Please enable VITE_USE_NATIVE_OAUTH.");
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not connect to Google.';
       console.error('[Google Auth Error]', err);
-      setError(message.includes('Lovable OAuth') ? message : 'Could not connect to Google. Please try again.');
+      setError('Could not connect to Google. Please try again.');
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
       setGoogleStep('idle');
       endAuthRun('error', message);
