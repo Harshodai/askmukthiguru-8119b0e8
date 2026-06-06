@@ -1130,3 +1130,29 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Problem**: `backend/Dockerfile` and `frontend.Dockerfile` had `COPY ingest-ui/` and `COPY chat-ui/` directives referencing directories that no longer exist in the repo. This caused Docker builds to fail with `failed to compute cache key: ... not found`.
 - **Solution**: Removed the stale `COPY` directives and volume mount references from all Dockerfiles and docker-compose configurations.
 - **Lesson learned**: When removing a feature or directory from a monorepo, search all Dockerfiles and docker-compose files for `COPY` and volume mount references. Stale directives are silent until the next full Docker build and can block CI/CD pipelines.
+
+### 99. Configuring Google OAuth for Lovable and Custom Branding (June 2026)
+- **Problem**: When using Lovable's default Google OAuth settings, the authentication consent screen displays Lovable's logo and app name rather than the custom branding of "AskMukthiGuru".
+- **Solution**: Set up a custom Google Cloud Console OAuth client and consent screen. Under "Authorized redirect URIs" in the Google Cloud Console, specify the callback URL retrieved from the Supabase Project's Auth Settings (after disabling Lovable's managed credentials toggle). Then, input the custom Client ID and Client Secret in the Supabase Dashboard's Google auth configuration page.
+- **Lesson learned**: To present custom branding on the Google OAuth consent page, bypass third-party managed integrations by configuring custom client credentials in both the Google Cloud Console and the Supabase Auth Dashboard, and link them using the explicit Supabase callback URL.
+
+### 100. Local Supabase Auth Environment Secrets Injection (June 2026)
+- **Problem**: Local Supabase CLI containers started via `npx supabase start` read secrets from the local `supabase/config.toml` file. Placing actual OAuth secrets in the repository config file exposes credentials to git history.
+- **Solution**: Configured the external auth provider settings in `supabase/config.toml` to reference environment variables via the `env()` syntax (e.g., `client_id = "env(GOOGLE_CLIENT_ID)"` and `secret = "env(GOOGLE_CLIENT_SECRET)"`), and injected the actual credentials securely via a local gitignored `supabase/.env` file.
+- **Lesson learned**: Secure local OAuth development by referencing secrets in the Supabase `config.toml` using `env(VARIABLE_NAME)` functions, and configure the local Supabase container environment using a gitignored `.env` file at the `supabase/` root directory.
+
+### 101. Integrating Facebook OAuth Sign-In via Supabase (June 2026)
+- **Problem**: Adding additional social login providers (such as Facebook) requires custom client handlers in the frontend UI, along with backend provider configuration.
+- **Solution**: Enabled the Facebook provider in the Supabase dashboard (and configured `auth.external.facebook` in the local Supabase config), and updated `AuthPage.tsx` with a dedicated Facebook sign-in handler that routes through native Supabase/Lovable OAuth flows while implementing state tracking and timeout safeguards.
+- **Lesson learned**: Seamlessly add social login providers by registering developer app credentials (App ID/Secret) in Supabase's authentication dashboard, configuring the authorized redirect URIs to point to the Supabase OAuth callback, and implementing corresponding client-side handlers with robust error-recovery loops.
+
+### 102. Connecting WhatsApp Bot to AskMukthiGuru Chat API (June 2026)
+- **Problem**: The AskMukthiGuru chat assistant needs to be accessible via WhatsApp messaging platforms (like Twilio or Meta Cloud API), requiring a session-aware webhook handler to translate between WhatsApp payloads and the FastAPI `/api/chat` schema.
+- **Solution**: Authored a comprehensive [WHATSAPP_BOT_INTEGRATION.md](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/WHATSAPP_BOT_INTEGRATION.md) detailing step-by-step instructions for Twilio and Meta Cloud API webhooks, including a complete Python + Redis webhook implementation that maintains conversation state using `whatsapp_<phone_number>` as session IDs, slices histories to 10 turns, and secures requests using JWT Bearer authentication.
+- **Lesson learned**: Connect external messaging channels to standard RAG chat endpoints by building a lightweight session-aware webhook broker that maps incoming messages to the backend chat API, persists conversational history arrays in Redis or database caches, and forwards the assistant responses back using the channel provider's messaging APIs.
+
+### 103. Resolving Docker Healthcheck Startup Deadlocks for Heavy ML Services (June 2026)
+- **Problem**: Heavy CPU-bound startup operations (such as loading a 1.1GB multilingual embedding model like `intfloat/multilingual-e5-large-instruct` on CPU) block the FastAPI/Uvicorn event loop during initialization. Under constrained container resources (`cpus: '1.0'`), loading takes longer than the healthcheck timeout, causing Docker to repeatedly restart the container and trapping it in an infinite crash loop.
+- **Solution**: Increased the backend container resource limits in `backend/docker-compose.yml` to `cpus: '4.0'` and `memory: 4G`, allowing the CPU-bound PyTorch model loading operation to execute rapidly without starving Uvicorn from responding to Docker's `/api/health` queries.
+- **Lesson learned**: Containers running CPU-heavy machine learning models (like tokenizers, embedders, and local Whisper) must be allocated sufficient CPU shares and memory bounds during local development. Restricting them to 1 CPU core blocks event loops during model loading, causing healthcheck timeouts and continuous container restarts.
+
