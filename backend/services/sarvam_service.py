@@ -73,6 +73,12 @@ class NonRetryableError(Exception):
     pass
 
 
+class CircuitOpenException(Exception):
+    """Raised when Sarvam API circuit breaker is OPEN."""
+
+    pass
+
+
 # ---------------------------------------------------------------------------
 # Circuit Breaker — fail-fast when API is down, auto-recover
 # ---------------------------------------------------------------------------
@@ -89,7 +95,7 @@ class CircuitBreaker:
     """Lightweight circuit breaker for Sarvam API calls."""
 
     failure_threshold: int = 5
-    recovery_timeout: float = 30.0
+    recovery_timeout: float = 90.0
     half_open_max_calls: int = 3
     # Mutable state — use field(default_factory)
     _failures: int = field(default=0, repr=False)
@@ -311,7 +317,7 @@ class SarvamCloudService:
         request_timeout = kwargs.pop("timeout", self._timeout)
         request_retries = kwargs.pop("max_retries", self._max_retries)
         if not self._circuit.can_execute():
-            exc = Exception(
+            exc = CircuitOpenException(
                 "Sarvam API circuit breaker is OPEN — "
                 "failing fast. Will retry after recovery timeout."
             )
@@ -376,8 +382,26 @@ class SarvamCloudService:
             #   complex / cove / multi_hop / verify / reflect     → "high" (SARVAM_REASONING_EFFORT_COMPLEX)
             #   generate / answer / stream / default              → config  (SARVAM_REASONING_EFFORT)
             _op = (operation or "").lower()
-            _fast_tags = ("classification", "intent", "grade", "followup", "decompose", "tree", "hyde", "sufficiency", "rerank")
-            _complex_tags = ("complex", "cove", "multi_hop", "verify", "faithfulness", "self_rag", "reflect")
+            _fast_tags = (
+                "classification",
+                "intent",
+                "grade",
+                "followup",
+                "decompose",
+                "tree",
+                "hyde",
+                "sufficiency",
+                "rerank",
+            )
+            _complex_tags = (
+                "complex",
+                "cove",
+                "multi_hop",
+                "verify",
+                "faithfulness",
+                "self_rag",
+                "reflect",
+            )
             if any(tag in _op for tag in _fast_tags):
                 _effort = getattr(settings, "sarvam_reasoning_effort_fast", "low")
             elif any(tag in _op for tag in _complex_tags):
@@ -389,7 +413,9 @@ class SarvamCloudService:
 
         if _effort and _effort in ("low", "medium", "high"):
             payload["reasoning_effort"] = _effort
-            logger.debug(f"_call_api: reasoning_effort={_effort!r} for op={operation!r} model={model!r}")
+            logger.debug(
+                f"_call_api: reasoning_effort={_effort!r} for op={operation!r} model={model!r}"
+            )
 
         from tenacity import (
             AsyncRetrying,
@@ -417,11 +443,16 @@ class SarvamCloudService:
                             elapsed = now - self._last_request_time
                             if elapsed < min_interval:
                                 sleep_time = min_interval - elapsed
-                                logger.info(
-                                    f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit"
-                                )
-                                await asyncio.sleep(sleep_time)
-                            self._last_request_time = time.time()
+                                self._last_request_time = now + sleep_time
+                            else:
+                                sleep_time = 0.0
+                                self._last_request_time = now
+
+                        if sleep_time > 0:
+                            logger.info(
+                                f"Sarvam API Rate Limiting: sleeping {sleep_time:.2f}s to respect {rpm_limit} RPM limit"
+                            )
+                            await asyncio.sleep(sleep_time)
 
                     start_time = time.time()
                     with self._start_llm_span(
@@ -872,7 +903,9 @@ class SarvamCloudService:
 
         if "sarvam-30b" in model or "sarvam-105b" in model:
             if max_tokens != 32768:
-                logger.info(f"generate_stream: Setting max_tokens={max_tokens} → 32768 for reasoning model {model}")
+                logger.info(
+                    f"generate_stream: Setting max_tokens={max_tokens} → 32768 for reasoning model {model}"
+                )
             max_tokens = 32768
 
         payload = {
@@ -893,6 +926,12 @@ class SarvamCloudService:
             _stream_effort = None
         if _stream_effort and _stream_effort in ("low", "medium", "high"):
             payload["reasoning_effort"] = _stream_effort
+
+        if not self._circuit.can_execute():
+            logger.warning("Sarvam API circuit breaker is OPEN in generate_stream — failing fast")
+            raise CircuitOpenException(
+                "Sarvam API circuit breaker is OPEN in generate_stream — failing fast"
+            )
 
         try:
             client = await self._get_http_client()
@@ -1046,8 +1085,17 @@ class SarvamCloudService:
             line = line.strip()
             if line.startswith("INTENT:"):
                 val = line.split(":", 1)[-1].strip()
-                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION",
-                                  "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY"]:
+                for candidate in [
+                    "DISTRESS",
+                    "SAFETY_VIOLATION",
+                    "ADVERSARIAL",
+                    "MEDITATION",
+                    "FACTUAL",
+                    "RELATIONAL",
+                    "FOLLOW_UP",
+                    "CASUAL",
+                    "QUERY",
+                ]:
                     if candidate in val:
                         intent = candidate
                         break
