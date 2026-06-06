@@ -138,7 +138,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const refresh = async () => {
       const dbStats = await getMeditationStatsFromDb();
       if (!cancelled) setStats(dbStats);
       const { data: { session } } = await supabase.auth.getSession();
@@ -149,8 +149,17 @@ const ProfilePage = () => {
           .eq('user_id', session.user.id);
         if (!cancelled && typeof count === 'number') setConversationCount(count);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    refresh();
+    const onMed = () => { refresh(); };
+    window.addEventListener('askmukthiguru:meditation_completed', onMed);
+    const onVis = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('askmukthiguru:meditation_completed', onMed);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [profile.updatedAt]);
 
   const patch = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
