@@ -89,5 +89,12 @@ secret = "env(GOOGLE_CLIENT_SECRET)"
 # Supabase will use the local callback by default:
 # http://127.0.0.1:54321/auth/v1/callback
 
+# Facebook OAuth provider
+[auth.external.facebook]
+enabled = true
+client_id = "env(FACEBOOK_CLIENT_ID)"
+secret = "env(FACEBOOK_CLIENT_SECRET)"
+
 [functions.guru-chat]
 verify_jwt = false
+
