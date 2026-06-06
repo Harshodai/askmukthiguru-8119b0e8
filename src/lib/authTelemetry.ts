@@ -15,6 +15,8 @@ const MAX_RUNS = 25;
 
 export type AuthStepName =
   | 'click_google'
+  | 'click_facebook'
+  | 'google_one_tap'
   | 'oauth_init'           // lovable.auth.signInWithOAuth() call
   | 'provider_redirect'    // browser leaving for Google
   | 'provider_return'      // we're back from Google (page reload)
