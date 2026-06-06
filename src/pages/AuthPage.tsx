@@ -352,28 +352,9 @@ const AuthPage = () => {
       setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
     }, 400);
     try {
-      const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
-
-      // Mark that we initiated Google OAuth so that after the redirect roundtrip
-      // we can show "Returning from Google…" immediately on mount.
+      // Always use Lovable Cloud managed Google OAuth. The native path was pointing
+      // at a stale external Supabase project (causing "failed to exchange authorization code").
       sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
-
-      if (useNativeOAuth) {
-        const initT0 = performance.now();
-        const { error: supabaseError } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.href, // Return here to process saved redirect path
-          },
-        });
-        recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
-          error: supabaseError?.message,
-          meta: { mode: 'native' },
-        });
-        if (supabaseError) throw supabaseError;
-        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
-        return;
-      }
 
       const initT0 = performance.now();
       const result = await lovable.auth.signInWithOAuth('google', {
