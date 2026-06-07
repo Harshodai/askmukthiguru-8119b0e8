@@ -1,161 +1,55 @@
 ---
-name: Token Optimization
-description: Practical settings and habits to reduce token consumption, extend session quality, and get more work done within daily limits.
+name: token-optimization
+description: Habits and tactics to reduce token usage during agent work — when to spawn subagents, batch tool calls, prefer graph/search over reads, and compact context at safe breakpoints.
 ---
 
-# Token Optimization Guide
+# Token Optimization
 
-Practical settings and habits to reduce token consumption, extend session quality, and get more work done within daily limits.
+Apply on every non-trivial task to extend session quality within token limits.
 
-> See also: `rules/common/performance.md` for model selection strategy, `skills/strategic-compact/` for automated compaction suggestions.
+## Core habits
 
----
+1. **Batch parallel tool calls.** Independent reads, searches, edits, and deploys MUST go in one tool block. Sequential calls without dependency = wasted tokens.
+2. **Prefer narrow tools over file reads.**
+   - `rg -n` / `rg -l` before `code--view`.
+   - `code--view` with specific `lines` ranges, never full file by default.
+   - `code-review-graph` MCP (`semantic_search_nodes`, `query_graph`, `get_impact_radius`) before grep when available.
+3. **Spawn subagents for high-output exploration.** Use `acp_subagent--explore` or `acp_subagent--spawn_agent` for "trace this", "find all usages", "audit X" — they read many files and return a summary, keeping main context clean.
+4. **Use `code--line_replace` (with `...` ellipsis on >6-line ranges) instead of `code--write`** unless creating a new file.
+5. **Skip recap prose.** One short closing sentence. No "Files changed" lists, no third-person past-tense summaries.
+6. **Reuse `<codebase-context>` files already in prompt** — never re-read them.
+7. **Verify with the cheapest signal.** `tsc`/build output > targeted test > full test run > preview screenshot. Don't screenshot for logic bugs; don't run tests for pure type changes.
 
-## Recommended Settings
+## Sprint / multi-step work
 
-These are recommended defaults for most users. Power users can tune values further based on their workload — for example, setting `MAX_THINKING_TOKENS` lower for simple tasks or higher for complex architectural work.
+- Use `task_tracking--create_task` only when ≥2 meaningful steps. Don't narrate task management.
+- For "continue the plan" requests: read `.lovable/plan.md` / `next_steps.md` once, then act. Don't re-summarize the plan.
+- At logical breakpoints, drop intermediate context by closing out completed tasks before starting the next.
 
-Add to your `~/.claude/settings.json`:
+## Model selection (Lovable AI Gateway in edge functions)
 
-```json
-{
-  "model": "sonnet",
-  "env": {
-    "MAX_THINKING_TOKENS": "10000",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
-  }
-}
-```
+| Task | Model |
+|---|---|
+| Chat / streaming / agent loops | `google/gemini-2.5-flash` (default, free until Oct 13 2025) |
+| Cheap classification, summarization, embedding-style | `google/gemini-2.5-flash-lite` |
+| Hard reasoning, structured extraction, code synthesis | `google/gemini-2.5-pro` |
+| Image gen | `google/gemini-2.5-flash-image` (Nano Banana) |
 
-### What each setting does
+Never default to GPT-5 for routine generation — Gemini Flash is 5–10× cheaper for equivalent quality on this stack.
 
-| Setting | Default | Recommended | Effect |
-|---------|---------|-------------|--------|
-| `model` | opus | **sonnet** | Sonnet handles ~80% of coding tasks well. Switch to Opus with `/model opus` for complex reasoning. ~60% cost reduction. |
-| `MAX_THINKING_TOKENS` | 31,999 | **10,000** | Extended thinking reserves up to 31,999 output tokens per request for internal reasoning. Reducing this cuts hidden cost by ~70%. Set to `0` to disable for trivial tasks. |
-| `CLAUDE_CODE_SUBAGENT_MODEL` | _(inherits main)_ | **haiku** | Subagents (Task tool) run on this model. Haiku is ~80% cheaper and sufficient for exploration, file reading, and test running. |
-| `ECC_CONTEXT_MONITOR_COST_WARNINGS` | on | **off for subscription users** | Suppresses agent-facing API-rate estimate warnings while keeping context exhaustion, scope, and loop warnings. |
+## Anti-patterns to refuse
 
-### Community note on auto-compaction overrides
+- Reading entire files just to find one symbol → use `rg -n "symbol" path`.
+- Re-running the same failed command 3+ times → change approach.
+- `cat` / `ls` / `find /` in bash → use `code--view`, `code--list_dir`, scoped `rg`.
+- `cd /dev-server && ...` as first call (CWD already there) → wasted call.
+- Standalone shell comments (`# note`) as commands → no-ops.
+- Asking the user to confirm obvious next steps when the request was "continue" or "yes".
 
-Some recent Claude Code builds have community reports that `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` can only lower the compaction threshold, which means values below the default may compact earlier instead of later. If that happens in your setup, remove the override and rely on manual `/compact` plus ECC's `strategic-compact` guidance. See [Troubleshooting](./TROUBLESHOOTING.md).
+## Quick checklist before sending a response
 
-### Toggling extended thinking
-
-- **Alt+T** (Windows/Linux) or **Option+T** (macOS) — toggle on/off
-- **Ctrl+O** — see thinking output (verbose mode)
-
----
-
-## Model Selection
-
-Use the right model for the task:
-
-| Model | Best for | Cost |
-|-------|----------|------|
-| **Haiku** | Subagent exploration, file reading, simple lookups | Lowest |
-| **Sonnet** | Day-to-day coding, reviews, test writing, implementation | Medium |
-| **Opus** | Complex architecture, multi-step reasoning, debugging subtle issues | Highest |
-
-Switch models mid-session:
-
-```
-/model sonnet     # default for most work
-/model opus       # complex reasoning
-/model haiku      # quick lookups
-```
-
----
-
-## Context Management
-
-### Commands
-
-| Command | When to use |
-|---------|-------------|
-| `/clear` | Between unrelated tasks. Stale context wastes tokens on every subsequent message. |
-| `/compact` | At logical task breakpoints (after planning, after debugging, before switching focus). |
-| `/cost` | Check token spending for the current session. |
-
-### API-rate cost estimate warnings
-
-ECC's context monitor can emit API-rate cost estimates from local hook telemetry. If you are on a Claude subscription and those estimates do not reflect your actual bill, disable only the agent-facing cost warnings:
-
-```bash
-export ECC_CONTEXT_MONITOR_COST_WARNINGS=off
-```
-
-Windows PowerShell:
-
-```powershell
-[Environment]::SetEnvironmentVariable('ECC_CONTEXT_MONITOR_COST_WARNINGS', 'off', 'User')
-```
-
-This does not disable context exhaustion warnings, scope warnings, loop warnings, `/cost`, or cost telemetry files.
-
-### Strategic compaction
-
-The `strategic-compact` skill (in `skills/strategic-compact/`) suggests `/compact` at logical intervals rather than relying on auto-compaction, which can trigger mid-task. See the skill's README for hook setup instructions.
-
-**When to compact:**
-- After exploration, before implementation
-- After completing a milestone
-- After debugging, before continuing with new work
-- Before a major context shift
-
-**When NOT to compact:**
-- Mid-implementation of related changes
-- While debugging an active issue
-- During multi-file refactoring
-
-### Subagents protect your context
-
-Use subagents (Task tool) for exploration instead of reading many files in your main session. The subagent reads 20 files but only returns a summary — your main context stays clean.
-
----
-
-## MCP Server Management
-
-Each enabled MCP server adds tool definitions to your context window. The README warns: **keep under 10 enabled per project**.
-
-Tips:
-- Run `/mcp` to see active servers and their context cost
-- Use `/mcp` to disable Claude Code MCP servers when you want a live runtime change. Claude Code persists those runtime disables in `~/.claude.json`.
-- Prefer CLI tools when available (`gh` instead of GitHub MCP, `aws` instead of AWS MCP)
-- Do not rely on `.claude/settings.json` or `.claude/settings.local.json` to disable already-loaded Claude Code MCP servers; use `/mcp` for that.
-- `ECC_DISABLED_MCPS` only affects ECC-generated MCP config output during install/sync flows, such as `install.sh`, `npx ecc-install`, and Codex MCP merging. It is not a live Claude Code toggle.
-- The `memory` MCP server is configured by default but not used by any skill, agent, or hook — consider disabling it
-
----
-
-## Agent Teams Cost Warning
-
-[Agent Teams](https://code.claude.com/docs/en/agent-teams) (experimental) spawns multiple independent context windows. Each teammate consumes tokens separately.
-
-- Only use for tasks where parallelism adds clear value (multi-module work, parallel reviews)
-- For simple sequential tasks, subagents (Task tool) are more token-efficient
-- Enable with: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings
-
----
-
-## Future: configure-ecc Integration
-
-The `configure-ecc` install wizard could offer to set these environment variables during setup, with explanations of the cost tradeoffs. This would help new users optimize from day one rather than discovering these settings after hitting limits.
-
----
-
-## Quick Reference
-
-```bash
-# Daily workflow
-/model sonnet              # Start here
-/model opus                # Only for complex reasoning
-/clear                     # Between unrelated tasks
-/compact                   # At logical breakpoints
-/cost                      # Check spending
-
-# Environment variables (add to ~/.claude/settings.json "env" block)
-MAX_THINKING_TOKENS=10000
-CLAUDE_CODE_SUBAGENT_MODEL=haiku
-CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
-```
+- [ ] Did I batch independent tool calls?
+- [ ] Did I use ranged `code--view` or `rg`, not full reads?
+- [ ] Could a subagent have produced this exploration?
+- [ ] Is my prose under 2 lines (excluding code/tool output)?
+- [ ] Did I avoid re-reading files already in `<codebase-context>`?
