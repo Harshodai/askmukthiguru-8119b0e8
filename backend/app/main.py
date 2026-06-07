@@ -1418,7 +1418,7 @@ async def chat_stream_endpoint(
 
     is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
     if settings.is_sarvam_cloud:
-        if not container.ollama._circuit.can_execute():
+        if not container.sarvam._circuit.can_execute():
             if is_benchmark:
                 raise HTTPException(
                     status_code=503,
@@ -1442,7 +1442,8 @@ async def chat_stream_endpoint(
         try:
             # IMMEDIATE status event on stream start (before any pipeline work)
             # Must include "event: status" line so frontend SSE parser recognizes it
-            yield "event: status\ndata: {\"stage\": \"received\", \"message\": \"Query received, starting pipeline…\"}\n\n"
+            # Frontend expects PLAIN TEXT for status events, not JSON
+            yield "event: status\ndata: Query received, starting pipeline…\n\n"
 
             # Create early heartbeat that runs during cache check and all initial processing
             heartbeat_queue = asyncio.Queue()
@@ -1452,19 +1453,15 @@ async def chat_stream_endpoint(
                 while not processing_done.is_set():
                     await asyncio.sleep(15.0)
                     if not processing_done.is_set():
-                        # Put structured dict like pipeline status events - streaming loop will format as SSE
-                        heartbeat_msg = json.dumps({
-                            "stage": "heartbeat",
-                            "message": "Still processing…",
-                            "timestamp": datetime.utcnow().isoformat()
-                        })
-                        await heartbeat_queue.put({"event": "status", "data": heartbeat_msg})
+                        # Put properly formatted SSE string with plain text status message
+                        # Frontend expects: event: status\ndata: <plain text>\n\n
+                        heartbeat_sse = "event: status\ndata: Still processing…\n\n"
+                        await heartbeat_queue.put(heartbeat_sse)
 
             heartbeat_task = asyncio.create_task(heartbeat_worker())
 
             stream_start_time = time.time()
-            # === Benchmark cache bypass (captures request from outer scope via closure) ===
-            is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+            # is_benchmark already captured from outer scope (line ~1419)
 
             # === Cache check (Run output rail before returning cached responses) ===
             if not is_benchmark:
@@ -1773,8 +1770,8 @@ async def chat_stream_endpoint(
                             escaped = data.replace("\n", "\\n")
                             yield f"event: token\ndata: {escaped}\n\n"
                             last_send_time = time.time()
-                    elif isinstance(item, str) and item.startswith("data: "):
-                        # Heartbeat event from heartbeat queue
+                    elif isinstance(item, str) and (item.startswith("data: ") or item.startswith("event: ")):
+                        # Heartbeat or pre-formatted SSE event from heartbeat queue
                         yield item
                         last_send_time = time.time()
                     elif not is_indic_detected:
@@ -2592,7 +2589,8 @@ async def circuit_breaker_reset_endpoint() -> dict:
     # Access the circuit breaker through the dependency container
     try:
         container = get_container()
-        circuit = container.ollama._circuit
+        # Use sarvam circuit breaker for Sarvam Cloud mode
+        circuit = container.sarvam._circuit
         previous_state = circuit._state.value
         circuit._state = CircuitState.CLOSED
         circuit._failures = 0
