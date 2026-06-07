@@ -82,59 +82,13 @@ class CircuitOpenException(Exception):
 # ---------------------------------------------------------------------------
 # Circuit Breaker — fail-fast when API is down, auto-recover
 # ---------------------------------------------------------------------------
-
-
-class CircuitState(Enum):
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"  # Failing — reject requests immediately
-    HALF_OPEN = "half_open"  # Testing if recovered
-
-
-@dataclass
-class CircuitBreaker:
-    """Lightweight circuit breaker for Sarvam API calls."""
-
-    failure_threshold: int = 5
-    recovery_timeout: float = 90.0
-    half_open_max_calls: int = 3
-    # Mutable state — use field(default_factory)
-    _failures: int = field(default=0, repr=False)
-    _last_failure_time: Optional[float] = field(default=None, repr=False)
-    _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
-    _half_open_calls: int = field(default=0, repr=False)
-
-    def can_execute(self) -> bool:
-        if self._state == CircuitState.CLOSED:
-            return True
-        if self._state == CircuitState.OPEN:
-            if time.time() - (self._last_failure_time or 0) > self.recovery_timeout:
-                self._state = CircuitState.HALF_OPEN
-                self._half_open_calls = 0
-                logger.info("Circuit breaker → HALF_OPEN (testing recovery)")
-                return True
-            return False
-        # HALF_OPEN
-        return self._half_open_calls < self.half_open_max_calls
-
-    def record_success(self):
-        if self._state == CircuitState.HALF_OPEN:
-            self._half_open_calls += 1
-            if self._half_open_calls >= self.half_open_max_calls:
-                self._state = CircuitState.CLOSED
-                self._failures = 0
-                logger.info("Circuit breaker → CLOSED (recovered)")
-        else:
-            self._failures = max(0, self._failures - 1)
-
-    def record_failure(self):
-        self._failures += 1
-        self._last_failure_time = time.time()
-        if self._state == CircuitState.HALF_OPEN:
-            self._state = CircuitState.OPEN
-            logger.warning("Circuit breaker → OPEN (failed during half-open)")
-        elif self._failures >= self.failure_threshold:
-            self._state = CircuitState.OPEN
-            logger.warning(f"Circuit breaker → OPEN (threshold={self.failure_threshold} reached)")
+# Import from shared circuit_breaker module (provider-agnostic)
+from services.circuit_breaker import (
+    CircuitState,
+    DefaultCircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitOpenException,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +120,14 @@ class SarvamCloudService:
         self._cls_model = settings.sarvam_cloud_classify_model
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
-        self._circuit = CircuitBreaker()
+        # Use provider-agnostic circuit breaker from shared module
+        sarvam_config = CircuitBreakerConfig(
+            provider="sarvam",
+            failure_threshold=5,
+            recovery_timeout=90.0,
+            half_open_max_calls=3,
+        )
+        self._circuit = DefaultCircuitBreaker(sarvam_config)
         self._last_request_time = 0.0
         self._rate_limit_lock = asyncio.Lock()
         self._max_tokens_limit = 32768

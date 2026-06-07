@@ -1417,21 +1417,22 @@ async def chat_stream_endpoint(
         return StreamingResponse(length_error_stream(), media_type="text/event-stream")
 
     is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
-    if settings.is_sarvam_cloud:
-        if not container.sarvam._circuit.can_execute():
-            if is_benchmark:
-                raise HTTPException(
-                    status_code=503,
-                    detail="Service temporarily unavailable - circuit breaker is OPEN",
-                )
-            else:
+    # Use provider-agnostic circuit breaker registry
+    active_breaker = container.circuit_breaker_registry.get_active()
+    if active_breaker and not active_breaker.can_execute():
+        if is_benchmark:
+            raise HTTPException(
+                status_code=503,
+                detail="Service temporarily unavailable - circuit breaker is OPEN",
+            )
+        else:
 
-                async def circuit_error_stream():
-                    yield "event: token\ndata: I apologize, but the service is temporarily unavailable. Please try again in a moment.\n\n"
-                    meta = json.dumps({"intent": "ERROR", "citations": [], "meditation_step": 0})
-                    yield f"event: done\ndata: {meta}\n\n"
+            async def circuit_error_stream():
+                yield "event: token\ndata: I apologize, but the service is temporarily unavailable. Please try again in a moment.\n\n"
+                meta = json.dumps({"intent": "ERROR", "citations": [], "meditation_step": 0})
+                yield f"event: done\ndata: {meta}\n\n"
 
-                return StreamingResponse(circuit_error_stream(), media_type="text/event-stream")
+            return StreamingResponse(circuit_error_stream(), media_type="text/event-stream")
 
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
@@ -2578,36 +2579,48 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 @app.post("/api/health/circuit-reset", tags=["Health"])
 async def circuit_breaker_reset_endpoint() -> dict:
     """
-    Manually reset the Sarvam API circuit breaker to CLOSED.
+    Manually reset the active circuit breaker to CLOSED.
 
     Use when the circuit has been OPEN for a long time (e.g. after
     a temporary API outage) and you want to allow traffic immediately
     instead of waiting for the auto-recovery timeout.
+
+    Works with any LLM provider (Sarvam, Ollama, OpenRouter, etc.)
+    based on the currently active provider in the registry.
     """
     from fastapi import Request
+    from services.circuit_breaker import CircuitState
 
     # Access the circuit breaker through the dependency container
     try:
         container = get_container()
-        # Use sarvam circuit breaker for Sarvam Cloud mode
-        circuit = container.sarvam._circuit
-        previous_state = circuit._state.value
-        circuit._state = CircuitState.CLOSED
-        circuit._failures = 0
-        circuit._last_failure_time = None
-        circuit._half_open_calls = 0
-        logger.info(f"Circuit breaker manually reset (was {previous_state}) → CLOSED")
+        # Use provider-agnostic circuit breaker registry
+        active_breaker = container.circuit_breaker_registry.get_active()
+        if not active_breaker:
+            return {
+                "status": "error",
+                "message": "No active circuit breaker found. Check LLM_PROVIDER config.",
+            }
+
+        provider = container.circuit_breaker_registry.get_active_provider()
+        previous_state = active_breaker.get_state().value
+        active_breaker._state = CircuitState.CLOSED
+        active_breaker._failures = 0
+        active_breaker._last_failure_time = None
+        active_breaker._half_open_calls = 0
+        logger.info(f"Circuit breaker [{provider}] manually reset (was {previous_state}) → CLOSED")
         return {
             "status": "ok",
+            "provider": provider,
             "previous_state": previous_state,
             "current_state": "closed",
-            "message": "Circuit breaker has been reset. New requests will be attempted.",
+            "message": f"Circuit breaker for {provider} has been reset. New requests will be attempted.",
         }
     except AttributeError as e:
         logger.error(f"Circuit breaker reset failed: {e}")
         return {
             "status": "error",
-            "message": "Could not access circuit breaker. Ensure SarvamCloudService is initialized.",
+            "message": "Could not access circuit breaker. Ensure services are initialized.",
         }
 
 

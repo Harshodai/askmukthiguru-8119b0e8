@@ -138,6 +138,8 @@ export const ChatInterface = () => {
   const [showQuickWisdomCard, setShowQuickWisdomCard] = useState(false);
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [showPipeline, setShowPipeline] = useState(false);
+  // Heartbeat pulse for "Still processing..." status events
+  const [pipelineHeartbeat, setPipelineHeartbeat] = useState(false);
   // Instant pill shown immediately on submit, before backend status events arrive
   const [showInstantPill, setShowInstantPill] = useState(false);
   const { teaching: dailyTeaching } = useDailyTeaching();
@@ -639,6 +641,11 @@ export const ChatInterface = () => {
             setShowInstantPill(false);
             // Pipeline status update → add or advance pills
             const label = mapStatusToLabel(chunk.text);
+            // Handle heartbeat: pulse the current active step instead of adding a new step
+            if (label === 'heartbeat') {
+              setPipelineHeartbeat(true);
+              continue;
+            }
             setPipelineSteps((prev) => {
               // De-duplicate: if the latest step already has this label, just keep it active
               if (prev.length > 0 && prev[prev.length - 1].label === label) {
@@ -678,6 +685,8 @@ export const ChatInterface = () => {
             // Mark all steps as done, then fade out
             setPipelineSteps((prev) => prev.map((s) => ({ ...s, status: 'done' as const })));
             setTimeout(() => setShowPipeline(false), 600);
+            // Stop heartbeat pulse when actual content starts streaming
+            setPipelineHeartbeat(false);
           }
 
           // Update the streaming message state locally without mapping entire array
@@ -788,6 +797,8 @@ export const ChatInterface = () => {
         setShowPipeline(false);
         setPipelineSteps([]);
         setShowInstantPill(false);
+        // Stop heartbeat pulse
+        setPipelineHeartbeat(false);
         // Clear stream checkpoint on completion
         try {
           sessionStorage.removeItem('askmukthiguru_stream_checkpoint');

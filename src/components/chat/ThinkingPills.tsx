@@ -23,6 +23,7 @@ export interface PipelineStep {
 interface ThinkingPillsProps {
   steps: PipelineStep[];
   visible: boolean;
+  heartbeat?: boolean; // When true, pulse the active step to indicate "still processing"
 }
 
 interface StageConfig {
@@ -42,12 +43,15 @@ const STAGE_CONFIG: Record<string, StageConfig> = {
 
 export const mapStatusToLabel = (raw: string): string => {
   const lower = raw.toLowerCase();
+  if (lower.includes('still processing') || lower.includes('heartbeat')) return 'heartbeat'; // Special marker for heartbeat
   if (lower.includes('safety') || lower.includes('message safety')) return 'Safety check';
   if (lower.includes('understanding') || lower.includes('translating')) return 'Understanding';
   if (lower.includes('searching') || lower.includes('knowledge base') || lower.includes('retrieving')) return 'Searching wisdom';
   if (lower.includes('generat')) return 'Generating';
   if (lower.includes('composing') || lower.includes('analyz')) return 'Composing';
   if (lower.includes('verif')) return 'Verifying';
+  if (lower.includes('query received') || lower.includes('starting pipeline')) return 'Safety check';
+  if (lower.includes('translating') || lower.includes('language')) return 'Understanding';
   return 'Processing';
 };
 
@@ -56,16 +60,20 @@ export const mapStatusToLabel = (raw: string): string => {
  * Compact, left-aligned, shares the same row geometry as guru ChatMessage
  * (avatar 28px + gap 10px). Click to expand and see the full pipeline.
  */
-export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
+export const ThinkingPills = ({ steps, visible, heartbeat }: ThinkingPillsProps) => {
   const [expanded, setExpanded] = useState(false);
 
   if (!visible || steps.length === 0) return null;
 
+  // Filter out 'heartbeat' steps — they're handled via the heartbeat prop
+  const displaySteps = steps.filter((s) => s.label !== 'heartbeat');
+  if (displaySteps.length === 0) return null;
+
   // Prefer the currently active step; fall back to last done; else last entry.
-  const activeStep = [...steps].reverse().find((s) => s.status === 'active');
-  const lastDone = [...steps].reverse().find((s) => s.status === 'done');
-  const latestStep = activeStep ?? lastDone ?? steps[steps.length - 1];
-  const doneCount = steps.filter((s) => s.status === 'done').length;
+  const activeStep = [...displaySteps].reverse().find((s) => s.status === 'active');
+  const lastDone = [...displaySteps].reverse().find((s) => s.status === 'done');
+  const latestStep = activeStep ?? lastDone ?? displaySteps[displaySteps.length - 1];
+  const doneCount = displaySteps.filter((s) => s.status === 'done').length;
 
   return (
     <AnimatePresence>
@@ -98,7 +106,7 @@ export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
                 {latestStep.label}
               </span>
               <span className="text-muted-foreground/70 text-[10px] tabular-nums">
-                {doneCount}/{Math.max(steps.length, 6)}
+                {doneCount}/{Math.max(displaySteps.length, 6)}
               </span>
               <ChevronDown
                 className={`w-3 h-3 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -115,7 +123,7 @@ export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
                   className="overflow-hidden w-full"
                 >
                   <ul className="mt-1 ml-1 border-l border-border/40 pl-3 py-1 space-y-1.5">
-                    {steps.map((step) => {
+                    {displaySteps.map((step) => {
                       const isDone = step.status === 'done';
                       const isActive = step.status === 'active';
                       const config = STAGE_CONFIG[step.label] || {
@@ -123,13 +131,32 @@ export const ThinkingPills = ({ steps, visible }: ThinkingPillsProps) => {
                         shortLabel: step.label,
                         color: 'text-muted-foreground',
                       };
+                      // Heartbeat pulse: when heartbeat prop is true and this is the active step,
+                      // add a pulsing ring animation
+                      const showHeartbeatPulse = heartbeat && isActive;
                       return (
-                        <li key={step.id} className="flex items-center gap-2 text-[12px]">
+                        <li key={step.id} className="flex items-center gap-2 text-[12px] relative">
+                          {showHeartbeatPulse && (
+                            <motion.div
+                              className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-ojas/30"
+                              animate={{ scale: [1, 1.8], opacity: [0.6, 0] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                            />
+                          )}
                           <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
                             {isDone ? (
                               <Check className="w-3 h-3 text-prana" />
                             ) : isActive ? (
-                              <Loader2 className="w-3 h-3 text-ojas animate-spin" />
+                              <>
+                                <Loader2 className="w-3 h-3 text-ojas animate-spin" />
+                                {showHeartbeatPulse && (
+                                  <motion.div
+                                    className="absolute w-3 h-3 rounded-full bg-ojas/30"
+                                    animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                                    transition={{ duration: 1, repeat: Infinity, delay: 0.5 }}
+                                  />
+                                )}
+                              </>
                             ) : (
                               <Circle className="w-2 h-2 text-muted-foreground/50" />
                             )}

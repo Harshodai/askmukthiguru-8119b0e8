@@ -18,8 +18,6 @@ import asyncio
 import logging
 import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Optional
 
 import httpx
@@ -28,6 +26,12 @@ from langchain_ollama import ChatOllama
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from services.streaming_hardening import StreamInterruptedError, guarded_stream  # Unit 18
+# Import shared circuit breaker (provider-agnostic)
+from services.circuit_breaker import (
+    DefaultCircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitOpenException,
+)
 
 from app.config import settings
 from rag.prompts import (
@@ -56,67 +60,6 @@ class ModelUnavailableError(Exception):  # Unit 25
     def __init__(self, reason: str, is_transient: bool = True) -> None:
         self.is_transient = is_transient
         super().__init__(reason)
-
-
-class CircuitState(Enum):
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"  # Failing — reject requests immediately
-    HALF_OPEN = "half_open"  # Testing if recovered
-
-
-@dataclass
-class CircuitBreaker:
-    """Circuit breaker to prevent cascading failures when Ollama hangs.
-
-    After ``failure_threshold`` consecutive failures, the circuit opens and
-    ``can_execute()`` returns ``False`` for ``recovery_timeout`` seconds.
-    After the timeout, a single probe call is allowed (half-open). If it
-    succeeds, the circuit resets to closed; if it fails, the circuit re-opens.
-    """
-
-    failure_threshold: int = 3
-    recovery_timeout: float = 60.0
-    half_open_max_calls: int = 1
-    # Mutable state — use field(default_factory) to avoid shared state across instances
-    _failures: int = field(default=0, repr=False)
-    _last_failure_time: Optional[float] = field(default=None, repr=False)
-    _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
-    _half_open_calls: int = field(default=0, repr=False)
-
-    def can_execute(self) -> bool:
-        if self._state == CircuitState.CLOSED:
-            return True
-        if self._state == CircuitState.OPEN:
-            if time.time() - (self._last_failure_time or 0) > self.recovery_timeout:
-                self._state = CircuitState.HALF_OPEN
-                self._half_open_calls = 0
-                logger.info("Ollama circuit breaker -> HALF_OPEN (testing recovery)")
-                return True
-            return False
-        # HALF_OPEN
-        return self._half_open_calls < self.half_open_max_calls
-
-    def record_success(self):
-        if self._state == CircuitState.HALF_OPEN:
-            self._half_open_calls += 1
-            if self._half_open_calls >= self.half_open_max_calls:
-                self._state = CircuitState.CLOSED
-                self._failures = 0
-                logger.info("Ollama circuit breaker -> CLOSED (recovered)")
-        else:
-            self._failures = max(0, self._failures - 1)
-
-    def record_failure(self):
-        self._failures += 1
-        self._last_failure_time = time.time()
-        if self._state == CircuitState.HALF_OPEN:
-            self._state = CircuitState.OPEN
-            logger.warning("Ollama circuit breaker -> OPEN (failed during half-open)")
-        elif self._failures >= self.failure_threshold:
-            self._state = CircuitState.OPEN
-            logger.warning(
-                f"Ollama circuit breaker -> OPEN (threshold={self.failure_threshold} reached)"
-            )
 
 
 class OllamaService:
@@ -165,9 +108,14 @@ class OllamaService:
         self._http_client_lock = asyncio.Lock()
 
         # Circuit breaker: fail-fast after consecutive failures to prevent cascading hangs
-        self._circuit_breaker = CircuitBreaker(
-            failure_threshold=3, recovery_timeout=60.0, half_open_max_calls=1
+        # Use provider-agnostic circuit breaker from shared module
+        ollama_config = CircuitBreakerConfig(
+            provider="ollama",
+            failure_threshold=3,
+            recovery_timeout=60.0,
+            half_open_max_calls=1,
         )
+        self._circuit_breaker = DefaultCircuitBreaker(ollama_config)
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
