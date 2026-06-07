@@ -6,71 +6,42 @@ Design Patterns:
   - State Machine: LangGraph manages state transitions
   - Mediator Pattern: The graph coordinates all node interactions
   - Open/Closed Principle: New nodes can be added without modifying existing ones
+  - Strategy Pattern: Graph variants (fast, standard, deep) via GraphStrategy
 
-This file wires layers 2–11 (of the 12-layer pipeline) into a LangGraph StateGraph.
-Layers 1 and 12 (NeMo input/output rails) are handled externally in main.py.
-The graph handles:
-  - Linear flow: intent → decompose → retrieve → rerank → grade → hints → generate
-  - Conditional branching: intent routing, CRAG rewrite loops
-  - Short circuits: distress → meditation, casual → simple reply
-  - Quality gates: faithfulness check, CoVe verification
+This file is now a thin facade around ``rag.graph_strategies``.  The actual
+graph wiring lives in the strategy classes so that new variants can be added
+without touching this module.
+
+Entry points:
+  - ``build_rag_graph(...)``      → StandardGraphStrategy
+  - ``build_fast_graph(...)``     → FastGraphStrategy
+  - ``build_deep_graph(...)``     → DeepGraphStrategy
+  - ``create_initial_state(...)`` → factory for GraphState
 """
 
 import logging
 from typing import Optional
 
-from langgraph.graph import END, StateGraph
-from langgraph.graph.state import CompiledStateGraph
-
-from rag.nodes import (
-    check_context_sufficiency,
-    check_contradiction,
-    context_engineer,
-    decompose_query,
-    enrich_context,
-    explain_retrieval,
-    format_final_answer,
-    generate_answer,
-    generate_hyde,
-    grade_documents,
-    handle_casual,
-    handle_distress,
-    handle_fallback,
-    handle_meditation,
-    # Service initialization
-    init_services,
-    # Node functions
-    intent_router,
-    navigate_knowledge_tree,
-    reflect_on_answer,
-    rerank_documents,
-    retrieve_documents,
-    rewrite_query,
-    route_after_grading,
-    # Routing functions
-    route_by_intent,
-    verify_answer,
+from rag.graph_strategies import (
+    DeepGraphStrategy,
+    FastGraphStrategy,
+    StandardGraphStrategy,
 )
 from rag.states import GraphState
 
+logger = logging.getLogger(__name__)
 
-def route_after_reflection(state: GraphState) -> str:
-    """Route after self-reflection."""
-    if state.get("needs_correction"):
-        if state.get("rewrite_count", 0) >= 3:
-            return "fallback"
-        return "rewrite"
-    return "verify"
+# ---------------------------------------------------------------------------
+# Public API: thin wrappers that delegate to GraphStrategy implementations
+# ---------------------------------------------------------------------------
 
+from langgraph.graph.state import CompiledStateGraph
 
-from rag.resolve_followup import resolve_followup
 from services.embedding_service import EmbeddingService
 from services.lightrag_service import LightRAGService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
-
-logger = logging.getLogger(__name__)
 
 
 def build_rag_graph(
@@ -83,150 +54,58 @@ def build_rag_graph(
     """
     Build and compile the complete RAG pipeline as a LangGraph.
 
-    The full pipeline has 12 layers:
-      - Layer 1 (NeMo input rail) and Layer 12 (NeMo output rail) are handled
-        externally by the FastAPI route handler.
-      - Layers 2-11 are implemented as graph nodes here.
-
-    Architecture (linear — reliable asyncio.gather parallelism within retrieve_documents):
-
-    START → intent_router
-      ├─ DISTRESS → handle_distress → END
-      ├─ MEDITATION_CONTINUE → handle_meditation → END
-      ├─ CASUAL → handle_casual → END
-      └─ QUERY → resolve_followup → decompose_query
-                → navigate_knowledge_tree → generate_hyde
-                → retrieve_documents (parallel sub-query fetch via asyncio.gather)
-                → rerank_documents → grade_documents → check_context_sufficiency
-                    ├─ relevant → enrich_context → context_engineer
-                    │             → [generate_answer + explain_retrieval] (parallel)
-                    │             → reflect_on_answer → verify_answer
-                    │             → check_contradiction → format_final_answer → END
-                    ├─ rewrite (< 3x) → rewrite_query → retrieve_documents (loop)
-                    └─ fallback (≥ 3x) → handle_fallback → END
-
-    Note: retrieve_documents handles parallel sub-query retrieval internally via
-    asyncio.gather() — this avoids LangGraph Send API version compatibility issues
-    while preserving full parallelism at the retrieval layer.
-
-    Returns:
-        Compiled LangGraph (CompiledStateGraph) ready for invocation
+    Delegates to ``StandardGraphStrategy`` so the actual wiring is isolated
+    from this public API.
     """
-    # Inject services into nodes module
-    init_services(
-        ollama_service, embedding_service, qdrant_service, lightrag_service, serene_mind_engine
+    strategy = StandardGraphStrategy()
+    return strategy.build(
+        ollama_service=ollama_service,
+        embedding_service=embedding_service,
+        qdrant_service=qdrant_service,
+        lightrag_service=lightrag_service,
+        serene_mind_engine=serene_mind_engine,
     )
 
-    # Create the state graph
-    graph = StateGraph(GraphState)
 
-    # === Add all nodes ===
-    graph.add_node("intent_router", intent_router)
-    graph.add_node("resolve_followup", resolve_followup)
-    graph.add_node("decompose_query", decompose_query)
-    graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
-    graph.add_node("generate_hyde", generate_hyde)
-    graph.add_node("retrieve_documents", retrieve_documents)
-    graph.add_node("rerank_documents", rerank_documents)
-    graph.add_node("grade_documents", grade_documents)
-    graph.add_node("enrich_context", enrich_context)
-    graph.add_node("check_context_sufficiency", check_context_sufficiency)
-    graph.add_node("rewrite_query", rewrite_query)
-    graph.add_node("generate_answer", generate_answer)
-    graph.add_node("reflect_on_answer", reflect_on_answer)
-    graph.add_node("verify_answer", verify_answer)
-    graph.add_node("explain_retrieval", explain_retrieval)
-    graph.add_node("context_engineer", context_engineer)
-    graph.add_node("format_final_answer", format_final_answer)
-    graph.add_node("check_contradiction", check_contradiction)
-    graph.add_node("handle_casual", handle_casual)
-    graph.add_node("handle_distress", handle_distress)
-    graph.add_node("handle_meditation", handle_meditation)
-    graph.add_node("handle_fallback", handle_fallback)
-
-    # === Set entry point ===
-    graph.set_entry_point("intent_router")
-
-    # === Add conditional edges ===
-
-    # After intent classification → route to the appropriate handler
-    graph.add_conditional_edges(
-        "intent_router",
-        route_by_intent,
-        {
-            "distress": "handle_distress",
-            "meditation": "handle_meditation",
-            "casual": "handle_casual",
-            "query": "resolve_followup",
-        },
+def build_fast_graph(
+    ollama_service: OllamaService,
+    embedding_service: EmbeddingService,
+    qdrant_service: QdrantService,
+    lightrag_service: LightRAGService,
+    serene_mind_engine: SereneMindEngine = None,
+) -> CompiledStateGraph:
+    """Fast path (Path A): 5-node pipeline for simple factual queries."""
+    strategy = FastGraphStrategy()
+    return strategy.build(
+        ollama_service=ollama_service,
+        embedding_service=embedding_service,
+        qdrant_service=qdrant_service,
+        lightrag_service=lightrag_service,
+        serene_mind_engine=serene_mind_engine,
     )
 
-    # Follow-up resolution feeds into decomposition
-    graph.add_edge("resolve_followup", "decompose_query")
 
-    # === Linear edges for the RAG pipeline ===
-    # Pre-retrieval optimization: tree navigation → HyDE → retrieval
-    graph.add_edge("decompose_query", "navigate_knowledge_tree")
-    graph.add_edge("decompose_query", "generate_hyde")
-    graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
-    graph.add_edge("generate_hyde", "retrieve_documents")
-
-    # retrieve_documents handles parallel sub-query retrieval internally
-    # via asyncio.gather — this is battle-tested and version-compatible
-    graph.add_edge("retrieve_documents", "rerank_documents")
-    graph.add_edge("rerank_documents", "grade_documents")
-    graph.add_edge("grade_documents", "check_context_sufficiency")
-
-    # After sufficiency check + grading → decide: proceed / rewrite / fallback
-    graph.add_conditional_edges(
-        "check_context_sufficiency",
-        route_after_grading,
-        {
-            "relevant": "enrich_context",
-            "distress": "handle_distress",
-            "rewrite": "rewrite_query",
-            "fallback": "handle_fallback",
-        },
+def build_deep_graph(
+    ollama_service: OllamaService,
+    embedding_service: EmbeddingService,
+    qdrant_service: QdrantService,
+    lightrag_service: LightRAGService,
+    serene_mind_engine: SereneMindEngine = None,
+) -> CompiledStateGraph:
+    """Deep path: full standard graph with additional verification + CoT nodes."""
+    strategy = DeepGraphStrategy()
+    return strategy.build(
+        ollama_service=ollama_service,
+        embedding_service=embedding_service,
+        qdrant_service=qdrant_service,
+        lightrag_service=lightrag_service,
+        serene_mind_engine=serene_mind_engine,
     )
 
-    graph.add_edge("enrich_context", "context_engineer")
-    graph.add_edge("context_engineer", "generate_answer")
-    graph.add_edge("context_engineer", "explain_retrieval")
 
-    # Rewrite loop → back to retrieve
-    graph.add_edge("rewrite_query", "retrieve_documents")
-
-    # Generate (with inline hints) → Reflect
-    graph.add_edge("generate_answer", "reflect_on_answer")
-
-    # Reflect → decide: verify / rewrite / fallback
-    graph.add_conditional_edges(
-        "reflect_on_answer",
-        route_after_reflection,
-        {
-            "rewrite": "rewrite_query",
-            "fallback": "handle_fallback",
-            "verify": "verify_answer",
-        },
-    )
-
-    # Verification & Explanation → format final answer
-    graph.add_edge("verify_answer", "check_contradiction")
-    graph.add_edge("check_contradiction", "format_final_answer")
-    graph.add_edge("explain_retrieval", "format_final_answer")
-
-    # === Terminal edges → END ===
-    graph.add_edge("format_final_answer", END)
-    graph.add_edge("handle_casual", END)
-    graph.add_edge("handle_distress", END)
-    graph.add_edge("handle_meditation", END)
-    graph.add_edge("handle_fallback", END)
-
-    # Compile and return
-    compiled = graph.compile()
-    logger.info("LangGraph RAG pipeline compiled successfully")
-    return compiled
-
+# ---------------------------------------------------------------------------
+# Factory for initial state
+# ---------------------------------------------------------------------------
 
 def create_initial_state(
     question: str,
@@ -314,99 +193,45 @@ def create_initial_state(
     )
 
 
-def _map_docs_to_relevant(state: GraphState) -> dict:
-    """Bridge node: maps retrieved documents → relevant_docs for fast path.
+# ---------------------------------------------------------------------------
+# Node Registry integration (registry defined in node_registry.py)
+# ---------------------------------------------------------------------------
 
-    In the standard graph `grade_documents` populates `relevant_docs`.
-    In the fast path we skip grading, so this adapter copies documents across.
+def _register_graph_nodes() -> None:
     """
-    return {"relevant_docs": state.get("documents", [])}
+    Register key pipeline nodes in the global NodeRegistry.
 
-
-def build_fast_graph(
-    ollama_service: OllamaService,
-    embedding_service: EmbeddingService,
-    qdrant_service: QdrantService,
-    lightrag_service: LightRAGService,
-    serene_mind_engine: SereneMindEngine = None,
-) -> CompiledStateGraph:
-    """Fast path (Path A): 5-node pipeline for simple factual queries.
-
-    Nodes excluded: decompose_query, navigate_knowledge_tree, generate_hyde,
-    rerank_documents, grade_documents, check_context_sufficiency,
-    enrich_context, context_engineer, reflect_on_answer, verify_answer,
-    check_contradiction, explain_retrieval.
+    This demonstrates how nodes can be registered for discovery without
+    hard-coding imports in ``graph.py``.  The registry can be used by
+    monitoring, debugging, and dynamic graph-building tools.
     """
-    init_services(
-        ollama_service, embedding_service, qdrant_service, lightrag_service, serene_mind_engine
-    )
+    try:
+        from rag.node_registry import registry
+        from rag.nodes import (
+            intent_router,
+            generate_answer,
+            verify_answer,
+            reflect_on_answer,
+            retrieve_documents,
+        )
 
-    graph = StateGraph(GraphState)
+        registry.register("intent_router", is_llm=True)(intent_router)
+        registry.register("generate_answer", is_llm=True)(generate_answer)
+        registry.register("verify_answer", is_llm=True)(verify_answer)
+        registry.register("reflect_on_answer", is_llm=True)(reflect_on_answer)
+        registry.register("retrieve_documents", is_llm=False)(retrieve_documents)
 
-    # Core fast-path nodes
-    graph.add_node("intent_router", intent_router)
-    graph.add_node("resolve_followup", resolve_followup)
-    graph.add_node("retrieve_documents", retrieve_documents)
-    graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
-    graph.add_node("generate_answer", generate_answer)
-    graph.add_node("format_final_answer", format_final_answer)
-
-    # Terminal handlers
-    graph.add_node("handle_casual", handle_casual)
-    graph.add_node("handle_distress", handle_distress)
-    graph.add_node("handle_meditation", handle_meditation)
-    graph.add_node("handle_fallback", handle_fallback)
-
-    graph.set_entry_point("intent_router")
-
-    graph.add_conditional_edges(
-        "intent_router",
-        route_by_intent,
-        {
-            "distress": "handle_distress",
-            "meditation": "handle_meditation",
-            "casual": "handle_casual",
-            "query": "resolve_followup",
-        },
-    )
-
-    # Fast path for queries: skip decomposition + verification
-    graph.add_edge("resolve_followup", "retrieve_documents")
-    graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
-    graph.add_edge("_map_docs_to_relevant", "generate_answer")
-    graph.add_edge("generate_answer", "format_final_answer")
-    graph.add_edge("format_final_answer", END)
-
-    # Terminal edges
-    graph.add_edge("handle_casual", END)
-    graph.add_edge("handle_distress", END)
-    graph.add_edge("handle_meditation", END)
-    graph.add_edge("handle_fallback", END)
-
-    compiled = graph.compile()
-    logger.info("LangGraph FAST pipeline compiled successfully")
-    return compiled
+        logger.info(f"NodeRegistry: registered {len(registry)} nodes ({registry.list()})")
+    except Exception as exc:
+        logger.warning(f"NodeRegistry node registration skipped: {exc}")
 
 
-def build_deep_graph(
-    ollama_service: OllamaService,
-    embedding_service: EmbeddingService,
-    qdrant_service: QdrantService,
-    lightrag_service: LightRAGService,
-    serene_mind_engine: SereneMindEngine = None,
-) -> CompiledStateGraph:
-    """Deep path: full standard graph with additional verification + CoT nodes.
+# Register nodes at module import time so they are discoverable
+_register_graph_nodes()
 
-    Currently a thin wrapper around the standard graph with potential for
-    extra deep-dive nodes (e.g., multi-hop reasoning, adversarial check).
-    per-node LLM config is read from `node_llm_config.DEEP_PATH_CONFIG`.
-    """
-    # Reuse standard graph wiring; nodes read their own config at runtime
-    # based on state["query_tier"] == "deep" when that field is set.
-    return build_rag_graph(
-        ollama_service,
-        embedding_service,
-        qdrant_service,
-        lightrag_service,
-        serene_mind_engine,
-    )
+
+def get_registered_nodes() -> list[str]:
+    """Return a list of all registered node names."""
+    from rag.node_registry import registry
+
+    return registry.list()

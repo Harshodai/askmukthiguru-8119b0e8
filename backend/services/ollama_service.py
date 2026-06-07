@@ -816,6 +816,11 @@ class OllamaService:
                 )
             return self._http_client
 
+    @property
+    def is_available(self) -> bool:
+        """Return True if the Ollama service is available for use."""
+        return True
+
     async def health_check(self) -> bool:
         """Check if Ollama is reachable (async)."""
         try:
