@@ -1510,18 +1510,31 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 
 ---
 
-## Global and Local Skill/Rule Injection in Claude Code (June 2026)
+## Global and Local Skill/Rule Injection in Claude Code & Codex (June 2026)
 
 ### Problem
-When collaborating on a project or working on new features, AI agents and the Claude Code CLI need to automatically check and apply best practices (e.g. clean code principles, Karpathy machine learning/training guidelines, and specialized domain/book knowledge) without the user needing to manually copy/paste prompts or instructions on every single run.
+When collaborating on a project or working on new features, AI agents, the Claude Code CLI, and the Codex environment need to automatically check and apply best practices (e.g., clean code principles, Karpathy machine learning guidelines, and specialized book/domain knowledge) without manual copying. Additionally, directory depth limitations in plugin engines can cause nested skills to be silently ignored.
 
 ### Solution
 1. **Repository Cloning**: Cloned the community clean code guidelines repository (`clean-code-skills`) and Andrej Karpathy's guidelines repository (`andrej-karpathy-skills`).
-2. **Global Integration**: Copied all cloned skills as well as all project book skills (from `.agent/skills` and `.agents/skills`) into the global Claude Code plugin folder at `~/.claude/skills/`. Renamed all lowercase `skill.md` files to `SKILL.md` to match the plugin schema specification, ensuring they are auto-loaded.
-3. **Local Integration**: Copied the clean code and Karpathy skills locally under `.agent/skills/` to make them available to project-local agents.
-4. **Automatic Rule Enforcement**: Created global and local rule files named `common-skills.md` under `~/.claude/rules/ecc/common/` and `.claude/rules/ecc/common/` respectively. These files instruct Claude Code on every session to automatically search and apply these skills based on context before generating code or designs.
+2. **Skill Flattening & Casing (Strict Spec-Compliance)**:
+   - Built a Python script to copy, rename all lowercase `skill.md` to `SKILL.md`, and completely **flatten** the directory structure to exactly one directory level under the skills root (e.g. `skills/clean-code-python-clean-tests/SKILL.md` instead of `skills/clean-code/python/clean-tests/SKILL.md`).
+   - This flattening ensures 100% compatibility with the auto-load parser conventions of Claude Code, Codex, and global agents, avoiding deep-nesting scanning constraints.
+3. **Cross-Platform Global & Local Integration**:
+   - Copied all flattened skills to:
+     - **Claude Code (Global)**: `~/.claude/skills/`
+     - **Codex (Global)**: `~/.codex/skills/`
+     - **Agents (Global)**: `~/.agents/skills/`
+     - **antigravity / project-local**: `.agent/skills/`
+4. **Unified Rule Enforcement**:
+   - Written rule files named `common-skills.md` under:
+     - `~/.claude/rules/ecc/common/`
+     - `.claude/rules/ecc/common/`
+     - `~/.codex/rules/`
+     - `~/.agents/rules/`
+   - These rules map the flat skill IDs and instruct the respective agent systems to apply clean-code, Karpathy, and book/domain guidelines before performing tasks.
 
 ### Key Benefits
-- **Developer guardrails**: Prevents silent drift from clean code practices (e.g., limits function lengths to 50 lines, files to 800 lines).
-- **Domain expertise**: Brings in book-level knowledge on system design, database internals, and multi-agent system design directly into Claude Code.
-- **Automated session prep**: No prompt prefixing required; the rules tell Claude Code to find and read these skills by name/keyword.
+- **Guaranteed Skill Loading**: Flat folder naming matching `ecc` specifications ensures skills are loaded reliably.
+- **Cross-Harness Consistency**: Codex, Claude Code, and Antigravity all share the same rules and skills.
+- **Developer Guardrails**: Limits function lengths (<50 lines) and file sizes (<800 lines) globally and locally.
