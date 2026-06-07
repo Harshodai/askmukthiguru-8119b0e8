@@ -1,129 +1,183 @@
-# Admin console — make every page + drill-down actually work
+## Memory architecture — recommendation with tradeoffs
 
-## Audit (what's broken today)
+[Likely] None of the three reference systems map cleanly onto Mukthi Guru. Letta's archival memory is over-engineered for a spiritual chat (no tool-calling agent loop), Mem0 alone loses session continuity, and LangMem's three-store split is bureaucratic for a single-domain app. The right answer is **a deliberate hybrid of all three**, picking the cheapest layer that solves each retrieval need.
 
-I walked every page in `src/admin/pages/*` and traced its hook → `api.ts` → `mockData.ts` → Supabase. The console has three classes of breakage:
+### Tradeoff matrix
 
-### A. Pages whose data layer returns hard-coded `[]` / `null`
-`mockData.ts` currently stubs these to empty results, so the page renders but shows nothing:
+| System | Strength | Weakness for us | What we steal |
+|---|---|---|---|
+| **Mem0** | Atomic claim extraction, vector dedup, decay scoring. Cheapest read path. | No session-level abstraction. Forgets "what we discussed last Tuesday". | Atomic memory store + extractor + decay |
+| **Letta/MemGPT** | In-context "core block" always present + paged archival. Best for stable user facts. | Archival pager is wasted complexity when token budget is small. | Core block pattern (always-in-prompt) + soft eviction |
+| **LangMem** | Clean semantic/episodic/procedural split. Strong for multi-skill agents. | Procedural is meaningless here (one skill: spiritual guidance). | Episodic session summaries only |
 
-| Page | Stub returning empty |
-|---|---|
-| Retrieval (sources / sim trend / empty / dead) | `getRetrievalHealth`, `getSimilarityTrend`, `getEmptyRetrievals`, `getDeadDocs` |
-| Quality (disagreement / low-conf / RAGAS heatmap) | `getQualityData`, `getRagasHeatmap` |
-| Triggers (14-day stacked area) | `getTriggerTrend` |
-| Prompts (per-version metric bars) | `getPromptMetricsByVersion` |
-| Overview "Top sources" tab | depends on `getRetrievalHealth` |
+### Final architecture: 3-tier hybrid
 
-### B. UI reads columns that don't exist in the DB
-The UI types were authored against a richer eventual schema. Today's tables are slimmer, so pages either render blank cells or silently 500:
+```text
+┌─────────────────────────────────────────────────────────┐
+│  CORE BLOCK (Letta-style)                               │
+│  always in prompt · ≤200 tokens · 1 row per user        │
+│  {name, language, practice_level, dominant_themes[]}    │
+└─────────────────────────────────────────────────────────┘
+              ▲ rewritten by dreamer nightly
+┌─────────────────────────────────────────────────────────┐
+│  SEMANTIC MEMORIES (Mem0-style)                         │
+│  retrieved per turn · top-K=3 · ≤450 tokens             │
+│  atomic claims · BGE-M3 1024d · cosine + recency boost  │
+│  decay 0.97/day · dedup at cos>0.92 · soft-delete <0.1  │
+└─────────────────────────────────────────────────────────┘
+              ▲ written by extractor (background task)
+┌─────────────────────────────────────────────────────────┐
+│  EPISODIC SUMMARIES (LangMem-style)                     │
+│  recent N=2 · ≤180 tokens · 1 row per conversation      │
+│  rolling summary · topic tags · sentiment trajectory    │
+└─────────────────────────────────────────────────────────┘
+              ▲ written on conversation close/idle 30min
+```
 
-| Table | Columns UI expects but DB lacks |
-|---|---|
-| `alert_rules` | `active`, `window_minutes`, `channel`, `target` (DB has `enabled` only) |
-| `alert_events` | `rule_name`, `resolved_at` |
-| `eval_runs` | `triggered_by`, structured `summary.{passed,total,avg_*}` |
-| `golden_questions` | `active`, `expected_sources` |
-| `annotations` | `label`, `notes`, `promoted_to_golden`, `response_id` |
-| `safety_events` | `type`, `excerpt` (DB has `rule`, `details`) |
-| `ingestion_runs` | `duration_ms`, `error_log` |
-| `app_logs` | `request_id` (used to group logs) |
-| `chat_queries` | already OK; `prompt_version_id` exists |
+**Token budget per turn (read path):** ~830 tokens injected as `USER MEMORY` block. Hard-capped; truncation order is episodic → semantic → core.
 
-### C. Mutations that are no-ops or impossible from client
-| Function | Issue |
-|---|---|
-| `promoteAdmin(email)` | Needs `auth.users` email lookup → must be a SECURITY DEFINER RPC |
-| `demoteAdmin`, `upsertAlertRule`, `upsertGoldenQuestion`, `deleteGoldenQuestion`, `upsertModelPricing`, `activatePromptVersion` | All currently no-op or partial; need straight upsert/delete |
-| `listAdmins` | Joins `auth_users:user_id(email)` which isn't a real FK → must be an RPC |
-| `triggerReingest(source)` | Hits FastAPI ingestion pipeline — out of Lovable's reach |
-| `askData(prompt)` | Needs LLM call against telemetry — backend |
-| `submitIngestion` (Ingestion page form) | Hits FastAPI — backend |
-
-### D. Trace drill-down
-`TraceDrawer` was already hardened in the previous turn (guarded `trace.prompt`, `trace.retrieval`, `trace.response`, `trace.feedback`, `trace.triggers`). I'll verify nothing regressed and that the seed produces a clickable trace end-to-end.
+[Certain] Three-tier is the minimum that handles all of: stable identity, evolving practice, and "remember last week". Dropping any tier creates a known recall failure mode.
 
 ---
 
-## What I'll change
+## Storage decision: self-hosted Postgres + pgvector next to FastAPI
 
-### 1. One migration — extend existing tables + add the two RPCs we need
+[Certain] Not Lovable Cloud (per your direction), not Qdrant (loses relational queries, RLS-style scoping, transactional writes), not SQLite (HNSW perf cliff >100k rows). Add a `postgres:16` + `pgvector/pgvector:pg16` service to `backend/docker-compose.yml`. Sits alongside qdrant/neo4j/redis. Single source of truth, owned by FastAPI, accessed via `asyncpg`. Frontend never touches it directly — only through Python `/api/memory/*` endpoints (parity with how chat already works).
+
+Embeddings reuse the existing `EmbeddingService` (BGE-M3, 1024d) so memory and corpus share one model. Zero new embedding cost, zero new dependency.
+
+---
+
+## Plan structure: two parallel tracks, no cross-blocking
+
+[Likely] You asked for memory not gated on Phase 1. Doing them parallel is correct *only* if they share zero files. They mostly do, but the conflicts are tractable:
+
+| File | Track A touches | Track B touches | Resolution |
+|---|---|---|---|
+| `rag/nodes.py` | fixes 1-4 | adds `inject_memory_context` node | B adds new node fn at end; no merge conflict |
+| `rag/graph.py` | none | wires memory node | B-only |
+| `app/config.py` | adds 5 flags | adds 4 flags | additive; merge clean |
+| `app/main.py` | none | background task for write | B-only |
+| `services/embedding_service.py` | parity fix | read-only consumer | A-only |
+
+→ Safe to parallelize. One developer (or agent run) per track.
+
+---
+
+## Track A — Retrieval + latency (1-2 days, no flag)
+
+Identical to my prior draft, condensed:
+
+1. **Parity fix** — `encode_single_full` passes raw text; unit test no-double-prefix.
+2. **Contract** — fix `query_tier` NameError; `_require_state` helper.
+3. **Citations + insights** — emit citations unconditionally; implement `extract_memory_insights` (used by Track B).
+4. **Latency** — 20s graph deadline, `NODE_TIMEOUTS` tightened, `llm_max_retries=0` on classifiers.
+5. **Classifier swap** — Gemini Flash via Lovable AI Gateway for 6 classifier nodes (Sarvam stays for generation/verification).
+6. **Regex pre-router** — bypass LLM for greeting/meditation/distress.
+7. **Test fixture fix** — `mock_get_container` includes 3 graph strategies.
+8. **Cache flush op** — `make flush-cache` after deploy.
+
+**Exit metrics (informational only — does NOT gate Track B):** doctrine ≥70%, citations ≥60%, p95 ≤8s, faithfulness ≥70%.
+
+---
+
+## Track B — Memory layer (3-4 days, behind toggle)
+
+### B1. Infra (`backend/docker-compose.yml`, new migration)
+- Add `postgres:16` service + `pgvector/pgvector:pg16` image. Volume `postgres_data`.
+- Alembic migration creates 3 tables, HNSW indexes on embedding columns, role-scoped access (no RLS — single-tenant from FastAPI's view).
 
 ```text
-ALTER alert_rules     ADD window_minutes int, channel text, target text;
-                      RENAME enabled → active (keep both via view if needed; pick rename)
-ALTER alert_events    ADD rule_name text, resolved_at timestamptz
-ALTER eval_runs       ADD triggered_by text DEFAULT 'manual', prompt_version_id uuid
-ALTER golden_questions ADD active boolean DEFAULT true, expected_sources text[] DEFAULT '{}'
-ALTER annotations     ADD label text, notes text, promoted_to_golden boolean DEFAULT false, response_id uuid
-ALTER safety_events   ADD type text, excerpt text
-ALTER ingestion_runs  ADD duration_ms int, error_log text
-ALTER app_logs        ADD request_id text DEFAULT ''
-
-CREATE FUNCTION public.list_admins() …            -- joins auth.users for email
-CREATE FUNCTION public.promote_admin_by_email() … -- looks up auth.users
-CREATE FUNCTION public.demote_admin_by_id(uuid) …
-
--- extend seed_admin_demo() to also seed: 1 alert rule, 1 fired event,
---   1 prompt v1+v2 with responses tagged, 1 eval run, 1 golden q,
---   1 ingestion run, 1 annotation, 1 safety event, a few app_logs
---   with a shared request_id, 1 trigger over 7 days for trend.
+guru_core_memory(user_id PK, profile JSONB, updated_at)
+guru_memories(id, user_id, claim TEXT, embedding vector(1024),
+              source_message_id, confidence FLOAT, last_seen TS,
+              decay_score FLOAT, soft_deleted BOOL, created_at)
+              INDEX hnsw(embedding vector_cosine_ops) + btree(user_id, soft_deleted)
+guru_session_summaries(id, user_id, conversation_id, summary TEXT,
+                       topics TEXT[], sentiment_traj JSONB, closed_at)
 ```
 
-All `GRANT`s, RLS unchanged (admin-only).
+### B2. `services/memory_service.py` (new)
+Three readers + three writers + maintenance:
+- `get_core(user_id) -> str` (≤200 tokens)
+- `search_semantic(user_id, query_vec, k=3) -> list[Memory]` (cosine + 0.3·recency_boost)
+- `recent_summaries(user_id, n=2) -> list[str]`
+- `extract_and_write(user_id, message_id, turn)` → Gemini Flash extracts ≤3 atomic claims → BGE-M3 embed → dedup → insert
+- `update_core(user_id)` (nightly only — rewrites core block from top-30 memories)
+- `summarize_session(conversation_id)` (on close/idle)
+- `forget(memory_id)`, `add_explicit(user_id, text)`
 
-### 2. Rewrite the stubs in `src/admin/lib/mockData.ts`
+### B3. Graph wiring (`rag/nodes.py`, `rag/graph.py`)
+- New node `inject_memory_context` — runs after `intent_router`, before `decompose_query`. Parallel fan-out to core/semantic/episodic. Result lands in `GraphState.memory_context`.
+- New node `memory_relevance_gate` — skips injection for pure doctrine queries (uses intent classification). Saves tokens on the 60% of queries that don't need user context.
+- `context_engineer` adds `USER MEMORY` block to prompt with explicit instruction: "Reference these only when relevant to the user's question."
+- After `format_final_answer`, FastAPI `BackgroundTask` calls `extract_and_write`.
 
-Real Supabase queries for:
-- `getRetrievalHealth` → aggregate `retrieval_events` + `chat_responses.faithfulness` per source
-- `getSimilarityTrend` → bucketize `retrieval_events.scores[0]`
-- `getEmptyRetrievals` → `retrieval_events` where `array_length(source_docs)=0`
-- `getDeadDocs` → returns `[]` with a comment (needs document registry — backend doc)
-- `getQualityData` → disagreement (feedback rating vs faithfulness), low-confidence list
-- `getRagasHeatmap` → bucketize `chat_responses.{faithfulness,relevancy,precision,recall}`
-- `getTriggerTrend` → bucketize `trigger_events` grouped by `trigger_name` over N days
-- `getPromptMetricsByVersion` → group `chat_responses` joined to `chat_queries.prompt_version_id`
-- `upsertAlertRule`, `upsertGoldenQuestion`, `deleteGoldenQuestion`, `upsertModelPricing` → real upserts/deletes
-- `promoteAdmin`, `demoteAdmin`, `listAdmins` → call the new RPCs
-- `triggerReingest`, `askData` → keep as no-op + `toast.info("Backend required — see BACKEND_INTEGRATION.md")`
+### B4. Maintenance (`backend/scripts/dream_memories.py`, cron)
+- Nightly 03:00 IST.
+- Dedup pass (cos>0.95 merge into highest-confidence row).
+- Decay (`decay_score *= 0.97`).
+- Soft-delete (score<0.1 AND last_seen>90d).
+- Core block rewrite from top-30 surviving memories (single Gemini Flash call).
+- HNSW reindex if write-volume threshold exceeded.
 
-### 3. New file `BACKEND_INTEGRATION.md`
+### B5. API (`backend/app/routers/memory.py` new)
+- `GET /api/memory/list` — paginated, user-scoped, excludes soft-deleted.
+- `POST /api/memory/forget` — soft-delete by id.
+- `POST /api/memory/add` — explicit user-added memory (skips extractor).
+- `GET /api/memory/core` — show current core block (transparency).
+- All endpoints require Supabase JWT, validated server-side.
 
-Step-by-step for the four things Lovable cannot do client-side:
-1. **Telemetry sink** — FastAPI `chat` handler writing into `chat_queries`, `chat_responses`, `retrieval_events`, `trace_spans`, `trigger_events`, `safety_events`, `app_logs` via `SUPABASE_SERVICE_ROLE_KEY`. Includes the exact `telemetry_sink.py` module skeleton.
-2. **Ingestion API** — `POST /api/ingest`, `GET /api/ingest/status` contract used by `IngestionPage`. Required env: `BACKEND_URL`, JWT verification using `SUPABASE_JWKS`.
-3. **AskData / NL→SQL** — backend endpoint that takes the KPI context + question, calls Lovable AI Gateway, returns markdown. Sample FastAPI route.
-4. **Document registry for dead-docs** — `document_registry` table populated at ingestion time; query in `getDeadDocs`.
-5. **Jaeger embed** — the `TelemetryPage` already iframes `VITE_JAEGER_UI_URL`; doc the reverse-proxy + CORS settings.
+### B6. Frontend (`src/lib/memoryApi.ts`, `src/components/MemoryManager.tsx`, `src/lib/personalInsights.ts`)
+- Settings tab "Memory" — list, forget, add. Behind `feature_memory_ui`.
+- `personalInsights.ts` rewritten to consume `/api/memory/list` + `meditation_sessions` table:
+  - "You've practiced 4× this week vs 1× last week" (practice rhythm)
+  - "You mentioned anxiety about work 3× — has it shifted?" (memory echo)
+  - "You tend to meditate in the evening" (time-of-day)
+  - "Your mood scores trended up after Serene Mind on Tuesday" (mood delta)
+- Replaces current generic insights entirely.
 
-Each section: env vars, table schema needed, exact endpoint signature, curl test command, expected admin page that lights up.
+### B7. Feature flags (`backend/app/config.py`)
+```
+feature_memory_enabled: bool = False    # master read switch
+feature_memory_write: bool = False      # background extractor
+feature_memory_ui: bool = False         # frontend tab
+memory_token_budget: int = 830          # hard cap
+memory_skip_intents: list = ["doctrine_lookup", "casual"]
+```
 
-### 4. Verification
+Default OFF. Enable in staging after Track A + B both land. Production rollout: write-only for 7 days (populate store), then read-on for 10% canary, then 100%.
 
-After migration runs and the seed RPC is re-executed:
-- Click "Seed demo traces" → invalidate React Query → every list page should show ≥1 row.
-- Open Queries → click row → drawer shows spans, retrieval, response, judge bars, triggers.
-- Open Prompts → bar chart renders v1/v2 metrics.
-- Open Retrieval → sources tab populated, sim trend chart has points.
-- Open Quality → RAGAS heatmap renders, low-conf list has the partial-trace row.
-- Open Triggers → 7-day stacked area shows data.
-- Open Alerts → rule list + fired event row.
-- Open Evals → run row + 1 golden question.
-- Open Logs → grouped-by-request-id button works.
-- Open Admins → current admin email shown via `list_admins()` RPC.
-- Ingestion + AskData + Reingest → show "Backend required" toast (expected).
+### B8. Exit gate (separate from Track A)
+- Personalized-recall benchmark: 20-query suite asking "what did I tell you about X". ≥80% correct.
+- p95 latency delta with memory ON vs OFF: ≤200ms.
+- Token usage delta: ≤900 tokens/turn average.
+- No doctrine accuracy regression from Track A baseline.
 
-### 5. Files
+---
 
-- `supabase/migrations/<ts>_admin_console_completeness.sql` (new)
-- `src/admin/lib/mockData.ts` (rewrite stubs)
-- `BACKEND_INTEGRATION.md` (new, at repo root)
-- `src/admin/types.ts` (only widen `AlertRule.active`/`enabled` union if needed — no breaking changes)
+## Technical notes
 
-### Out of scope
+**Files — Track A (8)**
+Modify: `backend/services/embedding_service.py`, `backend/rag/nodes.py`, `backend/rag/timeout_utils.py`, `backend/rag/graph_strategies.py`, `backend/rag/node_llm_config.py`, `backend/services/llm_factory.py`, `backend/app/config.py`, `backend/tests/test_chat_endpoint.py`
+Create: `backend/rag/intent_prerouter.py`, `backend/tests/test_embedding_no_double_prefix.py`, `backend/tests/test_retrieve_documents_contract.py`, `backend/benchmarks/smoke_doctrine.py`
 
-- Building the FastAPI endpoints themselves (documented instead).
-- Re-skinning any admin page.
-- Touching `/chat` or auth flow.
+**Files — Track B (12)**
+Modify: `backend/docker-compose.yml`, `backend/app/dependencies.py`, `backend/app/main.py`, `backend/app/config.py`, `backend/rag/nodes.py`, `backend/rag/graph.py`, `backend/rag/states.py`, `backend/rag/prompts.py`
+Create: `backend/services/memory_service.py`, `backend/app/routers/memory.py`, `backend/scripts/dream_memories.py`, `backend/alembic/versions/XXX_memory_tables.py`, `src/lib/memoryApi.ts`, `src/components/MemoryManager.tsx`, rewrite `src/lib/personalInsights.ts`, `backend/tests/test_memory_service.py`, `backend/tests/test_memory_endpoints.py`, `backend/benchmarks/personalized_recall.py`
 
-Approve and I'll execute the migration first, then the code + doc in one batch.
+**Risks**
+1. [Likely] Postgres added to docker-compose increases dev-env memory by ~200MB. Acceptable.
+2. [Likely] Sarvam-30B `generate_answer` 4-8s floor remains. p95 ≤8s requires CLAUDE.md's claimed `reflect_on_answer + verify_answer` merge to actually be in code — verify in nodes.py before benchmarking, fix if not.
+3. [Certain] Cache flush after Track A drops hit rate to 0% briefly.
+4. [Guessing] Background `extract_and_write` failure could silently lose memories. Mitigation: write to `guru_memory_extraction_queue` table first, mark complete on success, retry-loop in dreamer for failures.
+5. [Likely] Pgvector HNSW with 1024d vectors needs `maintenance_work_mem >= 256MB` for index builds beyond ~50k rows. Bake into postgres service config.
+
+**Out of scope**
+- Anonymous user memory (auth required)
+- Cross-language memory translation
+- Memory sharing between users
+- Mem0 graph mode (Neo4j-backed relational memory)
+- Replacing Sarvam-30B for generation
+- Procedural memory (LangMem's 3rd tier) — single-skill app doesn't need it
+- Re-ingestion / sparse backfill (proven unnecessary by Phase 0.5)
