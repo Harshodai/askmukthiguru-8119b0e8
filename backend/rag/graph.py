@@ -167,7 +167,8 @@ def build_rag_graph(
     # === Linear edges for the RAG pipeline ===
     # Pre-retrieval optimization: tree navigation → HyDE → retrieval
     graph.add_edge("decompose_query", "navigate_knowledge_tree")
-    graph.add_edge("navigate_knowledge_tree", "generate_hyde")
+    graph.add_edge("decompose_query", "generate_hyde")
+    graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
     graph.add_edge("generate_hyde", "retrieve_documents")
 
     # retrieve_documents handles parallel sub-query retrieval internally
@@ -310,4 +311,102 @@ def create_initial_state(
         node_timings={},
         # Production AI reliability trajectory metadata
         evaluation_trace={},
+    )
+
+
+def _map_docs_to_relevant(state: GraphState) -> dict:
+    """Bridge node: maps retrieved documents → relevant_docs for fast path.
+
+    In the standard graph `grade_documents` populates `relevant_docs`.
+    In the fast path we skip grading, so this adapter copies documents across.
+    """
+    return {"relevant_docs": state.get("documents", [])}
+
+
+def build_fast_graph(
+    ollama_service: OllamaService,
+    embedding_service: EmbeddingService,
+    qdrant_service: QdrantService,
+    lightrag_service: LightRAGService,
+    serene_mind_engine: SereneMindEngine = None,
+) -> CompiledStateGraph:
+    """Fast path (Path A): 5-node pipeline for simple factual queries.
+
+    Nodes excluded: decompose_query, navigate_knowledge_tree, generate_hyde,
+    rerank_documents, grade_documents, check_context_sufficiency,
+    enrich_context, context_engineer, reflect_on_answer, verify_answer,
+    check_contradiction, explain_retrieval.
+    """
+    init_services(
+        ollama_service, embedding_service, qdrant_service, lightrag_service, serene_mind_engine
+    )
+
+    graph = StateGraph(GraphState)
+
+    # Core fast-path nodes
+    graph.add_node("intent_router", intent_router)
+    graph.add_node("resolve_followup", resolve_followup)
+    graph.add_node("retrieve_documents", retrieve_documents)
+    graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
+    graph.add_node("generate_answer", generate_answer)
+    graph.add_node("format_final_answer", format_final_answer)
+
+    # Terminal handlers
+    graph.add_node("handle_casual", handle_casual)
+    graph.add_node("handle_distress", handle_distress)
+    graph.add_node("handle_meditation", handle_meditation)
+    graph.add_node("handle_fallback", handle_fallback)
+
+    graph.set_entry_point("intent_router")
+
+    graph.add_conditional_edges(
+        "intent_router",
+        route_by_intent,
+        {
+            "distress": "handle_distress",
+            "meditation": "handle_meditation",
+            "casual": "handle_casual",
+            "query": "resolve_followup",
+        },
+    )
+
+    # Fast path for queries: skip decomposition + verification
+    graph.add_edge("resolve_followup", "retrieve_documents")
+    graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
+    graph.add_edge("_map_docs_to_relevant", "generate_answer")
+    graph.add_edge("generate_answer", "format_final_answer")
+    graph.add_edge("format_final_answer", END)
+
+    # Terminal edges
+    graph.add_edge("handle_casual", END)
+    graph.add_edge("handle_distress", END)
+    graph.add_edge("handle_meditation", END)
+    graph.add_edge("handle_fallback", END)
+
+    compiled = graph.compile()
+    logger.info("LangGraph FAST pipeline compiled successfully")
+    return compiled
+
+
+def build_deep_graph(
+    ollama_service: OllamaService,
+    embedding_service: EmbeddingService,
+    qdrant_service: QdrantService,
+    lightrag_service: LightRAGService,
+    serene_mind_engine: SereneMindEngine = None,
+) -> CompiledStateGraph:
+    """Deep path: full standard graph with additional verification + CoT nodes.
+
+    Currently a thin wrapper around the standard graph with potential for
+    extra deep-dive nodes (e.g., multi-hop reasoning, adversarial check).
+    per-node LLM config is read from `node_llm_config.DEEP_PATH_CONFIG`.
+    """
+    # Reuse standard graph wiring; nodes read their own config at runtime
+    # based on state["query_tier"] == "deep" when that field is set.
+    return build_rag_graph(
+        ollama_service,
+        embedding_service,
+        qdrant_service,
+        lightrag_service,
+        serene_mind_engine,
     )

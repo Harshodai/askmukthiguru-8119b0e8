@@ -58,7 +58,14 @@ class EmbeddingService:
         if self._encoder is not None and self._reranker is not None and self._colbert is not None:
             return
         with self._lock:
+            import os
+            os.environ["OMP_NUM_THREADS"] = "1"
+            os.environ["MKL_NUM_THREADS"] = "1"
+            os.environ["OPENBLAS_NUM_THREADS"] = "1"
+            os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+            os.environ["NUMEXPR_NUM_THREADS"] = "1"
             import torch
+            torch.set_num_threads(1)
 
             device = "cpu"
             if torch.cuda.is_available():
@@ -156,12 +163,14 @@ class EmbeddingService:
         last_err = None
         for attempt in range(1, max_retries + 1):
             try:
-                output = self._encoder.encode(
-                    texts,
-                    return_dense=True,
-                    return_sparse=False,
-                    return_colbert_vecs=False,
-                )
+                import torch
+                with torch.inference_mode():
+                    output = self._encoder.encode(
+                        texts,
+                        return_dense=True,
+                        return_sparse=False,
+                        return_colbert_vecs=False,
+                    )
                 return output["dense_vecs"].tolist()
             except Exception as e:
                 last_err = e
@@ -231,12 +240,14 @@ class EmbeddingService:
         last_err = None
         for attempt in range(1, max_retries + 1):
             try:
-                output = self._encoder.encode(
-                    uncached_prefixed_texts,
-                    return_dense=True,
-                    return_sparse=True,
-                    return_colbert_vecs=False,
-                )
+                import torch
+                with torch.inference_mode():
+                    output = self._encoder.encode(
+                        uncached_prefixed_texts,
+                        return_dense=True,
+                        return_sparse=True,
+                        return_colbert_vecs=False,
+                    )
                 # Build results in original order
                 dense_results = [None] * len(texts)
                 sparse_results = [None] * len(texts)
@@ -327,8 +338,12 @@ class EmbeddingService:
             return []
 
         self._ensure_models()
+        import gc
+        import torch
+        gc.collect()
         pairs = [(query, doc["text"]) for doc in documents]
-        raw_scores = self._reranker.predict(pairs)
+        with torch.inference_mode():
+            raw_scores = self._reranker.predict(pairs)
 
         # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
         # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.

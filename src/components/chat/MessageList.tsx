@@ -151,11 +151,13 @@ export const MessageList = React.memo(({
                 defaultHeight={isEmptyStreaming ? 24 : (message.role === 'user' ? 60 : 140)}
                 alwaysVisible={isStreamingMsg}
               >
+                {/* During the entire streaming period (including before the first token arrives)
+                    mark the streaming message as active so ChatMessage can render a thinking indicator. */}
                 <ChatMessage
                   message={isStreamingMsg && streamingContent !== undefined ? { ...message, content: streamingContent } : message}
                   queryText={queryText}
                   index={index}
-                  isStreaming={isStreamingMsg && (streamingContent ? streamingContent.length > 0 : message.content.length > 0)}
+                  isStreaming={isStreamingMsg}
                   isLastGuru={message.id === lastGuruId && !streamingId}
                   onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}

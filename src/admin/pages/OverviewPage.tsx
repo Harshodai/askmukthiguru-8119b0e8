@@ -48,36 +48,42 @@ export default function OverviewPage() {
 
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        <KpiCard label="Queries" value={isLoading ? "…" : fmtInt(kpis?.total_queries ?? 0)} />
-        <KpiCard label="Total Seekers" value={isLoading ? "…" : fmtInt(kpis?.total_seekers ?? 0)} tone="good" />
-        <KpiCard label="p50 latency" value={isLoading ? "…" : fmtMs(kpis?.p50_latency_ms ?? 0)} />
+        <KpiCard label="Queries" value={isLoading ? "…" : fmtInt(kpis?.total_queries ?? 0)} tooltip="Total number of chat queries processed across all channels." />
+        <KpiCard label="Total Seekers" value={isLoading ? "…" : fmtInt(kpis?.total_seekers ?? 0)} tone="good" tooltip="Unique individuals who have asked at least one question." />
+        <KpiCard label="p50 latency" value={isLoading ? "…" : fmtMs(kpis?.p50_latency_ms ?? 0)} tooltip="Median end-to-end response time for the RAG pipeline." />
         <KpiCard
           label="p95 latency"
           value={isLoading ? "…" : fmtMs(kpis?.p95_latency_ms ?? 0)}
           tone={(kpis?.p95_latency_ms ?? 0) > 5000 ? "warn" : "default"}
+          tooltip="95th percentile latency — tail-end worst-case response times."
         />
         <KpiCard
           label="Hallucination rate"
           value={isLoading ? "…" : fmtPct(kpis?.hallucination_rate ?? 0)}
           tone={(kpis?.hallucination_rate ?? 0) > 0.15 ? "bad" : "default"}
+          tooltip="Percentage of responses flagged as hallucinated by Self-RAG verification."
         />
         <KpiCard
           label="Serene Mind triggered"
           value={isLoading ? "…" : fmtPct(kpis?.serene_mind_trigger_rate ?? 0)}
+          tooltip="Percentage of queries that triggered the Serene Mind distress-detection meditation flow."
         />
         <KpiCard
           label="Thumbs up rate"
           value={isLoading ? "…" : fmtPct(kpis?.thumbs_up_rate ?? 0)}
           tone="good"
+          tooltip="Positive feedback (thumbs up) as a fraction of rated responses."
         />
         <KpiCard
           label="Estimated cost"
           value={isLoading ? "…" : fmtInr(kpis?.estimated_cost_inr ?? kpis?.estimated_cost_usd ?? 0)}
+          tooltip="Approximate total inference cost for processed queries."
         />
         <KpiCard
           label="Error rate"
           value={isLoading ? "…" : fmtPct(kpis?.error_rate ?? 0)}
           tone={(kpis?.error_rate ?? 0) > 0.02 ? "bad" : "default"}
+          tooltip="Percentage of requests that failed (circuit breaker, timeout, or exception)."
         />
       </div>
 

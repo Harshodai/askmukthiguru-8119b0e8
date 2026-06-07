@@ -180,7 +180,23 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     prose-headings:text-foreground prose-headings:font-bold prose-headings:text-base prose-headings:mb-2
                     prose-a:text-ojas prose-a:no-underline hover:prose-a:underline
                     selection:bg-ojas/20">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    {/* Thinking indicator while streaming but no content yet */}
+                    {isStreaming && !message.content ? (
+                      <div className="flex items-center gap-1.5 py-1 min-h-[22px]">
+                        {['w-1.5 h-1.5', 'w-1.5 h-1.5', 'w-1.5 h-1.5'].map((cls, i) => (
+                          <motion.div
+                            key={i}
+                            className="bg-ojas/70 rounded-full"
+                            style={{ width: 6, height: 6 }}
+                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                          />
+                        ))}
+                        <span className="text-xs text-ojas/70 italic font-serif ml-1.5">Delving deep into the sacred teachings...</span>
+                      </div>
+                    ) : (
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    )}
                   </div>
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2 w-full">

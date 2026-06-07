@@ -19,7 +19,7 @@ import threading
 from app.config import settings
 from guardrails.rails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
-from rag.graph import build_rag_graph
+from rag.graph import build_deep_graph, build_fast_graph, build_rag_graph
 from services.cache_service import SemanticCacheAdapter, init_llm_cache
 from services.compliance_logger import get_compliance_logger  # Unit 24
 from services.embedding_service import EmbeddingService
@@ -163,17 +163,33 @@ class ServiceContainer:
             ocr_service=self.ocr,
         )
 
-        # Layer 6: RAG graph (depends on core services + serene mind)
+        # Layer 6: RAG graph variants (depends on core services + serene mind)
         # LightRAG degraded-service flag: if Neo4j was unreachable during
         # lightrag.initialize(), the graph still builds but without graph
         # enrichment.  The service itself logs the warning.
-        self.rag_graph = build_rag_graph(
+        self.fast_graph = build_fast_graph(
             ollama_service=self.ollama,
             embedding_service=self.embedding,
             qdrant_service=self.qdrant,
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
         )
+        self.standard_graph = build_rag_graph(
+            ollama_service=self.ollama,
+            embedding_service=self.embedding,
+            qdrant_service=self.qdrant,
+            lightrag_service=self.lightrag,
+            serene_mind_engine=self.serene_mind,
+        )
+        self.deep_graph = build_deep_graph(
+            ollama_service=self.ollama,
+            embedding_service=self.embedding,
+            qdrant_service=self.qdrant,
+            lightrag_service=self.lightrag,
+            serene_mind_engine=self.serene_mind,
+        )
+        # Backward-compatible alias — defaults to standard graph
+        self.rag_graph = self.standard_graph
 
         logger.info(
             f"All services initialized "

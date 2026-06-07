@@ -19,6 +19,7 @@ Examples:
 import logging
 
 from rag.states import GraphState
+from rag.timeout_utils import get_node_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,8 @@ async def resolve_followup(state: GraphState) -> dict:
     Returns:
         dict with updated 'question' if resolved, or empty dict if no change needed.
     """
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Resolve Follow-up: tier2_simple query, skipping LLM resolution.")
+    if state.get("query_tier") == "fast":
+        logger.info("Resolve Follow-up: fast path query, skipping LLM resolution.")
         return {}
 
     chat_history = state.get("chat_history", [])
@@ -97,10 +98,11 @@ async def resolve_followup(state: GraphState) -> dict:
             question=question,
         )
 
+        t_out = get_node_timeout("resolve_followup", 15)
         resolved = await _ollama._generate_fast(
             system_prompt="",
             user_prompt=prompt,
-            timeout=15,
+            timeout=t_out,
             max_retries=1,
         )
 

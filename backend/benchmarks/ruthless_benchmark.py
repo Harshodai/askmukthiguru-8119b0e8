@@ -198,6 +198,7 @@ class SingleResult:
     run_index: int = 1
     variant_type: Optional[str] = None
     original_q: Optional[str] = None
+    graph_variant: Optional[str] = None
 
 
 @dataclass
@@ -730,6 +731,7 @@ async def run_suite_category(
         trace_id = res["data"].get("trace_id", "") if res["ok"] else ""
         evaluation_trace = res["data"].get("evaluation_trace", {}) if res["ok"] else {}
         node_timings = res["data"].get("node_timings", {}) if res["ok"] else {}
+        graph_variant = res["data"].get("query_tier") if res["ok"] else None
 
         # Calculate Keyword Score
         kw = keyword_score(resp, item.get("must_mention", []))
@@ -844,6 +846,7 @@ async def run_suite_category(
                 trajectory_pass=trajectory_ok,
                 variant_type=variant_type,
                 original_q=original_q,
+                graph_variant=graph_variant,
             )
         )
 
@@ -1538,6 +1541,19 @@ async def main():
         action="store_true",
         help="Generate and run complex query variants dynamically using the active LLM service.",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum total number of queries to run across all categories (for focused testing).",
+    )
+    parser.add_argument(
+        "--graph-variant",
+        type=str,
+        default=None,
+        choices=["fast", "standard", "deep"],
+        help="Filter report to only show results that used the specified graph variant.",
+    )
     args = parser.parse_args()
 
     print(f"Checking infrastructure on {args.endpoint}...")
@@ -1566,10 +1582,25 @@ async def main():
                 await run_suite_category(
                     category, results, client, args.endpoint, args.test_key, args.dry_run, args.complex_variants
                 )
+            if args.limit and len(results) >= args.limit:
+                results = results[:args.limit]
+                print(f"  📊 Stopping: --limit {args.limit} reached")
+                break
         if not args.dry_run:
             await run_stability_suite(
                 results, client, args.endpoint, args.test_key, args.stability_runs
             )
+
+    # Post-process: enforce --limit after all suites (including stability)
+    if args.limit and len(results) > args.limit:
+        results = results[:args.limit]
+        print(f"  📊 Truncated to --limit {args.limit}")
+
+    # Post-process: filter by --graph-variant if specified
+    if args.graph_variant:
+        filtered_results = [r for r in results if r.graph_variant == args.graph_variant]
+        print(f"\n  📊 Graph variant filter: {args.graph_variant} — {len(filtered_results)}/{len(results)} results match")
+        results = filtered_results
 
     scores = calculate_scores(results, infra)
     total_score = print_report(results, infra, scores, args.endpoint)

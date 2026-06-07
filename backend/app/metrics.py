@@ -128,6 +128,12 @@ MEDITATION_SESSIONS = Counter(
     "Total meditation sessions started",
 )
 
+CONTRADICTION_DETECTIONS = Counter(
+    "guru_contradiction_detections_total",
+    "Total contradictions detected in the conversation history",
+)
+
+
 # ===================================================================
 # Cache Metrics
 # ===================================================================

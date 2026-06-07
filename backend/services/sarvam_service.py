@@ -169,6 +169,7 @@ class SarvamCloudService:
         self._circuit = CircuitBreaker()
         self._last_request_time = 0.0
         self._rate_limit_lock = asyncio.Lock()
+        self._max_tokens_limit = 32768
 
         # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
         self._http_client = None
@@ -315,6 +316,9 @@ class SarvamCloudService:
         Returns: The assistant's response content (stripped of <think> tags).
         """
         request_timeout = kwargs.pop("timeout", self._timeout)
+        if ("sarvam-30b" in model or "sarvam-105b" in model) and request_timeout < 35.0:
+            logger.info(f"_call_api: Scaling up request timeout from {request_timeout}s to 35.0s for reasoning model {model}")
+            request_timeout = 35.0
         request_retries = kwargs.pop("max_retries", self._max_retries)
         if not self._circuit.can_execute():
             exc = CircuitOpenException(
@@ -355,13 +359,13 @@ class SarvamCloudService:
 
         # Ensure reasoning models like sarvam-30b and sarvam-105b have a large enough max_tokens budget
         # to generate both the thinking trace and the final content response.
-        # Always set 32768 (32k) unconditionally for these models.
+        # Cap at self._max_tokens_limit which heals dynamically.
         if "sarvam-30b" in model or "sarvam-105b" in model:
-            if max_tokens != 32768:
+            if max_tokens > self._max_tokens_limit:
                 logger.info(
-                    f"_call_api: Setting max_tokens={max_tokens} → 32768 for reasoning model {model}."
+                    f"_call_api: Capping max_tokens={max_tokens} → {self._max_tokens_limit} for reasoning model {model}."
                 )
-            max_tokens = 32768
+                max_tokens = self._max_tokens_limit
 
         payload = {
             "model": model,
@@ -392,6 +396,10 @@ class SarvamCloudService:
                 "hyde",
                 "sufficiency",
                 "rerank",
+                "extraction",
+                "summarize",
+                "keyword",
+                "extract",
             )
             _complex_tags = (
                 "complex",
@@ -482,8 +490,9 @@ class SarvamCloudService:
                                         tier_limit = int(m.group(1))
                                         logger.warning(
                                             f"Sarvam API max_tokens ({payload.get('max_tokens')}) exceeded subscription tier limit. "
-                                            f"Automatically capping to {tier_limit} and retrying immediately."
+                                            f"Automatically capping to {tier_limit}, caching limit, and retrying immediately."
                                         )
+                                        self._max_tokens_limit = tier_limit
                                         payload["max_tokens"] = tier_limit
                                         adjustment_attempts += 1
                                         continue
@@ -602,7 +611,22 @@ class SarvamCloudService:
                                 }
 
                                 if not content.strip() and reasoning_content.strip():
-                                    if is_structured or operation in structured_ops:
+                                    # Validate reasoning_content quality before accepting it
+                                    rc = reasoning_content.strip()
+                                    # Reject garbage: repeated single word, excessive repetition, or too short
+                                    words = rc.split()
+                                    unique_words = set(w.lower() for w in words)
+                                    is_garbage = (
+                                        len(unique_words) <= 2 and len(words) > 20
+                                    ) or (len(words) > 100 and len(unique_words) / len(words) < 0.1)
+                                    if is_garbage:
+                                        logger.warning(
+                                            f"Sarvam API: reasoning_content rejected as garbage "
+                                            f"(len={len(rc)}, unique_words={len(unique_words)}, total_words={len(words)}). "
+                                            f"Returning empty."
+                                        )
+                                        content = ""
+                                    elif is_structured or operation in structured_ops:
                                         recovered = self._extract_structured_content(
                                             reasoning_content, operation
                                         )
@@ -753,6 +777,18 @@ class SarvamCloudService:
         for key, value in token_attrs.items():
             self._set_span_attr(span, key, value)
 
+        # Update request-scoped token accumulator
+        try:
+            from services.cost_tracker import token_accumulator_var
+            acc = token_accumulator_var.get()
+            if acc is not None:
+                acc.tokens_in += usage.get("prompt_tokens") or 0
+                acc.tokens_out += usage.get("completion_tokens") or 0
+                acc.model = self._gen_model
+                acc.provider = "sarvam"
+        except Exception as e:
+            logger.warning(f"Failed to record token usage in accumulator: {e}")
+
     @staticmethod
     def _record_span_exception(span, exc: Exception) -> None:
         if span is None:
@@ -899,14 +935,14 @@ class SarvamCloudService:
             if "sarvam-m" in model:
                 max_tokens = 2048
             else:
-                max_tokens = 32768
+                max_tokens = self._max_tokens_limit
 
         if "sarvam-30b" in model or "sarvam-105b" in model:
-            if max_tokens != 32768:
+            if max_tokens > self._max_tokens_limit:
                 logger.info(
-                    f"generate_stream: Setting max_tokens={max_tokens} → 32768 for reasoning model {model}"
+                    f"generate_stream: Setting max_tokens={max_tokens} → {self._max_tokens_limit} for reasoning model {model}"
                 )
-            max_tokens = 32768
+                max_tokens = self._max_tokens_limit
 
         payload = {
             "model": model,
@@ -942,6 +978,26 @@ class SarvamCloudService:
                 headers=headers,
                 json=payload,
             ) as resp:
+                if resp.status_code == 400:
+                    error_text_bytes = await resp.aread()
+                    error_text = error_text_bytes.decode("utf-8", errors="ignore")
+                    m = re.search(
+                        r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
+                        error_text,
+                    )
+                    if m:
+                        tier_limit = int(m.group(1))
+                        logger.warning(
+                            f"Sarvam API stream max_tokens ({payload.get('max_tokens')}) exceeded subscription limit. "
+                            f"Automatically capping to {tier_limit}, caching limit, and retrying stream immediately."
+                        )
+                        self._max_tokens_limit = tier_limit
+                        kwargs_copy = {**kwargs, "max_tokens": tier_limit}
+                        async for chunk in self.generate_stream(system_prompt, user_prompt, context, **kwargs_copy):
+                            yield chunk
+                        return
+                    else:
+                        resp.raise_for_status()
                 buffer = ""
                 async for line in resp.aiter_lines():
                     if line.startswith("data: "):
@@ -966,6 +1022,20 @@ class SarvamCloudService:
                                 yield reasoning_delta
                         except json.JSONDecodeError:
                             pass
+
+                # Record streaming token usage in accumulator
+                try:
+                    from services.cost_tracker import token_accumulator_var
+                    acc = token_accumulator_var.get()
+                    if acc is not None:
+                        prompt_tokens = int(sum(len((msg.get("content") or "").split()) for msg in messages) * 1.3)
+                        completion_tokens = int(len(buffer.split()) * 1.3)
+                        acc.tokens_in += prompt_tokens
+                        acc.tokens_out += completion_tokens
+                        acc.model = model
+                        acc.provider = "sarvam"
+                except Exception as e:
+                    logger.warning(f"Failed to record stream token usage: {e}")
 
             self._circuit.record_success()
 
@@ -1177,7 +1247,7 @@ class SarvamCloudService:
         result = await self._generate_fast(GRADE_RELEVANCE_PROMPT, prompt)
         return "yes" in result.lower()
 
-    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[dict]:
+    async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:
         """
         CRAG: Batch relevance grading of multiple documents in one LLM call.
 
@@ -1194,7 +1264,7 @@ class SarvamCloudService:
         )
 
         prompt = f"Question: {query}\n\n{numbered_docs}"
-        result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
+        result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt, **kwargs)
 
         # Parse "1: [yes/no] - reason\n2: [yes/no] - reason" format
         relevance_results = [
@@ -1235,14 +1305,14 @@ class SarvamCloudService:
 
         return relevance_results
 
-    async def check_faithfulness(self, answer: str, context: str) -> bool:
+    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
         """
         Self-RAG: Check if the generated answer is faithful to the context.
 
         Returns True if EVERY claim in the answer is supported by the context.
         """
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
-        result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt)
+        result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt, **kwargs)
         return "faithful" in result.lower()
 
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
@@ -1273,6 +1343,7 @@ class SarvamCloudService:
         original_query: str,
         reasons: list[str] = None,
         grading_reasons: list[str] = None,
+        **kwargs,
     ) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
@@ -1288,7 +1359,7 @@ class SarvamCloudService:
             reasons_text = "\n".join([f"- {r}" for r in actual_reasons if r])
             prompt += f"\n\nReasons for previous retrieval failure:\n{reasons_text}\n\nInstructions: Use these reasons to understand what was missing and perform a more targeted query expansion."
 
-        return await self.generate(QUERY_REWRITE_PROMPT, prompt)
+        return await self.generate(QUERY_REWRITE_PROMPT, prompt, **kwargs)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
         """
@@ -1413,13 +1484,13 @@ class SarvamCloudService:
         combined = "\n\n".join(texts)
         return await self.generate(SUMMARIZE_PROMPT, combined)
 
-    async def decompose_query(self, query: str) -> list[str]:
+    async def decompose_query(self, query: str, **kwargs) -> list[str]:
         """
         Query Decomposition: Split complex questions into atomic sub-queries.
 
         Returns: List of 2-3 simpler sub-queries.
         """
-        result = await self._generate_fast(DECOMPOSE_QUERY_PROMPT, query)
+        result = await self._generate_fast(DECOMPOSE_QUERY_PROMPT, query, **kwargs)
 
         sub_queries = []
         for line in result.split("\n"):
@@ -1431,20 +1502,20 @@ class SarvamCloudService:
 
         return sub_queries if sub_queries else [query]
 
-    async def generate_hypothetical_answer(self, query: str) -> str:
+    async def generate_hypothetical_answer(self, query: str, **kwargs) -> str:
         """
         HyDE (Hypothetical Document Embeddings): Generate a fake answer.
         """
-        return await self.generate(HYDE_PROMPT, query)
+        return await self.generate(HYDE_PROMPT, query, operation="generate_hyde", **kwargs)
 
-    async def is_complex_query(self, query: str) -> bool:
+    async def is_complex_query(self, query: str, **kwargs) -> bool:
         """
         Determine if a query needs decomposition.
         """
-        result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query)
+        result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query, **kwargs)
         return "complex" in result.lower()
 
-    async def compress_context(self, question: str, document_text: str) -> str:
+    async def compress_context(self, question: str, document_text: str, **kwargs) -> str:
         """
         Compress a document chunk using the fast LLM to retain only relevant information.
         If NO_RELEVANT_CONTEXT is returned, it returns an empty string.
@@ -1453,7 +1524,7 @@ class SarvamCloudService:
 
         prompt = COMPRESS_CONTEXT_PROMPT.format(question=question, document_text=document_text)
         # Always use the fast model for compression to save time
-        compressed = await self._generate_fast("", prompt)
+        compressed = await self._generate_fast("", prompt, **kwargs)
 
         if "NO_RELEVANT_CONTEXT" in compressed:
             return ""

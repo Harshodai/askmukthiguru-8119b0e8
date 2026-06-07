@@ -22,7 +22,7 @@ import * as db from './mockData';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 /* ── Explicit NODE_ENV check for mock-data guard ─────────────────────────── */
-const ALLOW_MOCK = import.meta.env.DEV;
+const ALLOW_MOCK = import.meta.env.DEV && import.meta.env.VITE_ALLOW_MOCK === 'true';
 
 /* ── Auth helper ─────────────────────────────────────────────────────────── */
 async function fetchWithAuth(path: string, options: RequestInit = {}) {

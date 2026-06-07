@@ -262,6 +262,18 @@ class OllamaService:
                         f"content_len={len(content)}, model={self._llm.model}"
                     )
 
+                    # Update request-scoped token accumulator
+                    try:
+                        from services.cost_tracker import token_accumulator_var
+                        acc = token_accumulator_var.get()
+                        if acc is not None:
+                            acc.tokens_in += tokens_sent
+                            acc.tokens_out += tokens_received
+                            acc.model = self._llm.model
+                            acc.provider = "ollama"
+                    except Exception as e:
+                        logger.warning(f"Failed to record Ollama token usage: {e}")
+
                     self._circuit_breaker.record_success()
                     return content
         except (asyncio.TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
@@ -329,6 +341,19 @@ class OllamaService:
                         content = think_match.group(1).strip()
                     else:
                         content = content.strip()
+
+                    tokens_sent = self._estimate_tokens(system_prompt + user_prompt)
+                    tokens_received = self._estimate_tokens(content)
+                    try:
+                        from services.cost_tracker import token_accumulator_var
+                        acc = token_accumulator_var.get()
+                        if acc is not None:
+                            acc.tokens_in += tokens_sent
+                            acc.tokens_out += tokens_received
+                            acc.model = self._llm_fast.model
+                            acc.provider = "ollama"
+                    except Exception as e:
+                        logger.warning(f"Failed to record Ollama fast token usage: {e}")
 
                     self._circuit_breaker.record_success()
                     return content
@@ -407,8 +432,23 @@ class OllamaService:
 
         # Unit 18: wrap in guarded_stream to handle mid-stream failures gracefully
         try:
+            tokens_sent = self._estimate_tokens(system_prompt + user_prompt)
+            accumulated_tokens = ""
             async for token in guarded_stream(_raw_stream()):
+                accumulated_tokens += token
                 yield token
+            
+            tokens_received = self._estimate_tokens(accumulated_tokens)
+            try:
+                from services.cost_tracker import token_accumulator_var
+                acc = token_accumulator_var.get()
+                if acc is not None:
+                    acc.tokens_in += tokens_sent
+                    acc.tokens_out += tokens_received
+                    acc.model = self._llm.model
+                    acc.provider = "ollama"
+            except Exception as e:
+                logger.warning(f"Failed to record Ollama stream token usage: {e}")
         except StreamInterruptedError:
             self._circuit_breaker.record_failure()
             # StreamInterruptedError already yielded the sentinel; just log
@@ -511,7 +551,7 @@ class OllamaService:
                 "reason": f"Fallback naive classification (intent={intent})",
             }
 
-    async def batch_grade_relevance(self, query: str, documents: list[str]) -> list[dict]:
+    async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:
         """
         CRAG: Batch relevance grading of multiple documents in one LLM call.
 
@@ -531,7 +571,7 @@ class OllamaService:
         )
 
         prompt = f"Question: {query}\n\n{numbered_docs}"
-        result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt)
+        result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt, **kwargs)
 
         # Parse "1: yes - [reason]\n2: no - [reason]" format
         relevance_data = [
@@ -553,7 +593,7 @@ class OllamaService:
 
         return relevance_data
 
-    async def check_faithfulness(self, answer: str, context: str) -> bool:
+    async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
         """
         Self-RAG: Check if the generated answer is faithful to the context.
 
@@ -563,7 +603,7 @@ class OllamaService:
         Uses the fast model for speed.
         """
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
-        result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt)
+        result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt, **kwargs)
         return "faithful" in result.lower()
 
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
@@ -593,7 +633,7 @@ class OllamaService:
 
         return hints[:5]  # Cap at 5 hints
 
-    async def rewrite_query(self, original_query: str, reasons: list[str] = None) -> str:
+    async def rewrite_query(self, original_query: str, reasons: list[str] = None, **kwargs) -> str:
         """
         CRAG: Rewrite a query to improve retrieval quality.
 
@@ -607,7 +647,7 @@ class OllamaService:
                 "\n\nRewrite the query to address these gaps while keeping the spiritual essence."
             )
 
-        return await self.generate(QUERY_REWRITE_PROMPT, prompt)
+        return await self.generate(QUERY_REWRITE_PROMPT, prompt, **kwargs)
 
     async def verify_claims(self, answer: str, context: str) -> dict:
         """
@@ -719,14 +759,14 @@ class OllamaService:
         combined = "\n\n".join(texts)
         return await self.generate(SUMMARIZE_PROMPT, combined)
 
-    async def decompose_query(self, query: str) -> list[str]:
+    async def decompose_query(self, query: str, **kwargs) -> list[str]:
         """
         Query Decomposition: Split complex questions into atomic sub-queries.
 
         Returns: List of 2-3 simpler sub-queries.
         Uses the fast model since this is a classification/parsing task.
         """
-        result = await self._generate_fast(DECOMPOSE_QUERY_PROMPT, query)
+        result = await self._generate_fast(DECOMPOSE_QUERY_PROMPT, query, **kwargs)
 
         sub_queries = []
         for line in result.split("\n"):
@@ -738,24 +778,24 @@ class OllamaService:
 
         return sub_queries if sub_queries else [query]
 
-    async def generate_hypothetical_answer(self, query: str) -> str:
+    async def generate_hypothetical_answer(self, query: str, **kwargs) -> str:
         """
         HyDE (Hypothetical Document Embeddings): Generate a fake answer.
 
         Uses the main model for quality hypothetical generation.
         """
-        return await self.generate(HYDE_PROMPT, query)
+        return await self.generate(HYDE_PROMPT, query, **kwargs)
 
-    async def is_complex_query(self, query: str) -> bool:
+    async def is_complex_query(self, query: str, **kwargs) -> bool:
         """
         Determine if a query needs decomposition.
 
         Uses the fast model since this is a binary classification.
         """
-        result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query)
+        result = await self._generate_fast(IS_COMPLEX_QUERY_PROMPT, query, **kwargs)
         return "complex" in result.lower()
 
-    async def compress_context(self, question: str, document_text: str) -> str:
+    async def compress_context(self, question: str, document_text: str, **kwargs) -> str:
         """
         Compress a document chunk using the fast LLM to retain only relevant information.
         If NO_RELEVANT_CONTEXT is returned, it returns an empty string.
@@ -764,7 +804,7 @@ class OllamaService:
 
         prompt = COMPRESS_CONTEXT_PROMPT.format(question=question, document_text=document_text)
         # Always use the fast model for compression to save time
-        compressed = await self._generate_fast("", prompt)
+        compressed = await self._generate_fast("", prompt, **kwargs)
 
         if "NO_RELEVANT_CONTEXT" in compressed:
             return ""

@@ -228,8 +228,12 @@ class RerankerService:
 
         # Fallback CrossEncoder execution
         logger.info("Executing CrossEncoder fallback reranking.")
+        import gc
+        import torch
+        gc.collect()
         pairs = [(query, doc["text"]) for doc in documents]
-        raw_scores = self._fallback_reranker.predict(pairs)
+        with torch.inference_mode():
+            raw_scores = self._fallback_reranker.predict(pairs)
 
         import numpy as np
 
