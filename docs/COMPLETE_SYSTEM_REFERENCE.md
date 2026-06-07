@@ -55,6 +55,7 @@ The frontend is a single-page application built on Vite, React 18, TypeScript, T
 ### 2.1 File & Component Mapping
 *   `src/App.tsx`: Wires the routing system using `react-router-dom`. Incorporates lazy loading for admin pages to minimize bundle sizes.
 *   `src/components/chat/ChatInterface.tsx`: The primary dialogue screen (~540 lines of code). Handles streaming state, voice controls, session recovery, and local messaging.
+*   `src/admin/hooks/useAdminData.ts` & `src/admin/lib/api.ts`: Telemetry hooks and API clients that retrieve live aggregated dashboard stats. The client uses `withDevFallback` but restricts mock fallbacks via `ALLOW_MOCK = import.meta.env.DEV && import.meta.env.VITE_ALLOW_MOCK === 'true'`, guaranteeing that production builds serve real backend metrics exclusively.
 *   `src/components/chat/DesktopSidebar.tsx`: Persistent, collapsible sidebar (56px collapsed to 280px expanded). Supports key binding `Cmd+B` for quick toggles and subscribes to `conversation:updated` events.
 *   `src/components/chat/DailyTeaching.tsx`: Realtime database subscription card subscribing to the `daily_teachings` channel. Automatically monitors expiration dates and handles broken-image fallbacks gracefully.
 *   `src/components/chat/SereneMindModal.tsx`: Modal interface driving the 4-step guided meditation flow.
@@ -219,6 +220,12 @@ The final string runs through the NeMo output rail to ensure no off-topic inform
 *   `cache_service.py`: Integrates a fast memory-cache adapter and Redis cache to bypass LangGraph for identical inputs.
 *   **Request Coalescing:** The `RequestCoalescer` captures incoming requests. If duplicate inquiries arrive concurrently, they are merged into a single execution thread to prevent database and LLM thrashing.
 
+### 3.4 Token Tracking, Cost Attribution & Observability Metrics
+*   **Request-Scoped Token Accumulator:** To attribute compute costs and track token volumes under concurrent loads without thread pollution, the backend uses a thread-safe `TokenAccumulator` stored in a Python `ContextVar` (`token_accumulator_var`).
+*   **LLM Integration:** Both local Ollama (`ollama_service.py`) and remote Sarvam (`sarvam_service.py`) services automatically intercept LLM raw calls, calculate/parse input and output token counts, and update the active thread's `TokenAccumulator`.
+*   **Database Sync:** An asynchronous `@record_token_usage` decorator and a streaming generator `finally:` block ensure that as soon as the API response completes (via either HTTP stream or standard JSON response), request token counts and calculated USD costs are flushed to the local `token_usage` SQLite database.
+*   **Contradiction Metrics:** RAG Layer 11 (`check_contradiction` node) tracks contradiction instances using the Prometheus metric `CONTRADICTION_DETECTIONS` (a Counter named `guru_contradiction_detections_total`). These occurrences are also tracked in the `evaluation_trace` returned to the client to support off-line quality auditing.
+
 ---
 
 ## 4. Ingestion & RAPTOR Indexing Pipeline
@@ -334,6 +341,28 @@ CREATE TABLE public.conversation_memories (
 
 ### 5.3 Memory Compaction
 The system monitors the `messages` array size inside `conversation_memories`. When the message length exceeds 6 entries, it calls the LLM in the background to summarize the conversation, reducing context size while preserving insights and emotional states.
+
+### 5.4 SQLite Telemetry & Cost Tables
+To prevent heavy synchronous database writes from blocking the core RAG execution loop and affecting real-time API latency, request-level operational telemetry, budgets, and token cost details are written asynchronously to a local SQLite database (`data/cost_tracking.db`).
+
+#### `token_usage` Table
+```sql
+CREATE TABLE IF NOT EXISTS token_usage (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenant_id   TEXT    NOT NULL DEFAULT 'default',
+    user_id     TEXT    NOT NULL DEFAULT '',
+    session_id  TEXT    NOT NULL DEFAULT '',
+    model       TEXT    NOT NULL DEFAULT '',
+    provider    TEXT    NOT NULL DEFAULT 'ollama',
+    tokens_in   INTEGER NOT NULL DEFAULT 0,
+    tokens_out  INTEGER NOT NULL DEFAULT 0,
+    cost_usd    REAL    NOT NULL DEFAULT 0.0,
+    created_at  REAL    NOT NULL,
+    endpoint    TEXT    DEFAULT '/api/chat'
+);
+CREATE INDEX IF NOT EXISTS idx_usage_tenant ON token_usage(tenant_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_usage_user ON token_usage(user_id, created_at);
+```
 
 ---
 
