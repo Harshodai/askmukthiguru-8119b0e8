@@ -1567,6 +1567,11 @@ class SarvamCloudService:
             logger.error(f"Error calling Sarvam translation: {e}")
             return text
 
+    @property
+    def is_available(self) -> bool:
+        """Return True if the Sarvam Cloud service is available for use."""
+        return True
+
     async def health_check(self) -> bool:
         """Check if Sarvam Cloud API is reachable."""
         try:

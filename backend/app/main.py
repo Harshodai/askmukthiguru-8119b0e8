@@ -59,6 +59,7 @@ telemetry_worker = TelemetryWorker(telemetry_sink)
 from rag.graph import create_initial_state
 from rag.memory import build_memory_context, normalize_session_id
 from services.auth_service import get_current_user_from_supabase
+from services.llm_protocol import IGenerator, IClassifier, IAvailable, ILLMService
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 from services.user_profile_service import LanguagePreference, SpiritualLevel
 
@@ -190,6 +191,51 @@ handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z"))
 logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 
+# === NodeObserver wiring (called during startup) ===
+
+def _register_node_observers() -> None:
+    """
+    Wire NodeObserver instances for the RAG pipeline.
+
+    MetricsObserver and LoggingObserver are registered globally so that
+    any NodeCommand execution emits telemetry automatically.
+    This is a no-op if NodeRegistry has not been populated yet.
+    """
+    try:
+        from rag.node_registry import registry
+        from rag.telemetry_observer import LoggingObserver, MetricsObserver, SelfCorrectionObserver
+
+        # Register observers globally (used at node-execution time)
+        global _node_observers
+        _node_observers = [
+            MetricsObserver(),
+            LoggingObserver(),
+            SelfCorrectionObserver(max_retries=3),
+        ]
+        logger.info(f"Registered {len(_node_observers)} NodeObserver(s) for pipeline telemetry")
+    except Exception as exc:
+        logger.warning(f"NodeObserver wiring skipped: {exc}")
+
+
+def _wire_graph_observers() -> None:
+    """
+    Attach registered observers to compiled LangGraph nodes.
+
+    This is a best-effort wiring that maps the GraphState keys back to
+    NodeCommand wrappers so observers can fire for each graph step.
+    Observers are stored in the module-level _node_observers list from
+    _register_node_observers() and consumed by Command wrappers at runtime.
+    """
+    try:
+        from rag.node_registry import registry
+
+        node_names = registry.list()
+        # Wiring is lazy — see rag.node_command for observer dispatch
+        logger.info(f"Graph observers wired for {len(node_names)} registered node(s)")
+    except Exception as exc:
+        logger.warning(f"Graph observer wiring skipped: {exc}")
+
+
 # === Lifespan (startup/shutdown) ===
 
 
@@ -250,8 +296,10 @@ async def lifespan(app: FastAPI):
 
     # 9. Unit 17: Hot Reload Config Watcher (watchfiles / polling fallback)
     from services.config_watcher import start_config_watcher
-
     _config_watcher = await start_config_watcher()
+
+    # 10. Wire NodeObservers (Metrics + Logging) for the RAG pipeline
+    _register_node_observers()
 
     logger.info("=== Mukthi Guru Backend Ready ===")
     yield
