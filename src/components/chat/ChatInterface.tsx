@@ -1202,7 +1202,7 @@ return (
           </AnimatePresence>
 
           {/* Pipeline Visualization */}
-          <ThinkingPills steps={pipelineSteps} visible={showPipeline} />
+          <ThinkingPills steps={pipelineSteps} visible={showPipeline} heartbeat={pipelineHeartbeat} />
 
           {/* Streaming skeleton — only show before empty guru bubble is added */}
           <AnimatePresence>
