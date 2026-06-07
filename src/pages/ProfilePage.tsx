@@ -64,11 +64,13 @@ import {
   readAvatarFile,
   getInitials,
   resetProfile,
-  derivePrePracticeInsights,
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
 import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
+import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
+import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+import { MemoryManager } from '@/components/profile/MemoryManager';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
@@ -135,6 +137,7 @@ const ProfilePage = () => {
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
+  const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +151,18 @@ const ProfilePage = () => {
           .select('id', { count: 'exact', head: true })
           .eq('user_id', session.user.id);
         if (!cancelled && typeof count === 'number') setConversationCount(count);
+      }
+      // Derive richer insights from local sessions + backend memory (if live).
+      const localSessions = loadMeditationSessions();
+      let memories: GuruMemory[] = [];
+      try {
+        const list = await memoryApi.list(1, 50);
+        memories = list.memories;
+      } catch {
+        // Memory layer not available yet — degrade gracefully.
+      }
+      if (!cancelled) {
+        setPersonalInsights(derivePersonalInsights({ sessions: localSessions, memories }));
       }
     };
     refresh();
@@ -249,9 +264,10 @@ const ProfilePage = () => {
         {/* I'll stop here to avoid creating too large a chunk, but I'll continue below if needed. */}
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsList className="grid w-full grid-cols-4 mb-8">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="stats">Insights</TabsTrigger>
+              <TabsTrigger value="memory">Memory</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
@@ -446,37 +462,40 @@ const ProfilePage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Recent Insights</CardTitle>
-                  <CardDescription>Wisdom derived from your practice sessions.</CardDescription>
+                  <CardDescription>Patterns woven from your practice, mood, and conversations.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {(() => {
-                      const insights = derivePrePracticeInsights(profile.prePracticeLog);
-                      const items = [insights.encouragement].filter(Boolean);
-                      return items.length > 0 ? (
-                      items.map((insight, idx) => (
-                        <div key={idx} className="p-4 rounded-lg bg-ojas/5 border border-ojas/10 flex gap-3">
+                  {personalInsights.length > 0 ? (
+                    <div className="space-y-3">
+                      {personalInsights.map((insight, idx) => (
+                        <div
+                          key={`${insight.kind}-${idx}`}
+                          className="p-4 rounded-lg bg-ojas/5 border border-ojas/10 flex gap-3"
+                        >
                           <Sparkles className="w-5 h-5 text-ojas shrink-0" />
                           <p className="text-sm text-foreground/80 italic leading-relaxed">
-                            "{insight}"
+                            {insight.text}
                           </p>
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 space-y-2">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                          <Target className="w-6 h-6" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">No insights yet. Continue your practices to reveal your spiritual patterns.</p>
-                        <Button variant="outline" size="sm" onClick={() => navigate('/practices')} className="mt-2">
-                          Start a practice <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+                        <Target className="w-6 h-6" />
                       </div>
-                    );
-                    })()}
-                  </div>
+                      <p className="text-sm text-muted-foreground">No insights yet. Continue your practices to reveal your spiritual patterns.</p>
+                      <Button variant="outline" size="sm" onClick={() => navigate('/practices')} className="mt-2">
+                        Start a practice <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="memory" className="space-y-6 mt-0">
+              <MemoryManager />
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6 mt-0">
