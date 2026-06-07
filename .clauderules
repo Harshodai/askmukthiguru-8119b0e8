@@ -1,0 +1,26 @@
+# ECC Skill Application Rules
+
+Before performing any development, coding, refactoring, or architectural task, you MUST check the available ECC Skills in the system and apply them. You must align your code with the clean code guidelines, Karpathy guidelines, and the specialized book/pattern skills.
+
+## 1. Clean Code Skills
+If writing, modifying, or refactoring Python or TypeScript code, you MUST apply the clean code guidelines from the relevant skills:
+- **Python**: Use `clean-code-python-boy-scout`, `clean-code-python-clean-comments`, `clean-code-python-clean-functions`, `clean-code-python-clean-general`, `clean-code-python-clean-names`, `clean-code-python-clean-tests`, and `clean-code-python-python-clean-code`.
+- **TypeScript/JavaScript**: Use `clean-code-typescript-boy-scout`, `clean-code-typescript-clean-comments`, `clean-code-typescript-clean-functions`, `clean-code-typescript-clean-general`, `clean-code-typescript-clean-names`, `clean-code-typescript-clean-tests`, and `clean-code-typescript-typescript-clean-code`.
+
+Specific priorities:
+- Keep functions under 50 lines.
+- Keep files under 800 lines (many small files > few large files).
+- Write descriptive names, avoid magic numbers.
+- Keep tests clean and self-documenting.
+
+## 2. Andrej Karpathy Skills
+If implementing neural networks, training loops, optimization code, or working with LLMs/Transformers, you MUST check the Karpathy guidelines in `andrej-karpathy-karpathy-guidelines`:
+- Align with the "Recipe for Training Neural Networks" (sanity check, overfit a batch, visualize, regulate).
+- Keep implementation simple, readable, and debuggable.
+
+## 3. Local Book & Domain Skills
+You MUST read and apply the specialized book/domain skills under `agent-book-*` and `agents-book-*`:
+- **System Design & Databases**: Check `agents-book-database-internals`, `agents-book-designing-data-intensive-apps-2e`, and `agents-book-system-design-llm-era`.
+- **AI Agents & Multi-Agent Design**: Check `agents-book-agentic-design-patterns`, `agents-book-ai-agents-in-action`, `agents-book-ai-agents-langchain-mcp`, and `agents-book-building-apps-ai-agents`.
+- **LLM/RAG Applications**: Check `agents-book-build-llm-app-scratch`, `agents-book-building-llms-for-production`, `agents-book-hands-on-llms`, `agents-book-llms-in-production`, `agents-book-prompt-engineering-llms`, and `agents-book-rag-made-simple`.
+- **General Architecture & Design**: Check `agent-book-architecture-patterns`, `agent-book-api-design-principles`, `agent-book-async-python-patterns`, and `agent-book-error-handling-patterns`.
