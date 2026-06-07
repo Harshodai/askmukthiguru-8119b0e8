@@ -1,4 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
@@ -6,11 +12,12 @@ interface Props {
   label: string;
   value: string;
   hint?: string;
+  tooltip?: string;
   delta?: number; // percent change vs prior period
   tone?: "default" | "good" | "warn" | "bad";
 }
 
-export function KpiCard({ label, value, hint, delta, tone = "default" }: Props) {
+export function KpiCard({ label, value, hint, tooltip, delta, tone = "default" }: Props) {
   const toneClass =
     tone === "good"
       ? "text-emerald-600 dark:text-emerald-400"
@@ -20,7 +27,7 @@ export function KpiCard({ label, value, hint, delta, tone = "default" }: Props) 
           ? "text-destructive"
           : "text-foreground";
 
-  return (
+  const card = (
     <Card>
       <CardContent className="p-4">
         <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -45,5 +52,20 @@ export function KpiCard({ label, value, hint, delta, tone = "default" }: Props) 
         </div>
       </CardContent>
     </Card>
+  );
+
+  if (!tooltip) return card;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div>{card}</div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
