@@ -137,6 +137,7 @@ const ProfilePage = () => {
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
+  const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,6 +151,18 @@ const ProfilePage = () => {
           .select('id', { count: 'exact', head: true })
           .eq('user_id', session.user.id);
         if (!cancelled && typeof count === 'number') setConversationCount(count);
+      }
+      // Derive richer insights from local sessions + backend memory (if live).
+      const localSessions = loadMeditationSessions();
+      let memories: GuruMemory[] = [];
+      try {
+        const list = await memoryApi.list(1, 50);
+        memories = list.memories;
+      } catch {
+        // Memory layer not available yet — degrade gracefully.
+      }
+      if (!cancelled) {
+        setPersonalInsights(derivePersonalInsights({ sessions: localSessions, memories }));
       }
     };
     refresh();
