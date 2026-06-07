@@ -399,6 +399,76 @@ The **Fast graph** (5 nodes, ~3 LLM calls) *can* handle significant concurrency 
 - **Colab free tier**: 12h/day, T4 GPU, not production-grade
 
 **Verdict**: For 1000+ concurrent users with current quality standards, you need either (a) GPU infrastructure budget, or (b) radical pipeline simplification to ≤3 sequential LLM calls with heavy caching. The current 11-call deep pipeline is fundamentally incompatible with high concurrency.
+
+---
+
+## Provider-Agnostic Circuit Breaker Abstraction (June 2026)
+
+### Problem
+The codebase had two separate circuit breaker implementations:
+- `services/sarvam_service.py` — `CircuitBreaker` class (lines 93-138)
+- `services/ollama_service.py` — `CircuitBreaker` class (lines 67-118)
+
+Both had nearly identical logic but different configs, and `app/main.py` directly accessed `container.sarvam._circuit` or `container.ollama._circuit`, making it hard to switch providers or add new ones (OpenRouter, etc.).
+
+### Solution: Shared Circuit Breaker Framework
+
+**New file: `services/circuit_breaker.py`**
+
+```python
+# Core components:
+class CircuitState(Enum):           # CLOSED, OPEN, HALF_OPEN
+class CircuitBreakerConfig:         # provider, failure_threshold, recovery_timeout, half_open_max_calls
+class BaseCircuitBreaker(ABC):      # Abstract base with can_execute(), record_success(), record_failure()
+class DefaultCircuitBreaker:        # Standard implementation
+class CircuitBreakerRegistry:       # Registry + active provider management
+class CircuitOpenException:         # Unified exception for OPEN state
+```
+
+**Key features:**
+- **Provider-agnostic**: Works with Sarvam, Ollama, OpenRouter, or any future provider
+- **Config-driven**: Each provider gets its own `CircuitBreakerConfig`
+- **Registry pattern**: Central `CircuitBreakerRegistry` manages all breakers
+- **Active provider auto-set**: Reads `LLM_PROVIDER` from config at startup
+- **Unified API**: `container.circuit_breaker_registry.get_active().can_execute()`
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `services/circuit_breaker.py` | NEW - Shared framework |
+| `services/sarvam_service.py` | Refactored to use `DefaultCircuitBreaker` |
+| `services/ollama_service.py` | Refactored to use `DefaultCircuitBreaker` |
+| `app/dependencies.py` | Added registry initialization in `ServiceContainer` |
+| `app/main.py` | Updated streaming endpoint & reset endpoint to use registry |
+
+### Usage
+```python
+# In any endpoint - works for ANY provider
+active_breaker = container.circuit_breaker_registry.get_active()
+if active_breaker and not active_breaker.can_execute():
+    raise HTTPException(503, "Circuit breaker OPEN")
+
+# Manual reset (works for any active provider)
+await circuit_breaker_reset_endpoint()
+# Returns: {"status": "ok", "provider": "sarvam", "previous_state": "open", ...}
+
+# Get all breaker stats
+container.circuit_breaker_registry.get_all_stats()
+# {"sarvam": {...}, "ollama": {...}, "openrouter": {...}}
+```
+
+### Adding a New Provider (e.g., OpenRouter)
+1. Add config in `create_default_breakers()` in `circuit_breaker.py`
+2. Register in `initialize_circuit_breakers()` 
+3. Set `LLM_PROVIDER=openrouter` in `.env`
+4. That's it — no code changes needed in endpoints!
+
+### Benefits
+- **Single source of truth** for circuit breaker logic
+- **Easy provider switching** — just change `LLM_PROVIDER` config
+- **Extensible** — add new providers without touching endpoints
+- **Consistent behavior** — all providers use same state machine
+- **Better observability** — `get_all_stats()` shows all breakers at once
 - **Script ready**: `scripts/ingest_youtube_seeds.py` updated with staggered delays and dual-playlist support
 
 ### 3. Admin Routing Fix

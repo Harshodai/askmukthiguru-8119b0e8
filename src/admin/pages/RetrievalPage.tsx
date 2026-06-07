@@ -39,18 +39,28 @@ export default function RetrievalPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Retrievals" value={isLoading ? "…" : fmtInt(data?.total_retrievals ?? 0)} />
+        <KpiCard
+          label="Retrievals"
+          value={isLoading ? "…" : fmtInt(data?.total_retrievals ?? 0)}
+          tooltip="Total number of vector search operations performed in the selected time window."
+        />
         <KpiCard
           label="Hit rate"
           value={isLoading ? "…" : fmtPct(data?.hit_rate ?? 0)}
           tone={(data?.hit_rate ?? 0) < 0.8 ? "warn" : "good"}
+          tooltip="Percentage of queries that returned at least one retrieved document. Below 80% suggests coverage gaps in the knowledge base."
         />
         <KpiCard
           label="Empty retrievals"
           value={isLoading ? "…" : fmtInt(data?.empty_retrievals ?? 0)}
           tone={(data?.empty_retrievals ?? 0) > 0 ? "warn" : "default"}
+          tooltip="Number of queries where vector search returned zero results. These queries fall back to generic responses."
         />
-        <KpiCard label="Avg top score" value={isLoading ? "…" : (data?.avg_top_score ?? 0).toFixed(3)} />
+        <KpiCard
+          label="Avg top score"
+          value={isLoading ? "…" : (data?.avg_top_score ?? 0).toFixed(3)}
+          tooltip="Average cosine similarity score of the top retrieved document. Higher scores (closer to 1.0) indicate better semantic matches."
+        />
       </div>
 
       <Card>
