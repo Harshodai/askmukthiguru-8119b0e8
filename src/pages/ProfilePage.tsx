@@ -64,11 +64,13 @@ import {
   readAvatarFile,
   getInitials,
   resetProfile,
-  derivePrePracticeInsights,
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
 import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
 import { loadConversations } from '@/lib/chatStorage';
+import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
+import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+import { MemoryManager } from '@/components/profile/MemoryManager';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
