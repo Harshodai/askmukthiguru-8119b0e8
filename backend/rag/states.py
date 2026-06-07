@@ -169,7 +169,7 @@ class GraphState(TypedDict):
     detected_language: Optional[str]
     memory_context: Optional[str]
     ab_model: Optional[str]  # "primary" or "krutrim" for A/B testing
-    query_tier: Optional[str]  # "tier2_simple" vs "tier3_complex"
+    query_tier: Optional[str]  # "fast" vs "standard" vs "deep"
     model_used: Optional[str]
     model_provider: Optional[str]
     route_decision: Optional[str]

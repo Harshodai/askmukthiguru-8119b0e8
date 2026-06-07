@@ -82,12 +82,23 @@ class QdrantService:
     """
 
     def __init__(self) -> None:
+        # Use a generous timeout for complex hybrid queries with 4 prefetches + RRF fusion.
+        # The default 5s is too short and causes cascading timeout/retry loops.
+        _timeout = getattr(settings, "qdrant_timeout", 30.0)
         if settings.qdrant_local_path:
             logger.info(f"Qdrant: local mode at {settings.qdrant_local_path}")
-            self._client = QdrantClient(path=settings.qdrant_local_path, check_compatibility=False)
+            self._client = QdrantClient(
+                path=settings.qdrant_local_path,
+                check_compatibility=False,
+                timeout=_timeout,
+            )
         else:
             logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
-            self._client = QdrantClient(url=settings.qdrant_url, check_compatibility=False)
+            self._client = QdrantClient(
+                url=settings.qdrant_url,
+                check_compatibility=False,
+                timeout=_timeout,
+            )
 
         self._collection = settings.qdrant_collection
         self._dimension = settings.embedding_dimension
@@ -227,7 +238,7 @@ class QdrantService:
         logger.info(f"Upserted {len(points)} chunks to {self._collection}")
         return len(points)
 
-    @retry_with_backoff(max_retries=3)
+    @retry_with_backoff(max_retries=1)
     def search(
         self,
         query_vector: list[float],
@@ -411,16 +422,11 @@ class QdrantService:
             )
             return results.points
         except Exception as e:
-            logger.error(f"Dense search failed: {e}. Falling back to default vector.")
-            # Final fallback for legacy collections without named vectors
-            results = self._client.query_points(
-                collection_name=self._collection,
-                query=query_vector,
-                limit=limit,
-                query_filter=search_filter,
-                with_payload=True,
-            )
-            return results.points
+            # Log the actual error once; do NOT fall back to a second query that
+            # omits the vector name — it causes 400 Bad Request on collections
+            # that only have named vectors.
+            logger.warning(f"Dense search failed: {e}. Returning empty results.")
+            return []
 
     def check_source_exists(self, source_url: str) -> bool:
         """Check if any points with this source_url already exist (dedup check)."""

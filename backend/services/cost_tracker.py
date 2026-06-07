@@ -316,3 +316,18 @@ def get_cost_tracker() -> CostTracker:
     if _tracker is None:
         _tracker = CostTracker()
     return _tracker
+
+
+# -----------------------------------------------------------------------
+# Token Accumulator & ContextVar for request-scoped token tracking
+# -----------------------------------------------------------------------
+from contextvars import ContextVar
+
+@dataclass
+class TokenAccumulator:
+    tokens_in: int = 0
+    tokens_out: int = 0
+    model: str = ""
+    provider: str = ""
+
+token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar("token_accumulator", default=None)

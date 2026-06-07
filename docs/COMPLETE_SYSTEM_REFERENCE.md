@@ -374,3 +374,67 @@ Provides three core database backup utilities:
 | Citation Footnotes | 0.06 | > 0.70 URL mapping correctness |
 | Performance Latencies | 0.06 | p95 < 6.0s, p99 < 12.0s response times |
 | Faithfulness Score | 0.08 | > 0.80 Grounding index |
+
+---
+
+## 7. Production Resilience & Lesson Log (Incident History)
+
+This section documents the actual issues encountered during the scalability and reliability hardening phases, their root causes, and the engineering fixes applied to resolve them.
+
+### 7.1 Issue: Rate Limiter Serialization Stalls
+*   **The Problem:** Under concurrent load, the backend performance degraded drastically, with requests queuing sequentially and causing HTTP timeouts.
+*   **Root Cause:** The `SarvamCloudService` rate limiter (using an asyncio Lock) held the lock *during* `asyncio.sleep()`. This meant only one coroutine could sleep at a time, transforming concurrent requests into serial, blocked executions.
+*   **The Fix:** Refactored the rate limiter in `sarvam_service.py` to calculate and reserve the execution timestamp slots *inside* the lock (a thread-safe fast operation), but perform the actual non-blocking `asyncio.sleep()` *outside* the lock. This allows multiple concurrent tasks to sleep in parallel, maintaining correct rate-limit spacing without serialization.
+
+### 7.2 Issue: Circuit Breaker Flapping
+*   **The Problem:** During load testing, the circuit breaker for upstream APIs would enter an `OPEN` state prematurely and flap, blocking healthy traffic.
+*   **Root Cause:** The recovery timeout was set too short (30s) relative to the pipeline's p99 latency under load. As soon as the circuit entered `HALF-OPEN` state, a single slow request (which was normal under heavy load) would trigger a failure and instantly trip it back to `OPEN`.
+*   **The Fix:** Increased the circuit breaker recovery timeout to 90 seconds and wrapped the stream endpoint in explicit circuit status checks. Added a `POST /api/health/circuit-reset` manual endpoint for SRE/operator intervention to force recovery.
+
+### 7.3 Issue: Pipeline Total Timeout vs. LLM Call Contradiction
+*   **The Problem:** The streaming chat endpoint repeatedly failed with `asyncio.TimeoutError` and sent `event: error` to the client mid-generation.
+*   **Root Cause:** A total budget of 75 seconds was set for the entire LangGraph pipeline (`settings.llm_timeout + 15`). However, the RAG graph executes 11 to 12 sequential LLM calls (routing, decomposition, HyDE, grading, verification, contradiction check, etc.). Since each call took 10-30s, the entire pipeline mathematically required at least 110-330s. The 75s timeout made complex queries architecturally impossible to complete.
+*   **The Fix:** Decoupled `LLM_TIMEOUT` (per-call timeout, set to 60s) from `PIPELINE_TIMEOUT` (total graph budget, set to 120s or 180s). Configured the streaming pipeline wrapper to use `settings.pipeline_timeout` and introduced `TimeoutBudget` tracing using `contextvars` to track remaining time dynamically across RAG nodes.
+
+### 7.4 Issue: Streaming Chat "Thinking" Blank Gap
+*   **The Problem:** When submitting a question, users saw an empty message bubble with no text and no visual feedback for 2-5 seconds, creating a poor user experience.
+*   **Root Cause:** The backend didn't emit the first Server-Sent Event (SSE) status chunk until the graph started execution, and the frontend state variable `isStreaming` was only evaluated as `true` once content was received.
+*   **The Fix:**
+    1. Modified `generate_sse` in `main.py` to emit an immediate status event: `yield "event: status\ndata: Checking message safety...\n\n"` on connection establishment.
+    2. Modified `ChatInterface.tsx` to immediately append a streaming placeholder card.
+    3. Updated `MessageList.tsx` and `ChatMessage.tsx` to keep the pulsing thinking dots visible as long as `isStreaming` is active and the content string is empty.
+
+### 7.5 Issue: Qdrant Sparse Vector Prefetching Errors (HTTP 400)
+*   **The Problem:** Retrieval queries using semantic/phonetic filters failed with database validation errors.
+*   **Root Cause:** Prefetch queries passed empty sparse vectors to Qdrant (which rejects them as malformed). Attempts to use a dummy dense vector query with filters for payload-only retrieval violated Qdrant's schema validation constraints.
+*   **The Fix:** Cleaned up the search pipeline in `qdrant_service.py` to check for empty sparse vectors and omit them entirely. For phonetic-only prefetching, the vector parameter is omitted completely, performing a high-performance payload-only filter query on Qdrant.
+
+### 7.6 Issue: Model "Runaway" Repetition Loops
+*   **The Problem:** The assistant would generate extremely long responses repeating the same sentence or phrase (e.g. "Your", "wisdom", etc.) hundreds of times.
+*   **Root Cause:** When the LLM context was polluted with duplicate retrieved chunks (from LightRAG/Neo4j graph loops), reasoning models entered a generation loop repeating token patterns indefinitely.
+*   **The Fix:**
+    1. Implemented a line-level deduplication block in the retrieval node.
+    2. Added `_remove_repetition_loops(text)` in `nodes.py` which monitors line-by-line occurrences. If any line longer than 20 characters appears a third time, the generation is truncated at that point, terminating the loop.
+
+### 7.7 Issue: Python 3.9 Runtime Type Operator Crashes
+*   **The Problem:** Running the backend on older environments (like Python 3.9) crashed immediately on import with `TypeError: unsupported operand type(s) for |`.
+*   **Root Cause:** Modern Python 3.10+ union annotations (like `str | None`) and native generic types (like `list[str]`) are evaluated at import time in older runtimes.
+*   **The Fix:** Added `from __future__ import annotations` to the top of all services and endpoints to defer type evaluation. Replaced Python 3.11-specific features (such as `datetime.UTC`) with backward-compatible equivalents (`timezone.utc`).
+
+### 7.8 Issue: Blocking Telemetry Writes
+*   **The Problem:** Real-time logging of token usage, compute costs, and safety metrics added substantial latency to user responses.
+*   **Root Cause:** SQLite and Supabase writes for audit logging were executed synchronously on the main thread, blocking the event loop.
+*   **The Fix:**
+    1. Offloaded database log writes to background tasks using `asyncio.create_task` and FastAPI's `BackgroundTasks`.
+    2. Implemented a thread-safe `TokenAccumulator` using `ContextVar` that aggregates request-level token totals asynchronously across multiple RAG nodes, committing the totals in a single fast write at the end of the request lifecycle.
+
+### 7.9 Issue: Filesystem Hot Reloading Stalls inside Containers
+*   **The Problem:** Updating prompt configurations or similarity weights at runtime did not take effect unless the backend container was restarted.
+*   **Root Cause:** Filesystem file-change events (like inotify) do not reliably propagate across virtualized Docker volume mounts.
+*   **The Fix:** Created `config_watcher.py` which monitors the files using `watchfiles` but implements a fallback polling thread that checks file modification times (`os.path.getmtime`) every 5 seconds.
+
+### 7.10 Issue: Container Startup Healthcheck Deadlocks
+*   **The Problem:** The backend container repeatedly crashed during startup under constrained CPU resources (1 core limit).
+*   **Root Cause:** Loading the 1.1GB multilingual embedding model on CPU during FastAPI startup blocked the single-threaded Uvicorn loop. Docker's healthcheck queries timed out, marking the container unhealthy and causing Docker to kill it.
+*   **The Fix:** Configured higher container resource limits (4.0 CPUs and 4GB memory) in `docker-compose.yml`, allowing the model to load within 5 seconds and leaving the event loop free to handle healthchecks.
+

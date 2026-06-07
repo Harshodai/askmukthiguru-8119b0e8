@@ -64,6 +64,44 @@ from services.user_profile_service import LanguagePreference, SpiritualLevel
 
 # Correlation ID context variable — accessible from anywhere in the async call chain
 correlation_id_var = contextvars.ContextVar("correlation_id", default="-")
+from functools import wraps
+
+def record_token_usage(endpoint: str):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            request = kwargs.get("request") or next((arg for arg in args if isinstance(arg, Request)), None)
+            chat_body = kwargs.get("chat_body") or next((arg for arg in args if hasattr(arg, "user_message")), None)
+            user = kwargs.get("user") or {}
+            
+            user_id = user.get("id", "anonymous") if isinstance(user, dict) else "anonymous"
+            session_id = chat_body.session_id or "" if chat_body else ""
+            
+            from services.cost_tracker import token_accumulator_var, TokenAccumulator, get_cost_tracker
+            accumulator = TokenAccumulator()
+            token = token_accumulator_var.set(accumulator)
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                acc = token_accumulator_var.get()
+                if acc and (acc.tokens_in > 0 or acc.tokens_out > 0):
+                    try:
+                        get_cost_tracker().record(
+                            tenant_id="default",
+                            user_id=user_id,
+                            session_id=session_id,
+                            model=acc.model,
+                            provider=acc.provider,
+                            tokens_in=acc.tokens_in,
+                            tokens_out=acc.tokens_out,
+                            endpoint=endpoint,
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to record token usage: {e}")
+                token_accumulator_var.reset(token)
+        return wrapper
+    return decorator
+
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -73,9 +111,43 @@ from app.core.limiter import limiter
 from routers.admin import admin_router
 from routers.feedback import router as feedback_router
 from services.cache_service import init_llm_cache
-from services.sarvam_service import CircuitOpenException
+from services.sarvam_service import CircuitOpenException, CircuitState
 
 logger = logging.getLogger(__name__)
+
+
+def select_graph_for_query(query: str) -> str:
+    """Select the most appropriate compiled graph variant for a query.
+
+    Heuristic:
+      - fast   : short, simple factual queries (≤6 tokens, starts with who/what/when/where)
+      - deep   : complex comparative, analytical, or philosophical queries
+      - standard: everything else
+
+    Args:
+        query: Raw user query (already translated to English if necessary).
+
+    Returns:
+        One of "fast", "standard", "deep".
+    """
+    q = query.lower().strip()
+    tokens = q.split()
+
+    # Deep indicators: comparative, analytical, philosophical depth, multi-hop
+    deep_keywords = [
+        "compare", "contrast", "difference between", "differences between",
+        "how does", "why is", "explain the connection", "relationship between",
+        "multiple", "several", "various", "deeper", "profound", "ultimate",
+    ]
+    if any(kw in q for kw in deep_keywords):
+        return "deep"
+
+    # Fast indicators: simple factual queries
+    fast_starts = ("who", "what is", "when", "where")
+    if len(tokens) <= 6 and any(q.startswith(st) for st in fast_starts):
+        return "fast"
+
+    return "standard"
 
 
 # Global instances
@@ -550,6 +622,9 @@ class ChatResponse(BaseModel):
     model_used: Optional[str] = Field(None, description="Underlying LLM model used")
     model_provider: Optional[str] = Field(None, description="Underlying LLM provider")
     route_decision: Optional[str] = Field(None, description="Model/routing decision")
+    query_tier: Optional[str] = Field(
+        None, description="Graph variant used (fast, standard, deep)"
+    )
 
 
 class IngestRequest(BaseModel):
@@ -688,6 +763,7 @@ async def _prepare_request_state(
 
 @app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
 @limiter.limit(settings.chat_rate_limit)
+@record_token_usage(endpoint="/api/chat")
 async def chat_endpoint(
     request: Request,
     chat_body: ChatRequest,
@@ -964,7 +1040,17 @@ async def chat_endpoint(
             else:
                 initial_state["ab_model"] = "primary"
 
-            return await container.rag_graph.ainvoke(initial_state)
+            from rag.timeout_utils import TimeoutBudget, budget_var
+            budget = TimeoutBudget(total_budget=settings.pipeline_timeout)
+            token = budget_var.set(budget)
+            # Runtime graph selection (fast / standard / deep)
+            graph_variant = select_graph_for_query(user_msg_en)
+            initial_state["query_tier"] = graph_variant
+            selected_graph = getattr(container, f"{graph_variant}_graph")
+            try:
+                return await selected_graph.ainvoke(initial_state)
+            finally:
+                budget_var.reset(token)
 
         result = await asyncio.wait_for(
             coalescer.get_or_run(
@@ -1282,6 +1368,10 @@ async def chat_endpoint(
         model_used=model_used,
         model_provider=model_provider,
         route_decision=route_decision,
+        query_tier=result.get("query_tier")
+        if "result" in locals()
+        and isinstance(result, dict)
+        else None,
     )
 
 
@@ -1345,7 +1435,33 @@ async def chat_stream_endpoint(
 
     async def generate_sse():
         """SSE generator that runs the pipeline and streams results."""
+        from services.cost_tracker import token_accumulator_var, TokenAccumulator, get_cost_tracker
+        from datetime import datetime
+        accumulator = TokenAccumulator()
+        token = token_accumulator_var.set(accumulator)
         try:
+            # IMMEDIATE status event on stream start (before any pipeline work)
+            # Must include "event: status" line so frontend SSE parser recognizes it
+            yield "event: status\ndata: {\"stage\": \"received\", \"message\": \"Query received, starting pipeline…\"}\n\n"
+
+            # Create early heartbeat that runs during cache check and all initial processing
+            heartbeat_queue = asyncio.Queue()
+            processing_done = asyncio.Event()
+
+            async def heartbeat_worker():
+                while not processing_done.is_set():
+                    await asyncio.sleep(15.0)
+                    if not processing_done.is_set():
+                        # Put structured dict like pipeline status events - streaming loop will format as SSE
+                        heartbeat_msg = json.dumps({
+                            "stage": "heartbeat",
+                            "message": "Still processing…",
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                        await heartbeat_queue.put({"event": "status", "data": heartbeat_msg})
+
+            heartbeat_task = asyncio.create_task(heartbeat_worker())
+
             stream_start_time = time.time()
             # === Benchmark cache bypass (captures request from outer scope via closure) ===
             is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
@@ -1392,6 +1508,12 @@ async def chat_stream_endpoint(
                     }
                 )
                 yield f"event: done\ndata: {meta}\n\n"
+                # Stop heartbeat on cache hit
+                processing_done.set()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
                 asyncio.create_task(
                     telemetry_sink.log_query_trace(
                         query_id=query_id,
@@ -1473,6 +1595,12 @@ async def chat_stream_endpoint(
                 yield f"event: token\ndata: {blocked_resp}\n\n"
                 meta = json.dumps({"blocked": True, "block_reason": input_check["reason"]})
                 yield f"event: done\ndata: {meta}\n\n"
+                # Stop heartbeat on blocked input
+                processing_done.set()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
                 return
 
             # === Depression check (non-fatal if detection fails) ===
@@ -1587,11 +1715,25 @@ async def chat_stream_endpoint(
             queue = asyncio.Queue()
             config = {"configurable": {"stream_queue": queue}}
 
+            from rag.timeout_utils import TimeoutBudget, budget_var
+
+            async def run_stream_pipeline():
+                budget = TimeoutBudget(total_budget=settings.pipeline_timeout)
+                token = budget_var.set(budget)
+                # Runtime graph selection (fast / standard / deep)
+                graph_variant = select_graph_for_query(user_msg_en)
+                initial_state["query_tier"] = graph_variant
+                selected_graph = getattr(container, f"{graph_variant}_graph")
+                try:
+                    return await selected_graph.ainvoke(initial_state, config=config)
+                finally:
+                    budget_var.reset(token)
+
             # Run RAG graph in the background
             pipeline_task = asyncio.create_task(
                 asyncio.wait_for(
-                    container.rag_graph.ainvoke(initial_state, config=config),
-                    timeout=settings.llm_timeout + 15,
+                    run_stream_pipeline(),
+                    timeout=settings.pipeline_timeout,
                 )
             )
 
@@ -1601,33 +1743,73 @@ async def chat_stream_endpoint(
             # full translated text.  Status events are still forwarded so the
             # "thinking pills" continue to update normally.
             has_streamed_tokens = False
-            while not pipeline_task.done() or not queue.empty():
+            last_send_time = time.time()
+            while not pipeline_task.done() or not queue.empty() or not heartbeat_queue.empty():
                 try:
-                    # Poll queue with timeout to check if task finished
-                    item = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    # Check both queues - pipeline queue first, then heartbeat
+                    item = None
+                    item_source = None  # 'pipeline' or 'heartbeat'
+                    if not queue.empty():
+                        item = await asyncio.wait_for(queue.get(), timeout=0.01)
+                        item_source = 'pipeline'
+                    elif not heartbeat_queue.empty():
+                        item = await asyncio.wait_for(heartbeat_queue.get(), timeout=0.01)
+                        item_source = 'heartbeat'
+                    else:
+                        await asyncio.sleep(0.05)
+                        continue
+
                     if isinstance(item, dict):
-                        # Support structured events (status/metadata)
+                        # Support structured events (status/metadata) from pipeline
                         event_type = item.get("event", "token")
                         data = item.get("data", "")
                         if event_type == "status":
                             # Always forward status/thinking-pill events
                             yield f"event: status\ndata: {data}\n\n"
+                            last_send_time = time.time()
                         elif event_type == "token" and not is_indic_detected:
                             # Suppress English tokens when translation is pending
                             has_streamed_tokens = True
                             escaped = data.replace("\n", "\\n")
                             yield f"event: token\ndata: {escaped}\n\n"
+                            last_send_time = time.time()
+                    elif isinstance(item, str) and item.startswith("data: "):
+                        # Heartbeat event from heartbeat queue
+                        yield item
+                        last_send_time = time.time()
                     elif not is_indic_detected:
                         # Plain string token — suppress for Indic
                         has_streamed_tokens = True
                         escaped = item.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
-                    queue.task_done()
+                        last_send_time = time.time()
+
+                    # Mark task done for the queue we got the item from
+                    if item_source == 'pipeline':
+                        try:
+                            queue.task_done()
+                        except ValueError:
+                            pass
+                    elif item_source == 'heartbeat':
+                        try:
+                            heartbeat_queue.task_done()
+                        except ValueError:
+                            pass
+
                 except TimeoutError:
+                    continue
+                except Exception:
                     continue
 
             # Wait for pipeline completion to get final state
             result = await pipeline_task
+            # Signal heartbeat to stop and wait for it
+            processing_done.set()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
             final_answer = result.get("final_answer", "I apologize, something went wrong.")
             intent = result.get("intent", "CASUAL")
             med_step = result.get("meditation_step", 0)
@@ -1887,6 +2069,32 @@ async def chat_stream_endpoint(
             logger.error(f"SSE streaming error: {e}", exc_info=True)
             REQUEST_COUNT.labels(status="error").inc()
             yield "event: error\ndata: An error occurred. Please try again.\n\n"
+        finally:
+            # Ensure heartbeat task is stopped
+            if 'heartbeat_task' in locals() and not heartbeat_task.done():
+                processing_done.set()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
+
+            acc = token_accumulator_var.get()
+            if acc and (acc.tokens_in > 0 or acc.tokens_out > 0):
+                try:
+                    user_id = user.get("id", "anonymous") if isinstance(user, dict) else "anonymous"
+                    get_cost_tracker().record(
+                        tenant_id="default",
+                        user_id=user_id,
+                        session_id=chat_body.session_id or "",
+                        model=acc.model,
+                        provider=acc.provider,
+                        tokens_in=acc.tokens_in,
+                        tokens_out=acc.tokens_out,
+                        endpoint="/api/chat/stream",
+                    )
+                except Exception as tracker_e:
+                    logger.warning(f"Failed to record stream token usage: {tracker_e}")
+            token_accumulator_var.reset(token)
 
     return StreamingResponse(
         generate_sse(),
@@ -1939,38 +2147,59 @@ async def get_breath_teaching(
 
     teaching = ""
     try:
-        if container.rag_graph:
-            # Use the lightweight retrieval node (bypass full pipeline for speed)
-            initial_state = create_initial_state(
-                question=query,
-                chat_history=[],
-                meditation_step=0,
-                request_id=f"breath-teaching-{technique_id}",
+        if container.qdrant and container.embedding and container.ollama:
+            # Direct Qdrant retrieve
+            query_embedding = await asyncio.to_thread(container.embedding.encode_single_full, query)
+            results = await asyncio.to_thread(
+                container.qdrant.search,
+                query_vector=query_embedding["dense"],
+                limit=3,
+                sparse_vector=query_embedding["sparse"],
+                raptor_level=0,
+                query=query,
             )
-            initial_state["user_id"] = user.get("sub", "anonymous")
-            initial_state["skip_full_pipeline"] = True  # hint for lightweight path
+            # Compile context
+            context_text = "\n\n".join([r["text"] for r in results if r.get("text")])
 
-            result = await asyncio.wait_for(
-                container.rag_graph.ainvoke(initial_state),
-                timeout=12.0,
+            # Generate prompt for Ollama/Sarvam
+            prompt = (
+                f"You are Mukthi Guru, a spiritual guide. Sri Preethaji and Sri Krishnaji are the founders of O&O Academy.\n"
+                f"Based on the following context, share a teaching about: {query.lower()}\n"
+                f"Requirements:\n"
+                f"1. Keep it to exactly 1-2 sentences.\n"
+                f"2. Be poetic, grounded, and use their actual teachings/terminology if present in the context.\n"
+                f"3. End with a gentle invitation to practice.\n"
+                f"4. Do NOT say 'Based on the context...' or mention constraints.\n\n"
+                f"Context:\n{context_text}\n\n"
+                f"Teaching:"
             )
-            raw = result.get("answer", "")
+
+            # Generate response
+            raw = await asyncio.wait_for(
+                container.ollama.generate(
+                    system_prompt="You share concise spiritual teachings.",
+                    user_prompt=prompt,
+                    max_tokens=80,
+                ),
+                timeout=25.0,
+            )
             # Trim to 2 sentences max — this is a subtitle, not a full answer
             sentences = [s.strip() for s in raw.split(".") if s.strip()][:2]
             teaching = ". ".join(sentences) + ("." if sentences else "")
 
         if not teaching and container.ollama:
-            # Fallback: direct LLM call if RAG graph unavailable
+            # Fallback: direct LLM call if RAG search is empty or failed
             teaching = await asyncio.wait_for(
                 container.ollama.generate(
-                    prompt=(
+                    system_prompt="You share concise spiritual teachings.",
+                    user_prompt=(
                         f"In 1-2 sentences, share a teaching from Sri Preethaji or Sri Krishnaji "
                         f"about: {query.lower()} Be poetic, grounded in their actual teachings, "
                         f"and end with an invitation to practice."
                     ),
                     max_tokens=80,
                 ),
-                timeout=8.0,
+                timeout=25.0,
             )
 
     except Exception as e:
@@ -2347,6 +2576,41 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         },
         total_chunks=0 if not all_healthy else -1,  # Redact exact count
     )
+
+
+@app.post("/api/health/circuit-reset", tags=["Health"])
+async def circuit_breaker_reset_endpoint() -> dict:
+    """
+    Manually reset the Sarvam API circuit breaker to CLOSED.
+
+    Use when the circuit has been OPEN for a long time (e.g. after
+    a temporary API outage) and you want to allow traffic immediately
+    instead of waiting for the auto-recovery timeout.
+    """
+    from fastapi import Request
+
+    # Access the circuit breaker through the dependency container
+    try:
+        container = get_container()
+        circuit = container.ollama._circuit
+        previous_state = circuit._state.value
+        circuit._state = CircuitState.CLOSED
+        circuit._failures = 0
+        circuit._last_failure_time = None
+        circuit._half_open_calls = 0
+        logger.info(f"Circuit breaker manually reset (was {previous_state}) → CLOSED")
+        return {
+            "status": "ok",
+            "previous_state": previous_state,
+            "current_state": "closed",
+            "message": "Circuit breaker has been reset. New requests will be attempted.",
+        }
+    except AttributeError as e:
+        logger.error(f"Circuit breaker reset failed: {e}")
+        return {
+            "status": "error",
+            "message": "Could not access circuit breaker. Ensure SarvamCloudService is initialized.",
+        }
 
 
 @app.get("/api/ready", tags=["Health"])

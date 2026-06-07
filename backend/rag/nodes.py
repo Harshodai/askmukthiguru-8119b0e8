@@ -56,51 +56,6 @@ from typing import Any, Optional
 
 from langgraph.types import Send
 
-# -----------------------------------------------------------------------
-# Timeout Budget Hierarchy
-# Each node type has a specific timeout and retry policy.
-# The TimeoutBudget tracks remaining pipeline budget dynamically.
-# -----------------------------------------------------------------------
-
-NODE_TIMEOUTS = {
-    "intent_router": 15,
-    "resolve_followup": 15,
-    "decompose_query": 15,
-    "navigate_knowledge_tree": 15,
-    "generate_hyde": 30,
-    "grade_documents": 20,
-    "check_context_sufficiency": 15,
-    "generate_answer": 60,
-    "check_contradiction": 15,
-    "explain_retrieval": 15,
-    "default_fast": 15,
-    "default_main": 60,
-    "default_embedding": 10,
-    "default_qdrant": 5,
-}
-
-
-class TimeoutBudget:
-    """Tracks remaining pipeline budget and dynamically reduces per-call timeouts."""
-
-    def __init__(self, total_budget: float = 180.0):
-        self.total = total_budget
-        self._start = time.monotonic()
-
-    def remaining(self) -> float:
-        elapsed = time.monotonic() - self._start
-        return max(0.0, self.total - elapsed)
-
-    def allocate(self, node_name: str, default_timeout: Optional[float] = None) -> float:
-        """Allocate timeout for a node. Uses min of node default and remaining budget."""
-        if default_timeout is None:
-            default_timeout = NODE_TIMEOUTS.get(node_name, 30)
-        return min(default_timeout, max(5.0, self.remaining() * 0.5))
-
-    def is_exhausted(self) -> bool:
-        return self.remaining() <= 0
-
-
 from app.config import settings
 from app.metrics import (
     CONFIDENCE_SCORES,
@@ -108,6 +63,7 @@ from app.metrics import (
     PIPELINE_STAGE_LATENCY,
     RELEVANCY_SCORE,
     VERIFICATION_RESULTS,
+    CONTRADICTION_DETECTIONS,
 )
 from rag.compressor import compress_documents
 from rag.meditation import (
@@ -125,6 +81,7 @@ from rag.prompts import (
 )
 from rag.resolve_followup import set_ollama as set_followup_ollama
 from rag.states import GraphState
+from rag.timeout_utils import TimeoutBudget, budget_var, get_node_timeout
 from rag.tree_navigator import check_sufficiency, navigate_tree
 from services.embedding_service import EmbeddingService
 from services.lightrag_service import LightRAGService
@@ -433,7 +390,7 @@ async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
         raw = await _ollama._generate_fast(
             system_prompt="You create concise retrieval search queries only.",
             user_prompt=prompt,
-            timeout=getattr(settings, "node_timeout_fast", 15),
+            timeout=get_node_timeout("default_fast", getattr(settings, "node_timeout_fast", 15)),
             max_retries=1,
         )
     except Exception as e:
@@ -488,7 +445,7 @@ def _generation_kwargs(state: GraphState) -> dict:
 
     if intent == "DISTRESS":
         return {"num_predict": 2048}
-    if query_tier == "tier2_simple":
+    if query_tier == "fast":
         return {"num_predict": 512}
     if intent in {"FACTUAL", "QUERY"}:
         return {"num_predict": 1024}
@@ -675,6 +632,33 @@ def log_metrics(func):
 # ===================================================================
 
 
+# Simple LRU cache for intent classification (avoids costly LLM round-trips on repeated queries)
+_intent_classification_cache: dict[str, tuple[str, str]] = {}
+_INTENT_CACHE_MAX = 1000
+
+# Heuristic fast-path patterns — obvious meta/capability questions that should skip full RAG
+_CAPABILITY_PATTERNS = [
+    "what can you", "what do you know", "what topics", "what kind of things",
+    "what can you answer", "what teachings do you have", "what is in your repository",
+    "what do you store", "what information do you have", "how can you help",
+    "what questions can you", "what are you able to", "tell me about yourself",
+    "what do you do", "who are you", "what do you offer", "how do you work",
+]
+_SIMPLE_QUERY_PATTERNS = [
+    r"^who is (sri )?preethaji",
+    r"^who is (sri )?krishnaji",
+    r"^what is (the )?beautiful state",
+    r"^what is (the )?ekam",
+    r"^what is deeksha",
+    r"^what is soul sync",
+    r"^what are (the )?four sacred secrets",
+    r"^what is oneness",
+    r"^what is moksha",
+    r"^define ",
+    r"^explain ",
+]
+
+
 @log_metrics
 async def intent_router(state: GraphState) -> dict:
     """
@@ -683,8 +667,14 @@ async def intent_router(state: GraphState) -> dict:
     Uses a single LLM call to classify both intent AND complexity simultaneously,
     saving one full LLM round-trip (~2-3s) per pipeline run.
     Falls back to separate calls if the combined method fails.
+
+    Improvements:
+      - Heuristic fast-path for obvious capability / meta questions (saves full pipeline)
+      - Pattern-based simple query detection (saves tree-nav + HyDE + decomposition)
+      - In-memory LRU cache for repeated classifications (saves ~3s per repeated query)
     """
     question = state["question"]
+    lower_q = question.lower()
 
     # Check if we're in an active meditation session (state machine check)
     meditation_step = state.get("meditation_step", 0)
@@ -695,10 +685,54 @@ async def intent_router(state: GraphState) -> dict:
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
 
-    # Single LLM call for both intent + complexity classification
+    # ---- Heuristic fast-path #1: capability / meta questions ----
+    if any(kw in lower_q for kw in _CAPABILITY_PATTERNS):
+        logger.info("Intent Router: heuristic fast-path — capability/meta question, fast")
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "fast",
+            "evaluation_trace": _trace_update(
+                state, intent="FACTUAL", query_tier="fast",
+                routing_reason="heuristic_capability"
+            ),
+        }
+
+    # ---- Heuristic fast-path #2: pattern-based simple factual ----
+    for pattern in _SIMPLE_QUERY_PATTERNS:
+        if re.search(pattern, lower_q):
+            logger.info(f"Intent Router: heuristic fast-path — simple factual match ({pattern}), fast")
+            return {
+                "intent": "FACTUAL",
+                "query_tier": "fast",
+                "evaluation_trace": _trace_update(
+                    state, intent="FACTUAL", query_tier="fast",
+                    routing_reason="heuristic_simple"
+                ),
+            }
+
+    # ---- Cache check ----
+    cache_key = lower_q.strip()
+    if cache_key in _intent_classification_cache:
+        cached_intent, cached_complexity = _intent_classification_cache[cache_key]
+        if cached_intent == "QUERY":
+            cached_intent = "FACTUAL"
+        tier = "fast" if cached_complexity == "simple" else "tier3_complex"
+        if cached_intent == "FACTUAL":
+            logger.info(f"Intent Router: cache hit — {cached_intent} | {tier}")
+            return {
+                "intent": cached_intent,
+                "query_tier": tier,
+                "evaluation_trace": _trace_update(
+                    state, intent=cached_intent, query_tier=tier,
+                    routing_reason="cache_hit"
+                ),
+            }
+
+    # ---- Single LLM call for both intent + complexity classification ----
     try:
+        t_out = get_node_timeout("intent_router", 12)
         result = await _ollama.classify_intent_and_complexity(
-            question, timeout=12, max_retries=1
+            question, timeout=t_out, max_retries=1
         )
         intent = result["intent"]
         complexity = result["complexity"]
@@ -709,7 +743,8 @@ async def intent_router(state: GraphState) -> dict:
         )
         # Fallback: try just intent classification
         try:
-            intent = await _ollama.classify_intent(question, timeout=12, max_retries=1)
+            t_out = get_node_timeout("intent_router", 12)
+            intent = await _ollama.classify_intent(question, timeout=t_out, max_retries=1)
         except Exception as e2:
             logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
             intent = "FACTUAL"
@@ -722,9 +757,17 @@ async def intent_router(state: GraphState) -> dict:
     query_tier = None
     if intent == "FACTUAL":
         if complexity == "simple":
-            query_tier = "tier2_simple"
+            query_tier = "fast"
         else:
             query_tier = "tier3_complex"
+
+    # Store in cache
+    _intent_classification_cache[cache_key] = (intent, complexity)
+    # Simple LRU — trim if too large
+    if len(_intent_classification_cache) > _INTENT_CACHE_MAX:
+        # Evict oldest (dict preserves insertion order in Python 3.7+)
+        oldest = next(iter(_intent_classification_cache))
+        del _intent_classification_cache[oldest]
 
     logger.info(
         f"Intent Router: classified '{question[:80]}...' → {intent} | tier → {query_tier} (question_len={len(question)})"
@@ -753,13 +796,8 @@ async def decompose_query(state: GraphState) -> dict:
     if it's already simple, so no quality loss.
     """
     question = state["question"]
-    query_tier = state.get("query_tier")
-
-    if query_tier == "tier2_simple":
-        logger.info("Decompose Query: tier2_simple query, skipping LLM decomposition.")
-        return {"sub_queries": [question], "is_complex": False}
-
-    sub_queries = await _ollama.decompose_query(question)
+    t_out = get_node_timeout("decompose_query", 15)
+    sub_queries = await _ollama.decompose_query(question, timeout=t_out)
     is_complex = len(sub_queries) > 1
     expanded = [expand_query_with_synonyms(q) for q in sub_queries]
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
@@ -774,15 +812,13 @@ async def generate_hyde(state: GraphState) -> dict:
     that 'look like' a good answer.
     """
     # Fast bypass: skip HyDE (Hypothetical Document Embeddings) for simple queries.
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("HyDE: tier2_simple query, skipping HyDE generation")
-        return {"hyde_text": None}
 
     if not settings.rag_use_hyde:
         return {"hyde_text": None}
 
     question = state.get("rewritten_query") or state["question"]
-    hyde_text = await _ollama.generate_hypothetical_answer(question)
+    t_out = get_node_timeout("generate_hyde", 30.0)
+    hyde_text = await _ollama.generate_hypothetical_answer(question, timeout=t_out)
     logger.info(f"HyDE generated hypothetical answer ({len(hyde_text)} chars)")
     return {"hyde_text": hyde_text}
 
@@ -811,16 +847,14 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
         summary_nodes = _qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
 
         # Fast bypass: simple factual queries skip the LLM tree-selection entirely.
-        if state.get("query_tier") == "tier2_simple":
-            logger.info("Tree nav: tier2_simple query, skipping LLM cluster selection")
-            return {"selected_clusters": []}
 
         if not summary_nodes:
             logger.info("Tree navigation: No summary nodes in DB, skipping")
             return {"selected_clusters": []}
 
+        t_out = get_node_timeout("navigate_knowledge_tree", 12)
         selected = await navigate_tree(
-            question, summary_nodes, _ollama, max_clusters=3, timeout=12, max_retries=1
+            question, summary_nodes, _ollama, max_clusters=3, timeout=t_out, max_retries=1
         )
         return {"selected_clusters": selected}
     except Exception as e:
@@ -839,9 +873,6 @@ async def check_context_sufficiency(state: GraphState) -> dict:
     this question well?" If not, we clear the cluster filter so the
     next CRAG iteration searches the full knowledge base.
     """
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Sufficiency check: tier2_simple query, bypassing sufficiency check")
-        return {}
 
     intent = state.get("intent")
     if intent == "DISTRESS":
@@ -856,7 +887,8 @@ async def check_context_sufficiency(state: GraphState) -> dict:
         return {}
 
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    result = await check_sufficiency(question, context, _ollama, timeout=12, max_retries=1)
+    t_out = get_node_timeout("check_context_sufficiency", 12)
+    result = await check_sufficiency(question, context, _ollama, timeout=t_out, max_retries=1)
 
     if not result["sufficient"]:
         logger.info("Sufficiency check: INSUFFICIENT — widening search scope")
@@ -925,10 +957,11 @@ async def retrieve_for_single_query(
         lightrag_index = len(tasks)
         # Hard 30s timeout: LightRAG graph traversal can stall for 70+ seconds
         # on poisoned/dense subgraphs. If it times out, fall through to Qdrant-only.
+        t_out = get_node_timeout("default_fast", 30.0)
         tasks.append(
             asyncio.wait_for(
                 lightrag.aquery(query, mode="hybrid", only_need_context=True),
-                timeout=30.0,
+                timeout=t_out,
             )
         )
 
@@ -1063,14 +1096,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     base_question = state.get("rewritten_query") or state["question"]
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
-    query_tier = state.get("query_tier")
-    if query_tier != "tier2_simple":
-        expansion_queries = await _llm_retrieval_expansions(state)
-        if expansion_queries:
-            logger.info(
-                f"LLM retrieval planner: adding {len(expansion_queries)} expansion query/queries"
-            )
-            sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
+    expansion_queries: list[str] = await _llm_retrieval_expansions(state)
+    if expansion_queries:
+        logger.info(
+            f"LLM retrieval planner: adding {len(expansion_queries)} expansion query/queries"
+        )
+    sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
     hyde_text = state.get("hyde_text")
@@ -1090,9 +1121,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     selected_clusters,
                     _embedder,
                     _qdrant,
-                    _lightrag if query_tier != "tier2_simple" else None,
+                    _lightrag if query_tier != "fast" else None,
                 ),
-                timeout=getattr(settings, "node_timeout_main", 60),
+                timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )
             for q in retrieval_queries
         ],
@@ -1440,9 +1471,6 @@ async def grade_documents(state: GraphState) -> dict:
     grading prompt. Reduces LLM calls from N to 1.
     If ALL documents fail, triggers query rewriting.
     """
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("CRAG batch: tier2_simple query, bypassing relevance grading entirely")
-        return {"relevant_docs": state["reranked_docs"]}
 
     question = state.get("rewritten_query") or state["question"]
     reranked_docs = state["reranked_docs"]
@@ -1459,7 +1487,8 @@ async def grade_documents(state: GraphState) -> dict:
         )
     else:
         doc_texts = [doc["text"] for doc in reranked_docs]
-        relevance_results = await _ollama.batch_grade_relevance(question, doc_texts)
+        t_out = get_node_timeout("grade_documents", 20.0)
+        relevance_results = await _ollama.batch_grade_relevance(question, doc_texts, timeout=t_out)
 
         relevant = []
         reasons = []
@@ -1504,9 +1533,6 @@ async def enrich_context(state: GraphState) -> dict:
     Provides broader context for better reasoning (RAG Made Simple Ch 8).
     """
     relevant_docs = state.get("relevant_docs", [])
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Enrich context: tier2_simple query, bypassing neighbor enrichment")
-        return {"relevant_docs": relevant_docs}
 
     if not relevant_docs or settings.rag_context_window <= 0:
         return {"relevant_docs": relevant_docs}
@@ -1568,7 +1594,8 @@ async def rewrite_query(state: GraphState) -> dict:
     rewrite_count = state.get("rewrite_count", 0) + 1
     original = state.get("rewritten_query") or state["question"]
 
-    rewritten = await _ollama.rewrite_query(original, reasons=state.get("grading_reasons", []))
+    t_out = get_node_timeout("default_fast", 30.0)
+    rewritten = await _ollama.rewrite_query(original, reasons=state.get("grading_reasons", []), timeout=t_out)
     logger.info(f"CRAG rewrite #{rewrite_count}: {original[:50]}... → {rewritten[:50]}...")
 
     return {
@@ -1691,9 +1718,6 @@ async def explain_retrieval(state: GraphState) -> dict:
     """
     from rag.prompts import CITATION_REASONING_PROMPT
 
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Explain retrieval: tier2_simple query, bypassing explain retrieval")
-        return {"citation_reasoning": {}}
 
     question = state["question"]
     relevant_docs = state.get("relevant_docs", [])
@@ -1707,8 +1731,9 @@ async def explain_retrieval(state: GraphState) -> dict:
             return None
         try:
             user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
+            t_out = get_node_timeout("explain_retrieval", 12)
             resp = await _ollama.generate(
-                CITATION_REASONING_PROMPT, user_prompt, timeout=12, max_retries=1
+                CITATION_REASONING_PROMPT, user_prompt, timeout=t_out, max_retries=1
             )
             return url, resp.strip()
         except Exception as e:
@@ -1768,7 +1793,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if use_compression and total_raw_len > threshold:
 
             async def compress_and_format(doc):
-                compressed_text = await _ollama.compress_context(question, doc["text"])
+                t_out = get_node_timeout("default_fast", 15.0)
+                compressed_text = await _ollama.compress_context(question, doc["text"], timeout=t_out)
                 if compressed_text:
                     title = doc.get("title", doc.get("source_url", "Unknown"))
                     return f"[Source: {title}]\n{compressed_text}"
@@ -1820,7 +1846,17 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     # Use Context Engineering layers if available
     layers = state.get("context_layers")
-    if layers:
+    is_tier2 = state.get("query_tier") == "fast"
+    if layers and is_tier2:
+        # Simplified prompt for tier2 simple queries — avoids confusing the model with headers.
+        system_prompt = "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. Answer the user's question using only the provided context. Keep answers to 100-200 words. Cite sources using [Source: <title>]."
+        if lang_suffix:
+            system_prompt += f"\n\n{lang_suffix}"
+        knowledge = layers['knowledge']
+        user_prompt = f"Context:\n{knowledge}\n\nQuestion: {question}\n\nAnswer based only on the provided context."
+        if history_str:
+            user_prompt = f"{history_str}\n\n{user_prompt}"
+    elif layers:
         system_prompt = f"PERSONA:\n{layers['persona']}\n\nINSTRUCTIONS:\n{layers['instructions']}"
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
@@ -1994,9 +2030,6 @@ async def reflect_on_answer(state: GraphState) -> dict:
     If hallucinated, flags needs_correction=True to trigger a rewrite.
     Now includes self-consistency checking via multiple reasoning paths.
     """
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Self-Reflection: tier2_simple query, bypassing reflection")
-        return {"needs_correction": False, "reflection_feedback": None}
 
     answer = state.get("answer")
     relevant_docs = state.get("relevant_docs", [])
@@ -2151,16 +2184,6 @@ async def verify_answer(state: GraphState) -> dict:
     3. Self-consistency checking via multiple reasoning paths
     4. Confidence scoring based on multiple factors
     """
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Combined verify: tier2_simple query, bypassing verification")
-        return {
-            "is_faithful": True,
-            "verification": {"passed": True, "details": "Bypassed for simple query"},
-            "confidence_score": 10.0,
-            "faithfulness_score": 1.0,
-            "relevancy_score": 1.0,
-        }
-
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
     question = state.get("rewritten_query") or state["question"]
@@ -2202,10 +2225,11 @@ Answer: {answer}
 
 Generate verification questions (one per line, no numbering):"""
 
+        t_out = get_node_timeout("verify_answer", 15)
         verification_questions_raw = await _ollama.generate(
             system_prompt="You generate precise verification questions to fact-check spiritual teachings.",
             user_prompt=verification_prompt,
-            timeout=15,
+            timeout=t_out,
             max_retries=1,
         )
 
@@ -2770,9 +2794,6 @@ def route_after_grading(state: GraphState) -> str:
 @log_metrics
 async def check_contradiction(state: GraphState) -> dict:
     """Check if the newly generated answer contradicts previous conversation history."""
-    if state.get("query_tier") == "tier2_simple":
-        logger.info("Contradiction check: tier2_simple query, bypassing contradiction check")
-        return {}
 
     answer = state.get("answer", "")
     chat_history = state.get("chat_history", [])
@@ -2791,21 +2812,32 @@ async def check_contradiction(state: GraphState) -> dict:
         )
         prompt = f"Given this conversation history:\n{recent_history}\n\nDoes this new response contradict the history? Respond strictly with 'yes' or 'no'.\nResponse: {answer}"
 
-        # We can use our classification model if available
+        t_out = get_node_timeout("check_contradiction", 12)
         is_contradiction = await container.ollama.generate(
             system_prompt="You are a contradiction detector. Only answer yes or no.",
             user_prompt=prompt,
-            timeout=12,
+            timeout=t_out,
             max_retries=1,
         )
 
-        if "yes" in is_contradiction.lower():
+        detected = "yes" in is_contradiction.lower()
+        if detected:
             logger.warning("Contradiction detected in answer. Adding auto-clarification.")
+            try:
+                CONTRADICTION_DETECTIONS.inc()
+            except Exception as metric_err:
+                logger.warning(f"Could not increment CONTRADICTION_DETECTIONS: {metric_err}")
             return {
                 "answer": answer
-                + "\n\n(Note: I realize this might seem different from my previous response. In spiritual teachings, different practices apply at different stages of readiness.)"
+                + "\n\n(Note: I realize this might seem different from my previous response. In spiritual teachings, different practices apply at different stages of readiness.)",
+                "evaluation_trace": _trace_update(state, contradiction_detected=True),
+            }
+        else:
+            return {
+                "evaluation_trace": _trace_update(state, contradiction_detected=False),
             }
     except Exception as e:
         logger.error(f"Contradiction check failed: {e}")
-
-    return {}
+        return {
+            "evaluation_trace": _trace_update(state, contradiction_detected=False),
+        }
