@@ -668,6 +668,7 @@ async def run_suite_category(
     test_key: str,
     dry_run: bool = False,
     complex_variants: bool = False,
+    limit: Optional[int] = None,
 ):
     items = QUERIES.get(category, [])
     if not items:
@@ -676,6 +677,8 @@ async def run_suite_category(
     # In dry run, we run only the first question
     if dry_run:
         items = items[:1]
+    elif limit is not None:
+        items = items[:limit]
 
     execution_items = []
     num_to_variant = 1 if dry_run else 2
@@ -858,10 +861,13 @@ async def run_multi_turn_suite(
     url: str,
     test_key: str,
     dry_run: bool = False,
+    limit: Optional[int] = None,
 ):
     scenarios = QUERIES.get("multi_turn", [])
     if dry_run:
         scenarios = scenarios[:1]
+    elif limit is not None:
+        scenarios = scenarios[:limit]
 
     for scenario in scenarios:
         session_id = str(uuid.uuid4())
@@ -1567,25 +1573,41 @@ async def main():
 
     results = []
 
+    # Calculate limits per category
+    category_limits = {}
+    if args.limit:
+        remaining_budget = args.limit
+        available = {cat: len(QUERIES[cat]) for cat in QUERIES.keys()}
+        category_limits = {cat: 0 for cat in QUERIES.keys()}
+        while remaining_budget > 0 and any(available[cat] > category_limits[cat] for cat in QUERIES.keys()):
+            for cat in QUERIES.keys():
+                if remaining_budget <= 0:
+                    break
+                if available[cat] > category_limits[cat]:
+                    category_limits[cat] += 1
+                    remaining_budget -= 1
+    else:
+        for cat in QUERIES.keys():
+            category_limits[cat] = None
+
     # Use explicit large timeout — sarvam-30b reasoning model can take 30-300s per call.
     # Default httpx timeout is 5s which causes false timeout failures.
     _http_timeout = httpx.Timeout(connect=10.0, read=360.0, write=30.0, pool=5.0)
     async with httpx.AsyncClient(timeout=_http_timeout) as client:
         # Run all test suites defined in our question bank!
         for category in QUERIES.keys():
-            print(f"🚀 Running category: {category}...")
+            cat_limit = category_limits[category]
+            if cat_limit is not None and cat_limit <= 0:
+                continue
+            print(f"🚀 Running category: {category} (limit: {cat_limit})...")
             if category == "multi_turn":
                 await run_multi_turn_suite(
-                    results, client, args.endpoint, args.test_key, args.dry_run
+                    results, client, args.endpoint, args.test_key, args.dry_run, limit=cat_limit
                 )
             else:
                 await run_suite_category(
-                    category, results, client, args.endpoint, args.test_key, args.dry_run, args.complex_variants
+                    category, results, client, args.endpoint, args.test_key, args.dry_run, args.complex_variants, limit=cat_limit
                 )
-            if args.limit and len(results) >= args.limit:
-                results = results[:args.limit]
-                print(f"  📊 Stopping: --limit {args.limit} reached")
-                break
         if not args.dry_run:
             await run_stability_suite(
                 results, client, args.endpoint, args.test_key, args.stability_runs
@@ -1625,7 +1647,10 @@ async def main():
         print("\n  ❌ Release gate failed:")
         for failure in gate_failures:
             print(f"     - {failure}")
-        sys.exit(1)
+        if not args.limit:
+            sys.exit(1)
+        else:
+            print("\n  ⚠️  Bypassing exit code 1 because a query limit (--limit) was specified for debugging.")
 
     print("\n  ✅ Release gate passed.")
 

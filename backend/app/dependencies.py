@@ -42,18 +42,14 @@ def _create_llm_service():
     """
     Factory: Create the appropriate LLM service based on LLM_PROVIDER config.
 
-    Returns either SarvamCloudService or OllamaService — both share the same interface.
+    Uses LLMServiceFactory (Abstract Factory + Registry Pattern) to decouple
+    service creation from the concrete provider class.
     """
-    if settings.is_sarvam_cloud:
-        from services.sarvam_service import SarvamCloudService
+    from services.llm_factory import LLMServiceFactory
 
-        logger.info("Using Sarvam Cloud API as LLM provider")
-        return SarvamCloudService()
-    else:
-        from services.ollama_service import OllamaService
-
-        logger.info("Using Ollama (local) as LLM provider")
-        return OllamaService()
+    provider = "sarvam_cloud" if settings.is_sarvam_cloud else "ollama"
+    logger.info(f"Using {provider} as LLM provider (via LLMServiceFactory)")
+    return LLMServiceFactory.create(provider)
 
 
 class ServiceContainer:
@@ -68,7 +64,14 @@ class ServiceContainer:
 
     def __init__(self) -> None:
         """Initialize all services in dependency order."""
-        logger.info("Initializing service container...")
+        import warnings
+        warnings.warn(
+            "ServiceContainer.__init__ is deprecated. Use ContainerBuilder().build() instead. "
+            "This method will be removed in a future release. See golden-singing-puzzle.md for details.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        logger.info("Initializing service container (DEPRECATED: use ContainerBuilder)...")
 
         # State: Active ingestion progress — shared across pods via Redis
         self.ingestion_tracker: IngestionTracker = build_ingestion_tracker(
@@ -291,6 +294,9 @@ def get_container() -> ServiceContainer:
 
     Thread-safe: uses a lock to ensure only one ServiceContainer is created
     even if multiple threads call this concurrently.
+
+    Uses ContainerBuilder (Builder Pattern) for step-by-step, layered
+    construction of the service container.
     """
     global _container
     if _container is not None:
@@ -298,7 +304,8 @@ def get_container() -> ServiceContainer:
     with _container_lock:
         # Double-checked locking: re-check inside the lock
         if _container is None:
-            _container = ServiceContainer()
+            from services.container_builder import ContainerBuilder
+            _container = ContainerBuilder().build()
     return _container
 
 

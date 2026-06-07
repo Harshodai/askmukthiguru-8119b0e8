@@ -75,12 +75,8 @@ class NodeRegistry:
             )
 
             # Preserve original function identity
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            wrapper._registry_name = name  # type: ignore[attr-defined]
-            return wrapper
+            func._registry_name = name  # type: ignore[attr-defined]
+            return func
 
         return decorator
 

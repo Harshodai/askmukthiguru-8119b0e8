@@ -1538,3 +1538,26 @@ When collaborating on a project or working on new features, AI agents, the Claud
 - **Guaranteed Skill Loading**: Flat folder naming matching `ecc` specifications ensures skills are loaded reliably.
 - **Cross-Harness Consistency**: Codex, Claude Code, and Antigravity all share the same rules and skills.
 - **Developer Guardrails**: Limits function lengths (<50 lines) and file sizes (<800 lines) globally and locally.
+
+
+---
+
+## Tunable Benchmarking and Decorator-based Registry Testing (June 2026)
+
+### Problem
+1. **Benchmark Skew**: When running the consolidated benchmark (`ruthless_benchmark.py`) with a limit `--limit N` (e.g. 10), the script ran queries sequentially category-by-category. Since the first category had more than N queries, the benchmark ran only queries from that single category (e.g., safety guardrails) and ignored all others. This resulted in an unrepresentative overall score and a 0% citation score since safety blocks have no citations.
+2. **Decorator Identity Loss in Registry**: A custom `@registry.register` decorator returned a wrapper function instead of the original function. During unit tests, asserting that the registered function `spec.func` equaled the decorated function `test_node` failed because `test_node` was the wrapper function while `spec.func` was the original function.
+
+### Solution
+1. **Round-Robin Limit Distribution**:
+   - Modified `ruthless_benchmark.py` to calculate limits per category using a round-robin distribution when a `--limit` is specified.
+   - Sliced the query items in `run_suite_category` and `run_multi_turn_suite` using these calculated category limits.
+   - This ensures that a limited benchmark run (e.g., 10 queries) runs exactly 1 query from each of the 10 categories, yielding a balanced, representative health report.
+2. **Bypassing Exit Codes on Limited Runs**:
+   - Configured the release gate check to warning-log failures instead of exiting with status code `1` when a `--limit` is specified. This allows developers to run fast debug cycles without breaking automation.
+3. **Decorator Simplification**:
+   - Removed the wrapper function from `@registry.register` and returned the original function `func` directly after setting its `_registry_name` attribute. This preserves function identity, increases execution efficiency by removing wrapper overhead, and resolves the unit test assertion failure.
+
+### Key Benefits
+- **Realistic Limited Runs**: Running `--limit 10` now provides a quick, holistic overview of all pipeline layers and safety checks rather than hitting a single category.
+- **Improved Test Reliability**: Unit tests can safely compare decorated and registered function references directly.
