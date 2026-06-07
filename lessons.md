@@ -1507,3 +1507,21 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Verdict**: **Current architecture CANNOT support 1000+ concurrent users for complex queries without pipeline reduction**. Simple queries (tier2_simple) can scale with Sarvam Cloud Business tier and horizontal FastAPI scaling. For complex queries, the 11 sequential LLM call chain is the hard bottleneck — must reduce to 5-6 calls via parallelization AND use cloud LLM provider with high RPM limits. Local Ollama is not viable for 1000+ concurrency.
 
 - **Lesson learned**: Agentic RAG pipelines with 10+ sequential LLM calls fundamentally cannot scale to high concurrency. The only paths to 1000+ users are: (1) aggressive pipeline parallelization to reduce sequential depth, (2) cloud LLM providers with high rate limits, (3) horizontal stateless scaling with shared infrastructure, (4) request queueing with priority lanes. Never promise high concurrency without calculating `sequential_LLMs × avg_latency × target_concurrency = required_throughput`.
+
+---
+
+## Global and Local Skill/Rule Injection in Claude Code (June 2026)
+
+### Problem
+When collaborating on a project or working on new features, AI agents and the Claude Code CLI need to automatically check and apply best practices (e.g. clean code principles, Karpathy machine learning/training guidelines, and specialized domain/book knowledge) without the user needing to manually copy/paste prompts or instructions on every single run.
+
+### Solution
+1. **Repository Cloning**: Cloned the community clean code guidelines repository (`clean-code-skills`) and Andrej Karpathy's guidelines repository (`andrej-karpathy-skills`).
+2. **Global Integration**: Copied all cloned skills as well as all project book skills (from `.agent/skills` and `.agents/skills`) into the global Claude Code plugin folder at `~/.claude/skills/`. Renamed all lowercase `skill.md` files to `SKILL.md` to match the plugin schema specification, ensuring they are auto-loaded.
+3. **Local Integration**: Copied the clean code and Karpathy skills locally under `.agent/skills/` to make them available to project-local agents.
+4. **Automatic Rule Enforcement**: Created global and local rule files named `common-skills.md` under `~/.claude/rules/ecc/common/` and `.claude/rules/ecc/common/` respectively. These files instruct Claude Code on every session to automatically search and apply these skills based on context before generating code or designs.
+
+### Key Benefits
+- **Developer guardrails**: Prevents silent drift from clean code practices (e.g., limits function lengths to 50 lines, files to 800 lines).
+- **Domain expertise**: Brings in book-level knowledge on system design, database internals, and multi-agent system design directly into Claude Code.
+- **Automated session prep**: No prompt prefixing required; the rules tell Claude Code to find and read these skills by name/keyword.
