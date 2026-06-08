@@ -465,7 +465,10 @@ async def explain_retrieval(state: GraphState) -> dict:
             user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
             t_out = get_node_timeout("explain_retrieval", 12)
             resp = await ollama.generate(
-                CITATION_REASONING_PROMPT, user_prompt, timeout=t_out, max_retries=1
+                system_prompt=CITATION_REASONING_PROMPT,
+                user_prompt=user_prompt,
+                timeout=t_out,
+                max_retries=1,
             )
             return url, resp.strip()
         except Exception as e:

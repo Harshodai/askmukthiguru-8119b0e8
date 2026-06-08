@@ -116,7 +116,7 @@ async def grade_documents(state: GraphState) -> dict:
     else:
         doc_texts = [doc["text"] for doc in reranked_docs]
         t_out = get_node_timeout("grade_documents", 20.0)
-        relevance_results = await ollama.batch_grade_relevance(question, doc_texts, timeout=t_out)
+        relevance_results = await ollama.grade_relevance(question=question, doc_texts=doc_texts, timeout=t_out)
 
         relevant = []
         reasons = []

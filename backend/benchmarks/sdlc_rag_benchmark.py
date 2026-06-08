@@ -566,6 +566,58 @@ def print_console_summary(report: BenchmarkReport) -> None:
     print("═" * 70 + "\n")
 
 
+def flush_all_caches_on_host():
+    import shutil
+    from pathlib import Path
+    print("🧹 [Auto-Flush] Flushing Redis, Qdrant semantic cache collection, and local GPTCache...")
+
+    # 1. Flush Redis
+    try:
+        import redis
+        redis_url = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+        
+        env_path = Path(__file__).resolve().parent.parent / ".env"
+        if env_path.exists():
+            for line in env_path.read_text().splitlines():
+                if line.startswith("REDIS_URL="):
+                    url = line.split("=", 1)[1].strip()
+                    redis_url = url.replace("@redis:", "@localhost:")
+                    break
+        r = redis.from_url(redis_url)
+        r.flushall()
+        print("   ✅ Redis cache flushed successfully.")
+    except Exception as e:
+        print(f"   ⚠️ Failed to flush Redis: {e}")
+
+    # 2. Re-create Qdrant collection
+    try:
+        import httpx
+        qdrant_url = "http://localhost:6333"
+        # Delete first
+        httpx.delete(f"{qdrant_url}/collections/mukthi_semantic_cache")
+        # Recreate
+        resp = httpx.put(
+            f"{qdrant_url}/collections/mukthi_semantic_cache",
+            json={"vectors": {"size": 1024, "distance": "Cosine"}}
+        )
+        if resp.status_code == 200:
+            print("   ✅ Qdrant semantic cache collection recreated successfully.")
+        else:
+            print(f"   ⚠️ Qdrant collection recreation returned status: {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"   ⚠️ Failed to recreate Qdrant collection: {e}")
+
+    # 3. Clear local GPTCache folders
+    for p in ["data/gptcache", "backend/data/gptcache"]:
+        try:
+            dir_path = Path(__file__).resolve().parent.parent.parent / p
+            if dir_path.exists():
+                shutil.rmtree(dir_path)
+                print(f"   ✅ Deleted local host-side GPTCache path: {p}")
+        except Exception as e:
+            print(f"   ⚠️ Failed to delete local host-side GPTCache {p}: {e}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="SDLC-compliant RAG benchmark runner")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Backend base URL")
@@ -577,6 +629,9 @@ def main() -> int:
     parser.add_argument("--test-key", default=os.environ.get("JWT_SECRET"), help="X-Test-Key value for auth")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
+
+    # Automatically flush caches before running
+    flush_all_caches_on_host()
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
