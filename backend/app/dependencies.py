@@ -42,14 +42,14 @@ def _create_llm_service():
     """
     Factory: Create the appropriate LLM service based on LLM_PROVIDER config.
 
-    Uses LLMServiceFactory (Abstract Factory + Registry Pattern) to decouple
+    Uses LLMProviderFactory (Strategy Pattern) to decouple
     service creation from the concrete provider class.
     """
-    from services.llm_factory import LLMServiceFactory
+    from services.llm import LLMProviderFactory
 
     provider = "sarvam_cloud" if settings.is_sarvam_cloud else "ollama"
-    logger.info(f"Using {provider} as LLM provider (via LLMServiceFactory)")
-    return LLMServiceFactory.create(provider)
+    logger.info(f"Using {provider} as LLM provider strategy (via LLMProviderFactory)")
+    return LLMProviderFactory.create_provider(provider)
 
 
 class ServiceContainer:
@@ -88,7 +88,12 @@ class ServiceContainer:
 
         # Layer 2: Model services (depend on config only)
         self.embedding = EmbeddingService()
-        self.ollama = _create_llm_service()  # SarvamCloudService OR OllamaService
+        self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
+        
+        # Wire TranslationProvider using TranslationProviderFactory
+        from services.translation import TranslationProviderFactory
+        self.translation = TranslationProviderFactory.create_provider()
+        
         self.ocr = OCRService()
         self.krutrim = KrutrimService()
 
@@ -97,13 +102,13 @@ class ServiceContainer:
         logger.info("CircuitBreakerRegistry initialized and active provider set")
 
         # Unit 25: Model failover registry (primary Ollama → fallback Ollama → Krutrim)
-        from services.ollama_service import OllamaService
-        if isinstance(self.ollama, OllamaService):
-            self.model_registry = ModelRegistry(self.ollama, self.krutrim)
+        from services.llm import OllamaProvider
+        if isinstance(self.ollama, OllamaProvider):
+            self.model_registry = ModelRegistry(self.ollama._service, self.krutrim)
         else:
-            # SarvamCloudService doesn't need failover registry
             self.model_registry = None
-            logger.info("ModelRegistry not created: SarvamCloudService active")
+            logger.info("ModelRegistry not created: non-Ollama provider active")
+
 
         # Unit 24: Compliance logger singleton
         self.compliance_logger = get_compliance_logger()

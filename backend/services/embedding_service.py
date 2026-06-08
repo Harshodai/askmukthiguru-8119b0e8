@@ -272,14 +272,26 @@ class EmbeddingService:
                         dense_vecs = output["dense_vecs"].tolist()
                         sparse_weights = output["lexical_weights"]
                     else:
-                        output = self._encoder.encode(
-                            uncached_prefixed_texts,
-                            normalize_embeddings=True,
-                        )
-                        if isinstance(output, list):
-                            dense_vecs = output
-                        else:
-                            dense_vecs = output.tolist()
+                        # E5 models: explicitly disable sparse/ColBERT to avoid
+                        # random-weight projection head initialization warning
+                        try:
+                            output = self._encoder.encode(
+                                uncached_prefixed_texts,
+                                return_dense=True,
+                                return_sparse=False,
+                                return_colbert_vecs=False,
+                            )
+                            dense_vecs = output["dense_vecs"].tolist()
+                        except Exception:
+                            # Fallback for models that don't support BGE-M3-specific flags
+                            output = self._encoder.encode(
+                                uncached_prefixed_texts,
+                                normalize_embeddings=True,
+                            )
+                            if isinstance(output, list):
+                                dense_vecs = output
+                            else:
+                                dense_vecs = output.tolist()
                         sparse_weights = [{} for _ in uncached_prefixed_texts]
 
                 # Build results in original order

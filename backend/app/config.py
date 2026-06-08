@@ -75,16 +75,16 @@ class Settings(BaseSettings):
     # Per-call HTTP timeout. Sarvam Cloud has a 30s server-side limit; Ollama tends to hang on
     # slow models. Must be smaller than pipeline_timeout. Individual LLM calls that exceed this
     # trigger retry logic in OllamaService.generate() (max_retries attempts with backoff).
-    llm_timeout: int = 30
+    llm_timeout: int = 60
     # Total outer pipeline timeout — must comfortably exceed (llm_timeout × num_retries × num_calls).
     # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 120s gives healthy headroom.
-    pipeline_timeout: int = 120
+    pipeline_timeout: int = 180
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # --- Timeout Budget ---
     pipeline_timeout_budget: int = 300  # Total pipeline timeout budget in seconds
-    node_timeout_fast: int = 30  # Default fast-model node timeout
-    node_timeout_main: int = 120  # Default main-model node timeout
+    node_timeout_fast: int = 20  # Default fast-model node timeout
+    node_timeout_main: int = 90  # Default main-model node timeout
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     feature_lightweight_classifier: bool = False   # Gemini Flash for fast nodes
     feature_regex_prerouter: bool = True
     node_model_overrides: dict[str, str] = {}
-    graph_hard_deadline_s: float = 20.0
+    graph_hard_deadline_s: float = 20.0   # DEAD CONFIG — not used by LangGraph, kept for compatibility
 
     # --- Safety Limits ---
     chat_history_max_messages: int = 20  # Cap conversation context to prevent OOM/timeouts
@@ -110,6 +110,13 @@ class Settings(BaseSettings):
     ollama_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
+
+    # --- OpenRouter (free tier for simple queries) ---
+    openrouter_api_key: str = ""  # Optional: free tier works without key for some models
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    use_openrouter_for_simple: bool = True
+    openrouter_rpm_limit: int = 20
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"

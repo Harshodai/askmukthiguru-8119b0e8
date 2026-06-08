@@ -79,22 +79,37 @@ class ContainerBuilder:
         logger.info("ContainerBuilder: core services added")
 
     def _add_model_services(self) -> None:
-        """Layer 2: LLM and embedding services."""
+        """Layer 2: LLM, embedding, and translation services."""
         from app.config import settings
         from services.embedding_service import EmbeddingService
-        from services.llm_factory import LLMServiceFactory
         from services.model_registry import ModelRegistry
         from services.ollama_service import OllamaService
+        from services.llm import LLMProviderFactory, OllamaProvider
+        from services.translation import TranslationProviderFactory
+        from services.llm_factory import LLMServiceFactory
 
         container = self._container
         container.embedding = EmbeddingService()
-        container.ollama = LLMServiceFactory.create(
-            "sarvam_cloud" if settings.is_sarvam_cloud else "ollama"
+
+        # Wire LLMProvider using LLMProviderFactory
+        provider_name = "sarvam_cloud" if settings.is_sarvam_cloud else "ollama"
+        container.ollama = LLMProviderFactory.create_provider(provider_name)
+
+        # Wire TranslationProvider using TranslationProviderFactory
+        underlying_ollama = LLMServiceFactory.create("ollama")
+        underlying_sarvam = LLMServiceFactory.create("sarvam_cloud")
+        container.translation = TranslationProviderFactory.create_provider(
+            ollama_service=underlying_ollama,
+            sarvam_service=underlying_sarvam,
         )
 
+        # OpenRouter free-tier service for fast/simple queries
+        from services.openrouter_service import OpenRouterService
+        container.openrouter = OpenRouterService()
+
         # Model registry only for Ollama
-        if isinstance(container.ollama, OllamaService):
-            container.model_registry = ModelRegistry(container.ollama, container.krutrim)
+        if isinstance(container.ollama, OllamaProvider):
+            container.model_registry = ModelRegistry(container.ollama._service, container.krutrim)
         else:
             container.model_registry = None
             logger.info("ModelRegistry not created: non-Ollama provider active")
@@ -103,6 +118,7 @@ class ContainerBuilder:
         from services.circuit_breaker import initialize_circuit_breakers
         container.circuit_breaker_registry = initialize_circuit_breakers()
         logger.info("ContainerBuilder: model services added")
+
 
     def _add_guardrails_and_caching(self) -> None:
         """Layer 3: Guardrails, cache, A/B, prompt store, cost tracker."""
