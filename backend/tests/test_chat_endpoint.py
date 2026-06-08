@@ -14,7 +14,8 @@ def mock_coalescer():
     async def dummy_get_or_run(key, callback):
         return await callback()
 
-    with patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run):
+    with patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
+         patch("app.orchestrator.coalescer.get_or_run", side_effect=dummy_get_or_run):
         yield
 
 
@@ -63,10 +64,23 @@ def mock_get_container():
     mock_container.ollama._circuit = MagicMock()
     mock_container.ollama._circuit.can_execute.return_value = True
 
+    # Mock _service for circuit checking
+    mock_service = MagicMock()
+    mock_service._circuit = MagicMock()
+    mock_service._circuit.can_execute.return_value = True
+    mock_container.ollama._service = mock_service
+
     async def dummy_translate(text, src, tgt):
         return f"translated_{text}"
 
     mock_container.ollama.translate_text = dummy_translate
+
+    # Mock Translation
+    mock_container.translation = AsyncMock()
+    async def dummy_translate_text(*, text: str, source_lang: str, target_lang: str, **kwargs):
+        return f"translated_{text}"
+    mock_container.translation.translate_text = dummy_translate_text
+
 
     # Mock Qdrant and OCR
     mock_container.qdrant = MagicMock()
@@ -202,10 +216,22 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     mock_container.ollama._circuit = MagicMock()
     mock_container.ollama._circuit.can_execute.return_value = True
 
+    # Mock _service for circuit checking
+    mock_service = MagicMock()
+    mock_service._circuit = MagicMock()
+    mock_service._circuit.can_execute.return_value = True
+    mock_container.ollama._service = mock_service
+
     async def dummy_translate(text, src, tgt):
         return f"translated_{text}"
 
     mock_container.ollama.translate_text = dummy_translate
+
+    mock_container.translation = AsyncMock()
+    async def dummy_translate_text(*, text: str, source_lang: str, target_lang: str, **kwargs):
+        return f"translated_{text}"
+    mock_container.translation.translate_text = dummy_translate_text
+
 
     mock_container.qdrant = MagicMock()
     mock_container.qdrant.health_check = lambda: True

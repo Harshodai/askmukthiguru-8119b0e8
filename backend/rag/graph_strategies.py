@@ -220,8 +220,7 @@ class StandardGraphStrategy(GraphStrategy):
 
         compiled = graph.compile()
         logger.info("LangGraph STANDARD pipeline compiled successfully")
-        timeout_val = getattr(settings, "graph_hard_deadline_s", 20.0)
-        return compiled.with_config({"timeout": timeout_val})
+        return compiled
 
 
 class FastGraphStrategy(GraphStrategy):
@@ -288,8 +287,7 @@ class FastGraphStrategy(GraphStrategy):
 
         compiled = graph.compile()
         logger.info("LangGraph FAST pipeline compiled successfully")
-        timeout_val = getattr(settings, "graph_hard_deadline_s", 20.0)
-        return compiled.with_config({"timeout": timeout_val})
+        return compiled
 
 
 class DeepGraphStrategy(GraphStrategy):
