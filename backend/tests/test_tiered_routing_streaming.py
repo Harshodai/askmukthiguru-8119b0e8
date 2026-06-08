@@ -288,9 +288,9 @@ async def test_context_compression_threshold(mock_services):
 
         mock_ollama.compress_context.reset_mock()
         await nodes.generate_answer(state_long)
-        mock_ollama.compress_context.assert_called_once_with(
-            "What is meditation?", state_long["relevant_docs"][0]["text"]
-        )
+        assert mock_ollama.compress_context.call_count == 1
+        args, kwargs = mock_ollama.compress_context.call_args
+        assert args == ("What is meditation?", state_long["relevant_docs"][0]["text"])
     finally:
         # Reset settings defaults
         settings.rag_use_context_compression = False

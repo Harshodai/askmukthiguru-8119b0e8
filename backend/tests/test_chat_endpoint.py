@@ -38,13 +38,17 @@ def mock_get_container():
     mock_container.serene_mind.analyze_with_history.return_value = mock_assessment
 
     # Mock RAG pipeline
-    mock_container.rag_graph = AsyncMock()
-    mock_container.rag_graph.ainvoke.return_value = {
+    mock_graph = AsyncMock()
+    mock_graph.ainvoke.return_value = {
         "final_answer": "This is a mocked response",
         "meditation_step": 0,
         "citations": [],
         "intent": "general",
     }
+    mock_container.rag_graph = mock_graph
+    mock_container.standard_graph = mock_graph
+    mock_container.fast_graph = mock_graph
+    mock_container.deep_graph = mock_graph
 
     # Mock semantic cache
     mock_container.exact_cache = MagicMock()
@@ -169,13 +173,17 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     mock_assessment.level.value = 1
     mock_container.serene_mind.analyze_with_history.return_value = mock_assessment
 
-    mock_container.rag_graph = AsyncMock()
-    mock_container.rag_graph.ainvoke.return_value = {
+    mock_graph = AsyncMock()
+    mock_graph.ainvoke.return_value = {
         "final_answer": "This is a mocked response",
         "meditation_step": 0,
         "citations": [],
         "intent": "general",
     }
+    mock_container.rag_graph = mock_graph
+    mock_container.standard_graph = mock_graph
+    mock_container.fast_graph = mock_graph
+    mock_container.deep_graph = mock_graph
 
     # Mock semantic cache to return a cached response
     mock_container.exact_cache = MagicMock()

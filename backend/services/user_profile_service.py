@@ -5,6 +5,7 @@ import time
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +80,11 @@ class UserProfileService:
         """Get existing profile or create default."""
         if self._supabase:
             try:
-                result = (
+                result = await asyncio.to_thread(
                     self._supabase.table("user_profiles")
                     .select("*")
                     .eq("user_id", user_id)
-                    .execute()
+                    .execute
                 )
                 if result.data:
                     data = result.data[0]
@@ -118,7 +119,7 @@ class UserProfileService:
                 # Convert enums to strings for DB
                 data["preferred_language"] = profile.preferred_language.value
                 data["spiritual_level"] = profile.spiritual_level.value
-                self._supabase.table("user_profiles").upsert(data).execute()
+                await asyncio.to_thread(self._supabase.table("user_profiles").upsert(data).execute)
             except Exception as e:
                 logger.warning(f"Supabase profile update failed for {profile.user_id}: {e}")
         self._local_cache[profile.user_id] = profile
@@ -127,17 +128,19 @@ class UserProfileService:
         """Save conversation for multi-session continuity."""
         if self._supabase:
             try:
-                self._supabase.table("conversation_memories").upsert(
-                    {
-                        "session_id": memory.session_id,
-                        "user_id": memory.user_id,
-                        "started_at": memory.started_at,
-                        "messages": json.dumps(memory.messages[-20:]),  # Last 20 messages
-                        "key_insights": memory.key_insights,
-                        "emotional_arc": json.dumps(memory.emotional_arc),
-                        "follow_up_suggestions": memory.follow_up_suggestions,
-                    }
-                ).execute()
+                await asyncio.to_thread(
+                    self._supabase.table("conversation_memories").upsert(
+                        {
+                            "session_id": memory.session_id,
+                            "user_id": memory.user_id,
+                            "started_at": memory.started_at,
+                            "messages": json.dumps(memory.messages[-20:]),  # Last 20 messages
+                            "key_insights": memory.key_insights,
+                            "emotional_arc": json.dumps(memory.emotional_arc),
+                            "follow_up_suggestions": memory.follow_up_suggestions,
+                        }
+                    ).execute
+                )
             except Exception as e:
                 logger.warning(f"Supabase memory save failed: {e}")
         self._conversation_cache[memory.session_id] = memory
@@ -146,13 +149,13 @@ class UserProfileService:
         """Get recent conversation summaries for context."""
         if self._supabase:
             try:
-                result = (
+                result = await asyncio.to_thread(
                     self._supabase.table("conversation_memories")
                     .select("*")
                     .eq("user_id", user_id)
                     .order("started_at", desc=True)
                     .limit(limit)
-                    .execute()
+                    .execute
                 )
                 memories = []
                 for row in result.data:
@@ -220,14 +223,14 @@ class UserProfileService:
         """
         if self._supabase:
             try:
-                result = (
+                result = await asyncio.to_thread(
                     self._supabase.table("meditation_sessions")
                     .select("completed_at")
                     .eq("user_id", user_id)
                     .eq("completed", True)
                     .order("completed_at", desc=True)
                     .limit(1)
-                    .execute()
+                    .execute
                 )
                 if result.data:
                     import datetime

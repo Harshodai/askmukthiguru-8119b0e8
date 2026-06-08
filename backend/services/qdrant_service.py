@@ -169,6 +169,42 @@ class QdrantService:
         return str(uuid.uuid5(_NAMESPACE_URL, key))
 
     @staticmethod
+    def _is_poisoned_node(text: str) -> bool:
+        """Check if a node contains template/parser leftover logs."""
+        if not text:
+            return False
+        low = text.lower()
+        poison_indicators = [
+            "analyze the user's request",
+            "deconstruct the request",
+            "as a text correction expert",
+            "as a spiritual teachings summarizer",
+            "generate a short topic label",
+            "3-6 words",
+            "constraint:",
+            "examples: \"meditation and inner peace\"",
+            "specific teachings were not provided",
+            "text correction expert for the 'mukthi guru'",
+            "analyze the input",
+            "each proposition on a new line",
+            "the prompt asks me",
+            "critique of a spiritual",
+            "meta-commentary",
+            "transcription errors",
+            "transcription error",
+            "misheard as",
+            "the author questions",
+            "the provided text is",
+            "core task:",
+            "decompose a spiritual",
+            "decompose the following",
+            "independent, self-contained propositions",
+            "homophon",
+            "let's check the other rules",
+        ]
+        return any(indicator in low for indicator in poison_indicators)
+
+    @staticmethod
     def _sparse_dict_to_vector(sparse_dict: dict) -> SparseVector:
         """Convert bge-m3 lexical_weights dict to Qdrant SparseVector."""
         if not sparse_dict:
@@ -252,6 +288,9 @@ class QdrantService:
         Hybrid search using Reciprocal Rank Fusion (RRF) over dense + sparse vectors.
         Falls back to dense-only if sparse vector not provided.
         """
+        # Increase limit internally to account for filtered poisoned nodes
+        internal_limit = limit + 20
+
         # Build filter conditions
         filter_conditions = []
         if content_type:
@@ -284,14 +323,14 @@ class QdrantService:
                 logger.warning("Sparse vector is empty, skipping sparse lexical match prefetch")
                 sparse_vector = None  # Disable sparse prefetch
 
-        if sparse_vector:
+        if sparse_vector or query_phonetic_tokens:
             try:
                 prefetch_queries = [
                     # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
                         query=query_vector,
                         using="dense",
-                        limit=limit,
+                        limit=internal_limit,
                         filter=Filter(
                             must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]
                         ),
@@ -300,24 +339,30 @@ class QdrantService:
                     Prefetch(
                         query=query_vector,
                         using="dense",
-                        limit=limit // 2,
+                        limit=internal_limit // 2,
                         filter=Filter(
                             must=[FieldCondition(key="raptor_level", match=MatchValue(value=1))]
                         ),
                     ),
-                    # Prefetch 3: Sparse Lexical Match
-                    Prefetch(
-                        query=sparse_qvec,
-                        using="sparse",
-                        limit=limit,
-                        filter=search_filter,
-                    ),
                 ]
 
-                # Prefetch 4: Indic Phonetic Matching (Payload-only filter)
+                # Prefetch 3: Sparse Lexical Match
+                if sparse_vector:
+                    prefetch_queries.append(
+                        Prefetch(
+                            query=sparse_qvec,
+                            using="sparse",
+                            limit=internal_limit,
+                            filter=search_filter,
+                        )
+                    )
+
+                # Prefetch 4: Indic Phonetic Matching (Phonetically-filtered dense search)
                 if query_phonetic_tokens:
                     prefetch_queries.append(
                         Prefetch(
+                            query=query_vector,
+                            using="dense",
                             filter=Filter(
                                 should=[
                                     FieldCondition(
@@ -326,24 +371,28 @@ class QdrantService:
                                     for tok in query_phonetic_tokens
                                 ]
                             ),
-                            limit=limit // 2,
-                            # NOTE: No query parameter = payload-only search
+                            limit=internal_limit,
                         )
                     )
+
                 results = self._client.query_points(
                     collection_name=self._collection,
                     prefetch=prefetch_queries,
                     query=FusionQuery(fusion=Fusion.RRF),
-                    limit=limit,
+                    limit=internal_limit,
                     with_payload=True,
                 )
                 hits = results.points
                 logger.debug(f"Hybrid search (RRF): {len(hits)} results")
             except Exception as e:
                 logger.warning(f"Hybrid search failed, falling back to dense: {e}")
-                hits = self._dense_search(query_vector, limit, search_filter)
+                hits = self._dense_search(query_vector, internal_limit, search_filter)
         else:
-            hits = self._dense_search(query_vector, limit, search_filter)
+            hits = self._dense_search(query_vector, internal_limit, search_filter)
+
+        # Filter out poisoned nodes
+        hits = [hit for hit in hits if not self._is_poisoned_node(hit.payload.get("text", ""))]
+        hits = hits[:limit]
 
         return [
             {
@@ -609,10 +658,13 @@ class QdrantService:
             nodes = []
             for point in results:
                 payload = point.payload or {}
+                text = payload.get("text", "")
+                if self._is_poisoned_node(text):
+                    continue
                 nodes.append(
                     {
                         "cluster_id": payload.get("cluster_id", 0),
-                        "text": payload.get("text", ""),
+                        "text": text,
                         "topic_label": payload.get("topic_label", ""),
                         "titles": payload.get("titles", []),
                         "source_urls": payload.get("source_urls", []),

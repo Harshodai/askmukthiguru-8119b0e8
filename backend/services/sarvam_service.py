@@ -276,6 +276,12 @@ class SarvamCloudService:
 
         Returns: The assistant's response content (stripped of <think> tags).
         """
+        # Check node model overrides
+        node_overrides = getattr(settings, "node_model_overrides", {}) or {}
+        if operation in node_overrides:
+            model = node_overrides[operation]
+            logger.info(f"_call_api: Overriding model for operation {operation!r} -> {model!r}")
+
         request_timeout = kwargs.pop("timeout", self._timeout)
         if ("sarvam-30b" in model or "sarvam-105b" in model) and request_timeout < 35.0:
             logger.info(f"_call_api: Scaling up request timeout from {request_timeout}s to 35.0s for reasoning model {model}")
@@ -312,6 +318,8 @@ class SarvamCloudService:
         if not validated_messages:
             logger.warning("_call_api: No valid messages to send after validation")
             return ""
+
+
 
         # Proactively cap max_tokens for sarvam-m (lighter model, smaller context window)
         if "sarvam-m" in model and max_tokens > 2048:

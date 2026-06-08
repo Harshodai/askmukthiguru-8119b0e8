@@ -150,6 +150,7 @@ class ServiceContainer:
         # Layer 4d: User Profiles (depends on supabase)
         if settings.user_profile_enabled:
             from supabase import create_client
+            from services.memory_service import MemoryService
 
             supabase_client = None
             if settings.supabase_url and settings.supabase_key:
@@ -159,8 +160,14 @@ class ServiceContainer:
                     logger.error(f"Failed to initialize Supabase client: {e}")
 
             self.user_profile = UserProfileService(supabase_client=supabase_client)
+            self.memory_service = MemoryService(
+                supabase_client=supabase_client,
+                embedding_service=self.embedding,
+                llm_service=self.ollama,
+            )
         else:
             self.user_profile = None
+            self.memory_service = None
 
         # Layer 5: Ingestion pipeline (depends on all services)
         self.ingestion = IngestionPipeline(

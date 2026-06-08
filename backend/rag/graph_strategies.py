@@ -46,6 +46,7 @@ from rag.nodes import (
     route_by_intent,
     verify_answer,
 )
+from app.config import settings
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
 
@@ -219,7 +220,8 @@ class StandardGraphStrategy(GraphStrategy):
 
         compiled = graph.compile()
         logger.info("LangGraph STANDARD pipeline compiled successfully")
-        return compiled
+        timeout_val = getattr(settings, "graph_hard_deadline_s", 20.0)
+        return compiled.with_config({"timeout": timeout_val})
 
 
 class FastGraphStrategy(GraphStrategy):
@@ -286,7 +288,8 @@ class FastGraphStrategy(GraphStrategy):
 
         compiled = graph.compile()
         logger.info("LangGraph FAST pipeline compiled successfully")
-        return compiled
+        timeout_val = getattr(settings, "graph_hard_deadline_s", 20.0)
+        return compiled.with_config({"timeout": timeout_val})
 
 
 class DeepGraphStrategy(GraphStrategy):

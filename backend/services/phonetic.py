@@ -38,6 +38,8 @@ class IndicPhoneticMatcher:
         # Specific high-frequency spiritual term mapping to preserve correct spelling
         if any(variant in val for variant in ["deeksh", "diksh", "dikhsh"]):
             return "DEEKSHA"
+        if val in ["ekam", "akam", "ekkam", "akkam"]:
+            return "EKAM"
 
         # 2. Collapse double letters (except aa, ee, oo which are vowel representations)
         val = re.sub(r"([^aeiou])\1+", r"\1", val)
@@ -88,29 +90,13 @@ class IndicPhoneticMatcher:
 
         words = re.findall(r"\b\w+\b", text.lower())
         stopwords = {
-            "the",
-            "and",
-            "a",
-            "of",
-            "to",
-            "is",
-            "in",
-            "that",
-            "it",
-            "you",
-            "for",
-            "on",
-            "with",
-            "as",
-            "this",
-            "are",
-            "by",
-            "i",
-            "me",
-            "my",
-            "we",
-            "our",
-            "about",
+            "the", "and", "a", "of", "to", "is", "in", "that", "it", "you", "for", "on", "with",
+            "as", "this", "are", "by", "i", "me", "my", "we", "our", "about", "your", "their",
+            "who", "what", "where", "when", "why", "how", "which", "whose", "whom",
+            "be", "been", "was", "were", "am", "do", "does", "did", "has", "have", "had",
+            "can", "could", "will", "would", "should", "sri", "shri", "mr", "mrs", "dr",
+            "input", "output", "text", "teaching", "propositions", "decompose", "summarize",
+            "task", "prompt", "user", "request", "please", "verify", "correct", "error"
         }
 
         tokens = []
@@ -120,5 +106,10 @@ class IndicPhoneticMatcher:
             encoded = cls.encode(w)
             if encoded:
                 tokens.append(encoded)
+                # Query time backward-compatibility mapping for Ekam/Akam
+                if encoded == "EKAM":
+                    tokens.append("AKAM")
+                elif encoded == "AKAM":
+                    tokens.append("EKAM")
 
         return sorted(list(set(tokens)))

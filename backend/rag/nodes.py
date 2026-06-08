@@ -93,6 +93,68 @@ from services.serene_mind_engine import DistressAssessment, DistressLevel, Seren
 
 logger = logging.getLogger(__name__)
 
+
+def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
+    """Helper to enforce node contracts. Returns an error dict if keys are missing."""
+    missing = [k for k in required if k not in state]
+    if missing:
+        logger.error(f"NodeContractError: missing required keys: {missing}")
+        return {"error": f"NodeContractError: missing required keys: {missing}"}
+    return None
+
+
+async def extract_memory_insights(top_docs: list[dict], k: int = 3) -> list[str]:
+    """
+    Extract salient 1-sentence factual/philosophical claims from top-k documents
+    using a lightweight LLM call (Gemini Flash).
+    """
+    if not top_docs:
+        return []
+    
+    docs_to_analyze = top_docs[:k]
+    doc_texts = []
+    for i, doc in enumerate(docs_to_analyze):
+        title = doc.get("title", f"Doc {i+1}")
+        text = doc.get("text", "")
+        doc_texts.append(f"Document {i+1} [{title}]: {text}")
+        
+    combined_docs = "\n\n".join(doc_texts)
+    
+    prompt = (
+        "Extract up to 3 salient, independent, 1-sentence factual or philosophical claims from the documents below. "
+        "Each claim must be a single, standalone sentence, starting with a bullet point (*). "
+        "Do not include document references or introductory text. "
+        "Example:\n* Sri Preethaji teaches that suffering is a state of inner division.\n\n"
+        f"Documents:\n{combined_docs}"
+    )
+    
+    try:
+        from app.dependencies import get_container
+        global _ollama
+        ollama_svc = _ollama or get_container().ollama
+        t_out = get_node_timeout("default_fast", 15.0)
+        
+        response = await ollama_svc.generate(
+            system_prompt="You are a precise spiritual knowledge extractor. Extract only the factual/philosophical claims as bullet points, one sentence per bullet. No commentary.",
+            user_prompt=prompt,
+            timeout=t_out,
+            operation="extract_memory_insights",
+            max_retries=0,
+        )
+        
+        insights = []
+        for line in response.split("\n"):
+            line = line.strip()
+            if line.startswith("*") or line.startswith("-"):
+                insight = line.lstrip("*- ").strip()
+                if insight:
+                    insights.append(insight)
+        return insights
+    except Exception as e:
+        logger.error(f"Failed to extract memory insights: {e}")
+        return []
+
+
 # Module-level service references (set during graph construction)
 _ollama: OllamaService = None
 _embedder: EmbeddingService = None
@@ -367,6 +429,8 @@ def _trace_update(state: GraphState, **updates) -> dict:
 
 async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
     """Ask the model to propose retrieval-only reformulations without encoding doctrine in code."""
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        return []
     if _ollama is None:
         return []
 
@@ -445,7 +509,7 @@ def _generation_kwargs(state: GraphState) -> dict:
 
     if intent == "DISTRESS":
         return {"num_predict": 2048}
-    if query_tier == "fast":
+    if query_tier in ("fast", "tier2_simple"):
         return {"num_predict": 512}
     if intent in {"FACTUAL", "QUERY"}:
         return {"num_predict": 1024}
@@ -514,7 +578,7 @@ def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     # Override for state-based risk flags (preserves existing behavior)
     complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
     complex_model = getattr(settings, "sarvam_cloud_complex_model", "")
-    is_complex = state.get("query_tier") == "tier3_complex" or bool(state.get("is_complex"))
+    is_complex = state.get("query_tier") in ("deep", "tier3_complex") or bool(state.get("is_complex"))
     is_high_risk = state.get("intent") in {"ADVERSARIAL", "RELATIONAL"}
 
     if complex_enabled and complex_model and (is_complex or is_high_risk):
@@ -685,14 +749,31 @@ async def intent_router(state: GraphState) -> dict:
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
 
+    # ---- Regex Pre-Router Check ----
+    from rag.intent_prerouter import preroute_intent
+    pre_intent = preroute_intent(question)
+    if pre_intent:
+        logger.info(f"Intent Router: Regex Pre-Router matched intent: {pre_intent}")
+        # Map intent to FACTUAL if it matches standard query to align with what RAG expects
+        mapped_intent = "FACTUAL" if pre_intent == "QUERY" else pre_intent
+        query_tier = "tier2_simple"
+        return {
+            "intent": mapped_intent,
+            "query_tier": query_tier,
+            "evaluation_trace": _trace_update(
+                state, intent=mapped_intent, query_tier=query_tier,
+                routing_reason="regex_prerouter"
+            ),
+        }
+
     # ---- Heuristic fast-path #1: capability / meta questions ----
     if any(kw in lower_q for kw in _CAPABILITY_PATTERNS):
         logger.info("Intent Router: heuristic fast-path — capability/meta question, fast")
         return {
             "intent": "FACTUAL",
-            "query_tier": "fast",
+            "query_tier": "tier2_simple",
             "evaluation_trace": _trace_update(
-                state, intent="FACTUAL", query_tier="fast",
+                state, intent="FACTUAL", query_tier="tier2_simple",
                 routing_reason="heuristic_capability"
             ),
         }
@@ -703,9 +784,9 @@ async def intent_router(state: GraphState) -> dict:
             logger.info(f"Intent Router: heuristic fast-path — simple factual match ({pattern}), fast")
             return {
                 "intent": "FACTUAL",
-                "query_tier": "fast",
+                "query_tier": "tier2_simple",
                 "evaluation_trace": _trace_update(
-                    state, intent="FACTUAL", query_tier="fast",
+                    state, intent="FACTUAL", query_tier="tier2_simple",
                     routing_reason="heuristic_simple"
                 ),
             }
@@ -716,7 +797,7 @@ async def intent_router(state: GraphState) -> dict:
         cached_intent, cached_complexity = _intent_classification_cache[cache_key]
         if cached_intent == "QUERY":
             cached_intent = "FACTUAL"
-        tier = "fast" if cached_complexity == "simple" else "tier3_complex"
+        tier = "tier2_simple" if cached_complexity == "simple" else "tier3_complex"
         if cached_intent == "FACTUAL":
             logger.info(f"Intent Router: cache hit — {cached_intent} | {tier}")
             return {
@@ -757,7 +838,7 @@ async def intent_router(state: GraphState) -> dict:
     query_tier = None
     if intent == "FACTUAL":
         if complexity == "simple":
-            query_tier = "fast"
+            query_tier = "tier2_simple"
         else:
             query_tier = "tier3_complex"
 
@@ -796,6 +877,9 @@ async def decompose_query(state: GraphState) -> dict:
     if it's already simple, so no quality loss.
     """
     question = state["question"]
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        return {"sub_queries": [question], "is_complex": False}
+
     t_out = get_node_timeout("decompose_query", 15)
     sub_queries = await _ollama.decompose_query(question, timeout=t_out)
     is_complex = len(sub_queries) > 1
@@ -812,6 +896,8 @@ async def generate_hyde(state: GraphState) -> dict:
     that 'look like' a good answer.
     """
     # Fast bypass: skip HyDE (Hypothetical Document Embeddings) for simple queries.
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        return {"hyde_text": None}
 
     if not settings.rag_use_hyde:
         return {"hyde_text": None}
@@ -840,6 +926,8 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
     This narrows the search space before vector retrieval, improving precision.
     """
     question = state["question"]
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        return {"selected_clusters": []}
 
     try:
         # Embed the query to retrieve only the most similar summary nodes
@@ -873,6 +961,9 @@ async def check_context_sufficiency(state: GraphState) -> dict:
     this question well?" If not, we clear the cluster filter so the
     next CRAG iteration searches the full knowledge base.
     """
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Sufficiency check: bypassing for simple query tier")
+        return {}
 
     intent = state.get("intent")
     if intent == "DISTRESS":
@@ -1067,6 +1158,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     Uses bge-m3 dense + sparse vectors with RRF fusion for hybrid search.
     If query was decomposed, retrieves for all sub-queries in parallel.
     """
+    contract_err = _require_state(state, ["question"])
+    if contract_err:
+        return contract_err
+
+    query_tier = state.get("query_tier", "standard")
     configurable = {}
 
     # Check semantic cache before expensive retrieval
@@ -1471,6 +1567,20 @@ async def grade_documents(state: GraphState) -> dict:
     grading prompt. Reduces LLM calls from N to 1.
     If ALL documents fail, triggers query rewriting.
     """
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        reranked_docs = state["reranked_docs"]
+        # Accept top 3 documents without LLM relevance check
+        relevant = reranked_docs[:3]
+        state["grading_reasons"] = ["Simple query bypass" for _ in relevant]
+        logger.info(f"CRAG batch: simple query tier, bypassing grading, accepted {len(relevant)} docs")
+        return {
+            "relevant_docs": relevant,
+            "evaluation_trace": _trace_update(
+                state,
+                relevant_count=len(relevant),
+                relevant_sources=_grounded_citation_urls(relevant),
+            ),
+        }
 
     question = state.get("rewritten_query") or state["question"]
     reranked_docs = state["reranked_docs"]
@@ -1501,7 +1611,8 @@ async def grade_documents(state: GraphState) -> dict:
 
     # Contextual compression: extract only the most relevant sentences
     if relevant:
-        relevant = compress_documents(
+        relevant = await asyncio.to_thread(
+            compress_documents,
             question,
             relevant,
             _embedder._reranker,
@@ -1533,6 +1644,10 @@ async def enrich_context(state: GraphState) -> dict:
     Provides broader context for better reasoning (RAG Made Simple Ch 8).
     """
     relevant_docs = state.get("relevant_docs", [])
+
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Enrich context: bypassing for simple query tier")
+        return {"relevant_docs": relevant_docs}
 
     if not relevant_docs or settings.rag_context_window <= 0:
         return {"relevant_docs": relevant_docs}
@@ -1716,6 +1831,10 @@ async def explain_retrieval(state: GraphState) -> dict:
     Phase 4 Improvement: Explainable Retrieval.
     Generates a 1-sentence reasoning for why each top source was chosen.
     """
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Explain retrieval: bypassing for simple query tier")
+        return {"citation_reasoning": {}}
+
     from rag.prompts import CITATION_REASONING_PROMPT
 
 
@@ -2030,6 +2149,9 @@ async def reflect_on_answer(state: GraphState) -> dict:
     If hallucinated, flags needs_correction=True to trigger a rewrite.
     Now includes self-consistency checking via multiple reasoning paths.
     """
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Self-Reflection: bypassing for simple query tier")
+        return {"needs_correction": False, "reflection_feedback": None}
 
     answer = state.get("answer")
     relevant_docs = state.get("relevant_docs", [])
@@ -2040,7 +2162,7 @@ async def reflect_on_answer(state: GraphState) -> dict:
 
     # Use ultra-fast local LettuceDetect factual grading (sub-15ms)
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
-    ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
+    ld_result = await asyncio.to_thread(_lettuce_detect.score_faithfulness, question, context, answer)
 
     # More stringent faithfulness check - require higher score threshold
     is_faithful_strict = ld_result["score"] >= 0.8  # Increased from binary to threshold
@@ -2129,7 +2251,7 @@ async def reflect_on_answer(state: GraphState) -> dict:
         # Compare answers for consistency using LettuceDetect mutual faithfulness
         if alt_answer and len(alt_answer.strip()) > 20:
             # Check if alternative answer is also faithful to the same context
-            alt_ld_result = _lettuce_detect.score_faithfulness(question, context, alt_answer)
+            alt_ld_result = await asyncio.to_thread(_lettuce_detect.score_faithfulness, question, context, alt_answer)
 
             # Check mutual consistency - answers should agree on factual content
             # If both are faithful but very different, there might be inconsistency
@@ -2184,6 +2306,16 @@ async def verify_answer(state: GraphState) -> dict:
     3. Self-consistency checking via multiple reasoning paths
     4. Confidence scoring based on multiple factors
     """
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Combined verify: bypassing for simple query tier")
+        return {
+            "is_faithful": True,
+            "verification": {"passed": True, "details": "Bypassed for simple query tier"},
+            "confidence_score": 10.0,
+            "faithfulness_score": 1.0,
+            "relevancy_score": 1.0,
+        }
+
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
     question = state.get("rewritten_query") or state["question"]
@@ -2205,7 +2337,7 @@ async def verify_answer(state: GraphState) -> dict:
         }
 
     # 1. Faithfulness check using LettuceDetect
-    ld_result = _lettuce_detect.score_faithfulness(question, context, answer)
+    ld_result = await asyncio.to_thread(_lettuce_detect.score_faithfulness, question, context, answer)
     faithfulness_score = ld_result["score"]
     is_faithful_ld = ld_result["is_faithful"]
 
@@ -2249,7 +2381,7 @@ Generate verification questions (one per line, no numbering):"""
                     # If the verification question itself is not grounded in context, it's problematic
                     # But we mainly want to check if we can answer it from context
                     # A simpler approach: check if the context contains relevant information
-                    context_relevance = _lettuce_detect.score_faithfulness(vq, context, "")  # Empty answer
+                    context_relevance = await asyncio.to_thread(_lettuce_detect.score_faithfulness, vq, context, "")  # Empty answer
 
                     is_verified = context_relevance["score"] > 0.3  # Threshold for relevance
                     verification_results.append({
@@ -2365,7 +2497,7 @@ Generate verification questions (one per line, no numbering):"""
         # Compare answers for consistency
         if alt_answer and len(alt_answer.strip()) > 20:
             # Check faithfulness of alternative answer
-            alt_ld_result = _lettuce_detect.score_faithfulness(question, context, alt_answer)
+            alt_ld_result = await asyncio.to_thread(_lettuce_detect.score_faithfulness, question, context, alt_answer)
 
             # Check mutual consistency
             faith_diff = abs(faithfulness_score - alt_ld_result["score"])
@@ -2461,6 +2593,9 @@ async def format_final_answer(state: GraphState) -> dict:
     confidence = state.get("confidence_score") or 5.0
     answer = state.get("answer", "")
     citations = state.get("citations", [])
+    intent = state.get("intent") or "CASUAL"
+    if intent == "?":
+        intent = "CASUAL"
     answer = strip_cot(answer)
 
     # Enrich citations with canonical URLs found in the answer text
@@ -2485,11 +2620,11 @@ async def format_final_answer(state: GraphState) -> dict:
             f"Final: Allowing substantive answer through (len={len(answer)}, "
             f"confidence={confidence}, citations={len(citations)})"
         )
-    elif state.get("intent") in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"] and answer:
+    elif intent in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"] and answer:
         # Distress, safety violations, and adversarial answers might not have strong factual citations,
         # but we MUST return the compassionate answer or refusal generated by the LLM
         logger.info(
-            f"Final: Allowing {state.get('intent')} answer through despite verification failure"
+            f"Final: Allowing {intent} answer through despite verification failure"
         )
     else:
         # Truly empty answer or very low confidence — reject
@@ -2498,7 +2633,18 @@ async def format_final_answer(state: GraphState) -> dict:
             f"verified={verified}, confidence={confidence}, "
             f"citations={len(citations)}, answer_len={len(answer)})"
         )
-        return {"final_answer": FALLBACK_RESPONSE}
+        return {
+            "final_answer": FALLBACK_RESPONSE,
+            "citations": citations,
+            "intent": intent,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(FALLBACK_RESPONSE),
+                final_citations=citations,
+                verification_passed=verified,
+                confidence_score=confidence,
+            ),
+        }
 
     if confidence < 7:
         # Moderate confidence — add a caveat
@@ -2509,11 +2655,6 @@ async def format_final_answer(state: GraphState) -> dict:
         if caveat not in answer:
             answer += caveat
         logger.info(f"Final: Moderate confidence ({confidence}), adding caveat")
-
-    # Append citation URLs if not already in the answer
-    intent = state.get("intent") or "CASUAL"
-    if intent == "?":
-        intent = "CASUAL"
 
     if citations:
         reasoning = state.get("citation_reasoning") or {}
@@ -2794,6 +2935,9 @@ def route_after_grading(state: GraphState) -> str:
 @log_metrics
 async def check_contradiction(state: GraphState) -> dict:
     """Check if the newly generated answer contradicts previous conversation history."""
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Contradiction check: bypassing for simple query tier")
+        return {"evaluation_trace": _trace_update(state, contradiction_detected=False)}
 
     answer = state.get("answer", "")
     chat_history = state.get("chat_history", [])

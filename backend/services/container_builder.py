@@ -135,6 +135,7 @@ class ContainerBuilder:
         from app.config import settings
         from services.serene_mind_engine import SereneMindEngine
         from services.user_profile_service import UserProfileService
+        from services.memory_service import MemoryService
 
         container = self._container
         if settings.serene_mind_enabled:
@@ -147,11 +148,18 @@ class ContainerBuilder:
                 from supabase import create_client
                 supabase_client = create_client(settings.supabase_url, settings.supabase_key)
                 container.user_profile = UserProfileService(supabase_client=supabase_client)
+                container.memory_service = MemoryService(
+                    supabase_client=supabase_client,
+                    embedding_service=container.embedding,
+                    llm_service=container.ollama,
+                )
             except Exception as exc:
                 logger.warning(f"Failed to initialize Supabase client: {exc}")
                 container.user_profile = None
+                container.memory_service = None
         else:
             container.user_profile = None
+            container.memory_service = None
         logger.info("ContainerBuilder: language and profiles added")
 
     def _add_ingestion(self) -> None:
