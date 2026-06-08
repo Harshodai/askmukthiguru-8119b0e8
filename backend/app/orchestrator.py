@@ -75,56 +75,55 @@ class ChatRequestOrchestrator:
         is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
 
         # === Response Cache Check ===
-        if not is_benchmark:
-            cached = self.container.exact_cache.get(cache_key)
-            if cached is None:
-                cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
-            if cached is not None:
-                REQUEST_COUNT.labels(status="cache_hit").inc()
-                cached_response = cached["response"]
-                output_check = await self.container.guardrails.check_output(cached_response)
-                final_response = (
-                    output_check["moderated_response"] if output_check["blocked"] else cached_response
+        cached = self.container.exact_cache.get(cache_key)
+        if cached is None:
+            cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
+        if cached is not None:
+            REQUEST_COUNT.labels(status="cache_hit").inc()
+            cached_response = cached["response"]
+            output_check = await self.container.guardrails.check_output(cached_response)
+            final_response = (
+                output_check["moderated_response"] if output_check["blocked"] else cached_response
+            )
+
+            if is_indic and final_response != cached_response:
+                final_response = await self.container.translation.translate_text(
+                    text=final_response, source_lang="en", target_lang=preferred_lang
                 )
 
-                if is_indic and final_response != cached_response:
-                    final_response = await self.container.translation.translate_text(
-                        text=final_response, source_lang="en", target_lang=preferred_lang
-                    )
-
-                query_id = str(uuid.uuid4())
-                latency_ms = int((time.time() - start_time) * 1000)
-                user_id = user.get("id", "anonymous") if user else "anonymous"
-                background_tasks.add_task(
-                    self.telemetry_sink.log_query_trace,
-                    query_id=query_id,
-                    session_id=normalize_session_id(chat_body.session_id, user_id),
-                    user_id=user_id,
-                    query_text=user_msg,
-                    model=getattr(settings, "sarvam_cloud_model", None)
-                    or getattr(settings, "ollama_model", None)
-                    or "cache",
-                    latency_ms=latency_ms,
-                    status="ok",
-                    created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    response_text=final_response,
-                    citations=cached.get("citations", []),
-                    provider=getattr(settings, "llm_provider", None),
-                    route_decision="semantic_cache",
-                    cache_hit=True,
-                )
-                return ChatResponse(
-                    response=final_response,
-                    intent=cached.get("intent"),
-                    meditation_step=cached.get("meditation_step", 0),
-                    citations=cached.get("citations", []),
-                    trace_id=query_id,
-                    latency_ms=latency_ms,
-                    model_used=getattr(settings, "sarvam_cloud_model", None)
-                    or getattr(settings, "ollama_model", None),
-                    model_provider=getattr(settings, "llm_provider", None),
-                    route_decision="semantic_cache",
-                )
+            query_id = str(uuid.uuid4())
+            latency_ms = int((time.time() - start_time) * 1000)
+            user_id = user.get("id", "anonymous") if user else "anonymous"
+            background_tasks.add_task(
+                self.telemetry_sink.log_query_trace,
+                query_id=query_id,
+                session_id=normalize_session_id(chat_body.session_id, user_id),
+                user_id=user_id,
+                query_text=user_msg,
+                model=getattr(settings, "sarvam_cloud_model", None)
+                or getattr(settings, "ollama_model", None)
+                or "cache",
+                latency_ms=latency_ms,
+                status="ok",
+                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                response_text=final_response,
+                citations=cached.get("citations", []),
+                provider=getattr(settings, "llm_provider", None),
+                route_decision="semantic_cache",
+                cache_hit=True,
+            )
+            return ChatResponse(
+                response=final_response,
+                intent=cached.get("intent"),
+                meditation_step=cached.get("meditation_step", 0),
+                citations=cached.get("citations", []),
+                trace_id=query_id,
+                latency_ms=latency_ms,
+                model_used=getattr(settings, "sarvam_cloud_model", None)
+                or getattr(settings, "ollama_model", None),
+                model_provider=getattr(settings, "llm_provider", None),
+                route_decision="semantic_cache",
+            )
 
         if settings.is_sarvam_cloud:
             underlying_service = self.container.ollama
@@ -397,7 +396,7 @@ class ChatRequestOrchestrator:
                     full_msgs
                 )
 
-            if not is_benchmark and intent in ["QUERY", "CASUAL", "FACTUAL"]:
+            if intent in ["QUERY", "CASUAL", "FACTUAL"]:
                 self.container.exact_cache.put(
                     query=cache_key,
                     response=final_answer_native,
