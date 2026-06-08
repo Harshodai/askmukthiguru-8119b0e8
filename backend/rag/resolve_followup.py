@@ -64,7 +64,7 @@ async def resolve_followup(state: GraphState) -> dict:
     Returns:
         dict with updated 'question' if resolved, or empty dict if no change needed.
     """
-    if state.get("query_tier") == "fast":
+    if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Resolve Follow-up: fast path query, skipping LLM resolution.")
         return {}
 

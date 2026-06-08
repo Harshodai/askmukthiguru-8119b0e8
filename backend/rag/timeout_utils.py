@@ -7,20 +7,24 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 NODE_TIMEOUTS = {
-    "intent_router": 15,
-    "resolve_followup": 15,
-    "decompose_query": 15,
-    "navigate_knowledge_tree": 15,
-    "generate_hyde": 30,
-    "grade_documents": 20,
-    "check_context_sufficiency": 15,
-    "generate_answer": 60,
-    "check_contradiction": 15,
-    "explain_retrieval": 15,
-    "default_fast": 15,
-    "default_main": 60,
-    "default_embedding": 10,
-    "default_qdrant": 5,
+    "intent_router": 3.0,
+    "resolve_followup": 3.0,
+    "decompose_query": 4.0,
+    "retrieve_documents": 4.0,
+    "rerank_documents": 3.0,
+    "grade_documents": 4.0,
+    "generate_answer": 8.0,
+    "verify_answer": 4.0,
+    "reflect_on_answer": 3.0,
+    "navigate_knowledge_tree": 3.0,
+    "generate_hyde": 4.0,
+    "check_context_sufficiency": 3.0,
+    "check_contradiction": 3.0,
+    "explain_retrieval": 3.0,
+    "default_fast": 3.0,
+    "default_main": 8.0,
+    "default_embedding": 3.0,
+    "default_qdrant": 3.0,
 }
 
 class TimeoutBudget:
@@ -45,13 +49,10 @@ class TimeoutBudget:
             
         # If we are using Sarvam Cloud (which is a reasoning model), we scale up node timeouts
         # since reasoning can take much longer (e.g., 30-45s).
+        # We only scale up answer generation nodes; classifier nodes are routed to Flash and should not scale up.
         if settings.is_sarvam_cloud:
-            if node_name in ["intent_router", "resolve_followup", "check_context_sufficiency", "check_contradiction", "navigate_knowledge_tree", "decompose_query"]:
-                default_timeout = max(default_timeout, 45.0)
-            elif node_name in ["generate_answer", "explain_retrieval"]:
+            if node_name in ["generate_answer", "explain_retrieval"]:
                 default_timeout = max(default_timeout, 90.0)
-            elif node_name in ["generate_hyde"]:
-                default_timeout = max(default_timeout, 45.0)
 
         return min(default_timeout, available)
 
