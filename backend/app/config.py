@@ -88,6 +88,14 @@ class Settings(BaseSettings):
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
+    # --- Feature Flags & Memory Layer ---
+    feature_memory_enabled: bool = False
+    feature_memory_write: bool = False
+    feature_lightweight_classifier: bool = False   # Gemini Flash for fast nodes
+    feature_regex_prerouter: bool = True
+    node_model_overrides: dict[str, str] = {}
+    graph_hard_deadline_s: float = 20.0
+
     # --- Safety Limits ---
     chat_history_max_messages: int = 20  # Cap conversation context to prevent OOM/timeouts
     max_input_length: int = 2000  # Max user message length in characters
@@ -189,7 +197,7 @@ class Settings(BaseSettings):
     # --- RAG ---
     rag_top_k_retrieval: int = 30
     rag_top_k_rerank: int = 10
-    rag_max_rewrites: int = 3
+    rag_max_rewrites: int = 1
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = True

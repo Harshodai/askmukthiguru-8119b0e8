@@ -1,6 +1,10 @@
 import os
 import sys
 
+# Ensure JWT_SECRET is set for import-time validation
+os.environ["JWT_SECRET"] = os.environ.get("JWT_SECRET", "mock_jwt_secret_for_testing_12345")
+os.environ["SARVAM_API_KEY"] = os.environ.get("SARVAM_API_KEY", "mock_sarvam_key_for_testing")
+
 from dotenv import load_dotenv
 
 # Add backend/ to sys.path so that 'from services...' imports work when

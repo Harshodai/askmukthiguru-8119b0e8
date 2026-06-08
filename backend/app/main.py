@@ -725,6 +725,38 @@ async def _prepare_user_memory(
         chat_history=chat_history,
     )
 
+    # Fetch persistent memory layer context under a 200ms timeout budget if enabled
+    if settings.feature_memory_enabled and getattr(container, "memory_service", None):
+        try:
+            last_query = chat_history[-1]["content"] if chat_history else ""
+            
+            async def fetch_memory_layer():
+                core_m = await container.memory_service.get_core(user_id)
+                semantic_m = []
+                if last_query:
+                    semantic_m = await container.memory_service.search_semantic(user_id, last_query, limit=3, min_similarity=0.6)
+                return core_m, semantic_m
+
+            core_m, semantic_m = await asyncio.wait_for(fetch_memory_layer(), timeout=0.200)
+
+            # Format memory context blocks
+            memory_blocks = []
+            if core_m:
+                memory_blocks.append("USER PROFILE & CORE FACTS:\n- " + "\n- ".join(c["content"] for c in core_m))
+            if semantic_m:
+                memory_blocks.append("PAST RELEVANT RECOLLECTIONS:\n- " + "\n- ".join(s["content"] for s in semantic_m))
+
+            if memory_blocks:
+                new_memory_context = "\n\n".join(memory_blocks)
+                if memory_context:
+                    memory_context = f"{memory_context}\n\n{new_memory_context}"
+                else:
+                    memory_context = new_memory_context
+        except asyncio.TimeoutError:
+            logger.warning(f"Memory layer fetch timed out for user {user_id} (exceeded 200ms budget)")
+        except Exception as e:
+            logger.warning(f"Memory layer fetch failed: {e}")
+
     distress_history = []
     for mem in recent_memories:
         if mem.emotional_arc:
@@ -851,7 +883,7 @@ async def chat_endpoint(
         # Check exact-match Redis cache first to bypass embedding calculation
         cached = container.exact_cache.get(cache_key)
         if cached is None:
-            cached = container.semantic_cache.get(cache_key)
+            cached = await asyncio.to_thread(container.semantic_cache.get, cache_key)
         if cached is not None:
             REQUEST_COUNT.labels(status="cache_hit").inc()
             # Run cached response through output guardrails to prevent bypass
@@ -1095,8 +1127,9 @@ async def chat_endpoint(
             graph_variant = select_graph_for_query(user_msg_en)
             initial_state["query_tier"] = graph_variant
             selected_graph = getattr(container, f"{graph_variant}_graph")
+            config = {"timeout": getattr(settings, "graph_hard_deadline_s", 20.0)}
             try:
-                return await selected_graph.ainvoke(initial_state)
+                return await selected_graph.ainvoke(initial_state, config=config)
             finally:
                 budget_var.reset(token)
 
@@ -1149,6 +1182,18 @@ async def chat_endpoint(
             )
             background_tasks.add_task(container.user_profile.save_conversation_memory, memory)
 
+        if settings.feature_memory_write and getattr(container, "memory_service", None):
+            full_msgs = chat_history + [
+                {"role": "user", "content": user_msg},
+                {"role": "assistant", "content": final_answer_native}
+            ]
+            background_tasks.add_task(
+                container.memory_service.extract_and_write,
+                user_id,
+                stable_session_id,
+                full_msgs
+            )
+
         # Populate cache for QUERY and CASUAL intents (both exact and semantic caching)
         # Skip cache population for benchmark requests to prevent score inflation.
         if not is_benchmark and intent in ["QUERY", "CASUAL", "FACTUAL"]:
@@ -1159,7 +1204,8 @@ async def chat_endpoint(
                 citations=citations,
                 meditation_step=med_step,
             )
-            container.semantic_cache.put(
+            await asyncio.to_thread(
+                container.semantic_cache.put,
                 query=cache_key,
                 response=final_answer_native,
                 intent=intent,
@@ -1517,7 +1563,7 @@ async def chat_stream_endpoint(
                 # Check exact-match Redis cache first to bypass embedding calculation
                 cached_raw = container.exact_cache.get(cache_key)
                 if cached_raw is None:
-                    cached_raw = container.semantic_cache.get(cache_key)
+                    cached_raw = await asyncio.to_thread(container.semantic_cache.get, cache_key)
             else:
                 cached_raw = None
             cached = cached_raw
@@ -1759,7 +1805,10 @@ async def chat_stream_endpoint(
 
             # Create a queue for token streaming
             queue = asyncio.Queue()
-            config = {"configurable": {"stream_queue": queue}}
+            config = {
+                "configurable": {"stream_queue": queue},
+                "timeout": getattr(settings, "graph_hard_deadline_s", 20.0),
+            }
 
             from rag.timeout_utils import TimeoutBudget, budget_var
 
@@ -1903,7 +1952,8 @@ async def chat_stream_endpoint(
                 container.exact_cache.put(
                     cache_key, final_answer, intent, citations, meditation_step=med_step
                 )
-                container.semantic_cache.put(
+                await asyncio.to_thread(
+                    container.semantic_cache.put,
                     cache_key, final_answer, intent, citations, meditation_step=med_step
                 )
 
@@ -1982,6 +2032,19 @@ async def chat_stream_endpoint(
                     follow_up_suggestions=[],
                 )
                 asyncio.create_task(container.user_profile.save_conversation_memory(memory))
+
+            if settings.feature_memory_write and getattr(container, "memory_service", None):
+                full_msgs = chat_history + [
+                    {"role": "user", "content": user_msg},
+                    {"role": "assistant", "content": final_answer}
+                ]
+                asyncio.create_task(
+                    container.memory_service.extract_and_write(
+                        user_id,
+                        stable_session_id,
+                        full_msgs
+                    )
+                )
 
             # --- Telemetry Logging for Stream ---
             try:
@@ -2593,6 +2656,174 @@ async def update_profile_endpoint(
 
     await container.user_profile.update_profile(profile)
     return asdict(profile)
+
+
+# === Memory Management Endpoints (Track B) ===
+
+class GuruMemoryResponse(BaseModel):
+    id: str
+    claim: str
+    confidence: float
+    last_seen: str
+    created_at: str
+    decay_score: float
+    source: str
+
+class MemoryListResponse(BaseModel):
+    memories: list[GuruMemoryResponse]
+    total: int
+    page: int
+    page_size: int
+
+class CoreMemoryProfile(BaseModel):
+    name: Optional[str] = None
+    language: Optional[str] = None
+    practice_level: Optional[str] = None
+    dominant_themes: list[str] = []
+
+class CoreMemoryResponse(BaseModel):
+    profile: CoreMemoryProfile
+    updated_at: str
+
+class ForgetMemoryRequest(BaseModel):
+    memory_id: str
+
+class AddMemoryRequest(BaseModel):
+    text: str
+
+
+@app.get("/api/memory/list", response_model=MemoryListResponse, tags=["Memory"])
+async def list_memories_endpoint(
+    page: int = 1,
+    page_size: int = 50,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> MemoryListResponse:
+    """List episodic memories for the authenticated user, paginated."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+
+    result = await container.memory_service.list_memories(user["id"], page=page, page_size=page_size)
+    memories = []
+    for m in result["memories"]:
+        created_iso = m.get("created_at")
+        updated_iso = m.get("updated_at")
+        
+        if not isinstance(created_iso, str):
+            created_iso = created_iso.isoformat() if created_iso else ""
+        if not isinstance(updated_iso, str):
+            updated_iso = updated_iso.isoformat() if updated_iso else ""
+
+        memories.append(
+            GuruMemoryResponse(
+                id=str(m["id"]),
+                claim=m["content"],
+                confidence=1.0,
+                last_seen=updated_iso or created_iso,
+                created_at=created_iso,
+                decay_score=1.0,
+                source=m.get("source", "extracted"),
+            )
+        )
+    return MemoryListResponse(
+        memories=memories,
+        total=result["total"],
+        page=page,
+        page_size=page_size,
+    )
+
+
+@app.get("/api/memory/core", response_model=CoreMemoryResponse, tags=["Memory"])
+async def get_core_memory_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> CoreMemoryResponse:
+    """Retrieve core profile preferences aggregated with core facts."""
+    if not container.user_profile:
+        raise HTTPException(status_code=501, detail="User profile service not enabled")
+
+    profile = await container.user_profile.get_or_create_profile(user["id"])
+    
+    practice_level_map = {
+        SpiritualLevel.BEGINNER: "beginner",
+        SpiritualLevel.EXPLORER: "intermediate",
+        SpiritualLevel.PRACTITIONER: "committed",
+        SpiritualLevel.SEEKER: "advanced",
+    }
+    practice_level = practice_level_map.get(profile.spiritual_level, "beginner")
+    language = profile.preferred_language.value if profile.preferred_language else "en"
+
+    core_profile = CoreMemoryProfile(
+        name=user.get("user_metadata", {}).get("full_name") or user.get("email", "Seeker"),
+        language=language,
+        practice_level=practice_level,
+        dominant_themes=profile.topics_of_interest or [],
+    )
+    
+    import datetime
+    try:
+        updated_at_dt = datetime.datetime.fromtimestamp(profile.updated_at, datetime.timezone.utc)
+        updated_at_iso = updated_at_dt.isoformat()
+    except Exception:
+        updated_at_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    return CoreMemoryResponse(
+        profile=core_profile,
+        updated_at=updated_at_iso,
+    )
+
+
+@app.post("/api/memory/add", response_model=GuruMemoryResponse, tags=["Memory"])
+async def add_memory_endpoint(
+    body: AddMemoryRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> GuruMemoryResponse:
+    """Manually add an explicit memory."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+
+    content = body.text.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Memory text cannot be empty")
+
+    m = await container.memory_service.add_explicit(user["id"], content, is_core=False)
+    if not m:
+        raise HTTPException(status_code=500, detail="Failed to save memory")
+
+    created_iso = m.get("created_at")
+    updated_iso = m.get("updated_at")
+    if not isinstance(created_iso, str):
+        created_iso = created_iso.isoformat() if created_iso else ""
+    if not isinstance(updated_iso, str):
+        updated_iso = updated_iso.isoformat() if updated_iso else ""
+
+    return GuruMemoryResponse(
+        id=str(m["id"]),
+        claim=m["content"],
+        confidence=1.0,
+        last_seen=updated_iso or created_iso,
+        created_at=created_iso,
+        decay_score=1.0,
+        source=m.get("source", "explicit"),
+    )
+
+
+@app.post("/api/memory/forget", tags=["Memory"])
+async def forget_memory_endpoint(
+    body: ForgetMemoryRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Forget/delete a specific memory by its ID."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+
+    success = await container.memory_service.forget(user["id"], body.memory_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+
+    return {"status": "ok", "message": "Memory forgotten"}
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["Health"])
