@@ -116,12 +116,9 @@ class ChatStreamRequestOrchestrator:
                 stream_start_time = time.time()
 
                 # === Cache check ===
-                if not is_benchmark:
-                    cached = self.container.exact_cache.get(cache_key)
-                    if cached is None:
-                        cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
-                else:
-                    cached = None
+                cached = self.container.exact_cache.get(cache_key)
+                if cached is None:
+                    cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
 
                 if cached is not None:
                     REQUEST_COUNT.labels(status="cache_hit").inc()
@@ -429,7 +426,7 @@ class ChatStreamRequestOrchestrator:
                             yield f"event: token\ndata: {escaped}\n\n"
                             await asyncio.sleep(0.01)
 
-                if not is_benchmark and intent in ["QUERY", "CASUAL", "FACTUAL"]:
+                if intent in ["QUERY", "CASUAL", "FACTUAL"]:
                     self.container.exact_cache.put(
                         query=cache_key,
                         response=final_answer,
