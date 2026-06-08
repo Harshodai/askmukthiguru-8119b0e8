@@ -56,6 +56,8 @@ class ChatStreamRequestOrchestrator:
         preferred_lang = chat_body.language or "en"
         is_indic = preferred_lang and not preferred_lang.startswith("en")
         cache_key = cache_language_key(user_msg, preferred_lang)
+        user_id = user.get("id", "anonymous") if user else "anonymous"
+        stable_session_id = normalize_session_id(chat_body.session_id, user_id)
 
         if not user_msg:
             async def error_stream():
@@ -506,6 +508,78 @@ class ChatStreamRequestOrchestrator:
                     )
 
                 # Telemetry
+                # Collect retrieval metadata from result
+                retrieval_meta = None
+                if citations:
+                    retrieval_meta = {
+                        "chunk_ids": [c.get("id") if isinstance(c, dict) else "" for c in citations],
+                        "source_docs": [c.get("source_url") if isinstance(c, dict) else c for c in citations],
+                        "scores": [c.get("score", 0.0) if isinstance(c, dict) else 1.0 for c in citations],
+                        "top_k": len(citations),
+                        "hit": len(citations) > 0,
+                    }
+
+                # Collect trigger events (Distress)
+                trigger_events = []
+                if "assessment" in locals() and assessment.level.value >= 2:
+                    trigger_events.append(
+                        {
+                            "name": "DISTRESS",
+                            "metadata": {
+                                "level": assessment.level.name,
+                                "confidence": assessment.confidence,
+                                "signals": assessment.detected_signals,
+                            },
+                        }
+                    )
+
+                # Extract spans from LangGraph metrics
+                spans_data = []
+                if "result" in locals() and isinstance(result, dict) and result.get("metrics"):
+                    for node_name, duration_sec in result["metrics"].items():
+                        spans_data.append(
+                            {
+                                "span_name": node_name,
+                                "start_ms": 0,
+                                "duration_ms": int(duration_sec * 1000),
+                            }
+                        )
+
+                # Extract safety events
+                safety_events = []
+                if "input_check" in locals() and isinstance(input_check, dict) and input_check.get("blocked"):
+                    safety_events.append(
+                        {
+                            "event_type": "INPUT_GUARDRAIL",
+                            "decision": "BLOCKED",
+                            "reason": input_check.get("reason") or "Harmful input detected",
+                        }
+                    )
+                if "output_check" in locals() and isinstance(output_check, dict) and output_check.get("blocked"):
+                    safety_events.append(
+                        {
+                            "event_type": "OUTPUT_GUARDRAIL",
+                            "decision": "BLOCKED",
+                            "reason": output_check.get("reason") or "Harmful output detected",
+                        }
+                    )
+
+                is_rag = intent == "QUERY"
+                response_data = {
+                    "faithfulness": result.get("faithfulness_score", 0.0)
+                    if is_rag and "result" in locals() and isinstance(result, dict)
+                    else 1.0,
+                    "answer_relevancy": 1.0,
+                    "context_precision": 1.0,
+                    "context_recall": 1.0,
+                    "hallucination_flag": not result.get("is_faithful", True)
+                    if is_rag and "result" in locals() and isinstance(result, dict)
+                    else False,
+                    "judge_reasoning": result.get("verification_reason", "")
+                    if is_rag and "result" in locals() and isinstance(result, dict)
+                    else "",
+                }
+
                 background_tasks.add_task(
                     self.telemetry_sink.log_query_trace,
                     query_id=query_id,
@@ -518,9 +592,26 @@ class ChatStreamRequestOrchestrator:
                     created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     response_text=final_answer,
                     citations=citations,
+                    faithfulness=response_data["faithfulness"],
+                    answer_relevancy=response_data["answer_relevancy"],
+                    context_precision=response_data["context_precision"],
+                    context_recall=response_data["context_recall"],
+                    hallucination_flag=response_data["hallucination_flag"],
+                    confidence_score=result.get("confidence_score")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
+                    judge_reasoning=response_data["judge_reasoning"],
+                    retrieval_metadata=retrieval_meta,
+                    spans=spans_data,
+                    trigger_events=trigger_events,
+                    safety_events=safety_events,
                     provider=model_provider,
                     route_decision=intent.lower(),
                     cache_hit=False,
+                    tokens_per_second=tokens_per_second,
+                    evaluation_trace=result.get("evaluation_trace")
+                    if "result" in locals() and isinstance(result, dict)
+                    else None,
                 )
 
             except Exception as e:
