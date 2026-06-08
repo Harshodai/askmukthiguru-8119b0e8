@@ -45,6 +45,7 @@ class EmbeddingService:
         self._reranker = None
         self._colbert = None
         self._lock = threading.Lock()
+        self._inference_lock = threading.RLock()
         # REQUIRED for multilingual-e5-large-instruct
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
         # Embedding cache to avoid redundant encodes
@@ -166,47 +167,48 @@ class EmbeddingService:
         if not texts:
             return []
 
-        self._ensure_models()
-        is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+        with self._inference_lock:
+            self._ensure_models()
+            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
 
-        max_retries = 3
-        last_err = None
-        for attempt in range(1, max_retries + 1):
-            try:
-                import torch
-                with torch.inference_mode():
-                    if is_bge_m3:
-                        output = self._encoder.encode(
-                            texts,
-                            return_dense=True,
-                            return_sparse=False,
-                            return_colbert_vecs=False,
-                        )
-                        return output["dense_vecs"].tolist()
-                    else:
-                        output = self._encoder.encode(
-                            texts,
-                            normalize_embeddings=True,
-                        )
-                        if isinstance(output, list):
-                            return output
-                        return output.tolist()
-            except Exception as e:
-                last_err = e
-                logger.warning(
-                    f"Dense embedding failed on attempt {attempt}/{max_retries}: {e}. "
-                    f"Performing garbage collection and retrying in 2 seconds..."
-                )
-                import gc
-                import time
+            max_retries = 3
+            last_err = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    import torch
+                    with torch.inference_mode():
+                        if is_bge_m3:
+                            output = self._encoder.encode(
+                                texts,
+                                return_dense=True,
+                                return_sparse=False,
+                                return_colbert_vecs=False,
+                            )
+                            return output["dense_vecs"].tolist()
+                        else:
+                            output = self._encoder.encode(
+                                texts,
+                                normalize_embeddings=True,
+                            )
+                            if isinstance(output, list):
+                                return output
+                            return output.tolist()
+                except Exception as e:
+                    last_err = e
+                    logger.warning(
+                        f"Dense embedding failed on attempt {attempt}/{max_retries}: {e}. "
+                        f"Performing garbage collection and retrying in 2 seconds..."
+                    )
+                    import gc
+                    import time
 
-                gc.collect()
-                time.sleep(2)
+                    gc.collect()
+                    time.sleep(2)
 
-        logger.error(
-            f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
-        )
-        raise last_err
+            logger.error(
+                f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
+            )
+            raise last_err
 
     def encode_single(self, text: str) -> list[float]:
         """Encode a single text into a dense vector."""
@@ -253,90 +255,91 @@ class EmbeddingService:
                 "sparse": sparse_results,
             }
 
-        self._ensure_models()
-        is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+        with self._inference_lock:
+            self._ensure_models()
+            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
 
-        max_retries = 3
-        last_err = None
-        for attempt in range(1, max_retries + 1):
-            try:
-                import torch
-                with torch.inference_mode():
-                    if is_bge_m3:
-                        output = self._encoder.encode(
-                            uncached_prefixed_texts,
-                            return_dense=True,
-                            return_sparse=True,
-                            return_colbert_vecs=False,
-                        )
-                        dense_vecs = output["dense_vecs"].tolist()
-                        sparse_weights = output["lexical_weights"]
-                    else:
-                        # E5 models: explicitly disable sparse/ColBERT to avoid
-                        # random-weight projection head initialization warning
-                        try:
+            max_retries = 3
+            last_err = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    import torch
+                    with torch.inference_mode():
+                        if is_bge_m3:
                             output = self._encoder.encode(
                                 uncached_prefixed_texts,
                                 return_dense=True,
-                                return_sparse=False,
+                                return_sparse=True,
                                 return_colbert_vecs=False,
                             )
                             dense_vecs = output["dense_vecs"].tolist()
-                        except Exception:
-                            # Fallback for models that don't support BGE-M3-specific flags
-                            output = self._encoder.encode(
-                                uncached_prefixed_texts,
-                                normalize_embeddings=True,
-                            )
-                            if isinstance(output, list):
-                                dense_vecs = output
-                            else:
-                                dense_vecs = output.tolist()
-                        sparse_weights = [{} for _ in uncached_prefixed_texts]
+                            sparse_weights = output["lexical_weights"]
+                        else:
+                            # E5 models: explicitly disable sparse/ColBERT to avoid
+                            # random-weight projection head initialization warning
+                            try:
+                                output = self._encoder.encode(
+                                    uncached_prefixed_texts,
+                                    return_dense=True,
+                                    return_sparse=False,
+                                    return_colbert_vecs=False,
+                                )
+                                dense_vecs = output["dense_vecs"].tolist()
+                            except Exception:
+                                # Fallback for models that don't support BGE-M3-specific flags
+                                output = self._encoder.encode(
+                                    uncached_prefixed_texts,
+                                    normalize_embeddings=True,
+                                )
+                                if isinstance(output, list):
+                                    dense_vecs = output
+                                else:
+                                    dense_vecs = output.tolist()
+                            sparse_weights = [{} for _ in uncached_prefixed_texts]
 
-                # Build results in original order
-                dense_results = [None] * len(texts)
-                sparse_results = [None] * len(texts)
+                    # Build results in original order
+                    dense_results = [None] * len(texts)
+                    sparse_results = [None] * len(texts)
  
-                # Fill cached results
-                for idx, emb in cached_embeddings:
-                    dense_results[idx] = emb["dense"]
-                    sparse_results[idx] = emb["sparse"]
+                    # Fill cached results
+                    for idx, emb in cached_embeddings:
+                        dense_results[idx] = emb["dense"]
+                        sparse_results[idx] = emb["sparse"]
  
-                # Fill newly computed results
-                for i, idx in enumerate(uncached_indices):
-                    dense_results[idx] = dense_vecs[i]
-                    sparse_results[idx] = sparse_weights[i]
+                    # Fill newly computed results
+                    for i, idx in enumerate(uncached_indices):
+                        dense_results[idx] = dense_vecs[i]
+                        sparse_results[idx] = sparse_weights[i]
 
-                # Cache the newly computed embeddings (using prefixed text as key)
-                for i, _idx in enumerate(uncached_indices):
-                    prefixed_text = uncached_prefixed_texts[i]
-                    embedding_result = {
-                        "dense": dense_vecs[i],
-                        "sparse": sparse_weights[i],
+                    # Cache the newly computed embeddings (using prefixed text as key)
+                    for i, _idx in enumerate(uncached_indices):
+                        prefixed_text = uncached_prefixed_texts[i]
+                        embedding_result = {
+                            "dense": dense_vecs[i],
+                            "sparse": sparse_weights[i],
+                        }
+                        self._embed_cache.put(prefixed_text, embedding_result)
+
+                    return {
+                        "dense": dense_results,
+                        "sparse": sparse_results,
                     }
-                    self._embed_cache.put(prefixed_text, embedding_result)
+                except Exception as e:
+                    last_err = e
+                    logger.warning(
+                        f"Embedding failed on attempt {attempt}/{max_retries}: {e}. "
+                        f"Performing garbage collection and retrying in 2 seconds..."
+                    )
+                    import gc
+                    import time
 
-                return {
-                    "dense": dense_results,
-                    "sparse": sparse_results,
-                }
-            except Exception as e:
-                last_err = e
-                logger.warning(
-                    f"Embedding failed on attempt {attempt}/{max_retries}: {e}. "
-                    f"Performing garbage collection and retrying in 2 seconds..."
-                )
-                import gc
-                import time
+                    gc.collect()
+                    time.sleep(2)
 
-                gc.collect()
-                time.sleep(2)
-
-        logger.error(
-            f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
-        )
-        raise last_err
+            logger.error(
+                f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
+            )
+            raise last_err
 
     def encode_single_full(self, text: str) -> dict:
         """
@@ -379,64 +382,65 @@ class EmbeddingService:
         if not documents:
             return []
 
-        self._ensure_models()
-        import gc
-        import torch
-        gc.collect()
-        pairs = [(query, doc["text"]) for doc in documents]
-        with torch.inference_mode():
-            raw_scores = self._reranker.predict(pairs)
+        with self._inference_lock:
+            self._ensure_models()
+            import gc
+            import torch
+            gc.collect()
+            pairs = [(query, doc["text"]) for doc in documents]
+            with torch.inference_mode():
+                raw_scores = self._reranker.predict(pairs)
 
-        # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
-        # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
-        import numpy as np
+            # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
+            # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
+            import numpy as np
 
-        def _sigmoid(x):
-            return 1.0 / (1.0 + np.exp(-x))
+            def _sigmoid(x):
+                return 1.0 / (1.0 + np.exp(-x))
 
-        for doc, raw_score in zip(documents, raw_scores):
-            doc["rerank_score"] = float(_sigmoid(raw_score))
-            doc["rerank_raw_logit"] = float(raw_score)
+            for doc, raw_score in zip(documents, raw_scores):
+                doc["rerank_score"] = float(_sigmoid(raw_score))
+                doc["rerank_raw_logit"] = float(raw_score)
 
-        # Score distribution logging for debugging
-        if raw_scores is not None and len(raw_scores) > 0:
-            score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
-            raw_arr = np.array([float(s) for s in raw_scores])
+            # Score distribution logging for debugging
+            if raw_scores is not None and len(raw_scores) > 0:
+                score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
+                raw_arr = np.array([float(s) for s in raw_scores])
+                logger.info(
+                    f"Reranker scores (sigmoid): min={score_arr.min():.4f}, "
+                    f"max={score_arr.max():.4f}, mean={score_arr.mean():.4f}, "
+                    f"median={float(np.median(score_arr)):.4f} | "
+                    f"raw logits: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
+                )
+
+            ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
+
+            # Apply minimum score threshold
+            effective_min_score = min_score if min_score is not None else settings.rerank_min_score
+            above_threshold = [d for d in ranked if d["rerank_score"] >= effective_min_score]
+
+            if not above_threshold and ranked:
+                # If ALL docs are below threshold, keep the top 1 as minimum
+                above_threshold = ranked[:1]
+                logger.warning(
+                    f"All {len(ranked)} docs scored below threshold {effective_min_score}. "
+                    f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
+                )
+
+            filtered_count = len(ranked) - len(above_threshold)
+            if filtered_count > 0:
+                logger.info(
+                    f"Reranker threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
+                )
+
+            top_docs = above_threshold[:top_k]
+
             logger.info(
-                f"Reranker scores (sigmoid): min={score_arr.min():.4f}, "
-                f"max={score_arr.max():.4f}, mean={score_arr.mean():.4f}, "
-                f"median={float(np.median(score_arr)):.4f} | "
-                f"raw logits: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
+                f"Reranked {len(documents)} → {len(top_docs)} docs"
+                + (f". Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "")
             )
 
-        ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)
-
-        # Apply minimum score threshold
-        effective_min_score = min_score if min_score is not None else settings.rerank_min_score
-        above_threshold = [d for d in ranked if d["rerank_score"] >= effective_min_score]
-
-        if not above_threshold and ranked:
-            # If ALL docs are below threshold, keep the top 1 as minimum
-            above_threshold = ranked[:1]
-            logger.warning(
-                f"All {len(ranked)} docs scored below threshold {effective_min_score}. "
-                f"Keeping top-1 (score={ranked[0]['rerank_score']:.4f})"
-            )
-
-        filtered_count = len(ranked) - len(above_threshold)
-        if filtered_count > 0:
-            logger.info(
-                f"Reranker threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
-            )
-
-        top_docs = above_threshold[:top_k]
-
-        logger.info(
-            f"Reranked {len(documents)} → {len(top_docs)} docs"
-            + (f". Top score: {top_docs[0]['rerank_score']:.4f}" if top_docs else "")
-        )
-
-        return top_docs
+            return top_docs
 
     def cascaded_rerank(
         self,
@@ -454,35 +458,36 @@ class EmbeddingService:
         if not documents:
             return []
 
-        self._ensure_models()
+        with self._inference_lock:
+            self._ensure_models()
 
-        # Step 1: ColBERT Reranking
-        colbert_docs = documents
-        if self._colbert and len(documents) > colbert_top_k:
-            texts = [doc["text"] for doc in documents]
-            # RAGatouille rerank returns list of dicts: [{'content': text, 'score': score, 'rank': int}, ...]
-            try:
-                colbert_results = self._colbert.rerank(
-                    query=query, documents=texts, k=colbert_top_k
-                )
+            # Step 1: ColBERT Reranking
+            colbert_docs = documents
+            if self._colbert and len(documents) > colbert_top_k:
+                texts = [doc["text"] for doc in documents]
+                # RAGatouille rerank returns list of dicts: [{'content': text, 'score': score, 'rank': int}, ...]
+                try:
+                    colbert_results = self._colbert.rerank(
+                        query=query, documents=texts, k=colbert_top_k
+                    )
 
-                # Map back to original document dicts
-                mapped_docs = []
-                for res in colbert_results:
-                    # Find matching doc by content
-                    for doc in documents:
-                        if doc["text"] == res["content"]:
-                            doc_copy = doc.copy()
-                            doc_copy["colbert_score"] = res["score"]
-                            mapped_docs.append(doc_copy)
-                            break
-                colbert_docs = mapped_docs
-                logger.info(f"ColBERT narrowed {len(documents)} -> {len(colbert_docs)} docs")
-            except Exception as e:
-                logger.error(
-                    f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder."
-                )
-                colbert_docs = documents[: colbert_top_k * 2]  # Fallback rough slice
+                    # Map back to original document dicts
+                    mapped_docs = []
+                    for res in colbert_results:
+                        # Find matching doc by content
+                        for doc in documents:
+                            if doc["text"] == res["content"]:
+                                doc_copy = doc.copy()
+                                doc_copy["colbert_score"] = res["score"]
+                                mapped_docs.append(doc_copy)
+                                break
+                    colbert_docs = mapped_docs
+                    logger.info(f"ColBERT narrowed {len(documents)} -> {len(colbert_docs)} docs")
+                except Exception as e:
+                    logger.error(
+                        f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder."
+                    )
+                    colbert_docs = documents[: colbert_top_k * 2]  # Fallback rough slice
 
-        # Step 2: CrossEncoder Polish
-        return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
+            # Step 2: CrossEncoder Polish
+            return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)

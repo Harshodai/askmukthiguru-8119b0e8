@@ -127,18 +127,18 @@ async def intent_router(state: GraphState) -> dict:
     try:
         t_out = get_node_timeout("intent_router", 12)
         result = await ollama.classify_intent_and_complexity(
-            question, timeout=t_out, max_retries=1
+            text=question, timeout=t_out, max_retries=1
         )
         intent = result["intent"]
         complexity = result["complexity"]
     except Exception as e:
         logger.warning(
             f"Combined intent+complexity classification failed: {e}. "
-            f"Falling back to separate classify_intent call."
+            f"Falling back to separate classify call."
         )
         try:
             t_out = get_node_timeout("intent_router", 12)
-            intent = await ollama.classify_intent(question, timeout=t_out, max_retries=1)
+            intent = await ollama.classify(text=question, timeout=t_out, max_retries=1)
         except Exception as e2:
             logger.warning(f"Intent classification also failed: {e2}. Defaulting to FACTUAL.")
             intent = "FACTUAL"

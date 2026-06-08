@@ -20,7 +20,7 @@ async def rewrite_query(state: GraphState) -> dict:
     ollama = _services._ollama
 
     t_out = get_node_timeout("default_fast", 30.0)
-    rewritten = await ollama.rewrite_query(original, reasons=state.get("grading_reasons", []), timeout=t_out)
+    rewritten = await ollama.rewrite_query(original=original, reasons=state.get("grading_reasons", []), timeout=t_out)
     logger.info(f"CRAG rewrite #{rewrite_count}: {original[:50]}... -> {rewritten[:50]}...")
 
     return {

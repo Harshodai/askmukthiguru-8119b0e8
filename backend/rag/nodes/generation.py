@@ -139,7 +139,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if use_compression and total_raw_len > threshold:
             async def compress_and_format(doc):
                 t_out = get_node_timeout("default_fast", 15.0)
-                compressed_text = await ollama.compress_context(question, doc["text"], timeout=t_out)
+                compressed_text = await ollama.compress_context(question=question, text=doc["text"], timeout=t_out)
                 if compressed_text:
                     title = doc.get("title", doc.get("source_url", "Unknown"))
                     return f"[Source: {title}]\n{compressed_text}"

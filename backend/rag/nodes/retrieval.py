@@ -40,7 +40,7 @@ async def decompose_query(state: GraphState) -> dict:
         return {"sub_queries": [question], "is_complex": False}
 
     t_out = get_node_timeout("decompose_query", 15)
-    sub_queries = await ollama.decompose_query(question, timeout=t_out)
+    sub_queries = await ollama.decompose_query(question=question, timeout=t_out)
     is_complex = len(sub_queries) > 1
     expanded = [expand_query_with_synonyms(q) for q in sub_queries]
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
@@ -60,7 +60,7 @@ async def generate_hyde(state: GraphState) -> dict:
 
     question = state.get("rewritten_query") or state["question"]
     t_out = get_node_timeout("generate_hyde", 30.0)
-    hyde_text = await ollama.generate_hypothetical_answer(question, timeout=t_out)
+    hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
     logger.info(f"HyDE generated hypothetical answer ({len(hyde_text)} chars)")
     return {"hyde_text": hyde_text}
 
