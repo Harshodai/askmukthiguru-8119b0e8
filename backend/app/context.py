@@ -8,6 +8,7 @@ that is accessible from anywhere in the async call chain.
 from contextvars import ContextVar
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="-")
 
 
 def get_request_id() -> str:
@@ -18,3 +19,4 @@ def get_request_id() -> str:
 def set_request_id(request_id: str) -> None:
     """Set the current request ID in the async context."""
     request_id_var.set(request_id)
+

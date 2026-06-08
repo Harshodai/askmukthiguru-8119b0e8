@@ -128,14 +128,19 @@ services:
       - SARVAM_CLOUD_MODEL=${SARVAM_CLOUD_MODEL:-sarvam-30b}
       - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
       - SARVAM_BASE_URL=${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-300}
-      - PIPELINE_TIMEOUT=${PIPELINE_TIMEOUT:-360}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+      - PIPELINE_TIMEOUT=${PIPELINE_TIMEOUT:-180}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-2}
       - SARVAM_REASONING_EFFORT=${SARVAM_REASONING_EFFORT:-medium}
       - SARVAM_REASONING_EFFORT_FAST=${SARVAM_REASONING_EFFORT_FAST:-low}
       - SARVAM_REASONING_EFFORT_COMPLEX=${SARVAM_REASONING_EFFORT_COMPLEX:-high}
       - SARVAM_RPM_LIMIT=${SARVAM_RPM_LIMIT:-60}
       - SERENE_MIND_ENABLED=${SERENE_MIND_ENABLED:-true}
+      # --- OpenRouter (free tier for simple queries) ---
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - USE_OPENROUTER_FOR_SIMPLE=${USE_OPENROUTER_FOR_SIMPLE:-true}
+      - OPENROUTER_FAST_MODEL=${OPENROUTER_FAST_MODEL:-meta-llama/Meta-Llama-3.1-8B-Instruct}
+      - OPENROUTER_RPM_LIMIT=${OPENROUTER_RPM_LIMIT:-20}
       # --- Guardrails ---
       - GUARDRAILS_PROVIDER=${GUARDRAILS_PROVIDER:-nemo}
       # --- Retrieval Quality ---
@@ -213,7 +218,7 @@ services:
       interval: 60s
       timeout: 30s
       retries: 5
-      start_period: 150s
+      start_period: 180s
     deploy:
       resources:
         limits:

@@ -7,24 +7,24 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 NODE_TIMEOUTS = {
-    "intent_router": 3.0,
-    "resolve_followup": 3.0,
-    "decompose_query": 4.0,
-    "retrieve_documents": 4.0,
-    "rerank_documents": 3.0,
-    "grade_documents": 4.0,
-    "generate_answer": 8.0,
-    "verify_answer": 4.0,
-    "reflect_on_answer": 3.0,
-    "navigate_knowledge_tree": 3.0,
-    "generate_hyde": 4.0,
-    "check_context_sufficiency": 3.0,
-    "check_contradiction": 3.0,
-    "explain_retrieval": 3.0,
-    "default_fast": 3.0,
-    "default_main": 8.0,
-    "default_embedding": 3.0,
-    "default_qdrant": 3.0,
+    "intent_router": 15.0,
+    "resolve_followup": 10.0,
+    "decompose_query": 15.0,
+    "retrieve_documents": 10.0,
+    "rerank_documents": 10.0,
+    "grade_documents": 20.0,
+    "generate_answer": 60.0,   # Main generation — most critical, needs time
+    "verify_answer": 30.0,
+    "reflect_on_answer": 45.0,
+    "navigate_knowledge_tree": 15.0,
+    "generate_hyde": 15.0,
+    "check_context_sufficiency": 15.0,
+    "check_contradiction": 15.0,
+    "explain_retrieval": 20.0,
+    "default_fast": 10.0,
+    "default_main": 45.0,
+    "default_embedding": 10.0,
+    "default_qdrant": 10.0,
 }
 
 class TimeoutBudget:

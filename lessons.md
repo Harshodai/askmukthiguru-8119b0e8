@@ -1561,3 +1561,29 @@ When collaborating on a project or working on new features, AI agents, the Claud
 ### Key Benefits
 - **Realistic Limited Runs**: Running `--limit 10` now provides a quick, holistic overview of all pipeline layers and safety checks rather than hitting a single category.
 - **Improved Test Reliability**: Unit tests can safely compare decorated and registered function references directly.
+
+---
+
+## Request Orchestrator Extraction & Stream Response Isolation (June 2026)
+
+### Problem
+Monolithic controller endpoints in `main.py` handle multiple concerns including route definition, request input formatting, translation setup, guardrail enforcement, cache checking, Serene Mind assessment, LangGraph execution, output verification, final translations, database/telemetry logging, and response assembly. As a result, `main.py` grew to over 2,200 lines, violating the Single Responsibility Principle (SRP) and making changes prone to side-effects and bugs.
+
+### Solution
+1. **Decoupled Orchestrators**:
+   - Extracted core request processing from standard routing into `ChatRequestOrchestrator` in [app/orchestrator.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/orchestrator.py).
+   - Extracted streaming generator logic into `ChatStreamRequestOrchestrator` in [app/stream_orchestrator.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/stream_orchestrator.py) to manage Server-Sent Events (SSE) yielding.
+2. **Shared Utilities & Context Loading**:
+   - Created [app/orchestrator_utils.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/orchestrator_utils.py) to extract and share query state preparation, translation, and user profile/memory loading logic.
+   - This keeps all files under the **800-line limit** and avoids duplication between sync and stream endpoints.
+3. **Endpoint Cleanliness**:
+   - Both `/api/chat` and `/api/chat/stream` endpoints in `main.py` now act strictly as routing wrappers, delegating 100% of execution to their respective orchestrators.
+4. **Mocking Integrity in Test Execution**:
+   - Fixed circuit breaker evaluation errors on local runs during test execution by mocking the nested `_service._circuit` attribute on the `mock_container.ollama` `AsyncMock`.
+   - Patched `app.orchestrator.coalescer` in tests to ensure coalescing is mocked correctly across both sync and stream orchestrators.
+
+### Key Benefits
+- **Clean Separation of Concerns**: Endpoint definitions are completely decoupled from request processing pipelines.
+- **Improved Testability**: Orchestration logic can be unit tested in isolation by directly supplying a mock container.
+- **Maintainability**: Reduced `main.py` by over 700 lines, making it easier to read and maintain.
+

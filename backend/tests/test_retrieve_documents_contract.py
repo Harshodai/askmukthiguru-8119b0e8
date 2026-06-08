@@ -33,7 +33,7 @@ async def test_retrieve_documents_contract(monkeypatch):
     # Inject mock services into nodes module
     import rag.nodes as nodes
     mock_ollama = AsyncMock()
-    mock_ollama._generate_fast.return_value = "What is Ekam?"
+    mock_ollama._generate_fast = AsyncMock(return_value="What is Ekam?")
     monkeypatch.setattr(nodes, "_ollama", mock_ollama)
     monkeypatch.setattr(nodes, "_embedder", mock_embedder)
     monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
