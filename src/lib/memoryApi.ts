@@ -44,6 +44,27 @@ export interface MemoryListResponse {
   page_size: number;
 }
 
+export interface SessionSummary {
+  id: string;
+  session_id: string;
+  summary: string;
+  created_at: string;
+}
+
+export interface RelevantMemory {
+  id: string;
+  content: string;
+  similarity: number;
+  created_at: string;
+}
+
+export interface ConversationContinuity {
+  session_id: string;
+  started_at: string;
+  key_insights?: string[];
+  follow_up_suggestions?: string[];
+}
+
 export type MemoryApiErrorCode =
   | 'unauthorized'
   | 'not_configured'
