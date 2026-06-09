@@ -135,6 +135,28 @@ CONTRADICTION_DETECTIONS = Counter(
 
 
 # ===================================================================
+# Circuit Breaker Metrics
+# ===================================================================
+
+CIRCUIT_BREAKER_STATE_CHANGES = Counter(
+    "guru_circuit_breaker_state_changes_total",
+    "Circuit breaker state transitions",
+    ["provider", "from_state", "to_state", "reason"],
+)
+
+CIRCUIT_BREAKER_STATE = Gauge(
+    "guru_circuit_breaker_state",
+    "Current circuit breaker state (0=closed, 1=half_open, 2=open)",
+    ["provider"],
+)
+
+CIRCUIT_BREAKER_FAILURES = Gauge(
+    "guru_circuit_breaker_failures",
+    "Current consecutive failures count",
+    ["provider"],
+)
+
+# ===================================================================
 # Cache Metrics
 # ===================================================================
 
