@@ -16,7 +16,6 @@ The /api/chat endpoint orchestrates the full flow:
 """
 
 import asyncio
-import contextvars
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -35,6 +34,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -42,30 +42,25 @@ from pydantic import BaseModel, Field
 # Fix import paths — run from backend/ directory
 sys.path.insert(0, ".")
 
-import hashlib
 import time
 import uuid
 
 from app.config import settings
 from app.dependencies import ServiceContainer, get_container, shutdown, startup
-from app.language_utils import detect_and_prepare_language_info
-from app.metrics import REQUEST_COUNT, REQUEST_LATENCY, metrics_endpoint
+from app.metrics import REQUEST_COUNT, metrics_endpoint
 from app.observability import init_observability
 from app.telemetry_db import init_telemetry_db
 from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
 
 telemetry_sink = SupabaseTelemetrySink()
 telemetry_worker = TelemetryWorker(telemetry_sink)
-from rag.graph import create_initial_state
-from rag.memory import build_memory_context, normalize_session_id
-from services.auth_service import get_current_user_from_supabase
-from services.llm_protocol import IGenerator, IClassifier, IAvailable, ILLMService
-from services.serene_mind_engine import DistressAssessment, DistressLevel
-from services.user_profile_service import LanguagePreference, SpiritualLevel
+from functools import wraps
 
 from app.context import correlation_id_var
+from rag.memory import build_memory_context
+from services.auth_service import get_current_user_from_supabase
+from services.user_profile_service import LanguagePreference, SpiritualLevel
 
-from functools import wraps
 
 def record_token_usage(endpoint: str):
     def decorator(func):
@@ -78,7 +73,11 @@ def record_token_usage(endpoint: str):
             user_id = user.get("id", "anonymous") if isinstance(user, dict) else "anonymous"
             session_id = chat_body.session_id or "" if chat_body else ""
             
-            from services.cost_tracker import token_accumulator_var, TokenAccumulator, get_cost_tracker
+            from services.cost_tracker import (
+                TokenAccumulator,
+                get_cost_tracker,
+                token_accumulator_var,
+            )
             accumulator = TokenAccumulator()
             token = token_accumulator_var.set(accumulator)
             try:
@@ -112,7 +111,6 @@ from app.core.limiter import limiter
 from routers.admin import admin_router
 from routers.feedback import router as feedback_router
 from services.cache_service import init_llm_cache
-from services.sarvam_service import CircuitOpenException, CircuitState
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +200,6 @@ def _register_node_observers() -> None:
     This is a no-op if NodeRegistry has not been populated yet.
     """
     try:
-        from rag.node_registry import registry
         from rag.telemetry_observer import LoggingObserver, MetricsObserver, SelfCorrectionObserver
 
         # Register observers globally (used at node-execution time)
@@ -342,6 +339,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Trusted Host — validate Host header (only in production)
+if settings.is_production:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[h.strip() for h in settings.allowed_hosts.split(",") if h.strip()] or ["localhost", "127.0.0.1"],
+    )
 
 # CORS — allow frontend origins
 app.add_middleware(
@@ -590,8 +594,7 @@ def _cache_language_key(message: str, language: str) -> str:
 # === Request/Response DTOs ===
 
 
-from app.schemas import MessagePayload, ChatRequest, ChatResponse
-
+from app.schemas import ChatRequest, ChatResponse
 
 
 class IngestRequest(BaseModel):
@@ -1382,7 +1385,6 @@ async def circuit_breaker_reset_endpoint() -> dict:
     Works with any LLM provider (Sarvam, Ollama, OpenRouter, etc.)
     based on the currently active provider in the registry.
     """
-    from fastapi import Request
     from services.circuit_breaker import CircuitState
 
     # Access the circuit breaker through the dependency container

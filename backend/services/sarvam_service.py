@@ -28,8 +28,6 @@ import os
 import re
 import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Optional
 
 import httpx
@@ -84,12 +82,10 @@ class CircuitOpenException(Exception):
 # ---------------------------------------------------------------------------
 # Import from shared circuit_breaker module (provider-agnostic)
 from services.circuit_breaker import (
-    CircuitState,
-    DefaultCircuitBreaker,
     CircuitBreakerConfig,
     CircuitOpenException,
+    DefaultCircuitBreaker,
 )
-
 
 # ---------------------------------------------------------------------------
 # Sarvam Cloud Service
@@ -1160,6 +1156,7 @@ class SarvamCloudService:
             confidence: float = Field(description="Confidence score from 0.0 to 1.0")
             reason: str = Field(description="Brief reason for the assessment")
 
+        # Try Instructor first with explicit JSON mode
         try:
             client = instructor.from_openai(
                 AsyncOpenAI(
@@ -1170,14 +1167,18 @@ class SarvamCloudService:
                 mode=instructor.Mode.JSON,
             )
 
-            prompt = f"Analyze the following message for emotional distress or a cry for help:\n\n{message}"
+            prompt = (
+                f"Analyze the following message for emotional distress or a cry for help. "
+                f"Return ONLY a valid JSON object with fields: is_distress (bool), confidence (float 0-1), reason (string).\n\n"
+                f"Message: {message}"
+            )
 
             resp: DistressOutput = await client.chat.completions.create(
                 model=self._cls_model,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a psychological safety assessor. Return a strictly formatted JSON object matching the requested schema. Do not include any reasoning inside think tags when returning JSON.",
+                        "content": "You are a psychological safety assessor. Return ONLY a valid JSON object matching the schema. No reasoning, no think tags, no extra text.",
                     },
                     {"role": "user", "content": prompt},
                 ],
@@ -1192,9 +1193,34 @@ class SarvamCloudService:
             }
         except Exception as e:
             logger.warning(
-                f"Instructor structured output on Sarvam failed: {e}. Falling back to naive classification."
+                f"Instructor structured output on Sarvam failed: {e}. Falling back to direct JSON prompt."
             )
-            # Fallback to naive parsing if Instructor fails
+            # Fallback: Direct JSON prompt without Instructor
+            return await self._classify_distress_json_fallback(message)
+
+    async def _classify_distress_json_fallback(self, message: str) -> dict:
+        """Direct JSON prompt fallback when Instructor fails."""
+        prompt = (
+            f"Analyze the following message for emotional distress or a cry for help. "
+            f"Return ONLY a valid JSON object with fields: is_distress (bool), confidence (float 0-1), reason (string).\n\n"
+            f"Message: {message}"
+        )
+        try:
+            resp = await self._generate_fast(
+                system_prompt="You are a psychological safety assessor. Return ONLY a valid JSON object with fields: is_distress (bool), confidence (float 0-1), reason (string). No reasoning, no think tags, no extra text.",
+                user_prompt=prompt,
+                timeout=10.0,
+                max_retries=1,
+            )
+            import json
+            data = json.loads(resp.strip())
+            return {
+                "is_distress": bool(data.get("is_distress", False)),
+                "confidence": float(data.get("confidence", 0.5)),
+                "reason": str(data.get("reason", "Fallback JSON parsing")),
+            }
+        except Exception as e:
+            logger.warning(f"JSON fallback also failed: {e}. Using naive classification.")
             intent = await self.classify_intent(message)
             return {
                 "is_distress": intent == "DISTRESS",

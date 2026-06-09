@@ -106,7 +106,8 @@ class TestAuthStrategy(AuthStrategy):
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
     ) -> Optional[dict]:
         test_key = request.headers.get("X-Test-Key")
-        if test_key and test_key == settings.jwt_secret:
+        benchmark_secret = getattr(settings, "benchmark_secret", None) or settings.jwt_secret
+        if test_key and test_key == benchmark_secret:
             return {
                 "id": "00000000-0000-0000-0000-000000000000",
                 "email": "benchmark-admin@mukthi.guru",
@@ -179,11 +180,22 @@ class SupabaseAuthStrategy(AuthStrategy):
                 # ---- Asymmetric path: verify via JWKS public key ----
                 client = await _get_jwks_client()
                 signing_key = await asyncio.to_thread(client.get_signing_key_from_jwt, token)
+                # Use build_safe_audience to handle both "authenticated" and
+                # the Supabase legacy audience string (supabase_url).
+                def build_safe_audience() -> list[str]:
+                    raw = settings.supabase_jwt_audience
+                    if "," in raw:
+                        return [a.strip() for a in raw.split(",") if a.strip()]
+                    return [a.strip() for a in raw.split() if a.strip()] or ["authenticated"]
+
+                audience = build_safe_audience()
+                issuer = f"{settings.supabase_url.rstrip('/')}/auth/v1"
                 payload = jwt.decode(
                     token,
                     signing_key.key,
                     algorithms=["ES256", "RS256"],
-                    options={"verify_aud": False},
+                    audience=audience,
+                    issuer=issuer,
                 )
             else:
                 # ---- Symmetric path: verify with shared HS256 secret ----
@@ -194,7 +206,8 @@ class SupabaseAuthStrategy(AuthStrategy):
                     token,
                     settings.jwt_secret,
                     algorithms=["HS256"],
-                    options={"verify_aud": False},
+                    audience=[settings.supabase_jwt_audience],
+                    issuer=f"{settings.supabase_url.rstrip('/')}/auth/v1",
                 )
 
             user_id = payload.get("sub")
@@ -292,7 +305,10 @@ class AuthBridge:
 # --- Dependency Injection Components ---
 
 security = HTTPBearer(auto_error=False)
-auth_bridge = AuthBridge([TestAuthStrategy(), LocalAuthStrategy(), SupabaseAuthStrategy()])
+_strategies = [LocalAuthStrategy(), SupabaseAuthStrategy()]
+if not settings.is_production:
+    _strategies.insert(0, TestAuthStrategy())
+auth_bridge = AuthBridge(_strategies)
 
 
 async def get_current_user_from_supabase(
