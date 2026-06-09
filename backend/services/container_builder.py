@@ -123,7 +123,7 @@ class ContainerBuilder:
     def _add_guardrails_and_caching(self) -> None:
         """Layer 3: Guardrails, cache, A/B, prompt store, cost tracker."""
         from app.config import settings
-        from guardrails.rails import GuardrailsService
+        from guardrails import GuardrailsService
         from services.cache_service import RedisCacheAdapter, SemanticCacheAdapter
         from services.compliance_logger import get_compliance_logger
         from services.prompt_store import get_prompt_store

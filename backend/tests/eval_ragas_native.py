@@ -18,7 +18,7 @@ import asyncio
 import json
 from time import time
 
-from guardrails.rails import LightweightGuardrails
+from guardrails import LightweightGuardrails
 from services.embedding_service import EmbeddingService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService

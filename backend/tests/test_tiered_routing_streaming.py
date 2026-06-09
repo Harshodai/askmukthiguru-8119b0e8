@@ -42,9 +42,8 @@ def mock_services():
 async def test_intent_router_tiered_classification(mock_services):
     mock_ollama, _ = mock_services
     
-    # Mock the merged intent & complexity classification call
-    async def mock_classify_intent_and_complexity(question, **kwargs):
-        if "karma" in question:
+    async def mock_classify_intent_and_complexity(text, **kwargs):
+        if "karma" in text:
             return {"intent": "FACTUAL", "complexity": "simple"}
         else:
             return {"intent": "FACTUAL", "complexity": "complex"}
@@ -289,8 +288,9 @@ async def test_context_compression_threshold(mock_services):
         mock_ollama.compress_context.reset_mock()
         await nodes.generate_answer(state_long)
         assert mock_ollama.compress_context.call_count == 1
-        args, kwargs = mock_ollama.compress_context.call_args
-        assert args == ("What is meditation?", state_long["relevant_docs"][0]["text"])
+        _, kwargs = mock_ollama.compress_context.call_args
+        assert kwargs.get("question") == "What is meditation?"
+        assert kwargs.get("text") == state_long["relevant_docs"][0]["text"]
     finally:
         # Reset settings defaults
         settings.rag_use_context_compression = False

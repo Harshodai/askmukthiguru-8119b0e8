@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from benchmarks.question_bank import QUERIES
-from guardrails.rails import LightweightGuardrails
+from guardrails import LightweightGuardrails
 from services.embedding_service import EmbeddingService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
