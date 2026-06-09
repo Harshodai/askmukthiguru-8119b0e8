@@ -1344,6 +1344,90 @@ async def forget_memory_endpoint(
     return {"status": "ok", "message": "Memory forgotten"}
 
 
+class RelevantMemoryRequest(BaseModel):
+    query: str
+    limit: int = 5
+
+
+@app.get("/api/memory/summaries", tags=["Memory"])
+async def list_summaries_endpoint(
+    limit: int = 10,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> list[dict]:
+    """List recent session summaries for the authenticated user."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+    rows = await container.memory_service.recent_summaries(user["id"], limit=limit)
+    out = []
+    for r in rows:
+        created = r.get("created_at")
+        if not isinstance(created, str):
+            created = created.isoformat() if created else ""
+        out.append({
+            "id": str(r.get("id", "")),
+            "session_id": str(r.get("session_id", "")),
+            "summary": r.get("summary", ""),
+            "created_at": created,
+        })
+    return out
+
+
+@app.post("/api/memory/relevant", tags=["Memory"])
+async def relevant_memories_endpoint(
+    body: RelevantMemoryRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> list[dict]:
+    """Return memories semantically relevant to a query via match_user_memories RPC."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+    rows = await container.memory_service.search_semantic(
+        user["id"], body.query, limit=body.limit, min_similarity=0.6
+    )
+    out = []
+    for r in rows:
+        created = r.get("created_at")
+        if not isinstance(created, str):
+            created = created.isoformat() if created else ""
+        out.append({
+            "id": str(r.get("id", "")),
+            "content": r.get("content", ""),
+            "similarity": float(r.get("similarity", 0.0)),
+            "created_at": created,
+        })
+    return out
+
+
+@app.get("/api/memory/conversations", tags=["Memory"])
+async def list_conversation_continuity_endpoint(
+    limit: int = 5,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> list[dict]:
+    """List recent conversation memories (for continuity display)."""
+    if not container.user_profile:
+        raise HTTPException(status_code=501, detail="User profile service not enabled")
+    rows = await container.user_profile.get_recent_memories(user["id"], limit=limit)
+    out = []
+    for m in rows:
+        started = m.started_at
+        if not isinstance(started, str):
+            import datetime as _dt
+            try:
+                started = _dt.datetime.fromtimestamp(float(started), _dt.timezone.utc).isoformat()
+            except Exception:
+                started = str(started)
+        out.append({
+            "session_id": m.session_id,
+            "started_at": started,
+            "key_insights": m.key_insights or [],
+            "follow_up_suggestions": m.follow_up_suggestions or [],
+        })
+    return out
+
+
+
 @app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 async def health_endpoint(container: ServiceContainer = Depends(get_container)) -> HealthResponse:
     """
