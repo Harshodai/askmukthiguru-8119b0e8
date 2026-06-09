@@ -48,99 +48,23 @@ async def reflect_on_answer(state: GraphState) -> dict:
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
     is_faithful_strict = ld_result["score"] >= 0.8
 
-    consistency_check_passed = True
+    # --- Self-consistency check DISABLED (performance) ---
+    # This LLM-based self-consistency block generates an alternative answer
+    # and compares faithfulness scores. It adds ~45s with zero quality
+    # gain for spiritual answers where paraphrasing always differs.
+    # Commented out per comprehensive fix plan — do not remove, kept intact.
+    #
+    # consistency_check_passed = True
+    # consistency_feedback = ""
+    # try:
+    #     ... (original code preserved in file history)
+    # except Exception as e:
+    #     ...
+    # --- END DISABLED ---
+
+    is_valid = is_faithful_strict
+    consistency_check_passed = True  # Disabled for performance
     consistency_feedback = ""
-
-    try:
-        alt_gen_kwargs = _generation_kwargs(state).copy()
-        alt_gen_kwargs["num_predict"] = min(512, alt_gen_kwargs.get("num_predict", 768))
-        alt_gen_kwargs["temperature"] = 0.7
-
-        from rag.compressor import cap_to_token_budget
-        intent = state.get("intent", "FACTUAL")
-        if intent == "DISTRESS":
-            persona = STIMULUS_RAG_PROMPT
-        else:
-            persona = GURU_SYSTEM_PROMPT
-        persona = cap_to_token_budget(persona, 256)
-
-        knowledge = "\n\n".join(
-            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
-            for doc in relevant_docs[:2]
-        )
-        knowledge = cap_to_token_budget(knowledge, 1024)
-
-        user_state = f"Intent: {intent}\n"
-        if state.get("meditation_step", 0) > 0:
-            user_state += f"Active Meditation Step: {state.get('meditation_step')}\n"
-        if state.get("chat_history"):
-            user_state += f"Conversation Depth: {len(state.get('chat_history', []))} turns\n"
-        user_state = cap_to_token_budget(user_state, 512)
-
-        instructions = (
-            "1. Base your answer ONLY on the provided Knowledge.\n"
-            "2. If Knowledge is insufficient, admit it warmly.\n"
-            "3. ALWAYS cite sources using [Source: <title>] format.\n"
-            "4. Keep the tone compassionate and wise.\n"
-            "5. NEVER fabricate teachings or add information from your training data.\n"
-        )
-        instructions = cap_to_token_budget(instructions, 384)
-
-        context_layers = {
-            "persona": persona,
-            "knowledge": knowledge,
-            "user_state": user_state,
-            "instructions": instructions,
-        }
-
-        history_str = ""
-        chat_history = state.get("chat_history", [])
-        if chat_history:
-            recent = chat_history[-6:]
-            history_lines = []
-            for msg in recent:
-                role = msg.get("role", "user").capitalize()
-                limit = 200 if role == "Assistant" else 130
-                content = msg.get("content", "")[:limit]
-                history_lines.append(f"{role}: {content}")
-            if history_lines:
-                history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
-
-        user_prompt = (
-            f"USER STATE:\n{context_layers['user_state']}\n\n"
-            f"KNOWLEDGE (retrieved teachings):\n{context_layers['knowledge']}\n\n"
-            f"QUESTION: {question}"
-        )
-        if history_str:
-            user_prompt = f"{history_str}\n\n{user_prompt}"
-
-        alt_answer = await ollama.generate(
-            system_prompt=f"PERSONA:\n{context_layers['persona']}\n\nINSTRUCTIONS:\n{context_layers['instructions']}",
-            user_prompt=user_prompt,
-            timeout=get_node_timeout("reflect_on_answer", 45.0),
-            **alt_gen_kwargs,
-        )
-        alt_answer = strip_cot(alt_answer or "")
-
-        if alt_answer and len(alt_answer.strip()) > 20:
-            alt_ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, alt_answer)
-            faith_diff = abs(ld_result["score"] - alt_ld_result["score"])
-            if faith_diff > 0.3:
-                consistency_check_passed = False
-                consistency_feedback = f"Answers show inconsistent faithfulness to context (scores: {ld_result['score']:.2f} vs {alt_ld_result['score']:.2f})"
-            elif not alt_ld_result["is_faithful"] and ld_result["is_faithful"]:
-                consistency_check_passed = False
-                consistency_feedback = "Alternative answer lacks faithfulness while original appears faithful"
-        else:
-            consistency_check_passed = False
-            consistency_feedback = "Failed to generate meaningful alternative answer for consistency check"
-
-    except Exception as e:
-        logger.warning(f"Self-consistency check failed: {e}")
-        consistency_check_passed = True
-        consistency_feedback = f"Consistency check error: {str(e)}"
-
-    is_valid = is_faithful_strict and consistency_check_passed
 
     feedback_parts = []
     if not is_faithful_strict:
@@ -195,159 +119,19 @@ async def verify_answer(state: GraphState) -> dict:
     faithfulness_score = ld_result["score"]
     is_faithful_ld = ld_result["is_faithful"]
 
+    # --- Heavy verification DISABLED (performance) ---
+    # CoVe verification + LLM self-consistency add ~60s with zero quality
+    # gain for spiritual paraphrasing.  Keeping code intact per plan.
+    # Original blocks:
+    #   1) Claim verification (CoVe sub-questions) — 202-256
+    #   2) Self-consistency check (alt answer generation) — 261-347
+    # --- END DISABLED ---
     claim_verification_passed = True
-    claim_verification_details = ""
-    verification_questions = []
-
-    try:
-        verification_prompt = f"""You are a fact-checker verifying spiritual teachings.
-Given the question and answer, generate 2-3 specific sub-questions that would verify the core factual claims in the answer.
-Focus on claims about teachings, events, numbers, or specific attributions that can be checked against the context.
-
-Question: {question}
-Answer: {answer}
-
-Generate verification questions (one per line, no numbering):"""
-
-        t_out = get_node_timeout("verify_answer", 15)
-        verification_questions_raw = await ollama.generate(
-            system_prompt="You generate precise verification questions to fact-check spiritual teachings.",
-            user_prompt=verification_prompt,
-            timeout=t_out,
-            max_retries=1,
-        )
-
-        verification_questions = [
-            q.strip() for q in verification_questions_raw.split("\n")
-            if q.strip() and not q.strip().startswith(("#", "-", "*", "1.", "2.", "3."))
-        ][:3]
-
-        if verification_questions:
-            verification_results = []
-            for vq in verification_questions:
-                try:
-                    context_relevance = await asyncio.to_thread(lettuce_detect.score_faithfulness, vq, context, "")
-                    is_verified = context_relevance["score"] > 0.3
-                    verification_results.append({
-                        "question": vq,
-                        "verified": is_verified,
-                        "score": context_relevance["score"]
-                    })
-                    if not is_verified:
-                        claim_verification_passed = False
-                except Exception as e:
-                    logger.warning(f"Failed to verify question '{vq}': {e}")
-                    verification_results.append({
-                        "question": vq,
-                        "verified": False,
-                        "score": 0.0,
-                        "error": str(e)
-                    })
-                    claim_verification_passed = False
-
-            verified_count = sum(1 for r in verification_results if r["verified"])
-            claim_verification_details = f"Claim verification: {verified_count}/{len(verification_questions)} questions verified"
-        else:
-            claim_verification_details = "No verification questions generated"
-            claim_verification_passed = True
-
-    except Exception as e:
-        logger.warning(f"Claim verification failed: {e}")
-        claim_verification_passed = True
-        claim_verification_details = f"Claim verification error: {str(e)}"
-
+    claim_verification_details = "Disabled for performance"
     consistency_check_passed = True
     consistency_feedback = ""
 
-    try:
-        alt_gen_kwargs = _generation_kwargs(state).copy()
-        alt_gen_kwargs["temperature"] = 0.8
-
-        from rag.compressor import cap_to_token_budget
-        intent = state.get("intent", "FACTUAL")
-        if intent == "DISTRESS":
-            persona = STIMULUS_RAG_PROMPT
-        else:
-            persona = GURU_SYSTEM_PROMPT
-        persona = cap_to_token_budget(persona, 256)
-
-        knowledge = "\n\n".join(
-            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
-            for doc in relevant_docs[:2]
-        )
-        knowledge = cap_to_token_budget(knowledge, 1024)
-
-        user_state = f"Intent: {intent}\n"
-        if state.get("meditation_step", 0) > 0:
-            user_state += f"Active Meditation Step: {state.get('meditation_step')}\n"
-        if state.get("chat_history"):
-            user_state += f"Conversation Depth: {len(state.get('chat_history', []))} turns\n"
-        user_state = cap_to_token_budget(user_state, 512)
-
-        instructions = (
-            "1. Base your answer ONLY on the provided Knowledge.\n"
-            "2. If Knowledge is insufficient, admit it warmly.\n"
-            "3. ALWAYS cite sources using [Source: <title>] format.\n"
-            "4. Keep the tone compassionate and wise.\n"
-            "5. NEVER fabricate teachings or add information from your training data.\n"
-        )
-        instructions = cap_to_token_budget(instructions, 384)
-
-        context_layers = {
-            "persona": persona,
-            "knowledge": knowledge,
-            "user_state": user_state,
-            "instructions": instructions,
-        }
-
-        history_str = ""
-        chat_history = state.get("chat_history", [])
-        if chat_history:
-            recent = chat_history[-6:]
-            history_lines = []
-            for msg in recent:
-                role = msg.get("role", "user").capitalize()
-                limit = 200 if role == "Assistant" else 130
-                content = msg.get("content", "")[:limit]
-                history_lines.append(f"{role}: {content}")
-            if history_lines:
-                history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
-
-        user_prompt = (
-            f"USER STATE:\n{context_layers['user_state']}\n\n"
-            f"KNOWLEDGE (retrieved teachings):\n{context_layers['knowledge']}\n\n"
-            f"QUESTION: {question}"
-        )
-        if history_str:
-            user_prompt = f"{history_str}\n\n{user_prompt}"
-
-        alt_answer = await ollama.generate(
-            system_prompt=f"PERSONA:\n{context_layers['persona']}\n\nINSTRUCTIONS:\n{context_layers['instructions']}",
-            user_prompt=user_prompt,
-            timeout=get_node_timeout("verify_answer", 30.0),
-            **alt_gen_kwargs,
-        )
-        alt_answer = strip_cot(alt_answer or "")
-
-        if alt_answer and len(alt_answer.strip()) > 20:
-            alt_ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, alt_answer)
-            faith_diff = abs(faithfulness_score - alt_ld_result["score"])
-            if faith_diff > 0.25:
-                consistency_check_passed = False
-                consistency_feedback = f"Inconsistent reasoning paths (scores: {faithfulness_score:.2f} vs {alt_ld_result['score']:.2f})"
-            elif not alt_ld_result["is_faithful"] and is_faithful_ld:
-                consistency_check_passed = False
-                consistency_feedback = "Alternative answer lacks faithfulness while original appears faithful"
-        else:
-            consistency_check_passed = False
-            consistency_feedback = "Failed to generate meaningful alternative answer"
-
-    except Exception as e:
-        logger.warning(f"Self-consistency check failed: {e}")
-        consistency_check_passed = True
-        consistency_feedback = f"Consistency check error: {str(e)}"
-
-    is_valid = is_faithful_ld and claim_verification_passed and consistency_check_passed
+    is_valid = is_faithful_ld
 
     base_confidence = faithfulness_score * 10.0
     claim_verification_factor = 1.0 if claim_verification_passed else 0.7

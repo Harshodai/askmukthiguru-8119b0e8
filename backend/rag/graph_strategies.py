@@ -247,9 +247,8 @@ class FastGraphStrategy(GraphStrategy):
 
         graph = StateGraph(GraphState)
 
-        # Core fast-path nodes
+        # Core fast-path nodes  (resolve_followup removed for speed)
         graph.add_node("intent_router", intent_router)
-        graph.add_node("resolve_followup", resolve_followup)
         graph.add_node("retrieve_documents", retrieve_documents)
         graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
         graph.add_node("generate_answer", generate_answer)
@@ -270,11 +269,11 @@ class FastGraphStrategy(GraphStrategy):
                 "distress": "handle_distress",
                 "meditation": "handle_meditation",
                 "casual": "handle_casual",
-                "query": "resolve_followup",
+                # Resolve follow-up skipped for fast graph to reduce latency
+                "query": "retrieve_documents",
             },
         )
 
-        graph.add_edge("resolve_followup", "retrieve_documents")
         graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
         graph.add_edge("generate_answer", "format_final_answer")
