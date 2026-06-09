@@ -25,6 +25,7 @@ from .utils import (
     _grounded_citation_urls,
     _generation_route,
     strip_cot,
+    emit_status,
 )
 from . import _services
 
@@ -32,8 +33,9 @@ logger = logging.getLogger(__name__)
 
 
 @log_metrics
-async def context_engineer(state: GraphState) -> dict:
+async def context_engineer(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State."""
+    await emit_status(config, "Composing the response...")
     intent = state.get("intent", "FACTUAL")
     relevant_docs = state.get("relevant_docs", [])
     chat_history = state.get("chat_history", [])
@@ -380,8 +382,9 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
     return answer
 
 
-async def format_final_answer(state: GraphState) -> dict:
+async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     """Format the final response based on pipeline results."""
+    await emit_status(config, "Finalizing your response...")
     is_faithful = state.get("is_faithful", False)
     verification = state.get("verification") or {}
     verified = verification.get("passed", False)

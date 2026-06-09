@@ -52,7 +52,7 @@ LATEST QUESTION: {question}
 STANDALONE QUESTION:"""
 
 
-async def resolve_followup(state: GraphState) -> dict:
+async def resolve_followup(state: GraphState, config: dict = None) -> dict:
     """
     Resolve follow-up queries into standalone questions.
 
@@ -79,6 +79,13 @@ async def resolve_followup(state: GraphState) -> dict:
     if _ollama is None:
         logger.warning("resolve_followup: OllamaService not initialized, skipping")
         return {}
+
+    # SSE status — let the user see that we're consulting the prior turn
+    try:
+        from rag.nodes.utils import emit_status
+        await emit_status(config, "Connecting this to your previous question...")
+    except Exception:
+        pass
 
     # Build history string from last 10 messages (5 turns) so benchmark follow-ups
     # retain the doctrine anchors from earlier answers.

@@ -22,14 +22,14 @@ from rag.prompts import (
     MULTI_TURN_PROMPT,
     CITATION_REASONING_PROMPT,
 )
-from .utils import log_metrics, _trace_update, strip_cot, _generation_kwargs
+from .utils import log_metrics, _trace_update, strip_cot, _generation_kwargs, emit_status
 from . import _services
 
 logger = logging.getLogger(__name__)
 
 
 @log_metrics
-async def reflect_on_answer(state: GraphState) -> dict:
+async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Self-Reflection: bypassing for simple query tier")
@@ -39,11 +39,12 @@ async def reflect_on_answer(state: GraphState) -> dict:
     relevant_docs = state.get("relevant_docs", [])
     question = state.get("rewritten_query") or state["question"]
     lettuce_detect = _services._lettuce_detect
-    ollama = _services._ollama
+    ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled self-consistency block below
 
     if not answer or not relevant_docs:
         return {"needs_correction": False}
 
+    await emit_status(config, "Reviewing the response for clarity...")
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
     is_faithful_strict = ld_result["score"] >= 0.8
@@ -83,7 +84,7 @@ async def reflect_on_answer(state: GraphState) -> dict:
 
 
 @log_metrics
-async def verify_answer(state: GraphState) -> dict:
+async def verify_answer(state: GraphState, config: dict = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Combined verify: bypassing for simple query tier")
@@ -99,8 +100,9 @@ async def verify_answer(state: GraphState) -> dict:
     relevant_docs = state["relevant_docs"]
     question = state.get("rewritten_query") or state["question"]
     lettuce_detect = _services._lettuce_detect
-    ollama = _services._ollama
+    ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled CoVe + self-consistency blocks below
 
+    await emit_status(config, "Verifying alignment with the teachings...")
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
 
     if not context or len(context.strip()) < 200:
@@ -177,7 +179,7 @@ async def verify_answer(state: GraphState) -> dict:
 
 
 @log_metrics
-async def check_contradiction(state: GraphState) -> dict:
+async def check_contradiction(state: GraphState, config: dict = None) -> dict:
     """Check if the newly generated answer contradicts previous conversation history."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Contradiction check: bypassing for simple query tier")
@@ -190,6 +192,7 @@ async def check_contradiction(state: GraphState) -> dict:
     if not answer or len(chat_history) < 2:
         return {}
 
+    await emit_status(config, "Checking consistency with our conversation...")
     try:
         recent_history = "\n".join(
             [f"{m.get('role', 'user')}: {m.get('content', '')}" for m in chat_history[-4:]]
@@ -228,7 +231,7 @@ async def check_contradiction(state: GraphState) -> dict:
 
 
 @log_metrics
-async def explain_retrieval(state: GraphState) -> dict:
+async def explain_retrieval(state: GraphState, config: dict = None) -> dict:
     """Generates a 1-sentence reasoning for why each top source was chosen."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Explain retrieval: bypassing for simple query tier")
@@ -241,6 +244,7 @@ async def explain_retrieval(state: GraphState) -> dict:
     if not relevant_docs:
         return {"citation_reasoning": {}}
 
+    await emit_status(config, "Annotating sources...")
     async def explain_doc(doc):
         url = doc.get("source_url")
         if not url:
