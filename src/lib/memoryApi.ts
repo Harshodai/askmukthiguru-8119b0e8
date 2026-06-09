@@ -44,6 +44,27 @@ export interface MemoryListResponse {
   page_size: number;
 }
 
+export interface SessionSummary {
+  id: string;
+  session_id: string;
+  summary: string;
+  created_at: string;
+}
+
+export interface RelevantMemory {
+  id: string;
+  content: string;
+  similarity: number;
+  created_at: string;
+}
+
+export interface ConversationContinuity {
+  session_id: string;
+  started_at: string;
+  key_insights?: string[];
+  follow_up_suggestions?: string[];
+}
+
 export type MemoryApiErrorCode =
   | 'unauthorized'
   | 'not_configured'
@@ -163,5 +184,49 @@ export const memoryApi = {
       body: JSON.stringify({ text: trimmed }),
     });
     return handle<GuruMemory>(res);
+  },
+
+  async getSummaries(limit = 5): Promise<SessionSummary[]> {
+    if (!this.isConfigured()) return [];
+    try {
+      const res = await fetch(`${MEMORY_BASE}/summaries?limit=${limit}`, {
+        headers: await authHeaders(),
+      });
+      if (res.status === 404 || res.status === 501) return [];
+      return handle<SessionSummary[]>(res);
+    } catch (err) {
+      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+      return [];
+    }
+  },
+
+  async getRelevant(query: string, limit = 5): Promise<RelevantMemory[]> {
+    if (!this.isConfigured() || !query.trim()) return [];
+    try {
+      const res = await fetch(`${MEMORY_BASE}/relevant`, {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ query: query.trim(), limit }),
+      });
+      if (res.status === 404 || res.status === 501) return [];
+      return handle<RelevantMemory[]>(res);
+    } catch (err) {
+      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+      return [];
+    }
+  },
+
+  async getConversations(limit = 3): Promise<ConversationContinuity[]> {
+    if (!this.isConfigured()) return [];
+    try {
+      const res = await fetch(`${MEMORY_BASE}/conversations?limit=${limit}`, {
+        headers: await authHeaders(),
+      });
+      if (res.status === 404 || res.status === 501) return [];
+      return handle<ConversationContinuity[]>(res);
+    } catch (err) {
+      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+      return [];
+    }
   },
 };
