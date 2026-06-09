@@ -175,6 +175,17 @@ class SupabaseAuthStrategy(AuthStrategy):
 
         alg = unverified_header.get("alg", "")
 
+        # Accept both local (browser) and docker-internal issuers for Supabase JWTs.
+        # Frontend gets tokens from http://127.0.0.1:54321, backend validates against host.docker.internal.
+        # PyJWT accepts a list for `issuer` and validates against any match.
+        def _valid_issuers() -> list[str]:
+            base = settings.supabase_url.rstrip("/")
+            return [
+                f"{base}/auth/v1",              # e.g., http://host.docker.internal:54321/auth/v1
+                "http://127.0.0.1:54321/auth/v1",
+                "http://localhost:54321/auth/v1",
+            ]
+
         try:
             if alg in ("ES256", "RS256"):
                 # ---- Asymmetric path: verify via JWKS public key ----
@@ -189,13 +200,12 @@ class SupabaseAuthStrategy(AuthStrategy):
                     return [a.strip() for a in raw.split() if a.strip()] or ["authenticated"]
 
                 audience = build_safe_audience()
-                issuer = f"{settings.supabase_url.rstrip('/')}/auth/v1"
                 payload = jwt.decode(
                     token,
                     signing_key.key,
                     algorithms=["ES256", "RS256"],
                     audience=audience,
-                    issuer=issuer,
+                    issuer=_valid_issuers(),
                 )
             else:
                 # ---- Symmetric path: verify with shared HS256 secret ----
@@ -207,7 +217,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                     settings.jwt_secret,
                     algorithms=["HS256"],
                     audience=[settings.supabase_jwt_audience],
-                    issuer=f"{settings.supabase_url.rstrip('/')}/auth/v1",
+                    issuer=_valid_issuers(),
                 )
 
             user_id = payload.get("sub")
