@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
 import {
   startAuthRun,
@@ -42,6 +43,11 @@ const GOOGLE_STEP_KEY = 'askmukthiguru_google_step'; // survives redirect roundt
 type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
 
 const AuthPage = () => {
+  usePageMeta({
+    title: 'Sign in or create account — AskMukthiGuru',
+    description: 'Sign in to AskMukthiGuru to continue your private, AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    canonical: 'https://askmukthiguru.lovable.app/auth',
+  });
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
