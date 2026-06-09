@@ -35,6 +35,7 @@ const PracticeDetailPage = () => {
     description: practice ? `${practice.purpose.slice(0, 155)}` : 'The requested practice could not be found.',
     canonical: practice ? `https://askmukthiguru.lovable.app/practices/${practice.slug}` : 'https://askmukthiguru.lovable.app/practices',
     ogType: practice ? 'article' : 'website',
+    ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
     jsonLd: practice
       ? {
           '@context': 'https://schema.org',

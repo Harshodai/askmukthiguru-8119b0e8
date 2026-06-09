@@ -9,7 +9,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 
 const Index = () => {
   usePageMeta({
-    title: 'AskMukthiGuru — AI Spiritual Guide rooted in Preethaji & Krishnaji',
+    title: 'AskMukthiGuru — AI Spiritual Guide',
     description: 'Discover inner peace through AI-guided conversations grounded in the teachings of Sri Preethaji and Sri Krishnaji. Free, private, and always available.',
     canonical: 'https://askmukthiguru.lovable.app/',
     ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
