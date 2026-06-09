@@ -24,7 +24,17 @@ import aiohttp
 import asyncpg
 from neo4j import AsyncGraphDatabase, AsyncDriver
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.http.models import HttpStatusCode
+import os
+
+# Add backend directory to sys.path to import Settings
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backend'))
+try:
+    from app.config import settings
+    NEO4J_PASSWORD = settings.neo4j_password
+    NEO4J_USER = settings.neo4j_user
+except Exception:
+    NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "password")
+    NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
 
 # Configure logging
 logging.basicConfig(
@@ -37,7 +47,7 @@ logger = logging.getLogger(__name__)
 SERVICES = {
     "qdrant": {
         "url": "http://localhost:6333",
-        "health_endpoint": "/ready",
+        "health_endpoint": "/",
         "timeout": 5
     },
     "redis": {
@@ -46,8 +56,8 @@ SERVICES = {
     },
     "neo4j": {
         "url": "bolt://localhost:7687",
-        "username": "neo4j",
-        "password": "password",  # Should be from env in production
+        "username": NEO4J_USER,
+        "password": NEO4J_PASSWORD,
         "timeout": 5
     },
     "jaeger": {

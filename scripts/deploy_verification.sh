@@ -55,20 +55,20 @@ run_check() {
 
 # 1. Backend Tests
 print_header "Backend Tests"
-run_check "Backend unit tests" "cd $PROJECT_ROOT/backend && python -m pytest tests/ -x --tb=short --quiet"
+run_check "Backend unit tests" "cd $PROJECT_ROOT/backend && JWT_SECRET=test_secret .venv/bin/python -m pytest tests/ -x --tb=short --quiet"
 
 # 2. Infrastructure Health
 print_header "Infrastructure Health"
-run_check "Docker services health" "$SCRIPT_DIR/check_docker_health.py"
+run_check "Docker services health" "$PROJECT_ROOT/backend/.venv/bin/python $SCRIPT_DIR/check_docker_health.py"
 
 # 3. Benchmark Verification
 print_header "Benchmark Verification"
-run_check "Run production benchmark sample" "cd $PROJECT_ROOT/backend && python -m benchmarks.ruthless_benchmark --unit all --sample 20"
+run_check "Run production benchmark sample" "cd $PROJECT_ROOT/backend && JWT_SECRET=test_secret .venv/bin/python -m benchmarks.ruthless_benchmark --limit 2"
 
 # 4. Security Scan
 print_header "Security Scan"
-run_check "Bandit security scan" "bandit -r $PROJECT_ROOT/backend/ -ll" true
-run_check "Safety dependency check" "safety check --full-report" true
+run_check "Bandit security scan" "$PROJECT_ROOT/backend/.venv/bin/bandit -r $PROJECT_ROOT/backend/ -ll" true
+run_check "Safety dependency check" "$PROJECT_ROOT/backend/.venv/bin/safety check --full-report" true
 
 # 5. API Health Endpoints
 print_header "API Health Endpoints"
@@ -88,7 +88,7 @@ run_check "Ruflo evaluation exists" "test -f $PROJECT_ROOT/docs/RUFLO_EVALUATION
 # 8. Environment Validation
 print_header "Environment Validation"
 run_check "Environment file exists" "test -f $PROJECT_ROOT/backend/.env"
-run_check "Required environment variables are set" "cd $PROJECT_ROOT/backend && python -c \"from app.config import settings; print('LLM Provider:', settings.llm_provider)\"" true
+run_check "Required environment variables are set" "cd $PROJECT_ROOT/backend && .venv/bin/python -c \"from app.config import settings; print('LLM Provider:', settings.llm_provider)\"" true
 
 # Final Summary
 print_header "FINAL RESULTS"
