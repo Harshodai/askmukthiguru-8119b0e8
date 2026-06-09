@@ -38,6 +38,7 @@ const ChatPage = () => {
 
   return (
     <PrePracticeGate>
+      <h1 className="sr-only">Chat with your AI Spiritual Guide</h1>
       <ChatInterface />
     </PrePracticeGate>
   );
