@@ -1,0 +1,34 @@
+# GPTCache Server Configuration for Distributed Caching
+# This enables shared semantic cache across multiple backend replicas
+
+cache:
+  enable: true
+  pre_embedding_func: "get_prompt"
+  embedding:
+    type: "SentenceTransformers"
+    model: "BAAI/bge-m3"
+  data_manager:
+    type: "sqlite,qdrant"
+    sqlite:
+      path: "/data/gptcache.db"
+    qdrant:
+      url: "http://qdrant:6333"
+      collection: "gptcache_shared"
+      dimension: 1024
+  similarity_evaluation:
+    type: "SearchDistanceEvaluation"
+    threshold: 0.85
+  eviction:
+    policy: "LRU"
+    max_size: 50000
+  post_process:
+    type: "temperature_softmax"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+
+log:
+  level: "INFO"
+  format: "json"
