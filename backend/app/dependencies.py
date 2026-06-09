@@ -17,7 +17,7 @@ import logging
 import threading
 
 from app.config import settings
-from guardrails.rails import GuardrailsService
+from guardrails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_deep_graph, build_fast_graph, build_rag_graph
 from services.cache_service import SemanticCacheAdapter, init_llm_cache
