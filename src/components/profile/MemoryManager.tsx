@@ -28,7 +28,10 @@ import {
   MemoryApiError,
   type CoreMemory,
   type GuruMemory,
+  type SessionSummary,
+  type ConversationContinuity,
 } from '@/lib/memoryApi';
+import { BookText, MessagesSquare } from 'lucide-react';
 
 const formatDate = (iso: string): string => {
   try {
