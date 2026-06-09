@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -18,6 +18,7 @@ jsonl_store = FeedbackStore()
 @router.post("/", response_model=FeedbackResponse)
 @limiter.limit(settings.registration_rate_limit)
 async def submit_feedback(
+    request: Request,
     feedback_in: FeedbackCreate,
     db: AsyncSession = Depends(get_db),
     user: Optional[dict] = Depends(get_current_user_from_supabase),
