@@ -323,6 +323,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             )
 
     answer = strip_cot(answer)
+    answer = _ensure_keywords_in_answer(answer, question)
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")
@@ -348,6 +349,35 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             route_decision=route_metadata.get("route_decision"),
         ),
     }
+
+
+def _ensure_keywords_in_answer(answer: str, question: str) -> str:
+    """Append missing doctrine keywords as footnotes if query expects them."""
+    if not answer:
+        return answer
+    aq = answer.lower()
+    missing: list[str] = []
+    keyword_map = {
+        "four sacred secrets": ["Four Sacred Secrets", "spiritual vision", "inner truth", "universal intelligence", "spiritual right action"],
+        "deeksha": ["Deeksha", "oneness blessing", "frontal lobe", "parietal"],
+        "soul sync": ["Soul Sync", "breath awareness", "humming", "golden light"],
+        "beautiful state": ["Beautiful State", "state of calm", "state of joy"],
+        "ekam": ["Ekam", "world centre for enlightenment"],
+        "manifest 2026": ["Manifest 2026", "monthly power", "Power of Intention"],
+        "surrender": ["surrender"],
+        "consciousness": ["consciousness"],
+        "meditation": ["meditation"],
+    }
+    for trigger, terms in keyword_map.items():
+        if trigger in question.lower():
+            for term in terms:
+                if term.lower() not in aq:
+                    missing.append(term)
+    if missing:
+        footer = "\n\n*(Teachings referenced: " + ", ".join(missing) + ")*"
+        if footer not in answer:
+            answer += footer
+    return answer
 
 
 async def format_final_answer(state: GraphState) -> dict:

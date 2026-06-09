@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import TYPE_CHECKING, Any, Optional
 
 from app.config import settings
@@ -40,8 +41,10 @@ def select_graph_for_query(query: str) -> str:
     if any(kw in q for kw in deep_keywords):
         return "deep"
 
-    fast_starts = ("who", "what is", "when", "where")
-    if len(tokens) <= 6 and any(q.startswith(st) for st in fast_starts):
+    # Fast path: use regex to catch simple factual queries —
+    # more robust than startswith() alone (matches "what are", "where is", etc.)
+    fast_pattern = re.compile(r"^(who\s|what\s+(is|are|was|were)\s|when\s|where\s|how\s+(many|much)\s|list\s)")
+    if len(tokens) <= 8 and fast_pattern.search(q):
         return "fast"
 
     return "standard"

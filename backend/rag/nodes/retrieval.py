@@ -21,6 +21,7 @@ from .utils import (
     _grounded_citation_urls,
     _llm_retrieval_expansions,
     expand_query_with_synonyms,
+    inject_doctrine_keywords,
 )
 from . import _services
 
@@ -254,6 +255,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         await stream_queue.put({"event": "status", "data": "Searching knowledge base..."})
 
     base_question = state.get("rewritten_query") or state["question"]
+    # Doctrine keyword injection & synonym expansion for better retrieval
+    base_question = inject_doctrine_keywords(expand_query_with_synonyms(base_question))
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
     expansion_queries: list[str] = await _llm_retrieval_expansions(state)
     if expansion_queries:
