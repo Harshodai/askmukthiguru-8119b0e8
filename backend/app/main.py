@@ -1418,6 +1418,40 @@ async def circuit_breaker_reset_endpoint() -> dict:
         }
 
 
+@app.get("/api/circuit-breaker/status", tags=["Health"])
+async def circuit_breaker_status(container: ServiceContainer = Depends(get_container)) -> dict:
+    """
+    Get circuit breaker status for all registered providers.
+
+    Useful for debugging circuit breaker state without needing to reset it.
+    """
+    try:
+        registry = container.circuit_breaker_registry
+        if not registry:
+            return {"status": "error", "message": "Circuit breaker registry not initialized"}
+
+        all_stats = registry.get_all_stats()
+        active_provider = registry.get_active_provider()
+
+        # Also check the Sarvam service circuit breaker directly
+        sarvam_circuit = None
+        if hasattr(container.ollama, "_service"):
+            svc = container.ollama._service
+            if hasattr(svc, "_circuit"):
+                sarvam_circuit = svc._circuit.get_stats()
+
+        return {
+            "status": "ok",
+            "active_provider": active_provider,
+            "registry_breakers": all_stats,
+            "sarvam_service_circuit": sarvam_circuit,
+            "llm_provider_config": container.ollama.__class__.__name__,
+        }
+    except Exception as e:
+        logger.error(f"Circuit breaker status failed: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/ready", tags=["Health"])
 async def readiness_endpoint(container: ServiceContainer = Depends(get_container)) -> dict:
     """
@@ -1429,7 +1463,16 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
     """
     health = await container.health_status()
 
-    critical_ok = health.get("qdrant", False) and health.get("ollama", False)
+    # Check circuit breaker for Sarvam Cloud
+    circuit_breaker_ok = True
+    circuit_state = "unknown"
+    if hasattr(container.ollama, "_service"):
+        svc = container.ollama._service
+        if hasattr(svc, "_circuit"):
+            circuit_state = svc._circuit.get_state().value
+            circuit_breaker_ok = circuit_state == "closed"
+
+    critical_ok = health.get("qdrant", False) and health.get("ollama", False) and circuit_breaker_ok
 
     if not critical_ok:
         return JSONResponse(
@@ -1438,7 +1481,8 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
                 "ready": False,
                 "qdrant": health.get("qdrant", False),
                 "llm": health.get("ollama", False),
-                "message": "Critical services not ready",
+                "circuit_breaker": circuit_state,
+                "message": "Critical services not ready" if (health.get("qdrant", False) and health.get("ollama", False)) else "Circuit breaker OPEN",
             },
         )
 
@@ -1446,6 +1490,7 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
         "ready": True,
         "qdrant": True,
         "llm": True,
+        "circuit_breaker": circuit_state,
         "total_chunks": -1,  # Redacted
     }
 

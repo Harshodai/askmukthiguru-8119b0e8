@@ -3,6 +3,34 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type AIProvider = 'placeholder' | 'custom';
 
+let isRefreshingToken = false;
+let refreshTokenPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (isRefreshingToken && refreshTokenPromise) {
+    return refreshTokenPromise;
+  }
+
+  isRefreshingToken = true;
+  refreshTokenPromise = (async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session?.access_token) {
+        console.error('Token refresh failed:', error);
+        return null;
+      }
+      return data.session.access_token;
+    } catch (err) {
+      console.error('Token refresh error:', err);
+      return null;
+    } finally {
+      isRefreshingToken = false;
+      refreshTokenPromise = null;
+    }
+  })();
+  return refreshTokenPromise;
+}
+
 export interface AIConfig {
   provider: AIProvider;
   endpoint?: string;
@@ -193,7 +221,19 @@ export async function* sendMessageStreaming(
   });
 
   if (!response.ok || !response.body) {
-    throw new Error(`Streaming failed: ${response.status}`);
+    let errorDetail = `Streaming failed: ${response.status}`;
+    try {
+      const errorData = await response.clone().json();
+      if (errorData?.detail) {
+        errorDetail += ` - ${errorData.detail}`;
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+    const error = new Error(errorDetail);
+    (error as any).status = response.status;
+    (error as any).errorCode = httpStatusToErrorCode(response.status);
+    throw error;
   }
 
   // Guard against Vite/SPA HTML fallback (when backend isn't running, the dev
@@ -331,10 +371,62 @@ export const sendMessage = async (
       });
 
       if (!response.ok) {
+        // Auto-retry on 401 with token refresh
+        if (response.status === 401 && token) {
+          const newToken = await refreshAccessToken();
+          if (newToken) {
+            // Retry the request with the new token
+            const retryResponse = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${newToken}`,
+              },
+              body: JSON.stringify({
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
+                  ...trimmedMessages,
+                ],
+                user_message: userMessage,
+                meditation_step: meditationStep,
+                session_id: sessionId,
+                language: currentConfig.language || 'en',
+                ...(lastSereneMindAt != null
+                  ? { last_serene_mind_at: lastSereneMindAt / 1000 }
+                  : {}),
+              }),
+            });
+
+            if (retryResponse.ok) {
+              const data = await retryResponse.json();
+              await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'non-stream' } });
+              return {
+                content: data.response || data.choices?.[0]?.message?.content || data.content,
+                intent: data.intent,
+                citations: data.citations || [],
+                meditationStep: data.meditation_step || 0,
+                blocked: data.blocked || false,
+                blockReason: data.block_reason,
+                proactiveSereneMind: data.proactive_serene_mind ?? null,
+              };
+            }
+          }
+        }
+
         const errorCode = httpStatusToErrorCode(response.status);
+        let errorDetail = `API error: ${response.status}`;
+        try {
+          const errorData = await response.clone().json();
+          if (errorData?.detail) {
+            errorDetail += ` - ${errorData.detail}`;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
         return {
           content: getPlaceholderResponse(),
-          error: `API error: ${response.status}`,
+          error: errorDetail,
           errorCode,
         };
       }
@@ -352,10 +444,11 @@ export const sendMessage = async (
       };
     } catch (error) {
       console.error('AI Service Error:', error);
+      const err = error as any;
       return {
         content: getPlaceholderResponse(),
         error: error instanceof Error ? error.message : 'Connection failed',
-        errorCode: 'network',
+        errorCode: err?.errorCode || 'network',
       };
     }
   }

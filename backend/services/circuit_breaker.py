@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional, Type
 
+from app.constants import CircuitBreakerProvider, CIRCUIT_BREAKER_CONFIGS
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +50,18 @@ class CircuitBreakerConfig:
     """Configuration for a circuit breaker instance."""
     provider: str
     failure_threshold: int = 5
+    recovery_timeout: float = 90.0
+    half_open_max_calls: int = 3
+    failure_exceptions: tuple = (Exception,)
+
+    @classmethod
+    def from_provider(cls, provider: str) -> "CircuitBreakerConfig":
+        """Create config from provider name using centralized constants."""
+        config = CIRCUIT_BREAKER_CONFIGS.get(provider)
+        if config:
+            return cls(provider=provider, **config)
+        # Fallback defaults
+        return cls(provider=provider)
     recovery_timeout: float = 90.0
     half_open_max_calls: int = 3
     # Optional: custom exception types that count as failures
@@ -108,21 +122,81 @@ class BaseCircuitBreaker(abc.ABC):
 
     def _transition_to_open(self, reason: str = "") -> None:
         """Transition circuit to OPEN state."""
+        previous_state = self._state.value
         self._state = CircuitState.OPEN
-        logger.warning(f"Circuit breaker [{self.config.provider}] → OPEN {reason}")
+        logger.warning(
+            "Circuit breaker state change",
+            extra={
+                "provider": self.config.provider,
+                "previous_state": previous_state,
+                "new_state": "open",
+                "reason": reason,
+                "failures": self._failures,
+                "threshold": self.config.failure_threshold,
+            },
+        )
+        self._notify_state_change("open", reason)
+        self._update_gauges()
 
     def _transition_to_half_open(self) -> None:
         """Transition circuit to HALF_OPEN state."""
+        previous_state = self._state.value
         self._state = CircuitState.HALF_OPEN
         self._half_open_calls = 0
-        logger.info(f"Circuit breaker [{self.config.provider}] → HALF_OPEN (testing recovery)")
+        logger.warning(
+            "Circuit breaker state change",
+            extra={
+                "provider": self.config.provider,
+                "previous_state": previous_state,
+                "new_state": "half_open",
+                "reason": "recovery_timeout_elapsed",
+                "half_open_max_calls": self.config.half_open_max_calls,
+            },
+        )
+        self._notify_state_change("half_open", "recovery_timeout_elapsed")
+        self._update_gauges()
 
     def _transition_to_closed(self) -> None:
         """Transition circuit to CLOSED state."""
+        previous_state = self._state.value
         self._state = CircuitState.CLOSED
         self._failures = 0
         self._half_open_calls = 0
-        logger.info(f"Circuit breaker [{self.config.provider}] → CLOSED (recovered)")
+        logger.info(
+            "Circuit breaker state change",
+            extra={
+                "provider": self.config.provider,
+                "previous_state": previous_state,
+                "new_state": "closed",
+                "reason": "recovery_successful",
+            },
+        )
+        self._notify_state_change("closed", "recovery_successful")
+        self._update_gauges()
+
+    def _notify_state_change(self, new_state: str, reason: str) -> None:
+        """Hook for external alerting - can be overridden or extended."""
+        # Emit metric for monitoring
+        try:
+            from app.metrics import CIRCUIT_BREAKER_STATE_CHANGES
+            CIRCUIT_BREAKER_STATE_CHANGES.labels(
+                provider=self.config.provider,
+                from_state=self._state.value if hasattr(self, '_previous_state') else 'unknown',
+                to_state=new_state,
+                reason=reason,
+            ).inc()
+        except Exception:
+            pass  # Metrics optional
+
+    def _update_gauges(self) -> None:
+        """Update Prometheus gauge metrics for current state."""
+        try:
+            from app.metrics import CIRCUIT_BREAKER_STATE, CIRCUIT_BREAKER_FAILURES
+            state_map = {"closed": 0, "half_open": 1, "open": 2}
+            CIRCUIT_BREAKER_STATE.labels(provider=self.config.provider).set(state_map.get(self._state.value, 0))
+            CIRCUIT_BREAKER_FAILURES.labels(provider=self.config.provider).set(self._failures)
+        except Exception:
+            pass  # Metrics optional
 
 
 class DefaultCircuitBreaker(BaseCircuitBreaker):
@@ -159,6 +233,7 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
         elif self._state == CircuitState.CLOSED:
             # Decay failure count on success
             self._failures = max(0, self._failures - 1)
+        self._update_gauges()
 
     def record_failure(self, error: Exception = None) -> None:
         self._failures += 1
@@ -169,6 +244,7 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
         elif self._state == CircuitState.CLOSED:
             if self._failures >= self.config.failure_threshold:
                 self._transition_to_open(f"(threshold={self.config.failure_threshold} reached)")
+        self._update_gauges()
 
 
 class CircuitBreakerRegistry:
@@ -248,37 +324,15 @@ def create_default_breakers() -> Dict[str, DefaultCircuitBreaker]:
     Create default circuit breakers for all known providers.
 
     Returns dict of provider -> breaker for registration.
+    Uses centralized constants for provider names and configs.
     """
-    from app.config import settings
+    from app.constants import CircuitBreakerProvider, CIRCUIT_BREAKER_CONFIGS
 
     breakers = {}
 
-    # Sarvam Cloud breaker
-    sarvam_config = CircuitBreakerConfig(
-        provider="sarvam",
-        failure_threshold=5,
-        recovery_timeout=90.0,  # Longer timeout for cloud API
-        half_open_max_calls=3,
-    )
-    breakers["sarvam"] = DefaultCircuitBreaker(sarvam_config)
-
-    # Ollama breaker
-    ollama_config = CircuitBreakerConfig(
-        provider="ollama",
-        failure_threshold=3,
-        recovery_timeout=60.0,  # Shorter timeout for local
-        half_open_max_calls=1,
-    )
-    breakers["ollama"] = DefaultCircuitBreaker(ollama_config)
-
-    # OpenRouter breaker (future)
-    openrouter_config = CircuitBreakerConfig(
-        provider="openrouter",
-        failure_threshold=5,
-        recovery_timeout=60.0,
-        half_open_max_calls=3,
-    )
-    breakers["openrouter"] = DefaultCircuitBreaker(openrouter_config)
+    for provider in CircuitBreakerProvider:
+        config = CircuitBreakerConfig.from_provider(provider.value)
+        breakers[provider.value] = DefaultCircuitBreaker(config)
 
     return breakers
 

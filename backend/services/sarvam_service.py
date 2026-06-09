@@ -121,12 +121,8 @@ class SarvamCloudService:
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
         # Use provider-agnostic circuit breaker from shared module
-        sarvam_config = CircuitBreakerConfig(
-            provider="sarvam",
-            failure_threshold=5,
-            recovery_timeout=90.0,
-            half_open_max_calls=3,
-        )
+        from app.constants import CircuitBreakerProvider
+        sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
         self._circuit = DefaultCircuitBreaker(sarvam_config)
         self._last_request_time = 0.0
         self._rate_limit_lock = asyncio.Lock()
