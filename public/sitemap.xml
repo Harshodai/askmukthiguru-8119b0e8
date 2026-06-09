@@ -8,12 +8,6 @@
   <url><loc>https://askmukthiguru.lovable.app/practices/beautiful-state</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://askmukthiguru.lovable.app/practices/daily-reflection</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://askmukthiguru.lovable.app/auth</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://askmukthiguru.lovable.app/auth</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>https://askmukthiguru.lovable.app/admin/login</loc><changefreq>monthly</changefreq><priority>0.2</priority></url>
-  <url><loc>https://askmukthiguru.lovable.app/admin</loc><changefreq>monthly</changefreq><priority>0.2</priority></url>
-  <url><loc>https://askmukthiguru.lovable.app/queries</loc><changefreq>weekly</changefreq><priority>0.4</priority></url>
-  <url><loc>https://askmukthiguru.lovable.app/quality</loc><changefreq>weekly</changefreq><priority>0.4</priority></url>
-  <url><loc>https://askmukthiguru.lovable.app/retrieval</loc><changefreq>weekly</changefreq><priority>0.4</priority></url>
   <url><loc>https://askmukthiguru.lovable.app/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://askmukthiguru.lovable.app/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>
