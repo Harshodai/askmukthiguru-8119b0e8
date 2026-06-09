@@ -1452,6 +1452,21 @@ async def circuit_breaker_status(container: ServiceContainer = Depends(get_conta
         return {"status": "error", "message": str(e)}
 
 
+@app.get("/api/debug/headers", tags=["Debug"])
+async def debug_headers(request: Request) -> dict:
+    """Debug endpoint to see what headers are received."""
+    headers = dict(request.headers)
+    # Filter for auth-related headers
+    auth_headers = {k: v for k, v in headers.items() if k.lower() in ('authorization', 'cookie', 'x-test-key', 'content-type')}
+    return {
+        "all_headers_count": len(headers),
+        "auth_headers": auth_headers,
+        "has_authorization": "authorization" in headers,
+        "has_cookie": "cookie" in headers,
+        "has_x_test_key": "x-test-key" in headers,
+    }
+
+
 @app.get("/api/ready", tags=["Health"])
 async def readiness_endpoint(container: ServiceContainer = Depends(get_container)) -> dict:
     """

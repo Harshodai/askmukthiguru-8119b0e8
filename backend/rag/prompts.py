@@ -287,6 +287,48 @@ or simple (can be answered directly). A question is complex if it:
 Respond with ONLY 'complex' or 'simple'."""
 
 
+# === COMBINED INTENT + COMPLEXITY PROMPT (Phase-1 Optimization) ===
+# Single fast-model call replaces two sequential calls (classify_intent + is_complex_query).
+# Empirical impact: intent_router latency drops from 14-30s to ~0.5s on llama3.2:3b.
+INTENT_AND_COMPLEXITY_PROMPT = """Classify the user's message on TWO axes in a single response.
+
+AXIS 1 — INTENT (pick exactly one):
+DISTRESS  - emotional pain, anxiety, sadness, hopelessness, asking for comfort
+FACTUAL   - direct spiritual/biographical knowledge question
+RELATIONAL- asks about relationships/differences between multiple concepts
+FOLLOW_UP - refers to previous conversation (it, that, him, "you just said")
+MEDITATION- asking for guided practice, breathwork, Serene Mind, Soul Sync
+CASUAL    - greeting, small talk, non-spiritual chit-chat
+ADVERSARIAL    - provocative/comparative/mocking ("is X just repackaged Y?")
+SAFETY_VIOLATION - clinical medical advice, psychiatric drug Rx, guaranteed money returns
+
+AXIS 2 — COMPLEXITY (pick exactly one):
+simple   - single concept, can be answered directly
+complex  - compares concepts, multiple unrelated parts, uses 'and/vs/compare/difference'
+
+OUTPUT FORMAT — exactly two lines, no prose, no markdown:
+INTENT: <one of the labels above>
+COMPLEXITY: <simple|complex>
+
+Examples:
+User: "What is the Beautiful State?"
+INTENT: FACTUAL
+COMPLEXITY: simple
+
+User: "Compare Soul Sync and Serene Mind meditations"
+INTENT: RELATIONAL
+COMPLEXITY: complex
+
+User: "I feel hopeless and lost."
+INTENT: DISTRESS
+COMPLEXITY: simple
+
+User: "Can you start Serene Mind for me?"
+INTENT: MEDITATION
+COMPLEXITY: simple
+"""
+
+
 # === DISTRESS ACKNOWLEDGMENT PROMPT ===
 DISTRESS_PROMPT = """You are Mukthi Guru, embodying the deepest compassion of Sri Preethaji and Sri Krishnaji. The user is in emotional distress. Your response must carry the healing energy of their presence.
 

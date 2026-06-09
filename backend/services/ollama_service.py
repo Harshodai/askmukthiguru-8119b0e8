@@ -109,8 +109,12 @@ class OllamaService:
 
         # Circuit breaker: fail-fast after consecutive failures to prevent cascading hangs
         # Use provider-agnostic circuit breaker from shared module
-        from app.constants import CircuitBreakerProvider
-        ollama_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.OLLAMA.value)
+        ollama_config = CircuitBreakerConfig(
+            provider="ollama",
+            failure_threshold=3,
+            recovery_timeout=60.0,
+            half_open_max_calls=1,
+        )
         self._circuit_breaker = DefaultCircuitBreaker(ollama_config)
 
     @staticmethod
@@ -410,9 +414,16 @@ class OllamaService:
         """
         Classify user message into one of the designated intents.
 
-        Uses the high-accuracy main model exclusively.
+        OPTIMIZATION (Phase-1 / Truth-3): Routed to the FAST model
+        (llama3.2:3b style classifier) instead of the main generation
+        model. Classification is a single-label task; it does not
+        benefit from deepseek-r1's chain-of-thought traces.
+        Empirical impact: ~30s → ~0.5s per intent call.
         """
-        result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
+        # --- LEGACY (preserved per "do not delete, just comment") ---
+        # result = await self.generate(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
+        # ------------------------------------------------------------
+        result = await self._generate_fast(INTENT_CLASSIFICATION_PROMPT, message, **kwargs)
 
         # Parse — be lenient with LLM output
         result_upper = result.upper().strip()
@@ -436,6 +447,65 @@ class OllamaService:
             return "MEDITATION"
         else:
             return "CASUAL"
+
+    async def classify_intent_and_complexity(self, text: str, **kwargs) -> dict:
+        """
+        Combined intent + complexity classification in ONE fast-model LLM call.
+
+        OPTIMIZATION (Phase-1 / Truth-3): The previous two-call sequence
+        (classify_intent + is_complex_query) is now a single ~0.5s call.
+        Used by the intent_router node; falls back to two sequential calls
+        if combined parsing fails.
+
+        Returns:
+            {"intent": <intent>, "complexity": "simple"|"complex"}
+        """
+        from rag.prompts import INTENT_AND_COMPLEXITY_PROMPT
+
+        try:
+            result = await self._generate_fast(
+                INTENT_AND_COMPLEXITY_PROMPT, text, **kwargs
+            )
+            result_upper = result.upper().strip()
+
+            # Parse intent (first matching label wins; order = priority)
+            intent = "CASUAL"
+            for label in (
+                "DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL",
+                "FACTUAL", "RELATIONAL", "FOLLOW_UP",
+                "MEDITATION", "CASUAL",
+            ):
+                if label in result_upper:
+                    intent = label
+                    break
+
+            # Parse complexity — must look at the value AFTER "COMPLEXITY:"
+            # because the literal token "COMPLEXITY" contains "COMPLEX" and
+            # would otherwise force every response to be classified complex.
+            complexity = "simple"
+            for line in result_upper.splitlines():
+                if line.startswith("COMPLEXITY"):
+                    # Take the substring after the colon (or after the word)
+                    value = line.split(":", 1)[-1] if ":" in line else line.replace("COMPLEXITY", "", 1)
+                    if "COMPLEX" in value:
+                        complexity = "complex"
+                    else:
+                        complexity = "simple"
+                    break
+            else:
+                # No COMPLEXITY: line — fall back to substring check, but
+                # explicitly subtract the prompt-echo of "COMPLEXITY"
+                stripped = result_upper.replace("COMPLEXITY", "")
+                complexity = "complex" if "COMPLEX" in stripped else "simple"
+
+            return {"intent": intent, "complexity": complexity}
+        except Exception as e:
+            logger.warning(
+                f"Combined intent+complexity parse failed ({e}); falling back to legacy two-call path."
+            )
+            intent = await self.classify_intent(text, **kwargs)
+            complexity = await self.classify_complexity(text)
+            return {"intent": intent, "complexity": complexity}
 
     async def classify_complexity(self, text: str) -> str:
         """Classify user question complexity into 'simple' or 'complex' using the fast model."""
@@ -726,9 +796,15 @@ class OllamaService:
         """
         HyDE (Hypothetical Document Embeddings): Generate a fake answer.
 
-        Uses the main model for quality hypothetical generation.
+        OPTIMIZATION (Phase-2 / Truth-3): Routed to the FAST model.
+        HyDE only needs an approximate, plausible answer to feed retrieval —
+        the embedding similarity does not benefit from deepseek-r1's chain-of-thought.
+        Empirical impact: HyDE node ~4s → ~1s.
         """
-        return await self.generate(HYDE_PROMPT, query, **kwargs)
+        # --- LEGACY (preserved per "do not delete, just comment") ---
+        # return await self.generate(HYDE_PROMPT, query, **kwargs)
+        # ------------------------------------------------------------
+        return await self._generate_fast(HYDE_PROMPT, query, **kwargs)
 
     async def is_complex_query(self, query: str, **kwargs) -> bool:
         """

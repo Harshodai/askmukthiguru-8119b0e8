@@ -49,8 +49,11 @@ _SIMPLE_QUERY_PATTERNS = [
 
 
 @log_metrics
-async def intent_router(state: GraphState) -> dict:
+async def intent_router(state: GraphState, config: dict = None) -> dict:
     """Classify user message -> DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION."""
+    from rag.nodes.utils import emit_status
+    await emit_status(config, "Understanding your question...")
+
     question = state["question"]
     lower_q = question.lower()
     ollama = _services._ollama
@@ -172,10 +175,13 @@ async def intent_router(state: GraphState) -> dict:
     }
 
 
-async def handle_casual(state: GraphState) -> dict:
+async def handle_casual(state: GraphState, config: dict = None) -> dict:
     """Handle casual conversation with multi-turn awareness."""
     if state.get("final_answer"):
         return state
+
+    from rag.nodes.utils import emit_status
+    await emit_status(config, "Saying hello...")
 
     chat_history = state.get("chat_history", [])
     ollama = _services._ollama
@@ -209,8 +215,11 @@ async def handle_casual(state: GraphState) -> dict:
     return {"final_answer": response}
 
 
-async def handle_distress(state: GraphState) -> dict:
+async def handle_distress(state: GraphState, config: dict = None) -> dict:
     """Handle distress with COMPASSIONATE TEACHINGS + meditation offer."""
+    from rag.nodes.utils import emit_status
+    await emit_status(config, "Holding space for what you're feeling...")
+
     question = state["question"]
     chat_history = state.get("chat_history", [])
     serene_mind = _services._serene_mind
@@ -284,8 +293,11 @@ Based on the above teachings, compose a deeply compassionate response that:
     }
 
 
-async def handle_meditation(state: GraphState) -> dict:
+async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     """Continue an active meditation session or start a new specific one."""
+    from rag.nodes.utils import emit_status
+    await emit_status(config, "Guiding you into the practice...")
+
     step = state.get("meditation_step", 1)
     question = state.get("question", "").lower()
     from rag.meditation import MEDITATION_SCRIPTS

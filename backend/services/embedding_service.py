@@ -135,6 +135,19 @@ class EmbeddingService:
                     settings.reranker_model,
                     device=device,
                 )
+                # PHASE-2 / Truth-3: Detect reranker output convention.
+                # ms-marco CrossEncoders emit raw logits → we must apply sigmoid.
+                # jina-reranker-v2 emits sigmoid-normalized [0,1] scores → do NOT
+                # apply sigmoid again (it would compress to [0.5, 0.73] and break
+                # the rerank_min_score threshold filter).
+                model_name = (settings.reranker_model or "").lower()
+                if "jina" in model_name or "jina-reranker" in model_name:
+                    self._reranker_outputs_probs = True
+                    logger.info(
+                        f"Reranker '{settings.reranker_model}' emits probabilities; skipping sigmoid normalization."
+                    )
+                else:
+                    self._reranker_outputs_probs = False
             if self._colbert is None:
                 try:
                     from ragatouille import RAGPretrainedModel
@@ -393,24 +406,31 @@ class EmbeddingService:
 
             # CrossEncoder ms-marco-MiniLM-L-6-v2 returns raw logits (range ~-11 to +4).
             # Apply sigmoid to normalize to [0,1] probabilities for consistent thresholding.
+            # PHASE-2 / Truth-3: jina-reranker-v2 already returns [0,1] probabilities;
+            # detected at model-load time and stored in self._reranker_outputs_probs.
             import numpy as np
 
             def _sigmoid(x):
                 return 1.0 / (1.0 + np.exp(-x))
 
+            outputs_probs = getattr(self, "_reranker_outputs_probs", False)
             for doc, raw_score in zip(documents, raw_scores):
-                doc["rerank_score"] = float(_sigmoid(raw_score))
-                doc["rerank_raw_logit"] = float(raw_score)
+                rs = float(raw_score)
+                doc["rerank_score"] = rs if outputs_probs else float(_sigmoid(rs))
+                doc["rerank_raw_logit"] = rs
 
             # Score distribution logging for debugging
             if raw_scores is not None and len(raw_scores) > 0:
-                score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
+                if outputs_probs:
+                    score_arr = np.array([float(s) for s in raw_scores])
+                else:
+                    score_arr = np.array([float(_sigmoid(s)) for s in raw_scores])
                 raw_arr = np.array([float(s) for s in raw_scores])
                 logger.info(
-                    f"Reranker scores (sigmoid): min={score_arr.min():.4f}, "
-                    f"max={score_arr.max():.4f}, mean={score_arr.mean():.4f}, "
-                    f"median={float(np.median(score_arr)):.4f} | "
-                    f"raw logits: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
+                    f"Reranker scores ({'native' if outputs_probs else 'sigmoid'}): "
+                    f"min={score_arr.min():.4f}, max={score_arr.max():.4f}, "
+                    f"mean={score_arr.mean():.4f}, median={float(np.median(score_arr)):.4f} | "
+                    f"raw: min={raw_arr.min():.4f}, max={raw_arr.max():.4f}"
                 )
 
             ranked = sorted(documents, key=lambda d: d["rerank_score"], reverse=True)

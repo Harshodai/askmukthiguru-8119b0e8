@@ -29,6 +29,44 @@ from . import _services
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Phase-2 / Truth-3: SSE status emission helper
+# ---------------------------------------------------------------------------
+async def emit_status(config: Optional[dict], message: str) -> None:
+    """
+    Push an SSE `event: status` frame onto the stream queue if the orchestrator
+    provided one via LangGraph's `configurable`.
+
+    Safe to call from any node. No-op when:
+      - config is None (non-streaming /api/chat path)
+      - config has no stream_queue (graph compiled without queue)
+      - queue is full / not a Queue (defensive)
+
+    Pattern mirror of `rag/nodes/retrieval.py:retrieve_documents` lines 248-255,
+    extracted so the other 17 nodes can opt in with a single line.
+
+    Why this matters: between `retrieve_documents` (which already emits) and
+    `generate_answer` (which streams tokens), the user otherwise stares at a
+    blank screen for 8-30 seconds while decompose/grade/verify run silently.
+    """
+    if config is None:
+        return
+    try:
+        if hasattr(config, "get"):
+            configurable = config.get("configurable", {}) or {}
+        elif hasattr(config, "configurable"):
+            configurable = config.configurable or {}
+        else:
+            return
+        q = configurable.get("stream_queue")
+        if q is None:
+            return
+        await q.put({"event": "status", "data": message})
+    except Exception:
+        # Status emission must never break the pipeline.
+        pass
+
 # -----------------------------------------------------------------------
 # COT Patterns & Reasoning Markers
 # -----------------------------------------------------------------------

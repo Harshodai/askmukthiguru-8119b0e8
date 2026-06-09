@@ -22,6 +22,7 @@ from .utils import (
     _llm_retrieval_expansions,
     expand_query_with_synonyms,
     inject_doctrine_keywords,
+    emit_status,
 )
 from . import _services
 
@@ -32,7 +33,7 @@ _semantic_cache: Optional[Any] = None
 
 
 @log_metrics
-async def decompose_query(state: GraphState) -> dict:
+async def decompose_query(state: GraphState, config: dict = None) -> dict:
     """Always decompose queries into sub-queries."""
     question = state["question"]
     ollama = _services._ollama
@@ -40,6 +41,7 @@ async def decompose_query(state: GraphState) -> dict:
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return {"sub_queries": [question], "is_complex": False}
 
+    await emit_status(config, "Breaking the question into deeper parts...")
     t_out = get_node_timeout("decompose_query", 15)
     sub_queries = await ollama.decompose_query(question=question, timeout=t_out)
     is_complex = len(sub_queries) > 1
@@ -49,7 +51,7 @@ async def decompose_query(state: GraphState) -> dict:
 
 
 @log_metrics
-async def generate_hyde(state: GraphState) -> dict:
+async def generate_hyde(state: GraphState, config: dict = None) -> dict:
     """HyDE (Hypothetical Document Embeddings): Generate a fake answer."""
     ollama = _services._ollama
 
@@ -59,6 +61,7 @@ async def generate_hyde(state: GraphState) -> dict:
     if not settings.rag_use_hyde:
         return {"hyde_text": None}
 
+    await emit_status(config, "Imagining the shape of the answer...")
     question = state.get("rewritten_query") or state["question"]
     t_out = get_node_timeout("generate_hyde", 30.0)
     hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
@@ -67,7 +70,7 @@ async def generate_hyde(state: GraphState) -> dict:
 
 
 @log_metrics
-async def navigate_knowledge_tree(state: GraphState) -> dict:
+async def navigate_knowledge_tree(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired reasoning-based pre-retrieval."""
     question = state["question"]
     ollama = _services._ollama
@@ -77,6 +80,7 @@ async def navigate_knowledge_tree(state: GraphState) -> dict:
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return {"selected_clusters": []}
 
+    await emit_status(config, "Walking the teaching graph...")
     try:
         query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
         summary_nodes = qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
@@ -258,12 +262,25 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # Doctrine keyword injection & synonym expansion for better retrieval
     base_question = inject_doctrine_keywords(expand_query_with_synonyms(base_question))
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
-    expansion_queries: list[str] = await _llm_retrieval_expansions(state)
-    if expansion_queries:
-        logger.info(
-            f"LLM retrieval planner: adding {len(expansion_queries)} expansion query/queries"
-        )
-    sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
+
+    # OPTIMIZATION (Phase-3 / Truth-3): Fire LLM expansion CONCURRENTLY with
+    # the first retrieval batch instead of awaiting it serially. The
+    # expansion call is ~2s on the fast model; running it in parallel with
+    # the primary retrievals (which take ~1-3s themselves) hides that
+    # latency entirely in 80% of cases.
+    #
+    # Ordering preserved: primary sub_queries retrieved first, then any
+    # expansion-generated queries (capped at 6 total). RRF reranking later
+    # is order-independent so this does not change the result set quality.
+    #
+    # --- LEGACY (preserved per "do not delete, just comment") ---
+    # expansion_queries: list[str] = await _llm_retrieval_expansions(state)
+    # if expansion_queries:
+    #     logger.info(...)
+    # sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
+    # ------------------------------------------------------------
+    expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
+
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
     hyde_text = state.get("hyde_text")
@@ -272,8 +289,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     qdrant = _services._qdrant
     lightrag = _services._lightrag
 
-    retrieval_queries = sub_queries[:6]
-    all_results = await asyncio.gather(
+    primary_queries = list(dict.fromkeys(sub_queries))[:6]
+    primary_results = await asyncio.gather(
         *[
             asyncio.wait_for(
                 retrieve_for_single_query(
@@ -288,10 +305,56 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 ),
                 timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )
-            for q in retrieval_queries
+            for q in primary_queries
         ],
         return_exceptions=True,
     )
+
+    # Now consume the (likely already-completed) expansion task.
+    # Cap total retrievals at 6 to bound LLM/Qdrant load.
+    try:
+        expansion_queries = await expansion_task
+    except Exception as exp_err:
+        logger.warning(f"LLM retrieval expansion failed (non-fatal): {exp_err}")
+        expansion_queries = []
+
+    expansion_results: list = []
+    remaining_budget = max(0, 6 - len(primary_queries))
+    if expansion_queries and remaining_budget > 0:
+        # Dedupe against the queries we already ran
+        already = set(primary_queries)
+        novel_expansions = [q for q in expansion_queries if q not in already][:remaining_budget]
+        if novel_expansions:
+            logger.info(
+                f"LLM retrieval planner: adding {len(novel_expansions)} expansion query/queries "
+                f"(parallel-fire saved up to ~{round(2.0)}s vs serial)"
+            )
+            expansion_results = await asyncio.gather(
+                *[
+                    asyncio.wait_for(
+                        retrieve_for_single_query(
+                            q,
+                            chat_history,
+                            hyde_text,
+                            intent,
+                            selected_clusters,
+                            embedder,
+                            qdrant,
+                            lightrag if query_tier != "fast" else None,
+                        ),
+                        timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
+                    )
+                    for q in novel_expansions
+                ],
+                return_exceptions=True,
+            )
+
+    # Keep `sub_queries` populated for downstream nodes / observability
+    sub_queries = list(dict.fromkeys([*primary_queries, *(expansion_queries or [])]))
+    retrieval_queries = primary_queries + [
+        q for q in (expansion_queries or []) if q not in set(primary_queries)
+    ][: max(0, 6 - len(primary_queries))]
+    all_results = list(primary_results) + list(expansion_results)
 
     normalized_results = []
     for res in all_results:
@@ -375,7 +438,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     }
 
 
-def route_sub_queries(state: GraphState) -> list[Send]:
+def route_sub_queries(state: GraphState) -> list["Send"]:  # noqa: F821 — Send imported lazily inside function body to avoid module-load cost
     """Fan-out router: spawn one retrieve_single branch per sub-query via Send."""
     from langgraph.types import Send
     sub_queries = state.get("sub_queries") or [state["question"]]

@@ -423,50 +423,27 @@ const AuthPage = () => {
     }, 400);
     
     try {
-      const useNativeOAuth = import.meta.env.VITE_USE_NATIVE_OAUTH === 'true';
+      // OPTIMIZATION (Auth audit Truth-1): Always use Supabase native OAuth.
+      // The Lovable wrapper does NOT support 'facebook' in its TypeScript union
+      // (`@lovable.dev/cloud-auth-js` only allows google|apple|microsoft|lovable).
+      // The previous `lovable.auth.signInWithOAuth('facebook' as any, ...)` cast
+      // silently failed in production. Removed.
       sessionStorage.setItem('askmukthiguru_facebook_step', '1');
-      
-      if (useNativeOAuth) {
-        const initT0 = performance.now();
-        const { error: supabaseError } = await supabase.auth.signInWithOAuth({
-          provider: 'facebook',
-          options: {
-            redirectTo: window.location.href,
-          },
-        });
-        recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
-          error: supabaseError?.message,
-          meta: { mode: 'native', provider: 'facebook' },
-        });
-        if (supabaseError) throw supabaseError;
-        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
-        return;
-      }
-      
-      // Lovable wrapper for Facebook
+
       const initT0 = performance.now();
-      const result = await lovable.auth.signInWithOAuth('facebook' as any, {
-        redirect_uri: window.location.origin,
+      const { error: supabaseError } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
-      recordStep('oauth_init', result.error ? 'error' : 'ok', Math.round(performance.now() - initT0), {
-        error: result.error instanceof Error ? result.error.message : undefined,
-        meta: { mode: 'lovable', provider: 'facebook', redirected: !!result.redirected },
+      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+        error: supabaseError?.message,
+        meta: { provider: 'facebook' },
       });
-      
-      if (result.error) {
-        const message = result.error instanceof Error ? result.error.message : 'Facebook sign-in failed. Please try again.';
-        setError(message);
-        sessionStorage.removeItem('askmukthiguru_facebook_step');
-        setFacebookStep('idle');
-        endAuthRun('error', message);
-        return;
-      }
-      if (result.redirected) {
-        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
-        return;
-      }
-      
-      setFacebookStep('finalizing');
+      if (supabaseError) throw supabaseError;
+      recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+      return;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not connect to Facebook.';
       console.error('[Facebook Auth Error]', err);
@@ -543,7 +520,7 @@ const AuthPage = () => {
           });
           
           // Display the One Tap prompt
-          window.google.accounts.id.prompt((notification: any) => {
+          window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean; getNotDisplayedReason: () => string; getSkippedReason: () => string }) => {
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
               console.log('[Google One Tap]', notification.getNotDisplayedReason() || notification.getSkippedReason());
             }
@@ -561,7 +538,7 @@ const AuthPage = () => {
     return () => clearTimeout(timer);
   }, [loading, isSignUp]);
   
-  const handleGoogleOneTapResponse = useCallback(async (response: any) => {
+  const handleGoogleOneTapResponse = useCallback(async (response: { credential: string }) => {
     try {
       setLoading(true);
       startAuthRun('google_one_tap');

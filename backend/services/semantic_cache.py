@@ -118,17 +118,31 @@ class SemanticCacheService:
 
             entry_ids = json.loads(index_data)
 
-            # Compare with each cached embedding
+            # OPTIMIZATION (Phase-1 / Truth-3): Collapse N Redis GETs into a
+            # SINGLE pipelined MGET. Previously this loop made N round-trips
+            # to Redis (one per cached entry); now it makes one. Cuts cache
+            # lookup latency from ~N*RTT to ~1*RTT.
+            cache_keys = [self._cache_key(eid) for eid in entry_ids]
+            try:
+                entry_blobs = self._redis.mget(cache_keys)
+            except Exception as mget_err:
+                logger.warning(
+                    f"Semantic cache: mget failed ({mget_err}); falling back to per-key GET."
+                )
+                # --- LEGACY (preserved per "do not delete, just comment") ---
+                entry_blobs = [self._redis.get(k) for k in cache_keys]
+                # ------------------------------------------------------------
+
             best_score = 0.0
             best_entry = None
 
-            for entry_id in entry_ids:
-                cache_key = self._cache_key(entry_id)
-                entry_data = self._redis.get(cache_key)
+            for entry_data in entry_blobs:
                 if not entry_data:
                     continue
-
-                entry = json.loads(entry_data)
+                try:
+                    entry = json.loads(entry_data)
+                except (ValueError, TypeError):
+                    continue
                 cached_embedding = entry.get("embedding")
                 if not cached_embedding:
                     continue

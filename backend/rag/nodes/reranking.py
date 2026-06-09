@@ -11,14 +11,14 @@ from rag.compressor import compress_documents
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import check_sufficiency
-from .utils import log_metrics, _trace_update, _grounded_citation_urls
+from .utils import log_metrics, _trace_update, _grounded_citation_urls, emit_status
 from . import _services
 
 logger = logging.getLogger(__name__)
 
 
 @log_metrics
-async def rerank_documents(state: GraphState) -> dict:
+async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     """Rerank Documents (CrossEncoder) with adaptive thresholds and MMR."""
     question = state.get("rewritten_query") or state["question"]
     documents = state.get("documents", [])
@@ -29,6 +29,7 @@ async def rerank_documents(state: GraphState) -> dict:
     if not documents:
         return {"reranked_docs": []}
 
+    await emit_status(config, "Ranking the most relevant teachings...")
     is_complex = state.get("is_complex", False)
     base_threshold = getattr(settings, "rerank_min_score", 0.2)
     threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
@@ -81,7 +82,7 @@ async def rerank_documents(state: GraphState) -> dict:
 
 
 @log_metrics
-async def grade_documents(state: GraphState) -> dict:
+async def grade_documents(state: GraphState, config: dict = None) -> dict:
     """CRAG: Batch relevance grading of all reranked documents in one LLM call."""
     ollama = _services._ollama
     embedder = _services._embedder
@@ -100,6 +101,7 @@ async def grade_documents(state: GraphState) -> dict:
             ),
         }
 
+    await emit_status(config, "Filtering for relevance...")
     question = state.get("rewritten_query") or state["question"]
     reranked_docs = state["reranked_docs"]
 
@@ -156,7 +158,7 @@ async def grade_documents(state: GraphState) -> dict:
 
 
 @log_metrics
-async def check_context_sufficiency(state: GraphState) -> dict:
+async def check_context_sufficiency(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired iterative sufficiency check."""
     ollama = _services._ollama
 
@@ -169,6 +171,7 @@ async def check_context_sufficiency(state: GraphState) -> dict:
         logger.info("Sufficiency check: bypassing for DISTRESS intent")
         return {}
 
+    await emit_status(config, "Checking if I have enough to answer well...")
     question = state["question"]
     relevant_docs = state.get("relevant_docs", [])
 
@@ -187,7 +190,7 @@ async def check_context_sufficiency(state: GraphState) -> dict:
 
 
 @log_metrics
-async def enrich_context(state: GraphState) -> dict:
+async def enrich_context(state: GraphState, config: dict = None) -> dict:
     """Fetch neighbor chunks for the top relevant documents (RAG Made Simple Ch 8)."""
     relevant_docs = state.get("relevant_docs", [])
     qdrant = _services._qdrant
@@ -199,6 +202,7 @@ async def enrich_context(state: GraphState) -> dict:
     if not relevant_docs or settings.rag_context_window <= 0:
         return {"relevant_docs": relevant_docs}
 
+    await emit_status(config, "Gathering surrounding context...")
     enriched_docs = []
     seen_hashes = set()
 
