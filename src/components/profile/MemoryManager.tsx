@@ -318,6 +318,84 @@ export const MemoryManager = () => {
           )}
         </CardContent>
       </Card>
+
+      {summaries.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BookText className="w-5 h-5 text-ojas" /> Session reflections
+              <Badge variant="secondary" className="ml-2">{summaries.length}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Distilled summaries the guru keeps from your past sessions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {summaries.map((s) => (
+                <li
+                  key={s.id}
+                  className="p-3 rounded-lg bg-prana/5 border border-prana/10"
+                >
+                  <p className="text-sm text-foreground/90 leading-relaxed italic">
+                    "{s.summary}"
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {formatDate(s.created_at)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {conversations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MessagesSquare className="w-5 h-5 text-ojas" /> Conversation continuity
+            </CardTitle>
+            <CardDescription>
+              Recent threads the guru carries forward to maintain context.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {conversations.map((c) => (
+                <li
+                  key={c.session_id}
+                  className="p-3 rounded-lg bg-muted/40 border border-border space-y-2"
+                >
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(c.started_at)}
+                  </p>
+                  {c.key_insights && c.key_insights.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/80 mb-1">Key insights</p>
+                      <ul className="list-disc list-inside text-sm text-foreground/80 space-y-0.5">
+                        {c.key_insights.slice(0, 3).map((k, i) => (
+                          <li key={i}>{k}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {c.follow_up_suggestions && c.follow_up_suggestions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/80 mb-1">Follow-ups</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {c.follow_up_suggestions.slice(0, 3).map((f, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{f}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
