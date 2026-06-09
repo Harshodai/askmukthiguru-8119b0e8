@@ -14,4 +14,9 @@ cd "$REPO_ROOT"
   if [ -f ".venv/bin/python" ]; then
     .venv/bin/python -m graphify update . > /dev/null 2>&1
   fi
+
+  # 3. Update CodeReviewGraph index
+  if [ -f ".venv/bin/python" ]; then
+    .venv/bin/python -m code_review_graph update > /dev/null 2>&1
+  fi
 ) &
