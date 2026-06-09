@@ -185,4 +185,48 @@ export const memoryApi = {
     });
     return handle<GuruMemory>(res);
   },
+
+  async getSummaries(limit = 5): Promise<SessionSummary[]> {
+    if (!this.isConfigured()) return [];
+    try {
+      const res = await fetch(`${MEMORY_BASE}/summaries?limit=${limit}`, {
+        headers: await authHeaders(),
+      });
+      if (res.status === 404 || res.status === 501) return [];
+      return handle<SessionSummary[]>(res);
+    } catch (err) {
+      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+      return [];
+    }
+  },
+
+  async getRelevant(query: string, limit = 5): Promise<RelevantMemory[]> {
+    if (!this.isConfigured() || !query.trim()) return [];
+    try {
+      const res = await fetch(`${MEMORY_BASE}/relevant`, {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ query: query.trim(), limit }),
+      });
+      if (res.status === 404 || res.status === 501) return [];
+      return handle<RelevantMemory[]>(res);
+    } catch (err) {
+      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+      return [];
+    }
+  },
+
+  async getConversations(limit = 3): Promise<ConversationContinuity[]> {
+    if (!this.isConfigured()) return [];
+    try {
+      const res = await fetch(`${MEMORY_BASE}/conversations?limit=${limit}`, {
+        headers: await authHeaders(),
+      });
+      if (res.status === 404 || res.status === 501) return [];
+      return handle<ConversationContinuity[]>(res);
+    } catch (err) {
+      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+      return [];
+    }
+  },
 };
