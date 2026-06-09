@@ -49,6 +49,8 @@ export const MemoryManager = () => {
   const { toast } = useToast();
   const [memories, setMemories] = useState<GuruMemory[]>([]);
   const [core, setCore] = useState<CoreMemory | null>(null);
+  const [summaries, setSummaries] = useState<SessionSummary[]>([]);
+  const [conversations, setConversations] = useState<ConversationContinuity[]>([]);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const [newText, setNewText] = useState('');
@@ -59,12 +61,16 @@ export const MemoryManager = () => {
     setLoading(true);
     setUnavailable(null);
     try {
-      const [list, coreData] = await Promise.all([
+      const [list, coreData, summariesData, conversationsData] = await Promise.all([
         memoryApi.list(1, 100),
         memoryApi.getCore(),
+        memoryApi.getSummaries(10),
+        memoryApi.getConversations(5),
       ]);
       setMemories(list.memories);
       setCore(coreData);
+      setSummaries(summariesData);
+      setConversations(conversationsData);
     } catch (err) {
       if (err instanceof MemoryApiError) {
         if (err.code === 'feature_disabled' || err.code === 'not_configured') {
