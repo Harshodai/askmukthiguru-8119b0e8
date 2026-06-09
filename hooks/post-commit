@@ -1,0 +1,17 @@
+#!/bin/bash
+# Automatically update CodeGraph and Graphify indices on every commit in the background
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+(
+  # 1. Update CodeGraph index
+  if [ -f "mcp-servers/codegraph/dist/bin/codegraph.js" ]; then
+    node mcp-servers/codegraph/dist/bin/codegraph.js sync > /dev/null 2>&1
+  fi
+
+  # 2. Update Graphify index
+  if [ -f ".venv/bin/python" ]; then
+    .venv/bin/python -m graphify update . > /dev/null 2>&1
+  fi
+) &
