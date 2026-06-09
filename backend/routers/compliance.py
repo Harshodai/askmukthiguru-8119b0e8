@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import settings
 from app.core.limiter import limiter
@@ -74,6 +74,7 @@ async def get_audit_stats(_admin: dict = Depends(_require_admin)):
 @router.delete("/audit/sessions/{user_id}")
 @limiter.limit(settings.registration_rate_limit)
 async def request_data_deletion(
+    request: Request,
     user_id: str,
     _admin: dict = Depends(_require_admin),
 ):
