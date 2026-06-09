@@ -42,7 +42,13 @@ class SupabaseTelemetrySink:
 
         if self.redis_url:
             try:
-                self.redis = Redis.from_url(self.redis_url)
+                self.redis = Redis.from_url(
+                    self.redis_url,
+                    socket_connect_timeout=5,
+                    socket_timeout=10,
+                    retry_on_timeout=True,
+                    health_check_interval=30,
+                )
                 logger.info("SupabaseTelemetrySink Redis connection initialized.")
             except Exception as e:
                 logger.warning(f"SupabaseTelemetrySink: Failed to initialize Redis connection: {e}")
@@ -375,13 +381,13 @@ class TelemetryWorker:
                     await asyncio.sleep(5)
                     continue
 
-                # Read from the stream (blocking read, timeout 2000ms)
+                # Read from the stream (blocking read, timeout 5000ms)
                 last_id = await self.sink.redis.get("telemetry:stream:last_id") or "0-0"
                 if isinstance(last_id, bytes):
                     last_id = last_id.decode("utf-8")
 
                 streams = await self.sink.redis.xread(
-                    {"telemetry:stream": last_id}, count=10, block=2000
+                    {"telemetry:stream": last_id}, count=10, block=5000
                 )
                 if streams:
                     for _, messages in streams:
@@ -412,4 +418,21 @@ class TelemetryWorker:
                 break
             except Exception as e:
                 logger.error(f"Error in telemetry consumer loop: {e}")
+                # Try to reconnect Redis if connection was lost
+                if self.sink.redis:
+                    try:
+                        await self.sink.redis.ping()
+                    except Exception:
+                        logger.warning("Redis connection lost, attempting to reconnect...")
+                        try:
+                            self.sink.redis = Redis.from_url(
+                                self.sink.redis_url,
+                                socket_connect_timeout=5,
+                                socket_timeout=10,
+                                retry_on_timeout=True,
+                                health_check_interval=30,
+                            )
+                            logger.info("Redis reconnected successfully")
+                        except Exception as reconnect_err:
+                            logger.error(f"Failed to reconnect Redis: {reconnect_err}")
                 await asyncio.sleep(5)

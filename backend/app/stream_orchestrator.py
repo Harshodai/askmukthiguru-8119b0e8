@@ -12,7 +12,6 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -31,7 +30,6 @@ from app.telemetry_sink import SupabaseTelemetrySink
 from rag.graph import create_initial_state
 from rag.memory import normalize_session_id
 from rag.timeout_utils import TimeoutBudget, budget_var
-from services.sarvam_service import CircuitOpenException
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
 logger = logging.getLogger(__name__)
@@ -94,7 +92,7 @@ class ChatStreamRequestOrchestrator:
                     return StreamingResponse(circuit_error_stream(), media_type="text/event-stream")
 
         async def generate_sse():
-            from services.cost_tracker import token_accumulator_var, TokenAccumulator
+            from services.cost_tracker import TokenAccumulator, token_accumulator_var
             accumulator = TokenAccumulator()
             token = token_accumulator_var.set(accumulator)
             try:
@@ -478,31 +476,37 @@ class ChatStreamRequestOrchestrator:
                 )
                 yield f"event: done\ndata: {meta}\n\n"
 
-                if self.container.user_profile:
-                    from services.user_profile_service import ConversationMemory
-                    memory = ConversationMemory(
-                        user_id=user_id,
-                        session_id=stable_session_id,
-                        last_interaction_at=time.time(),
-                        messages=[
-                            {"role": "user", "content": user_msg},
-                            {"role": "assistant", "content": final_answer},
-                        ],
-                        follow_up_suggestions=[],
-                    )
-                    background_tasks.add_task(self.container.user_profile.save_conversation_memory, memory)
+                # ── Post-done work (must not cause event:error) ──
+                try:
+                    if self.container.user_profile and getattr(self.container, "user_profile", None):
+                        from services.user_profile_service import ConversationMemory
+                        memory = ConversationMemory(
+                            session_id=stable_session_id,
+                            user_id=user_id,
+                            started_at=time.time(),
+                            messages=[
+                                {"role": "user", "content": user_msg},
+                                {"role": "assistant", "content": final_answer},
+                            ],
+                            key_insights=[],
+                            emotional_arc=[],
+                            follow_up_suggestions=[],
+                        )
+                        background_tasks.add_task(self.container.user_profile.save_conversation_memory, memory)
 
-                if settings.feature_memory_write and getattr(self.container, "memory_service", None):
-                    full_msgs = chat_history + [
-                        {"role": "user", "content": user_msg},
-                        {"role": "assistant", "content": final_answer}
-                    ]
-                    background_tasks.add_task(
-                        self.container.memory_service.extract_and_write,
-                        user_id,
-                        stable_session_id,
-                        full_msgs,
-                    )
+                    if settings.feature_memory_write and getattr(self.container, "memory_service", None):
+                        full_msgs = chat_history + [
+                            {"role": "user", "content": user_msg},
+                            {"role": "assistant", "content": final_answer}
+                        ]
+                        background_tasks.add_task(
+                            self.container.memory_service.extract_and_write,
+                            user_id,
+                            stable_session_id,
+                            full_msgs,
+                        )
+                except Exception as post_err:
+                    logger.warning(f"Stream post-done work error (non-fatal): {post_err}")
 
                 # Telemetry
                 # Collect retrieval metadata from result
@@ -577,45 +581,50 @@ class ChatStreamRequestOrchestrator:
                     else "",
                 }
 
-                background_tasks.add_task(
-                    self.telemetry_sink.log_query_trace,
-                    query_id=query_id,
-                    session_id=stable_session_id,
-                    user_id=user_id,
-                    query_text=user_msg,
-                    model=model_used or "unknown",
-                    latency_ms=latency_ms,
-                    status="ok" if intent != "ERROR" else "error",
-                    created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    response_text=final_answer,
-                    citations=citations,
-                    faithfulness=response_data["faithfulness"],
-                    answer_relevancy=response_data["answer_relevancy"],
-                    context_precision=response_data["context_precision"],
-                    context_recall=response_data["context_recall"],
-                    hallucination_flag=response_data["hallucination_flag"],
-                    confidence_score=result.get("confidence_score")
-                    if "result" in locals() and isinstance(result, dict)
-                    else None,
-                    judge_reasoning=response_data["judge_reasoning"],
-                    retrieval_metadata=retrieval_meta,
-                    spans=spans_data,
-                    trigger_events=trigger_events,
-                    safety_events=safety_events,
-                    provider=model_provider,
-                    route_decision=intent.lower(),
-                    cache_hit=False,
-                    tokens_per_second=tokens_per_second,
-                    evaluation_trace=result.get("evaluation_trace")
-                    if "result" in locals() and isinstance(result, dict)
-                    else None,
-                )
+                if self.telemetry_sink and getattr(self.telemetry_sink, "log_query_trace", None):
+                    background_tasks.add_task(
+                        self.telemetry_sink.log_query_trace,
+                        query_id=query_id,
+                        session_id=stable_session_id,
+                        user_id=user_id,
+                        query_text=user_msg,
+                        model=model_used or "unknown",
+                        latency_ms=latency_ms,
+                        status="ok" if intent != "ERROR" else "error",
+                        created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        response_text=final_answer,
+                        citations=citations,
+                        faithfulness=response_data["faithfulness"],
+                        answer_relevancy=response_data["answer_relevancy"],
+                        context_precision=response_data["context_precision"],
+                        context_recall=response_data["context_recall"],
+                        hallucination_flag=response_data["hallucination_flag"],
+                        confidence_score=result.get("confidence_score")
+                        if "result" in locals() and isinstance(result, dict)
+                        else None,
+                        judge_reasoning=response_data["judge_reasoning"],
+                        retrieval_metadata=retrieval_meta,
+                        spans=spans_data,
+                        trigger_events=trigger_events,
+                        safety_events=safety_events,
+                        provider=model_provider,
+                        route_decision=intent.lower(),
+                        cache_hit=False,
+                        tokens_per_second=tokens_per_second,
+                        evaluation_trace=result.get("evaluation_trace")
+                        if "result" in locals() and isinstance(result, dict)
+                        else None,
+                    )
 
             except Exception as e:
                 logger.error(f"Stream error: {e}", exc_info=True)
-                yield f"event: error\ndata: An unexpected error occurred.\n\n"
+                yield "event: error\ndata: An unexpected error occurred.\n\n"
 
             finally:
-                token_accumulator_var.reset(token)
+                try:
+                    token_accumulator_var.reset(token)
+                except ValueError:
+                    # Token may cross async generator contexts; safe to ignore
+                    pass
 
         return StreamingResponse(generate_sse(), media_type="text/event-stream")

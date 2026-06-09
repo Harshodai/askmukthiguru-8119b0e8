@@ -4,20 +4,19 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
 
-from .utils import settings
-from rag.states import GraphState
 from rag.meditation import (
+    format_meditation_response,
+    get_distress_response,
     is_meditation_complete,
     should_start_meditation,
-    get_distress_response,
-    format_meditation_response,
 )
 from rag.prompts import CASUAL_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
+from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
-from .utils import log_metrics, _trace_update, get_node_timeout
+
 from . import _services
+from .utils import _trace_update, get_node_timeout, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +65,34 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
         if should_start_meditation(question):
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
+
+    # ---- Serene Mind Distress Check (BEFORE pre-router) ----
+    # Only route to DISTRESS if keyword-based detection (Stage 1) finds MODERATE+ distress.
+    # This avoids false positives from semantic/LLM stages on short queries like "Hello".
+    serene_mind = _services._serene_mind
+    if serene_mind is not None:
+        chat_history = state.get("chat_history", [])
+        try:
+            # Use keyword-only assessment (Stage 1 only) for routing decision
+            keyword_assessment = serene_mind.assess_distress(question, chat_history)
+            if keyword_assessment.level >= DistressLevel.MODERATE:
+                logger.info(
+                    f"Intent Router: Serene Mind keyword detected {keyword_assessment.level.name} distress "
+                    f"(confidence={keyword_assessment.confidence:.2f}), routing to DISTRESS"
+                )
+                return {
+                    "intent": "DISTRESS",
+                    "query_tier": "tier2_simple",
+                    "evaluation_trace": _trace_update(
+                        state, intent="DISTRESS", query_tier="tier2_simple",
+                        routing_reason="serene_mind_keyword_distress",
+                        distress_level=keyword_assessment.level.name,
+                        distress_confidence=keyword_assessment.confidence,
+                        distress_signals=keyword_assessment.detected_signals,
+                    ),
+                }
+        except Exception as e:
+            logger.warning(f"Serene Mind keyword distress check failed: {e}")
 
     # ---- Regex Pre-Router Check ----
     from rag.intent_prerouter import preroute_intent
@@ -125,6 +152,14 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
                     routing_reason="cache_hit"
                 ),
             }
+        return {
+            "intent": cached_intent,
+            "query_tier": tier,
+            "evaluation_trace": _trace_update(
+                state, intent=cached_intent, query_tier=tier,
+                routing_reason="cache_hit"
+            ),
+        }
 
     # ---- Single LLM call for both intent + complexity classification ----
     try:

@@ -74,6 +74,13 @@ _EN_PATTERNS = {
         r"\b(scared|afraid|terrified|worried|fear|nervous)\b",
         r"\b(lonely|isolated|alone|abandoned|rejected)\b",
         r"\b(burn\s*out|burned\s*out|pointless|crying|don'?t\s*feel\s*like\s*myself)\b",
+        # Directional/existential stuckness
+        r"\bstuck\s+(in|with|on)\b",
+        r"\bdon'?t\s+know\s+(where|what|how)\b",
+        r"\bno\s+(way|direction|path)\b",
+        r"\bdead\s*end\b",
+        r"\btrapped\b",
+        r"\bnowhere\s*to\s*(go|turn)\b",
     ],
     DistressLevel.MILD: [
         r"\b(tired|exhausted|drained|burnout)\b",
