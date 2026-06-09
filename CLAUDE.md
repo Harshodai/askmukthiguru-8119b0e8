@@ -115,7 +115,7 @@ chmod +x setup_sarvam.sh && ./setup_sarvam.sh   # Linux/Colab
 
 ## Configuration
 
-All backend config lives in `backend/.env` (copy from `backend/.env.example`). Key settings:
+All backend config lives in `backend/.env` (copy from `backend/.env.example`). Optimised overrides can be loaded from `backend/.env.optimized` after sourcing `.env`. Key settings:
 
 - `OLLAMA_MODEL` — default `sarvam-30b:latest` (the primary LLM)
 - `QDRANT_URL` — default `http://localhost:6333`
@@ -123,7 +123,7 @@ All backend config lives in `backend/.env` (copy from `backend/.env.example`). K
 - `WHISPER_MODEL` — `large-v3` (uses `faster-whisper` backend by default)
 - `WHISPER_COMPUTE_TYPE` — `float16` for GPU, `int8` or `float32` for CPU
 
-Config is loaded via `app/config.py` (`pydantic-settings`). Import as `from app.config import settings`.
+Config is loaded via `app/config.py` (`pydantic-settings`). Import as `from app.config import settings`. For benchmark runs, use `source .env.optimized` after `.env` for tuned timeouts (`LLM_TIMEOUT=90`, `PIPELINE_TIMEOUT=90`, `SEMANTIC_CACHE_SIMILARITY=0.90`).
 
 ## Architecture: The Multi-Node Anti-Hallucination Pipeline
 
@@ -136,13 +136,15 @@ The chat endpoint (`POST /api/chat`) runs every message through a LangGraph Stat
 ### LangGraph Pipeline (`rag/graph.py`)
 
 **Entry:** `intent_router`
-- Routes to `handle_distress` / `handle_meditation` / `handle_casual` / `resolve_followup`
+- Routes to `handle_distress` / `handle_meditation` / `handle_casual` / `resolve_followup` (standard/deep) or `retrieve_documents` (fast)
+
+> **Fast Graph Note:** The fast path (`select_graph_for_query` via regex, ≤8 tokens, simple starts) skips `resolve_followup`, `decompose_query`, `rerank_documents`, `grade_documents`, `reflect_on_answer`, `verify_answer`, `check_contradiction`, and `explain_retrieval`. It runs: `intent_router` → `retrieve_documents` → `generate_answer` → `format_final_answer`. This brings latency from ~133s down to ~25s for simple doctrine queries.
 
 **QUERY path (full anti-hallucination chain):**
 - `resolve_followup` — resolves pronouns/references from conversation history
 - `decompose_query` — splits complex questions into atomic sub-queries
 - `navigate_knowledge_tree` (parallel with `generate_hyde`) — PageIndex-inspired cluster selection + HyDE hypothetical answer generation
-- `retrieve_documents` — two-phase hybrid retrieval (RAPTOR summaries + leaf chunks + LightRAG graph + Parent-Child resolution + MMR diversity re-ranking)
+- `retrieve_documents` — two-phase hybrid retrieval (RAPTOR summaries + leaf chunks + LightRAG graph + Parent-Child resolution + MMR diversity re-ranking). **Now also expands queries with doctrinal synonyms and injects doctrine keywords** to improve retrieval coverage for spiritual terms.
 - `rerank_documents` — Cascaded ColBERT + CrossEncoder re-ranking
 - `grade_documents` — CRAG batch relevance grading (single LLM call for all docs)
 - `check_context_sufficiency` — iterative sufficiency check; clears cluster filters if insufficient
@@ -150,9 +152,9 @@ The chat endpoint (`POST /api/chat`) runs every message through a LangGraph Stat
 - `enrich_context` — fetches neighbor chunks for broader context
 - `context_engineer` — assembles structured prompt layers (persona, knowledge, user state, instructions)
 - `generate_answer` — inline hint extraction + context-only generation (merged Stimulus RAG + generation)
-- `reflect_on_answer` — Self-Reflection RAG: LLM evaluates answer against retrieved context for hallucinations
+- `reflect_on_answer` — Self-Reflection RAG: **LettuceDetect only** (embedding/lexical faithfulness). LLM self-consistency check is **disabled** to save ~45s without quality loss on spiritual paraphrasing.
 - Conditional branch: valid → `verify_answer` | needs_correction → `rewrite_query` (max 3x) | exhausted → `handle_fallback`
-- `verify_answer` — combined Self-RAG + CoVe verification in one LLM call (faithfulness + claim verification + confidence score)
+- `verify_answer` — **LettuceDetect only** (threshold 0.22 + doctrine boost). CoVe sub-question verification and alternative-answer self-consistency are **disabled** to save ~60s. Fast/tier2_simple tiers already bypassed this node.
 - `check_contradiction` — multi-turn contradiction detection against conversation history
 - `explain_retrieval` (parallel) — generates 1-sentence reasoning for each top citation
 - `format_final_answer` — confidence-based graduated responses, citation formatting, caveats

@@ -109,12 +109,8 @@ class OllamaService:
 
         # Circuit breaker: fail-fast after consecutive failures to prevent cascading hangs
         # Use provider-agnostic circuit breaker from shared module
-        ollama_config = CircuitBreakerConfig(
-            provider="ollama",
-            failure_threshold=3,
-            recovery_timeout=60.0,
-            half_open_max_calls=1,
-        )
+        from app.constants import CircuitBreakerProvider
+        ollama_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.OLLAMA.value)
         self._circuit_breaker = DefaultCircuitBreaker(ollama_config)
 
     @staticmethod
