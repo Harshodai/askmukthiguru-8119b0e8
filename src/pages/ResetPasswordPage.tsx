@@ -7,8 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Lock, AlertCircle } from 'lucide-react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const ResetPasswordPage = () => {
+  usePageMeta({
+    title: 'Reset your password — AskMukthiGuru',
+    description: 'Set a new password for your AskMukthiGuru account.',
+    canonical: 'https://askmukthiguru.lovable.app/reset-password',
+  });
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
