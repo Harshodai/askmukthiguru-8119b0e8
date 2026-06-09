@@ -110,7 +110,6 @@ from app.core.database import init_db
 from app.core.limiter import limiter
 from routers.admin import admin_router
 from routers.feedback import router as feedback_router
-from services.cache_service import init_llm_cache
 
 logger = logging.getLogger(__name__)
 
@@ -285,17 +284,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to initialize APScheduler: {e}")
 
-    # 7. Initialize GPTCache to intercept identical LLM calls
-    init_llm_cache()
-
-    # 8. Start Telemetry Background Worker (Phase 4)
+    # 7. Start Telemetry Background Worker (Phase 4)
     telemetry_worker.start()
 
-    # 9. Unit 17: Hot Reload Config Watcher (watchfiles / polling fallback)
+    # 8. Unit 17: Hot Reload Config Watcher (watchfiles / polling fallback)
     from services.config_watcher import start_config_watcher
     _config_watcher = await start_config_watcher()
 
-    # 10. Wire NodeObservers (Metrics + Logging) for the RAG pipeline
+    # 9. Wire NodeObservers (Metrics + Logging) for the RAG pipeline
     _register_node_observers()
 
     logger.info("=== Mukthi Guru Backend Ready ===")
