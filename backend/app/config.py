@@ -14,6 +14,7 @@ Includes configs for:
 from __future__ import annotations
 
 import os
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
@@ -188,7 +189,10 @@ class Settings(BaseSettings):
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
     # --- Auth & Rate Limiting ---
+    is_production: bool = False
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
+    supabase_jwt_audience: str = "authenticated"
+    benchmark_secret: Optional[str] = None
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
     # /api/auth/register endpoint has no legitimate public use case and would
     # otherwise expose an email-enumeration surface. Override with the
@@ -196,6 +200,7 @@ class Settings(BaseSettings):
     disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
     registration_rate_limit: str = "5/minute"
+    admin_rate_limit: str = "5/minute"
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8

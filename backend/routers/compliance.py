@@ -12,8 +12,11 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.config import settings
+from app.core.limiter import limiter
 from app.dependencies import get_container
 from services.auth_service import get_current_user_from_supabase
 
@@ -53,7 +56,8 @@ async def get_audit_stats(_admin: dict = Depends(_require_admin)):
     """Return high-level stats from audit logs (record count per day)."""
     import os
     from pathlib import Path
-    from services.compliance_logger import _DEFAULT_AUDIT_DIR, _AUDIT_FILE_PREFIX
+
+    from services.compliance_logger import _AUDIT_FILE_PREFIX, _DEFAULT_AUDIT_DIR
 
     audit_dir = Path(os.environ.get("COMPLIANCE_AUDIT_DIR", str(_DEFAULT_AUDIT_DIR)))
     stats = []
@@ -68,6 +72,7 @@ async def get_audit_stats(_admin: dict = Depends(_require_admin)):
 
 
 @router.delete("/audit/sessions/{user_id}")
+@limiter.limit(settings.registration_rate_limit)
 async def request_data_deletion(
     user_id: str,
     _admin: dict = Depends(_require_admin),
