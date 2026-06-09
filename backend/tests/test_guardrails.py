@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from guardrails.rails import LightweightGuardrails
+from guardrails import LightweightGuardrails
 
 
 @pytest.fixture
