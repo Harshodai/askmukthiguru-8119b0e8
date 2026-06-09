@@ -28,9 +28,15 @@ class OllamaProvider(LLMProvider):
         return await self._service.classify_intent(text, **kwargs)
 
     async def classify_intent_and_complexity(self, *, text: str, **kwargs: Any) -> dict[str, str]:
-        intent = await self._service.classify_intent(text, **kwargs)
-        complexity = await self._service.classify_complexity(text)
-        return {"intent": intent, "complexity": complexity}
+        # OPTIMIZATION (Phase-1 / Truth-3): Delegate to OllamaService's
+        # combined single-LLM-call implementation. Two sequential calls
+        # collapsed into one — drops intent_router p50 by ~50%.
+        # --- LEGACY (preserved per "do not delete, just comment") ---
+        # intent = await self._service.classify_intent(text, **kwargs)
+        # complexity = await self._service.classify_complexity(text)
+        # return {"intent": intent, "complexity": complexity}
+        # ------------------------------------------------------------
+        return await self._service.classify_intent_and_complexity(text, **kwargs)
 
     async def classify_distress_structured(self, message: str) -> dict:
         return await self._service.classify_distress_structured(message)
