@@ -186,39 +186,55 @@ export async function* sendMessageStreaming(
 
   // Streaming only works for the custom backend with SSE support
   if (provider !== 'custom' || !endpoint) {
-    throw new Error('Streaming not available for this provider');
+    const err = new Error('Streaming not available for this provider');
+    (err as any).errorCode = 'unknown';
+    throw err;
   }
 
   const streamEndpoint = endpoint.replace(/\/?$/, '/stream');
   const trimmedMessages = messages.slice(-20);
 
+  const buildBody = () => JSON.stringify({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
+      ...trimmedMessages,
+    ],
+    user_message: userMessage,
+    meditation_step: meditationStep,
+    session_id: sessionId,
+    language: currentConfig.language || 'en',
+    stream: true,
+    ...(lastSereneMindAt != null
+      ? { last_serene_mind_at: lastSereneMindAt / 1000 }
+      : {}),
+  });
+
+  const doFetch = (tok: string | undefined) =>
+    fetch(streamEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
+      },
+      body: buildBody(),
+    });
+
   const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
+  let token = session?.access_token;
 
   const startMs = Date.now();
-  const response = await fetch(streamEndpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
-        ...trimmedMessages,
-      ],
-      user_message: userMessage,
-      meditation_step: meditationStep,
-      session_id: sessionId,
-      language: currentConfig.language || 'en',
-      stream: true,
-      ...(lastSereneMindAt != null
-        ? { last_serene_mind_at: lastSereneMindAt / 1000 }  // convert ms → seconds for Python
-        : {}),
-    }),
-  });
+  let response = await doFetch(token);
+
+  // Auto-retry on 401 with a refreshed token (mirrors non-stream path)
+  if (response.status === 401 && token) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      token = refreshed;
+      response = await doFetch(token);
+    }
+  }
 
   if (!response.ok || !response.body) {
     let errorDetail = `Streaming failed: ${response.status}`;
@@ -241,10 +257,12 @@ export async function* sendMessageStreaming(
   // happily hang on). Detect it early and surface a clear error.
   const contentType = response.headers?.get?.('content-type') || '';
   if (contentType && !contentType.includes('text/event-stream') && !contentType.includes('application/x-ndjson')) {
-    throw new Error(
-      `Streaming endpoint returned non-SSE response (content-type: ${contentType}). ` +
-      `The chat backend is not reachable.`,
+    const err = new Error(
+      `Backend not reachable at ${streamEndpoint} (got content-type: ${contentType}). ` +
+      `Set VITE_BACKEND_URL to your FastAPI URL.`,
     );
+    (err as any).errorCode = 'network';
+    throw err;
   }
 
   const reader = response.body.getReader();

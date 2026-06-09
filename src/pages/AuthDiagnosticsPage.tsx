@@ -30,6 +30,7 @@ const AuthDiagnosticsPage = () => {
   usePageMeta({
     title: 'Auth Diagnostics — AskMukthiGuru',
     description: 'Self-test for session, profile, roles, admin status, and backend reachability.',
+    canonical: 'https://askmukthiguru.lovable.app/auth/diagnostics',
   });
 
   const [checks, setChecks] = useState<Check[]>([]);

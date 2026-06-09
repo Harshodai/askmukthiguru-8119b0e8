@@ -12,6 +12,7 @@ import {
   type AuthStats,
 } from '@/lib/authTelemetry';
 import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Trash2 } from 'lucide-react';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const fmtMs = (ms: number | null): string => {
   if (ms == null) return '—';
@@ -30,6 +31,11 @@ const StatusBadge = ({ status }: { status: AuthRun['status'] }) => {
 };
 
 const AuthLatencyDashboard = () => {
+  usePageMeta({
+    title: 'Auth Latency Dashboard — AskMukthiGuru',
+    description: 'Per-step authentication latency and slow-run diagnostics for AskMukthiGuru sign-in.',
+    canonical: 'https://askmukthiguru.lovable.app/auth/latency',
+  });
   const [runs, setRuns] = useState<AuthRun[]>([]);
   const [active, setActive] = useState<AuthRun | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
