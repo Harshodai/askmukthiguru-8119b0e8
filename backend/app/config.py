@@ -90,8 +90,8 @@ class Settings(BaseSettings):
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
     # --- Feature Flags & Memory Layer ---
-    feature_memory_enabled: bool = False
-    feature_memory_write: bool = False
+    feature_memory_enabled: bool = True
+    feature_memory_write: bool = True
     feature_lightweight_classifier: bool = False   # Gemini Flash for fast nodes
     feature_regex_prerouter: bool = True
     node_model_overrides: dict[str, str] = {}
