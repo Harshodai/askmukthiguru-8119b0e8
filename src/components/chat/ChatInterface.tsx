@@ -1091,6 +1091,24 @@ const handleSelectConversation = (conversation: Conversation) => {
 };
 
 const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  // Up-arrow (when input empty) recalls the last user message into the draft.
+  if (e.key === 'ArrowUp' && !inputValue) {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    if (lastUser) {
+      e.preventDefault();
+      setInputValue(lastUser.content);
+      // After state flush, move caret to end + autosize
+      requestAnimationFrame(() => {
+        const ta = inputRef.current;
+        if (ta) {
+          ta.style.height = 'auto';
+          ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
+          ta.setSelectionRange(ta.value.length, ta.value.length);
+        }
+      });
+      return;
+    }
+  }
   // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
