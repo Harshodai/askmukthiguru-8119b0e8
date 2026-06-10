@@ -1,11 +1,12 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from fastapi.testclient import TestClient
 
 from app.dependencies import ServiceContainer, get_container
 from app.main import app, get_current_user_from_supabase
-from services.user_profile_service import SpiritualLevel, LanguagePreference, UserProfile
+from services.user_profile_service import LanguagePreference, SpiritualLevel, UserProfile
 
 client = TestClient(app)
 

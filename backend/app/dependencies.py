@@ -21,7 +21,7 @@ from guardrails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_deep_graph, build_fast_graph, build_rag_graph
 from services.cache_service import SemanticCacheAdapter, init_llm_cache
-from services.circuit_breaker import initialize_circuit_breakers, get_circuit_breaker_registry
+from services.circuit_breaker import initialize_circuit_breakers
 from services.compliance_logger import get_compliance_logger  # Unit 24
 from services.embedding_service import EmbeddingService
 from services.ingestion_tracker import IngestionTracker
@@ -155,6 +155,7 @@ class ServiceContainer:
         # Layer 4d: User Profiles (depends on supabase)
         if settings.user_profile_enabled:
             from supabase import create_client
+
             from services.memory_service import MemoryService
 
             supabase_client = None

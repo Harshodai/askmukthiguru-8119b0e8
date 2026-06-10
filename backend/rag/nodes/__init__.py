@@ -10,49 +10,48 @@ import sys
 from typing import Any
 
 from app.config import settings as app_settings
-from . import _services
-from . import utils
 
+from . import _services, utils
 from ._services import init_services
-from .utils import (
-    select_llm_model,
+from .generation import (
+    context_engineer,
+    format_final_answer,
+    generate_answer,
 )
 from .intent import (
-    intent_router,
     handle_casual,
     handle_distress,
     handle_meditation,
-    route_by_intent,
+    intent_router,
     route_after_grading,
+    route_by_intent,
+)
+from .reranking import (
+    check_context_sufficiency,
+    enrich_context,
+    grade_documents,
+    rerank_documents,
 )
 from .retrieval import (
     decompose_query,
     generate_hyde,
+    merge_sub_results,
     navigate_knowledge_tree,
     retrieve_documents,
     retrieve_single,
-    merge_sub_results,
-)
-from .reranking import (
-    rerank_documents,
-    grade_documents,
-    check_context_sufficiency,
-    enrich_context,
-)
-from .generation import (
-    context_engineer,
-    generate_answer,
-    format_final_answer,
-)
-from .verification import (
-    reflect_on_answer,
-    verify_answer,
-    check_contradiction,
-    explain_retrieval,
 )
 from .short_circuit import (
-    rewrite_query,
     handle_fallback,
+    rewrite_query,
+)
+from .utils import (
+    select_llm_model,
+)
+from .verification import (
+    check_contradiction,
+    explain_retrieval,
+    reflect_on_answer,
+    verify_answer,
 )
 
 # Placeholder module-level attributes for IDE/static analysis and direct access
@@ -68,6 +67,7 @@ _context_compressor: Any = None
 settings: Any = app_settings
 
 from types import ModuleType
+
 
 class NodesModule(ModuleType):
     def __getattr__(self, name: str) -> Any:

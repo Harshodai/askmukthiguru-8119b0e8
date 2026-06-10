@@ -4,26 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
-from .utils import settings
 from app.metrics import (
     CONFIDENCE_SCORES,
+    CONTRADICTION_DETECTIONS,
     FAITHFULNESS_SCORE,
     RELEVANCY_SCORE,
     VERIFICATION_RESULTS,
-    CONTRADICTION_DETECTIONS,
+)
+from rag.prompts import (
+    CITATION_REASONING_PROMPT,
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from rag.prompts import (
-    GURU_SYSTEM_PROMPT,
-    STIMULUS_RAG_PROMPT,
-    MULTI_TURN_PROMPT,
-    CITATION_REASONING_PROMPT,
-)
-from .utils import log_metrics, _trace_update, strip_cot, _generation_kwargs, emit_status
+
 from . import _services
+from .utils import _trace_update, emit_status, log_metrics
 
 logger = logging.getLogger(__name__)
 

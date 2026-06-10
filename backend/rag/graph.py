@@ -208,11 +208,11 @@ def _register_graph_nodes() -> None:
     try:
         from rag.node_registry import registry
         from rag.nodes import (
-            intent_router,
             generate_answer,
-            verify_answer,
+            intent_router,
             reflect_on_answer,
             retrieve_documents,
+            verify_answer,
         )
 
         registry.register("intent_router", is_llm=True)(intent_router)

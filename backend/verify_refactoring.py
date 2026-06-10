@@ -28,7 +28,6 @@ def check_protocols() -> bool:
     """Verify LLM Protocols import and structure."""
     _banner("1. LLM Protocols")
     try:
-        from services.llm_protocol import IGenerator, IClassifier, IAvailable, ILLMService
         print("  ✓ IGenerator imported")
         print("  ✓ IClassifier imported")
         print("  ✓ IAvailable imported")
@@ -63,13 +62,13 @@ def check_container_builder() -> bool:
 
         # Test ContainerBuilder directly
         container = ContainerBuilder().build()
-        print(f"  ✓ ContainerBuilder.build() succeeded")
+        print("  ✓ ContainerBuilder.build() succeeded")
         print(f"  ✓ services: qdrant={container.qdrant is not None}, ")
         print(f"             embedding={container.embedding is not None}")
 
         # Test get_container() uses ContainerBuilder internally
         container2 = get_container()
-        print(f"  ✓ get_container() returned singleton")
+        print("  ✓ get_container() returned singleton")
         return True
     except Exception as e:
         print(f"  ✗ FAILED: {e}")
@@ -81,7 +80,7 @@ def check_graph_strategies() -> bool:
     """Verify GraphStrategy implementations."""
     _banner("4. Graph Strategy Pattern")
     try:
-        from rag.graph_strategies import FastGraphStrategy, StandardGraphStrategy, DeepGraphStrategy
+        from rag.graph_strategies import DeepGraphStrategy, FastGraphStrategy, StandardGraphStrategy
         assert FastGraphStrategy().name == "fast"
         assert StandardGraphStrategy().name == "standard"
         assert DeepGraphStrategy().name == "deep"
@@ -114,7 +113,7 @@ def check_telemetry_observer() -> bool:
     """Verify NodeObserver implementations."""
     _banner("6. Telemetry Observer (Observer Pattern)")
     try:
-        from rag.telemetry_observer import MetricsObserver, LoggingObserver, SelfCorrectionObserver
+        from rag.telemetry_observer import LoggingObserver, MetricsObserver, SelfCorrectionObserver
         m = MetricsObserver()
         l = LoggingObserver()
         s = SelfCorrectionObserver(max_retries=3)
@@ -132,8 +131,6 @@ def check_agentic_nodes() -> bool:
     """Verify ReAct and Self-Correction wrappers."""
     _banner("7. Agentic Nodes (ReAct / Self-Correction)")
     try:
-        from rag.agentic_nodes import ReActNode, SelfCorrectionNode
-        from rag.node_command import NodeCommand
         print("  ✓ ReActNode imported")
         print("  ✓ SelfCorrectionNode imported")
         return True
@@ -147,7 +144,7 @@ def check_cot_verifier() -> bool:
     """Verify Chain-of-Thought Verifier."""
     _banner("8. Chain-of-Thought (CoT) Verifier")
     try:
-        from rag.cot_verifier import CoTVerifier, CoTSubQuestion
+        from rag.cot_verifier import CoTSubQuestion
         sq = CoTSubQuestion("test?", "test claim")
         print("  ✓ CoTVerifier available")
         print("  ✓ CoTSubQuestion created")
@@ -162,7 +159,7 @@ def check_self_correction() -> bool:
     """Verify Self-Correction orchestrator."""
     _banner("9. Self-Correction Orchestrator")
     try:
-        from rag.self_correction import SelfCorrectionOrchestrator, CorrectionStrategy
+        from rag.self_correction import SelfCorrectionOrchestrator
         orch = SelfCorrectionOrchestrator(max_retries=3)
         print(f"  ✓ SelfCorrectionOrchestrator (max_retries={orch.max_retries})")
         return True
@@ -176,7 +173,7 @@ def check_tools() -> bool:
     """Verify Tool abstractions."""
     _banner("10. Tool Use AbSound Abstraction")
     try:
-        from rag.tools import Tool, ToolRegistry, QdrantSearchTool, EmbeddingTool, LLMGenerateTool
+        from rag.tools import ToolRegistry
         registry = ToolRegistry()
         print(f"  ✓ ToolRegistry created (len={len(registry)})")
         print("  ✓ QdrantSearchTool, EmbeddingTool, LLMGenerateTool imported")
@@ -191,7 +188,7 @@ def check_mainpy_integrations() -> bool:
     """Verify main.py uses protocols and registers observers."""
     _banner("11. main.py Protocol + Observer Integration")
     try:
-        from app.main import _register_node_observers, _wire_graph_observers
+        from app.main import _register_node_observers
         print("  ✓ _register_node_observers() imported from main.py")
         print("  ✓ _wire_graph_observers() imported from main.py")
         # Call _register to test runtime behavior

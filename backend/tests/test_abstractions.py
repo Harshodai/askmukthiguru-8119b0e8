@@ -18,7 +18,7 @@ class TestLLMProtocol(unittest.TestCase):
     """Verify the IGenerator / IClassifier / IAvailable protocols."""
 
     def test_protocol_import(self) -> None:
-        from services.llm_protocol import IGenerator, IClassifier, IAvailable, ILLMService
+        from services.llm_protocol import IAvailable, IClassifier, IGenerator, ILLMService
 
         self.assertIsNotNone(IGenerator)
         self.assertIsNotNone(IClassifier)
@@ -54,9 +54,9 @@ class TestGraphStrategies(unittest.TestCase):
 
     def test_strategy_import(self) -> None:
         from rag.graph_strategies import (
+            DeepGraphStrategy,
             FastGraphStrategy,
             StandardGraphStrategy,
-            DeepGraphStrategy,
         )
 
         self.assertIsNotNone(FastGraphStrategy)
@@ -65,9 +65,9 @@ class TestGraphStrategies(unittest.TestCase):
 
     def test_strategy_names(self) -> None:
         from rag.graph_strategies import (
+            DeepGraphStrategy,
             FastGraphStrategy,
             StandardGraphStrategy,
-            DeepGraphStrategy,
         )
 
         self.assertEqual(FastGraphStrategy().name, "fast")
@@ -105,7 +105,7 @@ class TestCircuitBreaker(unittest.TestCase):
         self.assertEqual(CircuitState.HALF_OPEN.value, "half_open")
 
     def test_registry(self) -> None:
-        from services.circuit_breaker import CircuitBreakerRegistry, get_circuit_breaker_registry
+        from services.circuit_breaker import CircuitBreakerRegistry
 
         registry = CircuitBreakerRegistry()
         self.assertIsNotNone(registry)
@@ -132,7 +132,7 @@ class TestNodeRegistry(unittest.TestCase):
     """Verify NodeRegistry for graph node discovery."""
 
     def test_register_and_get(self):
-        from rag.node_registry import NodeRegistry, registry
+        from rag.node_registry import registry
 
         @registry.register("test_node", is_llm=False)
         def test_node(state):
@@ -218,7 +218,7 @@ class TestCoTVerifier(unittest.TestCase):
     """Verify Chain-of-Thought Verifier."""
 
     def test_cot_verifier_import(self):
-        from rag.cot_verifier import CoTVerifier, CoTSubQuestion
+        from rag.cot_verifier import CoTSubQuestion, CoTVerifier
 
         self.assertIsNotNone(CoTVerifier)
         self.assertIsNotNone(CoTSubQuestion)
@@ -238,10 +238,10 @@ class TestSelfCorrection(unittest.TestCase):
 
     def test_imports(self):
         from rag.self_correction import (
-            SelfCorrectionOrchestrator,
             CorrectionStrategy,
-            RewriteQueryCorrection,
             FallbackCorrection,
+            RewriteQueryCorrection,
+            SelfCorrectionOrchestrator,
         )
 
         self.assertIsNotNone(SelfCorrectionOrchestrator)
@@ -265,8 +265,8 @@ class TestAgenticNodes(unittest.TestCase):
         self.assertIsNotNone(SelfCorrectionNode)
 
     def test_react_node_wraps_command(self):
-        from rag.node_command import NodeCommand
         from rag.agentic_nodes import ReActNode
+        from rag.node_command import NodeCommand
 
         class DummyCommand(NodeCommand):
             name = "dummy"
@@ -281,9 +281,8 @@ class TestAgenticNodes(unittest.TestCase):
         self.assertIn("done", result)
 
     def test_self_correction_node(self):
-        from unittest.mock import Mock
-        from rag.node_command import NodeCommand
         from rag.agentic_nodes import SelfCorrectionNode
+        from rag.node_command import NodeCommand
 
         class FailsOnceCommand(NodeCommand):
             name = "fails_once"
@@ -312,9 +311,9 @@ class TestTelemetryObserver(unittest.TestCase):
 
     def test_imports(self):
         from rag.telemetry_observer import (
-            NodeObserver,
-            MetricsObserver,
             LoggingObserver,
+            MetricsObserver,
+            NodeObserver,
             SelfCorrectionObserver,
         )
 
@@ -328,7 +327,7 @@ class TestTools(unittest.TestCase):
     """Verify the Tool Use abstractions exist."""
 
     def test_tool_imports(self) -> None:
-        from rag.tools import Tool, ToolRegistry, QdrantSearchTool, EmbeddingTool, LLMGenerateTool
+        from rag.tools import EmbeddingTool, LLMGenerateTool, QdrantSearchTool, Tool, ToolRegistry
         self.assertIsNotNone(Tool)
         self.assertIsNotNone(ToolRegistry)
         self.assertIsNotNone(QdrantSearchTool)
@@ -336,7 +335,7 @@ class TestTools(unittest.TestCase):
         self.assertIsNotNone(LLMGenerateTool)
 
     def test_tool_registry(self) -> None:
-        from rag.tools import ToolRegistry, LLMGenerateTool
+        from rag.tools import ToolRegistry
 
         registry = ToolRegistry()
         self.assertEqual(len(registry), 0)

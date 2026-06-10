@@ -12,28 +12,27 @@ import hashlib
 import logging
 import time
 import uuid
-from typing import Any, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 
+from app.coalescer import build_coalescer
 from app.config import settings
 from app.context import correlation_id_var
 from app.dependencies import ServiceContainer
-from app.language_utils import detect_and_prepare_language_info
 from app.metrics import REQUEST_COUNT, REQUEST_LATENCY
-from app.schemas import ChatRequest, ChatResponse, MessagePayload
+from app.orchestrator_utils import (
+    cache_language_key,
+    get_expected_keywords,
+    prepare_request_state,
+    select_graph_for_query,
+)
+from app.schemas import ChatRequest, ChatResponse
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.graph import create_initial_state
-from rag.memory import build_memory_context, normalize_session_id
+from rag.memory import normalize_session_id
 from rag.timeout_utils import TimeoutBudget, budget_var
 from services.sarvam_service import CircuitOpenException
 from services.serene_mind_engine import DistressAssessment, DistressLevel
-from app.coalescer import build_coalescer
-from app.orchestrator_utils import (
-    cache_language_key,
-    select_graph_for_query,
-    prepare_request_state,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +298,7 @@ class ChatRequestOrchestrator:
                 initial_state["detected_language"] = lang_detection.primary.value
                 initial_state["user_id"] = user_id
                 initial_state["memory_context"] = memory_context
+                initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)
 
                 import random
                 if settings.ab_testing_enabled and random.random() < settings.ab_testing_ratio:

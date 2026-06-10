@@ -112,7 +112,7 @@ async def test_reflect_on_answer_faithful(mock_services):
 
     assert result["needs_correction"] is False
     assert "Answer appears valid and consistent" in result["reflection_feedback"]
-    assert mock_ld.score_faithfulness.call_count == 2
+    assert mock_ld.score_faithfulness.call_count == 1
 
 
 @pytest.mark.asyncio

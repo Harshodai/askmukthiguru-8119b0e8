@@ -174,7 +174,7 @@ class ABTestRouter:
             )
 
         # Deterministic hash: SHA-256(user_id + experiment_name) → float in [0, 1)
-        hash_input = f"{user_id}:{experiment_name}".encode("utf-8")
+        hash_input = f"{user_id}:{experiment_name}".encode()
         digest = hashlib.sha256(hash_input).hexdigest()
         # Use first 8 hex chars as a 32-bit integer → normalize to [0, 1)
         hash_val = int(digest[:8], 16) / 0xFFFFFFFF

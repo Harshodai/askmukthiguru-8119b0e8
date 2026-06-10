@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
-from .utils import settings
 from rag.compressor import compress_documents
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import check_sufficiency
-from .utils import log_metrics, _trace_update, _grounded_citation_urls, emit_status
+
 from . import _services
+from .utils import _grounded_citation_urls, _trace_update, emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 

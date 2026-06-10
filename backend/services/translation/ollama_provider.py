@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from services.translation.base import TranslationProvider
 from services.ollama_service import OllamaService
+from services.translation.base import TranslationProvider
 
 
 class OllamaTranslationProvider(TranslationProvider):

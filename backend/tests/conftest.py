@@ -23,5 +23,6 @@ if os.path.exists(test_env_path):
 
 # Disable rate limiting during tests to avoid Redis connections
 from app.core.limiter import limiter
+
 limiter.enabled = False
 

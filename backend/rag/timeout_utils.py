@@ -1,7 +1,8 @@
-import time
 import logging
-from typing import Optional
+import time
 from contextvars import ContextVar
+from typing import Optional
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)

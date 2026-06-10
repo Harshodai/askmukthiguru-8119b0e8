@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 
-from .utils import settings, log_metrics, emit_status
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
+
 from . import _services
+from .utils import emit_status, log_metrics
 
 logger = logging.getLogger(__name__)
 

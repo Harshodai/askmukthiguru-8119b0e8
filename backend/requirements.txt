@@ -70,6 +70,7 @@ passlib[bcrypt]>=1.7.4
 
 # --- Infrastructure ---
 redis>=5.2.0
+celery>=5.4.0
 apscheduler>=3.10.0
 gunicorn>=23.0.0
 

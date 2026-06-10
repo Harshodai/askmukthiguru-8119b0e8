@@ -7,7 +7,8 @@ via the LLMService Protocol.
 from __future__ import annotations
 
 import abc
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 
 class LLMProvider(abc.ABC):

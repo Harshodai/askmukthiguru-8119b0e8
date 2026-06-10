@@ -14,8 +14,8 @@ Design:
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
-from typing import Callable, Awaitable
+from collections.abc import AsyncIterator, Awaitable
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 

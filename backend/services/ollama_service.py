@@ -16,22 +16,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections.abc import AsyncIterator
-from typing import Optional
 
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
-
-from services.streaming_hardening import StreamInterruptedError, guarded_stream  # Unit 18
-# Import shared circuit breaker (provider-agnostic)
-from services.circuit_breaker import (
-    DefaultCircuitBreaker,
-    CircuitBreakerConfig,
-    CircuitOpenException,
-)
 
 from app.config import settings
 from rag.prompts import (
@@ -47,6 +37,13 @@ from rag.prompts import (
     SUMMARIZE_PROMPT,
     VERIFICATION_PROMPT,
 )
+
+# Import shared circuit breaker (provider-agnostic)
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    DefaultCircuitBreaker,
+)
+from services.streaming_hardening import StreamInterruptedError, guarded_stream  # Unit 18
 
 logger = logging.getLogger(__name__)
 

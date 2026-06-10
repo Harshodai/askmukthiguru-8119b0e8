@@ -22,6 +22,7 @@ from app.dependencies import ServiceContainer
 from app.metrics import REQUEST_COUNT
 from app.orchestrator_utils import (
     cache_language_key,
+    get_expected_keywords,
     prepare_request_state,
     select_graph_for_query,
 )
@@ -54,9 +55,6 @@ class ChatStreamRequestOrchestrator:
         preferred_lang = chat_body.language or "en"
         is_indic = preferred_lang and not preferred_lang.startswith("en")
         cache_key = cache_language_key(user_msg, preferred_lang)
-        user_id = user.get("id", "anonymous") if user else "anonymous"
-        stable_session_id = normalize_session_id(chat_body.session_id, user_id)
-
         if not user_msg:
             async def error_stream():
                 yield "event: error\ndata: Message cannot be empty\n\n"
@@ -304,8 +302,10 @@ class ChatStreamRequestOrchestrator:
                     request_id=correlation_id_var.get(),
                 )
                 initial_state["detected_language"] = lang_detection.primary.value
+                user_id = user.get("id", "anonymous") if user else "anonymous"
                 initial_state["user_id"] = user_id
                 initial_state["memory_context"] = memory_context
+                initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)
 
                 import random
                 if settings.ab_testing_enabled and random.random() < settings.ab_testing_ratio:

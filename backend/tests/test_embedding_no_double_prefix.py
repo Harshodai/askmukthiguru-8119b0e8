@@ -1,6 +1,6 @@
-import pytest
-from unittest.mock import MagicMock
 import sys
+from unittest.mock import MagicMock
+
 
 def test_embedding_no_double_prefix(monkeypatch):
     """Verify that encode_single_full does not double-prefix the input query."""

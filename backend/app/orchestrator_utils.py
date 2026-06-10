@@ -2,6 +2,9 @@
 
 Shared request preparation, memory context preparation, and language routing utilities
 used by both synchronous and streaming orchestrators.
+
+Fast-path routing: classifies queries into fast/standard/deep based on
+intent, doctrine keywords, and query structure.
 """
 
 from __future__ import annotations
@@ -21,6 +24,36 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Expanded simple query patterns (synced with intent.py _SIMPLE_QUERY_PATTERNS)
+_SIMPLE_QUERY_STARTS: tuple[str, ...] = (
+    "who", "what is", "what are", "when", "where", "how to", "how do",
+    "how does", "how many", "how much", "can you", "explain the",
+    "what did", "tell me about", "describe", "define", "meaning of",
+)
+
+# Deep query patterns — comparative, analytical, multi-hop
+_DEEP_QUERY_PATTERNS: list[str] = [
+    r"\bcompare\b", r"\bcontrast\b", r"\bdifference between\b",
+    r"\bsimilarities between\b", r"\bversus\b", r"\bvs\b",
+    r"\brelationship between\b", r"\bhow are .* connected\b",
+    r"\bpros and cons\b", r"\badvantages? and disadvantages?\b",
+    r"\bevolution of\b", r"\bover time\b", r"\bacross different\b",
+    r"\btrick question\b", r"\btrap\b", r"\bfooled\b",
+    r"\btest the bot\b", r"\btry to confuse\b",
+]
+
+# Doctrine keyword fast-path triggers
+_DOCTRINE_FAST_PATH_KEYWORDS: list[str] = [
+    "four sacred secrets", "four secrets", "sacred secret",
+    "deeksha", "oneness blessing",
+    "soul sync", "soul-sync",
+    "ekam", "varadaiahpalem",
+    "manifest 2026", "manifest 2025", "12 powers",
+    "beautiful state", "beautiful state teachings",
+    "preethaji", "krishnaji", "founder",
+    "loka seva", "ekam world",
+]
+
 
 def cache_language_key(message: str, language: str) -> str:
     """Generate a cache key based on the language and trimmed message."""
@@ -28,26 +61,88 @@ def cache_language_key(message: str, language: str) -> str:
     return f"{normalized_lang}:{message.strip()}"
 
 
-def select_graph_for_query(query: str) -> str:
-    """Select the most appropriate compiled graph variant for a query."""
+def select_graph_for_query(query: str, detected_intent: Optional[str] = None) -> str:
+    """Select the most appropriate compiled graph variant for a query.
+
+    Args:
+        query: Raw user query (already translated to English if necessary).
+        detected_intent: Optional intent label from intent router.
+
+    Returns:
+        "fast" — Simple factual queries (1-2 LLM calls, <20s)
+        "standard" — Complex factual queries (3-4 LLM calls, <35s)
+        "deep" — Comparative/analytical queries (5-6 LLM calls, <45s)
+    """
+    if not query:
+        return "standard"
+
     q = query.lower().strip()
     tokens = q.split()
 
-    deep_keywords = [
-        "compare", "contrast", "difference between", "differences between",
-        "how does", "why is", "explain the connection", "relationship between",
-        "multiple", "several", "various", "deeper", "profound", "ultimate",
-    ]
-    if any(kw in q for kw in deep_keywords):
-        return "deep"
+    # Check deep patterns first (highest priority)
+    for pattern in _DEEP_QUERY_PATTERNS:
+        if re.search(pattern, q):
+            return "deep"
 
-    # Fast path: use regex to catch simple factual queries —
-    # more robust than startswith() alone (matches "what are", "where is", etc.)
-    fast_pattern = re.compile(r"^(who\s|what\s+(is|are|was|were)\s|when\s|where\s|how\s+(many|much)\s|list\s)")
-    if len(tokens) <= 8 and fast_pattern.search(q):
-        return "fast"
+    # Check if intent router already classified as simple
+    if detected_intent in ("FACTUAL", "QUERY"):
+        if len(tokens) <= 15:
+            return "fast"
+
+    # Check doctrine-specific fast path triggers
+    for keyword in _DOCTRINE_FAST_PATH_KEYWORDS:
+        if keyword in q:
+            if len(tokens) <= 12:
+                return "fast"
+
+    # Check simple query patterns
+    if len(tokens) <= 8:
+        for st in _SIMPLE_QUERY_STARTS:
+            if q.startswith(st):
+                return "fast"
+
+    # Broader regex-based simple query detection
+    simple_patterns = [
+        r"^(what|who|where|when|how|why|is|are|can|do|does|did)\s",
+        r"^(tell me|explain|describe|define)\s+(about|the|what|how)",
+        r"^(what is|what are|who is|who are|where is|where are)\s+",
+    ]
+    for pattern in simple_patterns:
+        if re.search(pattern, q) and len(tokens) <= 10:
+            return "fast"
 
     return "standard"
+
+
+def should_skip_verification(query_tier: str, detected_intent: str) -> bool:
+    """Determine if verification nodes can be skipped.
+
+    Fast-path queries get lightweight verification only.
+    """
+    return query_tier in ("fast", "tier2_simple") or detected_intent in ("CASUAL", "MEDITATION")
+
+
+def get_expected_keywords(query: str) -> list[str]:
+    """Extract expected doctrine keywords from a query for retrieval boosting."""
+    q = query.lower()
+    keywords: list[str] = []
+
+    if "four sacred secret" in q or "four secret" in q:
+        keywords.extend(["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"])
+    if "deeksha" in q:
+        keywords.extend(["oneness blessing", "frontal lobe", "parietal", "neurobiological"])
+    if "soul sync" in q or "soul-sync" in q:
+        keywords.extend(["breath awareness", "humming", "pause", "Aham", "golden light", "intention"])
+    if "manifest 2026" in q or "manifest 2025" in q or "12 powers" in q:
+        keywords.extend(["manifest", "12 powers", "monthly", "intention", "heart connection", "deeksha"])
+    if "ekam" in q:
+        keywords.extend(["varadaiahpalem", "tirupati", "andhra pradesh", "india"])
+    if "beautiful state" in q:
+        keywords.extend(["calm", "joy", "love", "connection", "beautiful state teachings"])
+    if "preethaji" in q or "krishnaji" in q:
+        keywords.extend(["co-founders", "oneness movement", "ekam", "lokaa foundation"])
+
+    return keywords
 
 
 async def prepare_request_state(

@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-import sys
-from services.memory_service import MemoryService, MemoryExtraction
+
+import pytest
+
+from services.memory_service import MemoryExtraction, MemoryService
+
 
 @pytest.mark.asyncio
 async def test_memory_service_get_core():

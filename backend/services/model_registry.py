@@ -23,9 +23,9 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Optional
 
-from services.ollama_service import ModelUnavailableError, OllamaService
-from services.krutrim_service import KrutrimService
 from app.config import settings
+from services.krutrim_service import KrutrimService
+from services.ollama_service import ModelUnavailableError, OllamaService
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +144,7 @@ class ModelRegistry:
     ) -> str:
         """Direct generation with the fallback ChatOllama instance."""
         import asyncio
+
         from langchain_core.messages import HumanMessage, SystemMessage
 
         messages = [SystemMessage(content=system_prompt)]
@@ -170,7 +171,7 @@ class ModelRegistry:
         generate_with_failover() and yields the entire response as one chunk.
         This preserves the streaming contract for callers while still delivering content.
         """
-        from services.streaming_hardening import guarded_stream, StreamInterruptedError
+        from services.streaming_hardening import StreamInterruptedError, guarded_stream
 
         try:
             async for token in guarded_stream(

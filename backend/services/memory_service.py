@@ -1,8 +1,10 @@
-import logging
 import asyncio
-from typing import Optional, List, Dict, Any
-from app.config import settings
+import logging
+from typing import Any, Dict, List
+
 from pydantic import BaseModel, Field
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -243,7 +245,7 @@ class MemoryService:
             existing_cores = await self.get_core(user_id)
             existing_core_texts = [c["content"] for c in existing_cores]
             if existing_core_texts:
-                prompt += f"\n\nExisting core memories to avoid duplicating:\n- " + "\n- ".join(existing_core_texts)
+                prompt += "\n\nExisting core memories to avoid duplicating:\n- " + "\n- ".join(existing_core_texts)
 
             # Call LLM with timeout
             resp: MemoryExtraction = await client.chat.completions.create(

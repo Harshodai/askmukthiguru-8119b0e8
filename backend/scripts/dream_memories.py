@@ -1,14 +1,16 @@
 import asyncio
 import logging
-import numpy as np
-import sys
 import os
+import sys
+
+import numpy as np
 
 # Add backend to path so imports work
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.config import settings
 from supabase import create_client
+
+from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dream_memories")

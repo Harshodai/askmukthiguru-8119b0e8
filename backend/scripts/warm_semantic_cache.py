@@ -9,14 +9,14 @@ import sys
 # Ensure project root is on path
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
 
-from app.main import app  # FastAPI app
 from app.dependencies import get_container
+from app.main import app  # FastAPI app
 from benchmarks.question_bank import (
-    FOUR_SACRED_SECRETS,
-    DEEKSHA_NEUROSCIENCE,
-    SOUL_SYNC,
     BEAUTIFUL_STATE,
+    DEEKSHA_NEUROSCIENCE,
+    FOUR_SACRED_SECRETS,
     MEDITATION,
+    SOUL_SYNC,
 )
 
 
@@ -37,8 +37,9 @@ def _collect_sample_queries() -> list[str]:
 
 async def warm() -> int:
     """Run all sample queries through the chat endpoint and populate cache."""
-    from httpx import AsyncClient
     import time
+
+    from httpx import AsyncClient
 
     container = get_container()
     if not container.semantic_cache:
