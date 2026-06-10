@@ -205,7 +205,7 @@ async def _post_chat(
             "error": "",
             "latency_ms": latency_ms,
         }
-    except (httpx.TimeoutException,) as exc:
+    except httpx.TimeoutException as exc:
         latency_ms = (time.perf_counter() - t0) * 1000
         return {
             "ok": False,
@@ -401,7 +401,7 @@ def write_markdown_report(report: BenchmarkReport, output_dir: Path) -> Path:
         "# RAG Benchmark Report\n",
         f"**Run Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n",
         "## Summary\n",
-        f"| Metric | Value |\n",
+        "| Metric | Value |\n",
         "|--------|-------|\n",
         f"| Total Queries | {report.total} |\n",
         f"| Passed | {report.passed} |\n",

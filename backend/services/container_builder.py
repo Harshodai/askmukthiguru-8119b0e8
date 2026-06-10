@@ -30,9 +30,9 @@ class ContainerBuilder:
     """
 
     def __init__(self) -> None:
-        self._container: "ServiceContainer | None" = None
+        self._container: ServiceContainer | None = None
 
-    def build(self) -> "ServiceContainer":
+    def build(self) -> ServiceContainer:
         """Execute all build steps and return the populated container."""
         from app.dependencies import ServiceContainer
 
@@ -54,8 +54,7 @@ class ContainerBuilder:
         container = self._container
         from app.config import settings
         from services.cache_service import init_llm_cache
-        from services.embedding_service import EmbeddingService
-        from services.ingestion_tracker import IngestionTracker, build_tracker as build_ingestion_tracker
+        from services.ingestion_tracker import build_tracker as build_ingestion_tracker
         from services.krutrim_service import KrutrimService
         from services.language_router import LanguageRouter
         from services.lightrag_service import lightrag_service
@@ -82,11 +81,10 @@ class ContainerBuilder:
         """Layer 2: LLM, embedding, and translation services."""
         from app.config import settings
         from services.embedding_service import EmbeddingService
-        from services.model_registry import ModelRegistry
-        from services.ollama_service import OllamaService
         from services.llm import LLMProviderFactory, OllamaProvider
-        from services.translation import TranslationProviderFactory
         from services.llm_factory import LLMServiceFactory
+        from services.model_registry import ModelRegistry
+        from services.translation import TranslationProviderFactory
 
         container = self._container
         container.embedding = EmbeddingService()
@@ -124,11 +122,11 @@ class ContainerBuilder:
         """Layer 3: Guardrails, cache, A/B, prompt store, cost tracker."""
         from app.config import settings
         from guardrails import GuardrailsService
+        from services.ab_testing import get_ab_router
         from services.cache_service import RedisCacheAdapter, SemanticCacheAdapter
         from services.compliance_logger import get_compliance_logger
-        from services.prompt_store import get_prompt_store
         from services.cost_tracker import get_cost_tracker
-        from services.ab_testing import get_ab_router
+        from services.prompt_store import get_prompt_store
 
         container = self._container
         container.guardrails = GuardrailsService()
@@ -149,9 +147,9 @@ class ContainerBuilder:
     def _add_language_and_profiles(self) -> None:
         """Layer 4: Emotional intelligence and user profiles."""
         from app.config import settings
+        from services.memory_service import MemoryService
         from services.serene_mind_engine import SereneMindEngine
         from services.user_profile_service import UserProfileService
-        from services.memory_service import MemoryService
 
         container = self._container
         if settings.serene_mind_enabled:
@@ -194,11 +192,10 @@ class ContainerBuilder:
 
     def _add_graphs(self) -> None:
         """Layer 6: RAG graph variants."""
-        from app.config import settings
         from rag.graph_strategies import (
+            DeepGraphStrategy,
             FastGraphStrategy,
             StandardGraphStrategy,
-            DeepGraphStrategy,
         )
 
         container = self._container

@@ -24,7 +24,7 @@ import logging
 from contextvars import ContextVar
 from typing import Optional
 
-from fastapi import Depends, Request
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 

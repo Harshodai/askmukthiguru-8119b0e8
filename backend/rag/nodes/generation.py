@@ -4,30 +4,30 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Optional
 
-from .utils import settings
-from rag.compressor import cap_to_token_budget, compress_documents
+from rag.compressor import cap_to_token_budget
+from rag.prompts import (
+    FALLBACK_RESPONSE,
+    GURU_SYSTEM_PROMPT,
+    MULTI_TURN_PROMPT,
+    STIMULUS_RAG_PROMPT,
+)
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from rag.prompts import (
-    GURU_SYSTEM_PROMPT,
-    STIMULUS_RAG_PROMPT,
-    MULTI_TURN_PROMPT,
-    FALLBACK_RESPONSE,
-)
-from services.language_router import LanguageCode, LanguageRouter
 from services.cache_service import InMemoryCacheAdapter
-from .utils import (
-    log_metrics,
-    _trace_update,
-    _inject_canonical_citations,
-    _grounded_citation_urls,
-    _generation_route,
-    strip_cot,
-    emit_status,
-)
+from services.language_router import LanguageCode, LanguageRouter
+
 from . import _services
+from .utils import (
+    _generation_route,
+    _grounded_citation_urls,
+    _inject_canonical_citations,
+    _trace_update,
+    emit_status,
+    log_metrics,
+    settings,
+    strip_cot,
+)
 
 logger = logging.getLogger(__name__)
 

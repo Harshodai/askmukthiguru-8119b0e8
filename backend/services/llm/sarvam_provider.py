@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from services.llm.base import LLMProvider
 from services.sarvam_service import SarvamCloudService

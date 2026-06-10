@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import functools
 import logging
 import re
 import time
 from typing import Any, Optional
+
 
 # Proxy to allow settings to be patched dynamically at the package level in tests
 class SettingsProxy:
@@ -25,6 +25,7 @@ from app.metrics import PIPELINE_STAGE_LATENCY
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from services.rrf_ranker import reciprocal_rank_fusion
+
 from . import _services
 
 logger = logging.getLogger(__name__)
@@ -220,24 +221,12 @@ def expand_query_with_synonyms(query: str) -> str:
 
 
 def inject_doctrine_keywords(query: str) -> str:
-    """Inject known doctrine keywords into a query to improve retrieval coverage."""
-    q = query.lower()
-    additions: list[str] = []
-    if any(k in q for k in ("four sacred secrets", "4 sacred secrets", "sacred secrets")):
-        additions.extend(["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"])
-    if any(k in q for k in ("deeksha", "oneness blessing")):
-        additions.extend(["frontal lobe", "parietal lobe", "neuroscience"])
-    if any(k in q for k in ("soul sync", "breath awareness")):
-        additions.extend(["humming", "golden light"])
-    if any(k in q for k in ("beautiful state", "state of bliss")):
-        additions.extend(["surrender", "oneness"])
-    if any(k in q for k in ("manifest 2026", "monthly power")):
-        additions.extend(["power of intention", "lokaa"])
-    if any(k in q for k in ("ekam", "world centre for enlightenment")):
-        additions.extend(["oneness blessing"])
-    if not additions:
-        return query
-    return f"{query} ({', '.join(additions)})"
+    """Inject known doctrine keywords into a query to improve retrieval coverage.
+    
+    Delegates to the comprehensive keyword_injection module with 9 doctrine categories.
+    """
+    from rag.nodes.keyword_injection import inject_doctrine_keywords as _ki
+    return _ki(query, top_k=3)
 
 
 def _remove_repetition_loops(text: str) -> str:

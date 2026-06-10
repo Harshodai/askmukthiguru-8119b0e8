@@ -398,6 +398,7 @@ class EmbeddingService:
         with self._inference_lock:
             self._ensure_models()
             import gc
+
             import torch
             gc.collect()
             pairs = [(query, doc["text"]) for doc in documents]

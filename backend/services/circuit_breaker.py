@@ -18,9 +18,9 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional, Type
+from typing import Dict, Optional
 
-from app.constants import CircuitBreakerProvider, CIRCUIT_BREAKER_CONFIGS
+from app.constants import CIRCUIT_BREAKER_CONFIGS, CircuitBreakerProvider
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class CircuitBreakerConfig:
     failure_exceptions: tuple = (Exception,)
 
     @classmethod
-    def from_provider(cls, provider: str) -> "CircuitBreakerConfig":
+    def from_provider(cls, provider: str) -> CircuitBreakerConfig:
         """Create config from provider name using centralized constants."""
         config = CIRCUIT_BREAKER_CONFIGS.get(provider)
         if config:
@@ -191,7 +191,7 @@ class BaseCircuitBreaker(abc.ABC):
     def _update_gauges(self) -> None:
         """Update Prometheus gauge metrics for current state."""
         try:
-            from app.metrics import CIRCUIT_BREAKER_STATE, CIRCUIT_BREAKER_FAILURES
+            from app.metrics import CIRCUIT_BREAKER_FAILURES, CIRCUIT_BREAKER_STATE
             state_map = {"closed": 0, "half_open": 1, "open": 2}
             CIRCUIT_BREAKER_STATE.labels(provider=self.config.provider).set(state_map.get(self._state.value, 0))
             CIRCUIT_BREAKER_FAILURES.labels(provider=self.config.provider).set(self._failures)
@@ -326,7 +326,6 @@ def create_default_breakers() -> Dict[str, DefaultCircuitBreaker]:
     Returns dict of provider -> breaker for registration.
     Uses centralized constants for provider names and configs.
     """
-    from app.constants import CircuitBreakerProvider, CIRCUIT_BREAKER_CONFIGS
 
     breakers = {}
 
