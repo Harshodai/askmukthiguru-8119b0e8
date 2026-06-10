@@ -1,6 +1,8 @@
 import logging
 import re
 
+from typing import Optional
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,7 @@ MEDITATION_RE = re.compile(
     re.IGNORECASE
 )
 
-def preroute_intent(query: str) -> str | None:
+def preroute_intent(query: str) -> Optional[str]:
     """
     Statically classify simple and obvious intents using regex.
     Bypasses LLM classification for performance (0ms latency).
