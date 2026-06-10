@@ -71,6 +71,7 @@ import { loadConversations } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { MemoryManager } from '@/components/profile/MemoryManager';
+import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
