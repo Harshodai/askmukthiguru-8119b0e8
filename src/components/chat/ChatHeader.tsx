@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Wifi, WifiOff, Home } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Brain } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+import { supabase } from '@/integrations/supabase/client';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 interface ChatHeaderProps {
@@ -13,11 +16,13 @@ interface ChatHeaderProps {
   onToggleSidebar?: () => void;
 }
 
-export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, onToggleSidebar }: ChatHeaderProps) => {
+export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar }: ChatHeaderProps) => {
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
   });
+  const [memories, setMemories] = useState<GuruMemory[] | null>(null);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -29,17 +34,36 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      setAuthed(!!session?.user);
+      if (!session?.user) return;
+      try {
+        const list = await memoryApi.list(1, 8);
+        if (!cancelled) setMemories(list.memories);
+      } catch {
+        if (!cancelled) setMemories([]);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const memoryCount = memories?.length ?? 0;
+
   return (
-    <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/80 border-b border-border/40">
-      <div className="flex items-center justify-between px-3 sm:px-5 h-11">
-        <div className="flex items-center gap-2 min-w-0">
-          {/* Sidebar toggle — desktop */}
+    <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/85 border-b border-border/40">
+      <div className="flex items-center justify-between px-3 sm:px-5 h-16">
+        <div className="flex items-center gap-2.5 min-w-0">
           {onToggleSidebar && (
             <Button
               size="icon"
               variant="ghost"
               onClick={onToggleSidebar}
-              className="hidden sm:flex h-8 w-8"
+              className="hidden sm:flex h-9 w-9"
               aria-label={sidebarCollapsed ? 'Open sidebar' : 'Close sidebar'}
               title={sidebarCollapsed ? 'Open sidebar' : 'Close sidebar'}
             >
@@ -53,7 +77,7 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
 
           <Link
             to="/"
-            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
             title="Home"
           >
             <Home className="w-4 h-4 text-muted-foreground" />
@@ -64,15 +88,14 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
               size="icon"
               variant="ghost"
               onClick={onOpenMobileMenu}
-              className="sm:hidden h-8 w-8"
+              className="sm:hidden h-9 w-9"
               aria-label="Open conversations"
             >
               <PanelLeft className="w-4 h-4" />
             </Button>
           )}
 
-          {/* Guru avatar */}
-          <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex-shrink-0">
+          <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-ojas/30 flex-shrink-0 shadow-sm">
             <img
               src={gurusPhoto}
               alt="Sri Preethaji & Sri Krishnaji"
@@ -80,19 +103,59 @@ export const ChatHeader = ({ onClearChat, onOpenMobileMenu, sidebarCollapsed, on
             />
           </div>
 
-          <div className="flex flex-col min-w-0">
-            <button className="flex items-center gap-1.5 group">
-              <h1 className="font-semibold text-foreground text-base truncate leading-tight">
-                Sri Preethaji & Sri Krishnaji
-              </h1>
-            </button>
-            <p className="text-[10px] text-muted-foreground/60 leading-tight hidden sm:block">
-              Your Spiritual Guide
+          <div className="flex flex-col min-w-0 leading-tight">
+            <h1 className="font-serif font-semibold text-foreground text-[15px] sm:text-base truncate">
+              Sri Preethaji &amp; Sri Krishnaji
+            </h1>
+            <p className="text-[11px] text-muted-foreground/80 hidden sm:block">
+              Your Beautiful State companion
             </p>
           </div>
         </div>
 
-        <UserMenu />
+        <div className="flex items-center gap-2">
+          {authed && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-ojas/25 bg-ojas/5 hover:bg-ojas/10 transition-colors px-2.5 py-1 text-[11px] text-foreground/80"
+                  aria-label="Memory"
+                  title="What I remember about you"
+                >
+                  <Brain className="w-3 h-3 text-ojas" />
+                  <span className="font-serif">Memory</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="tabular-nums">{memoryCount}</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-3">
+                <p className="text-xs font-semibold text-foreground mb-2">What I remember</p>
+                {memories === null && <p className="text-xs text-muted-foreground">Loading…</p>}
+                {memories && memories.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Nothing yet. Your reflections and key moments will appear here as we converse.
+                  </p>
+                )}
+                {memories && memories.length > 0 && (
+                  <ul className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {memories.map((m) => (
+                      <li key={m.id} className="text-xs text-foreground/85 border-l-2 border-ojas/30 pl-2 py-0.5">
+                        {m.content}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link
+                  to="/profile?tab=memory"
+                  className="block mt-3 text-[11px] text-ojas hover:underline"
+                >
+                  Manage memory →
+                </Link>
+              </PopoverContent>
+            </Popover>
+          )}
+          <UserMenu />
+        </div>
       </div>
     </header>
   );
