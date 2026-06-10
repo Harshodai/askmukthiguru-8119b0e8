@@ -1,64 +1,75 @@
-## Findings
+# /chat Polish + Auth, Memory, Admin, 2FA
 
-1. **Likely localhost chat auth break**
-   - Frontend sends Google session JWT from `src/lib/aiService.ts` to `VITE_BACKEND_URL/api/chat/stream`.
-   - Backend verifies JWT issuer/JWKS against `SUPABASE_URL` in `backend/services/auth_service.py`.
-   - If frontend uses hosted auth URL but backend env still defaults to local `http://host.docker.internal:54321`, backend rejects token with 401. Result: stream produces no usable answer.
+Scope is ruthlessly trimmed: visible chat UX first, then auth/admin/memory/2FA. No backend pipeline changes.
 
-2. **Frontend hides root cause**
-   - `ChatInterface.tsx` catches streaming failures silently when no partial text exists.
-   - `sendMessage()` falls back to canned/offline guidance on backend/network/auth failure, so real backend failure is easy to miss.
+## 1. Chat UI overhaul (`ChatInterface`, `ChatMessage`, `MessageList`, `ChatHeader`, `ChatComposer`, `ThinkingPills`)
 
-3. **Backend URL not guaranteed in local Docker frontend**
-   - `backend/docker-compose.yml` passes Supabase env to frontend build but does not pass `VITE_BACKEND_URL`.
-   - Local browser can therefore call relative `/api/chat` or wrong endpoint unless `.env.local` is correct.
+- **ThinkingPill font**: switch from default to the app's display/body token (`font-serif`/`font-display` per `tailwind.config.ts`); match weight, tracking, and color of guru bubbles.
+- **Edit message UX**: replace inline textarea swap with a contained editor card — preserves bubble width, shows Save/Cancel + ⌘↵ hint, autosizes, focuses end-of-text, Esc cancels, optimistic update, re-runs only the affected turn (truncate downstream, regenerate).
+- **Up-arrow recall**: in composer, when input is empty and caret at start, ArrowUp loads the last user message into the draft (cycles through history with repeated ArrowUp/ArrowDown). Currently not wired — add a `useMessageHistory` hook.
+- **Suggested questions alignment**: change from left-justified ragged grid to a centered wrap with equal-height chips, max 3 per row on desktop, single-column on mobile, consistent padding and gap. Anchor to the empty-state container, not the message list.
+- **Header upgrade**: increase header height (56 → 72px), larger guru avatar (40 → 48px), tighter two-line title (guru name + subtle "Beautiful State companion" subtitle), persistent model/memory indicator pill on the right, sticky with soft backdrop blur.
 
-4. **Memory frontend only partial**
-   - Current UI shows core profile + `guru_memories` via `/api/memory/core` and `/api/memory/list`.
-   - It does not show `guru_core_memory` rows directly, `guru_session_summaries`, `conversation_memories`, or matched memories from `match_user_memories`.
+## 2. Google sign-in stuck on "Returning from Google…"
 
-## Plan
+The 4-step progress UI (Returning → Connect → Authorize → Sign in) never advances past Authorize even when the Supabase session is set. Root cause: the post-redirect handler waits for an event that doesn't fire under the managed OAuth flow (tokens are set synchronously by `lovable.auth.signInWithOAuth`).
 
-### 1. Make auth/session reliable before chat calls
-- Add shared helper in frontend to get a fresh authenticated session for API calls.
-- Use it in `aiService.ts` and `memoryApi.ts` instead of raw `getSession()` only.
-- Retry streaming once after token refresh on 401/403, matching existing non-stream retry behavior.
+Fix in `AuthPage.tsx` / OAuth callback handler:
 
-### 2. Surface real chat failures in `/chat`
-- In `ChatInterface.tsx`, replace silent stream catch with visible toast containing reason: auth expired, backend unreachable, non-SSE response, or server error.
-- If backend returns empty successful response, show clear “backend returned empty answer” error instead of blank guru bubble.
-- Keep fallback path, but mark it as offline only when backend truly unavailable.
+- After redirect, immediately poll `supabase.auth.getSession()` (with `onAuthStateChange` as a fallback listener).
+- Drive the 4-step indicator from real signals: URL has `code`/hash → Connect ✓; session present → Authorize ✓; profile RPC `ensure_profile_and_role` ok → Sign in ✓; then `navigate(redirectPath)`.
+- Add a 6s hard timeout that surfaces a "Continue" button calling `getSession()` + manual redirect, plus a toast with the failure reason.
 
-### 3. Fix local backend targeting
-- Update frontend config handling so local dev prefers `VITE_BACKEND_URL=http://localhost:8000` and diagnostics clearly flag missing value.
-- Update Docker frontend build args/env to pass `VITE_BACKEND_URL` so containerized localhost uses backend service through nginx/proxy or explicit URL.
-- Update docs with required local auth alignment:
-  - frontend `VITE_SUPABASE_URL` must match backend `SUPABASE_URL`
-  - backend `JWT_SECRET`/JWKS config must match same auth project
-  - `VITE_BACKEND_URL=http://localhost:8000`
+## 3. Admin seed + creds
 
-### 4. Expand memory API client
-- Add typed methods in `src/lib/memoryApi.ts` for:
-  - core memory rows (`guru_core_memory`)
-  - episodic memories (`guru_memories`)
-  - session summaries (`guru_session_summaries`)
-  - conversation continuity (`conversation_memories`)
-  - relevant matched memories for a query, via backend endpoint wrapping `match_user_memories`
-- Keep graceful degradation if backend lacks one endpoint.
+- Run a one-off SQL migration: insert `kharshaengineer@gmail.com` into `auth.users` if missing (via `promote_admin_by_email` RPC if user exists), then upsert `user_roles(user_id, 'admin')`.
+- Since we can't set passwords from migrations safely, use the existing `backend/scripts/seed_admin.py` flow and surface the creds in chat: email `kharshaengineer@gmail.com`, password `Admin@123456` (already in seeder default). User must run the seeder once locally; alternative is to set the password via Cloud → Users.
+- Verify `/admin` route guard uses `verifyAdminSession()` (JWT + `has_role` RPC) — already correct in `src/admin/lib/adminAuth.ts`; just confirm the route is reachable post-login.
 
-### 5. Show memory layer in frontend
-- Extend `MemoryManager.tsx` with sections/tabs:
-  - Core facts
-  - Relevant memories
-  - Session summaries
-  - Conversation continuity
-  - Manual add/forget
-- Add a small `/chat` memory status panel or header indicator showing when memory layer is connected and recent matched memories are being used.
+## 4. Memory layer full E2E integration
 
-### 6. Validation
-- Add/update tests for:
-  - auth token refresh before chat
-  - streaming 401 retry
-  - backend unreachable/non-SSE error message
-  - memory API partial endpoint failure does not break profile page
-- Verify local flow manually: Google sign-in → `/chat` → authenticated stream answer → profile Memory tab shows memory data.
+Backend endpoints exist (`/api/memory/core|list|summaries|relevant|conversations`) and `memoryApi.ts` wraps them. Remaining gaps:
+
+- **Chat header memory pill**: small "Memory: on · N facts" indicator that opens a popover listing the top relevant memories used for the current thread (calls `/api/memory/relevant` with last user message).
+- **Per-message provenance**: when a guru message used retrieved memories, show a collapsible "Recalled from your reflections" chip under the bubble.
+- **Profile MemoryManager**: add tabs (Core · Memories · Summaries · Conversations) instead of stacked cards; add manual "Add fact" and "Forget" actions wired to `POST /api/memory/add` and `DELETE /api/memory/:id`.
+- **Auth-aware**: hide memory UI for anonymous users; show "Sign in to enable memory" CTA.
+- **Error UX**: if any memory endpoint 404s, degrade silently per surface (no global toast spam).
+
+## 5. Two-Factor Authentication
+
+Supabase Auth supports TOTP MFA natively. Add:
+
+- `SecuritySettings` panel in Profile → "Two-factor authentication" section.
+- Enroll flow: `supabase.auth.mfa.enroll({ factorType: 'totp' })` → render QR + secret → user enters 6-digit code → `mfa.challenge` + `mfa.verify`.
+- List/unenroll existing factors via `mfa.listFactors` and `mfa.unenroll`.
+- On sign-in, detect `AAL1` and prompt for second factor before granting access to `/chat` and `/admin`.
+- Admin route additionally requires `AAL2` for sensitive actions.
+
+## 6. Additional improvements (token-optimized scope)
+
+- **Composer**: shift+enter newline, enter to send, mobile-safe IME composition guard, attachment-disabled state with tooltip.
+- **Streaming**: visible "Stop generating" button while `streaming`; preserves partial answer.
+- **Scroll**: sticky-to-bottom only when user is within 100px of bottom; otherwise show "↓ New message" pill.
+- **Accessibility**: aria-live="polite" on streaming guru bubble; focus-visible rings on all interactive chat elements; reduced-motion respects ThinkingPill animation.
+- **Empty state**: replace generic copy with a warmer 2-line invitation + 3 curated starter prompts (rotates daily via `useDailyTeaching`).
+- **Error toasts**: dedupe identical errors within 5s; "Retry" action on backend-unreachable.
+- **Performance**: memoize `MessageList` group computation; defer markdown render for off-screen bubbles (already partially via `VirtualMessageWrapper`).
+
+## Out of scope (explicit)
+
+- No RAG pipeline / backend node changes.
+- No new auth providers beyond Google + email.
+- No design-direction prototypes — applying existing Golden Hour tokens.
+
+## Technical notes
+
+- Files touched: `src/components/chat/*`, `src/pages/AuthPage.tsx`, `src/pages/ProfilePage.tsx`, `src/components/profile/MemoryManager.tsx`, `src/lib/memoryApi.ts`, `src/hooks/useMessageHistory.ts` (new), `src/components/auth/MfaEnroll.tsx` (new), `src/components/auth/MfaChallenge.tsx` (new), one Supabase migration to ensure admin role row exists.
+- No new dependencies required; `otplib`/QR via existing `qrcode.react` if not present add `qrcode.react` only.
+- Tests: extend `aiServiceStreaming.test.ts` for stop-generation; add `useMessageHistory.test.ts`; MFA enroll happy-path test.
+- Give me a documentation of what can be done from backend side as well, this entire thing should be working end to end without any issues
+
+## Validation
+
+- Manual: Google sign-in → lands on `/chat` within 3s; ArrowUp recalls; edit message regenerates; admin login → `/admin` works; enroll TOTP → sign out → sign in requires code; memory pill shows facts.
+- Build + vitest run clean (zero-warning policy).
