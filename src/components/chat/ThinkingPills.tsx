@@ -95,17 +95,17 @@ export const ThinkingPills = ({ steps, visible, heartbeat }: ThinkingPillsProps)
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/30 hover:bg-muted/50 transition-colors px-2.5 py-1 text-[12px] text-foreground/80"
+              className="inline-flex items-center gap-2 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 transition-colors px-3 py-1.5 text-[12.5px] font-serif text-foreground/85"
               aria-expanded={expanded}
               aria-label="Toggle thinking details"
             >
               <Loader2 className="w-3 h-3 text-ojas animate-spin" />
-              <span className="font-medium">Thinking</span>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground truncate max-w-[140px] sm:max-w-[220px]">
+              <span className="font-serif italic">Thinking</span>
+              <span className="text-muted-foreground/70">·</span>
+              <span className="text-muted-foreground font-serif italic truncate max-w-[140px] sm:max-w-[220px]">
                 {latestStep.label}
               </span>
-              <span className="text-muted-foreground/70 text-[10px] tabular-nums">
+              <span className="text-muted-foreground/70 text-[10px] tabular-nums font-sans">
                 {doneCount}/{Math.max(displaySteps.length, 6)}
               </span>
               <ChevronDown
