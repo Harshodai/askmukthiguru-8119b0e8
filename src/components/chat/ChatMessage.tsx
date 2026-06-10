@@ -202,12 +202,16 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   </div>
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2 w-full">
+                    <p className="text-[11px] text-muted-foreground font-serif italic">
+                      Edit your question — earlier replies below will be regenerated.
+                    </p>
                     <textarea
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       autoFocus
-                      rows={Math.max(2, Math.min(8, editValue.split('\n').length))}
-                      className="w-full bg-primary-foreground/10 border border-primary-foreground/25 rounded-lg p-2 text-sm text-primary-foreground placeholder:text-primary-foreground/60 outline-none focus:border-primary-foreground/50 resize-none font-medium"
+                      rows={Math.max(2, Math.min(10, editValue.split('\n').length + 1))}
+                      ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 240)}px`; el.setSelectionRange(el.value.length, el.value.length); } }}
+                      className="w-full bg-background border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-ojas/60 focus:ring-2 focus:ring-ojas/20 resize-none leading-relaxed"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                           e.preventDefault();
@@ -222,28 +226,33 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                         }
                       }}
                     />
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => { setEditValue(message.content); setIsEditing(false); }}
-                        className="px-2.5 py-1 rounded-md text-[11px] font-medium text-primary-foreground/80 hover:bg-primary-foreground/15 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const trimmed = editValue.trim();
-                          if (trimmed && trimmed !== message.content) {
-                            onSubmitEdit?.(message.id, trimmed);
-                          }
-                          setIsEditing(false);
-                        }}
-                        disabled={!editValue.trim() || editValue.trim() === message.content}
-                        className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Save & resend
-                      </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground/70">
+                        ⌘↵ to save · Esc to cancel
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => { setEditValue(message.content); setIsEditing(false); }}
+                          className="px-3 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = editValue.trim();
+                            if (trimmed && trimmed !== message.content) {
+                              onSubmitEdit?.(message.id, trimmed);
+                            }
+                            setIsEditing(false);
+                          }}
+                          disabled={!editValue.trim() || editValue.trim() === message.content}
+                          className="px-3 py-1.5 rounded-md text-[12px] font-semibold bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Save &amp; resend
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (
