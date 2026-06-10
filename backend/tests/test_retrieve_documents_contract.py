@@ -1,7 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-import sys
-import asyncio
+
 
 # Setup mocks to prevent external network calls
 @pytest.mark.asyncio

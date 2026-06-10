@@ -1,17 +1,19 @@
+import asyncio
+import logging
 import os
 import sys
-import logging
-import asyncio
 
 # Setup paths and logger
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + "/.."))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Phase0.5Audit")
 
-from app.config import settings
-from services.embedding_service import EmbeddingService
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+
+from app.config import settings
+from services.embedding_service import EmbeddingService
+
 
 async def main():
     print("====================================================")
@@ -102,7 +104,7 @@ async def main():
             else:
                 no_sparse_vector_field += 1
                 
-        print(f"Checked 100 points:")
+        print("Checked 100 points:")
         print(f"  - Non-empty sparse vectors: {non_empty_sparse_count}")
         print(f"  - Empty sparse vectors: {empty_sparse_count}")
         print(f"  - Points with no sparse vector field: {no_sparse_vector_field}")

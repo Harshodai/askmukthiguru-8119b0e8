@@ -6,25 +6,26 @@ import asyncio
 import logging
 from typing import Any, Optional
 
-from .utils import settings
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
+from services.cache_service import InMemoryCacheAdapter
 from services.embedding_service import EmbeddingService
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
-from services.cache_service import InMemoryCacheAdapter
+
+from . import _services
 from .utils import (
-    log_metrics,
-    _trace_update,
-    _rrf_docs,
     _grounded_citation_urls,
     _llm_retrieval_expansions,
+    _rrf_docs,
+    _trace_update,
+    emit_status,
     expand_query_with_synonyms,
     inject_doctrine_keywords,
-    emit_status,
+    log_metrics,
+    settings,
 )
-from . import _services
 
 logger = logging.getLogger(__name__)
 
@@ -438,7 +439,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     }
 
 
-def route_sub_queries(state: GraphState) -> list["Send"]:  # noqa: F821 — Send imported lazily inside function body to avoid module-load cost
+def route_sub_queries(state: GraphState) -> list[Send]:  # noqa: F821 — Send imported lazily inside function body to avoid module-load cost
     """Fan-out router: spawn one retrieve_single branch per sub-query via Send."""
     from langgraph.types import Send
     sub_queries = state.get("sub_queries") or [state["question"]]

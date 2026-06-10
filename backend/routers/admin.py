@@ -439,7 +439,6 @@ async def get_cost_usage(
     """Get token usage and cost report. Admin only."""
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
-    from dataclasses import asdict
     from services.cost_tracker import get_cost_tracker
     tracker = get_cost_tracker()
     report = tracker.get_usage_report(tenant_id=tenant_id, user_id=user_id, days=days)

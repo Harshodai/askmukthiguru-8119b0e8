@@ -114,39 +114,6 @@ from routers.feedback import router as feedback_router
 logger = logging.getLogger(__name__)
 
 
-def select_graph_for_query(query: str) -> str:
-    """Select the most appropriate compiled graph variant for a query.
-
-    Heuristic:
-      - fast   : short, simple factual queries (≤6 tokens, starts with who/what/when/where)
-      - deep   : complex comparative, analytical, or philosophical queries
-      - standard: everything else
-
-    Args:
-        query: Raw user query (already translated to English if necessary).
-
-    Returns:
-        One of "fast", "standard", "deep".
-    """
-    q = query.lower().strip()
-    tokens = q.split()
-
-    # Deep indicators: comparative, analytical, philosophical depth, multi-hop
-    deep_keywords = [
-        "compare", "contrast", "difference between", "differences between",
-        "how does", "why is", "explain the connection", "relationship between",
-        "multiple", "several", "various", "deeper", "profound", "ultimate",
-    ]
-    if any(kw in q for kw in deep_keywords):
-        return "deep"
-
-    # Fast indicators: simple factual queries
-    fast_starts = ("who", "what is", "when", "where")
-    if len(tokens) <= 6 and any(q.startswith(st) for st in fast_starts):
-        return "fast"
-
-    return "standard"
-
 
 # Global instances
 from app.coalescer import build_coalescer

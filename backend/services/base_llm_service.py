@@ -30,7 +30,6 @@ from services.circuit_breaker import (
     CircuitOpenException,
     DefaultCircuitBreaker,
 )
-from services.llm_protocol import ILLMService
 
 logger = logging.getLogger(__name__)
 

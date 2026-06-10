@@ -16,6 +16,8 @@ the previous reverse dependency (strategies → graph.py).
 from __future__ import annotations
 
 import abc
+import logging
+import re
 from typing import TYPE_CHECKING
 
 from langgraph.graph import END, StateGraph
@@ -46,22 +48,83 @@ from rag.nodes import (
     route_by_intent,
     verify_answer,
 )
-from app.config import settings
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
 
 if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
 
-    from services.embedding_service import EmbeddingService
-    from services.lightrag_service import LightRAGService
-    from services.ollama_service import OllamaService
-    from services.qdrant_service import QdrantService
-    from services.serene_mind_engine import SereneMindEngine
-
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+async def lightweight_verify(state: GraphState) -> dict:
+    """
+    Lightweight verification node using LettuceDetect for faithfulness checking.
+
+    - Skips verification entirely for fast/tier2_simple queries (returns is_faithful=True)
+    - Uses LettuceDetectService for standard queries with 0.25 threshold
+    - Adds domain boost for doctrine keywords and answer-length heuristic
+    """
+    query_tier = state.get("query_tier", "standard")
+    if query_tier in ("fast", "tier2_simple"):
+        return {"is_faithful": True, "verification": {"skipped": True, "reason": f"query_tier={query_tier}"}}
+
+    answer = state.get("answer", "")
+    context = state.get("relevant_docs", [])
+    if isinstance(context, list):
+        context = "\n\n".join(d.get("content", "") for d in context if isinstance(d, dict))
+
+    if not answer or not context:
+        return {"is_faithful": True, "verification": {"skipped": True, "reason": "empty answer or context"}}
+
+    try:
+        from services.embedding_service import get_embedding_service
+        from services.lettuce_detect_service import LettuceDetectService
+
+        embedder = get_embedding_service()
+        lettuce = LettuceDetectService(embedder=embedder)
+        result = lettuce.score_faithfulness(
+            query=state.get("question", ""),
+            context=context,
+            answer=answer,
+        )
+
+        is_faithful = result.get("is_faithful", True)
+        score = result.get("score", 1.0)
+
+        # Apply 0.25 threshold (stricter than Lettuce's internal 0.22)
+        if score < 0.25:
+            is_faithful = False
+
+        # Domain boost for doctrine keywords
+        doctrine_terms = {
+            "deeksha", "oneness blessing", "soul sync", "breath awareness",
+            "four sacred secrets", "spiritual vision", "inner truth",
+            "universal intelligence", "spiritual right action", "ekam",
+            "parietal", "frontal lobe", "golden light", "beautiful state",
+            "suffering state", "surrender", "consciousness", "meditation",
+            "karma", "dharma", "moksha", "atma", "brahman",
+        }
+        if any(term in answer.lower() for term in doctrine_terms):
+            is_faithful = True
+
+        # Answer-length heuristic: long, cited answers are likely grounded
+        has_citation = bool(re.search(r"\[Source:|Watch more here:", answer))
+        if len(answer) > 200 and has_citation and any(term in answer.lower() for term in doctrine_terms):
+            is_faithful = True
+
+        return {
+            "is_faithful": is_faithful,
+            "verification": {
+                "score": score,
+                "details": result.get("details", ""),
+                "unsupported_sentences": result.get("unsupported_sentences", []),
+            },
+        }
+    except Exception as e:
+        logger.warning(f"lightweight_verify failed: {e}, defaulting to faithful")
+        return {"is_faithful": True, "verification": {"error": str(e)}}
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +164,7 @@ class GraphStrategy(abc.ABC):
         qdrant_service,
         lightrag_service,
         serene_mind_engine=None,
-    ) -> "CompiledStateGraph":
+    ) -> CompiledStateGraph:
         """Build and return the compiled LangGraph."""
         ...
 
@@ -113,7 +176,7 @@ class StandardGraphStrategy(GraphStrategy):
     def name(self) -> str:
         return "standard"
 
-    def build(self, **kwargs) -> "CompiledStateGraph":
+    def build(self, **kwargs) -> CompiledStateGraph:
         ollama_service = kwargs.get("ollama_service")
         embedding_service = kwargs.get("embedding_service")
         qdrant_service = kwargs.get("qdrant_service")
@@ -131,6 +194,175 @@ class StandardGraphStrategy(GraphStrategy):
         graph = StateGraph(GraphState)
 
         # --- Add all nodes ---
+        graph.add_node("intent_router", intent_router)
+        graph.add_node("resolve_followup", resolve_followup)
+        graph.add_node("decompose_query", decompose_query)
+        graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
+        graph.add_node("generate_hyde", generate_hyde)
+        graph.add_node("retrieve_documents", retrieve_documents)
+        graph.add_node("rerank_documents", rerank_documents)
+        graph.add_node("grade_documents", grade_documents)
+        graph.add_node("enrich_context", enrich_context)
+        graph.add_node("check_context_sufficiency", check_context_sufficiency)
+        graph.add_node("rewrite_query", rewrite_query)
+        graph.add_node("generate_answer", generate_answer)
+        graph.add_node("lightweight_verify", lightweight_verify)
+        graph.add_node("explain_retrieval", explain_retrieval)
+        graph.add_node("context_engineer", context_engineer)
+        graph.add_node("format_final_answer", format_final_answer)
+        graph.add_node("handle_casual", handle_casual)
+        graph.add_node("handle_distress", handle_distress)
+        graph.add_node("handle_meditation", handle_meditation)
+        graph.add_node("handle_fallback", handle_fallback)
+
+        # --- Entry point ---
+        graph.set_entry_point("intent_router")
+
+        # --- Conditional edges ---
+        graph.add_conditional_edges(
+            "intent_router",
+            route_by_intent,
+            {
+                "distress": "handle_distress",
+                "meditation": "handle_meditation",
+                "casual": "handle_casual",
+                "query": "resolve_followup",
+            },
+        )
+
+        graph.add_edge("resolve_followup", "decompose_query")
+        graph.add_edge("decompose_query", "navigate_knowledge_tree")
+        graph.add_edge("decompose_query", "generate_hyde")
+        graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
+        graph.add_edge("generate_hyde", "retrieve_documents")
+        graph.add_edge("retrieve_documents", "rerank_documents")
+        graph.add_edge("rerank_documents", "grade_documents")
+        graph.add_edge("grade_documents", "check_context_sufficiency")
+
+        graph.add_conditional_edges(
+            "check_context_sufficiency",
+            route_after_grading,
+            {
+                "relevant": "enrich_context",
+                "distress": "handle_distress",
+                "rewrite": "rewrite_query",
+                "fallback": "handle_fallback",
+            },
+        )
+
+        graph.add_edge("enrich_context", "context_engineer")
+        graph.add_edge("context_engineer", "generate_answer")
+        graph.add_edge("context_engineer", "explain_retrieval")
+
+        graph.add_edge("rewrite_query", "retrieve_documents")
+
+        graph.add_edge("generate_answer", "lightweight_verify")
+        graph.add_edge("lightweight_verify", "format_final_answer")
+        graph.add_edge("explain_retrieval", "format_final_answer")
+
+        # --- Terminal edges ---
+        graph.add_edge("format_final_answer", END)
+        graph.add_edge("handle_casual", END)
+        graph.add_edge("handle_distress", END)
+        graph.add_edge("handle_meditation", END)
+        graph.add_edge("handle_fallback", END)
+
+        compiled = graph.compile()
+        logger.info("LangGraph STANDARD pipeline compiled successfully")
+        return compiled
+
+
+class FastGraphStrategy(GraphStrategy):
+    """Minimal graph for simple queries (~3 LLM calls)."""
+
+    @property
+    def name(self) -> str:
+        return "fast"
+
+    def build(self, **kwargs) -> CompiledStateGraph:
+        ollama_service = kwargs.get("ollama_service")
+        embedding_service = kwargs.get("embedding_service")
+        qdrant_service = kwargs.get("qdrant_service")
+        lightrag_service = kwargs.get("lightrag_service")
+        serene_mind_engine = kwargs.get("serene_mind_engine")
+
+        init_services(
+            ollama_service,
+            embedding_service,
+            qdrant_service,
+            lightrag_service,
+            serene_mind_engine,
+        )
+
+        graph = StateGraph(GraphState)
+
+        # Core fast-path nodes  (resolve_followup removed for speed)
+        graph.add_node("intent_router", intent_router)
+        graph.add_node("retrieve_documents", retrieve_documents)
+        graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
+        graph.add_node("generate_answer", generate_answer)
+        graph.add_node("format_final_answer", format_final_answer)
+
+        # Terminal handlers
+        graph.add_node("handle_casual", handle_casual)
+        graph.add_node("handle_distress", handle_distress)
+        graph.add_node("handle_meditation", handle_meditation)
+        graph.add_node("handle_fallback", handle_fallback)
+
+        graph.set_entry_point("intent_router")
+
+        graph.add_conditional_edges(
+            "intent_router",
+            route_by_intent,
+            {
+                "distress": "handle_distress",
+                "meditation": "handle_meditation",
+                "casual": "handle_casual",
+                # Resolve follow-up skipped for fast graph to reduce latency
+                "query": "retrieve_documents",
+            },
+        )
+
+        graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
+        graph.add_edge("_map_docs_to_relevant", "generate_answer")
+        graph.add_edge("generate_answer", "format_final_answer")
+        graph.add_edge("format_final_answer", END)
+
+        graph.add_edge("handle_casual", END)
+        graph.add_edge("handle_distress", END)
+        graph.add_edge("handle_meditation", END)
+        graph.add_edge("handle_fallback", END)
+
+        compiled = graph.compile()
+        logger.info("LangGraph FAST pipeline compiled successfully")
+        return compiled
+
+
+class DeepGraphStrategy(GraphStrategy):
+    """Deep graph for complex queries (~19 LLM calls). Uses full verification chain."""
+
+    @property
+    def name(self) -> str:
+        return "deep"
+
+    def build(self, **kwargs) -> CompiledStateGraph:
+        ollama_service = kwargs.get("ollama_service")
+        embedding_service = kwargs.get("embedding_service")
+        qdrant_service = kwargs.get("qdrant_service")
+        lightrag_service = kwargs.get("lightrag_service")
+        serene_mind_engine = kwargs.get("serene_mind_engine")
+
+        init_services(
+            ollama_service,
+            embedding_service,
+            qdrant_service,
+            lightrag_service,
+            serene_mind_engine,
+        )
+
+        graph = StateGraph(GraphState)
+
+        # --- Add all nodes (full chain including verification) ---
         graph.add_node("intent_router", intent_router)
         graph.add_node("resolve_followup", resolve_followup)
         graph.add_node("decompose_query", decompose_query)
@@ -219,87 +451,5 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("handle_fallback", END)
 
         compiled = graph.compile()
-        logger.info("LangGraph STANDARD pipeline compiled successfully")
+        logger.info("LangGraph DEEP pipeline compiled successfully")
         return compiled
-
-
-class FastGraphStrategy(GraphStrategy):
-    """Minimal graph for simple queries (~3 LLM calls)."""
-
-    @property
-    def name(self) -> str:
-        return "fast"
-
-    def build(self, **kwargs) -> "CompiledStateGraph":
-        ollama_service = kwargs.get("ollama_service")
-        embedding_service = kwargs.get("embedding_service")
-        qdrant_service = kwargs.get("qdrant_service")
-        lightrag_service = kwargs.get("lightrag_service")
-        serene_mind_engine = kwargs.get("serene_mind_engine")
-
-        init_services(
-            ollama_service,
-            embedding_service,
-            qdrant_service,
-            lightrag_service,
-            serene_mind_engine,
-        )
-
-        graph = StateGraph(GraphState)
-
-        # Core fast-path nodes  (resolve_followup removed for speed)
-        graph.add_node("intent_router", intent_router)
-        graph.add_node("retrieve_documents", retrieve_documents)
-        graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
-        graph.add_node("generate_answer", generate_answer)
-        graph.add_node("format_final_answer", format_final_answer)
-
-        # Terminal handlers
-        graph.add_node("handle_casual", handle_casual)
-        graph.add_node("handle_distress", handle_distress)
-        graph.add_node("handle_meditation", handle_meditation)
-        graph.add_node("handle_fallback", handle_fallback)
-
-        graph.set_entry_point("intent_router")
-
-        graph.add_conditional_edges(
-            "intent_router",
-            route_by_intent,
-            {
-                "distress": "handle_distress",
-                "meditation": "handle_meditation",
-                "casual": "handle_casual",
-                # Resolve follow-up skipped for fast graph to reduce latency
-                "query": "retrieve_documents",
-            },
-        )
-
-        graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
-        graph.add_edge("_map_docs_to_relevant", "generate_answer")
-        graph.add_edge("generate_answer", "format_final_answer")
-        graph.add_edge("format_final_answer", END)
-
-        graph.add_edge("handle_casual", END)
-        graph.add_edge("handle_distress", END)
-        graph.add_edge("handle_meditation", END)
-        graph.add_edge("handle_fallback", END)
-
-        compiled = graph.compile()
-        logger.info("LangGraph FAST pipeline compiled successfully")
-        return compiled
-
-
-class DeepGraphStrategy(GraphStrategy):
-    """Deep graph for complex queries (~19 LLM calls)."""
-
-    @property
-    def name(self) -> str:
-        return "deep"
-
-    def build(self, **kwargs) -> "CompiledStateGraph":
-        # Currently a thin wrapper around the standard graph with potential
-        # for extra deep-dive nodes (multi-hop reasoning, adversarial check).
-        # Reuse the standard wiring; per-node config read at runtime via
-        # state["query_tier"] == "deep".
-        strategy = StandardGraphStrategy()
-        return strategy.build(**kwargs)

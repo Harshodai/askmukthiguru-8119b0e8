@@ -73,7 +73,13 @@
       "mcp__codegraph__codegraph_context",
       "Bash(\".grep -n \"query_tier\" app/main.py *)",
       "mcp__code-review-graph__semantic_search_nodes_tool",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk ls *)",
+      "WebFetch(domain:www.fzeba.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:qdrant.tech)"
     ]
   },
   "enableAllProjectMcpServers": true,

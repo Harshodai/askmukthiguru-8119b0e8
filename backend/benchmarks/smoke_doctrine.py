@@ -6,7 +6,6 @@ using dense search fallback (with Issue B fix applied).
 """
 
 import asyncio
-import os
 import sys
 import time
 from pathlib import Path
@@ -14,9 +13,10 @@ from pathlib import Path
 # Add backend directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
+from app.config import settings
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
-from app.config import settings
+
 
 async def main():
     print("\n" + "=" * 60)

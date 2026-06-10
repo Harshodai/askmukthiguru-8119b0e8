@@ -13,7 +13,6 @@ Design Patterns:
 from __future__ import annotations
 
 import logging
-from typing import List
 
 from rag.node_command import NodeCommand
 from rag.states import GraphState

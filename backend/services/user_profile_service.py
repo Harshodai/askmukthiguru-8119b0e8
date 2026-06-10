@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -5,7 +6,6 @@ import time
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
-import asyncio
 
 logger = logging.getLogger(__name__)
 

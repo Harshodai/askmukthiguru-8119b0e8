@@ -129,3 +129,10 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Local DBs and IDE directories
+*.db
+.clinerules/
+.cursor/
+.opencode/
+.windsurf/

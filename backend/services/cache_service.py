@@ -497,13 +497,14 @@ def init_llm_cache():
         import re
 
         from gptcache import Cache, Config
-        from gptcache.manager.factory import manager_factory
-        from gptcache.processor.pre import get_prompt
-        from gptcache.processor.post import temperature_softmax
-        from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
         from gptcache.embedding import SBERT
+        from gptcache.manager.factory import manager_factory
+        from gptcache.processor.post import temperature_softmax
+        from gptcache.processor.pre import get_prompt
+        from gptcache.similarity_evaluation.distance import SearchDistanceEvaluation
         from langchain.globals import set_llm_cache
         from langchain_community.cache import GPTCache
+
         from app.config import settings
 
         os.makedirs("data/gptcache", exist_ok=True)

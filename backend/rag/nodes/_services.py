@@ -5,7 +5,7 @@ All node modules import service instances from here.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # Service references populated by init_services()
 _ollama: Any = None
@@ -44,9 +44,9 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
 
-    from services.reranker_service import RerankerService
-    from services.lettuce_detect_service import LettuceDetectService
     from rag.resolve_followup import set_ollama as set_followup_ollama
+    from services.lettuce_detect_service import LettuceDetectService
+    from services.reranker_service import RerankerService
 
     global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker
 
