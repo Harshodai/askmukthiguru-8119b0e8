@@ -231,7 +231,7 @@ async def test_generate_answer_streaming(mock_services):
     config = {"configurable": {"stream_queue": queue}}
 
     res = await nodes.generate_answer(state, config=config)
-    assert res["answer"] == "Meditate"
+    assert res["answer"] == "Meditate\n\n*(Teachings referenced: meditation)*"
 
     # Verify queue contains the tokens
     tokens = []
