@@ -499,6 +499,7 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6 mt-0">
+              <TwoFactorSettings />
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Appearance</CardTitle>
