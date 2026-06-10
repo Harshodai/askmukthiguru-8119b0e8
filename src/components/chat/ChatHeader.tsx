@@ -140,7 +140,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
                   <ul className="space-y-1.5 max-h-64 overflow-y-auto">
                     {memories.map((m) => (
                       <li key={m.id} className="text-xs text-foreground/85 border-l-2 border-ojas/30 pl-2 py-0.5">
-                        {m.content}
+                        {m.claim}
                       </li>
                     ))}
                   </ul>
