@@ -1091,6 +1091,24 @@ const handleSelectConversation = (conversation: Conversation) => {
 };
 
 const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  // Up-arrow (when input empty) recalls the last user message into the draft.
+  if (e.key === 'ArrowUp' && !inputValue) {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    if (lastUser) {
+      e.preventDefault();
+      setInputValue(lastUser.content);
+      // After state flush, move caret to end + autosize
+      requestAnimationFrame(() => {
+        const ta = inputRef.current;
+        if (ta) {
+          ta.style.height = 'auto';
+          ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
+          ta.setSelectionRange(ta.value.length, ta.value.length);
+        }
+      });
+      return;
+    }
+  }
   // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -1181,12 +1199,12 @@ return (
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap justify-center gap-2 px-2 sm:justify-start sm:px-0 sm:pl-[38px]">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-2xl mx-auto px-2">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-[13px] sm:text-sm border border-ojas/30 bg-ojas/5 text-foreground hover:bg-ojas/15 hover:border-ojas/50 transition-all whitespace-nowrap max-w-full truncate"
+                    className="px-4 py-3 rounded-2xl text-sm font-serif border border-ojas/25 bg-card/60 hover:bg-ojas/10 hover:border-ojas/50 text-foreground/85 hover:text-foreground transition-all text-center leading-snug min-h-[56px] flex items-center justify-center"
                   >
                     {suggestion}
                   </button>
