@@ -641,8 +641,11 @@ const AuthPage = () => {
             >
               {googleProgressSteps.map((step) => {
                 const stepIdx = stepOrder.indexOf(step.key);
-                const done = currentStepIdx > stepIdx;
-                const active = currentStepIdx === stepIdx || (step.key === 'redirecting' && googleStep === 'returning');
+                // Treat 'returning' as past Authorize, so Sign in is active.
+                const effectiveIdx =
+                  googleStep === 'returning' ? stepOrder.indexOf('finalizing') : currentStepIdx;
+                const done = effectiveIdx > stepIdx;
+                const active = effectiveIdx === stepIdx;
                 return (
                   <li key={step.key} className="flex items-center gap-1.5">
                     <span
