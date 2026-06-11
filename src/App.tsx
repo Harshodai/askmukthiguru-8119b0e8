@@ -22,6 +22,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const TTSVerificationPage = lazy(() => import("./pages/TTSVerificationPage"));
+const SpiritGuidesPage = lazy(() => import("./pages/guides/SpiritGuidesPage"));
 
 // Admin
 const AdminLoginPage = lazy(() => import("./admin/pages/AdminLoginPage"));
