@@ -46,6 +46,66 @@ import {
   setCurrentConversationId,
   updateConversationSummary,
 } from '@/lib/chatStorage';
+import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
+
+// Build a user-facing MessageError from an internal error code / details.
+const buildMessageError = (
+  code: MessageErrorKind | string | undefined,
+  rawMessage?: string,
+  status?: number,
+): MessageError => {
+  const detail = status ? `${rawMessage ?? ''} (HTTP ${status})`.trim() : rawMessage;
+  switch (code) {
+    case 'unauthorized':
+      return {
+        kind: 'unauthorized',
+        title: 'Your session expired',
+        description: 'Please sign in again to continue your conversation with the Guru.',
+        actionLabel: 'sign_in',
+        detail,
+      };
+    case 'rate_limited':
+      return {
+        kind: 'rate_limited',
+        title: 'Too many requests',
+        description: 'Please pause for a few seconds, then try again.',
+        actionLabel: 'retry',
+        detail,
+      };
+    case 'network':
+      return {
+        kind: 'network',
+        title: 'Cannot reach the Guru',
+        description: 'Network or backend is unreachable. Check your connection and retry.',
+        actionLabel: 'retry',
+        detail,
+      };
+    case 'timeout':
+      return {
+        kind: 'timeout',
+        title: 'The response timed out',
+        description: 'The Guru took too long to respond. Please retry your question.',
+        actionLabel: 'retry',
+        detail,
+      };
+    case 'server_error':
+      return {
+        kind: 'server_error',
+        title: 'Service unavailable',
+        description: 'Our backend returned an error. Please retry in a moment.',
+        actionLabel: 'retry',
+        detail,
+      };
+    default:
+      return {
+        kind: 'unknown',
+        title: 'Something went wrong',
+        description: rawMessage || 'The Guru could not answer this time. Please retry.',
+        actionLabel: 'retry',
+        detail,
+      };
+  }
+};
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger } from '@/lib/aiService';
 import { getLastCompletedMeditationTimestamp } from '@/lib/meditationStorage';
