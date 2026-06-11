@@ -271,9 +271,9 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             <SidebarTrigger />
             <div className="flex-1 min-w-0">
               {title && (
-                <h1 className="text-sm sm:text-base font-semibold text-foreground truncate">
+                <div className="text-sm sm:text-base font-semibold text-foreground truncate" role="heading" aria-level={2}>
                   {title}
-                </h1>
+                </div>
               )}
             </div>
             <ConnectionPill />
