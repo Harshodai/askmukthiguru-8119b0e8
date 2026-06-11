@@ -440,6 +440,20 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               </div>
             )}
 
+            {/* Memory provenance — surfaces facts the Guru recalled from your reflections */}
+            {isGuru && message.memoriesUsed && message.memoriesUsed.length > 0 && (
+              <details className="w-full rounded-lg border border-ojas/15 bg-ojas/5 px-3 py-2 text-xs">
+                <summary className="cursor-pointer font-medium text-ojas/80 select-none">
+                  Recalled from your reflections ({message.memoriesUsed.length})
+                </summary>
+                <ul className="mt-2 space-y-1 list-disc pl-4 text-muted-foreground">
+                  {message.memoriesUsed.slice(0, 6).map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
             {/* Sources / Citations */}
             {isGuru && citations.length > 0 && (
               <div className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/80 to-card/50 backdrop-blur-sm px-4 py-3">
