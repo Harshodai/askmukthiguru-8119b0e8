@@ -1,8 +1,18 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /queries
+Disallow: /quality
+Disallow: /retrieval
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /queries
+Disallow: /quality
+Disallow: /retrieval
 
 User-agent: Twitterbot
 Allow: /
@@ -12,5 +22,10 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /queries
+Disallow: /quality
+Disallow: /retrieval
 
 Sitemap: https://askmukthiguru.lovable.app/sitemap.xml
