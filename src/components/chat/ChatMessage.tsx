@@ -77,6 +77,7 @@ const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insi
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit }, ref) => {
     const isGuru = message.role === 'guru';
+    const navigate = useNavigate();
     const { profile } = useProfile();
     // Extract any https:// URL from the guru's response as a fallback citation.
     // Covers: YouTube links, source references like "Source: https://...", inline citations.
