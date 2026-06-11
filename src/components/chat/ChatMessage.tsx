@@ -1,6 +1,7 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
@@ -76,6 +77,7 @@ const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insi
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit }, ref) => {
     const isGuru = message.role === 'guru';
+    const navigate = useNavigate();
     const { profile } = useProfile();
     // Extract any https:// URL from the guru's response as a fallback citation.
     // Covers: YouTube links, source references like "Source: https://...", inline citations.
@@ -176,6 +178,63 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 }`}
               >
                 {isGuru ? (
+                  message.error ? (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="not-prose rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-3 text-foreground/90"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" aria-hidden />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-destructive leading-tight">{message.error.title}</p>
+                          <p className="text-[12.5px] text-foreground/75 mt-1 leading-relaxed">{message.error.description}</p>
+                          {message.error.detail && (
+                            <details className="mt-1.5">
+                              <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground/70 select-none">
+                                Technical detail
+                              </summary>
+                              <pre className="mt-1 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono bg-background/40 rounded px-2 py-1.5 border border-border/40">
+                                {message.error.detail}
+                              </pre>
+                            </details>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-2.5">
+                            {(message.error.actionLabel === 'retry' || !message.error.actionLabel) && onRegenerate && (
+                              <button
+                                type="button"
+                                onClick={onRegenerate}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                              >
+                                <RefreshCw className="w-3 h-3" aria-hidden />
+                                Retry
+                              </button>
+                            )}
+                            {message.error.actionLabel === 'sign_in' && (
+                              <button
+                                type="button"
+                                onClick={() => navigate('/auth')}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                              >
+                                <LogIn className="w-3 h-3" aria-hidden />
+                                Sign in again
+                              </button>
+                            )}
+                            {message.error.actionLabel === 'reload' && (
+                              <button
+                                type="button"
+                                onClick={() => window.location.reload()}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                              >
+                                <RefreshCw className="w-3 h-3" aria-hidden />
+                                Reload
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="prose prose-sm dark:prose-invert max-w-none
                     prose-p:mb-2.5 prose-p:mt-0 prose-p:leading-relaxed
                     prose-li:mb-1 prose-strong:text-ojas prose-strong:font-semibold
@@ -200,6 +259,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       <ReactMarkdown>{message.content}</ReactMarkdown>
                     )}
                   </div>
+                  )
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2 w-full">
                     <p className="text-[11px] text-muted-foreground font-serif italic">
