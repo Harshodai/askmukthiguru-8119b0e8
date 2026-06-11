@@ -930,23 +930,11 @@ export const ChatInterface = () => {
         setMessages((prev) => [...prev, blockedMessage]);
         openSereneMind('breathing', true);
       } else {
-        if (response.errorCode === 'rate_limited') {
-          toast({
-            title: 'Slow down, dear seeker',
-            description: "You're sending messages quickly. Please wait a moment.",
-            variant: 'destructive',
-          });
-        } else if (response.errorCode === 'unauthorized') {
-          toast({
-            title: 'Session expired',
-            description: 'Please sign in again to continue your conversation.',
-            variant: 'destructive',
-          });
-        } else if (response.errorCode === 'server_error') {
-          toast({
-            title: 'The Guru is meditating',
-            description: 'Our service is briefly unavailable. Showing offline guidance.',
-          });
+        const responseError = response.errorCode
+          ? buildMessageError(response.errorCode, response.error)
+          : undefined;
+        if (responseError) {
+          toast({ title: responseError.title, description: responseError.description, variant: 'destructive' });
         }
 
         const guruMessage: Message = {
@@ -955,9 +943,12 @@ export const ChatInterface = () => {
           content: response.content,
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
+          error: responseError,
         };
         setMessages((prev) => [...prev, guruMessage]);
-        setCachedResponse(cacheKey, response.content, guruMessage.citations);
+        if (!responseError) {
+          setCachedResponse(cacheKey, response.content, guruMessage.citations);
+        }
 
         if (response.meditationStep !== undefined) {
           setMeditationStep(response.meditationStep);
