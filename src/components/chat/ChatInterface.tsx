@@ -850,25 +850,18 @@ export const ChatInterface = () => {
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
           streamingWorked = true; // Keep partial content
         } else {
-          // Remove the empty streaming bubble (will be re-added by non-stream fallback if needed)
-          setMessages((prev) => prev.filter((m) => m.id !== streamingGuruId));
-          const code = err?.errorCode;
-          let title = 'The Guru is meditating';
-          let description = err?.message || 'Streaming failed. Trying fallback.';
-          if (code === 'unauthorized') {
-            title = 'Session expired';
-            description = 'Please sign in again to continue your conversation.';
-          } else if (code === 'rate_limited') {
-            title = 'Slow down, dear seeker';
-            description = 'Too many requests in a short window. Please wait a moment.';
-          } else if (code === 'network') {
-            title = 'Backend unreachable';
-            description = err?.message || 'Cannot reach the chat backend. Check VITE_BACKEND_URL.';
-          } else if (code === 'server_error') {
-            title = 'Service unavailable';
-            description = 'The backend returned an error. Falling back…';
-          }
-          toast({ title, description, variant: 'destructive' });
+          const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
+          // Replace the empty streaming bubble with an inline error card so the failure
+          // is visible in the chat itself (not just a toast that can be missed).
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamingGuruId
+                ? { ...m, content: '', error: msgError }
+                : m,
+            ),
+          );
+          streamingWorked = true; // Suppress the offline fallback path; the bubble already shows the error.
+          toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
         }
       } finally {
         clearInterval(checkpointInterval);
