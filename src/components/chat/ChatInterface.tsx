@@ -46,6 +46,66 @@ import {
   setCurrentConversationId,
   updateConversationSummary,
 } from '@/lib/chatStorage';
+import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
+
+// Build a user-facing MessageError from an internal error code / details.
+const buildMessageError = (
+  code: MessageErrorKind | string | undefined,
+  rawMessage?: string,
+  status?: number,
+): MessageError => {
+  const detail = status ? `${rawMessage ?? ''} (HTTP ${status})`.trim() : rawMessage;
+  switch (code) {
+    case 'unauthorized':
+      return {
+        kind: 'unauthorized',
+        title: 'Your session expired',
+        description: 'Please sign in again to continue your conversation with the Guru.',
+        actionLabel: 'sign_in',
+        detail,
+      };
+    case 'rate_limited':
+      return {
+        kind: 'rate_limited',
+        title: 'Too many requests',
+        description: 'Please pause for a few seconds, then try again.',
+        actionLabel: 'retry',
+        detail,
+      };
+    case 'network':
+      return {
+        kind: 'network',
+        title: 'Cannot reach the Guru',
+        description: 'Network or backend is unreachable. Check your connection and retry.',
+        actionLabel: 'retry',
+        detail,
+      };
+    case 'timeout':
+      return {
+        kind: 'timeout',
+        title: 'The response timed out',
+        description: 'The Guru took too long to respond. Please retry your question.',
+        actionLabel: 'retry',
+        detail,
+      };
+    case 'server_error':
+      return {
+        kind: 'server_error',
+        title: 'Service unavailable',
+        description: 'Our backend returned an error. Please retry in a moment.',
+        actionLabel: 'retry',
+        detail,
+      };
+    default:
+      return {
+        kind: 'unknown',
+        title: 'Something went wrong',
+        description: rawMessage || 'The Guru could not answer this time. Please retry.',
+        actionLabel: 'retry',
+        detail,
+      };
+  }
+};
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger } from '@/lib/aiService';
 import { getLastCompletedMeditationTimestamp } from '@/lib/meditationStorage';
@@ -790,25 +850,18 @@ export const ChatInterface = () => {
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
           streamingWorked = true; // Keep partial content
         } else {
-          // Remove the empty streaming bubble (will be re-added by non-stream fallback if needed)
-          setMessages((prev) => prev.filter((m) => m.id !== streamingGuruId));
-          const code = err?.errorCode;
-          let title = 'The Guru is meditating';
-          let description = err?.message || 'Streaming failed. Trying fallback.';
-          if (code === 'unauthorized') {
-            title = 'Session expired';
-            description = 'Please sign in again to continue your conversation.';
-          } else if (code === 'rate_limited') {
-            title = 'Slow down, dear seeker';
-            description = 'Too many requests in a short window. Please wait a moment.';
-          } else if (code === 'network') {
-            title = 'Backend unreachable';
-            description = err?.message || 'Cannot reach the chat backend. Check VITE_BACKEND_URL.';
-          } else if (code === 'server_error') {
-            title = 'Service unavailable';
-            description = 'The backend returned an error. Falling back…';
-          }
-          toast({ title, description, variant: 'destructive' });
+          const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
+          // Replace the empty streaming bubble with an inline error card so the failure
+          // is visible in the chat itself (not just a toast that can be missed).
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamingGuruId
+                ? { ...m, content: '', error: msgError }
+                : m,
+            ),
+          );
+          streamingWorked = true; // Suppress the offline fallback path; the bubble already shows the error.
+          toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
         }
       } finally {
         clearInterval(checkpointInterval);
@@ -877,23 +930,11 @@ export const ChatInterface = () => {
         setMessages((prev) => [...prev, blockedMessage]);
         openSereneMind('breathing', true);
       } else {
-        if (response.errorCode === 'rate_limited') {
-          toast({
-            title: 'Slow down, dear seeker',
-            description: "You're sending messages quickly. Please wait a moment.",
-            variant: 'destructive',
-          });
-        } else if (response.errorCode === 'unauthorized') {
-          toast({
-            title: 'Session expired',
-            description: 'Please sign in again to continue your conversation.',
-            variant: 'destructive',
-          });
-        } else if (response.errorCode === 'server_error') {
-          toast({
-            title: 'The Guru is meditating',
-            description: 'Our service is briefly unavailable. Showing offline guidance.',
-          });
+        const responseError = response.errorCode
+          ? buildMessageError(response.errorCode, response.error)
+          : undefined;
+        if (responseError) {
+          toast({ title: responseError.title, description: responseError.description, variant: 'destructive' });
         }
 
         const guruMessage: Message = {
@@ -902,9 +943,12 @@ export const ChatInterface = () => {
           content: response.content,
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
+          error: responseError,
         };
         setMessages((prev) => [...prev, guruMessage]);
-        setCachedResponse(cacheKey, response.content, guruMessage.citations);
+        if (!responseError) {
+          setCachedResponse(cacheKey, response.content, guruMessage.citations);
+        }
 
         if (response.meditationStep !== undefined) {
           setMeditationStep(response.meditationStep);
@@ -956,37 +1000,22 @@ export const ChatInterface = () => {
     } catch (error) {
     console.error('Error getting response:', error);
 
-    // Local state-sync fallback check for offline / connectivity loss
+    const errObj = error as { errorCode?: string; status?: number; message?: string };
     const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
+    const msgError = buildMessageError(
+      errObj?.errorCode || (isOffline ? 'network' : 'unknown'),
+      errObj?.message || (error instanceof Error ? error.message : String(error)),
+      errObj?.status,
+    );
 
-    let offlineContent = '';
-    if (isOffline) {
-      toast({
-        title: 'Connection Lost',
-        description: 'You are offline. Showing compassionate local guidance.',
-        variant: 'default',
-      });
-
-      const qLower = userMessage.content.toLowerCase();
-      if (qLower.includes('meditat') || qLower.includes('breath') || qLower.includes('serene') || qLower.includes('calm')) {
-        offlineContent = "Namaste. I see you are offline, but peace is always within. Let us practice a simple **Serene Mind Breathing** together:\n\n1. Sit comfortably and gently close your eyes.\n2. Inhale deeply for a count of 4.\n3. Hold your breath gently for a count of 4.\n4. Exhale slowly for a count of 8, releasing all tension.\n\nRepeat this cycle 5 times. Feel your breath settling and your mind returning to its natural, beautiful state. 🙏";
-      } else {
-        offlineContent = "Namaste, dear seeker. I see your connection to the digital world is temporarily paused. Let us take this moment to disconnect from external noise and connect with the quiet wisdom within. Take a slow, deep breath, and feel your presence. I will be here to share the full teachings of Sri Preethaji and Sri Krishnaji as soon as your connection returns. 🙏";
-      }
-    } else {
-      toast({
-        title: 'The Guru is meditating',
-        description: 'Our digital library is briefly resting. Please try again shortly.',
-        variant: 'default',
-      });
-      offlineContent = "Namaste. I am briefly unable to reach the sacred library right now. Let us rest in this silent pause together for a moment, and try asking again shortly. 🙏";
-    }
+    toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
 
     const fallbackMsg: Message = {
       id: generateId(),
       role: 'guru',
-      content: offlineContent,
+      content: '',
       timestamp: new Date(),
+      error: msgError,
     };
     setMessages((prev) => [...prev, fallbackMsg]);
   } finally {

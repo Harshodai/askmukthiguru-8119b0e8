@@ -7,6 +7,18 @@ export interface MessageFeedback {
   timestamp: Date;
 }
 
+export type MessageErrorKind = 'network' | 'unauthorized' | 'rate_limited' | 'server_error' | 'timeout' | 'unknown';
+
+export interface MessageError {
+  kind: MessageErrorKind;
+  title: string;
+  description: string;
+  /** Suggested user action surfaced as a button in the error bubble. */
+  actionLabel?: 'retry' | 'sign_in' | 'reload';
+  /** Optional technical detail (status code, message) shown in a details disclosure. */
+  detail?: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'guru';
@@ -17,6 +29,8 @@ export interface Message {
   feedback?: MessageFeedback;
   /** Memory facts the backend retrieved and used to ground this guru reply. */
   memoriesUsed?: string[];
+  /** Non-null when this guru bubble represents a failed response (network/auth/server). */
+  error?: MessageError;
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
