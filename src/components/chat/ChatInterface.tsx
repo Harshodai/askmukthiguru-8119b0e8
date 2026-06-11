@@ -1009,37 +1009,22 @@ export const ChatInterface = () => {
     } catch (error) {
     console.error('Error getting response:', error);
 
-    // Local state-sync fallback check for offline / connectivity loss
+    const errObj = error as { errorCode?: string; status?: number; message?: string };
     const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
+    const msgError = buildMessageError(
+      errObj?.errorCode || (isOffline ? 'network' : 'unknown'),
+      errObj?.message || (error instanceof Error ? error.message : String(error)),
+      errObj?.status,
+    );
 
-    let offlineContent = '';
-    if (isOffline) {
-      toast({
-        title: 'Connection Lost',
-        description: 'You are offline. Showing compassionate local guidance.',
-        variant: 'default',
-      });
-
-      const qLower = userMessage.content.toLowerCase();
-      if (qLower.includes('meditat') || qLower.includes('breath') || qLower.includes('serene') || qLower.includes('calm')) {
-        offlineContent = "Namaste. I see you are offline, but peace is always within. Let us practice a simple **Serene Mind Breathing** together:\n\n1. Sit comfortably and gently close your eyes.\n2. Inhale deeply for a count of 4.\n3. Hold your breath gently for a count of 4.\n4. Exhale slowly for a count of 8, releasing all tension.\n\nRepeat this cycle 5 times. Feel your breath settling and your mind returning to its natural, beautiful state. 🙏";
-      } else {
-        offlineContent = "Namaste, dear seeker. I see your connection to the digital world is temporarily paused. Let us take this moment to disconnect from external noise and connect with the quiet wisdom within. Take a slow, deep breath, and feel your presence. I will be here to share the full teachings of Sri Preethaji and Sri Krishnaji as soon as your connection returns. 🙏";
-      }
-    } else {
-      toast({
-        title: 'The Guru is meditating',
-        description: 'Our digital library is briefly resting. Please try again shortly.',
-        variant: 'default',
-      });
-      offlineContent = "Namaste. I am briefly unable to reach the sacred library right now. Let us rest in this silent pause together for a moment, and try asking again shortly. 🙏";
-    }
+    toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
 
     const fallbackMsg: Message = {
       id: generateId(),
       role: 'guru',
-      content: offlineContent,
+      content: '',
       timestamp: new Date(),
+      error: msgError,
     };
     setMessages((prev) => [...prev, fallbackMsg]);
   } finally {
