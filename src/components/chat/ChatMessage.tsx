@@ -259,6 +259,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       <ReactMarkdown>{message.content}</ReactMarkdown>
                     )}
                   </div>
+                  )
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2 w-full">
                     <p className="text-[11px] text-muted-foreground font-serif italic">
