@@ -15,6 +15,8 @@ export interface Message {
   citations?: string[];
   confidenceScore?: number;
   feedback?: MessageFeedback;
+  /** Memory facts the backend retrieved and used to ground this guru reply. */
+  memoriesUsed?: string[];
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -44,6 +46,7 @@ const MessageSchema = z.object({
     comment: z.string().optional(),
     timestamp: z.coerce.date(),
   }).optional(),
+  memoriesUsed: z.array(z.string()).optional(),
 });
 
 const ConversationSchema = z.object({
