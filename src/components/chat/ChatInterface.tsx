@@ -936,7 +936,7 @@ export const ChatInterface = () => {
           ? buildMessageError(response.errorCode, response.error)
           : undefined;
         if (responseError) {
-          toast({ title: responseError.title, description: responseError.description, variant: 'destructive' });
+          chatErrorBus.publishFromMessage(responseError);
         }
 
         const guruMessage: Message = {
