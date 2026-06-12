@@ -1193,6 +1193,10 @@ return (
         onToggleSidebar={toggleSidebar}
       />
 
+      {/* Global chat error banner */}
+      <ChatErrorBanner onRetry={handleRegenerate} />
+
+
       {/* Messages Area — this is the scroll container */}
       <div
         ref={scrollContainerRef}
