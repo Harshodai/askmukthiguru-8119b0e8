@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw } from 'lucide-react';
 
 const OptimisticPlaceholder = () => (
   <motion.div
