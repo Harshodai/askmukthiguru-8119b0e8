@@ -23,7 +23,9 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
     mode: 'Offline Mode',
   });
   const [memories, setMemories] = useState<GuruMemory[] | null>(null);
-  const [authed, setAuthed] = useState(false);
+  const { status: authStatus, email } = useAuthStatus();
+  const authed = authStatus === 'signed_in';
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkStatus = async () => {
