@@ -153,6 +153,40 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               </PopoverContent>
             </Popover>
           )}
+          {/* Auth status pill */}
+          {authStatus !== 'loading' && (
+            authStatus === 'session_expired' ? (
+              <button
+                type="button"
+                onClick={() => navigate('/auth?redirect=/chat')}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors px-2.5 py-1 text-[11px] text-amber-600 dark:text-amber-400"
+                title="Your session expired — sign in again"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="hidden sm:inline">Session expired</span>
+                <LogIn className="w-3 h-3" />
+                <span className="sm:hidden">Sign in</span>
+                <span className="hidden sm:inline">· Sign in again</span>
+              </button>
+            ) : authStatus === 'signed_in' ? (
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-1 text-[11px] text-foreground/70"
+                title={email ?? 'Signed in'}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Signed in
+              </span>
+            ) : (
+              <Link
+                to="/auth?redirect=/chat"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 hover:bg-muted transition-colors px-2.5 py-1 text-[11px] text-foreground/70"
+                title="Sign in to save conversations"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+                Sign in
+              </Link>
+            )
+          )}
           <UserMenu />
         </div>
       </div>
