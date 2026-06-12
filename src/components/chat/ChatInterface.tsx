@@ -861,7 +861,7 @@ export const ChatInterface = () => {
             ),
           );
           streamingWorked = true; // Suppress the offline fallback path; the bubble already shows the error.
-          toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
+          chatErrorBus.publishFromMessage(msgError, streamingGuruId);
         }
       } finally {
         clearInterval(checkpointInterval);
