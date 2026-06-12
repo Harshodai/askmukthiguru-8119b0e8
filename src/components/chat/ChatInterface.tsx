@@ -1234,14 +1234,14 @@ return (
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-2xl mx-auto px-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="px-4 py-3 rounded-2xl text-sm font-serif border border-ojas/25 bg-card/60 hover:bg-ojas/10 hover:border-ojas/50 text-foreground/85 hover:text-foreground transition-all text-center leading-snug min-h-[56px] flex items-center justify-center"
                   >
-                    {suggestion}
+                    <span className="line-clamp-2">{suggestion}</span>
                   </button>
                 ))}
               </div>
