@@ -39,21 +39,17 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-      setAuthed(!!session?.user);
-      if (!session?.user) return;
+    if (!authed) { setMemories(null); return; }
+    (async () => {
       try {
         const list = await memoryApi.list(1, 8);
         if (!cancelled) setMemories(list.memories);
       } catch {
         if (!cancelled) setMemories([]);
       }
-    };
-    load();
+    })();
     return () => { cancelled = true; };
-  }, []);
+  }, [authed]);
 
   const memoryCount = memories?.length ?? 0;
 
