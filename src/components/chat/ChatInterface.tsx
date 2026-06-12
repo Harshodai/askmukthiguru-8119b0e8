@@ -1368,6 +1368,24 @@ return (
       {/* Input Area */}
       <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
         <div className="max-w-3xl mx-auto">
+          {/* One-tap retry pill — appears when last guru bubble has an error */}
+          {(() => {
+            const last = messages[messages.length - 1];
+            const lastFailed = last?.role === 'guru' && !!last?.error && last.error.kind !== 'unauthorized';
+            if (!lastFailed || isStreaming || isTyping) return null;
+            return (
+              <div className="flex justify-center mb-2">
+                <button
+                  type="button"
+                  onClick={handleRegenerate}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium text-destructive border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Retry last message
+                </button>
+              </div>
+            );
+          })()}
           {/* Subtle practice chips */}
           <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-2">
             <button
