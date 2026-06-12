@@ -6,7 +6,7 @@ import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
-import { supabase } from '@/integrations/supabase/client';
+
 import { useAuthStatus } from '@/hooks/useAuthStatus';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
