@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw } from 'lucide-react';
 
 const OptimisticPlaceholder = () => (
   <motion.div
@@ -47,6 +47,8 @@ import {
   updateConversationSummary,
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
+import { chatErrorBus } from '@/lib/chatErrorBus';
+import { ChatErrorBanner } from './ChatErrorBanner';
 
 // Build a user-facing MessageError from an internal error code / details.
 const buildMessageError = (
@@ -861,7 +863,7 @@ export const ChatInterface = () => {
             ),
           );
           streamingWorked = true; // Suppress the offline fallback path; the bubble already shows the error.
-          toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
+          chatErrorBus.publishFromMessage(msgError, streamingGuruId);
         }
       } finally {
         clearInterval(checkpointInterval);
@@ -934,7 +936,7 @@ export const ChatInterface = () => {
           ? buildMessageError(response.errorCode, response.error)
           : undefined;
         if (responseError) {
-          toast({ title: responseError.title, description: responseError.description, variant: 'destructive' });
+          chatErrorBus.publishFromMessage(responseError);
         }
 
         const guruMessage: Message = {
@@ -1008,7 +1010,7 @@ export const ChatInterface = () => {
       errObj?.status,
     );
 
-    toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
+    chatErrorBus.publishFromMessage(msgError);
 
     const fallbackMsg: Message = {
       id: generateId(),
@@ -1191,6 +1193,10 @@ return (
         onToggleSidebar={toggleSidebar}
       />
 
+      {/* Global chat error banner */}
+      <ChatErrorBanner onRetry={handleRegenerate} />
+
+
       {/* Messages Area — this is the scroll container */}
       <div
         ref={scrollContainerRef}
@@ -1228,14 +1234,14 @@ return (
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-2xl mx-auto px-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="px-4 py-3 rounded-2xl text-sm font-serif border border-ojas/25 bg-card/60 hover:bg-ojas/10 hover:border-ojas/50 text-foreground/85 hover:text-foreground transition-all text-center leading-snug min-h-[56px] flex items-center justify-center"
                   >
-                    {suggestion}
+                    <span className="line-clamp-2">{suggestion}</span>
                   </button>
                 ))}
               </div>
@@ -1362,6 +1368,24 @@ return (
       {/* Input Area */}
       <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
         <div className="max-w-3xl mx-auto">
+          {/* One-tap retry pill — appears when last guru bubble has an error */}
+          {(() => {
+            const last = messages[messages.length - 1];
+            const lastFailed = last?.role === 'guru' && !!last?.error && last.error.kind !== 'unauthorized';
+            if (!lastFailed || isStreaming || isTyping) return null;
+            return (
+              <div className="flex justify-center mb-2">
+                <button
+                  type="button"
+                  onClick={handleRegenerate}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium text-destructive border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Retry last message
+                </button>
+              </div>
+            );
+          })()}
           {/* Subtle practice chips */}
           <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-2">
             <button
