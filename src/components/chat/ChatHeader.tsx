@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Brain } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PanelLeft, PanelLeftClose, Home, Brain, LogIn } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
-import { supabase } from '@/integrations/supabase/client';
+
+import { useAuthStatus } from '@/hooks/useAuthStatus';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 interface ChatHeaderProps {
@@ -22,7 +23,9 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
     mode: 'Offline Mode',
   });
   const [memories, setMemories] = useState<GuruMemory[] | null>(null);
-  const [authed, setAuthed] = useState(false);
+  const { status: authStatus, email } = useAuthStatus();
+  const authed = authStatus === 'signed_in';
+  const navigate = useNavigate();
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -36,21 +39,17 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-      setAuthed(!!session?.user);
-      if (!session?.user) return;
+    if (!authed) { setMemories(null); return; }
+    (async () => {
       try {
         const list = await memoryApi.list(1, 8);
         if (!cancelled) setMemories(list.memories);
       } catch {
         if (!cancelled) setMemories([]);
       }
-    };
-    load();
+    })();
     return () => { cancelled = true; };
-  }, []);
+  }, [authed]);
 
   const memoryCount = memories?.length ?? 0;
 
@@ -153,6 +152,40 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
                 </Link>
               </PopoverContent>
             </Popover>
+          )}
+          {/* Auth status pill */}
+          {authStatus !== 'loading' && (
+            authStatus === 'session_expired' ? (
+              <button
+                type="button"
+                onClick={() => navigate('/auth?redirect=/chat')}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors px-2.5 py-1 text-[11px] text-amber-600 dark:text-amber-400"
+                title="Your session expired — sign in again"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="hidden sm:inline">Session expired</span>
+                <LogIn className="w-3 h-3" />
+                <span className="sm:hidden">Sign in</span>
+                <span className="hidden sm:inline">· Sign in again</span>
+              </button>
+            ) : authStatus === 'signed_in' ? (
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-1 text-[11px] text-foreground/70"
+                title={email ?? 'Signed in'}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Signed in
+              </span>
+            ) : (
+              <Link
+                to="/auth?redirect=/chat"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 hover:bg-muted transition-colors px-2.5 py-1 text-[11px] text-foreground/70"
+                title="Sign in to save conversations"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+                Sign in
+              </Link>
+            )
           )}
           <UserMenu />
         </div>
