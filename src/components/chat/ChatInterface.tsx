@@ -1010,7 +1010,7 @@ export const ChatInterface = () => {
       errObj?.status,
     );
 
-    toast({ title: msgError.title, description: msgError.description, variant: 'destructive' });
+    chatErrorBus.publishFromMessage(msgError);
 
     const fallbackMsg: Message = {
       id: generateId(),
