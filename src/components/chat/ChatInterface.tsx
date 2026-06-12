@@ -47,6 +47,8 @@ import {
   updateConversationSummary,
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
+import { chatErrorBus } from '@/lib/chatErrorBus';
+import { ChatErrorBanner } from './ChatErrorBanner';
 
 // Build a user-facing MessageError from an internal error code / details.
 const buildMessageError = (
