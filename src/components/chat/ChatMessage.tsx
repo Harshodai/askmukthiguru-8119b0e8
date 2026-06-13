@@ -356,7 +356,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
               {/* Timestamp + action buttons */}
               <div className="flex items-center justify-between mt-1 gap-2">
-                <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/75' : 'text-primary-foreground/50'}`}>
+                <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/75' : 'text-primary-foreground/80'}`}>
                   {formatTime(message.timestamp)}
                 </p>
                 {isGuru && message.content && !isStreaming && (
