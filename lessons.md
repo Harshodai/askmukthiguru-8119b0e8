@@ -54,6 +54,9 @@ This file documents key implementation patterns, architectural decisions, and "l
 - **Direct LLM Providers Need Manual Spans**: OpenInference LangChain instrumentation covers LangChain/LangGraph calls, but direct HTTP gateways such as Sarvam Cloud need explicit OpenTelemetry spans for token usage, latency, status, and retry metadata.
 - **Conversation IDs Need Backend Normalization**: Browser-local conversation ids are not always UUIDs, but Supabase memory tables often are. Normalize them with deterministic `uuid5(user_id:session_id)` in the backend so memory persists without breaking older localStorage conversations.
 - **Memory Is Context, Not Evidence**: Conversation memory should personalize tone and resolve references, while retrieved Qdrant/LightRAG documents remain the only source of spiritual factual claims.
+- **Phase 3 Latency & Tiered Generation**: Implemented triple-model routing in `OllamaService` (main 30B, fast 3B for classification, tier-fast 3B for simple generation). A critical bug was found where `result.model_name` was used in a warm-up log statement, but `PipelineResult` only exposes `model_used`; fixing this prevented an `AttributeError` crash on every backend boot. Another lesson: when adding a new model slot, adding its log line is not enough—you must also ensure the _previous_ log line for the adjacent model was not accidentally overwritten.
+- **Phase 3 Gap Fix — `is_tier2` Value Mismatch**: During the comprehensive review, `rag/nodes/generation.py` was found to check `state.get("query_tier") == "fast"`, but `intent.py` only ever emitted `"tier2_simple"` or `"tier3_complex"`. This meant the simplified prompt path for fast queries was **dead code** — `is_tier2` was always `False`. Fix: broadened the check to `state.get("query_tier") in ("fast", "tier2_simple")`, aligning with the values produced by `intent.py` (and supported by `orchestrator_utils.py` / `verification.py`).
+- **Phase 3 Gap Fix — Missing `OLLAMA_FAST_MODEL` in `.env`**: The `.env` file had `OLLAMA_MODEL` and `OLLAMA_CLASSIFY_MODEL` but no `OLLAMA_FAST_MODEL`, leaving the fast-generation model slot unset despite `config.py` and `ollama_service.py` wiring. The fallback to `model_for_classification` (same as classification model) worked, but explicit config is required for any model override. Fix: added `OLLAMA_FAST_MODEL=deepseek-r1:7b` to `.env`.
 - **Master Schema**: Created `master_schema.sql` to centralize all production table definitions (profiles, telemetry, observability) into a single, idempotent script.
 - **Onboarding Flow**: Implemented a "Profile-First" onboarding pattern. New users are redirected to `/profile?onboarding=true` immediately after authentication to set their spiritual parameters (Language, Tone, Bio) before their first chat.
 - **UI Discoverability**: Replaced the hidden sidebar menu with direct "Rename" and "Delete" icons that appear on hover, improving task efficiency and feature visibility.
@@ -227,6 +230,44 @@ Any new protected endpoint MUST use `get_current_user_from_supabase`. Do not add
 
 **Never Again Rule**: Frontend Docker changes always require a full `docker compose build frontend`. A `docker compose restart frontend` is NOT sufficient — it reuses the stale image.
 
+---
+
+### Root Cause 6: VITE_BACKEND_URL baked into Docker production build causing "Failed to fetch" (June 2026)
+
+**Symptom**: Chat UI shows red error "Something went wrong — Failed to fetch". Browser console shows network error calling `http://localhost:8000/api/chat`. Request never reaches backend.
+
+**Root Cause**: 
+1. `backend/docker-compose.yml` had `VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8000}` — defaulting to `http://localhost:8000` when not explicitly set
+2. Frontend Dockerfile builds with this arg: `ARG VITE_BACKEND_URL` → `ENV VITE_BACKEND_URL=$VITE_BACKEND_URL`
+3. Vite bakes `import.meta.env.VITE_BACKEND_URL` into JS bundle at **build time**
+4. Production frontend (served by nginx on port 80) has `http://localhost:8000` hardcoded in bundle
+5. Browser tries to fetch `http://localhost:8000/api/chat` directly → fails (localhost:8000 is inside Docker network, not accessible from browser)
+6. Correct architecture: nginx proxies `/api/*` → `backend:8000/api/*` (see `nginx.conf` line 15-24). Frontend should use **relative URLs** (`/api/chat`)
+
+**Why it worked in local dev but not Docker**:
+- Local dev: Vite dev server proxies `/api` to `http://localhost:8000` (see `vite.config.ts` lines 16-22)
+- Docker production: nginx proxies `/api` to `backend:8000`, but frontend JS had wrong hardcoded URL
+
+**Fix Applied**:
+1. Removed `VITE_BACKEND_URL` from `backend/docker-compose.yml` frontend build args (with explanatory comment)
+2. Rebuilt frontend: `docker compose build frontend && docker compose up -d frontend`
+3. Verified built JS no longer contains `localhost:8000` — uses relative `/api/chat`
+
+**Files Changed**:
+- `backend/docker-compose.yml` — removed VITE_BACKEND_URL build arg (lines 256)
+
+**Never Again Rule**: 
+- **NEVER** set `VITE_BACKEND_URL` in production Docker builds
+- `VITE_BACKEND_URL` is ONLY for local development (Vite dev server proxy)
+- In production (nginx reverse proxy), frontend MUST use relative URLs (`/api/*`)
+- Docker build args for frontend should only include vars needed at runtime by the browser (Supabase URL, keys, OAuth config)
+- Always verify built JS bundle after Docker frontend rebuild: `docker exec mukthiguru-frontend grep -r "localhost:8000" /usr/share/nginx/html/app/` should return empty
+
+**Verification Checklist for Future**:
+- [ ] `docker compose build frontend` after any docker-compose.yml change
+- [ ] `docker exec mukthiguru-frontend grep -r "localhost:8000" /usr/share/nginx/html/app/` returns nothing
+- [ ] `curl http://localhost/api/health` returns healthy (proves nginx proxy works)
+- [ ] Browser network tab shows requests to `/api/chat` (relative), not `http://localhost:8000/api/chat`
 ---
 
 ### Admin User Setup Pattern
@@ -1587,3 +1628,21 @@ Monolithic controller endpoints in `main.py` handle multiple concerns including 
 - **Improved Testability**: Orchestration logic can be unit tested in isolation by directly supplying a mock container.
 - **Maintainability**: Reduced `main.py` by over 700 lines, making it easier to read and maintain.
 
+
+## OOM Fix: Backend Docker Container (2026-06-12)
+
+### Root Cause
+Backend container (`mukthiguru-backend`) was being OOM-killed 34+ times.
+- Docker VM total RAM: **7.75 GiB**
+- Backend compose limit was set to `24G` — meaningless, but the **whole Docker VM OOM'd**
+- `PREWARM_MODELS` was `true` (hardcoded), loading `intfloat/multilingual-e5-large-instruct` (~1.4GB) + EasyOCR (~500MB) **at every startup**, colliding with LightRAG init and other service startup memory spikes
+- `OOMKilled: true` resets to `false` after container restart, masking the bug in `docker inspect`
+
+### Fix Applied
+1. **[`docker-compose.yml`]** Backend `memory: 24G → 4G`, reservation `12G → 1G` — now OOM-kills just the container (recoverable) instead of crashing the VM
+2. **[`docker-compose.yml`]** Added `PREWARM_MODELS=${PREWARM_MODELS:-false}` env var — disables eager startup model loading
+3. **[`app/config.py`]** Added `prewarm_models: bool = False` setting
+4. **[`app/main.py`]** Gated prewarm block behind `settings.prewarm_models` — models now load lazily on first request
+
+### How to Re-enable Prewarm (if needed)
+Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supabase + infra containers are up.

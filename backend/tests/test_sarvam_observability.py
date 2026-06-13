@@ -51,6 +51,9 @@ class FakeResponse:
     status_code = 200
     text = ""
 
+    def raise_for_status(self):
+        pass
+
     @staticmethod
     def json():
         return {
@@ -116,6 +119,9 @@ async def test_sarvam_injects_reasoning_effort(monkeypatch):
         status_code = 200
         text = ""
 
+        def raise_for_status(self):
+            pass
+
         @staticmethod
         def json():
             return {"choices": [{"message": {"content": "Hello"}}], "usage": {"total_tokens": 10}}
@@ -162,6 +168,9 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
     class FallbackResponse:
         status_code = 200
         text = ""
+
+        def raise_for_status(self):
+            pass
 
         @staticmethod
         def json():

@@ -8,6 +8,7 @@
 // layered on once we have a vector store in Cloud.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { embedText } from "../_shared/embed.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +29,9 @@ interface ChatRequest {
   session_id?: string;
   language?: string;
   stream?: boolean;
+  /** Pre-fetched relevant memories from the client. Plain text only; injected
+   *  AFTER the trusted system prompt, never replacing it. Max 1200 chars enforced. */
+  seeker_context?: string;
 }
 
 const DEFAULT_SYSTEM_PROMPT = `You are a spiritual AI companion embodying the wisdom of Sri Preethaji & Sri Krishnaji.
@@ -75,22 +79,14 @@ interface Citation {
 // ── Retrieval: embed query → top-K pgvector search ────────────────
 async function retrieveContext(
   admin: ReturnType<typeof createClient>,
-  apiKey: string,
+  _apiKey: string,   // kept for signature compat; routing handled in shared embed utility
   query: string,
 ): Promise<{ context: string; citations: Citation[] }> {
   try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/text-embedding-004", input: [query] }),
-    });
-    if (!r.ok) {
-      console.warn("embed_failed", r.status, (await r.text()).slice(0, 200));
-      return { context: "", citations: [] };
-    }
-    const j = await r.json();
-    const embedding: number[] | undefined = j.data?.[0]?.embedding;
-    if (!embedding) return { context: "", citations: [] };
+    // Auto-routes: LOVABLE_API_KEY set → Lovable Gateway (gemini-embedding-001@768)
+    //              unset               → local Ollama (nomic-embed-text@768)
+    const { embedding } = await embedText(query);
+    if (!embedding?.length) return { context: "", citations: [] };
 
     const { data, error } = await admin.rpc("match_kb_chunks", {
       query_embedding: embedding as unknown as string,
@@ -275,9 +271,18 @@ Deno.serve(async (req) => {
     ? `\n\nUse the following grounded teachings to answer when relevant. Cite them inline as [1], [2], etc., matching the numbered context blocks. If they are not relevant, answer from your own grounding without citing.\n\nGROUNDED CONTEXT:\n${ragContext}`
     : "";
 
+  // Build seeker context block: appended AFTER the trusted system prompt.
+  // Plain-text only, capped at 1200 chars to limit prompt injection surface.
+  const rawSeekerCtx = typeof body.seeker_context === "string"
+    ? body.seeker_context.replace(/<[^>]*>/g, "").slice(0, 1200)
+    : "";
+  const seekerBlock = rawSeekerCtx
+    ? `\n\n[Seeker context — stable facts about this person, use to personalise responses]\n${rawSeekerCtx}`
+    : "";
+
   // Always inject the trusted system prompt; never honor client-supplied system messages
   const llmMessages: IncomingMessage[] = [
-    { role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem },
+    { role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem + seekerBlock },
     ...history,
     { role: "user" as const, content: body.user_message },
   ];

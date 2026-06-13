@@ -133,6 +133,8 @@ const buildMessageError = (
 };
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger } from '@/lib/aiService';
+import { memoryApi } from '@/lib/memoryApi';
+import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp } from '@/lib/meditationStorage';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
@@ -674,6 +676,20 @@ export const ChatInterface = () => {
     if (!isAwaitingSereneMind) {
       try {
         const lastSereneMindAt = getLastCompletedMeditationTimestamp();
+
+        // ── Memory: fetch relevant context before sending ─────────────────
+        // Fire concurrently with stream setup; failures are silent (best-effort).
+        let seekerContext = '';
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const relevant = await memoryApi.getRelevant(userMessage.content, 5);
+            if (relevant.length > 0) {
+              seekerContext = relevant.map((m) => `- ${m.content}`).join('\n');
+            }
+          }
+        } catch { /* memory is best-effort — never block the chat */ }
+
         const stream = sendMessageStreaming(
           messageHistory,
           userMessage.content,
@@ -681,6 +697,7 @@ export const ChatInterface = () => {
           currentConversation?.summary,
           currentConversation?.id,
           lastSereneMindAt,
+          seekerContext || undefined,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
@@ -796,6 +813,21 @@ export const ChatInterface = () => {
           setStreamingContent('');
 
           setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
+
+          // ── Memory: fire-and-forget extraction ───────────────────────────
+          // Extract 0–3 durable facts from this exchange and store them.
+          // Runs async, never blocks the chat, failures are silent.
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              supabase.functions.invoke('memory-extract', {
+                body: {
+                  user_message: userMessage.content,
+                  assistant_message: fullContent,
+                  conversation_id: currentConversation?.id,
+                },
+              }).catch(() => { /* silent */ });
+            }
+          }).catch(() => { /* silent */ });
 
           // Update meditation step from streaming metadata
           if (streamedMedStep !== undefined) {

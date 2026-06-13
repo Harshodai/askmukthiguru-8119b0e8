@@ -78,7 +78,11 @@ vi.mock('@/lib/chatStorage', () => ({
 // Mock the AI service
 vi.mock('@/lib/aiService', () => ({
   sendMessage: vi.fn().mockResolvedValue({ content: 'Mocked guru response', citations: [] }),
-  sendMessageStreaming: vi.fn(),
+  sendMessageStreaming: vi.fn().mockImplementation(() => ({
+    [Symbol.asyncIterator]: async function* () {
+      yield { type: 'message', text: 'Mocked guru response' };
+    }
+  })),
   generateSummary: vi.fn().mockResolvedValue('Mock summary'),
   generateConversationTitle: vi.fn().mockResolvedValue('Finding Peace'),
   setLanguage: vi.fn(),
@@ -108,7 +112,7 @@ vi.mock('@/components/chat/MessageList', () => ({
 }));
 
 import { fireEvent, waitFor } from '@testing-library/react';
-import { sendMessage } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming } from '@/lib/aiService';
 
 describe('ChatInterface', () => {
   beforeEach(() => {
@@ -142,13 +146,14 @@ describe('ChatInterface', () => {
     fireEvent.click(sendButton);
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageStreaming).toHaveBeenCalledWith(
         expect.any(Array),
         'How do I find peace?',
         0,
         undefined,
         'test-conv-id',
-        null
+        null,
+        undefined
       );
     });
 

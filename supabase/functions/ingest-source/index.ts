@@ -1,15 +1,16 @@
-// Ingestion — chunks + embeds text via Lovable AI gateway (Gemini text-embedding-004, 768d),
-// upserts into kb_sources / kb_chunks, and records an ingestion_runs telemetry row.
+// Ingestion — chunks + embeds text via shared embed utility (auto-routes:
+//   LOVABLE_API_KEY set  →  Lovable AI Gateway, gemini-embedding-001 @768d MRL
+//   LOVABLE_API_KEY unset →  local Ollama, nomic-embed-text @768d)
+// Upserts into kb_sources / kb_chunks, records an ingestion_runs telemetry row.
 // Admin-only. Accepts { title, url?, kind?, text? } or { source } (treated as text or URL).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { embedBatch } from "../_shared/embed.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const EMBED_MODEL = "google/text-embedding-004";
-const EMBED_URL = "https://ai.gateway.lovable.dev/v1/embeddings";
 const CHUNK_SIZE = 900;
 const CHUNK_OVERLAP = 120;
 const BATCH = 16;
@@ -28,23 +29,7 @@ function chunkText(s: string): string[] {
   return out;
 }
 
-async function embedBatch(texts: string[], apiKey: string): Promise<number[][]> {
-  const r = await fetch(EMBED_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ model: EMBED_MODEL, input: texts }),
-  });
-  if (!r.ok) {
-    const body = await r.text().catch(() => "");
-    console.error("[ingest-source] embed failed", r.status, body);
-    throw new Error(`embed_failed_${r.status}`);
-  }
-  const j = await r.json();
-  return j.data.map((d: { embedding: number[] }) => d.embedding);
-}
+
 
 function validateExternalUrl(raw: string): URL {
   const u = new URL(raw);
@@ -87,7 +72,7 @@ Deno.serve(async (req) => {
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
     const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return json({ error: "missing_lovable_api_key" }, 500);
+    // LOVABLE_API_KEY is optional: shared embed utility falls back to Ollama when absent.
 
     const userClient = createClient(SUPABASE_URL, ANON, {
       global: { headers: { Authorization: authHeader } },
@@ -141,7 +126,7 @@ Deno.serve(async (req) => {
     try {
       for (let i = 0; i < chunks.length; i += BATCH) {
         const slice = chunks.slice(i, i + BATCH);
-        const vectors = await embedBatch(slice, LOVABLE_API_KEY);
+        const vectors = await embedBatch(slice);
         const rows = slice.map((t, j) => ({
           source_id: src.id,
           ord: i + j,
