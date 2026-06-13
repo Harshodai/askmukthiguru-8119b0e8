@@ -43,7 +43,6 @@ from app.telemetry.publisher import TelemetryPublisher
 from rag.graph import create_initial_state
 from rag.memory import normalize_session_id
 from rag.timeout_utils import TimeoutBudget, budget_var
-from services.sarvam_service import CircuitOpenException
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
 logger = logging.getLogger(__name__)
@@ -229,7 +228,17 @@ class PipelineCoordinator:
         # 9. Memory Saving
         # ------------------------------------------------------------------
         _s = time.time_ns()
-        await self._save_memory(user_id, stable_session_id, chat_body_messages, user_msg, final_answer, intent, med_step, citations)
+        await self._save_memory(
+            user_id,
+            stable_session_id,
+            chat_body_messages,
+            user_msg,
+            final_answer,
+            intent,
+            med_step,
+            citations,
+            distress_level=assessment.level.value if assessment else 0,
+        )
         await self._stage("memory_save", trace_id, start_ns=_s)
 
         # ------------------------------------------------------------------
@@ -444,8 +453,9 @@ class PipelineCoordinator:
         proactive_data: dict | None,
     ) -> tuple[dict, int]:
         """Run the LangGraph pipeline and return (result, latency_ms)."""
-        from app.coalescer import build_coalescer
         import random
+
+        from app.coalescer import build_coalescer
 
         coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
@@ -516,6 +526,7 @@ class PipelineCoordinator:
         intent: str,
         med_step: int,
         citations: list,
+        distress_level: int = 0,
     ) -> None:
         """Save conversation memory asynchronously."""
         if not self.container.user_profile:
@@ -535,7 +546,8 @@ class PipelineCoordinator:
                 emotional_arc=[
                     {
                         "timestamp": time.time(),
-                        " provoked": False,
+                        "distress_level": distress_level,
+                        "provoked": False,
                         "topic": intent,
                     }
                 ],

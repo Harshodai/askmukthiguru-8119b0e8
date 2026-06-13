@@ -160,8 +160,8 @@ class SarvamHTTPGateway:
             max_tokens = 2048
 
         # 5. Reasoning effort selection
-        reasoning_effort: str | None = None
-        if model.startswith("sarvam-"):
+        reasoning_effort: str | None = kwargs.pop("reasoning_effort", None)
+        if not reasoning_effort and model.startswith("sarvam-"):
             op = (operation or "").lower()
             fast_tags = (
                 "classification", "intent", "grade", "followup", "decompose",
@@ -194,6 +194,10 @@ class SarvamHTTPGateway:
             wait_exponential,
         )
 
+        tracer = None
+        if trace is not None:
+            tracer = trace.get_tracer("sarvam")
+
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(kwargs.pop("max_retries", self._max_retries)),
             wait=wait_exponential(multiplier=1, min=1, max=8),
@@ -201,80 +205,132 @@ class SarvamHTTPGateway:
             before_sleep=lambda rs: logger.warning(f"Sarvam call failed attempt {rs.attempt_number}. Retrying..."),
         ):
             with attempt:
-                # Rate limiting
-                rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
-                if rpm_limit > 0:
-                    async with self._rate_limit_lock:
-                        now = time.time()
-                        elapsed = now - self._last_request_time
-                        min_interval = 60.0 / rpm_limit
-                        if elapsed < min_interval:
-                            sleep_time = min_interval - elapsed
-                            self._last_request_time = now + sleep_time
-                        else:
-                            sleep_time = 0.0
-                            self._last_request_time = now
-                    if sleep_time > 0:
-                        logger.info(f"Rate limiting: sleeping {sleep_time:.2f}s")
-                        await asyncio.sleep(sleep_time)
-
-                # Execute HTTP call
-                start = time.time()
-                client = await self._get_http_client()
-                resp = await client.post(
-                    f"{self._base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                    timeout=self._timeout,
-                )
-                latency_ms = (time.time() - start) * 1000
-
-                # Self-healing on 400 (tier limit)
-                if resp.status_code == 400:
-                    m = re.search(
-                        r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
-                        resp.text,
+                attempt_num = attempt.retry_state.attempt_number
+                span_ctx = None
+                if tracer is not None:
+                    span_ctx = tracer.start_as_current_span(
+                        "llm.sarvam.chat",
+                        attributes={
+                            "llm.provider": "sarvam",
+                            "llm.system": "sarvam",
+                            "llm.model_name": model,
+                            "llm.operation": operation,
+                            "llm.request.attempt": attempt_num,
+                        }
                     )
-                    if m:
-                        tier_limit = int(m.group(1))
-                        logger.warning(f"Tier limit hit; capping max_tokens → {tier_limit}")
-                        self._max_tokens_limit = tier_limit
-                        payload["max_tokens"] = tier_limit
-                        continue  # retry immediately
 
-                # Self-healing on 422 (context window)
-                if resp.status_code == 422 and "exceeds the model context window" in resp.text:
-                    if payload.get("model") == "sarvam-m":
-                        logger.warning("Context exceeded on sarvam-m; upgrading → sarvam-30b")
-                        payload["model"] = "sarvam-30b"
-                        payload["max_tokens"] = min(payload.get("max_tokens", 32768), 32768)
-                        continue
-                    else:
+                if span_ctx is not None:
+                    span = span_ctx.__enter__()
+                else:
+                    span = None
+
+                try:
+                    # Rate limiting
+                    rpm_limit = float(os.environ.get("SARVAM_RPM_LIMIT", "60"))
+                    if rpm_limit > 0:
+                        async with self._rate_limit_lock:
+                            now = time.time()
+                            elapsed = now - self._last_request_time
+                            min_interval = 60.0 / rpm_limit
+                            if elapsed < min_interval:
+                                sleep_time = min_interval - elapsed
+                                self._last_request_time = now + sleep_time
+                            else:
+                                sleep_time = 0.0
+                                self._last_request_time = now
+                        if sleep_time > 0:
+                            logger.info(f"Rate limiting: sleeping {sleep_time:.2f}s")
+                            await asyncio.sleep(sleep_time)
+
+                    # Execute HTTP call
+                    client = await self._get_http_client()
+                    resp = await client.post(
+                        f"{self._base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                        timeout=self._timeout,
+                    )
+
+                    # Self-healing on 400 (tier limit)
+                    if resp.status_code == 400:
                         m = re.search(
-                            r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
+                            r"exceeds the maximum allowed for .*? for your subscription tier .*?: (\d+)",
                             resp.text,
                         )
                         if m:
-                            prompt_t, window_t = int(m.group(1)), int(m.group(2))
-                            allowed = window_t - prompt_t - 50
-                            if allowed > 0:
-                                logger.warning(f"Context exceeded; reducing max_tokens → {allowed}")
-                                payload["max_tokens"] = allowed
-                                continue
+                            tier_limit = int(m.group(1))
+                            logger.warning(f"Tier limit hit; capping max_tokens → {tier_limit}")
+                            self._max_tokens_limit = tier_limit
+                            payload["max_tokens"] = tier_limit
+                            if span_ctx is not None:
+                                span_ctx.__exit__(None, None, None)
+                            continue  # retry immediately
 
-                resp.raise_for_status()
+                    # Self-healing on 422 (context window)
+                    if resp.status_code == 422 and "exceeds the model context window" in resp.text:
+                        if payload.get("model") == "sarvam-m":
+                            logger.warning("Context exceeded on sarvam-m; upgrading → sarvam-30b")
+                            payload["model"] = "sarvam-30b"
+                            payload["max_tokens"] = min(payload.get("max_tokens", 32768), 32768)
+                            if span_ctx is not None:
+                                span_ctx.__exit__(None, None, None)
+                            continue
+                        else:
+                            m = re.search(
+                                r"prompt_tokens \((\d+)\) \+ max_tokens \(\d+\) = \d+ exceeds the model context window of (\d+)",
+                                resp.text,
+                            )
+                            if m:
+                                prompt_t, window_t = int(m.group(1)), int(m.group(2))
+                                allowed = window_t - prompt_t - 50
+                                if allowed > 0:
+                                    logger.warning(f"Context exceeded; reducing max_tokens → {allowed}")
+                                    payload["max_tokens"] = allowed
+                                    if span_ctx is not None:
+                                        span_ctx.__exit__(None, None, None)
+                                    continue
 
-                data = resp.json()
-                choice = data.get("choices", [{}])[0]
-                content = (choice.get("message", {}) or {}).get("content", "")
-                reasoning = (choice.get("message", {}) or {}).get("reasoning_content", "")
+                    resp.raise_for_status()
 
-                if not content and reasoning:
-                    extracted = self._extract_structured_content(reasoning, operation)
-                    if extracted:
-                        content = extracted
+                    data = resp.json()
 
-                return content.strip()
+                    if span is not None:
+                        span.set_attribute("http.status_code", resp.status_code)
+                        usage = data.get("usage", {})
+                        span.set_attribute("llm.token_count.prompt", usage.get("prompt_tokens"))
+                        span.set_attribute("llm.token_count.completion", usage.get("completion_tokens"))
+                        span.set_attribute("llm.token_count.total", usage.get("total_tokens"))
+
+                    choice = data.get("choices", [{}])[0]
+                    content = (choice.get("message", {}) or {}).get("content", "")
+                    reasoning = (choice.get("message", {}) or {}).get("reasoning_content", "")
+
+                    content_stripped = content.strip()
+                    if not content_stripped and reasoning:
+                        extracted = self._extract_structured_content(reasoning, operation)
+                        content = extracted if extracted else reasoning
+
+                    # Record token usage in cost tracker
+                    try:
+                        from services.cost_tracker import token_accumulator_var
+                        acc = token_accumulator_var.get()
+                        if acc is not None:
+                            usage = data.get("usage", {})
+                            acc.tokens_in += usage.get("prompt_tokens") or 0
+                            acc.tokens_out += usage.get("completion_tokens") or 0
+                            acc.model = model
+                            acc.provider = "sarvam"
+                    except Exception as e:
+                        logger.warning(f"Failed to record token usage: {e}")
+
+                    if span_ctx is not None:
+                        span_ctx.__exit__(None, None, None)
+
+                    return content.strip()
+                except Exception as e:
+                    if span_ctx is not None:
+                        span_ctx.__exit__(type(e), e, e.__traceback__)
+                    raise
 
         # Should never reach here (tenacity raises after exhaustion)
         return ""  # fallback
@@ -328,8 +384,8 @@ class SarvamHTTPGateway:
                 pass
 
         if operation == "extraction":
-            lines = [l.strip() for l in text.splitlines() if l.strip()]
-            extracted = [l for l in lines if "<|#|>" in l or (l.count('"') >= 4 and ("entity" in l.lower() or "relation" in l.lower() or "\t" in l))]
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            extracted = [line for line in lines if "<|#|>" in line or (line.count('"') >= 4 and ("entity" in line.lower() or "relation" in line.lower() or "\t" in line))]
             if extracted:
                 return "\n".join(extracted)
 

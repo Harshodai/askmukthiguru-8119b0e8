@@ -14,8 +14,11 @@ def mock_coalescer():
     async def dummy_get_or_run(key, callback):
         return await callback()
 
+    mock_coalescer_obj = MagicMock()
+    mock_coalescer_obj.get_or_run = AsyncMock(side_effect=dummy_get_or_run)
+
     with patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
-         patch("app.orchestrator.coalescer.get_or_run", side_effect=dummy_get_or_run):
+         patch("app.coalescer.build_coalescer", return_value=mock_coalescer_obj):
         yield
 
 

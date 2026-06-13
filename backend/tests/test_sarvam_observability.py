@@ -83,7 +83,8 @@ class FakeAsyncClient:
 @pytest.mark.asyncio
 async def test_sarvam_call_records_otel_span_attributes(monkeypatch):
     fake_tracer = FakeTracer()
-    monkeypatch.setattr(sarvam_service, "trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(fake_tracer))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
     monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", FakeAsyncClient)
     monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
     monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
@@ -140,7 +141,8 @@ async def test_sarvam_injects_reasoning_effort(monkeypatch):
             recorded_payloads.append(json)
             return CapturingResponse()
 
-    monkeypatch.setattr(sarvam_service, "trace", FakeTrace(FakeTracer()))
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(FakeTracer()))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
     monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", CapturingAsyncClient)
     monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
     monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
@@ -199,7 +201,8 @@ async def test_sarvam_reasoning_content_fallback(monkeypatch):
         async def post(self, url, headers=None, json=None, **kwargs):
             return FallbackResponse()
 
-    monkeypatch.setattr(sarvam_service, "trace", FakeTrace(FakeTracer()))
+    monkeypatch.setattr("services.gateways.sarvam_http.trace", FakeTrace(FakeTracer()))
+    monkeypatch.setattr("services.gateways.sarvam_http._has_otel", True)
     monkeypatch.setattr(sarvam_service.httpx, "AsyncClient", FallbackAsyncClient)
     monkeypatch.setattr(settings, "sarvam_api_key", "test-key")
     monkeypatch.setattr(settings, "sarvam_cloud_model", "sarvam-30b")
