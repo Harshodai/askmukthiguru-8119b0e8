@@ -129,7 +129,8 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, run_id: run.id, summary });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
+    console.error("[eval-run] exception", e);
+    return json({ error: "An error occurred. Please try again." }, 500);
   }
 });
 
