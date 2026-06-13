@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       .select("id, question, expected_answer, tags")
       .eq("active", true)
       .limit(25);
-    if (qErr) return json({ error: qErr.message }, 500);
+    if (qErr) { console.error("[eval-run] questions error", qErr); return json({ error: "Failed to load questions." }, 500); }
     if (!questions?.length) return json({ error: "No active golden questions" }, 400);
 
     const body = await req.json().catch(() => ({}));
