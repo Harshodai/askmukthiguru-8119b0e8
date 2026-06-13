@@ -1123,6 +1123,54 @@ const handleSelectConversation = (conversation: Conversation) => {
   });
 };
 
+const handleExportConversation = useCallback(() => {
+  if (!currentConversation || messages.length === 0) {
+    toast({ title: 'Nothing to export yet', description: 'Send a message first.' });
+    return;
+  }
+  try {
+    const filename = downloadConversationAsMarkdown({ ...currentConversation, messages });
+    toast({ title: 'Conversation exported', description: filename });
+  } catch (err) {
+    toast({
+      title: 'Export failed',
+      description: err instanceof Error ? err.message : 'Could not save the file.',
+      variant: 'destructive',
+    });
+  }
+}, [currentConversation, messages, toast]);
+
+const runSlashCommand = useCallback(
+  (id: SlashCommandId) => {
+    setInputValue('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+    switch (id) {
+      case 'serene':
+        openSereneMind();
+        break;
+      case 'meditate':
+        setShowGuidedMeditation(true);
+        break;
+      case 'retry':
+        handleRegenerate();
+        break;
+      case 'share':
+        if (messages.some((m) => m.role === 'guru')) setShowQuickWisdomCard(true);
+        else toast({ title: 'No Guru message yet', description: 'Ask something first.' });
+        break;
+      case 'clear':
+        handleNewConversation();
+        break;
+      case 'lang':
+        toast({ title: 'Language picker', description: 'Use the globe icon below the input.' });
+        break;
+    }
+  },
+  [handleRegenerate, messages, openSereneMind, toast],
+);
+
+
+
 const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   // Up-arrow (when input empty) recalls the last user message into the draft.
   if (e.key === 'ArrowUp' && !inputValue) {
