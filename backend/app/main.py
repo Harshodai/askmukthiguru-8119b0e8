@@ -215,17 +215,25 @@ async def lifespan(app: FastAPI):
     startup()
     container = get_container()
 
-    # 2.5 Pre-warm heavy ML models in background thread so they don't block startup (Phase 3)
-    def prewarm_models():
-        logger.info("Background pre-warming: starting...")
-        try:
-            container.ocr._ensure_reader()
-            container.embedding._ensure_models()
-            logger.info("Background pre-warming: complete.")
-        except Exception as e:
-            logger.warning(f"Background pre-warming failed: {e}")
+    # 2.5 Ensure encoder is loaded first (resolves primary/fallback models & dimension)
+    try:
+        logger.info("Lifespan: Ensuring embedding encoder is loaded...")
+        await asyncio.to_thread(container.embedding._ensure_encoder)
+        logger.info(f"Lifespan: Encoder loaded successfully (Model: {settings.embedding_model}, Dimension: {settings.embedding_dimension})")
+    except Exception as e:
+        logger.error(f"Lifespan: Failed to load embedding encoder: {e}", exc_info=True)
 
-    asyncio.create_task(asyncio.to_thread(prewarm_models))
+    # Pre-warm remaining models (reranker, colbert) in a background thread
+    def prewarm_remaining():
+        logger.info("Background pre-warming (reranker/colbert): starting...")
+        try:
+            container.embedding._ensure_reranker()
+            container.embedding._ensure_colbert()
+            logger.info("Background pre-warming (reranker/colbert): complete.")
+        except Exception as ex:
+            logger.warning(f"Background pre-warming (reranker/colbert) failed: {ex}")
+
+    asyncio.create_task(asyncio.to_thread(prewarm_remaining))
 
     # 3. Async services initialization (LightRAG)
     try:

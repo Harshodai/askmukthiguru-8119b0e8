@@ -281,7 +281,7 @@ class SemanticCacheAdapter(ICacheRepository):
             self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
         self._embedder = embedding_service
         self._ttl = ttl
-        self._collection = "mukthi_semantic_cache"
+        self._collection = f"mukthi_semantic_cache_{settings.embedding_dimension}d"
         self._threshold = 0.88  # 88% similarity required for a hit
         self._hits = 0
         self._misses = 0

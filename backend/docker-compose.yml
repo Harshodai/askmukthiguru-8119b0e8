@@ -152,6 +152,8 @@ services:
       # --- Ollama (only used when LLM_PROVIDER=ollama) ---
       # Model Preset: "qwen" (default) or "sarvam" (requires custom GGUF import)
       - MODEL_PRESET=${MODEL_PRESET:-qwen}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_CLASSIFY_MODEL=${OLLAMA_CLASSIFY_MODEL:-llama3.2:3b}
       # Ollama runs on the HOST, not in Docker
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Qdrant runs as a sibling container
@@ -166,8 +168,8 @@ services:
       - NEO4J_USER=neo4j
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
       # Embedding models (downloaded on first run)
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-intfloat/multilingual-e5-large-instruct}
-      - EMBEDDING_DIMENSION=1024
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
+      - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-384}
       - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
       # HuggingFace cache (so models survive container rebuilds)
       - HF_HOME=/app/.cache/huggingface

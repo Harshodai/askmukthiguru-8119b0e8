@@ -124,6 +124,7 @@ Set `LLM_PROVIDER` in `backend/.env`:
 |---|---|---|
 | `sarvam_cloud` (default) | Set `SARVAM_API_KEY` and optional `SARVAM_RPM_LIMIT` (e.g. `60`) | Sarvam Cloud API — fast, reliable, rate-limiting control |
 | `ollama` | Set `OLLAMA_BASE_URL` | Local Ollama with Qwen/Sarvam models |
+| `openrouter` | Set `OPENROUTER_API_KEY` | OpenRouter Cloud API with Llama free models |
 
 ## RAG Pipeline (12 Layers)
 
