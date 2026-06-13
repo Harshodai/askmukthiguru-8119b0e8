@@ -887,6 +887,14 @@ export type Database = {
           text: string
         }[]
       }
+      match_user_memories: {
+        Args: { p_k: number; p_min_sim: number; p_query_embedding: string }
+        Returns: {
+          content: string
+          id: string
+          similarity: number
+        }[]
+      }
       promote_admin_by_email: { Args: { _email: string }; Returns: Json }
       seed_admin_demo: { Args: never; Returns: Json }
       whoami_diagnostics: { Args: never; Returns: Json }
