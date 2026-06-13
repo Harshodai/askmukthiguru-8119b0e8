@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       })
       .select()
       .single();
-    if (runErr) return json({ error: runErr.message }, 500);
+    if (runErr) { console.error("[eval-run] run insert error", runErr); return json({ error: "Failed to start eval run." }, 500); }
 
     let passed = 0;
     let sumF = 0, sumR = 0, sumCp = 0, sumCr = 0;
