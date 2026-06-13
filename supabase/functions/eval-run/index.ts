@@ -140,7 +140,7 @@ async function callAI(apiKey: string, messages: Array<{ role: string; content: s
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
     body: JSON.stringify({ model: "google/gemini-2.5-flash", messages }),
   });
-  if (!r.ok) throw new Error(`AI ${r.status}: ${await r.text()}`);
+  if (!r.ok) { const body = await r.text().catch(() => ""); console.error("[eval-run] AI gateway", r.status, body); throw new Error(`ai_gateway_${r.status}`); }
   return r.json();
 }
 
