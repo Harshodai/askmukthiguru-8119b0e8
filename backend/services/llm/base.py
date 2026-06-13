@@ -14,6 +14,21 @@ from typing import Any
 class LLMProvider(abc.ABC):
     """Abstract Base Class for LLM providers to ensure proper strategy implementation."""
 
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Fast heuristic: ~1.3 tokens per word."""
+        if not text:
+            return 0
+        return int(len(text.split()) * 1.3)
+
+    def _enforce_token_budget(self, prompt_text: str, budget: int, node: str = "generate") -> None:
+        """Hard enforcement: raises if prompt tokens exceed budget."""
+        estimated = self._estimate_tokens(prompt_text)
+        if estimated > budget:
+            raise ValueError(
+                f"TokenBudgetExceeded: [{node}] Estimated {estimated} tokens exceed budget {budget}."
+            )
+
     @abc.abstractmethod
     async def generate(self, *, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
         """Generate text from a system + user prompt pair."""

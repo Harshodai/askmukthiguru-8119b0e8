@@ -102,8 +102,8 @@ graph LR
 - 72 videos need LightRAG KG backfill (`--retry-lightrag-missing`)
 
 **Tech Debt**:
-- [ ] Run `--retry-lightrag-missing` sweep for 72 Qdrant-only videos
-- [ ] Complete remaining 357-video ingestion run
+- [ ] Run `--retry-lightrag-missing` sweep for 72 Qdrant-only videos (Deferred per user direction, June 2026)
+- [ ] Complete remaining 357-video ingestion run (Deferred per user direction, June 2026)
 - [x] Heal 220 poisoned Neo4j entity descriptions via `scripts/ops/heal_neo4j_poison.py` (May 2026)
 - [x] Add benchmark cache bypass (`is_benchmark` guard in `main.py`) to prevent score inflation (May 2026)
 - [x] Raise `SEMANTIC_CACHE_SIMILARITY` threshold 0.92 → 0.96 (May 2026)
@@ -117,7 +117,7 @@ graph LR
 - [x] Consolidate benchmark execution under `backend/benchmarks/` with explicit multi-turn, cache, Self-RAG, CoVe, citation, and category-score reporting (June 2026)
 - [x] Expose `/api/chat` evaluation metadata (`faithfulness_score`, `relevancy_score`, `confidence_score`, `verification`, `hallucination_flag`) for production benchmark scoring (June 2026)
 - [x] **R5**: Circuit breaker on LLM provider via `tenacity` (Wave 1, completed June 2026)
-- [ ] **Q1-Q4**: Chunk size evaluation, token budget guard, eval harness (Wave 2)
+- [x] **Q1-Q4**: Chunk size evaluation, token budget guard, eval harness (Wave 2, completed June 2026)
 - [x] **S3**: Replace Redis coalescer `sleep(0.1)` with `BLPOP`-style blocking wait (Wave 3, completed June 2026)
 - [x] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4, completed June 2026)
 - [x] Benchmark Recovery: Timeout escalation, CoT strip rules, adversarial_traps queries, and citation denominator filter (June 2026)

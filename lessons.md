@@ -1694,5 +1694,13 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 - **Lesson learned**: OpenRouter's free-tier endpoints provide a robust, zero-cost alternative to local Ollama. However, because free models are prone to rate limits (e.g. 20 RPM), client-side rate limit throttling (`_enforce_rate_limit`) and circuit breakers are mandatory to prevent cascading errors.
 
 
+## Centralized Token Budget Enforcement & Chunk Size Evaluation (June 2026)
 
+### Centralized Token Budget Guard
+- **Problem**: Individual LLM provider implementations (such as Sarvam Cloud and OpenRouter) were not enforcing the `max_tokens_per_request` config constraint. This allowed raw, un-truncated retrieved documents or history to be sent to the LLM APIs, risking token limit exhaustion or high billing costs.
+- **Solution**: Implemented `_enforce_token_budget` in the base `LLMProvider` class. Concrete provider adapters (`SarvamProvider` and `OpenRouterProvider`) now call this helper to validate prompt size against `max_tokens_per_request` before invoking the underlying LLM services.
+- **Verification**: Created `test_token_budget_guard.py` which mocks settings with a tiny budget and confirms that both providers raise `ValueError` on oversized prompts while passing short prompts.
 
+### Chunk Size Evaluation Harness (Wave 2)
+- **Problem**: There was no standard way to systematically evaluate chunking strategies (Recursive vs. Semantic) across various chunk size configurations against the complete set of five ekimetrics/adaptive-chunking metrics (SC, ICC, DCC, BI, RC).
+- **Solution**: Created `chunk_size_evaluation.py` under `backend/benchmarks/`. It utilizes the `AdaptiveChunkingAdapter` to split sample spiritual teachings at chunk size increments (300, 500, 800, 1200, 1500 chars), scores them on size compliance, cohesion, discourse continuity, block integrity, and non-redundancy, and logs a comprehensive markdown table comparison.
