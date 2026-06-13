@@ -134,6 +134,8 @@ import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFl
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { MessageList } from './MessageList';
+import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
+import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
 // ── Suggested starter chips ─────────────────────────────────────────
