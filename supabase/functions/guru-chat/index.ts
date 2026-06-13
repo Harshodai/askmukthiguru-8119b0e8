@@ -300,6 +300,7 @@ Deno.serve(async (req) => {
       });
       if (!r.ok) {
         const text = await r.text();
+        console.error("[guru-chat] upstream non-stream error", r.status, text);
         await persistTelemetry(admin, {
           userId,
           query: body.user_message,
@@ -308,7 +309,7 @@ Deno.serve(async (req) => {
           status: "error",
         });
         return new Response(
-          JSON.stringify({ error: "upstream_failed", detail: text.slice(0, 500) }),
+          JSON.stringify({ error: "upstream_failed" }),
           {
             status: r.status === 429 ? 429 : r.status === 402 ? 402 : 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
