@@ -1646,3 +1646,16 @@ Backend container (`mukthiguru-backend`) was being OOM-killed 34+ times.
 
 ### How to Re-enable Prewarm (if needed)
 Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supabase + infra containers are up.
+
+---
+
+## OpenTelemetry Gateway Patching and On-Device Intent Complexity Bypass (June 2026)
+
+### Tracing Spans Mocking in Gateway Architecture
+- **Problem**: When HTTP gateway logic is extracted into a standalone module (like `services/gateways/sarvam_http.py`), tests mocking OTel tracing directly on the outer service wrapper (e.g. `services.sarvam_service.trace`) fail to capture the spans created within the inner gateway module.
+- **Solution**: Target the mock patch directly to the gateway module level (`services.gateways.sarvam_http.trace`) and explicitly toggle the trace-enabling flag (`services.gateways.sarvam_http._has_otel`) to `True` within tests.
+
+### Complexity-based On-Device Intent Bypass
+- **Problem**: Lightweight rules-based on-device intent classifiers can incorrectly capture complex queries (e.g., `"Compare Dvaita versus Advaita and explain how they differ"`) as simple `"FACTUAL"` queries because of simple triggers like `"explain"`. This immediately routes them to `tier2_simple`, bypassing critical pipeline nodes (HyDE, query decomposition, verification checks) and leading to shallow responses.
+- **Solution**: Implement a bypass check for complexity keywords (`compare`, `versus`, `vs`, `difference`, `differ`, `relationship between`) and length limits (word count > 15) in the on-device classifier, causing complex queries to fall back to the LLM for high-fidelity routing and tier selection.
+
