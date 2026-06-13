@@ -188,6 +188,18 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               </Link>
             )
           )}
+          {onExport && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onExport}
+              className="h-9 w-9 hidden sm:flex"
+              aria-label="Export conversation as Markdown"
+              title="Export conversation as Markdown"
+            >
+              <Download className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          )}
           <UserMenu />
         </div>
       </div>
