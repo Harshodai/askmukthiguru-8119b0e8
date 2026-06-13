@@ -1397,6 +1397,14 @@ return (
                       <span className="italic font-serif text-foreground/70">The Guru is reflecting on the sacred teachings...</span>
                     </div>
                   </div>
+                  <SlowResponseHint visible={isStreaming && streamingContent === ''} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* removed duplicate close to satisfy structure */}
+          {false && (
                   <p className="text-[11px] text-muted-foreground/60 pl-1">Delving deep into ancient wisdom for your answer</p>
                 </div>
               </motion.div>
