@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Brain, LogIn } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Brain, LogIn, Download } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,10 @@ interface ChatHeaderProps {
   onOpenMobileMenu?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  onExport?: () => void;
 }
 
-export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar }: ChatHeaderProps) => {
+export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport }: ChatHeaderProps) => {
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
@@ -186,6 +187,18 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
                 Sign in
               </Link>
             )
+          )}
+          {onExport && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onExport}
+              className="h-9 w-9 hidden sm:flex"
+              aria-label="Export conversation as Markdown"
+              title="Export conversation as Markdown"
+            >
+              <Download className="w-4 h-4 text-muted-foreground" />
+            </Button>
           )}
           <UserMenu />
         </div>
