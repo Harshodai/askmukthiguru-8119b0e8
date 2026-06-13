@@ -9,11 +9,20 @@ createRoot(document.getElementById("root")!).render(
   </RootErrorBoundary>
 );
 
-// Register service worker for offline asset caching and crisis pages availability
-if ("serviceWorker" in navigator) {
+// Register service worker for offline asset caching and crisis pages availability.
+// Skip in preview / iframe environments where /sw.js is served behind a redirect
+// (browsers block SW registration when the script response is a redirect).
+const isPreviewIframe =
+  typeof window !== "undefined" &&
+  (window.location.hostname.endsWith(".lovableproject.com") ||
+    window.location.hostname.endsWith(".lovable.app") === false ||
+    window.self !== window.top);
+
+if ("serviceWorker" in navigator && !isPreviewIframe) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js")
-      .then((reg) => console.log("[MukthiGuru] SW registered successfully:", reg.scope))
-      .catch((err) => console.error("[MukthiGuru] SW registration failed:", err));
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => console.log("[MukthiGuru] SW registered:", reg.scope))
+      .catch((err) => console.warn("[MukthiGuru] SW registration skipped:", err?.message ?? err));
   });
 }
