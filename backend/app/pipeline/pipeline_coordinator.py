@@ -480,7 +480,7 @@ class PipelineCoordinator:
 
             budget = TimeoutBudget(total_budget=settings.pipeline_timeout)
             token = budget_var.set(budget)
-            graph_variant = select_graph_for_query(user_msg_en)
+            graph_variant = await select_graph_for_query(user_msg_en, container=self.container)
             initial_state["query_tier"] = graph_variant
 
             # OpenRouter fast path: skip graph for simple queries (Phase 2.4 will remove this)

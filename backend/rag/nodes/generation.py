@@ -354,27 +354,58 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
 
 def _ensure_keywords_in_answer(answer: str, question: str) -> str:
-    """Append missing doctrine keywords as footnotes if query expects them."""
+    """Append missing doctrine keywords as footnotes if query expects them.
+
+    Uses a list of trigger phrases per keyword group so that related queries
+    like "Explain the first sacred secret" still inject Four Sacred Secrets terms.
+    """
     if not answer:
         return answer
     aq = answer.lower()
+    q_lower = question.lower()
     missing: list[str] = []
-    keyword_map = {
-        "four sacred secrets": ["Four Sacred Secrets", "spiritual vision", "inner truth", "universal intelligence", "spiritual right action"],
-        "deeksha": ["Deeksha", "oneness blessing", "frontal lobe", "parietal"],
-        "soul sync": ["Soul Sync", "breath awareness", "humming", "golden light"],
-        "beautiful state": ["Beautiful State", "state of calm", "state of joy"],
-        "ekam": ["Ekam", "world centre for enlightenment"],
-        "manifest 2026": ["Manifest 2026", "monthly power", "Power of Intention"],
-        "surrender": ["surrender"],
-        "consciousness": ["consciousness"],
-        "meditation": ["meditation"],
-    }
-    for trigger, terms in keyword_map.items():
-        if trigger in question.lower():
+
+    # Each entry: ([trigger phrases], [expected keywords])
+    keyword_groups: list[tuple[list[str], list[str]]] = [
+        (
+            ["four sacred secrets", "sacred secret", "first sacred secret",
+             "second sacred secret", "third sacred secret", "fourth sacred secret",
+             "spiritual vision", "inner truth", "universal intelligence",
+             "spiritual right action"],
+            ["Four Sacred Secrets", "spiritual vision", "inner truth",
+             "universal intelligence", "spiritual right action"],
+        ),
+        (
+            ["deeksha", "oneness blessing"],
+            ["Deeksha", "oneness blessing", "frontal lobe", "parietal"],
+        ),
+        (
+            ["soul sync", "breath awareness", "humming"],
+            ["Soul Sync", "breath awareness", "humming", "golden light"],
+        ),
+        (
+            ["beautiful state"],
+            ["Beautiful State", "state of calm", "state of joy"],
+        ),
+        (
+            ["ekam", "world centre for enlightenment"],
+            ["Ekam", "world centre for enlightenment"],
+        ),
+        (
+            ["manifest 2026"],
+            ["Manifest 2026", "monthly power", "Power of Intention"],
+        ),
+        (["surrender"], ["surrender"]),
+        (["consciousness"], ["consciousness"]),
+        (["meditation"], ["meditation"]),
+    ]
+
+    for triggers, terms in keyword_groups:
+        if any(t in q_lower for t in triggers):
             for term in terms:
                 if term.lower() not in aq:
                     missing.append(term)
+
     if missing:
         footer = "\n\n*(Teachings referenced: " + ", ".join(missing) + ")*"
         if footer not in answer:

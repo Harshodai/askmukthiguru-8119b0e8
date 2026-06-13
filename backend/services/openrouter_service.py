@@ -215,7 +215,15 @@ class OpenRouterService:
             return content
 
         except Exception as exc:
-            self._circuit.record_failure()
+            # Do NOT count 429 (rate limit) as a circuit breaker failure.
+            # 429 is a transient quota signal — the service is up but throttling.
+            # Only count service errors (5xx) and non-HTTP failures.
+            is_rate_limit = (
+                isinstance(exc, httpx.HTTPStatusError)
+                and exc.response.status_code == 429
+            )
+            if not is_rate_limit:
+                self._circuit.record_failure()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
 
@@ -347,7 +355,13 @@ class OpenRouterService:
             self._track_token_usage(tokens_in=prompt_tokens, tokens_out=completion_tokens, model=model)
 
         except Exception as e:
-            self._circuit.record_failure()
+            # Do NOT count 429 as a circuit breaker failure (same rationale as above).
+            is_rate_limit = (
+                isinstance(e, httpx.HTTPStatusError)
+                and e.response.status_code == 429
+            )
+            if not is_rate_limit:
+                self._circuit.record_failure()
             logger.error(f"OpenRouter streaming failed: {e}")
             raise
 
