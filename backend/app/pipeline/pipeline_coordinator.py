@@ -40,6 +40,7 @@ from app.orchestrator_utils import (
 )
 from app.pipeline.result import PipelineResult
 from app.telemetry.publisher import TelemetryPublisher
+from langgraph.errors import GraphRecursionError
 from rag.graph import create_initial_state
 from rag.memory import normalize_session_id
 from rag.timeout_utils import TimeoutBudget, budget_var
@@ -500,7 +501,15 @@ class PipelineCoordinator:
 
             selected_graph = getattr(self.container, f"{graph_variant}_graph")
             try:
-                return await selected_graph.ainvoke(initial_state)
+                return await selected_graph.ainvoke(initial_state, config={"recursion_limit": 60})
+            except GraphRecursionError as e:
+                logger.warning(f"Graph recursion limit reached ({e}). Returning fallback response.")
+                return {
+                    **initial_state,
+                    "final_answer": "I apologize, but this question requires broader context than I can gather right now...",
+                    "intent": "QUERY",
+                    "citations": [],
+                }
             finally:
                 budget_var.reset(token)
 
