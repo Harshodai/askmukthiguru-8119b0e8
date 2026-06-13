@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       })
       .select()
       .single();
-    if (srcErr || !src) return json({ error: srcErr?.message ?? "source_insert_failed" }, 500);
+    if (srcErr || !src) { console.error("[ingest-source] source insert", srcErr); return json({ error: "Failed to create source." }, 500); }
 
     const chunks = chunkText(text);
     let inserted = 0;
