@@ -16,12 +16,20 @@ class OpenRouterProvider(LLMProvider):
         self._service = service
 
     async def generate(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
+        from app.config import settings
+        full_prompt_text = f"{system_prompt} {user_prompt}"
+        max_budget = getattr(settings, "max_tokens_per_request", 2000)
+        self._enforce_token_budget(full_prompt_text, max_budget, node="generate")
         return await self._service.generate(system_prompt, user_prompt, **kwargs)
 
     async def _generate_fast(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
         return await self._service._generate_fast(system_prompt, user_prompt, **kwargs)
 
     async def generate_stream(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> AsyncIterator[str]:
+        from app.config import settings
+        full_prompt_text = f"{system_prompt} {user_prompt}"
+        max_budget = getattr(settings, "max_tokens_per_request", 2000)
+        self._enforce_token_budget(full_prompt_text, max_budget, node="generate_stream")
         async for token in self._service.generate_stream(system_prompt, user_prompt, **kwargs):
             yield token
 
