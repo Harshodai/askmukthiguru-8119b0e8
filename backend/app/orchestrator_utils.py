@@ -61,11 +61,25 @@ def cache_language_key(message: str, language: str) -> str:
     return f"{normalized_lang}:{message.strip()}"
 
 
-def select_graph_for_query(query: str, detected_intent: Optional[str] = None) -> str:
-    """Select the most appropriate compiled graph variant for a query.
+CLASSIFY_COMPLEXITY_PROMPT = """You are an expert query complexity classifier for a RAG spiritual application (Mukthi Guru).
+Classify the user's query into one of three complexity tiers:
+- "fast": Simple factual queries, basic definitions, questions about founders, or casual greetings.
+- "standard": Factual queries requiring standard retrieval, or detailed questions about specific spiritual practices or concepts.
+- "deep": Complex, multi-hop, analytical, comparative, or deeply reflective queries.
+
+Your output MUST be a JSON object containing exactly one key "tier" with one of the values: "fast", "standard", "deep". Do not output any thinking or extra text.
+User Query: {query}
+Output:"""
+
+
+async def select_graph_for_query(
+    query: str, container: Optional[Any] = None, detected_intent: Optional[str] = None
+) -> str:
+    """Select the most appropriate compiled graph variant for a query using dynamic LLM classification with heuristic fallback.
 
     Args:
         query: Raw user query (already translated to English if necessary).
+        container: The ServiceContainer instance to access LLM providers.
         detected_intent: Optional intent label from intent router.
 
     Returns:
@@ -77,6 +91,59 @@ def select_graph_for_query(query: str, detected_intent: Optional[str] = None) ->
         return "standard"
 
     q = query.lower().strip()
+
+    # 1. Dynamic LLM-based classification (preferred)
+    if container:
+        try:
+            # Prefer openrouter for fast classification if configured
+            provider = getattr(container, "openrouter", None)
+            from app.config import settings
+
+            if not provider or not getattr(settings, "openrouter_api_key", None):
+                # Fallback to the main configured classifier
+                provider = getattr(container, "ollama", None)
+
+            if provider:
+                import json
+                system_prompt = "You are a query complexity classifier. Respond only with JSON containing the key 'tier'."
+                user_prompt = CLASSIFY_COMPLEXITY_PROMPT.format(query=query)
+
+                # Call fast classification method
+                if hasattr(provider, "_generate_fast"):
+                    res = await provider._generate_fast(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        temperature=0.0,
+                        max_tokens=50,
+                        timeout=3.0,
+                    )
+                else:
+                    res = await provider.generate(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        temperature=0.0,
+                        max_tokens=50,
+                        timeout=3.0,
+                    )
+
+                res_clean = res.strip()
+                if res_clean.startswith("```"):
+                    lines = res_clean.splitlines()
+                    if len(lines) >= 3:
+                        res_clean = "\n".join(lines[1:-1]).strip()
+
+                first_brace = res_clean.find("{")
+                last_brace = res_clean.rfind("}")
+                if first_brace != -1 and last_brace != -1:
+                    data = json.loads(res_clean[first_brace:last_brace+1])
+                    tier = data.get("tier", "").strip().lower()
+                    if tier in ("fast", "standard", "deep"):
+                        logger.info(f"Dynamic LLM Query Router: classified query as '{tier}'")
+                        return tier
+        except Exception as e:
+            logger.warning(f"Dynamic LLM Query Router failed: {e}. Falling back to heuristics.")
+
+    # 2. Heuristic fallback (original logic)
     tokens = q.split()
 
     # Check deep patterns first (highest priority)
@@ -127,7 +194,17 @@ def get_expected_keywords(query: str) -> list[str]:
     q = query.lower()
     keywords: list[str] = []
 
-    if "four sacred secret" in q or "four secret" in q:
+    if "four sacred secret" in q or "four secret" in q or "sacred secrets" in q:
+        keywords.extend(["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"])
+    elif "first sacred secret" in q or "1st sacred secret" in q or "explain the first" in q:
+        keywords.append("spiritual vision")
+    elif "second sacred secret" in q or "2nd sacred secret" in q:
+        keywords.append("inner truth")
+    elif "third sacred secret" in q or "3rd sacred secret" in q:
+        keywords.append("universal intelligence")
+    elif "fourth sacred secret" in q or "4th sacred secret" in q:
+        keywords.append("spiritual right action")
+    elif "sacred secret" in q:
         keywords.extend(["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"])
     if "deeksha" in q:
         keywords.extend(["oneness blessing", "frontal lobe", "parietal", "neurobiological"])
