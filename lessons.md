@@ -1675,4 +1675,16 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 - **Solution**: Wrapped the HTTP request execution, self-healing checks, and span context management inside a nested `while True` loop inside the `with attempt:` block. This ensures immediate retries stay within the same attempt manager and correctly execute another HTTP call, while preserving standard tenacity backoffs for other exception-throwing errors.
 
 
+## Memory Pre-fetching Hoisting & Slash Command Event Propagation Fixes (June 2026)
+
+### Memory Context Signature Alignment in Sync and Stream Paths
+- **Problem**: In `ChatInterface.tsx`, memory context (`seekerContext`) was fetched via `memoryApi.getRelevant` but only passed to the streaming path (`sendMessageStreaming`). When streaming failed or fell back to the non-streaming path (`sendMessage`), the pre-fetched context was omitted. Additionally, `sendMessage` in `aiService.ts` did not accept `seekerContext` in its signature.
+- **Solution**: Hoisted memory fetching to the top of `handleSubmit` in `ChatInterface.tsx`. Updated `sendMessage` in `aiService.ts` to accept `seekerContext?: string` and include it in the payload. Passed `seekerContext` to both `sendMessage` and `sendMessageStreaming` pathways.
+
+### Event Propagation Race Condition in Keyboard Navigation
+- **Problem**: Inside `SlashCommandMenu.tsx`, keyboard events (ArrowUp, ArrowDown, Enter, Escape) were captured but not prevented from propagating. When pressing Enter, `onSelect` triggered, but the event bubbled up to the textarea's keydown handler in `ChatInterface.tsx`. Because React state updates are asynchronous, the textarea still held the raw slash command (e.g., `/serene`), causing the form to submit it directly as a query to the backend.
+- **Solution**: Added `e.stopPropagation()` and `e.stopImmediatePropagation()` to `ArrowUp`, `ArrowDown`, `Enter`, and `Escape` handlers in the capture-phase listener inside `SlashCommandMenu.tsx` to stop the keyboard event from propagating to the parent input.
+
+
+
 
