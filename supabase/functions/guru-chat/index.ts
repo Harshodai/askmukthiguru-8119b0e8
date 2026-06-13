@@ -339,6 +339,7 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     } catch (e) {
+      console.error("[guru-chat] non-stream network error", e);
       await persistTelemetry(admin, {
         userId,
         query: body.user_message,
@@ -347,7 +348,7 @@ Deno.serve(async (req) => {
         status: "error",
       });
       return new Response(
-        JSON.stringify({ error: "network", detail: String(e) }),
+        JSON.stringify({ error: "An error occurred. Please try again." }),
         {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
