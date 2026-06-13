@@ -47,7 +47,7 @@ def _create_llm_service():
     """
     from services.llm import LLMProviderFactory
 
-    provider = "sarvam_cloud" if settings.is_sarvam_cloud else "ollama"
+    provider = settings.llm_provider.lower()
     logger.info(f"Using {provider} as LLM provider strategy (via LLMProviderFactory)")
     return LLMProviderFactory.create_provider(provider)
 
