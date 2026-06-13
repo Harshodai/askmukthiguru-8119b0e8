@@ -1539,6 +1539,14 @@ return (
             )}
           </AnimatePresence>
 
+          {/* Slash-command palette */}
+          <SlashCommandMenu
+            input={inputValue}
+            open={inputValue.startsWith('/') && !isStreaming && !isTyping}
+            onSelect={runSlashCommand}
+            onClose={() => setInputValue('')}
+          />
+
           {/* Input Form */}
           <div
             className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
