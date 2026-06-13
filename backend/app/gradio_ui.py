@@ -22,7 +22,7 @@ async def chat_fn(message, history):
     )
 
     try:
-        result = await container.rag_graph.ainvoke(initial_state)
+        result = await container.rag_graph.ainvoke(initial_state, config={"recursion_limit": 40})
         response = result.get("final_answer", "Error generating response.")
     except Exception as e:
         response = f"Error: {e}"

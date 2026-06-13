@@ -28,7 +28,7 @@ async def test_sarvam_graph():
     try:
         print(f"Invoking graph with query: {user_query}")
         # Use the compiled graph from the container
-        result = await container.rag_graph.ainvoke(state)
+        result = await container.rag_graph.ainvoke(state, config={"recursion_limit": 40})
 
         # Check both possible keys
         response = result.get("final_answer") or result.get("response") or "No response found"

@@ -130,8 +130,20 @@ def classify(text: str, *, threshold: float = 0.45) -> str | None:
     if not scores:
         return None
 
-    best = max(scores, key=scores.get)
-    return best
+    # Tie-breaking logic:
+    # If there is a tie for the maximum score, prioritize ADVERSARIAL, SAFETY_VIOLATION,
+    # then FACTUAL, over other categories like MEDITATION/CASUAL.
+    max_score = max(scores.values())
+    best_intents = [label for label, score in scores.items() if score == max_score]
+    if len(best_intents) > 1:
+        if "ADVERSARIAL" in best_intents:
+            return "ADVERSARIAL"
+        if "SAFETY_VIOLATION" in best_intents:
+            return "SAFETY_VIOLATION"
+        if "FACTUAL" in best_intents:
+            return "FACTUAL"
+    
+    return best_intents[0]
 
 
 def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | None:

@@ -281,9 +281,8 @@ class SupabaseTelemetrySink:
                 trigger_payloads.append(
                     {
                         "query_id": query_id,
-                        "trigger_type": te.get("type") or te.get("name") or "event",
                         "trigger_name": te.get("name"),
-                        "payload": te.get("metadata", {}),
+                        "metadata": te.get("metadata", {}),
                         "created_at": created_at,
                     }
                 )
@@ -336,11 +335,55 @@ class SupabaseTelemetrySink:
 
                 # 5. Insert trigger_events
                 if trigger_payloads:
-                    self.client.table("trigger_events").insert(trigger_payloads).execute()
+                    try:
+                        self.client.table("trigger_events").insert(trigger_payloads).execute()
+                    except Exception as e:
+                        if "metadata" in str(e) or "payload" in str(e):
+                            try:
+                                fallback_payloads = []
+                                for tp in trigger_payloads:
+                                    if "metadata" in tp:
+                                        fallback_payloads.append({
+                                            "query_id": tp["query_id"],
+                                            "trigger_name": tp["trigger_name"],
+                                            "trigger_type": "event",
+                                            "payload": tp["metadata"],
+                                            "created_at": tp["created_at"],
+                                        })
+                                    else:
+                                        fallback_payloads.append({
+                                            "query_id": tp["query_id"],
+                                            "trigger_name": tp["trigger_name"],
+                                            "metadata": tp.get("payload", {}),
+                                            "created_at": tp["created_at"],
+                                        })
+                                self.client.table("trigger_events").insert(fallback_payloads).execute()
+                            except Exception as e2:
+                                logger.warning(f"Trigger events insert failed with fallback: {e2}")
+                        else:
+                            logger.warning(f"Trigger events insert failed: {e}")
 
                 # 6. Insert safety_events
                 if safety_payloads:
-                    self.client.table("safety_events").insert(safety_payloads).execute()
+                    try:
+                        self.client.table("safety_events").insert(safety_payloads).execute()
+                    except Exception as e:
+                        try:
+                            fallback_payloads = []
+                            for sp in safety_payloads:
+                                excerpt_val = ""
+                                if "details" in sp and isinstance(sp["details"], dict):
+                                    excerpt_val = sp["details"].get("reason", "")
+                                fallback_payloads.append({
+                                    "query_id": sp["query_id"],
+                                    "type": sp.get("rule", "guardrail"),
+                                    "severity": sp.get("severity"),
+                                    "excerpt": excerpt_val,
+                                    "created_at": sp.get("created_at"),
+                                })
+                            self.client.table("safety_events").insert(fallback_payloads).execute()
+                        except Exception as e2:
+                            logger.warning(f"Safety events insert failed with fallback: {e2}")
 
                 logger.info(
                     f"Successfully logged query trace {query_id} to Supabase via Telemetry Sink."

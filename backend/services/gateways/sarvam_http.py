@@ -186,6 +186,15 @@ class SarvamHTTPGateway:
         if reasoning_effort and reasoning_effort in ("low", "medium", "high"):
             payload["reasoning_effort"] = reasoning_effort
 
+        # 5b. Force JSON output for extraction/keyword/structured operations.
+        # Sarvam's reasoning model outputs chain-of-thought text instead of raw JSON
+        # for keyword extraction prompts, causing LightRAG to fail keyword parsing
+        # and burn through the entire pipeline timeout with retries.
+        is_structured = kwargs.pop("is_structured", False)
+        op_lower = (operation or "").lower()
+        if is_structured or any(tag in op_lower for tag in ("extraction", "keyword", "extract")):
+            payload["response_format"] = {"type": "json_object"}
+
         # 6. Retry loop with tenacity
         from tenacity import (
             AsyncRetrying,
@@ -303,8 +312,8 @@ class SarvamHTTPGateway:
                             span.set_attribute("llm.token_count.total", usage.get("total_tokens"))
 
                         choice = data.get("choices", [{}])[0]
-                        content = (choice.get("message", {}) or {}).get("content", "")
-                        reasoning = (choice.get("message", {}) or {}).get("reasoning_content", "")
+                        content = (choice.get("message", {}) or {}).get("content", "") or ""
+                        reasoning = (choice.get("message", {}) or {}).get("reasoning_content", "") or ""
 
                         content_stripped = content.strip()
                         if not content_stripped and reasoning:

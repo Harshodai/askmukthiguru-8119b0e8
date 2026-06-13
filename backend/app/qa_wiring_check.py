@@ -71,7 +71,7 @@ async def run_qa_check():
                     print(f"  Turn {i + 1}: '{turn['query']}'")
                     state["question"] = turn["query"]
 
-                    result = await graph.ainvoke(state)
+                    result = await graph.ainvoke(state, config={"recursion_limit": 40})
 
                     intent = result.get("intent", "UNKNOWN")
                     answer = result.get("final_answer") or result.get("response") or ""
@@ -94,7 +94,7 @@ async def run_qa_check():
                 print(f"Query: '{case['query']}'")
                 state = create_initial_state(case["query"])
 
-                result = await graph.ainvoke(state)
+                result = await graph.ainvoke(state, config={"recursion_limit": 40})
 
                 intent = result.get("intent", "UNKNOWN")
                 answer = result.get("final_answer") or result.get("response") or ""

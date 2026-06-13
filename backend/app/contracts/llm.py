@@ -18,15 +18,15 @@ class LLMService(Protocol):
 
     # ── Core generation ──────────────────────────────────────────────────
 
-    async def generate(self, *, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
         """Generate text from a system + user prompt pair."""
         ...
 
-    async def _generate_fast(self, *, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
+    async def _generate_fast(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
         """Fast classification using the lightweight model."""
         ...
 
-    async def generate_stream(self, *, system_prompt: str, user_prompt: str, **kwargs: Any) -> AsyncIterator[str]:
+    async def generate_stream(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> AsyncIterator[str]:
         """Stream generation tokens (returns async generator / iterable)."""
         ...
 
