@@ -158,7 +158,7 @@ export const ThinkingPills = ({ steps, visible, heartbeat }: ThinkingPillsProps)
                                 )}
                               </>
                             ) : (
-                              <Circle className="w-2 h-2 text-muted-foreground/50" />
+                              <Circle className="w-2 h-2 text-muted-foreground/75" />
                             )}
                           </span>
                           <span className={config.color}>{config.icon}</span>
