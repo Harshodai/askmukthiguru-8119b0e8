@@ -132,7 +132,14 @@ credentials.json
 
 # Local DBs and IDE directories
 *.db
+*.db-shm
+*.db-wal
 .clinerules/
 .cursor/
 .opencode/
 .windsurf/
+
+# Unused/Reference backend files
+backend/scripts/precompute_retrieval.py
+backend/services/doctrine_cache.py
+backend/services/model_failover.py
