@@ -1659,3 +1659,15 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 - **Problem**: Lightweight rules-based on-device intent classifiers can incorrectly capture complex queries (e.g., `"Compare Dvaita versus Advaita and explain how they differ"`) as simple `"FACTUAL"` queries because of simple triggers like `"explain"`. This immediately routes them to `tier2_simple`, bypassing critical pipeline nodes (HyDE, query decomposition, verification checks) and leading to shallow responses.
 - **Solution**: Implement a bypass check for complexity keywords (`compare`, `versus`, `vs`, `difference`, `differ`, `relationship between`) and length limits (word count > 15) in the on-device classifier, causing complex queries to fall back to the LLM for high-fidelity routing and tier selection.
 
+
+## On-Device Classifier Optimization & Supabase Edge Function Memory Extraction Cleanup (June 2026)
+
+### Optimization of `on_device_intent.py`
+- **Problem**: In `_build_centroids()`, a redundant loop ran the `encoder.encode()` process over all intent class keywords but discarded the result, before running the exact same loop again. This doubled the initial centroid build latency. Additionally, `import numpy as np` was placed inline inside `_cosine_similarity()`, incurring import lookup overhead on every query similarity computation.
+- **Solution**: Removed the redundant loop in `_build_centroids()` and hoisted the `numpy` import to the module level.
+
+### Stale Comments Cleanup in Edge Functions
+- **Problem**: In `supabase/functions/memory-extract/index.ts`, a stale comment remained claiming manual user ID checks were performed because of the Service Role key. However, the code was updated to call the `match_user_memories` RPC which handles the user ID check transparently via `auth.uid()` from the parsed bearer token claims.
+- **Solution**: Cleaned up the comment to align with the active implementation, ensuring maintainability.
+
+
