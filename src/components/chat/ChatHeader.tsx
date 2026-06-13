@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Brain, LogIn } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Brain, LogIn, Download } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
