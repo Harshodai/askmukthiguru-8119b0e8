@@ -33,6 +33,29 @@ const OptimisticPlaceholder = () => (
   </motion.div>
 );
 
+const SlowResponseHint = ({ visible }: { visible: boolean }) => {
+  const [phase, setPhase] = useState<'normal' | 'slow' | 'verySlow'>('normal');
+  useEffect(() => {
+    if (!visible) {
+      setPhase('normal');
+      return;
+    }
+    const t1 = window.setTimeout(() => setPhase('slow'), 6000);
+    const t2 = window.setTimeout(() => setPhase('verySlow'), 15000);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [visible]);
+  const text =
+    phase === 'verySlow'
+      ? 'Still drawing from the teachings — long answers take a moment.'
+      : phase === 'slow'
+        ? 'Drawing from the teachings…'
+        : 'Delving deep into ancient wisdom for your answer';
+  return <p className="text-[11px] text-muted-foreground/70 pl-1">{text}</p>;
+};
+
 import {
   Message,
   Conversation,
@@ -134,6 +157,8 @@ import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFl
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { MessageList } from './MessageList';
+import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
+import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
 // ── Suggested starter chips ─────────────────────────────────────────
@@ -1121,6 +1146,54 @@ const handleSelectConversation = (conversation: Conversation) => {
   });
 };
 
+const handleExportConversation = useCallback(() => {
+  if (!currentConversation || messages.length === 0) {
+    toast({ title: 'Nothing to export yet', description: 'Send a message first.' });
+    return;
+  }
+  try {
+    const filename = downloadConversationAsMarkdown({ ...currentConversation, messages });
+    toast({ title: 'Conversation exported', description: filename });
+  } catch (err) {
+    toast({
+      title: 'Export failed',
+      description: err instanceof Error ? err.message : 'Could not save the file.',
+      variant: 'destructive',
+    });
+  }
+}, [currentConversation, messages, toast]);
+
+const runSlashCommand = useCallback(
+  (id: SlashCommandId) => {
+    setInputValue('');
+    requestAnimationFrame(() => inputRef.current?.focus());
+    switch (id) {
+      case 'serene':
+        openSereneMind();
+        break;
+      case 'meditate':
+        setShowGuidedMeditation(true);
+        break;
+      case 'retry':
+        handleRegenerate();
+        break;
+      case 'share':
+        if (messages.some((m) => m.role === 'guru')) setShowQuickWisdomCard(true);
+        else toast({ title: 'No Guru message yet', description: 'Ask something first.' });
+        break;
+      case 'clear':
+        handleNewConversation();
+        break;
+      case 'lang':
+        toast({ title: 'Language picker', description: 'Use the globe icon below the input.' });
+        break;
+    }
+  },
+  [handleRegenerate, messages, openSereneMind, toast],
+);
+
+
+
 const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   // Up-arrow (when input empty) recalls the last user message into the draft.
   if (e.key === 'ArrowUp' && !inputValue) {
@@ -1191,6 +1264,7 @@ return (
         onOpenMobileMenu={() => setShowMobileSheet(true)}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={toggleSidebar}
+        onExport={handleExportConversation}
       />
 
       {/* Global chat error banner */}
@@ -1347,11 +1421,12 @@ return (
                       <span className="italic font-serif text-foreground/70">The Guru is reflecting on the sacred teachings...</span>
                     </div>
                   </div>
-                  <p className="text-[11px] text-muted-foreground/60 pl-1">Delving deep into ancient wisdom for your answer</p>
+                  <SlowResponseHint visible={isStreaming && streamingContent === ''} />
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
+
 
           {/* Scroll anchor */}
           <div ref={messagesEndRef} className="h-1" />
@@ -1488,6 +1563,14 @@ return (
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Slash-command palette */}
+          <SlashCommandMenu
+            input={inputValue}
+            open={inputValue.startsWith('/') && !isStreaming && !isTyping}
+            onSelect={runSlashCommand}
+            onClose={() => setInputValue('')}
+          />
 
           {/* Input Form */}
           <div
