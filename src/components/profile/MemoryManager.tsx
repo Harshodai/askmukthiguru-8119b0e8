@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2, Brain, Sparkles, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, MessagesSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Card,
@@ -31,7 +31,6 @@ import {
   type SessionSummary,
   type ConversationContinuity,
 } from '@/lib/memoryApi';
-import { BookText, MessagesSquare } from 'lucide-react';
 
 const formatDate = (iso: string): string => {
   try {
@@ -49,6 +48,8 @@ export const MemoryManager = () => {
   const { toast } = useToast();
   const [memories, setMemories] = useState<GuruMemory[]>([]);
   const [core, setCore] = useState<CoreMemory | null>(null);
+  const [coreText, setCoreText] = useState('');
+  const [coreSaving, setCoreSaving] = useState(false);
   const [summaries, setSummaries] = useState<SessionSummary[]>([]);
   const [conversations, setConversations] = useState<ConversationContinuity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,15 +70,12 @@ export const MemoryManager = () => {
       ]);
       setMemories(list.memories);
       setCore(coreData);
+      setCoreText(coreData?.content ?? '');
       setSummaries(summariesData);
       setConversations(conversationsData);
     } catch (err) {
       if (err instanceof MemoryApiError) {
-        if (err.code === 'feature_disabled' || err.code === 'not_configured') {
-          setUnavailable(
-            "The memory layer isn't live yet. Once the backend ships, your guru will start remembering what you share.",
-          );
-        } else if (err.code === 'unauthorized') {
+        if (err.code === 'unauthorized') {
           setUnavailable('Sign in to view your memories.');
         } else {
           setUnavailable(err.message);
@@ -95,6 +93,21 @@ export const MemoryManager = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSaveCore = async () => {
+    if (coreSaving) return;
+    setCoreSaving(true);
+    try {
+      const saved = await memoryApi.setCore(coreText);
+      setCore(saved);
+      toast({ title: 'Core memory saved', description: 'The guru will always carry this with you.' });
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not save core memory.';
+      toast({ title: 'Could not save', description: msg, variant: 'destructive' });
+    } finally {
+      setCoreSaving(false);
+    }
+  };
+
   const handleAdd = async () => {
     if (!newText.trim() || adding) return;
     setAdding(true);
@@ -104,8 +117,7 @@ export const MemoryManager = () => {
       setNewText('');
       toast({ title: 'Memory saved', description: 'The guru will remember this.' });
     } catch (err) {
-      const msg =
-        err instanceof MemoryApiError ? err.message : 'Could not save memory.';
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not save memory.';
       toast({ title: 'Could not save', description: msg, variant: 'destructive' });
     } finally {
       setAdding(false);
@@ -119,8 +131,7 @@ export const MemoryManager = () => {
       setMemories((prev) => prev.filter((m) => m.id !== id));
       toast({ title: 'Forgotten', description: 'This memory has been released.' });
     } catch (err) {
-      const msg =
-        err instanceof MemoryApiError ? err.message : 'Could not forget memory.';
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not forget memory.';
       toast({ title: 'Could not forget', description: msg, variant: 'destructive' });
     } finally {
       setForgettingId(null);
@@ -156,49 +167,50 @@ export const MemoryManager = () => {
     );
   }
 
-  const coreThemes = core?.profile?.dominant_themes ?? [];
-  const coreLevel = core?.profile?.practice_level;
-
   return (
     <div className="space-y-6">
-      {core && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-ojas" /> Core profile
-            </CardTitle>
-            <CardDescription>
-              Always present in your guru's awareness. Updated nightly.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {coreLevel && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Practice level:</span>
-                <Badge variant="secondary" className="capitalize">
-                  {coreLevel}
-                </Badge>
-              </div>
-            )}
-            {coreThemes.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Recurring themes:</p>
-                <div className="flex flex-wrap gap-2">
-                  {coreThemes.map((t) => (
-                    <Badge key={t} variant="outline">
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground pt-2">
-              Last updated {formatDate(core.updated_at)}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* ── Core Memory Editor ─────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-ojas" /> Core memory
+          </CardTitle>
+          <CardDescription>
+            Stable facts about you — always present in the guru's awareness.
+            Use this for your name, practice level, life context, key themes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={coreText}
+            onChange={(e) => setCoreText(e.target.value)}
+            placeholder="e.g. I'm a software engineer in Bengaluru, daily meditator for 3 years, exploring Oneness teachings…"
+            rows={4}
+            maxLength={2048}
+            disabled={coreSaving}
+          />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">{coreText.length}/2048</span>
+            <Button
+              size="sm"
+              onClick={handleSaveCore}
+              disabled={coreSaving}
+            >
+              {coreSaving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Save
+            </Button>
+          </div>
+          {core?.updated_at && (
+            <p className="text-xs text-muted-foreground">Last saved {formatDate(core.updated_at)}</p>
+          )}
+        </CardContent>
+      </Card>
 
+      {/* ── Episodic Memories ──────────────────────────────────────────── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -209,6 +221,7 @@ export const MemoryManager = () => {
           </CardTitle>
           <CardDescription>
             Add a fact you'd like remembered, or release one that no longer fits.
+            The guru also auto-extracts memories from your conversations.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -262,16 +275,23 @@ export const MemoryManager = () => {
                     className="flex gap-3 p-3 rounded-lg bg-ojas/5 border border-ojas/10 items-start"
                   >
                     <div className="flex-1 min-w-0">
+                      {/* content (was: m.claim) */}
                       <p className="text-sm text-foreground/90 leading-relaxed">
-                        {m.claim}
+                        {m.content}
                       </p>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {/* created_at (was: m.last_seen) */}
                         <span className="text-xs text-muted-foreground">
-                          {formatDate(m.last_seen)}
+                          {formatDate(m.created_at)}
                         </span>
-                        {m.source === 'explicit' && (
+                        {/* source badge */}
+                        {m.source === 'explicit' ? (
                           <Badge variant="outline" className="text-xs">
                             You added
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Auto-extracted
                           </Badge>
                         )}
                       </div>
@@ -296,7 +316,7 @@ export const MemoryManager = () => {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Forget this memory?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            "{m.claim}"
+                            "{m.content}"
                             <br />
                             <br />
                             The guru will no longer reference this in future
@@ -319,6 +339,7 @@ export const MemoryManager = () => {
         </CardContent>
       </Card>
 
+      {/* ── Session Summaries ──────────────────────────────────────────── */}
       {summaries.length > 0 && (
         <Card>
           <CardHeader>
@@ -350,46 +371,27 @@ export const MemoryManager = () => {
         </Card>
       )}
 
+      {/* ── Conversation Continuity ────────────────────────────────────── */}
       {conversations.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <MessagesSquare className="w-5 h-5 text-ojas" /> Conversation continuity
+              <MessagesSquare className="w-5 h-5 text-ojas" /> Recent sessions
             </CardTitle>
             <CardDescription>
-              Recent threads the guru carries forward to maintain context.
+              Threads the guru carries forward to maintain context.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {conversations.map((c) => (
                 <li
                   key={c.session_id}
-                  className="p-3 rounded-lg bg-muted/40 border border-border space-y-2"
+                  className="p-3 rounded-lg bg-muted/40 border border-border"
                 >
                   <p className="text-xs text-muted-foreground">
-                    {formatDate(c.started_at)}
+                    Session started {formatDate(c.started_at)}
                   </p>
-                  {c.key_insights && c.key_insights.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground/80 mb-1">Key insights</p>
-                      <ul className="list-disc list-inside text-sm text-foreground/80 space-y-0.5">
-                        {c.key_insights.slice(0, 3).map((k, i) => (
-                          <li key={i}>{k}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {c.follow_up_suggestions && c.follow_up_suggestions.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground/80 mb-1">Follow-ups</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {c.follow_up_suggestions.slice(0, 3).map((f, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">{f}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>

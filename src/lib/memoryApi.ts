@@ -1,39 +1,30 @@
 /**
- * Memory API client — talks to the self-hosted FastAPI backend memory layer.
+ * Memory API — Supabase-native client layer.
  *
- * The backend lives at VITE_BACKEND_URL (Track B of the memory plan). Memory
- * tables live in self-hosted Postgres+pgvector next to FastAPI, NOT in Lovable
- * Cloud. Auth is via Supabase JWT forwarded as a Bearer token.
+ * Replaces the old FastAPI-dependent implementation. All reads/writes go directly
+ * to Supabase tables or invoke edge functions. No VITE_BACKEND_URL required.
  *
- * All endpoints are user-scoped server-side via the JWT.
+ * Embedding is handled server-side by the `memory-embed` edge function which
+ * auto-routes between Lovable AI Gateway and local Ollama — the client never
+ * touches an embedding model directly.
  */
 
 import { supabase } from '@/integrations/supabase/client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-const MEMORY_BASE = BACKEND_URL ? `${BACKEND_URL}/api/memory` : '/api/memory';
+// ── Types ─────────────────────────────────────────────────────────────────
 
 export interface GuruMemory {
   id: string;
-  claim: string;
-  confidence: number;
-  /** ISO timestamp */
-  last_seen: string;
-  /** ISO timestamp */
-  created_at: string;
-  /** 0..1, decays nightly */
-  decay_score: number;
+  /** The remembered fact — maps to the `content` DB column. */
+  content: string;
   source: 'extracted' | 'explicit';
+  created_at: string;
 }
 
 export interface CoreMemory {
-  profile: {
-    name?: string;
-    language?: string;
-    practice_level?: 'beginner' | 'intermediate' | 'committed' | 'advanced';
-    dominant_themes?: string[];
-    [k: string]: unknown;
-  };
+  id: string;
+  /** Plain text, ≤2048 chars. Whole-person stable identity. */
+  content: string;
   updated_at: string;
 }
 
@@ -55,14 +46,11 @@ export interface RelevantMemory {
   id: string;
   content: string;
   similarity: number;
-  created_at: string;
 }
 
 export interface ConversationContinuity {
   session_id: string;
   started_at: string;
-  key_insights?: string[];
-  follow_up_suggestions?: string[];
 }
 
 export type MemoryApiErrorCode =
@@ -82,151 +70,222 @@ export class MemoryApiError extends Error {
   }
 }
 
-async function authHeaders(): Promise<HeadersInit> {
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+async function requireSession() {
   const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) {
+  if (!data.session) {
     throw new MemoryApiError('unauthorized', 'Sign in to access your memories.');
   }
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
+  return data.session;
 }
 
-async function handle<T>(res: Response): Promise<T> {
-  if (res.status === 401 || res.status === 403) {
-    throw new MemoryApiError('unauthorized', 'Session expired.', res.status);
+/** Invoke a Supabase edge function with the user's JWT. */
+async function invokeEdgeFn<T>(
+  fn: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const { data, error } = await supabase.functions.invoke<T>(fn, { body });
+  if (error) {
+    throw new MemoryApiError('server_error', error.message);
   }
-  if (res.status === 404) {
-    // Backend memory router not deployed yet — treat as disabled.
-    throw new MemoryApiError(
-      'feature_disabled',
-      'Memory layer is not enabled on the backend.',
-      404,
-    );
-  }
-  if (!res.ok) {
-    let detail = `Backend returned ${res.status}`;
-    try {
-      const body = await res.json();
-      detail = body?.detail ?? body?.message ?? detail;
-    } catch {
-      // ignore
-    }
-    throw new MemoryApiError('server_error', detail, res.status);
-  }
-  return res.json() as Promise<T>;
+  return data as T;
 }
+
+// ── Public API ─────────────────────────────────────────────────────────────
 
 export const memoryApi = {
+  /**
+   * Always true — Supabase is always available to authenticated users.
+   * (The old FastAPI-backed version returned false when VITE_BACKEND_URL was unset.)
+   */
   isConfigured(): boolean {
-    // If neither VITE_BACKEND_URL nor relative /api is plausibly serving the
-    // memory router, callers should treat the feature as disabled.
-    return Boolean(BACKEND_URL);
+    return true;
   },
 
+  /** List all episodic memories for the current user, newest first. */
   async list(page = 1, pageSize = 50): Promise<MemoryListResponse> {
-    if (!this.isConfigured()) {
-      throw new MemoryApiError('not_configured', 'Backend URL not set.');
-    }
-    try {
-      const res = await fetch(
-        `${MEMORY_BASE}/list?page=${page}&page_size=${pageSize}`,
-        { headers: await authHeaders() },
-      );
-      return handle<MemoryListResponse>(res);
-    } catch (err) {
-      if (err instanceof MemoryApiError) throw err;
-      throw new MemoryApiError('network', 'Could not reach memory service.');
-    }
+    await requireSession();
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await supabase
+      .from('guru_memories')
+      .select('id, content, source, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw new MemoryApiError('server_error', error.message);
+
+    return {
+      memories: (data ?? []) as GuruMemory[],
+      total: count ?? 0,
+      page,
+      page_size: pageSize,
+    };
   },
 
-  async getCore(): Promise<CoreMemory | null> {
-    if (!this.isConfigured()) return null;
-    try {
-      const res = await fetch(`${MEMORY_BASE}/core`, {
-        headers: await authHeaders(),
-      });
-      if (res.status === 404) return null;
-      return handle<CoreMemory>(res);
-    } catch (err) {
-      if (err instanceof MemoryApiError && err.code === 'feature_disabled') {
-        return null;
-      }
-      throw err;
-    }
-  },
-
-  async forget(memoryId: string): Promise<void> {
-    if (!this.isConfigured()) {
-      throw new MemoryApiError('not_configured', 'Backend URL not set.');
-    }
-    const res = await fetch(`${MEMORY_BASE}/forget`, {
-      method: 'POST',
-      headers: await authHeaders(),
-      body: JSON.stringify({ memory_id: memoryId }),
-    });
-    await handle<{ ok: boolean }>(res);
-  },
-
+  /**
+   * Add an explicit memory — embeds server-side via `memory-embed` edge function
+   * (which auto-routes to Lovable Gateway or local Ollama).
+   */
   async add(text: string): Promise<GuruMemory> {
-    if (!this.isConfigured()) {
-      throw new MemoryApiError('not_configured', 'Backend URL not set.');
-    }
+    const session = await requireSession();
     const trimmed = text.trim();
-    if (!trimmed) {
-      throw new MemoryApiError('server_error', 'Memory text cannot be empty.');
-    }
-    const res = await fetch(`${MEMORY_BASE}/add`, {
-      method: 'POST',
-      headers: await authHeaders(),
-      body: JSON.stringify({ text: trimmed }),
-    });
-    return handle<GuruMemory>(res);
+    if (!trimmed) throw new MemoryApiError('server_error', 'Memory text cannot be empty.');
+
+    // Step 1: Get embedding from server (never exposes API key to client)
+    const { embedding } = await invokeEdgeFn<{ embedding: number[]; backend: string }>(
+      'memory-embed',
+      { text: trimmed },
+    );
+
+    // Step 2: Insert into DB — RLS scopes to auth.uid()
+    const { data, error } = await supabase
+      .from('guru_memories')
+      .insert({
+        user_id: session.user.id,
+        content: trimmed,
+        embedding: embedding as unknown as string,
+        source: 'explicit',
+      })
+      .select('id, content, source, created_at')
+      .single();
+
+    if (error) throw new MemoryApiError('server_error', error.message);
+    return data as GuruMemory;
   },
 
+  /** Delete a memory by ID. RLS ensures users can only delete their own. */
+  async forget(memoryId: string): Promise<void> {
+    await requireSession();
+    const { error } = await supabase
+      .from('guru_memories')
+      .delete()
+      .eq('id', memoryId);
+    if (error) throw new MemoryApiError('server_error', error.message);
+  },
+
+  /** Get the current user's core (stable identity) memory, or null if unset. */
+  async getCore(): Promise<CoreMemory | null> {
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) return null;
+
+    const { data, error } = await supabase
+      .from('guru_core_memory')
+      .select('id, content, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[memoryApi] getCore error', error.message);
+      return null;
+    }
+    return data as CoreMemory | null;
+  },
+
+  /** Upsert the core memory (single-row per user). */
+  async setCore(text: string): Promise<CoreMemory> {
+    const session = await requireSession();
+    const trimmed = text.trim().slice(0, 2048);
+
+    // Try update first (faster path if row exists)
+    const existing = await this.getCore();
+    if (existing) {
+      const { data, error } = await supabase
+        .from('guru_core_memory')
+        .update({ content: trimmed, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select('id, content, updated_at')
+        .single();
+      if (error) throw new MemoryApiError('server_error', error.message);
+      return data as CoreMemory;
+    }
+
+    const { data, error } = await supabase
+      .from('guru_core_memory')
+      .insert({
+        user_id: session.user.id,
+        content: trimmed,
+      })
+      .select('id, content, updated_at')
+      .single();
+    if (error) throw new MemoryApiError('server_error', error.message);
+    return data as CoreMemory;
+  },
+
+  /** Get recent session summaries. */
   async getSummaries(limit = 5): Promise<SessionSummary[]> {
-    if (!this.isConfigured()) return [];
-    try {
-      const res = await fetch(`${MEMORY_BASE}/summaries?limit=${limit}`, {
-        headers: await authHeaders(),
-      });
-      if (res.status === 404 || res.status === 501) return [];
-      return handle<SessionSummary[]>(res);
-    } catch (err) {
-      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) return [];
+
+    const { data, error } = await supabase
+      .from('guru_session_summaries')
+      .select('id, session_id, summary, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('[memoryApi] getSummaries error', error.message);
       return [];
     }
+    return (data ?? []) as SessionSummary[];
   },
 
+  /**
+   * Semantic search for memories relevant to `query`.
+   * Embeds server-side (auto-routes to Gateway or Ollama), then calls
+   * the `match_user_memories` RPC via the `memory-embed` edge function.
+   */
   async getRelevant(query: string, limit = 5): Promise<RelevantMemory[]> {
-    if (!this.isConfigured() || !query.trim()) return [];
+    const session = await supabase.auth.getSession();
+    if (!session.data.session || !query.trim()) return [];
+
     try {
-      const res = await fetch(`${MEMORY_BASE}/relevant`, {
-        method: 'POST',
-        headers: await authHeaders(),
-        body: JSON.stringify({ query: query.trim(), limit }),
+      // Get embedding server-side
+      const { embedding } = await invokeEdgeFn<{ embedding: number[]; backend: string }>(
+        'memory-embed',
+        { text: query.trim() },
+      );
+
+      // Call the pgvector RPC
+      const { data, error } = await supabase.rpc('match_user_memories', {
+        p_query_embedding: embedding as unknown as string,
+        p_k: limit,
+        p_min_sim: 0.6,
       });
-      if (res.status === 404 || res.status === 501) return [];
-      return handle<RelevantMemory[]>(res);
-    } catch (err) {
-      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+
+      if (error) {
+        console.error('[memoryApi] getRelevant rpc error', error.message);
+        return [];
+      }
+      return (data ?? []) as RelevantMemory[];
+    } catch (e) {
+      console.error('[memoryApi] getRelevant error', e);
       return [];
     }
   },
 
+  /** Get recent conversation sessions (derives from chat_sessions table). */
   async getConversations(limit = 3): Promise<ConversationContinuity[]> {
-    if (!this.isConfigured()) return [];
-    try {
-      const res = await fetch(`${MEMORY_BASE}/conversations?limit=${limit}`, {
-        headers: await authHeaders(),
-      });
-      if (res.status === 404 || res.status === 501) return [];
-      return handle<ConversationContinuity[]>(res);
-    } catch (err) {
-      if (err instanceof MemoryApiError && err.code === 'feature_disabled') return [];
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) return [];
+
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('[memoryApi] getConversations error', error.message);
       return [];
     }
+
+    return (data ?? []).map((row: { id: string; created_at: string }) => ({
+      session_id: row.id,
+      started_at: row.created_at,
+    }));
   },
 };
