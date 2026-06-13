@@ -10,15 +10,21 @@ createRoot(document.getElementById("root")!).render(
 );
 
 // Register service worker for offline asset caching and crisis pages availability.
-// Skip in preview / iframe environments where /sw.js is served behind a redirect
-// (browsers block SW registration when the script response is a redirect).
-const isPreviewIframe =
-  typeof window !== "undefined" &&
-  (window.location.hostname.endsWith(".lovableproject.com") ||
-    window.location.hostname.endsWith(".lovable.app") === false ||
-    window.self !== window.top);
+// Skip on the Lovable preview origin and inside iframes — there /sw.js is served
+// behind a redirect, which browsers reject for SW registration.
+const canRegisterSW = (() => {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
+  try {
+    if (window.self !== window.top) return false; // inside an iframe
+  } catch {
+    return false; // cross-origin frame → assume preview
+  }
+  const host = window.location.hostname;
+  if (host.endsWith(".lovableproject.com")) return false; // preview sandbox
+  return true;
+})();
 
-if ("serviceWorker" in navigator && !isPreviewIframe) {
+if (canRegisterSW) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
