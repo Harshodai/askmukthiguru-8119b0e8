@@ -1264,6 +1264,7 @@ return (
         onOpenMobileMenu={() => setShowMobileSheet(true)}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={toggleSidebar}
+        onExport={handleExportConversation}
       />
 
       {/* Global chat error banner */}
