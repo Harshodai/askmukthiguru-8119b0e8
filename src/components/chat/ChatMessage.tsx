@@ -356,7 +356,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
               {/* Timestamp + action buttons */}
               <div className="flex items-center justify-between mt-1 gap-2">
-                <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/50' : 'text-primary-foreground/50'}`}>
+                <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/75' : 'text-primary-foreground/50'}`}>
                   {formatTime(message.timestamp)}
                 </p>
                 {isGuru && message.content && !isStreaming && (
@@ -478,7 +478,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     placeholder="Optional: tell us more…"
                     value={feedbackComment}
                     onChange={(e) => setFeedbackComment(e.target.value)}
-                    className="w-full bg-transparent border-b border-border/30 text-[12px] py-1 outline-none focus:border-ojas/40 text-foreground placeholder:text-muted-foreground/50"
+                    className="w-full bg-transparent border-b border-border/30 text-[12px] py-1 outline-none focus:border-ojas/40 text-foreground placeholder:text-muted-foreground/75"
                   />
                   <button
                     onClick={handleSubmitFeedback}
@@ -523,7 +523,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-ojas/80">
                     References
                   </p>
-                  <span className="text-[10px] text-muted-foreground/50 ml-auto bg-muted/30 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] text-muted-foreground/75 ml-auto bg-muted/30 px-2 py-0.5 rounded-full">
                     {citations.length} {citations.length === 1 ? 'source' : 'sources'}
                   </span>
                 </div>
