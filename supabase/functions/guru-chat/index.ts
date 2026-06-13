@@ -259,7 +259,8 @@ Deno.serve(async (req) => {
         (m) =>
           m &&
           typeof m.content === "string" &&
-          ["system", "user", "assistant"].includes(m.role),
+          // Drop any client-supplied "system" entries to prevent prompt injection
+          ["user", "assistant"].includes(m.role),
       )
     : [];
 
@@ -274,14 +275,13 @@ Deno.serve(async (req) => {
     ? `\n\nUse the following grounded teachings to answer when relevant. Cite them inline as [1], [2], etc., matching the numbered context blocks. If they are not relevant, answer from your own grounding without citing.\n\nGROUNDED CONTEXT:\n${ragContext}`
     : "";
 
-  const hasSystem = history.some((m) => m.role === "system");
+  // Always inject the trusted system prompt; never honor client-supplied system messages
   const llmMessages: IncomingMessage[] = [
-    ...(hasSystem
-      ? []
-      : [{ role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem }]),
+    { role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem },
     ...history,
     { role: "user" as const, content: body.user_message },
   ];
+
 
   const url = new URL(req.url);
   const wantsStream =
