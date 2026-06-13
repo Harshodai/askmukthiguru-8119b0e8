@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 import re
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 # ── class keyword seeds (used when sentence-transformers is unavailable) ──
@@ -94,12 +96,6 @@ def _build_centroids() -> dict[str, list[float]]:
     if not encoder:
         return {}
     # Build centroids from keyword seeds
-    for label, words in _CLASS_KEYWORDS.items():
-        # Include label name as an additional pseudo-example
-        all_phrases = words + [label.lower()]
-        embeddings = encoder.encode(all_phrases)
-        # Simple mean centroid
-    import numpy as np
     centroids = {}
     for label, words in _CLASS_KEYWORDS.items():
         all_phrases = words + [label.lower()]
@@ -110,7 +106,6 @@ def _build_centroids() -> dict[str, list[float]]:
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    import numpy as np
     a_arr = np.array(a)
     b_arr = np.array(b)
     return float(np.dot(a_arr, b_arr) / (np.linalg.norm(a_arr) * np.linalg.norm(b_arr)))
