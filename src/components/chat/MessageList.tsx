@@ -126,7 +126,7 @@ export const MessageList = React.memo(({
           {/* Date separator */}
           <div className="flex items-center gap-4 py-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/50 select-none px-2">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/75 select-none px-2">
               {group.label}
             </span>
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />

@@ -397,7 +397,7 @@ export default function TTSVerificationPage() {
               >
                 <AnimatePresence initial={false}>
                   {logs.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted-foreground/40 italic">
+                    <div className="h-full flex items-center justify-center text-muted-foreground/70 italic">
                       Waiting for diagnostic actions or speak requests...
                     </div>
                   ) : (
