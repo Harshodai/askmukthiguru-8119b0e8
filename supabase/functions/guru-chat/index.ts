@@ -383,9 +383,8 @@ Deno.serve(async (req) => {
         if (!upstream.ok || !upstream.body) {
           status = "error";
           const text = await upstream.text().catch(() => "");
-          controller.enqueue(
-            sseEvent("error", `upstream ${upstream.status}: ${text.slice(0, 200)}`),
-          );
+          console.error("[guru-chat] upstream stream error", upstream.status, text);
+          controller.enqueue(sseEvent("error", "An error occurred. Please try again."));
           controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
           controller.close();
           return;
