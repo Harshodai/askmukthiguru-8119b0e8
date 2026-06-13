@@ -66,13 +66,15 @@ Deno.serve(async (req) => {
 
     if (!r.ok) {
       const errText = await r.text();
-      return json({ error: `AI gateway: ${r.status}`, detail: errText }, r.status);
+      console.error("[admin-ask] upstream error", r.status, errText);
+      return json({ error: "AI gateway request failed. Please try again." }, r.status);
     }
     const j = await r.json();
     const text = j?.choices?.[0]?.message?.content ?? "";
     return json({ response: text });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
+    console.error("[admin-ask] exception", e);
+    return json({ error: "An error occurred. Please try again." }, 500);
   }
 });
 
