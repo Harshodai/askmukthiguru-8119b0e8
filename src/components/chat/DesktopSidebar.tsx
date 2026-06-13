@@ -149,7 +149,7 @@ export const DesktopSidebar = ({
                 />
               ))}
               {conversations.length > 4 && (
-                <span className="text-[9px] text-muted-foreground/40 mt-0.5">+{conversations.length - 4}</span>
+                <span className="text-[9px] text-muted-foreground/70 mt-0.5">+{conversations.length - 4}</span>
               )}
             </div>
           )}
@@ -235,15 +235,15 @@ export const DesktopSidebar = ({
           <div className="flex-1 overflow-y-auto scrollbar-spiritual px-1 pb-2">
             {Object.keys(grouped).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <BookOpen className="w-6 h-6 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground/50 text-center">
+                <BookOpen className="w-6 h-6 text-muted-foreground/60" />
+                <p className="text-xs text-muted-foreground/75 text-center">
                   {search ? 'No results' : 'No conversations yet.\nStart a new one above.'}
                 </p>
               </div>
             ) : (
               Object.entries(grouped).map(([label, convs]) => (
                 <div key={label} className="mb-2">
-                  <p className="px-2 py-1 text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold select-none">
+                  <p className="px-2 py-1 text-[10px] uppercase tracking-widest text-muted-foreground/75 font-semibold select-none">
                     {label}
                   </p>
                   <div className="space-y-0.5">
