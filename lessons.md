@@ -1670,4 +1670,9 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 - **Problem**: In `supabase/functions/memory-extract/index.ts`, a stale comment remained claiming manual user ID checks were performed because of the Service Role key. However, the code was updated to call the `match_user_memories` RPC which handles the user ID check transparently via `auth.uid()` from the parsed bearer token claims.
 - **Solution**: Cleaned up the comment to align with the active implementation, ensuring maintainability.
 
+### Tenacity Silent Loop Termination on `continue`
+- **Problem**: In `backend/services/gateways/sarvam_http.py`, `AsyncRetrying` (tenacity) was used with a `with attempt:` context manager. Inside this block, self-healing code for 400 (tier limit) and 422 (context window) errors modified the payload and called `continue` to retry immediately. However, exiting the `with attempt:` block normally (without throwing an exception) registers a **successful attempt** in tenacity. This caused tenacity to immediately terminate the entire retry loop and return the default fallback value (`""`), rendering the self-healing path dead code.
+- **Solution**: Wrapped the HTTP request execution, self-healing checks, and span context management inside a nested `while True` loop inside the `with attempt:` block. This ensures immediate retries stay within the same attempt manager and correctly execute another HTTP call, while preserving standard tenacity backoffs for other exception-throwing errors.
+
+
 
