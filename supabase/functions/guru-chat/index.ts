@@ -428,7 +428,8 @@ Deno.serve(async (req) => {
         );
       } catch (e) {
         status = "error";
-        controller.enqueue(sseEvent("error", String(e)));
+        console.error("[guru-chat] stream catch", e);
+        controller.enqueue(sseEvent("error", "An error occurred. Please try again."));
         controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
       } finally {
         controller.close();
