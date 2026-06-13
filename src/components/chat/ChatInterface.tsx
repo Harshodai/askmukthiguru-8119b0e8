@@ -1403,13 +1403,6 @@ return (
             )}
           </AnimatePresence>
 
-          {/* removed duplicate close to satisfy structure */}
-          {false && (
-                  <p className="text-[11px] text-muted-foreground/60 pl-1">Delving deep into ancient wisdom for your answer</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Scroll anchor */}
           <div ref={messagesEndRef} className="h-1" />
