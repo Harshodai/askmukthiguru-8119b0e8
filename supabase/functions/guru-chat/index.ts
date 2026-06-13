@@ -259,7 +259,8 @@ Deno.serve(async (req) => {
         (m) =>
           m &&
           typeof m.content === "string" &&
-          ["system", "user", "assistant"].includes(m.role),
+          // Drop any client-supplied "system" entries to prevent prompt injection
+          ["user", "assistant"].includes(m.role),
       )
     : [];
 
@@ -274,14 +275,13 @@ Deno.serve(async (req) => {
     ? `\n\nUse the following grounded teachings to answer when relevant. Cite them inline as [1], [2], etc., matching the numbered context blocks. If they are not relevant, answer from your own grounding without citing.\n\nGROUNDED CONTEXT:\n${ragContext}`
     : "";
 
-  const hasSystem = history.some((m) => m.role === "system");
+  // Always inject the trusted system prompt; never honor client-supplied system messages
   const llmMessages: IncomingMessage[] = [
-    ...(hasSystem
-      ? []
-      : [{ role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem }]),
+    { role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem },
     ...history,
     { role: "user" as const, content: body.user_message },
   ];
+
 
   const url = new URL(req.url);
   const wantsStream =
@@ -300,6 +300,7 @@ Deno.serve(async (req) => {
       });
       if (!r.ok) {
         const text = await r.text();
+        console.error("[guru-chat] upstream non-stream error", r.status, text);
         await persistTelemetry(admin, {
           userId,
           query: body.user_message,
@@ -308,7 +309,7 @@ Deno.serve(async (req) => {
           status: "error",
         });
         return new Response(
-          JSON.stringify({ error: "upstream_failed", detail: text.slice(0, 500) }),
+          JSON.stringify({ error: "upstream_failed" }),
           {
             status: r.status === 429 ? 429 : r.status === 402 ? 402 : 502,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -338,6 +339,7 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     } catch (e) {
+      console.error("[guru-chat] non-stream network error", e);
       await persistTelemetry(admin, {
         userId,
         query: body.user_message,
@@ -346,7 +348,7 @@ Deno.serve(async (req) => {
         status: "error",
       });
       return new Response(
-        JSON.stringify({ error: "network", detail: String(e) }),
+        JSON.stringify({ error: "An error occurred. Please try again." }),
         {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -381,9 +383,8 @@ Deno.serve(async (req) => {
         if (!upstream.ok || !upstream.body) {
           status = "error";
           const text = await upstream.text().catch(() => "");
-          controller.enqueue(
-            sseEvent("error", `upstream ${upstream.status}: ${text.slice(0, 200)}`),
-          );
+          console.error("[guru-chat] upstream stream error", upstream.status, text);
+          controller.enqueue(sseEvent("error", "An error occurred. Please try again."));
           controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
           controller.close();
           return;
@@ -427,7 +428,8 @@ Deno.serve(async (req) => {
         );
       } catch (e) {
         status = "error";
-        controller.enqueue(sseEvent("error", String(e)));
+        console.error("[guru-chat] stream catch", e);
+        controller.enqueue(sseEvent("error", "An error occurred. Please try again."));
         controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
       } finally {
         controller.close();

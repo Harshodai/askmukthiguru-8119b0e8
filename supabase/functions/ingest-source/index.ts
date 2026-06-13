@@ -38,14 +38,31 @@ async function embedBatch(texts: string[], apiKey: string): Promise<number[][]> 
     body: JSON.stringify({ model: EMBED_MODEL, input: texts }),
   });
   if (!r.ok) {
-    throw new Error(`embed_failed_${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const body = await r.text().catch(() => "");
+    console.error("[ingest-source] embed failed", r.status, body);
+    throw new Error(`embed_failed_${r.status}`);
   }
   const j = await r.json();
   return j.data.map((d: { embedding: number[] }) => d.embedding);
 }
 
+function validateExternalUrl(raw: string): URL {
+  const u = new URL(raw);
+  if (!["http:", "https:"].includes(u.protocol)) throw new Error("invalid_url_protocol");
+  const host = u.hostname.toLowerCase();
+  const blocked =
+    host === "localhost" || host === "0.0.0.0" || host === "::1" ||
+    host.endsWith(".localhost") ||
+    /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+    /^169\.254\./.test(host) || /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) ||
+    /^f[cd][0-9a-f]{2}:/i.test(host) || /^fe80:/i.test(host);
+  if (blocked) throw new Error("private_url_blocked");
+  return u;
+}
+
 async function fetchUrlText(url: string): Promise<string> {
-  const r = await fetch(url, { headers: { "User-Agent": "MukthiGuruIngest/1.0" } });
+  const safe = validateExternalUrl(url);
+  const r = await fetch(safe.toString(), { headers: { "User-Agent": "MukthiGuruIngest/1.0" }, redirect: "follow" });
   if (!r.ok) throw new Error(`fetch_failed_${r.status}`);
   const ct = r.headers.get("content-type") ?? "";
   const body = await r.text();
@@ -57,6 +74,7 @@ async function fetchUrlText(url: string): Promise<string> {
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&");
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -116,7 +134,7 @@ Deno.serve(async (req) => {
       })
       .select()
       .single();
-    if (srcErr || !src) return json({ error: srcErr?.message ?? "source_insert_failed" }, 500);
+    if (srcErr || !src) { console.error("[ingest-source] source insert", srcErr); return json({ error: "Failed to create source." }, 500); }
 
     const chunks = chunkText(text);
     let inserted = 0;
@@ -132,21 +150,22 @@ Deno.serve(async (req) => {
           embedding: vectors[j] as unknown as string,
         }));
         const { error: cErr } = await admin.from("kb_chunks").insert(rows);
-        if (cErr) throw new Error(cErr.message);
+        if (cErr) { console.error("[ingest-source] chunk insert", cErr); throw new Error("chunk_insert_failed"); }
         inserted += slice.length;
       }
       await admin.from("kb_sources").update({ status: "ready", chunk_count: inserted }).eq("id", src.id);
     } catch (e) {
+      console.error("[ingest-source] embed/insert exception", e);
       await admin.from("kb_sources").update({ status: "error", chunk_count: inserted }).eq("id", src.id);
       await admin.from("ingestion_runs").insert({
         source: title,
         status: "failed",
         chunks_added: inserted,
         duration_ms: Date.now() - started,
-        error_log: e instanceof Error ? e.message : String(e),
+        error_log: e instanceof Error ? e.message : "unknown",
         details: { source_id: src.id, kind, by: userId },
       });
-      return json({ error: e instanceof Error ? e.message : "embed_failed", source_id: src.id, chunks_added: inserted }, 500);
+      return json({ error: "Ingestion failed. Please try again.", source_id: src.id, chunks_added: inserted }, 500);
     }
 
     await admin.from("ingestion_runs").insert({
@@ -159,7 +178,8 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, source_id: src.id, chunks_added: inserted });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
+    console.error("[ingest-source] exception", e);
+    return json({ error: "An error occurred. Please try again." }, 500);
   }
 });
 
