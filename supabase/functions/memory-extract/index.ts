@@ -152,15 +152,14 @@ Assistant: ${assistantMsg}`;
       // Embed (auto-routes to gateway or Ollama)
       const { embedding } = await embedText(text);
 
-      // Dedup: if a very similar memory already exists, skip
+      // Dedup: if a very similar memory already exists, skip.
+      // Note: match_user_memories is SECURITY DEFINER and scopes queries to auth.uid() matching the user JWT.
       const { data: dupes } = await userClient.rpc("match_user_memories", {
         p_query_embedding: embedding as unknown as string,
         p_k: 1,
         p_min_sim: DEDUP_SIMILARITY,
       });
 
-      // Note: match_user_memories is SECURITY DEFINER but uses auth.uid() internally.
-      // We're using the service role here, so we check user_id manually.
       const isDupe = Array.isArray(dupes) && dupes.length > 0;
       if (isDupe) {
         console.log("[memory-extract] skipping dupe:", text.slice(0, 60));
