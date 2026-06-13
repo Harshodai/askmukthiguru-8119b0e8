@@ -33,6 +33,29 @@ const OptimisticPlaceholder = () => (
   </motion.div>
 );
 
+const SlowResponseHint = ({ visible }: { visible: boolean }) => {
+  const [phase, setPhase] = useState<'normal' | 'slow' | 'verySlow'>('normal');
+  useEffect(() => {
+    if (!visible) {
+      setPhase('normal');
+      return;
+    }
+    const t1 = window.setTimeout(() => setPhase('slow'), 6000);
+    const t2 = window.setTimeout(() => setPhase('verySlow'), 15000);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [visible]);
+  const text =
+    phase === 'verySlow'
+      ? 'Still drawing from the teachings — long answers take a moment.'
+      : phase === 'slow'
+        ? 'Drawing from the teachings…'
+        : 'Delving deep into ancient wisdom for your answer';
+  return <p className="text-[11px] text-muted-foreground/70 pl-1">{text}</p>;
+};
+
 import {
   Message,
   Conversation,
