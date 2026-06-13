@@ -155,16 +155,17 @@ Deno.serve(async (req) => {
       }
       await admin.from("kb_sources").update({ status: "ready", chunk_count: inserted }).eq("id", src.id);
     } catch (e) {
+      console.error("[ingest-source] embed/insert exception", e);
       await admin.from("kb_sources").update({ status: "error", chunk_count: inserted }).eq("id", src.id);
       await admin.from("ingestion_runs").insert({
         source: title,
         status: "failed",
         chunks_added: inserted,
         duration_ms: Date.now() - started,
-        error_log: e instanceof Error ? e.message : String(e),
+        error_log: e instanceof Error ? e.message : "unknown",
         details: { source_id: src.id, kind, by: userId },
       });
-      return json({ error: e instanceof Error ? e.message : "embed_failed", source_id: src.id, chunks_added: inserted }, 500);
+      return json({ error: "Ingestion failed. Please try again.", source_id: src.id, chunks_added: inserted }, 500);
     }
 
     await admin.from("ingestion_runs").insert({
@@ -177,7 +178,8 @@ Deno.serve(async (req) => {
 
     return json({ ok: true, source_id: src.id, chunks_added: inserted });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
+    console.error("[ingest-source] exception", e);
+    return json({ error: "An error occurred. Please try again." }, 500);
   }
 });
 
