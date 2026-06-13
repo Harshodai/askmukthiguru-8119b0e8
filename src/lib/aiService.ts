@@ -354,6 +354,7 @@ export const sendMessage = async (
   sessionId?: string,
   /** Unix ms of last completed Serene Mind session (from localStorage) */
   lastSereneMindAt?: number | null,
+  seekerContext?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -388,6 +389,7 @@ export const sendMessage = async (
           ...(lastSereneMindAt != null
             ? { last_serene_mind_at: lastSereneMindAt / 1000 }
             : {}),
+          ...(seekerContext ? { seeker_context: seekerContext } : {}),
         }),
       });
 
@@ -416,6 +418,7 @@ export const sendMessage = async (
                 ...(lastSereneMindAt != null
                   ? { last_serene_mind_at: lastSereneMindAt / 1000 }
                   : {}),
+                ...(seekerContext ? { seeker_context: seekerContext } : {}),
               }),
             });
 

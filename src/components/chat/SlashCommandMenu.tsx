@@ -96,15 +96,23 @@ export const SlashCommandMenu = ({ input, open, onSelect, onClose }: Props) => {
       if (!filtered.length) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setActive((a) => (a + 1) % filtered.length);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setActive((a) => (a - 1 + filtered.length) % filtered.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         onSelect(filtered[active].id);
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         onClose();
       }
     };

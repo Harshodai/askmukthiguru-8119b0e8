@@ -666,6 +666,19 @@ export const ChatInterface = () => {
       }
     };
 
+    // ── Memory: fetch relevant context before sending ─────────────────
+    // failures are silent (best-effort).
+    let seekerContext = '';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const relevant = await memoryApi.getRelevant(userMessage.content, 5);
+        if (relevant.length > 0) {
+          seekerContext = relevant.map((m) => `- ${m.content}`).join('\n');
+        }
+      }
+    } catch { /* memory is best-effort — never block the chat */ }
+
     // Try streaming first (skip when awaiting Serene Mind to avoid leaking blocked content during stream)
     const streamingGuruId = generateId();
     let streamingWorked = false;
@@ -676,19 +689,6 @@ export const ChatInterface = () => {
     if (!isAwaitingSereneMind) {
       try {
         const lastSereneMindAt = getLastCompletedMeditationTimestamp();
-
-        // ── Memory: fetch relevant context before sending ─────────────────
-        // Fire concurrently with stream setup; failures are silent (best-effort).
-        let seekerContext = '';
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            const relevant = await memoryApi.getRelevant(userMessage.content, 5);
-            if (relevant.length > 0) {
-              seekerContext = relevant.map((m) => `- ${m.content}`).join('\n');
-            }
-          }
-        } catch { /* memory is best-effort — never block the chat */ }
 
         const stream = sendMessageStreaming(
           messageHistory,
@@ -959,6 +959,7 @@ export const ChatInterface = () => {
         currentConversation?.summary,
         currentConversation?.id,
         lastSereneMindAt,
+        seekerContext || undefined,
       );
 
       setIsTyping(false);
