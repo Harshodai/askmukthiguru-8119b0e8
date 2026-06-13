@@ -1686,5 +1686,13 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 - **Solution**: Added `e.stopPropagation()` and `e.stopImmediatePropagation()` to `ArrowUp`, `ArrowDown`, `Enter`, and `Escape` handlers in the capture-phase listener inside `SlashCommandMenu.tsx` to stop the keyboard event from propagating to the parent input.
 
 
+## OpenRouter Strategy Integration with Free Llama Models (June 2026)
+
+### 116. OpenRouter Strategy Integration with Free Llama Models (June 2026)
+- **Problem**: Local execution of massive LLMs (like Sarvam or deep reasoning models) in development environments leads to OOM crashes and resource contention. Standard cloud providers (like OpenAI or custom paid endpoints) incur pay-as-you-go costs which can be prohibitive for continuous dev iterations.
+- **Solution**: Integrated OpenRouter as a first-class strategy provider using free-tier Llama models (`meta-llama/llama-3.3-70b-instruct:free` for generation, and `meta-llama/llama-3.2-3b-instruct:free` for classification). Wrapped the endpoint behind the `LLMProvider` protocol, implementing all RAG methods (faithfulness checks, CoVe verification, intent routing, and query rewriting) with rate-limit and circuit breaker wrappers.
+- **Lesson learned**: OpenRouter's free-tier endpoints provide a robust, zero-cost alternative to local Ollama. However, because free models are prone to rate limits (e.g. 20 RPM), client-side rate limit throttling (`_enforce_rate_limit`) and circuit breakers are mandatory to prevent cascading errors.
+
+
 
 

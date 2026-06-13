@@ -11,7 +11,7 @@ AskMukthiGuru is a privacy-first AI spiritual companion grounded in the public
 teachings of Sri Preethaji and Sri Krishnaji. It pairs a React/Vite/TypeScript
 frontend (deployed on **Lovable Cloud**) with a Python FastAPI backend that
 runs a 12-layer retrieval-augmented-generation (RAG) pipeline against a local
-Qdrant vector store and a local Ollama LLM (default model: `sarvam-30b`).
+Qdrant vector store and a local Ollama LLM or cloud OpenRouter (supporting free-tier Llama models).
 
 Non-negotiable constraints (see `SPEC_DEV.md`):
 

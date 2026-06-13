@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""  # Optional: free tier works without key for some models
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_classify_model: str = "meta-llama/llama-3.2-3b-instruct:free"
     use_openrouter_for_simple: bool = True
     openrouter_rpm_limit: int = 20
 
@@ -303,6 +305,8 @@ class Settings(BaseSettings):
         """Resolve the main generation model from preset or custom config."""
         if self.is_sarvam_cloud:
             return self.sarvam_cloud_model
+        if self.llm_provider.lower() == "openrouter":
+            return self.openrouter_generation_model
         if self.ollama_model:  # Explicit override
             return self.ollama_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})
@@ -313,6 +317,8 @@ class Settings(BaseSettings):
         """Resolve the fast classification model from preset or custom config."""
         if self.is_sarvam_cloud:
             return self.sarvam_cloud_classify_model
+        if self.llm_provider.lower() == "openrouter":
+            return self.openrouter_classify_model
         if self.ollama_classify_model:  # Explicit override
             return self.ollama_classify_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})

@@ -54,118 +54,181 @@ class EmbeddingService:
         self._embed_cache = EmbeddingCache(max_size=1000)
         logger.info("Embedding service initialized (lazy load)")
 
-    def _ensure_models(self) -> None:
-        """Lazy-load the heavy embedding and reranking models."""
-        if self._encoder is not None and self._reranker is not None and self._colbert is not None:
+    def _thread_setup(self) -> None:
+        """Common PyTorch/CPU thread setup to keep memory low."""
+        import os
+        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["MKL_NUM_THREADS"] = "1"
+        os.environ["OPENBLAS_NUM_THREADS"] = "1"
+        os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+        os.environ["NUMEXPR_NUM_THREADS"] = "1"
+        import torch
+        torch.set_num_threads(1)
+
+    def _get_device(self) -> str:
+        import torch
+        device = "cpu"
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        return device
+
+    def _load_encoder(self, model_name: str, device: str) -> None:
+        """Helper to load a specific encoder model into memory."""
+        is_bge_m3 = (model_name == "BAAI/bge-m3")
+        if is_bge_m3:
+            from FlagEmbedding import BGEM3FlagModel
+
+            logger.info(f"Loading encoder: {model_name} on device: {device}")
+            self._encoder = BGEM3FlagModel(
+                model_name,
+                use_fp16=(device == "cuda"),
+                devices=device,
+            )
+
+            # Monkeypatch to catch and diagnose PyTorch model forward pass crashes
+            try:
+                original_forward = self._encoder.model.forward
+
+                def custom_forward(*args, **kwargs):
+                    try:
+                        return original_forward(*args, **kwargs)
+                    except Exception as e:
+                        logger.error(
+                            f"❌ ROOT CAUSE: BGE-M3 model forward pass failed: {e}",
+                            exc_info=True,
+                        )
+                        raise e
+
+                self._encoder.model.forward = custom_forward
+
+                original_pad = self._encoder.tokenizer.pad
+
+                def custom_pad(encoded_inputs, *args, **kwargs):
+                    if not encoded_inputs:
+                        raise ValueError(
+                            "tokenizer.pad received empty encoded_inputs. This is caused by the BGE-M3 "
+                            "batch_size loop degrading to 0 because of persistent model forward pass failures."
+                        )
+                    return original_pad(encoded_inputs, *args, **kwargs)
+
+                self._encoder.tokenizer.pad = custom_pad
+                logger.info(
+                    "Successfully monkeypatched BGEM3FlagModel for robust error tracing."
+                )
+            except Exception as e:
+                logger.warning(f"Failed to apply BGEM3FlagModel monkeypatch: {e}")
+        else:
+            from sentence_transformers import SentenceTransformer
+            logger.info(f"Loading SentenceTransformer: {model_name} on device: {device}")
+            self._encoder = SentenceTransformer(
+                model_name,
+                device=device,
+                model_kwargs={"low_cpu_mem_usage": True},
+            )
+
+    def _ensure_encoder(self) -> None:
+        """Lazy-load the encoder model with robust fallback support."""
+        if self._encoder is not None:
             return
         with self._lock:
-            import os
-            os.environ["OMP_NUM_THREADS"] = "1"
-            os.environ["MKL_NUM_THREADS"] = "1"
-            os.environ["OPENBLAS_NUM_THREADS"] = "1"
-            os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-            os.environ["NUMEXPR_NUM_THREADS"] = "1"
-            import torch
-            torch.set_num_threads(1)
-
-            device = "cpu"
-            if torch.cuda.is_available():
-                device = "cuda"
-            elif torch.backends.mps.is_available():
-                device = "mps"
+            if self._encoder is not None:
+                return
+            self._thread_setup()
+            device = self._get_device()
             logger.info(f"Dynamic device selection: using {device} for local models")
 
-            if self._encoder is None:
-                is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
-                if is_bge_m3:
-                    from FlagEmbedding import BGEM3FlagModel
+            fallback_map = {
+                "intfloat/multilingual-e5-small": ("intfloat/multilingual-e5-large-instruct", 1024),
+                "intfloat/multilingual-e5-large-instruct": ("intfloat/multilingual-e5-small", 384),
+                "BAAI/bge-m3": ("intfloat/multilingual-e5-small", 384),
+            }
 
-                    logger.info(f"Loading encoder: {settings.embedding_model} on device: {device}")
-                    self._encoder = BGEM3FlagModel(
-                        settings.embedding_model,
-                        use_fp16=(device == "cuda"),  # FP16 requires CUDA
-                        devices=device,
-                    )
-
-                    # Monkeypatch to catch and diagnose PyTorch model forward pass crashes
-                    try:
-                        original_forward = self._encoder.model.forward
-
-                        def custom_forward(*args, **kwargs):
-                            try:
-                                return original_forward(*args, **kwargs)
-                            except Exception as e:
-                                logger.error(
-                                    f"❌ ROOT CAUSE: BGE-M3 model forward pass failed: {e}",
-                                    exc_info=True,
-                                )
-                                raise e
-
-                        self._encoder.model.forward = custom_forward
-
-                        original_pad = self._encoder.tokenizer.pad
-
-                        def custom_pad(encoded_inputs, *args, **kwargs):
-                            if not encoded_inputs:
-                                raise ValueError(
-                                    "tokenizer.pad received empty encoded_inputs. This is caused by the BGE-M3 "
-                                    "batch_size loop degrading to 0 because of persistent model forward pass failures."
-                                )
-                            return original_pad(encoded_inputs, *args, **kwargs)
-
-                        self._encoder.tokenizer.pad = custom_pad
-                        logger.info(
-                            "Successfully monkeypatched BGEM3FlagModel for robust error tracing."
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to apply BGEM3FlagModel monkeypatch: {e}")
-                else:
-                    from sentence_transformers import SentenceTransformer
-                    logger.info(f"Loading SentenceTransformer: {settings.embedding_model} on device: {device}")
-                    self._encoder = SentenceTransformer(
-                        settings.embedding_model,
-                        device=device,
-                    )
-
-            if self._reranker is None:
-                from sentence_transformers import CrossEncoder
-
-                logger.info(f"Loading reranker: {settings.reranker_model} on device: {device}")
-                self._reranker = CrossEncoder(
-                    settings.reranker_model,
-                    device=device,
+            try:
+                # Attempt to load primary model
+                self._load_encoder(settings.embedding_model, device)
+            except Exception as e:
+                logger.warning(
+                    f"⚠️ Failed to load primary embedding model '{settings.embedding_model}': {e}. "
+                    "Attempting to switch to fallback model..."
                 )
-                # PHASE-2 / Truth-3: Detect reranker output convention.
-                # ms-marco CrossEncoders emit raw logits → we must apply sigmoid.
-                # jina-reranker-v2 emits sigmoid-normalized [0,1] scores → do NOT
-                # apply sigmoid again (it would compress to [0.5, 0.73] and break
-                # the rerank_min_score threshold filter).
-                model_name = (settings.reranker_model or "").lower()
-                if "jina" in model_name or "jina-reranker" in model_name:
-                    self._reranker_outputs_probs = True
-                    logger.info(
-                        f"Reranker '{settings.reranker_model}' emits probabilities; skipping sigmoid normalization."
-                    )
-                else:
-                    self._reranker_outputs_probs = False
-            if self._colbert is None:
+                
+                # Retrieve fallback details
+                fallback_info = fallback_map.get(settings.embedding_model)
+                if not fallback_info:
+                    if settings.embedding_model == "intfloat/multilingual-e5-small":
+                        fallback_info = ("intfloat/multilingual-e5-large-instruct", 1024)
+                    else:
+                        fallback_info = ("intfloat/multilingual-e5-small", 384)
+
+                fallback_model, fallback_dim = fallback_info
+                logger.info(f"Switching config to fallback model: {fallback_model} (dimension {fallback_dim})")
+                
+                # Update settings dynamically
+                settings.embedding_model = fallback_model
+                settings.embedding_dimension = fallback_dim
+                
+                # Retry loading with fallback model
                 try:
-                    from ragatouille import RAGPretrainedModel
+                    self._load_encoder(settings.embedding_model, device)
+                    logger.info(f"✅ Successfully loaded fallback embedding model '{settings.embedding_model}'")
+                except Exception as ex:
+                    logger.error(f"❌ Failed to load both primary and fallback models: {ex}", exc_info=True)
+                    raise ex
 
-                    logger.info("Loading ColBERTv2 reranker (RAGatouille)")
-                    # Force CPU execution for ColBERT locally
+    def _ensure_reranker(self) -> None:
+        """Lazy-load the reranker model."""
+        if self._reranker is not None:
+            return
+        with self._lock:
+            if self._reranker is not None:
+                return
+            self._thread_setup()
+            device = self._get_device()
+            from sentence_transformers import CrossEncoder
 
-                    self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
-                except (ImportError, ModuleNotFoundError):
-                    logger.info(
-                        "ColBERTv2 (RAGatouille) is not installed (optional). Cascaded reranking will fallback to pure CrossEncoder."
-                    )
-                    self._colbert = False
-                except Exception as e:
-                    logger.warning(f"Failed to load RAGatouille ColBERTv2: {e}")
-                    self._colbert = False  # mark as failed so we don't retry forever
+            logger.info(f"Loading reranker: {settings.reranker_model} on device: {device}")
+            self._reranker = CrossEncoder(
+                settings.reranker_model,
+                device=device,
+            )
+            model_name = (settings.reranker_model or "").lower()
+            if "jina" in model_name or "jina-reranker" in model_name:
+                self._reranker_outputs_probs = True
+                logger.info(
+                    f"Reranker '{settings.reranker_model}' emits probabilities; skipping sigmoid normalization."
+                )
+            else:
+                self._reranker_outputs_probs = False
 
-                logger.info("Embedding service models fully loaded")
+    def _ensure_colbert(self) -> None:
+        """Lazy-load the ColBERT model."""
+        if self._colbert is not None:
+            return
+        with self._lock:
+            if self._colbert is not None:
+                return
+            self._thread_setup()
+            try:
+                from ragatouille import RAGPretrainedModel
+
+                logger.info("Loading ColBERTv2 reranker (RAGatouille)")
+                self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
+            except (ImportError, ModuleNotFoundError):
+                logger.info(
+                    "ColBERTv2 (RAGatouille) is not installed (optional). Cascaded reranking will fallback to pure CrossEncoder."
+                )
+                self._colbert = False
+            except Exception as e:
+                logger.warning(f"Failed to load RAGatouille ColBERTv2: {e}")
+                self._colbert = False
+
+    def _ensure_models(self) -> None:
+        """Lazy-load all models (backward compatibility)."""
+        self._ensure_encoder()
+        self._ensure_reranker()
+        self._ensure_colbert()
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         """
@@ -181,7 +244,7 @@ class EmbeddingService:
             return []
 
         with self._inference_lock:
-            self._ensure_models()
+            self._ensure_encoder()
             is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
 
             max_retries = 3
@@ -269,7 +332,7 @@ class EmbeddingService:
             }
 
         with self._inference_lock:
-            self._ensure_models()
+            self._ensure_encoder()
             is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
 
             max_retries = 3
@@ -396,7 +459,7 @@ class EmbeddingService:
             return []
 
         with self._inference_lock:
-            self._ensure_models()
+            self._ensure_reranker()
             import gc
 
             import torch
@@ -480,7 +543,8 @@ class EmbeddingService:
             return []
 
         with self._inference_lock:
-            self._ensure_models()
+            self._ensure_reranker()
+            self._ensure_colbert()
 
             # Step 1: ColBERT Reranking
             colbert_docs = documents

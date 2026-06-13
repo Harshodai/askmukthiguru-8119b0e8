@@ -121,6 +121,7 @@ graph LR
 - [x] **S3**: Replace Redis coalescer `sleep(0.1)` with `BLPOP`-style blocking wait (Wave 3, completed June 2026)
 - [x] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4, completed June 2026)
 - [x] Benchmark Recovery: Timeout escalation, CoT strip rules, adversarial_traps queries, and citation denominator filter (June 2026)
+- [x] Integrate OpenRouter as primary cloud LLM provider option using Llama free models (June 2026)
 
 
 ---

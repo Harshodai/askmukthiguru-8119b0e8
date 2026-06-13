@@ -90,7 +90,7 @@ class ContainerBuilder:
         container.embedding = EmbeddingService()
 
         # Wire LLMProvider using LLMProviderFactory
-        provider_name = "sarvam_cloud" if settings.is_sarvam_cloud else "ollama"
+        provider_name = settings.llm_provider.lower()
         container.ollama = LLMProviderFactory.create_provider(provider_name)
 
         # Wire TranslationProvider using TranslationProviderFactory

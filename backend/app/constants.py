@@ -113,6 +113,8 @@ PROVIDER_MODELS = {
         "classify": "deepseek-r1:7b",
     },
     LLMProvider.OPENROUTER: {
-        "fast": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "default": "meta-llama/llama-3.3-70b-instruct:free",
+        "classify": "meta-llama/llama-3.2-3b-instruct:free",
+        "fast": "meta-llama/llama-3.2-3b-instruct:free",
     },
 }

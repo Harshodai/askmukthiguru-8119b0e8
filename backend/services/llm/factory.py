@@ -6,6 +6,7 @@ from app.config import settings
 from services.llm.base import LLMProvider
 from services.llm.ollama_provider import OllamaProvider
 from services.llm.sarvam_provider import SarvamProvider
+from services.llm.openrouter_provider import OpenRouterProvider
 from services.llm_factory import LLMServiceFactory
 
 
@@ -24,5 +25,7 @@ class LLMProviderFactory:
             return OllamaProvider(underlying_service)
         elif name in ("sarvam", "sarvam_cloud"):
             return SarvamProvider(underlying_service)
+        elif name == "openrouter":
+            return OpenRouterProvider(underlying_service)
         else:
             raise ValueError(f"Unknown LLM provider strategy: {name}")
