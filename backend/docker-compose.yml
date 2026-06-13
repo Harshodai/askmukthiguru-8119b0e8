@@ -240,6 +240,7 @@ services:
       - ./routers:/app/routers
       - ../scripts:/app/scripts
       - ../results:/app/results
+      - ./repos/LightRAG/lightrag:/usr/local/lib/python3.12/site-packages/lightrag
     # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -79,6 +79,9 @@ _COT_PATTERNS = [
     r"(?im)^\s*(first,?\s*)?i(?:'| a)?ll analyze.*$",
     # Sarvam-specific: catch lines that are purely internal verification
     r"(?im)^\s*(?:Note|Checklist|Verification|Important):.*$",
+    # Catch numbered bold lists of reasoning steps (e.g. 1. **Analyze...** or 1. **Deconstruct...**)
+    # Applied iteratively in strip_cot so sequential steps like "2. **Initial Scan**" are all removed.
+    r"(?im)^\s*\d+[\s.)]+(?:\*\*)?(?:Analyze|Scan|Initial Scan|Formulate|Draft|Evaluate|Check|Verify|Review|Identify|Translate|Filter|Retrieve|Select|Generate|Output|Synthesize|Compare|Determine|Process|Resolve|Find|Cite|Locate|Deconstruct|Read|Parse|Extract|Consider|Assess)\b.*?(?=\n\s*\d+|\n\n(?![*\s])|\Z)",
 ]
 
 # Markers that signal start of Sarvam's internal reasoning monologue
@@ -101,6 +104,12 @@ _SARVAM_REASONING_MARKERS = [
     "count words:",
     "we are consistent",
     "we must check the token count",
+    # Sarvam-30b internal analysis markers
+    "initial scan of the context",
+    "i'll quickly read through",
+    "quickly read through the provided",
+    "scan of the context",
+    "let me quickly scan",
 ]
 
 # Canonical URL map: keywords that appear in LLM answers -> authoritative web URLs.
@@ -355,8 +364,15 @@ def strip_cot(text: str) -> str:
         return text
 
     cleaned = text
-    for pattern in _COT_PATTERNS:
-        cleaned = re.sub(pattern, "", cleaned, flags=re.DOTALL).strip()
+    # Apply CoT patterns iteratively until the text stabilises.  A single pass
+    # can leave partial traces (e.g. step-2 after step-1 is removed) because the
+    # regex lookahead anchors on adjacent numbered steps that no longer exist.
+    for _ in range(4):  # max 4 iterations — prevents infinite loops on edge cases
+        prev = cleaned
+        for pattern in _COT_PATTERNS:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.DOTALL).strip()
+        if cleaned == prev:
+            break  # stable — no more changes
 
     cleaned_lower = cleaned.lower()
     for marker in _SARVAM_REASONING_MARKERS:
@@ -365,13 +381,21 @@ def strip_cot(text: str) -> str:
             cleaned = cleaned[:idx].strip()
             cleaned_lower = cleaned.lower()
 
+    # Also catch markers that appear near the START of the response (full leak)
+    for marker in _SARVAM_REASONING_MARKERS:
+        if cleaned_lower.startswith(marker):
+            cleaned = ""
+            break
+
     for marker in ["Final answer:", "Answer:", "Mukthi Guru:"]:
         idx = cleaned.lower().find(marker.lower())
         if idx != -1:
             cleaned = cleaned[idx + len(marker) :].strip()
 
     cleaned = _remove_repetition_loops(cleaned)
-    return cleaned or text.strip()
+    if not cleaned:
+        return "I apologize, but I am unable to formulate a complete response right now. Please allow me to share some relevant teachings from the sacred knowledge base instead."
+    return cleaned
 
 
 def _generation_kwargs(state: GraphState) -> dict:

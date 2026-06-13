@@ -1704,3 +1704,45 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 ### Chunk Size Evaluation Harness (Wave 2)
 - **Problem**: There was no standard way to systematically evaluate chunking strategies (Recursive vs. Semantic) across various chunk size configurations against the complete set of five ekimetrics/adaptive-chunking metrics (SC, ICC, DCC, BI, RC).
 - **Solution**: Created `chunk_size_evaluation.py` under `backend/benchmarks/`. It utilizes the `AdaptiveChunkingAdapter` to split sample spiritual teachings at chunk size increments (300, 500, 800, 1200, 1500 chars), scores them on size compliance, cohesion, discourse continuity, block integrity, and non-redundancy, and logs a comprehensive markdown table comparison.
+
+
+## LightRAG Keyword Extraction Hallucination & CoT Leak Fixes (June 2026)
+
+### 117. LightRAG Keyword Extraction — Multi-Example Hallucination (sarvam-30b)
+
+**Problem**: sarvam-30b used as fallback for LightRAG keyword extraction (when OpenRouter circuit breaker trips) was echoing ALL few-shot examples from the prompt alongside the actual answer. This caused `json_repair.loads()` to return a **list-of-dicts** (one per example + real query). The `_parse_keywords_payload` function treated this list as a flat keyword list, calling `_normalize_keyword_list` on it. That function logged a warning for each non-string element (dict) and silently dropped them → empty keyword lists → LightRAG graph search returned no results.
+
+**Root Cause Chain**:
+1. 429 rate limit from OpenRouter → circuit breaker OPEN
+2. LightRAG keyword task routed to sarvam-30b
+3. sarvam-30b echoes all 3 few-shot examples + real answer (training-data generation behavior)
+4. `json_repair.loads()` returns `[{example1}, {example2}, {example3}, {real_answer}]`
+5. `_parse_keywords_payload` sees a list → calls `_normalize_keyword_list` on entire list
+6. Each dict element is non-string → dropped → empty `high_level_keywords`, `low_level_keywords`
+
+**Fixes Applied**:
+1. `_parse_keywords_payload` (operate.py): When payload is a list of dicts with keyword fields, pick the **LAST** dict (real answer, examples appear first) instead of treating the whole list as keywords.
+2. `_normalize_keyword_list` (operate.py): Recursively flatten nested lists (list-of-lists) instead of silently dropping them. Added de-duplication (`seen` set).
+3. Keyword extraction prompt (prompt.py): Added explicit `4. ONE OUTPUT ONLY` constraint and renamed section header to `---Examples (DO NOT reproduce these — they are reference only)---`.
+
+### 118. OpenRouter 429 Circuit Breaker False Trips
+
+**Problem**: HTTP 429 (Too Many Requests) from OpenRouter's free tier was counted as a `record_failure()` in the circuit breaker. After 5 rate-limit responses (threshold=5), the circuit breaker opened and blocked ALL OpenRouter calls for 60 seconds, even though the service was healthy.
+
+**Fix**: In `services/openrouter_service.py` (`_call_api` and `generate_stream`), detect `httpx.HTTPStatusError` with status 429 and skip `record_failure()`. Only real service errors (5xx, timeouts, network errors) should trip the circuit breaker.
+
+### 119. sarvam-30b DistressOutput Empty JSON `{}`
+
+**Problem**: sarvam-30b returned `{}` for Instructor structured output calls (distress classification), causing Pydantic validation to fail for all 3 required fields (`is_distress`, `confidence`, `reason`). After 2 retries both failing, it fell back to the JSON-direct prompt which sometimes returned empty string, causing `json.loads("")` to fail. This generated ~6 extra API calls and 2 warnings per distress-classified message.
+
+**Fix**: Added `default=False`, `default=0.5`, `default="No reason provided"` to all `DistressOutput` fields in `SarvamCloudService.classify_distress_structured`. An empty `{}` from the model now passes Pydantic validation with safe defaults.
+
+### 120. strip_cot Partial CoT Stripping (Numbered Steps)
+
+**Problem**: When sarvam-30b returns multi-step reasoning like `1. **Analyze...** ... 2. **Initial Scan...** ...`, the `_COT_PATTERNS` regex for numbered steps matched step-1 but not step-2 (because the lookahead anchored on adjacent numbered steps that no longer existed after step-1 removal).
+
+**Fix**:
+1. Made `strip_cot` apply patterns **iteratively** (up to 4 passes) until output stabilizes.
+2. Added `Initial Scan`, `Read`, `Parse`, `Extract`, `Consider`, `Assess` to the numbered-step regex word list.
+3. Added start-of-response check: if the entire output starts with a `_SARVAM_REASONING_MARKERS` phrase, clear it entirely (full leak).
+4. Added new markers: `"initial scan of the context"`, `"i'll quickly read through"`, `"scan of the context"`.

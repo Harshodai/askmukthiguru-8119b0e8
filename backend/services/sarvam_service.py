@@ -714,10 +714,16 @@ class SarvamCloudService:
 
         class DistressOutput(BaseModel):
             is_distress: bool = Field(
-                description="True if the user is in distress, sad, or asking for help with negative emotions"
+                default=False,
+                description="True if the user is in distress, sad, or asking for help with negative emotions",
             )
-            confidence: float = Field(description="Confidence score from 0.0 to 1.0")
-            reason: str = Field(description="Brief reason for the assessment")
+            confidence: float = Field(
+                default=0.5, description="Confidence score from 0.0 to 1.0"
+            )
+            reason: str = Field(
+                default="No reason provided",
+                description="Brief reason for the assessment",
+            )
 
         # Try Instructor first with explicit JSON mode
         try:

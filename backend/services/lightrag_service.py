@@ -75,6 +75,56 @@ class LightRAGService:
             # Route ALL LightRAG internal LLM tasks to a fast non-reasoning model.
             # Prevents reasoning model runaway (15+ KB thinking traces, 15-30s latency)
             # from blocking LightRAG keyword extraction and defeating the anti-hallucination pipeline.
+            openrouter = getattr(container, "openrouter", None)
+            if openrouter and getattr(settings, "openrouter_api_key", None):
+                sys_prompt_str = system_prompt or ""
+                prompt_str = prompt or ""
+                kwargs["model"] = settings.openrouter_classify_model
+                kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
+
+                is_extraction = (
+                    "Knowledge Graph" in sys_prompt_str
+                    or "entity" in sys_prompt_str
+                    or "relation" in sys_prompt_str
+                    or "Extract entities" in prompt_str
+                    or "Data to be Processed" in prompt_str
+                    or kwargs.get("keyword_extraction", False)
+                    or "keyword" in prompt_str.lower()
+                    or "keyword" in sys_prompt_str.lower()
+                )
+
+                if is_extraction:
+                    kwargs["is_structured"] = True
+                    kwargs["operation"] = "extraction"
+                    logger.info(
+                        f"LightRAG: Routing extraction/keyword task to OpenRouter ({settings.openrouter_classify_model})"
+                    )
+                elif (
+                    "summary" in sys_prompt_str.lower()
+                    or "merge" in sys_prompt_str.lower()
+                    or "summary" in prompt_str.lower()
+                    or "merge" in prompt_str.lower()
+                ):
+                    kwargs["is_structured"] = True
+                    kwargs["operation"] = "summarize"
+                    logger.info(
+                        f"LightRAG: Routing summarization task to OpenRouter ({settings.openrouter_classify_model})"
+                    )
+                else:
+                    logger.info(
+                        f"LightRAG: Routing generic query task to OpenRouter ({settings.openrouter_classify_model})"
+                    )
+
+                try:
+                    return await openrouter.generate(
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        user_prompt=prompt,
+                        context=context,
+                        **kwargs,
+                    )
+                except Exception as e:
+                    logger.warning(f"LightRAG: OpenRouter task failed ({e}), falling back to default LLM")
+
             if settings.llm_provider == "sarvam_cloud":
                 sys_prompt_str = system_prompt or ""
                 prompt_str = prompt or ""
