@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
           embedding: vectors[j] as unknown as string,
         }));
         const { error: cErr } = await admin.from("kb_chunks").insert(rows);
-        if (cErr) throw new Error(cErr.message);
+        if (cErr) { console.error("[ingest-source] chunk insert", cErr); throw new Error("chunk_insert_failed"); }
         inserted += slice.length;
       }
       await admin.from("kb_sources").update({ status: "ready", chunk_count: inserted }).eq("id", src.id);
