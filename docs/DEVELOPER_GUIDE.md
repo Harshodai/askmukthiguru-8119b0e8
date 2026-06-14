@@ -310,6 +310,7 @@ Use `.venv/bin/python` or `backend/.venv/bin/python` for local verification. The
 | 404 on `/api/chat`                                | Backend not running; `docker compose logs -f backend`              |
 | Daily Teaching not refreshing                     | Realtime publication missing; re-run the migration in §7           |
 | Admin login succeeds but `/admin` redirects out   | User has no row in `user_roles` with role `admin`                   |
+| Neo4j UI connection fails (`WebSocket failure`)    | Browser blocks unencrypted `bolt://` when Neo4j UI is served via HTTPS (Mixed Content). Connect using `bolt+s://` or `neo4j+s://` with SSL config, or access UI via plain HTTP (`http://`). Note that connecting to `localhost` inside the browser will connect to the client machine, not the docker host; use the actual server IP/hostname instead. |
 
 ---
 

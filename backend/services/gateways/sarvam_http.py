@@ -191,8 +191,15 @@ class SarvamHTTPGateway:
         # for keyword extraction prompts, causing LightRAG to fail keyword parsing
         # and burn through the entire pipeline timeout with retries.
         is_structured = kwargs.pop("is_structured", False)
+        passed_format = kwargs.pop("response_format", None)
         op_lower = (operation or "").lower()
-        if is_structured or any(tag in op_lower for tag in ("extraction", "keyword", "extract")):
+        wants_json = is_structured or passed_format == {"type": "json_object"} or any(tag in op_lower for tag in ("extraction", "keyword", "extract"))
+        
+        # If wants JSON, and NOT a reasoning model, we force JSON format at API level.
+        # If it IS a reasoning model (sarvam-30b/sarvam-105b), forcing JSON format
+        # causes reasoning runaway/loops, so we DO NOT force it and instead extract it below.
+        is_reasoning_model = "sarvam-30b" in model or "sarvam-105b" in model
+        if wants_json and not is_reasoning_model:
             payload["response_format"] = {"type": "json_object"}
 
         # 6. Retry loop with tenacity
@@ -315,10 +322,19 @@ class SarvamHTTPGateway:
                         content = (choice.get("message", {}) or {}).get("content", "") or ""
                         reasoning = (choice.get("message", {}) or {}).get("reasoning_content", "") or ""
 
-                        content_stripped = content.strip()
-                        if not content_stripped and reasoning:
-                            extracted = self._extract_structured_content(reasoning, operation)
-                            content = extracted if extracted else reasoning
+                        # If user wants JSON, extract from content or reasoning (reasoning as fallback if content is empty)
+                        combined_text = content
+                        if not combined_text.strip() and reasoning:
+                            combined_text = reasoning
+
+                        if wants_json:
+                            extracted = self._extract_structured_content(combined_text, operation)
+                            if extracted:
+                                content = extracted
+                            else:
+                                content = combined_text
+                        else:
+                            content = combined_text
 
                         # Record token usage in cost tracker
                         try:
@@ -365,7 +381,12 @@ class SarvamHTTPGateway:
                     json.loads(block_strip)
                     return block_strip
                 except Exception:
-                    pass
+                    try:
+                        import json_repair
+                        if json_repair.loads(block_strip):
+                            return block_strip
+                    except Exception:
+                        pass
             else:
                 if operation == "extraction":
                     block_lower = block_strip.lower()
@@ -382,7 +403,14 @@ class SarvamHTTPGateway:
                 json.loads(potential)
                 return potential
             except Exception:
-                pass
+                try:
+                    import json_repair
+                    repaired = json_repair.repair(potential)
+                    if repaired:
+                        return repaired
+                except Exception:
+                    pass
+                return potential
 
         first_bracket, last_bracket = text.find("["), text.rfind("]")
         if first_bracket != -1 and last_bracket != -1 and last_bracket > first_bracket:
@@ -391,7 +419,14 @@ class SarvamHTTPGateway:
                 json.loads(potential)
                 return potential
             except Exception:
-                pass
+                try:
+                    import json_repair
+                    repaired = json_repair.repair(potential)
+                    if repaired:
+                        return repaired
+                except Exception:
+                    pass
+                return potential
 
         if operation == "extraction":
             lines = [line.strip() for line in text.splitlines() if line.strip()]

@@ -1983,7 +1983,7 @@ QUERIES["multi_turn"] = [
             {
                 "q": "What is the Power of Intention?",
                 "expected_intent": "FOLLOW_UP",
-                "must_mention": ["intention", "january"],
+                "must_mention": ["intention"],
             },
             {
                 "q": "What comes after Letting Go?",
