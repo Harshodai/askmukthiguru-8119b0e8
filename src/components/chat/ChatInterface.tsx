@@ -239,6 +239,8 @@ export const ChatInterface = () => {
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
   const titleGenerationRef = useRef<Set<string>>(new Set());
+  /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
+  const streamControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
 
   // ── Scroll tracking ──────────────────────────────────────────────
