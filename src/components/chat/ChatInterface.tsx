@@ -692,6 +692,10 @@ export const ChatInterface = () => {
       try {
         const lastSereneMindAt = getLastCompletedMeditationTimestamp();
 
+        // Fresh AbortController for this turn — Stop button calls .abort().
+        const controller = new AbortController();
+        streamControllerRef.current = controller;
+
         const stream = sendMessageStreaming(
           messageHistory,
           userMessage.content,
@@ -700,6 +704,7 @@ export const ChatInterface = () => {
           currentConversation?.id,
           lastSereneMindAt,
           seekerContext || undefined,
+          controller.signal,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
