@@ -18,7 +18,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 /
 ├── public/                  # Static assets, sitemap.xml, service worker
-├── prisma/                  # Database schema (Prisma ORM)
 ├── src/                     # React frontend (Vite + TypeScript + shadcn/ui)
 │   ├── admin/               # Admin dashboard sub-app
 │   │   ├── components/      # KpiCard, LiveFeed, TraceDrawer, SeedDemoButton, etc.
@@ -79,7 +78,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   ├── core/            # Core utilities, base classes, middleware
 │   │   ├── pipeline/        # Pipeline definitions and orchestration
 │   │   ├── telemetry/       # Telemetry data models
-│   │   ├── routers/         # FastAPI route modules (feedback, admin, compliance)
 │   │   ├── __init__.py
 │   │   ├── coalescer.py
 │   │   ├── debug_helper.py
@@ -124,7 +122,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   ├── setup.py
 │   │   └── transfer.py
 │   ├── docker-compose.yml
-│   ├── domain/ ports/
+│   ├── domain/
+│   │   └── ports/
 │   ├── evaluation/
 │   │   └── ragas_eval.py
 │   ├── gptcache_config.yml
@@ -149,7 +148,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   └── scheduler.py
 │   ├── models/
 │   │   ├── feedback.py
-│   │   └── user.py
+│   │   ├── user.py
+│   │   ├── Modelfile.sarvam30b   # Ollama Modelfile for Sarvam 30B
+│   │   ├── setup_sarvam.sh       # Linux/Colab setup script
+│   │   ├── setup_sarvam.ps1      # Windows setup script
+│   │   ├── download_models.sh    # Model download helper (Unix)
+│   │   └── download_models.ps1   # Model download helper (Windows)
 │   ├── optimization/
 │   │   └── dspy/
 │   ├── rag/
@@ -548,6 +552,7 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | **Multi-Provider** | `multi_provider_llm.py` | Multi-provider LLM orchestration |
 | **Model Registry** | `model_registry.py` | Model registration and discovery |
 | **Model Failover** | `model_failover.py` | Automatic failover between models |
+| **Krutrim** | `krutrim_service.py` | Krutrim AI LLM client |
 
 ### Retrieval & Vector Services
 | Service | File | Description |
@@ -558,6 +563,10 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | **Reranker** | `reranker_service.py` | ColBERT + CrossEncoder re-ranking |
 | **RRF Ranker** | `rrf_ranker.py` | Reciprocal Rank Fusion ranker |
 | **Concurrent Retriever** | `concurrent_retriever.py` | Parallel retrieval worker |
+| **Adaptive Chunking** | `adaptive_chunking_service.py` | Dynamic chunk sizing |
+| **Chunking Adapter** | `adaptive_chunking_adapter.py` | Chunking strategy adapter |
+| **Contextual Chunking** | `contextual_chunking_service.py` | Context-aware text splitting |
+| **Proposition** | `proposition_service.py` | Proposition-based chunking |
 | **Semantic Cache** | `semantic_cache.py` | Semantic result caching |
 | **Vector Optimizer** | `vector_optimizer.py` | Vector space optimization |
 
@@ -586,8 +595,11 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | **Circuit Breaker** | `circuit_breaker.py` | Fault tolerance for LLM calls |
 | **Cost Tracker** | `cost_tracker.py` | Token/cost usage tracking |
 | **Config Watcher** | `config_watcher.py` | Hot-reload configuration |
-| ** Container Builder** | `container_builder.py` | Containerized service lifecycle |
+| **Container Builder** | `container_builder.py` | Containerized service lifecycle |
 | **HTTP Client Pool** | `http_client_pool.py` | Reusable HTTP session management |
+| **A/B Testing** | `ab_testing.py` | Experiment framework for response variants |
+| **Doctrine Cache** | `doctrine_cache.py` | Spiritual-teaching-specific caching |
+| **Semantic Router Fallback** | `semantic_router_fallback.py` | Fallback routing for semantic queries |
 | **Language Router** | `language_router.py` | Route by detected language |
 | **Tenant Context** | `tenant_context.py` | Multi-tenant context isolation |
 | **Ingestion Tracker** | `ingestion_tracker.py` | Pipeline progress tracking |
@@ -602,6 +614,7 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | **Compliance Logger** | `compliance_logger.py` | Audit logging for compliance |
 | **Auth** | `auth_service.py` | Authentication and authorization |
 | **Cookie Helper** | `cookie_helper.py` | Secure cookie management |
+| **Sarvam Exceptions** | `sarvam_exceptions.py` | Custom exceptions for Sarvam |
 
 ## Benchmarks Suite
 
@@ -716,114 +729,28 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
 | **ColBERT** | Contextualized late interaction bi-encoder re-ranking |
 | **CrossEncoder** | Full-context cross-encoder re-ranking |
 
-## Skills, Plugins & MCP Tooling
+## MCP Tooling
 
-### Claude Skills Reference (118 total)
+### Active Local Servers (`.mcp.json`)
 
-The following **ECC skills** are loaded globally and automatically consulted for relevant tasks. Key categories for this project:
+| Server | Language | Purpose |
+|--------|----------|---------|
+| **code-review-graph** | python | Incremental knowledge graph — review, impact, architecture |
+| **codegraph** | node | Live code intelligence — callers, callees, traces |
+| **graphify** | python | PR analysis, pathfinding, community detection |
+| **claude-mem** | node | Persistent project memory — observations, context |
 
-**Clean Code (Python)**
-- `clean-code-python-boy-scout`, `clean-code-python-clean-comments`, `clean-code-python-clean-functions`
-- `clean-code-python-clean-general`, `clean-code-python-clean-names`, `clean-code-python-clean-tests`
-- `clean-code-python-python-clean-code`
+### Additional MCP Servers (ECC bundled)
 
-**Clean Code (TypeScript)**
-- `clean-code-typescript-boy-scout`, `clean-code-typescript-clean-comments`, `clean-code-typescript-clean-functions`
-- `clean-code-typescript-clean-general`, `clean-code-typescript-clean-names`, `clean-code-typescript-clean-tests`
-- `clean-code-typescript-typescript-clean-code`
-
-**Andrej Karpathy (NN/LLM)**
-- `andrej-karpathy-karpathy-guidelines`
-
-**AI / LLM / RAG Domain books**
-- `agents-book-build-llm-app-scratch`, `agents-book-building-llms-for-production`
-- `agents-book-hands-on-llms`, `agents-book-llms-in-production`
-- `agents-book-prompt-engineering-llms`, `agents-book-rag-made-simple`
-- `agents-book-agentic-design-patterns`, `agents-book-ai-agents-in-action`
-- `agents-book-ai-agents-langchain-mcp`, `agents-book-building-apps-ai-agents`
-
-**System Design & Architecture**
-- `agents-book-database-internals`, `agents-book-designing-data-intensive-apps-2e`
-- `agents-book-system-design-llm-era`, `agent-book-architecture-patterns`
-- `agent-book-api-design-principles`, `agent-book-async-python-patterns`
-- `agent-book-error-handling-patterns`
-
-**Other active skills**: agent-book-debug-issue, agent-book-debugging-strategies, agent-book-deep-research-skills, agent-book-dispatching-parallel-agents, agent-book-distill, agent-book-explore-codebase, agent-book-e2e-testing-patterns, agent-book-fastapi-templates, agent-book-find-skills, agent-book-frontend-design, agent-book-harden, agent-book-humanizer, agent-book-mcp-builder, agent-book-microservices-patterns, agent-book-normalize, agent-book-optimize, agent-book-python-performance-optimization, agent-book-python-testing-patterns, agent-book-rag-implementation, agent-book-refactor-safely, agent-book-review-changes, agent-book-senior-architect, agent-book-senior-data-engineer, agent-book-senior-devops, agent-book-senior-ml-engineer, agent-book-senior-qa, agent-book-senior-security, agent-book-skill-creator, agent-book-skill-vetter, agent-book-subagent-driven-development, agent-book-systematic-debugging, agent-book-test-driven-development, agent-book-token-optimization, agent-book-verification-before-completion, agent-book-webapp-testing, agent-book-writing-plans, agent-book-writing-skills, agent-book-ai-engineering-chip-huyen, agent-book-antigravity-workflows, agent-book-clarify, agent-book-claude-seo, agent-book-code-review-excellence, agent-book-code-reviewer, agent-book-critique, agent-book-designing-distributed-systems, agent-book-executing-plans, agent-book-fact-check-skill, agent-book-finishing-a-development-branch, agent-book-ieee-innovative-trends-2019, agent-book-kleppmann-ddia-big-ideas, agent-book-langchain-architecture, agent-book-requesting-code-review, agent-book-receiving-code-review, agent-book-self-improving-agent
+A catalogue of ~30 additional servers is available in `ecc/mcp-configs/mcp-servers.json` (GitHub, Jira, Supabase, Playwright, context7, exa-web-search, sequential-thinking, etc.). Copy the ones you need into your local `.mcp.json` or global `~/.claude/mcp.json`.
 
 ### Plugins
 
-| Plugin | Scope | Description |
-|--------|-------|-------------|
-| **caveman** | user | Terse, focused output mode (`/caveman lite|full|ultra`) |
-
-### MCP Servers
-
-**Local Project Servers** (`.mcp.json`)
-
-| MCP Server | Type | Purpose |
-|------------|------|---------|
-| **code-review-graph** | python | Persistent incremental knowledge graph (review, impact, architecture) |
-| **codegraph** | node | Live code intelligence (callers, callees, traces) |
-| **graphify** | python | Alternative code knowledge graph (PRs, communities, paths) |
-| **claude-mem** | node | Persistent project memory (observations, search, context) |
-
-**ECC Bundled Servers** (`ecc/mcp-configs/mcp-servers.json`)
-
-| MCP Server | Type | Purpose |
-|------------|------|---------|
-| **jira** | uvx | Jira issue tracking (search, create, update, comment, transition) |
-| **github** | npx | GitHub operations (PRs, issues, repos) |
-| **firecrawl** | npx | Web scraping and crawling |
-| **supabase** | npx | Supabase database operations |
-| **memory** | npx | Persistent memory across sessions (basic store) |
-| **omega-memory** | uvx | Persistent agent memory with semantic search + knowledge graphs |
-| **longhand** | pip | Lossless session history (raw tool calls, edits, thinking from `~/.claude/projects/*.jsonl`) |
-| **sequential-thinking** | npx | Chain-of-thought reasoning |
-| **vercel** | http | Vercel deployments and projects |
-| **railway** | npx | Railway deployments |
-| **cloudflare-docs** | http | Cloudflare documentation search |
-| **cloudflare-workers-builds** | http | Cloudflare Workers builds |
-| **cloudflare-workers-bindings** | http | Cloudflare Workers bindings |
-| **cloudflare-observability** | http | Cloudflare observability/logs |
-| **clickhouse** | http | ClickHouse analytics queries |
-| **exa-web-search** | npx | Web search, research via Exa API |
-| **context7** | npx | Live documentation lookup (use with `/docs` command) |
-| **magic** | npx | Magic UI components |
-| **filesystem** | npx | Filesystem operations (set path) |
-| **playwright** | npx | Browser automation and testing |
-| **fal-ai** | npx | AI image/video/audio generation via fal.ai |
-| **browserbase** | npx | Cloud browser sessions |
-| **browser-use** | http | AI browser agent for web tasks |
-| **devfleet** | http | Multi-agent orchestration (parallel Claude Code agents in worktrees) |
-| **token-optimizer** | npx | Token optimization (95%+ context reduction) |
-| **laraplugins** | http | Laravel plugin discovery |
-| **confluence** | npx | Confluence Cloud integration |
-| **evalview** | python | AI agent regression testing (tool diff, output hash, visual reports) |
-
-**When to use which MCP server:**
-
-- **code-review-graph** — Code review, impact analysis, architecture overview, refactoring, search
-- **codegraph** — "How does X work", tracing flows, callers/callees, impact of changes, quick file lookup
-- **graphify** — PR analysis (`list_prs`, `triage_prs`, `get_pr_impact`), pathfinding, community detection
-- **claude-mem** — Searching past observations, adding new observations, getting context from past sessions
-- **github** — GitHub operations
-- **context7** — Live documentation lookup (libraries, frameworks, APIs)
-- **exa-web-search** — Web search and research after GitHub search and primary docs (per ECC workflow)
-- **sequential-thinking** — Chain-of-thought reasoning for complex decisions
-- **playwright** — Browser automation and E2E tests
-- **memory / omega-memory** / **longhand** — Persistent memory (pick one based on richness needed)
-- **evalview** — Regression testing for AI agents
+| Plugin | What it does |
+|--------|-------------|
+| **caveman** | Terse output mode (`/caveman lite|full|ultra`) |
 
 ### Workflow Priority
 
-1. **ALWAYS use MCP tools first** over Grep/Glob/Read when you need to:
-   - Find functions, classes, or files
-   - Understand call chains or dependencies
-   - Review changes and assess impact
-   - Get architecture overview
-   - Look up documentation (`context7`)
-   - Search the web (`exa-web-search`)
-2. **Fall back to raw Read/Edit** only when:
-   - Editing a specific file (after locating it via MCP)
-   - MCP tools don't have the file indexed (check `codegraph_status`)
-   - Doing quick string replacements with known exact text
+1. **Prefer MCP tools first** over Grep/Glob/Read when you need to find symbols, trace flows, review changes, or get architecture overviews.
+2. **Fall back to raw Read/Edit** only when editing a specific file or doing a quick string replacement.

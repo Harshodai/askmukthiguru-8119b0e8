@@ -46,6 +46,15 @@ _SIMPLE_QUERY_PATTERNS = [
     r"^explain ",
 ]
 
+# Temporal query patterns: trigger web search for real-time info
+_TEMPORAL_PATTERNS = [
+    "this month", "next festival", "upcoming", "when is", "schedule",
+    "calendar", "latest", "current events", "this year", "next year",
+    "next month", "last month", "this week", "next week", "today",
+    "recent", "announcement", "program", "scope of manifest",
+    "manifest scope", "ekam events", "oneness events",
+]
+
 
 @log_metrics
 async def intent_router(state: GraphState, config: dict = None) -> dict:
@@ -109,6 +118,22 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 }
         except Exception as e:
             logger.warning(f"Serene Mind keyword distress check failed: {e}")
+
+    # ---- Temporal / Real-Time Query Check ----
+    # Detects queries about current/future events (festivals, schedules, etc.)
+    # and flags them for web search. Runs before prerouter and cache.
+    if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
+        logger.info(f"Intent Router: temporal query detected, flagging for web search: {question[:60]}...")
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier3_complex",
+            "needs_web_search": True,
+            "evaluation_trace": _trace_update(
+                state, intent="FACTUAL", query_tier="tier3_complex",
+                routing_reason="temporal_query_heuristic",
+                needs_web_search=True
+            ),
+        }
 
     # ---- Regex Pre-Router Check ----
     from rag.intent_prerouter import preroute_intent

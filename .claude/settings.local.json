@@ -79,7 +79,12 @@
       "WebFetch(domain:www.fzeba.com)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:pypi.org)",
-      "WebFetch(domain:qdrant.tech)"
+      "WebFetch(domain:qdrant.tech)",
+      "Bash(rtk wc *)",
+      "Bash(xargs -n1 basename)",
+      "Read(//tmp/**)",
+      "Bash(grep -oP '`\\\\w+?\\(_service\\)?\\\\.py`' /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/CLAUDE.md)",
+      "Bash(rtk read *)"
     ]
   },
   "enableAllProjectMcpServers": true,

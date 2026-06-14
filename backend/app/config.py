@@ -253,6 +253,15 @@ class Settings(BaseSettings):
     ab_testing_enabled: bool = False  # Randomly switch between primary LLM and Krutrim
     ab_testing_ratio: float = 0.1  # 10% traffic to Krutrim
 
+    # --- Web Search (Real-Time Temporal Queries) ---
+    web_search_enabled: bool = False  # Enable temporal web search for real-time queries
+    web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
+    web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
+    web_search_max_results: int = 5
+    web_search_timeout: int = 10  # Web search timeout in seconds
+    web_search_parallel: bool = True  # Run web search in parallel with RAG retrieval
+    searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
+
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces
 
@@ -274,6 +283,13 @@ class Settings(BaseSettings):
         if not self.ocr_languages or not self.ocr_languages.strip():
             return []
         return [lang.strip() for lang in self.ocr_languages.split(",") if lang.strip()]
+
+    @property
+    def web_search_allowed_domains_list(self) -> list[str]:
+        """Parse comma-separated web search allowed domains into a list."""
+        if not self.web_search_allowed_domains or not self.web_search_allowed_domains.strip():
+            return []
+        return [d.strip().lower() for d in self.web_search_allowed_domains.split(",") if d.strip()]
 
     @property
     def transcript_languages_list(self) -> list[str]:

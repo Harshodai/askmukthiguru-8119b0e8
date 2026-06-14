@@ -34,6 +34,7 @@ from services.ocr_service import OCRService
 from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
 from services.user_profile_service import UserProfileService
+from services.web_search_service import WebSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +137,18 @@ class ServiceContainer:
             self.serene_mind = None
             logger.info("Serene Mind Engine disabled via config (SERENE_MIND_ENABLED=false)")
 
+        # Layer 3b: Web Search (real-time temporal queries, config-gated)
+        if settings.web_search_enabled:
+            self.web_search = WebSearchService(
+                allowed_domains=settings.web_search_allowed_domains_list,
+                provider=settings.web_search_provider,
+                max_results=settings.web_search_max_results,
+                searxng_url=settings.searxng_url if settings.web_search_provider == "searxng" else None,
+            )
+        else:
+            self.web_search = None
+            logger.info("Web Search disabled via config (WEB_SEARCH_ENABLED=false)")
+
         # Layer 4: Guardrails (depends on config)
         self.guardrails = GuardrailsService()
 
@@ -194,6 +207,7 @@ class ServiceContainer:
             qdrant_service=self.qdrant,
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
+            web_search=self.web_search,
         )
         self.standard_graph = build_rag_graph(
             ollama_service=self.ollama,
@@ -201,6 +215,7 @@ class ServiceContainer:
             qdrant_service=self.qdrant,
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
+            web_search=self.web_search,
         )
         self.deep_graph = build_deep_graph(
             ollama_service=self.ollama,
@@ -208,6 +223,7 @@ class ServiceContainer:
             qdrant_service=self.qdrant,
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
+            web_search=self.web_search,
         )
         # Backward-compatible alias — defaults to standard graph
         self.rag_graph = self.standard_graph
