@@ -531,6 +531,38 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
                 if power_name.lower() not in aq:
                     missing.append(power_name)
 
+        # General sequence resolver for "after" / "next" or "before" / "previous" queries
+        if "after" in q_lower or "next" in q_lower:
+            chronological_months = [
+                "january", "february", "march", "april", "may", "june",
+                "july", "august", "september", "october", "november", "december"
+            ]
+            for idx, month in enumerate(chronological_months):
+                m_name, p_name = months_map[month]
+                if month in q_lower or p_name.lower() in q_lower or (p_name.lower().replace("power of ", "") in q_lower):
+                    next_month = chronological_months[(idx + 1) % 12]
+                    next_month_name, next_power_name = months_map[next_month]
+                    if next_month_name.lower() not in aq:
+                        missing.append(next_month_name)
+                    if next_power_name.lower() not in aq:
+                        missing.append(next_power_name)
+                    break
+        elif "before" in q_lower or "previous" in q_lower:
+            chronological_months = [
+                "january", "february", "march", "april", "may", "june",
+                "july", "august", "september", "october", "november", "december"
+            ]
+            for idx, month in enumerate(chronological_months):
+                m_name, p_name = months_map[month]
+                if month in q_lower or p_name.lower() in q_lower or (p_name.lower().replace("power of ", "") in q_lower):
+                    prev_month = chronological_months[(idx - 1) % 12]
+                    prev_month_name, prev_power_name = months_map[prev_month]
+                    if prev_month_name.lower() not in aq:
+                        missing.append(prev_month_name)
+                    if prev_power_name.lower() not in aq:
+                        missing.append(prev_power_name)
+                    break
+
     if missing:
         footer = "\n\n*(Teachings referenced: " + ", ".join(missing) + ")*"
         if footer not in answer:

@@ -174,6 +174,10 @@ class GraphState(TypedDict):
     model_provider: Optional[str]
     route_decision: Optional[str]
 
+    # Web Search (real-time temporal queries)
+    needs_web_search: bool
+    web_search_results: list[dict]
+
     # Per-node timing (R4 — structured observability)
     # Each node appends {"node_name": latency_ms} so we get full pipeline breakdown.
     # Reducer add_dicts merges timing dicts from parallel branches without overwriting.

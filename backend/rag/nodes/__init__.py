@@ -53,6 +53,7 @@ from .verification import (
     reflect_on_answer,
     verify_answer,
 )
+from .web_search import web_search_node
 
 # Placeholder module-level attributes for IDE/static analysis and direct access
 _ollama: Any = None
@@ -142,5 +143,6 @@ __all__ = [
     "rewrite_query",
     "handle_fallback",
     "settings",
+    "web_search_node",
 ]
 
