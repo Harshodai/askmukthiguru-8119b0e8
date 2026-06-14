@@ -290,6 +290,17 @@ export const ChatInterface = () => {
     };
   }, []);
 
+  // ── Esc to stop generating ───────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && streamControllerRef.current) {
+        streamControllerRef.current.abort();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // ── Textarea auto-resize ─────────────────────────────────────────
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
