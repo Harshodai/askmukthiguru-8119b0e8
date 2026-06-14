@@ -202,6 +202,8 @@ _SPIRITUAL_DOMAIN_ALLOWLIST = frozenset(
         "inner truth",
         "inner awakening",
         "universal intelligence",
+        "spiritual right action",
+        "spiritual vision",
         "lokaa foundation",
         "mukthiguru",
         "mukthi guru",
