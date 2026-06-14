@@ -945,9 +945,8 @@ export const ChatInterface = () => {
         setShowPipeline(false);
         setPipelineSteps([]);
         setShowInstantPill(false);
-        // Stop heartbeat pulse
         setPipelineHeartbeat(false);
-        // Clear stream checkpoint on completion
+        streamControllerRef.current = null;
         try {
           sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
         } catch {
