@@ -608,6 +608,10 @@ async def _prepare_user_memory(
     if not container.user_profile:
         return "", []
 
+    # Anonymous users have no persistent profile — skip all DB calls
+    if not user_id or user_id == "anonymous":
+        return "", []
+
     profile = await container.user_profile.get_or_create_profile(user_id)
     profile.total_conversations += 1
     await container.user_profile.update_profile(profile)

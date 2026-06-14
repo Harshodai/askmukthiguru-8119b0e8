@@ -223,7 +223,7 @@ class Settings(BaseSettings):
     )
     # MMR (Maximal Marginal Relevance) diversity re-ranking
     rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
-    max_tokens_per_request: int = 2000  # Maximum tokens per LLM request for cost control and speed
+    max_tokens_per_request: int = 12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
 
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True

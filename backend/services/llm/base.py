@@ -22,12 +22,39 @@ class LLMProvider(abc.ABC):
         return int(len(text.split()) * 1.3)
 
     def _enforce_token_budget(self, prompt_text: str, budget: int, node: str = "generate") -> None:
-        """Hard enforcement: raises if prompt tokens exceed budget."""
+        """Soft enforcement: warns if prompt tokens exceed budget. Only raises at 2x hard limit."""
         estimated = self._estimate_tokens(prompt_text)
+        hard_limit = budget * 2
         if estimated > budget:
-            raise ValueError(
-                f"TokenBudgetExceeded: [{node}] Estimated {estimated} tokens exceed budget {budget}."
+            import logging
+            logger = logging.getLogger("TokenBudgetGuard")
+            if estimated > hard_limit:
+                logger.error(
+                    f"TOKEN BUDGET HARD LIMIT EXCEEDED: len={len(prompt_text)}, "
+                    f"estimated={estimated}, hard_limit={hard_limit}"
+                )
+                raise ValueError(
+                    f"TokenBudgetExceeded: [{node}] Estimated {estimated} tokens exceed "
+                    f"hard limit {hard_limit}. Prompt start: {prompt_text[:200]}..."
+                )
+            logger.warning(
+                f"TOKEN BUDGET SOFT EXCEEDED [{node}]: estimated={estimated} > budget={budget}. "
+                f"Continuing — prompt will be sent as-is (within hard limit {hard_limit})."
             )
+
+    def _truncate_to_budget(self, text: str, budget: int) -> str:
+        """Truncate text to fit within the token budget using word-count proxy."""
+        if not text:
+            return text
+        words = text.split()
+        max_words = int(budget / 1.3)
+        if len(words) <= max_words:
+            return text
+        import logging
+        logging.getLogger("TokenBudgetGuard").warning(
+            f"Truncating text from {len(words)} to {max_words} words to fit budget {budget} tokens."
+        )
+        return " ".join(words[:max_words]) + "..."
 
     @abc.abstractmethod
     async def generate(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
