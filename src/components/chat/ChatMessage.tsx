@@ -429,6 +429,18 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     </button>
                     <button
+                      onClick={handleSaveToMemory}
+                      disabled={saved || savingMemory}
+                      className={`p-1 rounded-full transition-colors ${
+                        saved
+                          ? 'bg-prana/15 text-prana'
+                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                      } ${savingMemory ? 'opacity-60' : ''}`}
+                      title={saved ? 'Saved to memory' : 'Save to memory'}
+                    >
+                      <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
+                    </button>
+                    <button
                       onClick={() => setShowWisdomCard(true)}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                       title="Share as Wisdom Card"
