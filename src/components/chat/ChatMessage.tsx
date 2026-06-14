@@ -1,6 +1,6 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
@@ -9,6 +9,8 @@ import { getInitials } from '@/lib/profileStorage';
 import { submitFeedbackToBackend } from '@/lib/aiService';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { createPortal } from 'react-dom';
+import { memoryApi } from '@/lib/memoryApi';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatMessageProps {
   message: Message;
@@ -93,12 +95,15 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [savingMemory, setSavingMemory] = useState(false);
     const [feedback, setFeedback] = useState<MessageFeedback | null>(message.feedback ?? null);
     const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [feedbackComment, setFeedbackComment] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(message.content);
+    const { toast } = useToast();
 
     const handleCopy = useCallback(async () => {
       try {
@@ -107,6 +112,27 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         setTimeout(() => setCopied(false), 1500);
       } catch { /* ignore */ }
     }, [message.content]);
+
+    const handleSaveToMemory = useCallback(async () => {
+      if (saved || savingMemory) return;
+      setSavingMemory(true);
+      try {
+        // Use the user's question + a short slice of the answer as the saved fact.
+        const snippet = (queryText ? `Q: ${queryText}\nA: ` : '') + message.content.slice(0, 600);
+        await memoryApi.add(snippet);
+        setSaved(true);
+        toast({ title: 'Saved to your memory', description: 'The Guru will recall this in future conversations.' });
+      } catch (e) {
+        const err = e as { code?: string; message?: string };
+        if (err?.code === 'unauthorized') {
+          toast({ title: 'Sign in to save memories', description: 'Memory is available to signed-in seekers.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Could not save', description: err?.message ?? 'Please try again.', variant: 'destructive' });
+        }
+      } finally {
+        setSavingMemory(false);
+      }
+    }, [saved, savingMemory, queryText, message.content, toast]);
 
     const handleVote = useCallback((vote: 'up' | 'down') => {
       if (feedback) return;
@@ -401,6 +427,18 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       title={copied ? 'Copied!' : 'Copy response'}
                     >
                       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                    <button
+                      onClick={handleSaveToMemory}
+                      disabled={saved || savingMemory}
+                      className={`p-1 rounded-full transition-colors ${
+                        saved
+                          ? 'bg-prana/15 text-prana'
+                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                      } ${savingMemory ? 'opacity-60' : ''}`}
+                      title={saved ? 'Saved to memory' : 'Save to memory'}
+                    >
+                      <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
                     </button>
                     <button
                       onClick={() => setShowWisdomCard(true)}

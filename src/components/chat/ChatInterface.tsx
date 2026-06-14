@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw } from 'lucide-react';
+import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square } from 'lucide-react';
 
 const OptimisticPlaceholder = () => (
   <motion.div
@@ -239,6 +239,8 @@ export const ChatInterface = () => {
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
   const titleGenerationRef = useRef<Set<string>>(new Set());
+  /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
+  const streamControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
 
   // ── Scroll tracking ──────────────────────────────────────────────
@@ -286,6 +288,17 @@ export const ChatInterface = () => {
     return () => {
       observer.disconnect();
     };
+  }, []);
+
+  // ── Esc to stop generating ───────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && streamControllerRef.current) {
+        streamControllerRef.current.abort();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // ── Textarea auto-resize ─────────────────────────────────────────
@@ -690,6 +703,10 @@ export const ChatInterface = () => {
       try {
         const lastSereneMindAt = getLastCompletedMeditationTimestamp();
 
+        // Fresh AbortController for this turn — Stop button calls .abort().
+        const controller = new AbortController();
+        streamControllerRef.current = controller;
+
         const stream = sendMessageStreaming(
           messageHistory,
           userMessage.content,
@@ -698,6 +715,7 @@ export const ChatInterface = () => {
           currentConversation?.id,
           lastSereneMindAt,
           seekerContext || undefined,
+          controller.signal,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
@@ -900,18 +918,26 @@ export const ChatInterface = () => {
           }
         }
       } catch (streamErr) {
-        const err = streamErr as { errorCode?: string; status?: number; message?: string };
-        // Streaming failed — show toast if partial content was received
-        if (fullContent) {
+        const err = streamErr as { name?: string; errorCode?: string; status?: number; message?: string };
+        const wasAborted =
+          err?.name === 'AbortError' || streamControllerRef.current?.signal.aborted;
+        if (wasAborted) {
+          // User clicked Stop — keep whatever streamed, append a clear marker.
+          const stopped = (fullContent || '').trimEnd() + '\n\n_Stopped by you._';
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamingGuruId ? { ...m, content: stopped } : m,
+            ),
+          );
+          streamingWorked = true;
+        } else if (fullContent) {
           setMessages((prev) =>
             prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
           );
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
-          streamingWorked = true; // Keep partial content
+          streamingWorked = true;
         } else {
           const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
-          // Replace the empty streaming bubble with an inline error card so the failure
-          // is visible in the chat itself (not just a toast that can be missed).
           setMessages((prev) =>
             prev.map((m) =>
               m.id === streamingGuruId
@@ -919,7 +945,7 @@ export const ChatInterface = () => {
                 : m,
             ),
           );
-          streamingWorked = true; // Suppress the offline fallback path; the bubble already shows the error.
+          streamingWorked = true;
           chatErrorBus.publishFromMessage(msgError, streamingGuruId);
         }
       } finally {
@@ -930,9 +956,8 @@ export const ChatInterface = () => {
         setShowPipeline(false);
         setPipelineSteps([]);
         setShowInstantPill(false);
-        // Stop heartbeat pulse
         setPipelineHeartbeat(false);
-        // Clear stream checkpoint on completion
+        streamControllerRef.current = null;
         try {
           sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
         } catch {
@@ -1355,30 +1380,45 @@ return (
             </motion.div>
           )}
 
-          {/* Unified thinking indicator — single ChatGPT/Claude-style row.
-              Replaces the previous stack of instant pill + pipeline pills +
-              typing dots + first-token bubble (which rendered up to 3 at once). */}
-          <ThinkingPills
-            steps={pipelineSteps}
-            visible={
-              showInstantPill ||
-              showPipeline ||
-              isTyping ||
-              (isStreaming && streamingContent === '')
-            }
-            heartbeat={pipelineHeartbeat}
-            fallbackLabel={
-              isStreaming && streamingContent === ''
-                ? 'The Guru is reflecting on the sacred teachings…'
-                : 'Analyzing your question…'
-            }
-          />
-          {/* Slow-response reassurance — only while waiting for first token */}
-          {isStreaming && streamingContent === '' && (
-            <div className="pl-10 -mt-1">
-              <SlowResponseHint visible />
+          {/* Unified thinking indicator + Stop generating button. */}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <ThinkingPills
+                steps={pipelineSteps}
+                visible={
+                  showInstantPill ||
+                  showPipeline ||
+                  isTyping ||
+                  (isStreaming && streamingContent === '')
+                }
+                heartbeat={pipelineHeartbeat}
+                fallbackLabel={
+                  isStreaming && streamingContent === ''
+                    ? 'The Guru is reflecting on the sacred teachings…'
+                    : 'Analyzing your question…'
+                }
+              />
+              {isStreaming && streamingContent === '' && (
+                <div className="pl-10 -mt-1">
+                  <SlowResponseHint visible />
+                </div>
+              )}
             </div>
-          )}
+            {(isStreaming || isTyping || showInstantPill) && (
+              <button
+                type="button"
+                onClick={() => {
+                  streamControllerRef.current?.abort();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
+                aria-label="Stop generating"
+                title="Stop generating (Esc)"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                Stop
+              </button>
+            )}
+          </div>
 
 
 
