@@ -29,12 +29,12 @@ describe('ThinkingPills', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders nothing when steps is empty', () => {
-    const { container } = render(<ThinkingPills steps={[]} visible={true} />);
-    expect(container.innerHTML).toBe('');
+  it('renders fallback label when visible with no steps', () => {
+    render(<ThinkingPills steps={[]} visible={true} fallbackLabel="Analyzing…" />);
+    expect(screen.getByText(/Analyzing/)).toBeInTheDocument();
   });
 
-  it('shows the latest step in the collapsed pill and all steps when expanded', async () => {
+  it('shows the latest active step and reveals full list when expanded', async () => {
     const { fireEvent } = await import('@testing-library/react');
     const steps: PipelineStep[] = [
       { id: 'step-0', label: 'Safety check', status: 'done' },
@@ -42,9 +42,8 @@ describe('ThinkingPills', () => {
       { id: 'step-2', label: 'Composing', status: 'pending' },
     ];
     render(<ThinkingPills steps={steps} visible={true} />);
-    // Collapsed: latest step label is visible in the pill
-    expect(screen.getByText('Searching wisdom')).toBeInTheDocument();
-    // Expand
+    // Collapsed pill shows the active step (preceded by a · separator)
+    expect(screen.getByText(/Searching wisdom/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /toggle thinking details/i }));
     expect(screen.getByText('Safety check')).toBeInTheDocument();
     expect(screen.getByText('Composing')).toBeInTheDocument();
