@@ -94,7 +94,7 @@ async function invokeEdgeFn<T>(
   fn: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke<T>(fn, { body });
+  const { data, error } = await supabaseTyped.functions.invoke(fn, { body });
   if (error) {
     throw new MemoryApiError('server_error', error.message);
   }
