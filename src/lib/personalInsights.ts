@@ -153,13 +153,17 @@ function memoryEchoInsight(memories: GuruMemory[]): PersonalInsight | null {
   // Pick the highest-confidence non-decayed memory mentioned multiple times
   // (proxy: highest decay_score × confidence).
   const ranked = [...memories]
-    .filter((m) => m.decay_score > 0.3)
-    .sort((a, b) => b.decay_score * b.confidence - a.decay_score * a.confidence);
+    .filter((m) => (m.decay_score ?? 0) > 0.3)
+    .sort(
+      (a, b) =>
+        (b.decay_score ?? 0) * (b.confidence ?? 0) -
+        (a.decay_score ?? 0) * (a.confidence ?? 0),
+    );
   const top = ranked[0];
   if (!top) return null;
   return {
     kind: 'memory_echo',
-    text: `You once shared: "${top.claim}". Has anything shifted since?`,
+    text: `You once shared: "${top.claim ?? top.content}". Has anything shifted since?`,
     weight: 2,
   };
 }
