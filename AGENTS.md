@@ -2,6 +2,18 @@
 
 This file serves as a knowledge base for AI agents interacting with this workspace.
 
+## Plan & Review
+### Before starting work
+- Always in plan mode to make a plan.
+- After getting the plan, write the plan to `.claude/tasks/TASK_NAME.md`.
+- The plan should be a detailed implementation plan with the reasoning behind it, and tasks broken down.
+- If the task requires external knowledge or certain packages, research to get the latest knowledge (using appropriate tools).
+- Don't over-plan: always think MVP.
+- Once you write the plan, ask the user to review it. Do NOT continue until the user approves the plan.
+### While implementing
+- Update the plan file as you work.
+- After completing tasks in the plan, update and append detailed descriptions of the changes you made, so following tasks can be easily handed over to other engineers.
+
 ## Docker Execution on Host
 - **Docker Path**: The Docker binary is not in the default `/usr/local/bin` or `/opt/homebrew/bin`. It is located at `/Users/harshodaikolluru/.docker/bin/docker`.
 - **Command Prefix & Makefile Usage**: Whenever executing `docker` or `docker compose` commands, agents MUST explicitly set the PATH or use the absolute path. Alternatively, and preferably, use the workspace `Makefile` commands which automatically configure the correct PATH.

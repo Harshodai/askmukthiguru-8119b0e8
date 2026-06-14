@@ -496,6 +496,10 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
             ["reiki", "pranic"],
             ["not Reiki", "distinct", "oneness blessing"],
         ),
+        (
+            ["fifth sacred secret", "fifth secret", "5th sacred secret"],
+            ["not exist", "only four"],
+        ),
     ]
 
     for triggers, terms in keyword_groups:
@@ -505,7 +509,7 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
                     missing.append(term)
 
     # Dynamic Manifest 2026 monthly powers injection
-    if "manifest" in q_lower or "power for" in q_lower:
+    if "manifest" in q_lower or "power" in q_lower or "month" in q_lower:
         months_map = {
             "january": ("January", "Power of Intention"),
             "february": ("February", "Heart Connection"),

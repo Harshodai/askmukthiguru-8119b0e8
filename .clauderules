@@ -1,3 +1,15 @@
+# Plan & Review Rules
+### Before starting work
+- Always in plan mode to make a plan.
+- After getting the plan, write the plan to `.claude/tasks/TASK_NAME.md`.
+- The plan should be a detailed implementation plan with the reasoning behind it, and tasks broken down.
+- If the task requires external knowledge or certain packages, research to get the latest knowledge (using appropriate tools).
+- Don't over-plan: always think MVP.
+- Once you write the plan, ask the user to review it. Do NOT continue until the user approves the plan.
+### While implementing
+- Update the plan file as you work.
+- After completing tasks in the plan, update and append detailed descriptions of the changes you made, so following tasks can be easily handed over to other engineers.
+
 # ECC Skill Application Rules
 
 Before performing any development, coding, refactoring, or architectural task, you MUST check the available ECC Skills in the system and apply them. You must align your code with the clean code guidelines, Karpathy guidelines, and the specialized book/pattern skills.
