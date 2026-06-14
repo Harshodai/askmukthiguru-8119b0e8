@@ -664,6 +664,6 @@ class PipelineCoordinator:
             "answer_relevancy": 1.0,
             "context_precision": 1.0,
             "context_recall": 1.0,
-            "hallucination_flag": not result.get("is_faithful", True) if is_rag else False,
+            "hallucination_flag": not result.get("is_faithful") if (is_rag and result.get("is_faithful") is not None) else False,
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
         }

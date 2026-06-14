@@ -50,6 +50,7 @@ def build_rag_graph(
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
     serene_mind_engine: SereneMindEngine = None,
+    web_search=None,
 ) -> CompiledStateGraph:
     """
     Build and compile the complete RAG pipeline as a LangGraph.
@@ -64,6 +65,7 @@ def build_rag_graph(
         qdrant_service=qdrant_service,
         lightrag_service=lightrag_service,
         serene_mind_engine=serene_mind_engine,
+        web_search=web_search,
     )
 
 
@@ -73,6 +75,7 @@ def build_fast_graph(
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
     serene_mind_engine: SereneMindEngine = None,
+    web_search=None,
 ) -> CompiledStateGraph:
     """Fast path (Path A): 5-node pipeline for simple factual queries."""
     strategy = FastGraphStrategy()
@@ -82,6 +85,7 @@ def build_fast_graph(
         qdrant_service=qdrant_service,
         lightrag_service=lightrag_service,
         serene_mind_engine=serene_mind_engine,
+        web_search=web_search,
     )
 
 
@@ -91,6 +95,7 @@ def build_deep_graph(
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
     serene_mind_engine: SereneMindEngine = None,
+    web_search=None,
 ) -> CompiledStateGraph:
     """Deep path: full standard graph with additional verification + CoT nodes."""
     strategy = DeepGraphStrategy()
@@ -100,6 +105,7 @@ def build_deep_graph(
         qdrant_service=qdrant_service,
         lightrag_service=lightrag_service,
         serene_mind_engine=serene_mind_engine,
+        web_search=web_search,
     )
 
 
@@ -186,6 +192,9 @@ def create_initial_state(
         model_used=None,
         model_provider=None,
         route_decision=None,
+        # Web Search
+        needs_web_search=False,
+        web_search_results=[],
         # Per-node timing (R4)
         node_timings={},
         # Production AI reliability trajectory metadata

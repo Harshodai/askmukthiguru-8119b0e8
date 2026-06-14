@@ -43,7 +43,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     await emit_status(config, "Reviewing the response for clarity...")
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
-    is_faithful_strict = ld_result["score"] >= 0.8
+    is_faithful_strict = ld_result["is_faithful"]
 
     # --- Self-consistency check DISABLED (performance) ---
     # This LLM-based self-consistency block generates an alternative answer

@@ -46,11 +46,29 @@ from rag.nodes import (
     retrieve_documents,
     rewrite_query,
     route_after_grading,
-    route_by_intent,
     verify_answer,
+    web_search_node,
 )
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
+
+
+def route_after_intent(state: GraphState) -> str:
+    """Route after intent classification, checking for web search needs."""
+    intent = state.get("intent", "CASUAL")
+    needs_web_search = state.get("needs_web_search", False)
+    if intent == "DISTRESS":
+        return "distress"
+    elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
+        return "meditation"
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION"]:
+        if needs_web_search:
+            return "temporal"
+        return "query"
+    elif intent in ["ERROR"]:
+        return "casual"
+    else:
+        return "casual"
 
 if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
@@ -194,6 +212,7 @@ class StandardGraphStrategy(GraphStrategy):
             qdrant_service,
             lightrag_service,
             serene_mind_engine,
+            web_search=kwargs.get("web_search"),
         )
 
         graph = StateGraph(GraphState)
@@ -219,6 +238,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("handle_distress", handle_distress)
         graph.add_node("handle_meditation", handle_meditation)
         graph.add_node("handle_fallback", handle_fallback)
+        graph.add_node("web_search", web_search_node)
 
         # --- Entry point ---
         graph.set_entry_point("intent_router")
@@ -226,15 +246,17 @@ class StandardGraphStrategy(GraphStrategy):
         # --- Conditional edges ---
         graph.add_conditional_edges(
             "intent_router",
-            route_by_intent,
+            route_after_intent,
             {
                 "distress": "handle_distress",
                 "meditation": "handle_meditation",
                 "casual": "handle_casual",
+                "temporal": "web_search",
                 "query": "resolve_followup",
             },
         )
 
+        graph.add_edge("web_search", "resolve_followup")
         graph.add_edge("resolve_followup", "decompose_query")
         graph.add_edge("decompose_query", "navigate_knowledge_tree")
         graph.add_edge("decompose_query", "generate_hyde")
@@ -297,6 +319,7 @@ class FastGraphStrategy(GraphStrategy):
             qdrant_service,
             lightrag_service,
             serene_mind_engine,
+            web_search=kwargs.get("web_search"),
         )
 
         graph = StateGraph(GraphState)
@@ -313,21 +336,24 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_node("handle_distress", handle_distress)
         graph.add_node("handle_meditation", handle_meditation)
         graph.add_node("handle_fallback", handle_fallback)
+        graph.add_node("web_search", web_search_node)
 
         graph.set_entry_point("intent_router")
 
         graph.add_conditional_edges(
             "intent_router",
-            route_by_intent,
+            route_after_intent,
             {
                 "distress": "handle_distress",
                 "meditation": "handle_meditation",
                 "casual": "handle_casual",
+                "temporal": "web_search",
                 # Resolve follow-up skipped for fast graph to reduce latency
                 "query": "retrieve_documents",
             },
         )
 
+        graph.add_edge("web_search", "retrieve_documents")
         graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
         graph.add_edge("generate_answer", "format_final_answer")
@@ -363,6 +389,7 @@ class DeepGraphStrategy(GraphStrategy):
             qdrant_service,
             lightrag_service,
             serene_mind_engine,
+            web_search=kwargs.get("web_search"),
         )
 
         graph = StateGraph(GraphState)
@@ -390,6 +417,7 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("handle_distress", handle_distress)
         graph.add_node("handle_meditation", handle_meditation)
         graph.add_node("handle_fallback", handle_fallback)
+        graph.add_node("web_search", web_search_node)
 
         # --- Entry point ---
         graph.set_entry_point("intent_router")
@@ -397,15 +425,17 @@ class DeepGraphStrategy(GraphStrategy):
         # --- Conditional edges ---
         graph.add_conditional_edges(
             "intent_router",
-            route_by_intent,
+            route_after_intent,
             {
                 "distress": "handle_distress",
                 "meditation": "handle_meditation",
                 "casual": "handle_casual",
+                "temporal": "web_search",
                 "query": "resolve_followup",
             },
         )
 
+        graph.add_edge("web_search", "resolve_followup")
         graph.add_edge("resolve_followup", "decompose_query")
         graph.add_edge("decompose_query", "navigate_knowledge_tree")
         graph.add_edge("decompose_query", "generate_hyde")
