@@ -183,6 +183,8 @@ export async function* sendMessageStreaming(
   lastSereneMindAt?: number | null,
   /** Pre-fetched relevant memories, injected into guru-chat as seeker_context. */
   seekerContext?: string,
+  /** Optional AbortSignal — when aborted, fetch + reader exit cleanly. */
+  signal?: AbortSignal,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -222,6 +224,7 @@ export async function* sendMessageStreaming(
         ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
       },
       body: buildBody(),
+      signal,
     });
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -275,6 +278,7 @@ export async function* sendMessageStreaming(
 
   try {
     while (true) {
+      if (signal?.aborted) break;
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
