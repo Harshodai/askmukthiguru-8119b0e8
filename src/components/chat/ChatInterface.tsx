@@ -1355,110 +1355,31 @@ return (
             </motion.div>
           )}
 
-          {/* Instant thinking pill — shows immediately on submit, before backend status events */}
-          <AnimatePresence>
-            {showInstantPill && pipelineSteps.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4, transition: { duration: 0.2 } }}
-                className="group flex items-start gap-2.5 justify-start my-2"
-              >
-                {/* Avatar — identical to guru avatar in ChatMessage */}
-                <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Sparkles className="w-3 h-3 text-ojas animate-pulse" />
-                </div>
+          {/* Unified thinking indicator — single ChatGPT/Claude-style row.
+              Replaces the previous stack of instant pill + pipeline pills +
+              typing dots + first-token bubble (which rendered up to 3 at once). */}
+          <ThinkingPills
+            steps={pipelineSteps}
+            visible={
+              showInstantPill ||
+              showPipeline ||
+              isTyping ||
+              (isStreaming && streamingContent === '')
+            }
+            heartbeat={pipelineHeartbeat}
+            fallbackLabel={
+              isStreaming && streamingContent === ''
+                ? 'The Guru is reflecting on the sacred teachings…'
+                : 'Analyzing your question…'
+            }
+          />
+          {/* Slow-response reassurance — only while waiting for first token */}
+          {isStreaming && streamingContent === '' && (
+            <div className="pl-10 -mt-1">
+              <SlowResponseHint visible />
+            </div>
+          )}
 
-                {/* Instant pill with subtle pulse animation */}
-                <div className="inline-flex items-center gap-2 rounded-full border border-ojas/30 bg-ojas/5 hover:bg-ojas/10 transition-colors px-3 py-1.5 text-[12px] text-foreground/80">
-                  <motion.span
-                    className="w-2 h-2 rounded-full bg-ojas"
-                    animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                  />
-                  <span className="font-medium">Analyzing your question…</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Pipeline Visualization */}
-          <ThinkingPills steps={pipelineSteps} visible={showPipeline} heartbeat={pipelineHeartbeat} />
-
-          {/* Streaming skeleton — only show before empty guru bubble is added */}
-          <AnimatePresence>
-            {isTyping && !isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
-              <OptimisticPlaceholder />
-            )}
-          </AnimatePresence>
-
-          {/* Typing Indicator */}
-          <AnimatePresence>
-            {isTyping && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex items-start gap-3"
-              >
-                <motion.div
-                  className="w-8 h-8 rounded-full bg-ojas/20 flex items-center justify-center flex-shrink-0 border border-ojas/30"
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <div className="w-4 h-4 rounded-full bg-ojas/50" />
-                </motion.div>
-                <div className="glass-card px-4 py-3 rounded-2xl rounded-tl-sm">
-                  <div className="flex gap-1.5">
-                    {[0, 0.15, 0.3].map((delay, i) => (
-                      <motion.div
-                        key={i}
-                        animate={{
-                          y: [0, -6, 0],
-                          opacity: [0.4, 1, 0.4]
-                        }}
-                        transition={{
-                          duration: 0.8,
-                          repeat: Infinity,
-                          delay
-                        }}
-                        className="w-2 h-2 rounded-full bg-ojas"
-                      />
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Thinking / first-token indicator — shown while streaming but content hasn't arrived yet */}
-          <AnimatePresence>
-            {isStreaming && streamingContent === '' && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="flex items-start gap-3"
-              >
-                <div className="w-8 h-8 rounded-full bg-ojas/15 flex items-center justify-center flex-shrink-0 border border-ojas/25 animate-pulse">
-                  <Sparkles className="w-4 h-4 text-ojas/70" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <div className="glass-card px-4 py-2.5 rounded-2xl rounded-tl-sm">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <motion.div
-                        className="w-1.5 h-1.5 rounded-full bg-ojas/60"
-                        animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1.8, repeat: Infinity }}
-                      />
-                      <span className="italic font-serif text-foreground/70">The Guru is reflecting on the sacred teachings...</span>
-                    </div>
-                  </div>
-                  <SlowResponseHint visible={isStreaming && streamingContent === ''} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
 
           {/* Scroll anchor */}
