@@ -278,6 +278,7 @@ export async function* sendMessageStreaming(
 
   try {
     while (true) {
+      if (signal?.aborted) break;
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
