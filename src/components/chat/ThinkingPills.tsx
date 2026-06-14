@@ -1,18 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Shield,
-  Brain,
-  Search,
-  Lightbulb,
-  PenTool,
-  Sparkles,
-  Check,
-  BookOpen,
-  Circle,
-  Loader2,
-  ChevronDown,
-} from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Circle, Loader2 } from 'lucide-react';
 
 export interface PipelineStep {
   id: string;
@@ -21,169 +9,183 @@ export interface PipelineStep {
 }
 
 interface ThinkingPillsProps {
-  steps: PipelineStep[];
+  steps?: PipelineStep[];
   visible: boolean;
-  heartbeat?: boolean; // When true, pulse the active step to indicate "still processing"
+  heartbeat?: boolean;
+  /** Fallback label used before any pipeline event arrives (e.g. "Analyzing your question…"). */
+  fallbackLabel?: string;
 }
 
-interface StageConfig {
-  icon: React.ReactNode;
-  shortLabel: string;
-  color: string;
-}
-
-const STAGE_CONFIG: Record<string, StageConfig> = {
-  'Safety check': { icon: <Shield className="w-3 h-3" />, shortLabel: 'Safety', color: 'text-amber-400' },
-  Understanding: { icon: <Brain className="w-3 h-3" />, shortLabel: 'Understanding', color: 'text-ojas' },
-  'Searching wisdom': { icon: <Search className="w-3 h-3" />, shortLabel: 'Searching', color: 'text-prana' },
-  Generating: { icon: <Lightbulb className="w-3 h-3" />, shortLabel: 'Analyzing', color: 'text-teal-400' },
-  Composing: { icon: <PenTool className="w-3 h-3" />, shortLabel: 'Composing', color: 'text-indigo-400' },
-  Verifying: { icon: <Sparkles className="w-3 h-3" />, shortLabel: 'Verifying', color: 'text-ojas' },
-};
-
+/**
+ * Map a raw backend status string to a stable, short stage label.
+ * Kept exported for tests + ChatInterface.
+ */
 export const mapStatusToLabel = (raw: string): string => {
   const lower = raw.toLowerCase();
-  if (lower.includes('still processing') || lower.includes('heartbeat')) return 'heartbeat'; // Special marker for heartbeat
+  if (lower.includes('still processing') || lower.includes('heartbeat')) return 'heartbeat';
   if (lower.includes('safety') || lower.includes('message safety')) return 'Safety check';
-  if (lower.includes('understanding') || lower.includes('translating')) return 'Understanding';
-  if (lower.includes('searching') || lower.includes('knowledge base') || lower.includes('retrieving')) return 'Searching wisdom';
+  if (lower.includes('understanding') || lower.includes('translating') || lower.includes('language'))
+    return 'Understanding';
+  if (lower.includes('searching') || lower.includes('knowledge base') || lower.includes('retrieving'))
+    return 'Searching wisdom';
   if (lower.includes('generat')) return 'Generating';
   if (lower.includes('composing') || lower.includes('analyz')) return 'Composing';
   if (lower.includes('verif')) return 'Verifying';
   if (lower.includes('query received') || lower.includes('starting pipeline')) return 'Safety check';
-  if (lower.includes('translating') || lower.includes('language')) return 'Understanding';
   return 'Processing';
 };
 
 /**
- * Claude/ChatGPT/Gemini-style thinking indicator.
- * Compact, left-aligned, shares the same row geometry as guru ChatMessage
- * (avatar 28px + gap 10px). Click to expand and see the full pipeline.
+ * Single, unified ChatGPT/Claude-style thinking indicator.
+ *
+ * Shows ONE row at a time:
+ *   • guru avatar
+ *   • shimmer "Thinking" + current sub-status (instant → pipeline → still working)
+ *   • subtle chevron to expand the full pipeline checklist
+ *
+ * Replaces the previous stack of three overlapping indicators.
  */
-export const ThinkingPills = ({ steps, visible, heartbeat }: ThinkingPillsProps) => {
+export const ThinkingPills = ({
+  steps = [],
+  visible,
+  heartbeat,
+  fallbackLabel = 'Reflecting on the teachings…',
+}: ThinkingPillsProps) => {
   const [expanded, setExpanded] = useState(false);
 
-  if (!visible || steps.length === 0) return null;
+  // Elapsed seconds — gives a gentle "still working" reassurance after a while.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!visible) {
+      setElapsed(0);
+      return;
+    }
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [visible]);
 
-  // Filter out 'heartbeat' steps — they're handled via the heartbeat prop
+  if (!visible) return null;
+
   const displaySteps = steps.filter((s) => s.label !== 'heartbeat');
-  if (displaySteps.length === 0) return null;
-
-  // Prefer the currently active step; fall back to last done; else last entry.
   const activeStep = [...displaySteps].reverse().find((s) => s.status === 'active');
   const lastDone = [...displaySteps].reverse().find((s) => s.status === 'done');
   const latestStep = activeStep ?? lastDone ?? displaySteps[displaySteps.length - 1];
-  const doneCount = displaySteps.filter((s) => s.status === 'done').length;
+
+  // Choose the single line of sub-status, in priority order.
+  let subLabel = latestStep?.label ?? fallbackLabel;
+  if (heartbeat) subLabel = 'Still working on it…';
+  else if (!latestStep && elapsed >= 10) subLabel = 'Drawing from the teachings…';
+
+  const hasSteps = displaySteps.length > 0;
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4, transition: { duration: 0.2 } }}
-          className="group flex items-start gap-2.5 justify-start my-2"
-          data-testid="thinking-pills"
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4, transition: { duration: 0.2 } }}
+      className="flex items-start gap-2.5 justify-start my-2"
+      data-testid="thinking-pills"
+    >
+      {/* Guru avatar — matches ChatMessage */}
+      <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <BookOpen className="w-3 h-3 text-ojas" />
+      </div>
+
+      <div className="flex flex-col items-start gap-1 min-w-0 max-w-[85%] sm:max-w-[75%]">
+        <button
+          type="button"
+          onClick={() => hasSteps && setExpanded((v) => !v)}
+          disabled={!hasSteps}
+          className={`group inline-flex items-center gap-2 text-[13px] leading-none ${
+            hasSteps ? 'cursor-pointer' : 'cursor-default'
+          }`}
+          aria-expanded={expanded}
+          aria-label="Toggle thinking details"
         >
-          {/* Avatar — identical to guru avatar in ChatMessage */}
-          <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <BookOpen className="w-3 h-3 text-ojas" />
-          </div>
+          {/* Shimmer "Thinking" — ChatGPT-style sweeping gradient */}
+          <span className="thinking-shimmer font-serif italic text-foreground/80">Thinking</span>
 
-          {/* Compact pill column — aligns flush with assistant bubbles */}
-          <div className="flex flex-col items-start gap-1 max-w-[85%] sm:max-w-[75%] min-w-0">
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 transition-colors px-3 py-1.5 text-[12.5px] font-serif text-foreground/85"
-              aria-expanded={expanded}
-              aria-label="Toggle thinking details"
+          {/* Tiny pulsing dot — subtle activity cue */}
+          <motion.span
+            className="w-1.5 h-1.5 rounded-full bg-ojas/70"
+            animate={{ opacity: [0.35, 1, 0.35], scale: [1, 1.25, 1] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+          />
+
+          {/* Rotating sub-status */}
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={subLabel}
+              initial={{ opacity: 0, y: 3 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -3 }}
+              transition={{ duration: 0.25 }}
+              className="font-serif italic text-muted-foreground truncate max-w-[180px] sm:max-w-[260px]"
             >
-              <Loader2 className="w-3 h-3 text-ojas animate-spin" />
-              <span className="font-serif italic">Thinking</span>
-              <span className="text-muted-foreground/70">·</span>
-              <span className="text-muted-foreground font-serif italic truncate max-w-[140px] sm:max-w-[220px]">
-                {latestStep.label}
-              </span>
-              <span className="text-muted-foreground/70 text-[10px] tabular-nums font-sans">
-                {doneCount}/{Math.max(displaySteps.length, 6)}
-              </span>
-              <ChevronDown
-                className={`w-3 h-3 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
-              />
-            </button>
+              · {subLabel}
+            </motion.span>
+          </AnimatePresence>
 
-            <AnimatePresence initial={false}>
-              {expanded && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.22, ease: 'easeOut' }}
-                  className="overflow-hidden w-full"
-                >
-                  <ul className="mt-1 ml-1 border-l border-border/40 pl-3 py-1 space-y-1.5">
-                    {displaySteps.map((step) => {
-                      const isDone = step.status === 'done';
-                      const isActive = step.status === 'active';
-                      const config = STAGE_CONFIG[step.label] || {
-                        icon: <Circle className="w-3 h-3" />,
-                        shortLabel: step.label,
-                        color: 'text-muted-foreground',
-                      };
-                      // Heartbeat pulse: when heartbeat prop is true and this is the active step,
-                      // add a pulsing ring animation
-                      const showHeartbeatPulse = heartbeat && isActive;
-                      return (
-                        <li key={step.id} className="flex items-center gap-2 text-[12px] relative">
-                          {showHeartbeatPulse && (
-                            <motion.div
-                              className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-ojas/30"
-                              animate={{ scale: [1, 1.8], opacity: [0.6, 0] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
-                            />
-                          )}
-                          <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
-                            {isDone ? (
-                              <Check className="w-3 h-3 text-prana" />
-                            ) : isActive ? (
-                              <>
-                                <Loader2 className="w-3 h-3 text-ojas animate-spin" />
-                                {showHeartbeatPulse && (
-                                  <motion.div
-                                    className="absolute w-3 h-3 rounded-full bg-ojas/30"
-                                    animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-                                    transition={{ duration: 1, repeat: Infinity, delay: 0.5 }}
-                                  />
-                                )}
-                              </>
-                            ) : (
-                              <Circle className="w-2 h-2 text-muted-foreground/75" />
-                            )}
-                          </span>
-                          <span className={config.color}>{config.icon}</span>
-                          <span
-                            className={
-                              isActive
-                                ? 'text-foreground/90 font-medium'
-                                : isDone
-                                ? 'text-foreground/70'
-                                : 'text-muted-foreground'
-                            }
-                          >
-                            {step.label}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          {/* Elapsed counter — only after 5s, to avoid flicker */}
+          {elapsed >= 5 && (
+            <span className="text-[10px] tabular-nums font-sans text-muted-foreground/60">
+              {elapsed}s
+            </span>
+          )}
+
+          {hasSteps && (
+            <ChevronDown
+              className={`w-3 h-3 text-muted-foreground/60 transition-transform ${
+                expanded ? 'rotate-180' : ''
+              } group-hover:text-muted-foreground`}
+            />
+          )}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {expanded && hasSteps && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="overflow-hidden w-full"
+            >
+              <ul className="mt-1 ml-1 border-l border-border/40 pl-3 py-1 space-y-1.5">
+                {displaySteps.map((step) => {
+                  const isDone = step.status === 'done';
+                  const isActive = step.status === 'active';
+                  return (
+                    <li key={step.id} className="flex items-center gap-2 text-[12px]">
+                      <span className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
+                        {isDone ? (
+                          <Check className="w-3 h-3 text-prana" />
+                        ) : isActive ? (
+                          <Loader2 className="w-3 h-3 text-ojas animate-spin" />
+                        ) : (
+                          <Circle className="w-2 h-2 text-muted-foreground/60" />
+                        )}
+                      </span>
+                      <span
+                        className={
+                          isActive
+                            ? 'text-foreground/90 font-medium'
+                            : isDone
+                            ? 'text-foreground/65'
+                            : 'text-muted-foreground'
+                        }
+                      >
+                        {step.label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 };
 
