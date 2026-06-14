@@ -1369,30 +1369,45 @@ return (
             </motion.div>
           )}
 
-          {/* Unified thinking indicator — single ChatGPT/Claude-style row.
-              Replaces the previous stack of instant pill + pipeline pills +
-              typing dots + first-token bubble (which rendered up to 3 at once). */}
-          <ThinkingPills
-            steps={pipelineSteps}
-            visible={
-              showInstantPill ||
-              showPipeline ||
-              isTyping ||
-              (isStreaming && streamingContent === '')
-            }
-            heartbeat={pipelineHeartbeat}
-            fallbackLabel={
-              isStreaming && streamingContent === ''
-                ? 'The Guru is reflecting on the sacred teachings…'
-                : 'Analyzing your question…'
-            }
-          />
-          {/* Slow-response reassurance — only while waiting for first token */}
-          {isStreaming && streamingContent === '' && (
-            <div className="pl-10 -mt-1">
-              <SlowResponseHint visible />
+          {/* Unified thinking indicator + Stop generating button. */}
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <ThinkingPills
+                steps={pipelineSteps}
+                visible={
+                  showInstantPill ||
+                  showPipeline ||
+                  isTyping ||
+                  (isStreaming && streamingContent === '')
+                }
+                heartbeat={pipelineHeartbeat}
+                fallbackLabel={
+                  isStreaming && streamingContent === ''
+                    ? 'The Guru is reflecting on the sacred teachings…'
+                    : 'Analyzing your question…'
+                }
+              />
+              {isStreaming && streamingContent === '' && (
+                <div className="pl-10 -mt-1">
+                  <SlowResponseHint visible />
+                </div>
+              )}
             </div>
-          )}
+            {(isStreaming || isTyping || showInstantPill) && (
+              <button
+                type="button"
+                onClick={() => {
+                  streamControllerRef.current?.abort();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
+                aria-label="Stop generating"
+                title="Stop generating (Esc)"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                Stop
+              </button>
+            )}
+          </div>
 
 
 
