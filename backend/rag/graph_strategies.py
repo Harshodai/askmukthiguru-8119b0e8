@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from langgraph.graph import END, StateGraph
 
+from app.config import settings
 from rag.nodes import (
     check_context_sufficiency,
     check_contradiction,
@@ -105,6 +106,9 @@ async def lightweight_verify(state: GraphState) -> dict:
             "parietal", "frontal lobe", "golden light", "beautiful state",
             "suffering state", "surrender", "consciousness", "meditation",
             "karma", "dharma", "moksha", "atma", "brahman",
+            "manifest 2026", "heart connection", "feminine energies",
+            "power of intention", "power of health", "family connection",
+            "self-love", "karma cleansing", "letting go", "gratitude", "rebirth",
         }
         if any(term in answer.lower() for term in doctrine_terms):
             is_faithful = True
@@ -135,7 +139,8 @@ async def lightweight_verify(state: GraphState) -> dict:
 def _route_after_reflection(state: GraphState) -> str:
     """Route after self-reflection."""
     if state.get("needs_correction"):
-        if state.get("rewrite_count", 0) >= 3:
+        max_rewrites = getattr(settings, "rag_max_rewrites", 2)
+        if state.get("rewrite_count", 0) >= max_rewrites:
             return "fallback"
         return "rewrite"
     return "verify"
@@ -143,7 +148,7 @@ def _route_after_reflection(state: GraphState) -> str:
 
 def _map_docs_to_relevant(state: GraphState) -> dict:
     """Bridge node: maps retrieved documents → relevant_docs for fast path."""
-    return {"relevant_docs": state.get("documents", [])}
+    return {"relevant_docs": state.get("documents", [])[:5]}
 
 
 class GraphStrategy(abc.ABC):

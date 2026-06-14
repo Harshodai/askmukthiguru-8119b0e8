@@ -52,7 +52,9 @@ This builds and starts **all 6 services**:
  | http://localhost/static-chat | Lightweight chat widget — Auth-protected |
  | http://localhost/static-ingest | Content ingestion portal — Admin-only |
  | http://localhost:8000/api/health | Backend health check |
+ | http://localhost:7474 | Neo4j Browser (Knowledge Graph UI). **Troubleshooting Note**: If accessing Neo4j UI behind HTTPS/reverse proxies, standard browsers will block unencrypted WebSocket connections to `bolt://localhost:7687` (Mixed Content). You must either access the UI via plain HTTP (`http://`), configure SSL for Bolt (`bolt+s://` / `neo4j+s://`), or run Neo4j Browser locally. Also, `localhost` in the connection box refers to the *browser client's* machine; use the actual database server IP/hostname if connecting remotely. |
  | http://localhost:16686 | Jaeger trace explorer |
+
 
  ### 6. Database Setup (Supabase)
 

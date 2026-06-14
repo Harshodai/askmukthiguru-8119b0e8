@@ -374,18 +374,33 @@ def strip_cot(text: str) -> str:
         if cleaned == prev:
             break  # stable — no more changes
 
+    # Split into paragraphs and filter out any paragraph that starts with a reasoning marker
+    paragraphs = cleaned.split("\n\n")
+    filtered_paragraphs = []
+    for para in paragraphs:
+        para_strip = para.strip()
+        if not para_strip:
+            continue
+        para_lower = para_strip.lower()
+        normalized_para = re.sub(r"^[\s\d.*#_()\[\]-]+", "", para_lower)
+        
+        is_reasoning = False
+        for marker in _SARVAM_REASONING_MARKERS:
+            if normalized_para.startswith(marker):
+                is_reasoning = True
+                break
+        
+        if not is_reasoning:
+            filtered_paragraphs.append(para_strip)
+            
+    cleaned = "\n\n".join(filtered_paragraphs)
+
     cleaned_lower = cleaned.lower()
     for marker in _SARVAM_REASONING_MARKERS:
         idx = cleaned_lower.find(marker)
         if idx != -1 and idx > 100:
             cleaned = cleaned[:idx].strip()
             cleaned_lower = cleaned.lower()
-
-    # Also catch markers that appear near the START of the response (full leak)
-    for marker in _SARVAM_REASONING_MARKERS:
-        if cleaned_lower.startswith(marker):
-            cleaned = ""
-            break
 
     for marker in ["Final answer:", "Answer:", "Mukthi Guru:"]:
         idx = cleaned.lower().find(marker.lower())
