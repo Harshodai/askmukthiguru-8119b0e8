@@ -155,17 +155,21 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         baseline_tokens += int(len(memory_context.split()) * 1.3)
     max_context_tokens = max(1000, max_budget - baseline_tokens)
 
+    logger.info(f"BUDGET DEBUG: max_budget={max_budget}, baseline_tokens={baseline_tokens}, max_context_tokens={max_context_tokens}, original_docs_count={len(relevant_docs)}")
 
     truncated_docs = []
     current_context_tokens = 0
-    for doc in relevant_docs:
+    for idx, doc in enumerate(relevant_docs):
         doc_str = f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc.get('text', '')}"
         doc_tokens = int(len(doc_str.split()) * 1.3)
+        logger.info(f"BUDGET DEBUG: doc[{idx}] tokens={doc_tokens}, current_sum={current_context_tokens}, text_len={len(doc.get('text', ''))}")
         if current_context_tokens + doc_tokens > max_context_tokens:
+            logger.info(f"BUDGET DEBUG: doc[{idx}] exceeds remaining context budget {max_context_tokens - current_context_tokens}")
             if not truncated_docs:
                 truncated_text = doc.get("text", "")
                 words = truncated_text.split()
                 allowed_words = int((max_context_tokens - current_context_tokens) / 1.3)
+                logger.info(f"BUDGET DEBUG: truncating first doc to allowed_words={allowed_words}")
                 if allowed_words > 10:
                     truncated_text = " ".join(words[:allowed_words]) + "..."
                     doc_copy = dict(doc)
@@ -176,6 +180,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         current_context_tokens += doc_tokens
 
     relevant_docs = truncated_docs
+    logger.info(f"BUDGET DEBUG: final truncated docs count={len(relevant_docs)}, current_context_tokens={current_context_tokens}")
 
     if len(relevant_docs) > 0:
         total_raw_len = sum(len(doc.get("text", "")) for doc in relevant_docs)
