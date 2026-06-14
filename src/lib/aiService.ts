@@ -224,6 +224,7 @@ export async function* sendMessageStreaming(
         ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
       },
       body: buildBody(),
+      signal,
     });
 
   const { data: { session } } = await supabase.auth.getSession();
