@@ -183,6 +183,8 @@ export async function* sendMessageStreaming(
   lastSereneMindAt?: number | null,
   /** Pre-fetched relevant memories, injected into guru-chat as seeker_context. */
   seekerContext?: string,
+  /** Optional AbortSignal — when aborted, fetch + reader exit cleanly. */
+  signal?: AbortSignal,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
