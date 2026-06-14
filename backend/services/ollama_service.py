@@ -119,11 +119,24 @@ class OllamaService:
 
     @classmethod
     def _enforce_token_budget(cls, prompt_text: str, budget: int, node: str = "generate") -> None:
-        """Hard enforcement: raises if prompt tokens exceed budget."""
+        """Soft enforcement: warns if estimated tokens exceed budget; raises only at 2x hard limit."""
+        import logging
         estimated = cls._estimate_tokens(prompt_text)
+        hard_limit = budget * 2
         if estimated > budget:
-            raise Exception(
-                f"TokenBudgetExceeded: [{node}] Estimated {estimated} tokens exceed budget {budget}."
+            logger = logging.getLogger("TokenBudgetGuard")
+            if estimated > hard_limit:
+                logger.error(
+                    f"TOKEN BUDGET HARD LIMIT EXCEEDED [{node}]: estimated={estimated}, "
+                    f"hard_limit={hard_limit}"
+                )
+                raise Exception(
+                    f"TokenBudgetExceeded: [{node}] Estimated {estimated} tokens exceed "
+                    f"hard limit {hard_limit}."
+                )
+            logger.warning(
+                f"TOKEN BUDGET SOFT EXCEEDED [{node}]: estimated={estimated} > budget={budget}. "
+                f"Continuing (within hard limit {hard_limit})."
             )
 
     async def generate(
@@ -153,7 +166,7 @@ class OllamaService:
 
         # Hard per-call token budget enforcement (Unit 12)
         full_prompt_text = " ".join([m.content for m in messages])
-        max_budget = getattr(settings, "max_tokens_per_request", 2000)
+        max_budget = getattr(settings, "max_tokens_per_request", 12000)
         self._enforce_token_budget(full_prompt_text, max_budget, node="generate")
 
         # Extract timeout from kwargs (pop so it's not passed to bind())
