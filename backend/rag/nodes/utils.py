@@ -81,7 +81,9 @@ _COT_PATTERNS = [
     r"(?im)^\s*(?:Note|Checklist|Verification|Important):.*$",
     # Catch numbered bold lists of reasoning steps (e.g. 1. **Analyze...** or 1. **Deconstruct...**)
     # Applied iteratively in strip_cot so sequential steps like "2. **Initial Scan**" are all removed.
-    r"(?im)^\s*\d+[\s.)]+(?:\*\*)?(?:Analyze|Scan|Initial Scan|Formulate|Draft|Evaluate|Check|Verify|Review|Identify|Translate|Filter|Retrieve|Select|Generate|Output|Synthesize|Compare|Determine|Process|Resolve|Find|Cite|Locate|Deconstruct|Read|Parse|Extract|Consider|Assess)\b.*?(?=\n\s*\d+|\n\n(?![*\s])|\Z)",
+    r"(?im)^\s*\d+[\s.)]+(?:\*\*)?(?:Analyze|Scan|Initial Scan|Formulate|Draft|Evaluate|Check|Verify|Review|Identify|Translate|Filter|Retrieve|Select|Generate|Output|Synthesize|Compare|Determine|Process|Resolve|Find|Cite|Locate|Deconstruct|Read|Parse|Extract|Consider|Assess|Start|Address|Keep|Explain|Write|Answer|State|Structure)\b.*?(?=\n\s*\d+|\n\n(?![*\s])|\Z)",
+    # Catch lines starting with bullets or drafts reasoning about rules
+    r"(?im)^\s*\*?\s*(?:Draft|This seems|Let's|Final check|Start with|Address|Keep it|Drafting)\b.*$",
 ]
 
 # Markers that signal start of Sarvam's internal reasoning monologue
