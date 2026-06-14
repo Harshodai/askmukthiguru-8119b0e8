@@ -448,3 +448,25 @@
     transform: perspective(1000px) rotateX(5deg) rotateY(5deg);
   }
 }
+
+/* ── ChatGPT-style shimmer for thinking indicator ───────────────────── */
+@keyframes thinking-shimmer-sweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.thinking-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--foreground) / 0.45) 0%,
+    hsl(var(--foreground) / 0.45) 35%,
+    hsl(var(--foreground) / 0.95) 50%,
+    hsl(var(--foreground) / 0.45) 65%,
+    hsl(var(--foreground) / 0.45) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: thinking-shimmer-sweep 2.4s linear infinite;
+}
