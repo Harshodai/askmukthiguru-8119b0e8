@@ -9,7 +9,12 @@
  * touches an embedding model directly.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseTyped } from '@/integrations/supabase/client';
+
+// Generated Supabase types don't yet include the guru_* memory tables.
+// Cast to `any` for those queries — RLS still enforces auth/row scoping.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabase = supabaseTyped as any;
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -19,6 +24,10 @@ export interface GuruMemory {
   content: string;
   source: 'extracted' | 'explicit';
   created_at: string;
+  /** Optional enrichment fields written by some pipelines; not always present. */
+  claim?: string;
+  decay_score?: number;
+  confidence?: number;
 }
 
 export interface CoreMemory {
