@@ -907,18 +907,26 @@ export const ChatInterface = () => {
           }
         }
       } catch (streamErr) {
-        const err = streamErr as { errorCode?: string; status?: number; message?: string };
-        // Streaming failed — show toast if partial content was received
-        if (fullContent) {
+        const err = streamErr as { name?: string; errorCode?: string; status?: number; message?: string };
+        const wasAborted =
+          err?.name === 'AbortError' || streamControllerRef.current?.signal.aborted;
+        if (wasAborted) {
+          // User clicked Stop — keep whatever streamed, append a clear marker.
+          const stopped = (fullContent || '').trimEnd() + '\n\n_Stopped by you._';
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamingGuruId ? { ...m, content: stopped } : m,
+            ),
+          );
+          streamingWorked = true;
+        } else if (fullContent) {
           setMessages((prev) =>
             prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent } : m))
           );
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
-          streamingWorked = true; // Keep partial content
+          streamingWorked = true;
         } else {
           const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
-          // Replace the empty streaming bubble with an inline error card so the failure
-          // is visible in the chat itself (not just a toast that can be missed).
           setMessages((prev) =>
             prev.map((m) =>
               m.id === streamingGuruId
@@ -926,7 +934,7 @@ export const ChatInterface = () => {
                 : m,
             ),
           );
-          streamingWorked = true; // Suppress the offline fallback path; the bubble already shows the error.
+          streamingWorked = true;
           chatErrorBus.publishFromMessage(msgError, streamingGuruId);
         }
       } finally {
