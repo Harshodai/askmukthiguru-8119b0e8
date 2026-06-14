@@ -95,12 +95,15 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [savingMemory, setSavingMemory] = useState(false);
     const [feedback, setFeedback] = useState<MessageFeedback | null>(message.feedback ?? null);
     const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [feedbackComment, setFeedbackComment] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(message.content);
+    const { toast } = useToast();
 
     const handleCopy = useCallback(async () => {
       try {
@@ -109,6 +112,27 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         setTimeout(() => setCopied(false), 1500);
       } catch { /* ignore */ }
     }, [message.content]);
+
+    const handleSaveToMemory = useCallback(async () => {
+      if (saved || savingMemory) return;
+      setSavingMemory(true);
+      try {
+        // Use the user's question + a short slice of the answer as the saved fact.
+        const snippet = (queryText ? `Q: ${queryText}\nA: ` : '') + message.content.slice(0, 600);
+        await memoryApi.add(snippet);
+        setSaved(true);
+        toast({ title: 'Saved to your memory', description: 'The Guru will recall this in future conversations.' });
+      } catch (e) {
+        const err = e as { code?: string; message?: string };
+        if (err?.code === 'unauthorized') {
+          toast({ title: 'Sign in to save memories', description: 'Memory is available to signed-in seekers.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Could not save', description: err?.message ?? 'Please try again.', variant: 'destructive' });
+        }
+      } finally {
+        setSavingMemory(false);
+      }
+    }, [saved, savingMemory, queryText, message.content, toast]);
 
     const handleVote = useCallback((vote: 'up' | 'down') => {
       if (feedback) return;
