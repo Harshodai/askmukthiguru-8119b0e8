@@ -442,6 +442,8 @@ class OpenRouterService:
                 max_retries=1,
             )
             # Clean up the response in case model returns markdown code block
+            if not resp:
+                raise ValueError("_generate_fast returned None or empty string")
             resp_clean = resp.strip()
             if resp_clean.startswith("```"):
                 # strip markdown blocks if any

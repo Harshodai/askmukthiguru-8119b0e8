@@ -278,7 +278,7 @@ class SemanticCacheAdapter(ICacheRepository):
         if qdrant_path:
             self._qdrant = QdrantClient(path=qdrant_path)
         else:
-            self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
+            self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False, timeout=60.0)
         self._embedder = embedding_service
         self._ttl = ttl if ttl is not None else getattr(settings, "semantic_cache_ttl", _CACHE_TTL)
         self._collection = f"mukthi_semantic_cache_{settings.embedding_dimension}d"
@@ -314,8 +314,15 @@ class SemanticCacheAdapter(ICacheRepository):
 
     def get(self, query: str) -> Optional[dict]:
         """Look up a cached response semantically."""
-        # Encode query
-        emb = self._embedder.encode_single(query)
+        # Split language prefix if present, and embed using encode_single_full
+        parts = query.split(":", 1)
+        if len(parts) == 2 and len(parts[0]) <= 5:
+            lang, raw_query = parts[0], parts[1]
+        else:
+            lang, raw_query = "en", query
+
+        emb_dict = self._embedder.encode_single_full(raw_query)
+        emb = emb_dict["dense"]
 
         try:
             # Search Qdrant
@@ -354,7 +361,15 @@ class SemanticCacheAdapter(ICacheRepository):
     ) -> None:
         """Store a response semantically."""
         point_id = self._make_id(query)
-        emb = self._embedder.encode_single(query)
+        
+        parts = query.split(":", 1)
+        if len(parts) == 2 and len(parts[0]) <= 5:
+            lang, raw_query = parts[0], parts[1]
+        else:
+            lang, raw_query = "en", query
+
+        emb_dict = self._embedder.encode_single_full(raw_query)
+        emb = emb_dict["dense"]
 
         payload = {
             "response": response,
