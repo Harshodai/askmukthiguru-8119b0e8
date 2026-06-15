@@ -191,7 +191,10 @@ class Settings(BaseSettings):
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
     # --- Auth & Rate Limiting ---
-    is_production: bool = False
+    # Default to PRODUCTION (secure-by-default). Override with IS_PRODUCTION=false for local dev only.
+    is_production: bool = True
+    # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
+    enable_test_auth: bool = False
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
     supabase_jwt_audience: str = "authenticated"
     benchmark_secret: Optional[str] = None
