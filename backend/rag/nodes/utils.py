@@ -537,3 +537,34 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
         logger.error(f"NodeContractError: missing required keys: {missing}")
         return {"error": f"NodeContractError: missing required keys: {missing}"}
     return None
+
+
+def enforce_source_diversity(citations: list, min_distinct: int = 2) -> list:
+    """Reject responses whose top-3 citations all come from the same source video."""
+    if not citations:
+        return citations
+    top = citations[:3]
+    sources = set()
+    for c in top:
+        if isinstance(c, dict):
+            val = c.get("source_id") or c.get("video_id") or c.get("url") or c.get("source_url")
+            if val:
+                sources.add(val)
+        elif isinstance(c, str):
+            sources.add(c)
+            
+    if len([s for s in sources if s]) < min_distinct:
+        # promote the next citation from a different source
+        for idx, c in enumerate(citations[3:], start=3):
+            if isinstance(c, dict):
+                sid = c.get("source_id") or c.get("video_id") or c.get("url") or c.get("source_url")
+            elif isinstance(c, str):
+                sid = c
+            else:
+                sid = None
+                
+            if sid and sid not in sources:
+                # promote the citation to the top-3 (at index 2)
+                citations.insert(2, citations.pop(idx))
+                break
+    return citations

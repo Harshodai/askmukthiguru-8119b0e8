@@ -17,6 +17,7 @@ The /api/chat endpoint orchestrates the full flow:
 
 import asyncio
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 from dataclasses import asdict
