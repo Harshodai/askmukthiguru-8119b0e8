@@ -1,0 +1,62 @@
+{
+  "version": "1.0",
+  "description": "Golden disciple questions for AskMukthiGuru. Expand to 50-100 entries before enforcing the gate.",
+  "items": [
+    {
+      "id": "bs-001",
+      "question": "What is the Beautiful State?",
+      "expected_concepts": ["calm", "joy", "connection", "inner peace"],
+      "tier": "tier2_simple",
+      "tags": ["core", "beautiful-state"]
+    },
+    {
+      "id": "bs-002",
+      "question": "How is the Beautiful State different from the Suffering State?",
+      "expected_concepts": ["suffering state", "internal noise", "stress", "transition"],
+      "tier": "tier3_deep",
+      "tags": ["core", "beautiful-state"]
+    },
+    {
+      "id": "sm-001",
+      "question": "What is Serene Mind meditation?",
+      "expected_concepts": ["soles of the feet", "breath", "3 minutes", "calm"],
+      "tier": "tier2_simple",
+      "tags": ["meditation", "serene-mind"]
+    },
+    {
+      "id": "rel-001",
+      "question": "How do Sri Preethaji and Sri Krishnaji approach difficult relationships?",
+      "expected_concepts": ["compassion", "self-awareness", "wounded child", "responsibility"],
+      "tier": "tier3_deep",
+      "tags": ["relationships"]
+    },
+    {
+      "id": "sf-001",
+      "question": "Why do we suffer according to the teachings?",
+      "expected_concepts": ["self-obsession", "disconnection", "internal noise"],
+      "tier": "tier3_deep",
+      "tags": ["suffering"]
+    },
+    {
+      "id": "med-001",
+      "question": "How long should I meditate as a beginner?",
+      "expected_concepts": ["3 minutes", "daily", "consistency"],
+      "tier": "tier1_factual",
+      "tags": ["meditation", "beginner"]
+    },
+    {
+      "id": "found-001",
+      "question": "Who founded the O&O Academy?",
+      "expected_concepts": ["Sri Preethaji", "Sri Krishnaji"],
+      "tier": "tier1_factual",
+      "tags": ["foundational"]
+    },
+    {
+      "id": "deeksha-001",
+      "question": "What is Deeksha?",
+      "expected_concepts": ["energy transfer", "blessing", "neurobiological"],
+      "tier": "tier2_simple",
+      "tags": ["practices", "deeksha"]
+    }
+  ]
+}
