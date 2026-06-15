@@ -146,6 +146,7 @@ import { LanguageSelector, LANGUAGES } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
+import { ChatEmptyState } from './ChatEmptyState';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -1354,8 +1355,14 @@ return (
               transition={{ delay: 0.4 }}
               className="space-y-4 pt-4"
             >
-              {/* Compact daily teaching banner */}
-              {dailyTeaching && dailyTeaching.caption && (
+              {/* Empty-state cards: resume last + today's teaching */}
+              <ChatEmptyState
+                currentConversationId={currentConversation?.id}
+                onResume={handleSelectConversation}
+                onOpenTeaching={() => setShowDailyTeaching?.(true)}
+              />
+              {/* Compact daily teaching banner (legacy fallback if cards hidden) */}
+              {dailyTeaching && dailyTeaching.caption && false && (
                 <div className="mx-auto max-w-md rounded-xl border border-ojas/20 bg-ojas/5 backdrop-blur-sm p-4 flex items-start gap-3">
                   <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5 animate-pulse" />
                   <div className="min-w-0">
