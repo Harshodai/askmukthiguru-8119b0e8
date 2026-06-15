@@ -1822,4 +1822,16 @@ The LLM response for web search and general queries often includes raw URLs and 
   2. Mocking third-party packages must account for multi-wrapper alternatives (e.g. `ddgs` vs `duckduckgo_search`) to ensure hermetic and fast test execution.
 
 
+### 127. Memory Extraction Robustness, Test Syncing, and Secret Push Protection
 
+- **Problem**:
+  - **Instructor Failures**: The `instructor` library frequently failed when using smaller models (e.g. llama-3.2-3b) because they returned schemas or formatting code rather than structured Pydantic models, causing upstream memory timeouts.
+  - **Test Desynchronization**: Rewriting the service class constructor/methods to bypass `instructor` broke existing unit tests that mocked `instructor.from_openai` and the old completions payload.
+  - **Push Blocked by Secrets**: GitHub push protection blocked local branch pushes because of an API key committed in the intermediate git history, despite being cleaned up in the next commit.
+- **Solution**:
+  - **JSON Extraction**: Switched `MemoryService` to a direct JSON prompt format with manual Markdown codeblock cleaning, raising the timeout threshold to 50s.
+  - **Mock Alignment**: Updated `test_memory_service.py` to directly mock the `AsyncOpenAI` client completions call with a raw JSON string payload rather than Pydantic objects.
+  - **Soft Git Reset**: Executed `git reset --soft origin/main` to collapse the local commit history, validated that the staged environment files were clean of secrets, committed a single consolidated conventional commit, and pushed.
+- **Lesson learned**:
+  - 1. Direct JSON prompts combined with structured regex cleaning are more resilient than strict schema-enforced frameworks on small/distilled models.
+  - 2. Secret scanners analyze full commit history. To clean accidentally committed credentials, rewrite the history (e.g., via soft reset or rebase) rather than pushing a second commit that deletes the secret.
