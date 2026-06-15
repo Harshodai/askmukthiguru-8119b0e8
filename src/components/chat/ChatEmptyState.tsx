@@ -72,7 +72,7 @@ export const ChatEmptyState = ({
             </span>
           </div>
           <p className="text-sm text-foreground/85 font-serif line-clamp-2 leading-snug">
-            {lastConvo.preview || lastConvo.title || 'Resume your last conversation'}
+            {lastConvo.preview || 'Resume your last conversation'}
           </p>
           <div className="flex items-center gap-1 mt-2 text-xs text-ojas/80 group-hover:text-ojas">
             Resume <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
