@@ -57,26 +57,82 @@ class ChatStreamRequestOrchestrator:
                 yield f"event: error\ndata: {msg}\n\n"
             return StreamingResponse(_too_long(), media_type="text/event-stream")
 
-        # Delegate to coordinator for full pipeline
-        result = await self.coordinator.execute(
-            user_msg=user_msg,
-            preferred_lang=preferred_lang,
-            chat_body=chat_body,
-            meditation_step=chat_body.meditation_step,
-            session_id=chat_body.session_id,
-            user=user,
-            is_benchmark=is_benchmark,
-        )
-
-        # Log telemetry in background
+        # Create an asyncio.Queue to receive streaming events
+        stream_queue = asyncio.Queue()
         session_id = normalize_session_id(chat_body.session_id, user_id)
-        background_tasks.add_task(
-            self._log_telemetry, result, user_id, session_id, user_msg
+
+        # Run execute as a background task
+        pipeline_task = asyncio.create_task(
+            self.coordinator.execute(
+                user_msg=user_msg,
+                preferred_lang=preferred_lang,
+                chat_body=chat_body,
+                meditation_step=chat_body.meditation_step,
+                session_id=chat_body.session_id,
+                user=user,
+                is_benchmark=is_benchmark,
+                stream_queue=stream_queue,
+            )
         )
 
         # Stream result as SSE
         async def _sse():
-            yield "event: status\ndata: Query received, starting pipeline…\n\n"
+            tokens_streamed = 0
+            try:
+                yield "event: status\ndata: Query received, starting pipeline…\n\n"
+
+                while True:
+                    if pipeline_task.done() and stream_queue.empty():
+                        break
+
+                    try:
+                        if pipeline_task.done():
+                            item = stream_queue.get_nowait()
+                        else:
+                            get_task = asyncio.create_task(stream_queue.get())
+                            done, pending = await asyncio.wait(
+                                [pipeline_task, get_task],
+                                return_when=asyncio.FIRST_COMPLETED
+                            )
+                            if get_task in done:
+                                item = get_task.result()
+                            else:
+                                get_task.cancel()
+                                try:
+                                    await get_task
+                                except asyncio.CancelledError:
+                                    pass
+                                if stream_queue.empty():
+                                    break
+                                item = stream_queue.get_nowait()
+                    except (asyncio.QueueEmpty, ValueError):
+                        break
+
+                    # Process streaming item
+                    if isinstance(item, dict):
+                        event_type = item.get("event", "status")
+                        event_data = item.get("data", "")
+                        yield f"event: {event_type}\ndata: {event_data}\n\n"
+                    elif isinstance(item, str):
+                        tokens_streamed += len(item)
+                        escaped = item.replace("\n", "\\n")
+                        yield f"event: token\ndata: {escaped}\n\n"
+
+                # Pipeline task completed
+                result = await pipeline_task
+            except Exception as e:
+                logger.error(f"Pipeline execution failed: {e}")
+                yield f"event: error\ndata: Internal server error\n\n"
+                return
+            finally:
+                if not pipeline_task.done():
+                    pipeline_task.cancel()
+                    try:
+                        await pipeline_task
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception:
+                        pass
 
             # If blocked, emit only done
             if result.blocked:
@@ -89,13 +145,14 @@ class ChatStreamRequestOrchestrator:
                 yield f"event: done\ndata: {meta}\n\n"
                 return
 
-            # Stream answer in chunks
-            final = result.final_answer
-            for i in range(0, len(final), 20):
-                chunk = final[i : i + 20]
-                escaped = chunk.replace("\n", "\\n")
-                yield f"event: token\ndata: {escaped}\n\n"
-                await asyncio.sleep(0.01)
+            # Simulate streaming if no real-time tokens were received (e.g. cache hit)
+            if tokens_streamed == 0:
+                final = result.final_answer
+                for i in range(0, len(final), 20):
+                    chunk = final[i : i + 20]
+                    escaped = chunk.replace("\n", "\\n")
+                    yield f"event: token\ndata: {escaped}\n\n"
+                    await asyncio.sleep(0.01)
 
             # Done event with metadata
             meta = json.dumps({
@@ -114,6 +171,11 @@ class ChatStreamRequestOrchestrator:
                 "hallucination_flag": result.hallucination_flag,
             })
             yield f"event: done\ndata: {meta}\n\n"
+
+            # Log telemetry in background
+            background_tasks.add_task(
+                self._log_telemetry, result, user_id, session_id, user_msg
+            )
 
         return StreamingResponse(_sse(), media_type="text/event-stream")
 

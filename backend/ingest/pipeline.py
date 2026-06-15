@@ -217,6 +217,19 @@ class IngestionPipeline:
         Ingest raw text directly, bypassing any fetching/loaders.
         Useful for migrations or re-processing existing data.
         """
+        import hashlib
+        content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+        checkpoint = IngestionCheckpoint()
+        if checkpoint.is_processed(content_hash):
+            self._notify(on_progress, "Content already processed. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Content already processed. Skipped.",
+            }
+
         self._notify(on_progress, "Starting raw text processing...", 0.1)
 
         # Step 1: Clean
@@ -273,6 +286,7 @@ class IngestionPipeline:
             self._notify(on_progress, "Extracting knowledge graph...", 0.95)
             await self._lightrag.ainsert(clean_text)
 
+        checkpoint.save(content_hash)
         self._notify(on_progress, "Complete!", 1.0)
         return {
             "status": "success",
@@ -306,6 +320,19 @@ class IngestionPipeline:
             }
 
         raw_text = result["text"]
+
+        import hashlib
+        content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        checkpoint = IngestionCheckpoint()
+        if checkpoint.is_processed(content_hash):
+            self._notify(on_progress, "Video content already processed. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Content already processed. Skipped.",
+            }
 
         # Step 1.2: Correct Transcript (Council Recommendation)
         # We correct BEFORE auditing to ensure the auditor sees high-quality text.
@@ -394,6 +421,7 @@ class IngestionPipeline:
             self._notify(on_progress, "Extracting knowledge graph (LightRAG)...", 0.9)
             await self._lightrag.ainsert(clean_text)
 
+        checkpoint.save(content_hash)
         self._notify(on_progress, "Complete!", 1.0)
         return {
             "status": "success",
@@ -425,6 +453,19 @@ class IngestionPipeline:
             return {"status": "error", "message": "Extraction failed", "source_url": url}
 
         raw_text = result["text"]
+
+        import hashlib
+        content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        checkpoint = IngestionCheckpoint()
+        if checkpoint.is_processed(content_hash):
+            self._notify(on_progress, "Video content already processed. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Content already processed. Skipped.",
+            }
 
         # Step 1.2: Correct Transcript (Council Recommendation)
         self._notify(on_progress, "Correcting transcript (LLM)...", 0.3)
@@ -522,6 +563,7 @@ class IngestionPipeline:
         if self._lightrag:
             await self._lightrag.ainsert(clean_text)
 
+        checkpoint.save(content_hash)
         self._notify(on_progress, "Enhanced ingestion complete!", 1.0)
         return {
             "status": "success",
@@ -815,28 +857,34 @@ class IngestionPipeline:
         Returns: (child_texts, child_metadatas) where metadatas contain parent mapping.
         """
         import uuid
+        import re
 
-        # 1. Split into large parent chunks (e.g., 1500 chars)
-        parent_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,
-            chunk_overlap=200,
-            length_function=len,
-        )
-        parent_chunks = parent_splitter.split_text(text)
-
-        # 2. Split into small child chunks (e.g., 400 chars)
-        child_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=400,
-            chunk_overlap=50,
-            length_function=len,
-        )
+        # 1. Split into parent chunks using semantic splitting
+        parent_chunks = self._semantic_split(text)
 
         all_child_texts = []
         all_child_metadatas = []
 
         for parent_text in parent_chunks:
             parent_id = str(uuid.uuid4())
-            children = child_splitter.split_text(parent_text)
+
+            # 2. Split parent_text into child chunks strictly at sentence boundaries (~400 chars target)
+            sentences = re.split(r"(?<=[.!?]) +", parent_text)
+            children = []
+            current_child_sentences = []
+            current_len = 0
+
+            for sentence in sentences:
+                sentence_len = len(sentence)
+                if current_len + sentence_len > 400 and current_child_sentences:
+                    children.append(" ".join(current_child_sentences))
+                    current_child_sentences = [sentence]
+                    current_len = sentence_len
+                else:
+                    current_child_sentences.append(sentence)
+                    current_len += sentence_len + (1 if current_child_sentences else 0)
+            if current_child_sentences:
+                children.append(" ".join(current_child_sentences))
 
             for child in children:
                 # Add context headers to the child

@@ -264,7 +264,7 @@ class SemanticCacheAdapter(ICacheRepository):
         qdrant_url: str = None,
         qdrant_path: str = None,
         redis_url: str = None,
-        ttl: int = _CACHE_TTL,
+        ttl: int = None,
     ) -> None:
         import redis
 
@@ -280,9 +280,9 @@ class SemanticCacheAdapter(ICacheRepository):
         else:
             self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
         self._embedder = embedding_service
-        self._ttl = ttl
+        self._ttl = ttl if ttl is not None else getattr(settings, "semantic_cache_ttl", _CACHE_TTL)
         self._collection = f"mukthi_semantic_cache_{settings.embedding_dimension}d"
-        self._threshold = 0.88  # 88% similarity required for a hit
+        self._threshold = getattr(settings, "semantic_cache_similarity", 0.78)
         self._hits = 0
         self._misses = 0
 

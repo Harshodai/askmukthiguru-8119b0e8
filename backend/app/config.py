@@ -238,8 +238,9 @@ class Settings(BaseSettings):
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
-    semantic_cache_similarity: float = 0.88  # Cosine similarity threshold for cache hit
-    semantic_cache_ttl: int = 3600  # Cache TTL in seconds (1 hour)
+    semantic_cache_similarity: float = 0.78  # Cosine similarity threshold for cache hit
+    semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
+    guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
 
     # --- User Profiles & Persistence ---
     user_profile_enabled: bool = True  # Enable user profiles and persistent memory

@@ -86,6 +86,7 @@ class PipelineCoordinator:
         session_id: str | None = None,
         user: dict | None = None,
         is_benchmark: bool = False,
+        stream_queue: asyncio.Queue | None = None,
     ) -> PipelineResult:
         """Execute the full pipeline and return a PipelineResult.
 
@@ -205,6 +206,7 @@ class PipelineCoordinator:
             lang_detection,
             memory_context,
             state.get("proactive_serene_mind"),
+            stream_queue=stream_queue,
         )
         await self._stage("langgraph", trace_id, start_ns=_s)
 
@@ -389,11 +391,11 @@ class PipelineCoordinator:
         user_id: str,
         chat_body: Any,
         state: dict,
-    ) -> dict | None:
+    ) -> dict:
         """Check if proactive Serene Mind should be triggered."""
         try:
             if not (self.container.serene_mind and self.container.user_profile):
-                return None
+                return {"triggered": False}
 
             current = assessment or DistressAssessment(
                 level=DistressLevel.NONE,
@@ -410,7 +412,7 @@ class PipelineCoordinator:
             )
 
             if not proactive:
-                return None
+                return {"triggered": False}
 
             _client_ts = getattr(chat_body, "last_serene_mind_at", None) or 0.0
             _now = time.time()
@@ -424,7 +426,7 @@ class PipelineCoordinator:
 
             if _skip:
                 logger.info(f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown.")
-                return None
+                return {"triggered": False}
 
             logger.info(f"Proactive Serene Mind triggered for user {user_id}: level={proactive.level.name}, confidence={proactive.confidence:.2f}")
             return {
@@ -442,7 +444,7 @@ class PipelineCoordinator:
             }
         except Exception as e:
             logger.warning(f"Proactive Serene Mind analysis failed (non-fatal): {e}")
-        return None
+        return {"triggered": False}
 
     async def _run_graph(
         self,
@@ -452,6 +454,7 @@ class PipelineCoordinator:
         lang_detection: Any,
         memory_context: str,
         proactive_data: dict | None,
+        stream_queue: asyncio.Queue | None = None,
     ) -> tuple[dict, int]:
         """Run the LangGraph pipeline and return (result, latency_ms)."""
         import random
@@ -501,7 +504,10 @@ class PipelineCoordinator:
 
             selected_graph = getattr(self.container, f"{graph_variant}_graph")
             try:
-                return await selected_graph.ainvoke(initial_state, config={"recursion_limit": 60})
+                config = {"recursion_limit": 60}
+                if stream_queue:
+                    config["configurable"] = {"stream_queue": stream_queue}
+                return await selected_graph.ainvoke(initial_state, config=config)
             except GraphRecursionError as e:
                 logger.warning(f"Graph recursion limit reached ({e}). Returning fallback response.")
                 return {

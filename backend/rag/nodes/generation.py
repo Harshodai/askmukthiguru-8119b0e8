@@ -299,7 +299,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "INSTRUCTIONS:\n"
             "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
             '2. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
-            '3. If you cannot answer from the context, say: "I am unable to find specific teachings on this topic."\n'
+            '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one.\n'
             "4. NEVER fabricate teachings or add information from your training data.\n"
             "5. Maintain a warm, compassionate, and wise tone.\n"
             "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
@@ -613,6 +613,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
 
 
     citations = _inject_canonical_citations(answer, citations)
+    citations = enforce_source_diversity(citations, min_distinct=2)
 
     if is_faithful and verified:
         pass
