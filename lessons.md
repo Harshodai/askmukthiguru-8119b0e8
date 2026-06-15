@@ -1761,3 +1761,26 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 1. Added `"spiritual right action"` and `"spiritual vision"` to the early-return allowlist in `LightweightGuardrailHandler` to prevent false positive safety rejections.
 2. Added Manifest 2026 and monthly power terms (`"manifest 2026"`, `"heart connection"`, `"feminine energies"`, etc.) to the `doctrine_terms` domain boost in `lightweight_verify` to automatically pass verification checks when matched in generated responses.
 
+
+### 123. Browser User-Agent Header for DuckDuckGo and Fallback Temporal Intent Routing
+
+**Problem**: 
+1. DuckDuckGo searches executed from server/host environments without a browser `User-Agent` trigger HTTP 202 bot challenges, returning empty results.
+2. If the LLM-based intent router fails due to OpenRouter rate limits (429), it defaults to a basic `FACTUAL` intent without setting `needs_web_search = True`, completely bypassing the web search node for temporal queries.
+
+**Solution**:
+1. Configured the `DDGS` client in `services/web_search_service.py` with a realistic browser `User-Agent` header to bypass automated bot checks.
+2. Updated the exception handler in the `intent_router` node in `rag/nodes/intent.py` to evaluate temporal query pattern heuristics, ensuring `needs_web_search = True` is preserved during API failovers.
+
+
+### 124. Clean Response Formatting and Inline Citation Stripping in RAG
+
+**Problem**:
+The LLM response for web search and general queries often includes raw URLs and inline bracketed source annotations (e.g. `[Source: ... | URL: ...]`), which clutters the final answer text. Furthermore, appending a bulleted `*Sources & Teachings:*` list of raw links to the answer text duplicates information that is already provided in the separate `citations` metadata field, causing the chatbot answer to look un-premium.
+
+**Solution**:
+1. Implemented a post-processing helper `_clean_inline_citations` in `backend/rag/nodes/generation.py` to strip out all bracketed source markers, parenthetical URLs, and stray links from the generated response text.
+2. Removed the block in `format_final_answer` that appends the bulleted `*Sources & Teachings:*` list of links to the text of the answer.
+3. Kept the canonical `citations` list populated in the returned JSON metadata so the frontend client can render the links elegantly outside the answer text.
+4. Cleaned up trailing spaces, newlines, and corrected spaces before punctuation that were left after stripping inline citations.
+

@@ -142,7 +142,18 @@ class ContainerBuilder:
             qdrant_path=settings.qdrant_local_path if settings.qdrant_local_path else None,
             embedding_service=container.embedding,
         )
-        logger.info("ContainerBuilder: guardrails and caching added")
+
+        from services.web_search_service import WebSearchService
+        if settings.web_search_enabled:
+            container.web_search = WebSearchService(
+                allowed_domains=settings.web_search_allowed_domains_list,
+                provider=settings.web_search_provider,
+                max_results=settings.web_search_max_results,
+                searxng_url=settings.searxng_url if settings.web_search_provider == "searxng" else None,
+            )
+        else:
+            container.web_search = None
+        logger.info("ContainerBuilder: guardrails, caching, and web search added")
 
     def _add_language_and_profiles(self) -> None:
         """Layer 4: Emotional intelligence and user profiles."""
@@ -212,6 +223,7 @@ class ContainerBuilder:
                 qdrant_service=container.qdrant,
                 lightrag_service=container.lightrag,
                 serene_mind_engine=container.serene_mind,
+                web_search=container.web_search,
             )
 
         container.fast_graph = build_graph(strategies["fast"])

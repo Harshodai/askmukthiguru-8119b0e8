@@ -408,6 +408,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
         )
 
+    web_docs = state.get("web_search_results", [])
+    if web_docs:
+        logger.info(f"Merging {len(web_docs)} web search results into primary document list")
+        all_docs = web_docs + all_docs
+
     if len(all_docs) > settings.rag_top_k_retrieval:
         question = state.get("rewritten_query") or state["question"]
         doc_texts = [doc["text"] for doc in all_docs]
@@ -531,6 +536,11 @@ async def merge_sub_results(state: GraphState) -> dict:
             if th not in seen:
                 seen.add(th)
                 all_docs.append(doc)
+
+    web_docs = state.get("web_search_results", [])
+    if web_docs:
+        logger.info(f"merge_sub_results: merging {len(web_docs)} web search results")
+        all_docs = web_docs + all_docs
 
     if len(all_docs) > settings.rag_top_k_retrieval:
         question = state.get("rewritten_query") or state["question"]

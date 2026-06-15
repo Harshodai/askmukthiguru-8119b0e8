@@ -114,6 +114,7 @@ class TestDuckDuckGoProvider:
 
 
 class TestSearXNGProvider:
+    @pytest.mark.asyncio
     @patch("aiohttp.ClientSession")
     async def test_search_returns_results(self,CLS):
         pass  # omitted
@@ -218,7 +219,7 @@ class TestInputGuardrails:
 
     def test_blocked_excessive_special_chars(self):
         from services.web_search_guardrails import apply_input_guardrails
-        result = apply_input_guardrails("!!!@@@###$$$"))
+        result = apply_input_guardrails("!!!@@@###$$$")
         assert result.allowed is False
 
     def test_allowed_normal_query(self):
@@ -324,8 +325,9 @@ class TestDeduplication:
 # ─── Web Search Node Tests ───
 
 @pytest.mark.skipif(web_search_node is None, reason="web_search_node not imported")
+@pytest.mark.asyncio
 class TestWebSearchNode:
-    @patch("rag.nodes.web_search._services")
+    @patch("rag.nodes._services")
     async def test_web_search_node_calls_service(self, mock_services):
         mock_web_search = AsyncMock()
         mock_web_search.search.return_value = [
@@ -346,7 +348,7 @@ class TestWebSearchNode:
         assert len(result["web_search_results"]) == 1
         assert result["web_search_results"][0]["title"] == "Ekam Events"
 
-    @patch("rag.nodes.web_search._services")
+    @patch("rag.nodes._services")
     async def test_web_search_node_no_service(self, mock_services):
         mock_services._web_search = None
 
@@ -355,7 +357,7 @@ class TestWebSearchNode:
 
         assert result == {"web_search_results": []}
 
-    @patch("rag.nodes.web_search._services")
+    @patch("rag.nodes._services")
     async def test_web_search_node_uses_rewritten_query(self, mock_services):
         mock_web_search = AsyncMock()
         mock_web_search.search.return_value = []
@@ -364,4 +366,4 @@ class TestWebSearchNode:
         state = {"question": "original", "rewritten_query": "rewritten"}
         await web_search_node(state)
 
-        mock_web_search.search.assert_called_once_with("rewritten")
+        mock_web_search.search.assert_called_once_with("rewritten", user_id=None)
