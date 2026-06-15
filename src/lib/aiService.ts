@@ -620,3 +620,31 @@ export const submitFeedbackToBackend = async (payload: {
     console.error('Failed to submit feedback to server:', error);
   }
 };
+
+/**
+ * Fire-and-forget: insert a memory-extraction job into pending_extractions
+ * for the Supabase Edge Function to drain.  Runs silently, never blocks
+ * the chat, and swallows all errors.
+ */
+export const queueMemoryExtraction = async (payload: {
+  userMessage: string;
+  assistantMessage: string;
+  conversationId?: string;
+}): Promise<void> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    await supabase.from('pending_extractions').insert({
+      user_id: session.user?.id,
+      payload: {
+        user_message: payload.userMessage,
+        assistant_message: payload.assistantMessage,
+        conversation_id: payload.conversationId,
+      },
+      status: 'pending',
+      attempts: 0,
+    });
+  } catch {
+    // Silent — memory extraction is best-effort
+  }
+};

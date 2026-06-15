@@ -54,6 +54,58 @@ const isYouTubeUrl = (url: string): boolean => {
   return url.includes('youtube.com') || url.includes('youtu.be');
 };
 
+/** Lazy YouTube embed: thumbnail → click → iframe */
+const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
+  const [loaded, setLoaded] = useState(false);
+  const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+  if (loaded) {
+    return (
+      <div className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[400px]">
+        <iframe
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[400px] relative cursor-pointer group"
+      onClick={() => setLoaded(true)}
+      role="button"
+      aria-label="Play YouTube video"
+    >
+      <img
+        src={thumbnail}
+        alt="YouTube thumbnail"
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+        <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+          <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
+        </div>
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute bottom-2 right-2 text-[10px] text-white/90 bg-black/60 px-1.5 py-0.5 rounded"
+        onClick={(e) => e.stopPropagation()}
+      >
+        YouTube
+      </a>
+    </div>
+  );
+};
+
 /** Get a display name for a source URL (e.g., 'YouTube — YouTube Domain') */
 const getSourceDisplayName = (url: string, index: number): string => {
   try {
@@ -353,29 +405,17 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 )}
               </div>
 
-              {/* YouTube Embeds (Triggered videos) */}
+              {/* Lazy YouTube Thumbnails (click-to-load) */}
               {isGuru && citations.length > 0 && (
                 <div className="space-y-2.5 mt-2">
                   {citations
                     .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
-                    .map((url, i) => {
+                    .map((url) => {
                       const videoId = url.includes('v=')
                         ? url.split('v=')[1]?.split('&')[0]
                         : url.split('/').pop();
                       if (!videoId) return null;
-                      return (
-                        <div key={videoId} className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[400px]">
-                          <iframe
-                            width="100%"
-                            height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}`}
-                            title="YouTube video player"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          ></iframe>
-                        </div>
-                      );
+                      return <LazyYouTube key={videoId} videoId={videoId} url={url} />;
                     })}
                 </div>
               )}
