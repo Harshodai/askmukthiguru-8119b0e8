@@ -316,8 +316,14 @@ class AuthBridge:
 
 security = HTTPBearer(auto_error=False)
 _strategies = [LocalAuthStrategy(), SupabaseAuthStrategy()]
-if not settings.is_production:
+# TestAuthStrategy is a hard backdoor (X-Test-Key == jwt_secret -> superuser admin).
+# Require BOTH non-production AND an explicit opt-in flag; refuse to register it in prod.
+if getattr(settings, "enable_test_auth", False) and not settings.is_production:
     _strategies.insert(0, TestAuthStrategy())
+if settings.is_production:
+    assert not any(isinstance(s, TestAuthStrategy) for s in _strategies), (
+        "TestAuthStrategy must never be enabled in production"
+    )
 auth_bridge = AuthBridge(_strategies)
 
 
