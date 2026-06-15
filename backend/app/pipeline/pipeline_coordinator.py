@@ -576,7 +576,10 @@ class PipelineCoordinator:
                     {"role": "user", "content": user_msg},
                     {"role": "assistant", "content": final_answer},
                 ]
-                await self.container.memory_service.extract_and_write(user_id, stable_session_id, full_msgs)
+                # Run memory extraction in the background so it doesn't block/timeout the HTTP response
+                asyncio.create_task(
+                    self.container.memory_service.extract_and_write(user_id, stable_session_id, full_msgs)
+                )
             except Exception as e:
                 logger.warning(f"Memory extraction failed (non-fatal): {e}")
 

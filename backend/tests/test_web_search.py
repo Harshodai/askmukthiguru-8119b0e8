@@ -17,6 +17,10 @@ import pytest
 # Ensure backend/ is on path for imports
 sys.path.insert(0, "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend")
 
+# Mock ddgs module if missing to prevent patch() from failing under python 3.12
+if "ddgs" not in sys.modules:
+    sys.modules["ddgs"] = MagicMock()
+
 from services.web_search_service import (
     DuckDuckGoProvider,
     SearXNGProvider,

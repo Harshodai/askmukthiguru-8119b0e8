@@ -45,6 +45,7 @@ class ChatResponse(BaseModel):
     hallucination_flag: Optional[bool] = Field(
         None, description="Whether verification flagged hallucination risk"
     )
+    cache_hit: bool = Field(default=False, description="Whether the response came from cache")
     trace_id: Optional[str] = Field(None, description="Trace/query ID for observability")
     latency_ms: Optional[int] = Field(
         None, description="End-to-end response latency in milliseconds"

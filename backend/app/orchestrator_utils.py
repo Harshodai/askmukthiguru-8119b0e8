@@ -126,6 +126,8 @@ async def select_graph_for_query(
                         timeout=3.0,
                     )
 
+                if not res:
+                    raise ValueError("Empty response from classifier provider")
                 res_clean = res.strip()
                 if res_clean.startswith("```"):
                     lines = res_clean.splitlines()

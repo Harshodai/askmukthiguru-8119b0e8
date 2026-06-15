@@ -120,6 +120,8 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - IS_PRODUCTION=false
+      - ENABLE_TEST_AUTH=true
       # === LLM Provider ===
       # "sarvam_cloud" (default) or "ollama" (requires Ollama on host)
       - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
@@ -140,6 +142,8 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - USE_OPENROUTER_FOR_SIMPLE=${USE_OPENROUTER_FOR_SIMPLE:-true}
       - OPENROUTER_FAST_MODEL=${OPENROUTER_FAST_MODEL:-meta-llama/Meta-Llama-3.1-8B-Instruct}
+      - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-}
+      - OPENROUTER_CLASSIFY_MODEL=${OPENROUTER_CLASSIFY_MODEL:-}
       - OPENROUTER_RPM_LIMIT=${OPENROUTER_RPM_LIMIT:-20}
       # --- Guardrails ---
       - GUARDRAILS_PROVIDER=${GUARDRAILS_PROVIDER:-nemo}

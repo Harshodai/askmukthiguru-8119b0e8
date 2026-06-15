@@ -397,7 +397,7 @@ Based on the above teachings, compose a deeply compassionate response that:
     )
     return {
         "final_answer": response,
-        "meditation_step": 1 if assessment.level >= DistressLevel.MODERATE else 0,
+        "meditation_step": 0,
     }
 
 

@@ -92,9 +92,11 @@ backup: ## Take a comprehensive snapshot of Qdrant, Neo4j, and Supabase data
 restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
 	@python3 scripts/backup/snapshot_manager.py restore
 
-flush-cache: ## Flush query-side caches (GPTCache, Redis) safely without impacting ingestion
-	@echo "${GREEN}Flushing query-side caches (GPTCache and Redis)...${NC}"
-	@python3 scripts/ops/flush_cache.py
+flush-cache: ## Flush query-side caches (Qdrant semantic cache + Redis) safely without impacting ingestion
+	@echo "${GREEN}Flushing query-side caches (Qdrant semantic cache + Redis)...${NC}"
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 /app/../scripts/ops/flush_cache.py 2>/dev/null || \
+		 DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 scripts/ops/flush_cache.py 2>/dev/null || \
+		 (echo "⚠️  Could not exec into container, running host-side fallback (Redis only)..." && python3 scripts/ops/flush_cache.py)
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f

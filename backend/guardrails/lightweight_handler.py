@@ -335,6 +335,11 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                             api_key="api-key-not-used-by-bearer",
                             default_headers={"api-subscription-key": api_key},
                         )
+                    elif settings.llm_provider.lower() == "openrouter":
+                        openai_client = AsyncOpenAI(
+                            base_url=settings.openrouter_base_url,
+                            api_key=settings.openrouter_api_key,
+                        )
                     else:
                         base_url = f"{settings.ollama_base_url}/v1"
                         api_key = "ollama"

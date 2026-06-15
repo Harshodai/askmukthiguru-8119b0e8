@@ -61,7 +61,8 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
             key = f"rl:chat:{subject}"
             allowed, remaining = await self.script(keys=[key], args=[self.capacity, self.refill, time.time(), 1])
             if not int(allowed):
-                raise HTTPException(status_code=429, detail={"error": "rate_limited", "remaining": 0})
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=429, content={"error": "rate_limited", "remaining": 0})
             resp = await call_next(request)
             resp.headers["X-RateLimit-Remaining"] = str(int(remaining))
             return resp

@@ -213,6 +213,7 @@ class StandardGraphStrategy(GraphStrategy):
             lightrag_service,
             serene_mind_engine,
             web_search=kwargs.get("web_search"),
+            semantic_cache=kwargs.get("semantic_cache"),
         )
 
         graph = StateGraph(GraphState)
@@ -320,6 +321,7 @@ class FastGraphStrategy(GraphStrategy):
             lightrag_service,
             serene_mind_engine,
             web_search=kwargs.get("web_search"),
+            semantic_cache=kwargs.get("semantic_cache"),
         )
 
         graph = StateGraph(GraphState)
@@ -390,6 +392,7 @@ class DeepGraphStrategy(GraphStrategy):
             lightrag_service,
             serene_mind_engine,
             web_search=kwargs.get("web_search"),
+            semantic_cache=kwargs.get("semantic_cache"),
         )
 
         graph = StateGraph(GraphState)

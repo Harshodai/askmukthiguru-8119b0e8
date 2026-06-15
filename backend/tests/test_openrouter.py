@@ -36,7 +36,8 @@ class FakeAsyncClient:
     async def post(self, url, json=None, **kwargs):
         # Return mock JSON response
         if "completions" in url:
-            if json and "meta-llama/llama-3.2-3b-instruct:free" in json.get("model", ""):
+            model = json.get("model", "") if json else ""
+            if json and ("meta-llama/llama-3.2-3b-instruct:free" in model or "meta-llama/llama-3.1-8b-instruct" in model):
                 return FakeResponse(data={
                     "choices": [{"message": {"content": "INTENT: FACTUAL\nCOMPLEXITY: simple"}}],
                     "usage": {"prompt_tokens": 5, "completion_tokens": 6}

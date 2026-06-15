@@ -8,24 +8,24 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 NODE_TIMEOUTS = {
-    "intent_router": 15.0,
-    "resolve_followup": 10.0,
-    "decompose_query": 15.0,
-    "retrieve_documents": 10.0,
-    "rerank_documents": 10.0,
-    "grade_documents": 20.0,
-    "generate_answer": 60.0,   # Main generation — most critical, needs time
+    "intent_router": 20.0,
+    "resolve_followup": 12.0,
+    "decompose_query": 20.0,
+    "retrieve_documents": 20.0,
+    "rerank_documents": 15.0,
+    "grade_documents": 25.0,
+    "generate_answer": 90.0,   # Main generation — most critical, needs time for reasoning models
     "verify_answer": 30.0,
     "reflect_on_answer": 45.0,
     "navigate_knowledge_tree": 15.0,
-    "generate_hyde": 15.0,
+    "generate_hyde": 20.0,
     "check_context_sufficiency": 15.0,
     "check_contradiction": 15.0,
-    "explain_retrieval": 20.0,
-    "default_fast": 10.0,
-    "default_main": 45.0,
-    "default_embedding": 10.0,
-    "default_qdrant": 10.0,
+    "explain_retrieval": 30.0,
+    "default_fast": 25.0,      # LightRAG graph queries need 15-25s under concurrent load
+    "default_main": 60.0,
+    "default_embedding": 15.0,
+    "default_qdrant": 15.0,
 }
 
 class TimeoutBudget:

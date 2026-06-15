@@ -129,6 +129,29 @@ export const SereneMindModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // Prevent tab closure / reload & Escape key closure when Serene Mind is gated and active
+  useEffect(() => {
+    if (isOpen && isGated && phase !== 'complete') {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = 'You are in a Serene Mind meditation. Please pause and complete this practice before leaving.';
+        return e.returnValue;
+      };
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      };
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('keydown', handleKeyDown, true);
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('keydown', handleKeyDown, true);
+      };
+    }
+  }, [isOpen, isGated, phase]);
+
   const mmss = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 

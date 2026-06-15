@@ -185,22 +185,17 @@ async def test_memory_service_extract_and_write(monkeypatch):
     mock_completions = AsyncMock()
     mock_client.chat.completions.create = mock_completions
 
-    mock_extraction = MemoryExtraction(
-        core_memories=["User name is Harshodai"],
-        episodic_memories=["User is feeling anxious"],
-        session_summary="User discussed anxiety and is a seeker."
-    )
-    mock_completions.return_value = mock_extraction
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = '{"core_memories": ["User name is Harshodai"], "episodic_memories": ["User is feeling anxious"], "session_summary": "User discussed anxiety and is a seeker."}'
+    mock_completions.return_value = mock_response
 
     import openai
     class MockAsyncOpenAI:
         def __init__(self, *args, **kwargs):
-            pass
+            self.chat = mock_client.chat
 
     monkeypatch.setattr(openai, "AsyncOpenAI", MockAsyncOpenAI)
-
-    import instructor
-    monkeypatch.setattr(instructor, "from_openai", lambda *args, **kwargs: mock_client)
 
     service = MemoryService(supabase_client=supabase_mock)
     monkeypatch.setattr(service, "get_core", get_core_mock)
