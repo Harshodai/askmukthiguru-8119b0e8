@@ -139,6 +139,7 @@ const ProfilePage = () => {
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
+  const [recalledTeachings, setRecalledTeachings] = useState<{ content: string; recall_count: number }[]>([]);
 
   useEffect(() => {
     let cancelled = false;
