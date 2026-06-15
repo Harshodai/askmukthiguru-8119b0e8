@@ -55,6 +55,8 @@ class PipelineCoordinator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.telemetry = TelemetryPublisher()
+        from app.coalescer import build_coalescer
+        self.coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
     async def _stage(
         self,
@@ -459,10 +461,6 @@ class PipelineCoordinator:
         """Run the LangGraph pipeline and return (result, latency_ms)."""
         import random
 
-        from app.coalescer import build_coalescer
-
-        coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
-
         async def run():
             initial_state = create_initial_state(
                 question=user_msg_en,
@@ -523,7 +521,7 @@ class PipelineCoordinator:
         start_lat = time.time()
         try:
             result = await asyncio.wait_for(
-                coalescer.get_or_run(f"{lang_detection.primary.value if lang_detection else 'en'}:{user_msg_en}:{history_hash}", run),
+                self.coalescer.get_or_run(f"{lang_detection.primary.value if lang_detection else 'en'}:{user_msg_en}:{history_hash}", run),
                 timeout=settings.pipeline_timeout,
             )
         except asyncio.TimeoutError:

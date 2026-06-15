@@ -24,6 +24,7 @@ from .utils import (
     _inject_canonical_citations,
     _trace_update,
     emit_status,
+    enforce_source_diversity,
     log_metrics,
     settings,
     strip_cot,
