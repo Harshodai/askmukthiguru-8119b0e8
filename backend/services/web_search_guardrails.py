@@ -37,7 +37,7 @@ MAX_RESULTS_PER_QUERY = 20
 # Patterns that indicate potential abuse or injection attempts
 _BLOCKED_QUERY_PATTERNS = [
     # SQL injection-like
-    r"(?i)(?:union\s+select|drop\s+table|insert\s+into|delete\s+from|--\s|#\s|'\s*or\s*'|1\s*=\s*1)",
+    r"(?i)(?:union\s+select|drop\s+table|insert\s+into|delete\s+from|--\s|#\s|'\s*or\s*'|1\s*=\s*1|'\s*1'\s*=\s*'1'|\"\s*1\"\s*=\s*\"1\")",
     # Command injection / path traversal
     r"(?i)(?:\\x00|\\x0a|\\x0d|\\.(?=\/)|\.\.(?=\/)|/etc/passwd|/proc/|/sys/)",
     # HTML/JS injection in queries
@@ -331,7 +331,7 @@ def deduplicate_results(results: list[dict], similarity_threshold: float = 0.85)
     seen_urls = set()
 
     for result in results:
-        url = result.get("url", "")
+        url = result.get("url", "") or result.get("source_url", "")
         title = result.get("title", "")
 
         # Skip exact duplicate URLs
@@ -471,7 +471,7 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
     score, flags = calculate_content_score({"title": title, "snippet": snippet})
 
     # Step 5: Score threshold
-    if score < 0.3:
+    if score < 0.6:
         logger.debug(f"Result scored too low ({score:.2f}), filtering out: {url}")
         return False, {}, flags + ["low_score"]
 

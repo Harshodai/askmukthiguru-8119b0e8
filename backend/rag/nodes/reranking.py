@@ -29,46 +29,66 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         return {"reranked_docs": []}
 
     await emit_status(config, "Ranking the most relevant teachings...")
-    is_complex = state.get("is_complex", False)
-    base_threshold = getattr(settings, "rerank_min_score", 0.2)
-    threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
+    
+    # Separate web search docs from database docs
+    web_docs = [doc for doc in documents if doc.get("content_type") == "web_search"]
+    db_docs = [doc for doc in documents if doc.get("content_type") != "web_search"]
+    
+    # Auto-assign high rerank score to web search documents
+    for doc in web_docs:
+        if "rerank_score" not in doc:
+            doc["rerank_score"] = 0.95
 
-    if settings.use_flashrank and reranker is not None:
-        reranked = await reranker.rerank(
-            question,
-            documents,
-            top_k=10,
-            min_score=threshold,
-        )
-    else:
-        reranked = await asyncio.to_thread(
-            embedder.cascaded_rerank,
-            question,
-            documents,
-            colbert_top_k=20,
-            cross_top_k=10,
-            min_score=threshold,
-        )
+    reranked_db = []
+    if db_docs:
+        is_complex = state.get("is_complex", False)
+        base_threshold = getattr(settings, "rerank_min_score", 0.2)
+        threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
 
-    if len(reranked) > settings.rag_top_k_retrieval:
-        doc_texts = [doc["text"] for doc in reranked]
-        batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
-        doc_embeddings = batch_enc["dense"]
+        if settings.use_flashrank and reranker is not None:
+            reranked_db = await reranker.rerank(
+                question,
+                db_docs,
+                top_k=10,
+                min_score=threshold,
+            )
+        else:
+            reranked_db = await asyncio.to_thread(
+                embedder.cascaded_rerank,
+                question,
+                db_docs,
+                colbert_top_k=20,
+                cross_top_k=10,
+                min_score=threshold,
+            )
 
-        query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
-        query_emb = query_enc["dense"]
+        # Apply MMR selection to database documents if they exceed the budget
+        web_docs_count = len(web_docs)
+        db_budget = max(0, settings.rag_top_k_retrieval - web_docs_count)
+        if len(reranked_db) > db_budget and db_budget > 0:
+            doc_texts = [doc["text"] for doc in reranked_db]
+            batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
+            doc_embeddings = batch_enc["dense"]
 
-        reranked = qdrant.mmr_select(
-            query_embedding=query_emb,
-            documents=reranked,
-            doc_embeddings=doc_embeddings,
-            top_k=settings.rag_top_k_retrieval,
-            lambda_param=0.7,
-        )
+            query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
+            query_emb = query_enc["dense"]
+
+            reranked_db = qdrant.mmr_select(
+                query_embedding=query_emb,
+                documents=reranked_db,
+                doc_embeddings=doc_embeddings,
+                top_k=db_budget,
+                lambda_param=0.7,
+            )
+        elif db_budget == 0:
+            reranked_db = []
+
+    # Combined list starts with web search results, followed by best database docs
+    reranked = web_docs + reranked_db
 
     logger.info(
-        f"Reranked {len(documents)} -> {len(reranked)} documents "
-        f"(complex={is_complex}, threshold={threshold:.2f}, MMR applied)"
+        f"Reranked total={len(documents)} (web={len(web_docs)}, db={len(db_docs)}) -> "
+        f"final={len(reranked)} documents"
     )
     return {
         "reranked_docs": reranked,
@@ -115,28 +135,46 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             f"CRAG batch: DISTRESS intent, bypassing grading, accepted {len(relevant)} docs"
         )
     else:
-        doc_texts = [doc["text"] for doc in reranked_docs]
-        t_out = get_node_timeout("grade_documents", 20.0)
-        relevance_results = await ollama.grade_relevance(question=question, doc_texts=doc_texts, timeout=t_out)
+        # Separate web search docs from DB docs
+        web_docs = [doc for doc in reranked_docs if doc.get("content_type") == "web_search"]
+        db_docs = [doc for doc in reranked_docs if doc.get("content_type") != "web_search"]
 
-        relevant = []
-        reasons = []
-        for doc, res in zip(reranked_docs, relevance_results):
-            if res["relevant"]:
-                relevant.append(doc)
-            reasons.append(res["reason"])
+        relevant_web = list(web_docs)
+        web_reasons = ["Web search auto-pass" for _ in web_docs]
 
-        state["grading_reasons"] = reasons
+        relevant_db = []
+        db_reasons = []
 
-    if relevant:
-        relevant = await asyncio.to_thread(
-            compress_documents,
-            question,
-            relevant,
-            embedder._reranker,
-            threshold=0.3,
-            min_sentences=2,
-        )
+        if db_docs:
+            try:
+                doc_texts = [doc["text"] for doc in db_docs]
+                t_out = get_node_timeout("grade_documents", 20.0)
+                relevance_results = await ollama.grade_relevance(question=question, doc_texts=doc_texts, timeout=t_out)
+                for doc, res in zip(db_docs, relevance_results):
+                    if res["relevant"]:
+                        relevant_db.append(doc)
+                    db_reasons.append(res["reason"])
+            except Exception as e:
+                logger.warning(f"Grading failed for DB docs: {e}. Falling back to keeping all.")
+                relevant_db = list(db_docs)
+                db_reasons = [f"Grading fallback due to error: {e}" for _ in db_docs]
+
+        # Compress only the relevant DB documents (do not compress temporal web search results)
+        if relevant_db:
+            try:
+                relevant_db = await asyncio.to_thread(
+                    compress_documents,
+                    question,
+                    relevant_db,
+                    embedder._reranker,
+                    threshold=0.3,
+                    min_sentences=2,
+                )
+            except Exception as e:
+                logger.warning(f"Document compression failed: {e}. Keeping uncompressed.")
+
+        relevant = relevant_web + relevant_db
+        state["grading_reasons"] = web_reasons + db_reasons
 
     if reranked_docs:
         try:
@@ -209,7 +247,8 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
         source_url = doc.get("source_url")
         chunk_index = doc.get("chunk_index")
 
-        if source_url and chunk_index is not None:
+        # Bypass neighbor lookup for web search results since they are not in Qdrant
+        if source_url and chunk_index is not None and doc.get("content_type") != "web_search":
             neighbors = qdrant.get_neighbor_chunks(
                 source_url, chunk_index, window=settings.rag_context_window
             )

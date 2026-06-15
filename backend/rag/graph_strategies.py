@@ -98,10 +98,10 @@ async def lightweight_verify(state: GraphState) -> dict:
         return {"is_faithful": True, "verification": {"skipped": True, "reason": "empty answer or context"}}
 
     try:
-        from services.embedding_service import get_embedding_service
+        from app.dependencies import get_container
         from services.lettuce_detect_service import LettuceDetectService
 
-        embedder = get_embedding_service()
+        embedder = get_container().embedding
         lettuce = LettuceDetectService(embedder=embedder)
         result = lettuce.score_faithfulness(
             query=state.get("question", ""),

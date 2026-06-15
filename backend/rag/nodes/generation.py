@@ -570,6 +570,32 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
     return answer
 
 
+def _clean_inline_citations(text: str) -> str:
+    """Strip bracketed source citations, markdown links, and raw URLs from response text."""
+    if not text:
+        return text
+    import re
+    # Remove bracketed source citations like [Source: ... | URL: ...] or [Source: ...]
+    text = re.sub(r'\[Source:\s*[^\]]+\]', '', text)
+    # Remove markdown link syntax: [link text](url) where url is http
+    text = re.sub(r'\[[^\]]*\]\(\s*https?://[^\)]+\)', '', text)
+    # Remove parenthesis containing URLs
+    text = re.sub(r'\(\s*https?://[^\)]+\)', '', text)
+    # Remove bracketed URLs
+    text = re.sub(r'\[\s*https?://[^\]]+\]', '', text)
+    # Remove "Watch more here" or "Read more here" phrases followed by URL
+    text = re.sub(r'(?i)(?:watch\s+more\s+here|read\s+more\s+here|source|sources):\s*https?://\S+', '', text)
+    # Remove any stray raw URLs
+    text = re.sub(r'(?i)\bhttps?://\S+', '', text)
+    # Collapse multiple spaces
+    text = re.sub(r' {2,}', ' ', text)
+    # Fix spaces before punctuation
+    text = re.sub(r'\s+([.,!?;])', r'\1', text)
+    # Collapse multiple newlines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     """Format the final response based on pipeline results."""
     await emit_status(config, "Finalizing your response...")
@@ -583,6 +609,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     if intent == "?":
         intent = "CASUAL"
     answer = strip_cot(answer)
+    answer = _clean_inline_citations(answer)
+
 
     citations = _inject_canonical_citations(answer, citations)
 
@@ -631,25 +659,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             answer += caveat
         logger.info(f"Final: Moderate confidence ({confidence}), adding caveat")
 
-    if citations:
-        reasoning = state.get("citation_reasoning") or {}
-        citation_lines = []
-
-        seen_urls = set()
-        for url in citations[:5]:
-            if url in seen_urls:
-                continue
-            seen_urls.add(url)
-
-            line = f"- {url}"
-            if url in reasoning:
-                line += f" ({reasoning[url]})"
-            citation_lines.append(line)
-
-        if citation_lines:
-            citation_block = "\n\n*Sources & Teachings:*\n" + "\n".join(citation_lines)
-            if citation_block not in answer:
-                answer += citation_block
+    # Citations are returned in the citations field, we do not append them to the answer text.
+    pass
 
     result = {
         "final_answer": answer,
