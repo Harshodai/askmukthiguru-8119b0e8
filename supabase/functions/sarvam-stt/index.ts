@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       const errText = await sarvamRes.text();
       console.error("Sarvam STT error", sarvamRes.status, errText);
       return new Response(
-        JSON.stringify({ error: "STT upstream failed", status: sarvamRes.status }),
+        JSON.stringify({ error: "An internal error occurred. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
