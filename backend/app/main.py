@@ -555,7 +555,7 @@ if os.getenv("ENABLE_GRADIO_UI", "false").lower() in ("1", "true", "yes"):
                 "Gradio UI enabled without GRADIO_USER/GRADIO_PASS — refusing to mount unauthenticated UI."
             )
         else:
-            gradio_app = gr.mount_gradio_app(app, create_demo(auth=_auth), path="/ui")
+            gradio_app = gr.mount_gradio_app(app, create_demo(), path="/ui", auth=_auth)
             logger.info("✅ Gradio Chat UI mounted at /ui (basic auth enabled)")
     except Exception as e:
         logger.warning(f"Failed to mount Gradio UI: {e}")
