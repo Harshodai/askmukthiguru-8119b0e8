@@ -423,8 +423,8 @@ async def ask_admin_question(
             answer = "I apologize, but I am currently unable to retrieve a response from the analytics engine. Please ensure that platform metrics are populated and try again."
         return {"response": answer.strip()}
     except Exception as e:
-        logger.error(f"Error in ask_admin_question: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in ask_admin_question: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Admin assistant request failed. Please try again.")
 
 
 # ── Unit 23: Cost Attribution Endpoints ──────────────────────────────
