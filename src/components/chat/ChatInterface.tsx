@@ -1359,20 +1359,7 @@ return (
               <ChatEmptyState
                 currentConversationId={currentConversation?.id}
                 onResume={handleSelectConversation}
-                onOpenTeaching={() => setShowDailyTeaching?.(true)}
               />
-              {/* Compact daily teaching banner (legacy fallback if cards hidden) */}
-              {dailyTeaching && dailyTeaching.caption && false && (
-                <div className="mx-auto max-w-md rounded-xl border border-ojas/20 bg-ojas/5 backdrop-blur-sm p-4 flex items-start gap-3">
-                  <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5 animate-pulse" />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold text-ojas uppercase tracking-widest mb-1">Today&apos;s Wisdom</p>
-                    <p className="text-sm text-foreground/80 font-serif italic leading-relaxed line-clamp-3">
-                      &ldquo;{dailyTeaching.caption}&rdquo;
-                    </p>
-                  </div>
-                </div>
-              )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
