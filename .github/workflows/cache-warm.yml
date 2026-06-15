@@ -1,0 +1,31 @@
+name: Nightly Cache Warm
+
+on:
+  schedule:
+    # Run at 02:00 UTC nightly
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+
+      - name: Warm doctrine cache
+        working-directory: backend
+        run: python scripts/warm_doctrine_cache.py
+        env:
+          API_URL: ${{ secrets.CACHE_WARM_API_URL || 'http://localhost:8000/api/chat' }}

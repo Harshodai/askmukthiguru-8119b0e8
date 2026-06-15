@@ -76,7 +76,8 @@ class TestDomainAllowlisting:
 
 class TestDuckDuckGoProvider:
     @patch("duckduckgo_search.DDGS")
-    def test_search_returns_results(self, mock_ddgs_class):
+    @patch("ddgs.DDGS", create=True)
+    def test_search_returns_results(self, mock_ddgs_fallback, mock_ddgs_class):
         mock_result = {
             "title": "Ekam Events",
             "href": "https://www.ekam.org/events",  # www. prefix removed by _extract_domain
@@ -85,6 +86,8 @@ class TestDuckDuckGoProvider:
         mock_ddgs = MagicMock()
         mock_ddgs_class.return_value.__enter__ = MagicMock(return_value=mock_ddgs)
         mock_ddgs_class.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ddgs_fallback.return_value.__enter__ = MagicMock(return_value=mock_ddgs)
+        mock_ddgs_fallback.return_value.__exit__ = MagicMock(return_value=False)
         mock_ddgs.text.return_value = [mock_result]
 
         provider = DuckDuckGoProvider()
@@ -96,7 +99,8 @@ class TestDuckDuckGoProvider:
         assert results[0]["snippet"] == "Upcoming events at Ekam..."
 
     @patch("duckduckgo_search.DDGS")
-    def test_search_limits_results(self, mock_ddgs_class):
+    @patch("ddgs.DDGS", create=True)
+    def test_search_limits_results(self, mock_ddgs_fallback, mock_ddgs_class):
         mock_result = {
             "title": "Event",
             "href": "https://ekam.org/event",  # www removed by _extract_domain
@@ -105,12 +109,15 @@ class TestDuckDuckGoProvider:
         mock_ddgs = MagicMock()
         mock_ddgs_class.return_value.__enter__ = MagicMock(return_value=mock_ddgs)
         mock_ddgs_class.return_value.__exit__ = MagicMock(return_value=False)
+        mock_ddgs_fallback.return_value.__enter__ = MagicMock(return_value=mock_ddgs)
+        mock_ddgs_fallback.return_value.__exit__ = MagicMock(return_value=False)
         mock_ddgs.text.return_value = [mock_result] * 10
 
         provider = DuckDuckGoProvider()
         results = run(provider.search("events", 5))
 
         assert len(results) == 5
+
 
 
 class TestSearXNGProvider:

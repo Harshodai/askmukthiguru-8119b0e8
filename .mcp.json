@@ -37,6 +37,13 @@
       ],
       "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
       "type": "stdio"
+    },
+    "scrapling": {
+      "command": "/Users/harshodaikolluru/.local/bin/scrapling",
+      "args": [
+        "mcp"
+      ],
+      "type": "stdio"
     }
   }
 }

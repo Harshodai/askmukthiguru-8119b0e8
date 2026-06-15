@@ -1,5 +1,7 @@
 # AskMukthiGuru — AI Spiritual Guide
 
+[![Backend Health](https://img.shields.io/endpoint?url=https%3A%2F%2Ffynkjimvuimakgtidvuq.supabase.co%2Ffunctions%2Fv1%2Fhealthz%3Fformat%3Dshield)](http://localhost:8000/api/healthz)
+
 An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a multi-layer RAG pipeline, real-time guardrails, and beautiful conversational UI.
 
 > **New contributor?** Start with **[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** for an end-to-end walk-through, then **[docs/ROADMAP.md](docs/ROADMAP.md)** for the prioritized backlog. For architectural insights, check **[lessons.md](lessons.md)**.

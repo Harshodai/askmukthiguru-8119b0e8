@@ -490,6 +490,64 @@ def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     return kwargs
 
 
+def _extract_source_id(citation_str: str) -> str | None:
+    """Extract a canonical source identifier from a citation URL.
+    For YouTube: returns the video ID. For other URLs: returns netloc+path."""
+    if not citation_str or not isinstance(citation_str, str):
+        return None
+    # YouTube ID
+    import re
+    m = re.search(r"[?&]v=([^&]+)", citation_str)
+    if m:
+        return m.group(1)
+    # Direct timestamp or /watch/ URLs
+    m = re.search(r"youtu\.be/([^/?&]+)", citation_str)
+    if m:
+        return m.group(1)
+    # Generic: strip query params, use netloc+path
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(citation_str)
+        return f"{parsed.netloc}{parsed.path}"
+    except Exception:
+        return citation_str
+
+
+def enforce_source_diversity(citations: list[dict | str], min_distinct: int = 2) -> list[dict | str]:
+    """Ensure top citations draw from at least min_distinct sources.
+    Works with both dict docs (source_id/video_id) and plain URL strings."""
+    if not citations or len(citations) < min_distinct:
+        return list(citations)
+
+    top = list(citations[:3])
+    sources: set[str | None] = set()
+    for c in top:
+        if isinstance(c, dict):
+            sid = c.get("source_id") or c.get("video_id")
+            sources.add(sid)
+        else:
+            sources.add(_extract_source_id(c))
+
+    # Remove None from set
+    distinct = {s for s in sources if s}
+    if len(distinct) >= min_distinct:
+        return list(citations)
+
+    # Promote a citation from a different source into the top-3
+    result = list(citations)
+    existing: set[str | None] = set()
+    for c in top:
+        existing.add(_extract_source_id(c) if not isinstance(c, dict) else (c.get("source_id") or c.get("video_id")))
+
+    for i, c in enumerate(result[3:], start=3):
+        sid = _extract_source_id(c) if not isinstance(c, dict) else (c.get("source_id") or c.get("video_id"))
+        if sid and sid not in existing:
+            result.insert(2, result.pop(i))
+            break
+
+    return result
+
+
 def log_metrics(func):
     """Decorator to log execution time of nodes and record into GraphState.node_timings."""
 
@@ -537,34 +595,3 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
         logger.error(f"NodeContractError: missing required keys: {missing}")
         return {"error": f"NodeContractError: missing required keys: {missing}"}
     return None
-
-
-def enforce_source_diversity(citations: list, min_distinct: int = 2) -> list:
-    """Reject responses whose top-3 citations all come from the same source video."""
-    if not citations:
-        return citations
-    top = citations[:3]
-    sources = set()
-    for c in top:
-        if isinstance(c, dict):
-            val = c.get("source_id") or c.get("video_id") or c.get("url") or c.get("source_url")
-            if val:
-                sources.add(val)
-        elif isinstance(c, str):
-            sources.add(c)
-            
-    if len([s for s in sources if s]) < min_distinct:
-        # promote the next citation from a different source
-        for idx, c in enumerate(citations[3:], start=3):
-            if isinstance(c, dict):
-                sid = c.get("source_id") or c.get("video_id") or c.get("url") or c.get("source_url")
-            elif isinstance(c, str):
-                sid = c
-            else:
-                sid = None
-                
-            if sid and sid not in sources:
-                # promote the citation to the top-3 (at index 2)
-                citations.insert(2, citations.pop(idx))
-                break
-    return citations

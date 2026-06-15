@@ -302,7 +302,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     selected_clusters,
                     embedder,
                     qdrant,
-                    lightrag if query_tier != "fast" else None,
+                    lightrag if query_tier == "tier3_complex" else None,
                 ),
                 timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )
@@ -341,7 +341,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                             selected_clusters,
                             embedder,
                             qdrant,
-                            lightrag if query_tier != "fast" else None,
+                            lightrag if query_tier == "tier3_complex" else None,
                         ),
                         timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
                     )
@@ -491,7 +491,7 @@ async def retrieve_single(state: GraphState) -> dict:
         selected_clusters=state.get("selected_clusters", []),
         embedder=embedder,
         qdrant=qdrant,
-        lightrag=lightrag,
+        lightrag=lightrag if state.get("query_tier") == "tier3_complex" else None,
     )
 
     logger.debug(f"retrieve_single[{sub_query[:40]}]: {len(docs)} docs retrieved")

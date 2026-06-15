@@ -71,6 +71,7 @@ import {
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
+import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
 
 // Build a user-facing MessageError from an internal error code / details.
@@ -834,19 +835,12 @@ export const ChatInterface = () => {
           setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
 
           // ── Memory: fire-and-forget extraction ───────────────────────────
-          // Extract 0–3 durable facts from this exchange and store them.
-          // Runs async, never blocks the chat, failures are silent.
-          supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-              supabase.functions.invoke('memory-extract', {
-                body: {
-                  user_message: userMessage.content,
-                  assistant_message: fullContent,
-                  conversation_id: currentConversation?.id,
-                },
-              }).catch(() => { /* silent */ });
-            }
-          }).catch(() => { /* silent */ });
+          // Offload to aiService so ChatInterface stays clean.
+          queueMemoryExtraction({
+            userMessage: userMessage.content,
+            assistantMessage: fullContent,
+            conversationId: currentConversation?.id,
+          });
 
           // Update meditation step from streaming metadata
           if (streamedMedStep !== undefined) {

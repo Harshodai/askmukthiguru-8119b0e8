@@ -117,19 +117,23 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     faithfulness_score = ld_result["score"]
     is_faithful_ld = ld_result["is_faithful"]
 
-    # --- Heavy verification DISABLED (performance) ---
-    # CoVe verification + LLM self-consistency add ~60s with zero quality
-    # gain for spiritual paraphrasing.  Keeping code intact per plan.
-    # Original blocks:
-    #   1) Claim verification (CoVe sub-questions) — 202-256
-    #   2) Self-consistency check (alt answer generation) — 261-347
-    # --- END DISABLED ---
-    claim_verification_passed = True
-    claim_verification_details = "Disabled for performance"
+    # --- CoVe: selectively re-enabled for tier3_complex ---
+    # CoVe verification + LLM self-consistency add ~60s.
+    # Re-enabled only for tier3_complex where depth justifies the cost.
+    cove_failed = False
+    if state.get("query_tier") == "tier3_complex":
+        cove_result = await _cove_subquestion_check(question, answer, context, ollama)
+        cove_failed = not cove_result["passed"]
+        claim_verification_passed = not cove_failed
+        claim_verification_details = cove_result["details"]
+    else:
+        claim_verification_passed = True
+        claim_verification_details = "Disabled for performance (not tier3_complex)"
+    # --- END CoVe ---
     consistency_check_passed = True
     consistency_feedback = ""
 
-    is_valid = is_faithful_ld
+    is_valid = is_faithful_ld and not cove_failed
 
     base_confidence = faithfulness_score * 10.0
     claim_verification_factor = 1.0 if claim_verification_passed else 0.7
@@ -269,3 +273,51 @@ async def explain_retrieval(state: GraphState, config: dict = None) -> dict:
             reasoning[url] = explanation
 
     return {"citation_reasoning": reasoning}
+
+
+async def _cove_subquestion_check(question: str, answer: str, context: str, ollama):
+    """Lightweight CoVe: generate sub-questions and score support.
+    Returns dict with passed, details, and confidence."""
+    try:
+        # Generate 2-3 sub-questions from the answer
+        prompt = (
+            f"Question: {question}\nAnswer: {answer}\n\n"
+            "Generate 2 concise factual sub-questions whose answers would verify "
+            "whether the above answer is well-supported. Return one per line, no numbering."
+        )
+        raw = await ollama.generate(
+            system_prompt="You generate factual verification sub-questions.",
+            user_prompt=prompt,
+            timeout=8,
+            max_retries=1,
+        )
+        sub_qs = [q.strip() for q in raw.splitlines() if q.strip() and len(q) > 10][:3]
+
+        supported = 0
+        for sq in sub_qs:
+            verify_prompt = (
+                f"Context:\n{context[:1500]}\n\n"
+                f"Sub-question: {sq}\nDoes the context support a 'yes' answer? "
+                "Reply only 'yes' or 'no'."
+            )
+            try:
+                resp = await ollama.generate(
+                    system_prompt="Answer only yes or no.",
+                    user_prompt=verify_prompt,
+                    timeout=6,
+                    max_retries=1,
+                )
+                if "yes" in resp.lower():
+                    supported += 1
+            except Exception:
+                supported += 1  # lenient: count as supported on error
+
+        ratio = supported / max(len(sub_qs), 1)
+        passed = ratio >= 0.5
+        return {
+            "passed": passed,
+            "details": f"CoVe: {supported}/{len(sub_qs)} sub-questions supported (ratio={ratio:.2f})",
+        }
+    except Exception as e:
+        logger.warning(f"CoVe sub-question check failed: {e}")
+        return {"passed": True, "details": "CoVe failed, defaulting to pass"}
