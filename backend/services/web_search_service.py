@@ -83,10 +83,13 @@ class DuckDuckGoProvider(SearchProvider):
 
     async def search(self, query: str, max_results: int) -> list[dict]:
         try:
-            from duckduckgo_search import DDGS
+            from ddgs import DDGS
         except ImportError:
-            logger.warning("duckduckgo-search not installed; skipping web search")
-            return []
+            try:
+                from duckduckgo_search import DDGS
+            except ImportError:
+                logger.warning("Neither ddgs nor duckduckgo-search installed; skipping web search")
+                return []
 
         try:
             # DDGS is sync; run in thread pool
@@ -99,10 +102,24 @@ class DuckDuckGoProvider(SearchProvider):
             return []
 
     def _ddg_sync_search(self, query: str, max_results: int) -> list[dict]:
-        from duckduckgo_search import DDGS
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
 
         results = []
-        with DDGS() as ddgs:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        
+        try:
+            # New ddgs package constructor does not accept headers parameter
+            ddgs_client = DDGS()
+        except TypeError:
+            # Old duckduckgo_search constructor accepts headers
+            ddgs_client = DDGS(headers=headers)
+
+        with ddgs_client as ddgs:
             for i, r in enumerate(ddgs.text(query, max_results=max_results * 3)):
                 if i >= max_results:
                     break
@@ -203,7 +220,7 @@ class WebSearchService:
             {
                 "text": "...",       # Combined title + snippet
                 "title": "...",
-                "source_url": "...",s
+                "source_url": "...",
                 "content_type": "web_search",
                 "score": 1.0,
                 "safety_flags": [],

@@ -63,12 +63,22 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
         return await _intent_router_impl(state, config)
     except Exception as e:
         logger.exception("Intent router failed, falling back to safe default")
+        question = state.get("question", "")
+        lower_q = question.lower()
+        needs_web_search = False
+        query_tier = "tier2_simple"
+        if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
+            needs_web_search = True
+            query_tier = "tier3_complex"
+            logger.info("Intent Router Fallback: temporal pattern detected, enabling web search")
         return {
             "intent": "FACTUAL",
-            "query_tier": "tier2_simple",
+            "query_tier": query_tier,
+            "needs_web_search": needs_web_search,
             "evaluation_trace": _trace_update(
-                state, intent="FACTUAL", query_tier="tier2_simple",
-                routing_reason="semantic_router_fallback"
+                state, intent="FACTUAL", query_tier=query_tier,
+                routing_reason="semantic_router_fallback",
+                needs_web_search=needs_web_search
             ),
         }
 
