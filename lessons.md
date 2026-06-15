@@ -1807,3 +1807,19 @@ The LLM response for web search and general queries often includes raw URLs and 
   3. Strict anti-hallucination prompts must explicitly forbid producing answers when they output the fallback message for empty contexts.
   4. Ingestion pipelines require content-hash checkpoints to prevent redundant indexing, and splitting must respect sentence boundaries to preserve retrieval quality.
 
+
+### 126. Sequential Evaluation Order for Input Guardrails and Distress Detection
+
+- **Problem**: 
+  - **Redundant Processing**: While concurrent execution reduces latency, executing distress detection concurrently with input guardrails is wasteful when the input fails safety guardrails. Input guardrails must run first to allow early exit before running expensive downstream assessments.
+  - **Test Failures**: Changes to the RAG query tier (bypassing LightRAG for standard queries) broke contract tests that assumed standard queries still retrieved from LightRAG. Additionally, the duckduckgo-search wrapper package (`ddgs`) was installed in the host virtual environment and bypassed the `duckduckgo_search` mock, causing real network queries to execute during testing.
+- **Solution**:
+  - **Sequential Ordering**: Refactored `pipeline_coordinator.py` to evaluate `_run_input_guardrails` first, return early if blocked, and only check `_detect_distress` on allowed inputs.
+  - **Robust Mocking**: Updated `test_web_search.py` to mock both `ddgs.DDGS` and `duckduckgo_search.DDGS` so that local or environment package discrepancies do not leak real requests.
+  - **Updated Contract Tests**: Updated `test_retrieve_documents_contract.py` to assert that LightRAG is bypassed on standard queries but called on `tier3_complex` queries.
+- **Lesson learned**: 
+  1. Input validation and guardrail checks must strictly precede intent/distress detection to prevent wasted LLM computation and telemetry overhead on invalid or malicious requests.
+  2. Mocking third-party packages must account for multi-wrapper alternatives (e.g. `ddgs` vs `duckduckgo_search`) to ensure hermetic and fast test execution.
+
+
+

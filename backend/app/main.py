@@ -33,6 +33,7 @@ from fastapi import (
     HTTPException,
     Request,
     UploadFile,
+    status,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -107,6 +108,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.api.endpoints.auth import router as auth_router
+from app.api.health import router as health_router
 from app.core.database import init_db
 from app.core.limiter import limiter
 from routers.admin import admin_router
@@ -409,6 +411,11 @@ class SecurityHeadersMiddleware:
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Token-bucket rate limiter for /api/chat
+from app.middleware.rate_limit import TokenBucketMiddleware
+
+app.add_middleware(TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60)
+
 
 # In-flight tracker middleware for graceful drain (R3)
 @app.middleware("http")
@@ -475,6 +482,7 @@ app.include_router(auth_router, prefix="/api/auth")
 # (Other routers moved down to avoid circular deps if any, or just kept here)
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
+app.include_router(health_router, prefix="")
 
 # Unit 24: Compliance router (GDPR audit log access)
 from routers.compliance import router as compliance_router
@@ -1446,7 +1454,22 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     )
 
 
-@app.post("/api/health/circuit-reset", tags=["Health"])
+async def _health_check(name: str, coro) -> dict:
+    s = time.perf_counter()
+    try:
+        await asyncio.wait_for(coro, timeout=2.0)
+        return {"name": name, "ok": True, "latency_ms": int((time.perf_counter() - s) * 1000)}
+    except Exception as exc:
+        return {"name": name, "ok": False, "error": str(exc)[:120]}
+
+
+async def _check_redis(container: ServiceContainer) -> dict:
+    async def _redis_ping():
+        loop = asyncio.get_running_loop()
+        if container.exact_cache and getattr(container.exact_cache, "_redis", None):
+            return await loop.run_in_executor(None, container.exact_cache._redis.ping)
+        return False
+    return _redis_ping()
 async def circuit_breaker_reset_endpoint() -> dict:
     """
     Manually reset the active circuit breaker to CLOSED.

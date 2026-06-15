@@ -58,7 +58,7 @@ def route_after_intent(state: GraphState) -> str:
     intent = state.get("intent", "CASUAL")
     needs_web_search = state.get("needs_web_search", False)
     if intent == "DISTRESS":
-        return "distress"
+        return "query"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
     elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION"]:

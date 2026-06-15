@@ -1,8 +1,11 @@
 import os
 import sys
 
-# Remove REDIS_URL from test environment to prevent rate limiter from attempting connections
-os.environ.pop("REDIS_URL", None)
+# Point REDIS_URL to local host-mapped Redis for testing
+os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@127.0.0.1:6379/0"
+os.environ["IS_PRODUCTION"] = "false"
+
+
 
 # Ensure JWT_SECRET is set for import-time validation
 os.environ["JWT_SECRET"] = os.environ.get("JWT_SECRET", "mock_jwt_secret_for_testing_12345")

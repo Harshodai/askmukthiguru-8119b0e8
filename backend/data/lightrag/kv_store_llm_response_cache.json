@@ -18,5 +18,25 @@
     "create_time": 1781375031,
     "update_time": 1781375031,
     "_id": "hybrid:keywords:97a1353c34ae63bfc48f281dcb46e992"
+  },
+  "hybrid:keywords:efe80e1b19847b58726cc5271591159f": {
+    "return": "{\"high_level_keywords\": [\"Soul Sync meditation\", \"breath meditation\", \"dhyana\", \"dhyan\", \"higher consciousness\", \"expanded awareness\", \"unity consciousness\"], \"low_level_keywords\": [\"breath awareness\", \"humming\", \"pause\", \"presence\", \"soul synchronization\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "What is Soul Sync meditation? (also: soul synchronization, breath meditation, breath awareness meditation, dhyana, dhyan) breath awareness humming pause breath awareness presence higher consciousness expanded awareness unity consciousness",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1781542831,
+    "update_time": 1781542831,
+    "_id": "hybrid:keywords:efe80e1b19847b58726cc5271591159f"
   }
 }
