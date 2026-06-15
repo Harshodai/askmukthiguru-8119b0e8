@@ -1784,3 +1784,26 @@ The LLM response for web search and general queries often includes raw URLs and 
 3. Kept the canonical `citations` list populated in the returned JSON metadata so the frontend client can render the links elegantly outside the answer text.
 4. Cleaned up trailing spaces, newlines, and corrected spaces before punctuation that were left after stripping inline citations.
 
+
+## Production Readiness Audit Fixes (June 2026)
+
+### 125. Production Readiness: Caching, Lightweight Guardrail LLM Bypass, Real SSE Streaming, Prompt Contradictions, and Ingestion Deduplication
+
+- **Problem**: 
+  - **Latency and Cache Misses**: The default semantic cache threshold was too high (0.88), causing cache misses on paraphrased spiritual queries.
+  - **Lightweight Guardrail Latency**: Under "lightweight" guardrails, the system made 3-5 second LLM calls to classify input safety, creating high latency.
+  - **Simulated Streaming**: The stream orchestrator ran the pipeline synchronously to completion, then simulated chunk-by-chunk stream events, defeating the purpose of real-time streaming.
+  - **Prompt Contradictions**: When RAG context was insufficient, the model would output a fallback sentence AND proceed to generate a detailed answer anyway, resulting in hallucination flags.
+  - **Ingestion Duplication & Chunking**: The ingestion pipeline lacked text-content hash checks, causing duplicate processing, and used fixed-width character splitting that cut sentences in half.
+- **Solution**:
+  - **Optimized Cache**: Lowered the default `semantic_cache_similarity` from `0.88` to `0.78` and set `semantic_cache_ttl` to 7 days (`604800` seconds). Updated environmental settings across all `.env` files.
+  - **Guardrail LLM Toggle**: Added a `guardrails_llm_enabled` setting (defaulting to `False`) to bypass LLM classification in `LightweightGuardrailHandler`, making it 100% regex-based and taking 0ms.
+  - **Real SSE Streaming**: Refactored `stream_orchestrator.py` to run the RAG pipeline concurrently using `asyncio.create_task` and stream tokens/status events in real-time via `asyncio.Queue`, with automatic task cleanup on client disconnect.
+  - **Resolved Prompt Contradiction**: Updated `GURU_SYSTEM_PROMPT` Rule 2 and dynamic generation prompt instructions to explicitly prevent generating details when the context is insufficient.
+  - **Smart Ingestion**: Integrated SHA-256 content-hash checks in `pipeline.py` using `IngestionCheckpoint` to skip already-indexed documents. Replaced fixed-width splitting in `_hierarchical_split` with semantic parent partitioning and sentence-boundary child splitting.
+- **Lesson learned**: 
+  1. Low-latency conversational APIs require zero-overhead guardrails and aggressive, calibrated semantic caching.
+  2. Real-time token streaming requires fully asynchronous graph execution with task-cancellation guards to avoid orphaned tasks on network disconnects.
+  3. Strict anti-hallucination prompts must explicitly forbid producing answers when they output the fallback message for empty contexts.
+  4. Ingestion pipelines require content-hash checkpoints to prevent redundant indexing, and splitting must respect sentence boundaries to preserve retrieval quality.
+
