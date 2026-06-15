@@ -540,17 +540,27 @@ if chat_ui_path:
 else:
     logger.warning("⚠️ Chat UI directory not found.")
 
-# === Mount Gradio UI (Council Recommendation) ===
-try:
-    import gradio as gr
+# === Mount Gradio UI (gated; disabled by default in production) ===
+if os.getenv("ENABLE_GRADIO_UI", "false").lower() in ("1", "true", "yes"):
+    try:
+        import gradio as gr
 
-    from app.gradio_ui import create_demo
+        from app.gradio_ui import create_demo
 
-    # Reset standard logging to avoid conflict
-    gradio_app = gr.mount_gradio_app(app, create_demo(), path="/ui")
-    logger.info("✅ Gradio Chat UI mounted at /ui")
-except Exception as e:
-    logger.warning(f"Failed to mount Gradio UI: {e}")
+        _gradio_user = os.getenv("GRADIO_USER")
+        _gradio_pass = os.getenv("GRADIO_PASS")
+        _auth = (_gradio_user, _gradio_pass) if _gradio_user and _gradio_pass else None
+        if _auth is None:
+            logger.warning(
+                "Gradio UI enabled without GRADIO_USER/GRADIO_PASS — refusing to mount unauthenticated UI."
+            )
+        else:
+            gradio_app = gr.mount_gradio_app(app, create_demo(auth=_auth), path="/ui")
+            logger.info("✅ Gradio Chat UI mounted at /ui (basic auth enabled)")
+    except Exception as e:
+        logger.warning(f"Failed to mount Gradio UI: {e}")
+else:
+    logger.info("Gradio UI disabled (set ENABLE_GRADIO_UI=true to enable)")
 
 
 
@@ -837,6 +847,7 @@ async def speech_to_text_endpoint(
     file: UploadFile = File(...),
     language_code: Optional[str] = Form(None),
     model: str = Form("saaras:v3"),
+    user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ):
     """
@@ -917,13 +928,15 @@ async def speech_to_text_endpoint(
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
     except Exception as e:
-        logger.error(f"Local Whisper fallback failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Speech transcription failed: {e}")
+        logger.error(f"Local Whisper fallback failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Speech transcription failed. Please try again.")
 
 
 @app.post("/api/speech/tts", tags=["Speech"])
 async def text_to_speech_endpoint(
-    req: SpeechTTSRequest, container: ServiceContainer = Depends(get_container)
+    req: SpeechTTSRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
 ):
     """
     Generate speech from text using Sarvam Cloud TTS.
@@ -989,13 +1002,13 @@ async def text_to_speech_endpoint(
             else:
                 logger.error(f"Sarvam TTS failed with status {resp.status_code}: {resp.text}")
                 raise HTTPException(
-                    status_code=resp.status_code, detail=f"Sarvam TTS failed: {resp.text}"
+                    status_code=502, detail="Speech synthesis failed. Please try again."
                 )
     except Exception as e:
-        logger.error(f"Error calling Sarvam TTS: {e}")
+        logger.error(f"Error calling Sarvam TTS: {e}", exc_info=True)
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Speech synthesis failed. Please try again.")
 
 
 @app.post("/api/ingest", response_model=IngestResponse, tags=["Ingestion"])
