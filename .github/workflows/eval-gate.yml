@@ -1,0 +1,84 @@
+name: Eval Gate (RAGAS Faithfulness)
+
+# Blocks merge / deploy when faithfulness on the golden disciple set
+# regresses below the threshold. Runs on PRs touching backend RAG code
+# and as a nightly canary on main.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/rag/**'
+      - 'backend/services/**'
+      - 'backend/evaluation/**'
+      - 'backend/app/main.py'
+      - 'backend/evaluation/golden_dataset.json'
+  schedule:
+    - cron: '0 2 * * *' # 02:00 UTC nightly
+  workflow_dispatch:
+
+env:
+  FAITHFULNESS_THRESHOLD: '0.88'
+  ANSWER_RELEVANCY_THRESHOLD: '0.80'
+  DIVERSITY_MIN_DISTINCT_SOURCES: '2'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install eval deps
+        run: |
+          pip install ragas==0.2.6 datasets pandas httpx pydantic
+
+      - name: Run golden eval
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          BACKEND_TOKEN: ${{ secrets.BACKEND_TOKEN }}
+          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+        run: |
+          python backend/evaluation/run_golden_eval.py \
+            --dataset backend/evaluation/golden_dataset.json \
+            --out eval_report.json \
+            --faithfulness-min "$FAITHFULNESS_THRESHOLD" \
+            --relevancy-min "$ANSWER_RELEVANCY_THRESHOLD" \
+            --min-distinct-sources "$DIVERSITY_MIN_DISTINCT_SOURCES"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval_report.json
+
+      - name: Comment summary on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('eval_report.json')) return;
+            const r = JSON.parse(fs.readFileSync('eval_report.json', 'utf8'));
+            const body = [
+              '### 🪷 RAGAS Eval Gate',
+              '',
+              `| metric | value | threshold | pass |`,
+              `|---|---|---|---|`,
+              `| faithfulness | ${r.faithfulness?.toFixed(3)} | ${process.env.FAITHFULNESS_THRESHOLD} | ${r.faithfulness_pass ? '✅' : '❌'} |`,
+              `| answer_relevancy | ${r.answer_relevancy?.toFixed(3)} | ${process.env.ANSWER_RELEVANCY_THRESHOLD} | ${r.relevancy_pass ? '✅' : '❌'} |`,
+              `| source_diversity | ${r.diversity_violations} violations | 0 | ${r.diversity_violations === 0 ? '✅' : '❌'} |`,
+              '',
+              `Run: ${r.questions_total} questions, ${r.questions_failed} failed to answer.`,
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
