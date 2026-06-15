@@ -163,14 +163,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     for idx, doc in enumerate(relevant_docs):
         doc_str = f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc.get('text', '')}"
         doc_tokens = int(len(doc_str.split()) * 1.3)
-        logger.info(f"BUDGET DEBUG: doc[{idx}] tokens={doc_tokens}, current_sum={current_context_tokens}, text_len={len(doc.get('text', ''))}")
+        logger.debug(f"BUDGET: doc[{idx}] tokens={doc_tokens}, running_sum={current_context_tokens}")
         if current_context_tokens + doc_tokens > max_context_tokens:
-            logger.info(f"BUDGET DEBUG: doc[{idx}] exceeds remaining context budget {max_context_tokens - current_context_tokens}")
             if not truncated_docs:
                 truncated_text = doc.get("text", "")
                 words = truncated_text.split()
                 allowed_words = int((max_context_tokens - current_context_tokens) / 1.3)
-                logger.info(f"BUDGET DEBUG: truncating first doc to allowed_words={allowed_words}")
                 if allowed_words > 10:
                     truncated_text = " ".join(words[:allowed_words]) + "..."
                     doc_copy = dict(doc)
@@ -181,7 +179,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         current_context_tokens += doc_tokens
 
     relevant_docs = truncated_docs
-    logger.info(f"BUDGET DEBUG: final truncated docs count={len(relevant_docs)}, current_context_tokens={current_context_tokens}")
+    logger.info(f"Context budget: {len(relevant_docs)} docs / {current_context_tokens} tokens (max={max_context_tokens})")
 
     if len(relevant_docs) > 0:
         total_raw_len = sum(len(doc.get("text", "")) for doc in relevant_docs)
@@ -260,7 +258,17 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     is_tier2 = state.get("query_tier") == "fast"
     if layers and is_tier2:
-        system_prompt = "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. Answer the user's question using only the provided context. Keep answers to 100-200 words. Cite sources using [Source: <title>]."
+        system_prompt = (
+            "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. "
+            "Answer the user's question using only the provided context. Keep answers to 100-200 words. "
+            "Cite sources using [Source: <title>].\n"
+            "PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
+            "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
+            "'we took her') into appropriate third-person references (e.g., 'Sri Krishnaji and Sri Preethaji', "
+            "'their daughter', 'Sri Krishnaji and Sri Preethaji took her'). Never refer to them using first-person pronouns.\n"
+            "LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
+            "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
+        )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
         knowledge = layers['knowledge']
@@ -304,7 +312,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "4. NEVER fabricate teachings or add information from your training data.\n"
             "5. Maintain a warm, compassionate, and wise tone.\n"
             "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
-            "7. Never expose reasoning notes, prompt analysis, or chain-of-thought."
+            "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
+            "8. PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
+            "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
+            "'we took her') into appropriate third-person (e.g., 'Sri Krishnaji and Sri Preethaji', 'their daughter', "
+            "'Sri Krishnaji and Sri Preethaji took her'). Never refer to them in the first person.\n"
+            "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
+            "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
         )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
@@ -476,7 +490,7 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
         ),
         (
             ["lokaa", "loka"],
-            ["Lokaa", "daughter"],
+            ["Lokaa"],  # Only anchor the name — do NOT inject 'daughter' (Lokaa is the founders' daughter, NOT a parent)
         ),
         (
             ["lokaa foundation", "loka foundation"],

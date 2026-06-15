@@ -208,58 +208,105 @@ class MemoryService:
             return
 
         try:
-            import instructor
             from openai import AsyncOpenAI
+            import json as _json
 
             # Build client based on active LLM provider
             if settings.is_sarvam_cloud:
-                client = instructor.from_openai(
-                    AsyncOpenAI(
-                        base_url=settings.sarvam_base_url,
-                        api_key="api-key-not-used-by-bearer",
-                        default_headers={"api-subscription-key": settings.sarvam_api_key},
-                    ),
-                    mode=instructor.Mode.JSON,
+                client = AsyncOpenAI(
+                    base_url=settings.sarvam_base_url,
+                    api_key="api-key-not-used-by-bearer",
+                    default_headers={"api-subscription-key": settings.sarvam_api_key},
                 )
                 model_name = settings.sarvam_cloud_classify_model or "sarvam-30b"
+            elif settings.llm_provider.lower() == "openrouter":
+                client = AsyncOpenAI(
+                    base_url=settings.openrouter_base_url,
+                    api_key=settings.openrouter_api_key,
+                )
+                model_name = settings.model_for_classification
             else:
-                client = instructor.from_openai(
-                    AsyncOpenAI(
-                        base_url=f"{settings.ollama_base_url}/v1",
-                        api_key="ollama",
-                    ),
-                    mode=instructor.Mode.JSON,
+                client = AsyncOpenAI(
+                    base_url=f"{settings.ollama_base_url}/v1",
+                    api_key="ollama",
                 )
                 model_name = settings.model_for_classification
 
-            prompt = (
-                f"Analyze the following conversation transcript between Mukthi Guru and a seeker (User).\n"
-                f"Extract:\n"
-                f"1. Core memories: Any new, long-term facts about the user (e.g. name, location, spiritual goals, major life concerns). Do not repeat generic facts.\n"
-                f"2. Episodic memories: Any specific insights, real-world context, or reflections shared in this conversation.\n"
-                f"3. Session summary: A 1-2 sentence summary of this conversation session's topics and user emotional state.\n\n"
-                f"Transcript:\n{transcript}"
-            )
-
-            # Retrieve existing core memories to avoid duplicates
+            # Embed existing core memories to avoid duplicates
             existing_cores = await self.get_core(user_id)
             existing_core_texts = [c["content"] for c in existing_cores]
+            dedup_section = ""
             if existing_core_texts:
-                prompt += "\n\nExisting core memories to avoid duplicating:\n- " + "\n- ".join(existing_core_texts)
+                dedup_section = "\n\nExisting core memories (DO NOT duplicate these):\n- " + "\n- ".join(existing_core_texts)
 
-            # Call LLM with timeout
-            resp: MemoryExtraction = await client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": "You are a seeker memory extractor. Return a strictly formatted JSON object matching the requested schema. Do not include any reasoning inside think tags when returning JSON."},
-                    {"role": "user", "content": prompt},
-                ],
-                response_model=MemoryExtraction,
-                max_retries=2,
-                timeout=20.0,
+            # Use a direct JSON template prompt — more reliable than instructor for small models
+            system_msg = (
+                "You are a memory extractor for a spiritual guidance system. "
+                "Extract information from the conversation and return a VALID JSON object. "
+                "Return ONLY the JSON object, nothing else. No reasoning, no think tags, no explanations."
+            )
+            user_msg = (
+                f"Analyze this conversation transcript between Mukthi Guru and a seeker.\n"
+                f"Extract:\n"
+                f"1. core_memories: List of 0+ permanent facts about the user (name, location, spiritual goals). Leave empty [] if none found.\n"
+                f"2. episodic_memories: List of 0+ specific insights or reflections shared in this session. Leave empty [] if none.\n"
+                f"3. session_summary: 1-2 sentence summary of the session topics and user state.\n"
+                f"{dedup_section}\n\n"
+                f"Transcript:\n{transcript}\n\n"
+                f"Return ONLY this JSON (fill in the values):\n"
+                f'{{"core_memories": [], "episodic_memories": [], "session_summary": "..."}}'  
             )
 
-            extracted = resp
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg},
+                    ],
+                    temperature=0.0,
+                    max_tokens=1024,
+                ),
+                timeout=50.0,
+            )
+            raw_content = response.choices[0].message.content or ""
+
+            # Robustly extract JSON from potentially dirty output
+            raw_content = raw_content.strip()
+            # Strip markdown code fences
+            if raw_content.startswith("```"):
+                import re as _re
+                raw_content = _re.sub(r"^```(?:json)?\n?(.*?)\n?```$", r"\1", raw_content, flags=_re.DOTALL).strip()
+            # Find outermost braces
+            first_brace = raw_content.find("{")
+            last_brace = raw_content.rfind("}")
+            if first_brace == -1 or last_brace == -1:
+                raise ValueError(f"No JSON object found in LLM response: {raw_content[:200]}")
+            json_str = raw_content[first_brace:last_brace + 1]
+            data = _json.loads(json_str)
+
+            # Safe extraction with per-field fallbacks
+            core_mems = data.get("core_memories", [])
+            episodic_mems = data.get("episodic_memories", [])
+            session_sum = data.get("session_summary", "Conversation session completed.")
+
+            # Validate types — models occasionally return strings instead of lists
+            if isinstance(core_mems, str):
+                core_mems = [core_mems] if core_mems.strip() else []
+            if isinstance(episodic_mems, str):
+                episodic_mems = [episodic_mems] if episodic_mems.strip() else []
+            if not isinstance(session_sum, str):
+                session_sum = "Conversation session completed."
+
+            extracted = MemoryExtraction(
+                core_memories=[m for m in core_mems if isinstance(m, str) and m.strip()],
+                episodic_memories=[m for m in episodic_mems if isinstance(m, str) and m.strip()],
+                session_summary=session_sum.strip() or "Conversation session completed.",
+            )
+            logger.info(
+                f"Memory extraction OK: {len(extracted.core_memories)} core, "
+                f"{len(extracted.episodic_memories)} episodic, summary={bool(extracted.session_summary)}"
+            )
         except Exception as e:
             logger.warning(f"Memory extraction via Instructor failed: {e}. Falling back to default empty memory.")
             # Default empty memory structure

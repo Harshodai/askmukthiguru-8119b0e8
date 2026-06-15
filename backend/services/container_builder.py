@@ -224,6 +224,7 @@ class ContainerBuilder:
                 lightrag_service=container.lightrag,
                 serene_mind_engine=container.serene_mind,
                 web_search=container.web_search,
+                semantic_cache=container.semantic_cache,
             )
 
         container.fast_graph = build_graph(strategies["fast"])

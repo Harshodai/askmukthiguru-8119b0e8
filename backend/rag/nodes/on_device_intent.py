@@ -42,8 +42,9 @@ _CLASS_KEYWORDS: dict[str, list[str]] = {
     "MEDITATION": [
         "meditate", "meditation", "breathing", "breathe", "mindfulness", "serene mind",
         "calm", "relax", "quiet", "silence", "inner stillness", "guided meditation",
-        "meditation practice", "how to meditate", "breath awareness", "soul sync",
-        "golden light", "intention practice", "pause practice", "deeksha" , "humming",
+        "meditation practice", "how to meditate", "breath awareness",
+        "golden light meditation", "start meditating", "do a meditation", "guide me through",
+        "deeksha session", "soul sync practice", "humming exercise",
     ],
     "CASUAL": [
         "hello", "hi", "hey", "how are you", "what's up", "good morning", "namaste",
@@ -206,6 +207,20 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     if len(text.split()) > 15 or len(re.split(r"[.!?]+", text)) > 2:
         logger.info(f"On-device classifier bypass: query is long/multi-part: '{text[:50]}...'")
         return None
+
+    # Bypass: Manifest 2026 monthly power / temporal factual queries must NEVER be MEDITATION.
+    # e.g. "Which month's power comes after the Power of Intention?" has 'intention' which
+    # accidentally matches MEDITATION seeds. Force FACTUAL for these.
+    _MANIFEST_FACTUAL_SIGNALS = [
+        r"\bwhich\s+month", r"\bpower\s+of\s+intention\b", r"\bpower\s+of\s+\w+\b",
+        r"\bmanifest\s+2026\b", r"\bafter\s+the\s+power", r"\bbefore\s+the\s+power",
+        r"\bfollowing\s+power", r"\bnext\s+power", r"\bmonthly\s+power",
+        r"\bjanuary|february|march|april|may|june|july|august|september|october|november|december\b",
+    ]
+    for signal in _MANIFEST_FACTUAL_SIGNALS:
+        if re.search(signal, lower, re.I):
+            logger.info(f"On-device classifier FACTUAL bypass (manifest/temporal signal): '{text[:60]}...'")
+            return "FACTUAL", "tier3_complex", "on_device_manifest_temporal_factual"
 
     result = classify_with_embeddings(text, threshold=threshold)
     if result is None:
