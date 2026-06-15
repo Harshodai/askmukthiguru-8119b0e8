@@ -122,6 +122,7 @@ graph LR
 - [x] **P1**: Persist telemetry to Redis Streams instead of `BackgroundTasks` (Wave 4, completed June 2026)
 - [x] Benchmark Recovery: Timeout escalation, CoT strip rules, adversarial_traps queries, and citation denominator filter (June 2026)
 - [x] Integrate OpenRouter as primary cloud LLM provider option using Llama free models (June 2026)
+- [x] Production Readiness Fixes: lower semantic cache threshold to 0.78, add L1 Redis cache configuration, fix lightweight guardrail LLM bypass, implement real SSE streaming, resolve prompt contradictions, and implement semantic parent/sentence-boundary child splitting with content hash deduplication in ingestion (June 2026)
 
 
 ---
