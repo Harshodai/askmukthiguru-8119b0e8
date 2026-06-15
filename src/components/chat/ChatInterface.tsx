@@ -146,6 +146,7 @@ import { LanguageSelector, LANGUAGES } from './LanguageSelector';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
+import { ChatEmptyState } from './ChatEmptyState';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -1354,18 +1355,11 @@ return (
               transition={{ delay: 0.4 }}
               className="space-y-4 pt-4"
             >
-              {/* Compact daily teaching banner */}
-              {dailyTeaching && dailyTeaching.caption && (
-                <div className="mx-auto max-w-md rounded-xl border border-ojas/20 bg-ojas/5 backdrop-blur-sm p-4 flex items-start gap-3">
-                  <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5 animate-pulse" />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold text-ojas uppercase tracking-widest mb-1">Today&apos;s Wisdom</p>
-                    <p className="text-sm text-foreground/80 font-serif italic leading-relaxed line-clamp-3">
-                      &ldquo;{dailyTeaching.caption}&rdquo;
-                    </p>
-                  </div>
-                </div>
-              )}
+              {/* Empty-state cards: resume last + today's teaching */}
+              <ChatEmptyState
+                currentConversationId={currentConversation?.id}
+                onResume={handleSelectConversation}
+              />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                 {STARTER_SUGGESTIONS.map((suggestion) => (
                   <button
