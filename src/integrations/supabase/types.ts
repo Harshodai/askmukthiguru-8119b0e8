@@ -615,6 +615,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_extractions: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          payload: Json
+          processed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          payload: Json
+          processed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -622,6 +655,7 @@ export type Database = {
           display_name: string | null
           id: string
           last_active_at: string | null
+          last_conversation_id: string | null
           last_device_id: string | null
           last_message_id: string | null
           preferred_language: string | null
@@ -633,6 +667,7 @@ export type Database = {
           display_name?: string | null
           id: string
           last_active_at?: string | null
+          last_conversation_id?: string | null
           last_device_id?: string | null
           last_message_id?: string | null
           preferred_language?: string | null
@@ -644,6 +679,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           last_active_at?: string | null
+          last_conversation_id?: string | null
           last_device_id?: string | null
           last_message_id?: string | null
           preferred_language?: string | null
