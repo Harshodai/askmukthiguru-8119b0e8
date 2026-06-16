@@ -1,0 +1,328 @@
+# Mukthi Guru — Semantic Router Configuration
+# =============================================================================
+# This YAML is the SINGLE source of truth for intent routing. It replaces the
+# previous hardcoded keyword lists, regex patterns, and inline pattern lists
+# scattered across rag/intent_prerouter.py and rag/nodes/intent.py.
+#
+# Each route is defined by:
+#   - name: the intent label downstream code consumes
+#   - utterances: short canonical phrasings of that intent. The router encodes
+#     each utterance via the existing embedding model and uses the centroid
+#     similarity for classification. No new deps required.
+#   - threshold: minimum cosine similarity (0-1) to fire this route. Below the
+#     threshold, the router returns None and the LLM classifier decides.
+#   - priority: higher priority routes are evaluated first when multiple match.
+#   - require_imperative: when True, the route only fires if the query is also
+#     classified imperative by `is_meditation_imperative` (kills the
+#     interrogative-meditation hijack at the configuration layer).
+#   - exclude_if_interrogative: when True, drop the match if the query starts
+#     with an interrogative stem (any of `interrogative_stems` below).
+#
+# Editing this file changes routing behaviour at runtime — no code changes.
+# =============================================================================
+
+version: 1
+
+# Global behaviour knobs. These can be overridden by env vars in Settings.
+router_defaults:
+  # Default minimum similarity to fire any route (0-1). Per-route values
+  # override this. Tune by measuring precision/recall on the eval set.
+  threshold: 0.72
+  # If True, the router also runs the safety-net regex layer for high-precision
+  # patterns (e.g. explicit suicide language). Regex layer is only used for
+  # routes that explicitly opt in via `regex` field below.
+  use_regex_safety_net: true
+
+# Interrogative stems — used by the `exclude_if_interrogative` flag and the
+# is_meditation_imperative helper. Includes English, Hinglish/Romanized Hindi,
+# Tamil, Telugu, Spanish, French, German seeds to support multilingual users.
+interrogative_stems:
+  en:
+    - "can i"
+    - "could i"
+    - "should i"
+    - "may i"
+    - "what is"
+    - "what are"
+    - "what does"
+    - "what's"
+    - "how do"
+    - "how does"
+    - "how can"
+    - "how to"
+    - "why is"
+    - "why does"
+    - "why do"
+    - "why are"
+    - "when is"
+    - "when does"
+    - "where is"
+    - "where does"
+    - "is there"
+    - "are there"
+    - "does "
+    - "do you "
+    - "which "
+    - "who is"
+    - "who are"
+  hinglish:
+    - "kya "
+    - "kaise "
+    - "kab "
+    - "kahan "
+    - "kyu"
+    - "kyon"
+    - "kese"
+  tamil_roman:
+    - "enna "
+    - "epadi "
+    - "epdi "
+    - "yen "
+  telugu_roman:
+    - "emi "
+    - "ela "
+    - "endhuku"
+
+# Imperative verbs — used by is_meditation_imperative and the MEDITATION route.
+# Soft preferences ("I want to", "I'd like to") are intentionally NOT in this
+# list because they pair with educational verbs ("learn", "understand") as easily
+# as with imperative verbs ("start", "begin").
+imperative_verbs:
+  en:
+    - "start"
+    - "begin"
+    - "open"
+    - "guide me"
+    - "let's"
+    - "lets"
+    - "let us"
+    - "do "
+    - "take me through"
+    - "walk me through"
+    - "lead me"
+    - "ready to begin"
+    - "ready to start"
+  hinglish:
+    - "shuru karo"
+    - "chalo"
+  tamil_roman:
+    - "thodanga"
+    - "aaramichala"
+
+# =============================================================================
+# Routes — listed in priority order (higher priority first).
+# =============================================================================
+routes:
+
+  # ---------------------------------------------------------------------------
+  # SAFETY_VIOLATION — clinical / regulated advice, guaranteed-returns
+  # Strongest guardrail. Fires on either embedding match OR regex hit.
+  # ---------------------------------------------------------------------------
+  - name: SAFETY_VIOLATION
+    priority: 1000
+    # Embedding threshold raised to 0.80 because regex is the *primary* trigger
+    # for safety violations and we don't want generic "meditation"-containing
+    # phrases to ride a coincidental embedding similarity into this route.
+    # If the regex doesn't fire, the embedding match must be very strong.
+    threshold: 0.80
+    regex:
+      # Acute self-harm phrases — exact-match guardrails the LLM must never miss.
+      - "\\b(suicide|kill\\s*myself|want\\s*to\\s*die|end\\s*my\\s*life|hurting\\s*myself|self[-\\s]*harm)\\b"
+      # Regulated-advice / prescription-seeking triggers.
+      - "\\b(prescribe|prescription|diagnose|diagnosis)\\b"
+      # Clinical medication / disorder names paired with help/treatment intent.
+      - "\\b(lithium|ssri|antidepressant|antipsychotic|benzodiazepine|risperidone|sertraline|fluoxetine)\\b"
+      - "\\b(bipolar|schizophrenia|borderline\\s+personality)\\b"
+      # Guaranteed-returns triggers.
+      - "\\bmanifest\\b.*\\b(million|billion|dollars?|crore|lakh)\\b"
+    utterances:
+      - "Will meditation cure my clinical bipolar disorder"
+      - "Can I take lithium for my mood swings"
+      - "Diagnose my depression and tell me which antidepressant to take"
+      - "Guarantee I will earn one million dollars from this practice"
+      - "Will manifestation make me a Fortune 500 CEO"
+
+  # ---------------------------------------------------------------------------
+  # DISTRESS — acute emotional distress that needs warmth + Serene Mind offer
+  # ---------------------------------------------------------------------------
+  - name: DISTRESS
+    priority: 900
+    threshold: 0.66
+    utterances:
+      - "I feel completely hopeless and I do not know how to go on"
+      - "I am crying every day and I cannot stop"
+      - "I have severe anxiety that does not let me sleep"
+      - "I am having a panic attack right now"
+      - "Everything feels meaningless and I am alone"
+      - "I am drowning in sadness and grief"
+      - "Mera mann bilkul tut chuka hai"
+      - "Mujhe lagta hai main bilkul akela hu duniya mein"
+      - "Naan romba kashtama irukken epadi seyradhunu theriyaadhu"
+
+  # ---------------------------------------------------------------------------
+  # MEDITATION — explicit imperative to BEGIN a guided practice now.
+  # Note `require_imperative: true` and `exclude_if_interrogative: true` —
+  # this is the configuration-level fix for the Soul-Sync-on-Mars hijack.
+  # ---------------------------------------------------------------------------
+  - name: MEDITATION
+    priority: 800
+    threshold: 0.74
+    require_imperative: true
+    exclude_if_interrogative: true
+    utterances:
+      - "Start the meditation"
+      - "Begin Serene Mind right now"
+      - "Guide me through Soul Sync"
+      - "Take me through a breathing exercise"
+      - "Lead me in a guided meditation"
+      - "Open the meditation session"
+      - "Let us meditate together"
+      - "Walk me through Serene Mind"
+      - "Shuru karo meditation"
+
+  # ---------------------------------------------------------------------------
+  # ADVERSARIAL — provocative / mocking / comparative challenges
+  # Routes through the QUERY path but with an adversarial-aware prompt.
+  # ---------------------------------------------------------------------------
+  - name: ADVERSARIAL
+    priority: 700
+    threshold: 0.68
+    utterances:
+      - "Is Ekam just repackaged Buddhism with Indian branding"
+      - "Are Preethaji and Krishnaji just selling spirituality for profit"
+      - "Why do spiritual retreats charge so much money"
+      - "Can meditation actually bring back the dead"
+      - "Is Oneness Movement basically the same as Reiki or Pranic healing"
+      - "Aren't these teachings just New Age commercialism"
+      - "What makes you better than any other guru selling enlightenment"
+
+  # ---------------------------------------------------------------------------
+  # TEMPORAL — questions about CURRENT events / schedules → needs web search
+  # ---------------------------------------------------------------------------
+  - name: TEMPORAL
+    priority: 600
+    threshold: 0.70
+    utterances:
+      - "What Ekam events are happening this month"
+      - "When is the next Manifest course"
+      - "What is the schedule for upcoming retreats"
+      - "Latest announcement from the Oneness Movement"
+      - "When is the next festival at Ekam"
+
+  # ---------------------------------------------------------------------------
+  # CASUAL — greetings, small talk, gratitude
+  # ---------------------------------------------------------------------------
+  - name: CASUAL
+    priority: 500
+    threshold: 0.74
+    regex:
+      - "^\\s*(hi|hello|hey|namaste|pranam|good\\s*(morning|afternoon|evening))\\s*[!.?]*\\s*$"
+    utterances:
+      - "Hello there"
+      - "Hi, how are you today"
+      - "Namaste"
+      - "Good morning"
+      - "Thanks so much, that was helpful"
+      - "Thank you, beloved guide"
+      - "Pranam"
+
+  # ---------------------------------------------------------------------------
+  # CAPABILITY / META — "what can you do", "who are you"
+  # ---------------------------------------------------------------------------
+  - name: CAPABILITY
+    priority: 400
+    threshold: 0.74
+    utterances:
+      - "What can you help me with"
+      - "What topics do you cover"
+      - "Tell me about yourself"
+      - "How do you work"
+      - "What questions can you answer"
+      - "What kind of teachings are in your knowledge base"
+
+  # ---------------------------------------------------------------------------
+  # FACTUAL — default fallback for educational / spiritual knowledge queries.
+  # This route exists so the router can return a confident FACTUAL classification
+  # for clearly factual phrasings without needing the LLM. Anything that doesn't
+  # hit a higher-priority route falls through to LLM classification.
+  # ---------------------------------------------------------------------------
+  - name: FACTUAL
+    priority: 100
+    threshold: 0.72
+    utterances:
+      - "What is the Beautiful State"
+      - "Explain the Four Sacred Secrets"
+      - "Who is Sri Preethaji"
+      - "Who is Sri Krishnaji"
+      - "What is Ekam"
+      - "What is Deeksha"
+      - "What is Soul Sync"
+      - "Tell me about the Suffering State"
+      - "Explain the principle of Oneness"
+      - "Define spiritual right action"
+      - "What does it mean to surrender according to the teachings"
+
+# =============================================================================
+# Doctrinal keyword anchoring — what concepts to ensure appear in retrieved
+# context. Used by query expansion and retrieval boosting. NOT used for intent
+# classification.
+# =============================================================================
+doctrine_keywords:
+  four_sacred_secrets:
+    - "spiritual vision"
+    - "inner truth"
+    - "universal intelligence"
+    - "spiritual right action"
+  deeksha:
+    - "oneness blessing"
+    - "frontal lobe"
+    - "parietal"
+    - "neurobiological"
+  soul_sync:
+    - "breath awareness"
+    - "humming"
+    - "pause"
+    - "Aham"
+    - "golden light"
+    - "intention"
+  founders:
+    - "Sri Preethaji"
+    - "Sri Krishnaji"
+    - "Ekam"
+    - "Oneness Movement"
+  states:
+    - "Beautiful State"
+    - "Suffering State"
+    - "Connection"
+    - "Surrender"
+
+# =============================================================================
+# Crisis helpline contacts surfaced in DISTRESS responses. Editing this YAML
+# updates the helplines without code changes.
+# =============================================================================
+crisis_helplines:
+  - region: "India"
+    name: "iCall"
+    contact: "9152987821"
+  - region: "India"
+    name: "AASRA"
+    contact: "9820466726"
+    url: "aasra.info"
+  - region: "India"
+    name: "Vandrevala Foundation"
+    contact: "1860-2662-345"
+  - region: "India"
+    name: "Snehi"
+    contact: "044-24640050"
+  - region: "United States"
+    name: "988 Suicide & Crisis Lifeline"
+    contact: "988"
+  - region: "United States"
+    name: "Crisis Text Line"
+    contact: "Text HOME to 741741"
+  - region: "United Kingdom"
+    name: "Samaritans"
+    contact: "116 123"
+  - region: "United Kingdom"
+    name: "SHOUT"
+    contact: "Text SHOUT to 85258"

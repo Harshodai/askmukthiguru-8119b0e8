@@ -666,14 +666,32 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             ),
         }
 
-    if confidence < 7:
-        caveat = (
+    # Confidence-aware close. The pre-fix code appended a single hardcoded footer
+    # ("*Note: Based on what I found in the teachings…* 🙏") to every moderate-confidence
+    # answer. That literal string showed up in 100% of cached answers and broke the
+    # guru illusion completely (it reads like a database disclaimer, not a teacher
+    # speaking). When `settings.strip_canned_footer` is True (default), we instead
+    # let the generated answer stand on its own — verification + citation telemetry
+    # remains in the response metadata so the frontend can render a confidence chip
+    # without altering the prose itself.
+    strip_footer = getattr(settings, "strip_canned_footer", True)
+    if confidence < 7 and not strip_footer:
+        legacy_caveat = (
             "\n\n*Note: Based on what I found in the teachings, though I recommend "
-            "exploring Sri Preethaji and Sri Krishnaji's wisdom directly for deeper understanding.* 🙏"
+            "exploring Sri Preethaji and Sri Krishnaji's wisdom directly for deeper understanding.* \U0001f64f"
         )
-        if caveat not in answer:
-            answer += caveat
-        logger.info(f"Final: Moderate confidence ({confidence}), adding caveat")
+        if legacy_caveat not in answer:
+            answer += legacy_caveat
+        logger.info(
+            "Final: Moderate confidence (%s), adding legacy caveat (strip_canned_footer=False).",
+            confidence,
+        )
+    elif confidence < 7:
+        # Surface low confidence in telemetry only — never in the answer text.
+        logger.info(
+            "Final: Moderate confidence (%s); strip_canned_footer=True — telemetry-only.",
+            confidence,
+        )
 
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass

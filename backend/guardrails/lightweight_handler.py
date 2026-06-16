@@ -123,8 +123,7 @@ _BLOCK_RESPONSES = {
         "I can feel that you're going through something deeply painful right now. "
         "You are not alone, and your life matters deeply. 🙏\n\n"
         "Please reach out to a crisis helpline:\n"
-        "• India: iCall 9152987821 | Vandrevala Foundation 1860-2662-345\n"
-        "• International: Crisis Text Line — text HOME to 741741\n\n"
+        "__HELPLINES__\n\n"
         "While you wait, may I guide you through a calming Serene Mind breathing practice? "
         "It can help settle the storm within. 🕊️"
     ),
@@ -157,6 +156,27 @@ _BLOCK_RESPONSES = {
 }
 
 # Topics that redirect to Serene Mind meditation
+def _resolve_block_response(category: str, default_message: str) -> str:
+    """Look up the canned block response for a category and substitute the
+    `__HELPLINES__` token (if present) with the current YAML-driven helpline
+    block. Centralising the substitution here means the helpline contents are
+    never duplicated as literal strings in this module.
+    """
+    template = _BLOCK_RESPONSES.get(category, default_message)
+    if "__HELPLINES__" not in template:
+        return template
+    try:
+        from services.crisis_helplines import format_helplines_block
+
+        return template.replace(
+            "__HELPLINES__",
+            format_helplines_block(style="compact_two_line", intro=""),
+        )
+    except Exception:  # noqa: BLE001 — defensive: safety path must never crash
+        logger.exception("Failed to render helplines; using template as-is.")
+        return template.replace("__HELPLINES__", "")
+
+
 _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
 
 # Output moderation patterns (content the bot should not produce)
@@ -376,7 +396,7 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                         return {
                             "blocked": True,
                             "reason": f"LLM Guard: {resp.violation_category}",
-                            "response": _BLOCK_RESPONSES.get(
+                            "response": _resolve_block_response(
                                 resp.violation_category,
                                 "This topic is outside my boundaries of spiritual guidance. 🙏",
                             ),
@@ -394,7 +414,7 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     return {
                         "blocked": True,
                         "reason": f"Off-topic: {topic}",
-                        "response": _BLOCK_RESPONSES.get(
+                        "response": _resolve_block_response(
                             topic, "I can only help with spiritual guidance. 🙏"
                         ),
                         "redirect_to": redirect,
