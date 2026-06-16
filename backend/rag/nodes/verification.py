@@ -19,7 +19,7 @@ from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 
 from . import _services
-from .utils import _trace_update, emit_status, log_metrics
+from .utils import _trace_update, emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     await emit_status(config, "Reviewing the response for clarity...")
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
-    is_faithful_strict = ld_result["is_faithful"]
+    is_faithful_strict = ld_result["score"] >= settings.faithfulness_floor
 
     # --- Self-consistency check DISABLED (performance) ---
     # This LLM-based self-consistency block generates an alternative answer
@@ -65,7 +65,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 
     feedback_parts = []
     if not is_faithful_strict:
-        feedback_parts.append(f"Faithfulness below threshold (score: {ld_result['score']:.2f}, need >= 0.8)")
+        feedback_parts.append(f"Faithfulness below threshold (score: {ld_result['score']:.2f}, need >= {settings.faithfulness_floor})")
     if not consistency_check_passed:
         feedback_parts.append(consistency_feedback)
 
@@ -115,7 +115,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
     faithfulness_score = ld_result["score"]
-    is_faithful_ld = ld_result["is_faithful"]
+    is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
 
     # --- CoVe: selectively re-enabled for tier3_complex ---
     # CoVe verification + LLM self-consistency add ~60s.
@@ -313,7 +313,7 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
                 supported += 1  # lenient: count as supported on error
 
         ratio = supported / max(len(sub_qs), 1)
-        passed = ratio >= 0.5
+        passed = ratio >= settings.verifier_pass_ratio
         return {
             "passed": passed,
             "details": f"CoVe: {supported}/{len(sub_qs)} sub-questions supported (ratio={ratio:.2f})",

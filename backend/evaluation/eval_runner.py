@@ -52,7 +52,7 @@ BACKEND_ROOT = HERE.parent
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from evaluation.llm_judge import CompositeScore, LLMJudge  # noqa: E402
+from evaluation.llm_judge import CompositeScore, LLMJudge, DimensionScore, _safe_json_parse  # noqa: E402
 
 logger = logging.getLogger("mukthi_guru.eval_runner")
 logging.basicConfig(
@@ -250,6 +250,327 @@ async def evaluate_one(
     )
 
 
+async def run_batched_evaluation(
+    *,
+    questions: list[EvalQuestion],
+    endpoint: str,
+    auth_token: str | None,
+    judge: LLMJudge,
+    session_id_prefix: str,
+    request_timeout_s: int,
+    context_max_chars: int,
+    max_concurrent: int,
+) -> list[QuestionResult]:
+    import aiohttp
+    from app.config import settings
+
+    # Step 1: call all chat endpoints concurrently
+    logger.info("Calling chat endpoint for all %d questions concurrently...", len(questions))
+    sem = asyncio.Semaphore(max_concurrent)
+
+    async def _call_chat(q: EvalQuestion, idx: int) -> tuple[EvalQuestion, ChatResponse | None]:
+        async with sem:
+            resp = await call_chat_endpoint(
+                endpoint=endpoint,
+                question=q.text,
+                session_id=f"{session_id_prefix}-{idx}",
+                auth_token=auth_token,
+                timeout_s=request_timeout_s,
+            )
+            return q, resp
+
+    chat_results = await asyncio.gather(*[_call_chat(q, i) for i, q in enumerate(questions)])
+
+    # Separate successful chat responses from failed ones
+    successful_chats: list[tuple[EvalQuestion, ChatResponse]] = []
+    final_results: dict[str, QuestionResult] = {}
+
+    for q, resp in chat_results:
+        if resp is None:
+            final_results[q.id] = QuestionResult(
+                id=q.id,
+                category=q.category,
+                language=q.language,
+                question=q.text,
+                expected_refusal=q.expected_refusal,
+                response=None,
+                composite=None,
+                failed_reason="chat_endpoint_unreachable",
+            )
+        else:
+            successful_chats.append((q, resp))
+
+    if not successful_chats:
+        logger.warning("All chat endpoint calls failed. Skipping judge batch.")
+        return [final_results.get(q.id) or QuestionResult(
+            id=q.id, category=q.category, language=q.language, question=q.text,
+            expected_refusal=q.expected_refusal, response=None, composite=None,
+            failed_reason="chat_endpoint_unreachable"
+        ) for q in questions]
+
+    if judge.client.is_stub:
+        logger.info("Judge client is stub (no API key). Simulating passing scores.")
+        for q, resp in successful_chats:
+            dim_scores = {}
+            for dim_name in LLMJudge.DEFAULT_DIMENSIONS:
+                rubric = judge.rubrics.get(dim_name, {})
+                threshold = float(rubric.get("pass_threshold", 0.8))
+                dim_scores[dim_name] = DimensionScore(
+                    name=dim_name,
+                    score=1.0,
+                    pass_threshold=threshold,
+                    rationale="stub: no judge configured",
+                    failure_mode=None,
+                    judge_latency_ms=0,
+                    judge_tokens_in=0,
+                    judge_tokens_out=0,
+                )
+            composite_score = CompositeScore(
+                query=q.text,
+                composite=1.0,
+                weighted_mean=1.0,
+                dimensions=dim_scores,
+                all_pass=True,
+                total_judge_tokens=0,
+                total_judge_latency_ms=0,
+            )
+            final_results[q.id] = QuestionResult(
+                id=q.id,
+                category=q.category,
+                language=q.language,
+                question=q.text,
+                expected_refusal=q.expected_refusal,
+                response=resp,
+                composite=composite_score,
+            )
+        return [final_results[q.id] for q in questions]
+
+    # Step 2: Compile judge batch requests
+    logger.info("Compiling judge batch requests...")
+    # Verify that model is anthropic
+    provider, model_name = judge.config.provider_model.split(":", 1)
+    if provider.strip().lower() != "anthropic":
+        raise ValueError(
+            f"Message Batches API is only supported for 'anthropic' provider models, got {judge.config.provider_model}"
+        )
+
+    api_key = (
+        getattr(settings, "anthropic_api_key", "")
+        or getattr(settings, "emergent_llm_key", "")
+    )
+    if not api_key:
+        raise ValueError("No API key available for Anthropic Message Batches API.")
+
+    requests_payload = []
+
+    for q, resp in successful_chats:
+        context = resp.retrieved_context[:context_max_chars]
+        meta = {
+            "category": q.category,
+            "language": q.language,
+            "intent": resp.intent,
+            "route_decision": resp.route_decision,
+        }
+        for dim_name in LLMJudge.DEFAULT_DIMENSIONS:
+            if dim_name not in judge.rubrics:
+                continue
+            rubric = judge.rubrics[dim_name]
+            system_prompt = rubric.get("system_prompt", "")
+            user_template = rubric.get("user_template", "")
+
+            rendered_user_prompt = (
+                user_template
+                .replace("{{query}}", q.text)
+                .replace("{{answer}}", resp.final_answer or "")
+                .replace("{{context}}", context or "")
+                .replace("{{citations}}", "\n".join(resp.citations))
+                .replace("{{expected_refusal}}", "true" if q.expected_refusal else "false")
+                .replace("{{meta}}", json.dumps(meta, ensure_ascii=False))
+            )
+
+            custom_id = f"{q.id}:{dim_name}"
+
+            requests_payload.append({
+                "custom_id": custom_id,
+                "params": {
+                    "model": model_name.strip(),
+                    "max_tokens": 1024,
+                    "system": [
+                        {
+                            "type": "text",
+                            "text": system_prompt,
+                            "cache_control": {"type": "ephemeral"}
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": rendered_user_prompt
+                        }
+                    ]
+                }
+            })
+
+    # Step 3: POST batch
+    logger.info("Submitting batch of %d requests to Anthropic...", len(requests_payload))
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+    }
+
+    batch_url = "https://api.anthropic.com/v1/messages/batches"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(batch_url, json={"requests": requests_payload}, headers=headers) as post_resp:
+            if post_resp.status >= 400:
+                err_text = await post_resp.text()
+                raise RuntimeError(f"Anthropic batch submission failed with {post_resp.status}: {err_text}")
+            batch_data = await post_resp.json()
+
+        batch_id = batch_data["id"]
+        logger.info("Batch submitted successfully. Batch ID: %s. Polling status...", batch_id)
+
+        # Step 4: Poll status
+        poll_url = f"{batch_url}/{batch_id}"
+        poll_interval = 15
+        while True:
+            await asyncio.sleep(poll_interval)
+            async with session.get(poll_url, headers=headers) as status_resp:
+                if status_resp.status >= 400:
+                    logger.warning("Failed to poll batch status: %s", status_resp.status)
+                    continue
+                status_data = await status_resp.json()
+
+            status = status_data.get("processing_status")
+            counts = status_data.get("request_counts", {})
+            logger.info(
+                "Batch status: %s (processing=%d, succeeded=%d, errored=%d)",
+                status,
+                counts.get("processing", 0),
+                counts.get("succeeded", 0),
+                counts.get("errored", 0),
+            )
+
+            if status == "ended":
+                results_url = status_data.get("results_url")
+                break
+
+        if not results_url:
+            raise RuntimeError("Batch ended but no results_url was provided.")
+
+        # Step 5: Download results
+        logger.info("Downloading batch results...")
+        async with session.get(results_url, headers=headers) as results_resp:
+            if results_resp.status >= 400:
+                raise RuntimeError(f"Failed to download batch results: {results_resp.status}")
+            results_text = await results_resp.text()
+
+    # Step 6: Parse results and reconstruct scores
+    logger.info("Parsing results and reconstructing scores...")
+    batch_results: dict[str, dict] = {}
+    for line in results_text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+            custom_id = item["custom_id"]
+            batch_results[custom_id] = item["result"]
+        except Exception as e:
+            logger.warning("Failed to parse JSONL line: %s", e)
+
+    # Group results by question ID
+    question_dim_scores_map: dict[str, dict[str, DimensionScore]] = {}
+
+    for q, resp in successful_chats:
+        question_dim_scores_map[q.id] = {}
+        for dim_name in LLMJudge.DEFAULT_DIMENSIONS:
+            if dim_name not in judge.rubrics:
+                continue
+            rubric = judge.rubrics[dim_name]
+            threshold = float(rubric.get("pass_threshold", 0.8))
+            custom_id = f"{q.id}:{dim_name}"
+
+            res = batch_results.get(custom_id)
+            score_val = 0.0
+            rationale = "Result missing from batch output"
+            failure_mode = "batch_missing"
+            tokens_in = 0
+            tokens_out = 0
+
+            if res:
+                result_type = res.get("type")
+                if result_type == "succeeded":
+                    msg = res.get("message") or {}
+                    content_list = msg.get("content") or []
+                    text = content_list[0].get("text", "") if content_list else ""
+                    parsed_res = _safe_json_parse(text)
+                    usage = msg.get("usage") or {}
+                    tokens_in = usage.get("input_tokens", 0)
+                    tokens_out = usage.get("output_tokens", 0)
+
+                    score_raw = parsed_res.get("score")
+                    try:
+                        score_val = float(score_raw)
+                    except (TypeError, ValueError):
+                        score_val = 0.0
+                    score_val = max(0.0, min(1.0, score_val))
+                    rationale = str(parsed_res.get("rationale", ""))[:600]
+                    failure_mode = parsed_res.get("failure_mode") if score_val < threshold else None
+                elif result_type == "errored":
+                    err = res.get("error") or {}
+                    rationale = f"Batch API error: {err.get('message', 'unknown')}"
+                    failure_mode = "batch_api_error"
+
+            question_dim_scores_map[q.id][dim_name] = DimensionScore(
+                name=dim_name,
+                score=score_val,
+                pass_threshold=threshold,
+                rationale=rationale,
+                failure_mode=failure_mode,
+                judge_latency_ms=0,
+                judge_tokens_in=tokens_in,
+                judge_tokens_out=tokens_out,
+            )
+
+    # Assemble CompositeScore and QuestionResult for each question
+    for q, resp in successful_chats:
+        q_scores = question_dim_scores_map[q.id]
+        scores_list = [q_scores[d] for d in LLMJudge.DEFAULT_DIMENSIONS if d in q_scores]
+
+        composite = min(s.score for s in scores_list) if scores_list else 0.0
+        weights = judge.config.default_weights
+        total_weight = sum(weights.get(name, 1.0) for name in q_scores) or 1.0
+        weighted_mean = (
+            sum(q_scores[name].score * weights.get(name, 1.0) for name in q_scores)
+            / total_weight
+        )
+        all_pass = all(s.passes for s in scores_list)
+        tokens = sum((s.judge_tokens_in or 0) + (s.judge_tokens_out or 0) for s in scores_list)
+
+        composite_score = CompositeScore(
+            query=q.text,
+            composite=float(composite),
+            weighted_mean=float(weighted_mean),
+            dimensions=q_scores,
+            all_pass=all_pass,
+            total_judge_tokens=tokens,
+            total_judge_latency_ms=0,
+        )
+
+        final_results[q.id] = QuestionResult(
+            id=q.id,
+            category=q.category,
+            language=q.language,
+            question=q.text,
+            expected_refusal=q.expected_refusal,
+            response=resp,
+            composite=composite_score,
+        )
+
+    return [final_results[q.id] for q in questions]
+
+
 # ---------------------------------------------------------------------------
 # Aggregation
 # ---------------------------------------------------------------------------
@@ -436,6 +757,11 @@ def main(argv: list[str] | None = None) -> int:
         "--out-md",
         default=os.environ.get("EVAL_OUT_MD", "results/eval_report.md"),
     )
+    parser.add_argument(
+        "--use-batch",
+        action="store_true",
+        help="Use Anthropic Message Batches API for evaluation judge queries.",
+    )
     args = parser.parse_args(argv)
 
     dataset_path = HERE / "datasets" / f"{args.dataset}.yaml"
@@ -464,7 +790,19 @@ def main(argv: list[str] | None = None) -> int:
                 context_max_chars=args.context_max_chars,
             )
 
-    results = asyncio.run(asyncio.gather(*[_run_one(q, i) for i, q in enumerate(questions)]))
+    if args.use_batch:
+        results = asyncio.run(run_batched_evaluation(
+            questions=questions,
+            endpoint=args.endpoint,
+            auth_token=args.auth_token,
+            judge=judge,
+            session_id_prefix=session_id_prefix,
+            request_timeout_s=args.request_timeout,
+            context_max_chars=args.context_max_chars,
+            max_concurrent=args.max_concurrent_requests,
+        ))
+    else:
+        results = asyncio.run(asyncio.gather(*[_run_one(q, i) for i, q in enumerate(questions)]))
 
     summary = aggregate(results)
     out_json_path = Path(args.out_json)

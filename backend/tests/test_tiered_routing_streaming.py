@@ -39,8 +39,12 @@ def mock_services():
 
 
 @pytest.mark.asyncio
-async def test_intent_router_tiered_classification(mock_services):
+async def test_intent_router_tiered_classification(mock_services, monkeypatch):
     mock_ollama, _ = mock_services
+    
+    # Disable semantic router so it falls back to the mocked classify_intent_and_complexity
+    from app.config import settings
+    monkeypatch.setattr(settings, "use_semantic_router", False)
     
     async def mock_classify_intent_and_complexity(text, **kwargs):
         if "karma" in text:

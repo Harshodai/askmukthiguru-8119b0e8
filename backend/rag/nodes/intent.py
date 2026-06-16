@@ -519,26 +519,32 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     # them dead code on the first turn (step is 0 on fresh sessions). Accept
     # step <= start_step so the script fires on the very first invocation.
     fresh = step <= start_step
-    if "soul sync" in question and fresh:
-        script = MEDITATION_SCRIPTS["soul_sync"]
-        response = f"**{script['title']}**\n\n" + "\n".join(
-            f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
-        )
-        return {"final_answer": response, "meditation_step": 0}
+    from rag.meditation import _INTERROGATIVE_STEMS_EN, _INTERROGATIVE_STEMS_HINGLISH
+    is_interrogative = question.endswith("?") or any(
+        stem in question[:40] for stem in _INTERROGATIVE_STEMS_EN + _INTERROGATIVE_STEMS_HINGLISH
+    )
 
-    if "serene mind" in question and fresh:
-        script = MEDITATION_SCRIPTS["serene_mind"]
-        response = f"**{script['title']}**\n\n" + "\n".join(
-            f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
-        )
-        return {"final_answer": response, "meditation_step": 0}
+    if fresh and not is_interrogative:
+        if "soul sync" in question:
+            script = MEDITATION_SCRIPTS["soul_sync"]
+            response = f"**{script['title']}**\n\n" + "\n".join(
+                f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
+            )
+            return {"final_answer": response, "meditation_step": 0}
 
-    if "meditation" in question and fresh:
-        script = MEDITATION_SCRIPTS["serene_mind"]
-        response = f"**{script['title']}**\n\n" + "\n".join(
-            f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
-        )
-        return {"final_answer": response, "meditation_step": 0}
+        if "serene mind" in question:
+            script = MEDITATION_SCRIPTS["serene_mind"]
+            response = f"**{script['title']}**\n\n" + "\n".join(
+                f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
+            )
+            return {"final_answer": response, "meditation_step": 0}
+
+        if "meditation" in question:
+            script = MEDITATION_SCRIPTS["serene_mind"]
+            response = f"**{script['title']}**\n\n" + "\n".join(
+                f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
+            )
+            return {"final_answer": response, "meditation_step": 0}
 
     # ---- Case 2: step is within an active flow (1..MAX_STEP) ----------------
     formatted = format_meditation_response(step)

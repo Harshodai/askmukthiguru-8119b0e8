@@ -112,8 +112,8 @@ async def lightweight_verify(state: GraphState) -> dict:
         is_faithful = result.get("is_faithful", True)
         score = result.get("score", 1.0)
 
-        # Apply 0.25 threshold (stricter than Lettuce's internal 0.22)
-        if score < 0.25:
+        # Apply settings threshold (stricter than Lettuce's internal 0.22)
+        if score < settings.lettuce_detect_threshold:
             is_faithful = False
 
         # Domain boost for doctrine keywords
