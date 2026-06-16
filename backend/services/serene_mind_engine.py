@@ -188,24 +188,62 @@ for _name, _patterns in [
 
 # ---------------------------------------------------------------------------
 # Crisis resources by region
+#
+# This dictionary used to be hardcoded with helpline numbers literally inlined
+# into multi-line strings. Helplines now come from
+# `services.crisis_helplines` (which in turn reads
+# `backend/config/router_routes.yaml`). The region keys here just select what
+# subset to show; the numbers themselves are never duplicated.
 # ---------------------------------------------------------------------------
 
-CRISIS_RESOURCES = {
-    "global": "🆘 If you're in crisis: Please reach out for help.",
-    "india": (
-        "🆘 Crisis Helplines (India):\n"
-        "• iCall: 9152987821\n"
-        "• Vandrevala Foundation: 1860-2662-345\n"
-        "• AASRA: 9820466726\n"
-        "• Snehi: 044-24640050"
-    ),
-    "us": (
-        "🆘 Crisis Helplines (US):\n"
-        "• 988 Suicide & Crisis Lifeline: 988\n"
-        "• Crisis Text Line: Text HOME to 741741"
-    ),
-    "uk": ("🆘 Crisis Helplines (UK):\n• Samaritans: 116 123\n• SHOUT: Text SHOUT to 85258"),
-}
+
+def _region_label_for_key(key: str) -> str | None:
+    """Map the legacy region keys here to the canonical labels used in the
+    YAML registry. Returning None means 'no region filter, show everything'."""
+    return {
+        "global": None,
+        "international": None,
+        "india": "India",
+        "us": "United States",
+        "uk": "United Kingdom",
+    }.get(key)
+
+
+def get_crisis_resource(region_key: str = "global") -> str:
+    """Render a crisis-helpline block for a region.
+
+    Args:
+        region_key: legacy key — "india" | "us" | "uk" | "global". Unknown
+                    keys fall back to "global" (show everything).
+    """
+    from services.crisis_helplines import format_helplines_block
+
+    region = _region_label_for_key(region_key)
+    intro = "🆘 If you're in crisis: Please reach out for help." if region_key == "global" else f"🆘 Crisis Helplines ({region or 'International'}):"
+    return format_helplines_block(region=region, style="bullet", intro=intro)
+
+
+# Backwards-compatible read-only dict surface. Existing call sites that
+# do `CRISIS_RESOURCES["india"]` continue to work, but each access now
+# resolves through the YAML-driven helper above. Module-level dict was
+# previously the only API and is preserved on purpose.
+class _CrisisResourcesView:
+    """Dict-like read-only accessor backed by `get_crisis_resource()`."""
+
+    def __getitem__(self, key: str) -> str:
+        return get_crisis_resource(key)
+
+    def get(self, key: str, default: str = "") -> str:  # type: ignore[override]
+        try:
+            return get_crisis_resource(key)
+        except Exception:  # noqa: BLE001
+            return default
+
+    def __contains__(self, key: str) -> bool:  # for `"india" in CRISIS_RESOURCES`
+        return _region_label_for_key(key) is not None or key in ("global", "international")
+
+
+CRISIS_RESOURCES = _CrisisResourcesView()
 
 
 # ---------------------------------------------------------------------------
