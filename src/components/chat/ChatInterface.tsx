@@ -572,6 +572,23 @@ export const ChatInterface = () => {
       saveConversation(updatedConversation);
       setCurrentConversation(updatedConversation);
       setRefreshTrigger(prev => prev + 1);
+      // Write-back: track last conversation for multi-device resume.
+      // Fire-and-forget; never blocks UI; ignores errors (e.g. anon user).
+      void (async () => {
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          await supabase.from('profiles').update({
+            last_conversation_id: updatedConversation.id,
+            last_message_id: messages[messages.length - 1]?.id ?? null,
+            last_active_at: new Date().toISOString(),
+          }).eq('id', session.user.id);
+          localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
+        } catch {
+          // best-effort
+        }
+      })();
     }
   }, [messages]);
 
@@ -1341,13 +1358,13 @@ return (
             scrollContainerRef={scrollContainerRef}
           />
 
-          {/* Suggested starters */}
+          {/* Suggested starters — tightened spacing under welcome message */}
           {showStarters && (
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="space-y-4 pt-4"
+              transition={{ delay: 0.3 }}
+              className="space-y-2.5 mt-1"
             >
               {/* Empty-state cards: resume last + today's teaching */}
               <ChatEmptyState
@@ -1359,7 +1376,7 @@ return (
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-4 py-3 rounded-2xl text-sm font-serif border border-ojas/25 bg-card/60 hover:bg-ojas/10 hover:border-ojas/50 text-foreground/85 hover:text-foreground transition-all text-center leading-snug min-h-[56px] flex items-center justify-center"
+                    className="px-3 py-2.5 rounded-xl text-[13px] font-serif border border-ojas/20 bg-card/50 hover:bg-ojas/10 hover:border-ojas/45 text-foreground/85 hover:text-foreground transition-all text-center leading-snug min-h-[48px] flex items-center justify-center"
                   >
                     <span className="line-clamp-2">{suggestion}</span>
                   </button>

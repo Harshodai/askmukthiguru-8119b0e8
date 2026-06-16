@@ -53,7 +53,7 @@ const ChatPage = () => {
         .select('last_active_at, last_conversation_id')
         .eq('id', session.user.id)
         .single();
-      if (!profile?.last_conversation_id) return;
+      if (!profile?.last_conversation_id || !profile.last_active_at) return;
       const serverLastActive = new Date(profile.last_active_at).getTime();
       const localLastSeen = parseInt(localStorage.getItem(LAST_SEEN_KEY) || '0', 10);
       // Show prompt if server has newer activity than what this device last saw

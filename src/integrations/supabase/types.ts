@@ -615,12 +615,49 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_extractions: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          payload: Json
+          processed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          payload: Json
+          processed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string | null
           display_name: string | null
           id: string
+          last_active_at: string | null
+          last_conversation_id: string | null
+          last_device_id: string | null
+          last_message_id: string | null
           preferred_language: string | null
           tts_enabled: boolean | null
         }
@@ -629,6 +666,10 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           id: string
+          last_active_at?: string | null
+          last_conversation_id?: string | null
+          last_device_id?: string | null
+          last_message_id?: string | null
           preferred_language?: string | null
           tts_enabled?: boolean | null
         }
@@ -637,6 +678,10 @@ export type Database = {
           created_at?: string | null
           display_name?: string | null
           id?: string
+          last_active_at?: string | null
+          last_conversation_id?: string | null
+          last_device_id?: string | null
+          last_message_id?: string | null
           preferred_language?: string | null
           tts_enabled?: boolean | null
         }
@@ -666,6 +711,42 @@ export type Database = {
           id?: string
           name?: string
           version?: number
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device_label: string | null
+          endpoint: string
+          id: string
+          last_seen_at: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device_label?: string | null
+          endpoint: string
+          id?: string
+          last_seen_at?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device_label?: string | null
+          endpoint?: string
+          id?: string
+          last_seen_at?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
