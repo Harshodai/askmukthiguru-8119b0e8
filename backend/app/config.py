@@ -269,6 +269,95 @@ class Settings(BaseSettings):
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces
 
+    # --- Meditation Routing (Phase A bug fixes — see .claude/tasks/WORLD_CLASS_MUKTHIGURU.md) ---
+    # Number of guided steps in the canonical Serene Mind meditation flow.
+    # Source of truth is rag.prompts.MEDITATION_STEPS; this setting allows runtime override
+    # without touching code and is referenced by rag.meditation.MAX_STEP.
+    meditation_max_step: int = 4
+    # First step number in a meditation flow (always 1, but exposed for future variants).
+    meditation_start_step: int = 1
+    # If True (default), an LLM-classified MEDITATION intent is demoted to FACTUAL whenever
+    # the user message reads as an interrogative ("can I ...?", "what is ...?") AND no
+    # active meditation session is in progress. This kills the "Soul Sync on Mars" hijack
+    # where adversarial / interrogative queries containing meditation nouns were being
+    # routed into the meditation flow with step=0, returning the misleading literal
+    # "The meditation is complete. Thank you for practicing with me." string.
+    intent_demote_meditation_on_interrogative: bool = True
+    # When handle_meditation is invoked with step<=0 and no script keyword in the query
+    # (i.e. the user did not actually ask to begin a meditation), the fallback behaviour
+    # is to demote to FACTUAL via the answer wrapper rather than emit a misleading
+    # "meditation is complete" string. Setting this to False reverts to the old behaviour.
+    meditation_safe_fallback: bool = True
+
+    # --- LLM Gateway (Phase A7 — unified provider chain via emergentintegrations) ---
+    # When llm_provider == "emergent", the LLMGateway uses the emergentintegrations
+    # library and picks a model from the comma-separated chain in
+    # `llm_provider_chain`. Format: "provider:model,provider:model,..."
+    # Example: "anthropic:claude-sonnet-4-6,anthropic:claude-haiku-4-5-20251001,openai:gpt-5.4"
+    # The gateway tries each in order on transient failure. NEVER hardcode model names
+    # in service code; always read from settings.
+    emergent_llm_key: str = ""  # Universal key, prefix sk-emergent-...
+    llm_provider_chain: str = (
+        "anthropic:claude-sonnet-4-6,"
+        "anthropic:claude-haiku-4-5-20251001,"
+        "openai:gpt-5.4"
+    )
+    llm_gateway_streaming_default: bool = True
+    llm_gateway_session_prefix: str = "mukthi-guru"
+    llm_gateway_max_tokens: int = 4096
+    llm_gateway_request_timeout_s: int = 60
+
+    # --- Persona controls (Phase B — guru voice quality) ---
+    # When True, the generation node strips the canned "*Note: Based on what I found...*"
+    # footer that was breaking immersion. The context-aware close is generated dynamically
+    # from the intent + citation count instead.
+    strip_canned_footer: bool = True
+    # Maximum paragraphs in a single answer (cadence control).
+    persona_max_paragraphs: int = 4
+    # Maximum words in a single sentence (cadence control). Trips a soft warning in logs.
+    persona_max_sentence_words: int = 35
+
+    # --- LLM Judge (Phase A2 — eval) ---
+    # Provider:model for LLM-as-judge groundedness/doctrine eval. Defaults to the
+    # strongest available model so judge != generator (avoid grading own work).
+    llm_judge_provider_model: str = "anthropic:claude-sonnet-4-6"
+    llm_judge_session_prefix: str = "mukthi-guru-judge"
+
+    # --- Semantic Router (Phase A — replaces hardcoded keyword/regex lists) ---
+    # Path to the YAML route table. Empty string means "use bundled default at
+    # backend/config/router_routes.yaml". Override per-environment via the
+    # ROUTER_CONFIG_PATH env var.
+    router_config_path: str = ""
+    # Feature flag: when True, intent classification consults SemanticRouter
+    # BEFORE the LLM classifier. When False, the legacy regex prerouter is used.
+    use_semantic_router: bool = True
+    # When True, the LLM classifier is consulted whenever SemanticRouter returns
+    # no match. When False, an unmatched query is treated as FACTUAL (fast path)
+    # without consulting the LLM.
+    semantic_router_llm_fallback: bool = True
+
+    # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
+    # All values env-overridable. Empty api_key disables the gateway and the
+    # consumer code is expected to fall back to the legacy LLM stack.
+    anthropic_api_key: str = ""
+    anthropic_base_url: str = "https://api.anthropic.com/v1"
+    anthropic_api_version: str = "2023-06-01"
+    anthropic_beta_features: str = "prompt-caching-2024-07-31"
+    # Default model for the gateway. Single source of truth — never hardcode
+    # this string in service code.
+    anthropic_gateway_model: str = "claude-sonnet-4-6"
+    anthropic_gateway_max_tokens: int = 2048
+    anthropic_gateway_temperature: float = 0.7
+    anthropic_gateway_timeout_s: int = 60
+    # Prompt cache TTL. "5m" (Anthropic default) or "1h" (extended; higher
+    # write cost but cheaper if the same prefix is reused within the hour).
+    # Empty string disables caching even when the gateway is configured.
+    anthropic_gateway_cache_ttl: str = "1h"
+    # Extended thinking (only on supported models). Off by default; turn on
+    # for high-stakes adversarial or doctrinal-trap queries via per-call flag.
+    anthropic_extended_thinking_enabled: bool = False
+    anthropic_extended_thinking_budget_tokens: int = 0
+
     # --- HTTP Connection Pooling ---
     http_max_connections: int = 100  # Maximum number of HTTP connections in the pool
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections

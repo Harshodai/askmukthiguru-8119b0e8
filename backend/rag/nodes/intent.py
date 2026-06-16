@@ -8,7 +8,9 @@ import re
 from rag.meditation import (
     format_meditation_response,
     get_distress_response,
+    get_meditation_complete_message,
     is_meditation_complete,
+    is_meditation_imperative,
     should_start_meditation,
 )
 from rag.prompts import CASUAL_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
@@ -54,6 +56,27 @@ _TEMPORAL_PATTERNS = [
     "recent", "announcement", "program", "scope of manifest",
     "manifest scope", "ekam events", "oneness events",
 ]
+
+
+def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None:
+    """Map a SemanticRouter route label to the (intent, query_tier, needs_web_search) tuple
+    that the rest of the pipeline expects.
+
+    Keeping this mapping here (and small) is the only Python-side bridge between
+    the data-driven YAML and the graph's intent vocabulary. Adding a new route
+    requires (a) one line in this function, (b) the YAML definition. No other code change.
+    """
+    mapping = {
+        "SAFETY_VIOLATION":  ("SAFETY_VIOLATION", "tier2_simple", False),
+        "DISTRESS":          ("DISTRESS",         "tier2_simple", False),
+        "MEDITATION":        ("MEDITATION",       "tier2_simple", False),
+        "ADVERSARIAL":       ("ADVERSARIAL",      "tier3_complex", False),
+        "TEMPORAL":          ("FACTUAL",          "tier3_complex", True),
+        "CASUAL":            ("CASUAL",           "tier2_simple", False),
+        "CAPABILITY":        ("FACTUAL",          "tier2_simple", False),
+        "FACTUAL":           ("FACTUAL",          "tier2_simple", False),
+    }
+    return mapping.get(route_name)
 
 
 @log_metrics
@@ -161,6 +184,45 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             ),
         }
 
+    # ---- YAML-driven Semantic Router (Phase A — replaces hardcoded keyword lists) ----
+    # The SemanticRouter consults backend/config/router_routes.yaml: utterance
+    # embeddings + regex safety nets + imperative/interrogative gates. It
+    # subsumes the previous _CAPABILITY_PATTERNS, _SIMPLE_QUERY_PATTERNS, and
+    # _TEMPORAL_PATTERNS hardcoded lists in this file by returning the right
+    # intent + tier without any pattern matching in Python code.
+    if getattr(settings, "use_semantic_router", True):
+        try:
+            from services.semantic_router import SemanticRouter
+
+            router = SemanticRouter.get_default()
+            router_match = router.classify(question, meditation_step=meditation_step)
+        except Exception as exc:  # noqa: BLE001 — never block routing over a router error
+            logger.debug("SemanticRouter classification failed (%s); falling back.", exc)
+            router_match = None
+
+        if router_match is not None:
+            mapped = _map_router_route_to_intent(router_match.route)
+            if mapped is not None:
+                mapped_intent, query_tier, needs_web = mapped
+                logger.info(
+                    "Intent Router: SemanticRouter matched %s (score=%.3f, reason=%s) -> intent=%s",
+                    router_match.route, router_match.score, router_match.reason, mapped_intent,
+                )
+                return {
+                    "intent": mapped_intent,
+                    "query_tier": query_tier,
+                    "needs_web_search": needs_web,
+                    "evaluation_trace": _trace_update(
+                        state,
+                        intent=mapped_intent,
+                        query_tier=query_tier,
+                        routing_reason=f"semantic_router_{router_match.reason}",
+                        router_route=router_match.route,
+                        router_score=router_match.score,
+                        needs_web_search=needs_web,
+                    ),
+                }
+
     # ---- Heuristic fast-path #1: capability / meta questions ----
     if any(kw in lower_q for kw in _CAPABILITY_PATTERNS):
         logger.info("Intent Router: heuristic fast-path — capability/meta question, fast")
@@ -257,6 +319,27 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
 
     if intent == "QUERY":
         intent = "FACTUAL"
+
+    # ---- Meditation Hijack Guard (Phase A1.1) ----
+    # An LLM-classified MEDITATION intent should only fire when the user is *actually*
+    # asking to start (or continue) a meditation session. Interrogative queries that
+    # merely *mention* meditation nouns ("Can I practice Soul Sync on Mars?",
+    # "What is Serene Mind?", "Mera mind kaise badlu?") were leaking into the
+    # meditation flow with step=0 and returning the misleading literal string
+    # "The meditation is complete. Thank you for practicing with me." This guard
+    # demotes MEDITATION → FACTUAL when there is no active session AND the user
+    # message is not imperative.
+    demote_enabled = getattr(settings, "intent_demote_meditation_on_interrogative", True)
+    active_meditation = meditation_step > 0
+    if intent == "MEDITATION" and demote_enabled and not active_meditation:
+        if not is_meditation_imperative(question):
+            logger.info(
+                "Intent Router: demoting LLM-classified MEDITATION to FACTUAL "
+                "(no active session, query is interrogative or non-imperative): '%s...'",
+                question[:80],
+            )
+            intent = "FACTUAL"
+            complexity = complexity or "simple"
 
     query_tier = None
     if intent == "FACTUAL":
@@ -402,39 +485,112 @@ Based on the above teachings, compose a deeply compassionate response that:
 
 
 async def handle_meditation(state: GraphState, config: dict = None) -> dict:
-    """Continue an active meditation session or start a new specific one."""
+    """Continue an active meditation session, start a new one, or gracefully bail.
+
+    Phase A1.1 fix — three-state behaviour:
+      1. step <= 0 AND query is an imperative-to-start with a script keyword
+         (soul sync / serene mind / generic meditation): emit the full script.
+      2. step in [1, MAX_STEP]: advance the guided flow one step.
+      3. step > MAX_STEP: emit the canonical "complete" close exactly once and
+         reset the session.
+
+    Crucially, if `step <= 0` AND no script keyword matched (i.e. the user is NOT
+    actually asking to begin a meditation — they were mis-classified by the LLM),
+    we DO NOT emit the legacy "The meditation is complete..." sentinel. Instead we
+    set `_meditation_misroute=True` so the pipeline coordinator can fall back to the
+    FACTUAL/QUERY path. This preserves the no-misleading-answer guarantee.
+    """
     from rag.nodes.utils import emit_status
     await emit_status(config, "Guiding you into the practice...")
 
-    step = state.get("meditation_step", 1)
+    raw_step = state.get("meditation_step", 0)
+    try:
+        step = int(raw_step)
+    except (TypeError, ValueError):
+        step = 0
     question = state.get("question", "").lower()
-    from rag.meditation import MEDITATION_SCRIPTS
+    from rag.meditation import MEDITATION_SCRIPTS, get_meditation_complete_message
 
-    if "soul sync" in question and step == 1:
+    start_step = getattr(settings, "meditation_start_step", 1)
+    safe_fallback = getattr(settings, "meditation_safe_fallback", True)
+
+    # ---- Case 1: starting a fresh meditation by name ------------------------
+    # The script-keyword fast paths previously required step == 1 which made
+    # them dead code on the first turn (step is 0 on fresh sessions). Accept
+    # step <= start_step so the script fires on the very first invocation.
+    fresh = step <= start_step
+    if "soul sync" in question and fresh:
         script = MEDITATION_SCRIPTS["soul_sync"]
         response = f"**{script['title']}**\n\n" + "\n".join(
-            [f"{i + 1}. {s}" for i, s in enumerate(script["steps"])]
+            f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
         )
         return {"final_answer": response, "meditation_step": 0}
 
-    if "serene mind" in question and step == 1:
+    if "serene mind" in question and fresh:
         script = MEDITATION_SCRIPTS["serene_mind"]
         response = f"**{script['title']}**\n\n" + "\n".join(
-            [f"{i + 1}. {s}" for i, s in enumerate(script["steps"])]
+            f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
         )
         return {"final_answer": response, "meditation_step": 0}
 
-    if "meditation" in question and step == 1:
+    if "meditation" in question and fresh:
         script = MEDITATION_SCRIPTS["serene_mind"]
         response = f"**{script['title']}**\n\n" + "\n".join(
-            [f"{i + 1}. {s}" for i, s in enumerate(script["steps"])]
+            f"{i + 1}. {s}" for i, s in enumerate(script["steps"])
         )
         return {"final_answer": response, "meditation_step": 0}
 
-    response = format_meditation_response(step)
+    # ---- Case 2: step is within an active flow (1..MAX_STEP) ----------------
+    formatted = format_meditation_response(step)
+    if formatted is not None:
+        return {
+            "final_answer": formatted,
+            "meditation_step": step + 1,
+        }
+
+    # ---- Case 3: step > MAX_STEP — session legitimately complete ------------
+    if step > start_step:
+        logger.info(
+            "Meditation session complete (step=%s). Emitting canonical close.", step
+        )
+        return {
+            "final_answer": get_meditation_complete_message(),
+            "meditation_step": 0,
+        }
+
+    # ---- Case 4: step <= 0, no script keyword, no imperative ----------------
+    # This is the Soul-Sync-on-Mars / hostile-takeover / Hinglish suffering hijack
+    # path: an interrogative or off-domain query was mis-classified as MEDITATION
+    # and reached this handler with no active session. Refuse to emit the
+    # misleading "meditation is complete" sentinel.
+    #
+    # In normal operation the demote layer in `_intent_router_impl` catches these
+    # queries before they reach this handler, so reaching this branch is itself a
+    # signal of a routing bug. We log it loudly, emit a graceful clarifying
+    # message that stays in character, and flag `_meditation_misroute=True` so
+    # the pipeline coordinator can attribute the event to a routing failure.
+    logger.warning(
+        "Meditation handler reached with step<=0 and no script keyword. "
+        "Query='%s...'. Signalling _meditation_misroute=True. This indicates "
+        "the intent-router demote layer missed a non-imperative query.",
+        question[:80],
+    )
+    if not safe_fallback:
+        # Legacy behaviour gated behind a settings flag for backwards-compatibility.
+        return {
+            "final_answer": get_meditation_complete_message(),
+            "meditation_step": 0,
+        }
+    soft_fallback = (
+        "Beloved, I'm here with you. Would you like to share what's on your "
+        "heart — a teaching you'd like to explore, or a guided practice to "
+        "begin together? I am ready for either."
+    )
     return {
-        "final_answer": response,
-        "meditation_step": step + 1,
+        "final_answer": soft_fallback,
+        "meditation_step": 0,
+        "intent": "FACTUAL",
+        "_meditation_misroute": True,
     }
 
 
