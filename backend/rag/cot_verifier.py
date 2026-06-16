@@ -14,6 +14,8 @@ from __future__ import annotations
 import logging
 from typing import List
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +96,7 @@ class CoTVerifier:
             total += sq.score
 
         avg = total / len(sub_questions) if sub_questions else 0.0
-        verdict = "supported" if avg >= 0.8 else "partial" if avg >= 0.5 else "unsupported"
+        verdict = "supported" if avg >= settings.cove_supported_threshold else "partial" if avg >= settings.cove_partial_threshold else "unsupported"
 
         return {
             "sub_questions": sub_questions,

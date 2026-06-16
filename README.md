@@ -119,6 +119,9 @@ Ensure the following variables are configured in `backend/.env` before running t
 | `ADAPTIVE_CHUNKING_MIN_CHARS` | Minimum text character length before adaptive chunking evaluation is triggered. | `5000` |
 | `USE_PROPOSITION_CHUNKING` | Enable LLM-based proposition extraction. Bypasses for short files if set to `auto`. | `auto` |
 | `PROPOSITION_CHAR_LIMIT` | Max text character length permitted for proposition extraction to prevent LLM timeouts. | `15000` |
+| `ANTHROPIC_API_KEY` | API key to enable the high-performance direct Anthropic Gateway with prompt caching & Citations API. | `""` |
+| `ANTHROPIC_GATEWAY_MODEL` | Claude model family used by the Anthropic Gateway. | `claude-sonnet-4-6` |
+| `ANTHROPIC_GATEWAY_CACHE_TTL` | Prompt cache TTL for caching long knowledge base context prefixes. | `1h` |
 
 ## LLM Configuration
 

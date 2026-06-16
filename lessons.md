@@ -1835,3 +1835,20 @@ The LLM response for web search and general queries often includes raw URLs and 
 - **Lesson learned**:
   - 1. Direct JSON prompts combined with structured regex cleaning are more resilient than strict schema-enforced frameworks on small/distilled models.
   - 2. Secret scanners analyze full commit history. To clean accidentally committed credentials, rewrite the history (e.g., via soft reset or rebase) rather than pushing a second commit that deletes the secret.
+
+
+### 128. Anthropic Gateway, Citations, Message Batches, and De-hardcoded Thresholds
+
+- **Problem**:
+  - **Magic Thresholds**: 12 critical threshold parameters were hardcoded directly in RAG pipeline nodes and strategies, violating the no-hardcoding doctrine and preventing environment-specific tuning.
+  - **Anthropic Integration & Citations**: Direct Anthropic gateway integration was needed to support prompt caching, structured citations mapping, and high-performance message batching for judges in evaluation runs.
+  - **Test Collisions**: Semantic routing matched safety/distress routes on unit tests due to uniform mock embeddings (`[0.1] * 1024`), and meditation keyword matching bypassed intent checks on interrogative queries.
+- **Solution**:
+  - **Settings Migration**: Defined and migrated all threshold fields to `backend/app/config.py` `Settings` class, replacing all literal references.
+  - **AnthropicGateway Integration**: Wired the direct API Gateway inside the generation node with strict prompt-caching context boundary splits and citations mapping to source URLs.
+  - **Message Batches Support**: Added a `--use-batch` execution flag to `eval_runner.py` leveraging the Anthropic Message Batches API for evaluation judge queries with full JSONL compilation, status polling, and result parsing.
+  - **Test Isolation**: Monkeypatched `settings.use_semantic_router = False` in the tiered classification test, and modified the `handle_meditation` Case 1 fresh start path to filter out interrogatives from starting meditation scripts.
+- **Lesson learned**:
+  - 1. Unified configuration/settings control allows rapid tuning and clean separation of pipeline code from runtime business constraints.
+  - 2. Prompt caching benefits significantly from a structured layout that groups long-lived knowledge context blocks ahead of variable request/session state inputs.
+  - 3. Reusable state machine nodes (e.g., meditation flow) must protect their starting paths against keyword collisions in interrogative queries to maintain a clean re-routing separation.
