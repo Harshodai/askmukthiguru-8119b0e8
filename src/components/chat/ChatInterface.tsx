@@ -572,6 +572,23 @@ export const ChatInterface = () => {
       saveConversation(updatedConversation);
       setCurrentConversation(updatedConversation);
       setRefreshTrigger(prev => prev + 1);
+      // Write-back: track last conversation for multi-device resume.
+      // Fire-and-forget; never blocks UI; ignores errors (e.g. anon user).
+      void (async () => {
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          await supabase.from('profiles').update({
+            last_conversation_id: updatedConversation.id,
+            last_message_id: messages[messages.length - 1]?.id ?? null,
+            last_active_at: new Date().toISOString(),
+          }).eq('id', session.user.id);
+          localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
+        } catch {
+          // best-effort
+        }
+      })();
     }
   }, [messages]);
 
