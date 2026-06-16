@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.chat-rate-limit]
 verify_jwt = false
+
+[functions.push-send]
+verify_jwt = false
