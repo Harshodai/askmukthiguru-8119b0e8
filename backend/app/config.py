@@ -336,6 +336,16 @@ class Settings(BaseSettings):
     # without consulting the LLM.
     semantic_router_llm_fallback: bool = True
 
+    # --- Thresholds (P1 — de-hardcoded magic numbers) ---
+    lettuce_detect_threshold: float = 0.25
+    cove_supported_threshold: float = 0.8
+    cove_partial_threshold: float = 0.5
+    faithfulness_floor: float = 0.8
+    verifier_pass_ratio: float = 0.5
+    rerank_threshold_complex: float = 0.01
+    rerank_threshold_simple: float = 0.05
+    rerank_floor: float = 0.3
+
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the
     # consumer code is expected to fall back to the legacy LLM stack.

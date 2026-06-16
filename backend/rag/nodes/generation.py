@@ -342,28 +342,128 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     generation_kwargs = _generation_route(state, context_chars=len(context))
     route_metadata = generation_kwargs.pop("_route_metadata", {})
 
-    if ab_model == "krutrim":
+    from services.gateways.anthropic_gateway import AnthropicGateway, AnthropicGatewayError
+
+    gateway = AnthropicGateway.from_settings()
+    used_gateway = False
+
+    if gateway.enabled:
         try:
-            from app.dependencies import get_container
-            container = get_container()
-            if container.krutrim:
-                logger.info("A/B Testing: Using Krutrim Pro for generation")
-                if stream_queue and hasattr(container.krutrim, "generate_stream"):
-                    answer = ""
-                    async for chunk in container.krutrim.generate_stream(
-                        system_prompt=system_prompt, user_prompt=user_prompt
-                    ):
-                        if chunk:
-                            await stream_queue.put(chunk)
-                            answer += chunk
-                else:
-                    answer = await container.krutrim.generate(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                    )
-                    if stream_queue:
-                        await stream_queue.put(answer)
+            logger.info("Using AnthropicGateway for generation")
+            # Strip manual citation instructions
+            system_prompt_gw = system_prompt.replace(
+                "3. ALWAYS cite sources using [Source: <title>] format for EVERY factual claim. Each paragraph MUST have at least one citation.\n",
+                ""
+            ).replace(
+                "Cite sources using [Source: <title>].\n",
+                ""
+            )
+
+            # Build clean user message (exclude knowledge documents)
+            if layers:
+                gw_user_prompt = f"USER STATE:\n{layers['user_state']}\n\nQUESTION: {question}"
             else:
+                memory = state.get("memory_context", "")
+                gw_user_prompt = f"Question: {question}"
+                if memory:
+                    gw_user_prompt = f"CONTEXT:\n{memory}\n\n{gw_user_prompt}"
+            if history_str:
+                gw_user_prompt = f"{history_str}\n\n{gw_user_prompt}"
+
+            documents = []
+            for idx, doc in enumerate(relevant_docs):
+                title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
+                documents.append({
+                    "title": title,
+                    "text": doc.get("text", "")
+                })
+
+            max_tokens_val = generation_kwargs.get("max_tokens")
+            temperature_val = generation_kwargs.get("temperature")
+
+            if stream_queue:
+                answer = ""
+                async for chunk in gateway.stream(
+                    system_prompt=system_prompt_gw,
+                    user_message=gw_user_prompt,
+                    documents=documents,
+                    max_tokens=max_tokens_val,
+                    temperature=temperature_val,
+                ):
+                    if chunk:
+                        await stream_queue.put(chunk)
+                        answer += chunk
+                citations = _grounded_citation_urls(relevant_docs)
+            else:
+                resp = await gateway.generate(
+                    system_prompt=system_prompt_gw,
+                    user_message=gw_user_prompt,
+                    documents=documents,
+                    max_tokens=max_tokens_val,
+                    temperature=temperature_val,
+                )
+                answer = resp.text
+                api_citations = []
+                for c in resp.citations:
+                    doc_idx = c.document_index
+                    if doc_idx < len(relevant_docs):
+                        doc = relevant_docs[doc_idx]
+                        url = doc.get("source_url")
+                        if url and url not in api_citations:
+                            api_citations.append(url)
+                if api_citations:
+                    citations = api_citations
+                else:
+                    citations = _grounded_citation_urls(relevant_docs)
+
+            route_metadata["model_used"] = gateway.config.model
+            route_metadata["model_provider"] = "anthropic"
+            route_metadata["route_decision"] = "anthropic_gateway"
+            used_gateway = True
+        except AnthropicGatewayError as exc:
+            logger.warning(f"AnthropicGateway failed, falling back to legacy LLM: {exc}")
+
+    if not used_gateway:
+        if ab_model == "krutrim":
+            try:
+                from app.dependencies import get_container
+                container = get_container()
+                if container.krutrim:
+                    logger.info("A/B Testing: Using Krutrim Pro for generation")
+                    if stream_queue and hasattr(container.krutrim, "generate_stream"):
+                        answer = ""
+                        async for chunk in container.krutrim.generate_stream(
+                            system_prompt=system_prompt, user_prompt=user_prompt
+                        ):
+                            if chunk:
+                                await stream_queue.put(chunk)
+                                answer += chunk
+                    else:
+                        answer = await container.krutrim.generate(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                        )
+                        if stream_queue:
+                            await stream_queue.put(answer)
+                else:
+                    if stream_queue:
+                        answer = ""
+                        async for chunk in ollama.generate_stream(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                            **generation_kwargs,
+                        ):
+                            if chunk:
+                                await stream_queue.put(chunk)
+                                answer += chunk
+                    else:
+                        answer = await ollama.generate(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                            **generation_kwargs,
+                        )
+            except Exception as e:
+                logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
                 if stream_queue:
                     answer = ""
                     async for chunk in ollama.generate_stream(
@@ -380,8 +480,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                         user_prompt=user_prompt,
                         **generation_kwargs,
                     )
-        except Exception as e:
-            logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
+        else:
             if stream_queue:
                 answer = ""
                 async for chunk in ollama.generate_stream(
@@ -396,26 +495,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 answer = await ollama.generate(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
+                    timeout=get_node_timeout("generate_answer", 60.0),
                     **generation_kwargs,
                 )
-    else:
-        if stream_queue:
-            answer = ""
-            async for chunk in ollama.generate_stream(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                **generation_kwargs,
-            ):
-                if chunk:
-                    await stream_queue.put(chunk)
-                    answer += chunk
-        else:
-            answer = await ollama.generate(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                timeout=get_node_timeout("generate_answer", 60.0),
-                **generation_kwargs,
-            )
 
     answer = strip_cot(answer)
     answer = _ensure_keywords_in_answer(answer, question)

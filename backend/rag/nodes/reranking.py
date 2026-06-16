@@ -43,7 +43,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     if db_docs:
         is_complex = state.get("is_complex", False)
         base_threshold = getattr(settings, "rerank_min_score", 0.2)
-        threshold = 0.01 if is_complex else max(0.05, base_threshold - 0.1)
+        threshold = settings.rerank_threshold_complex if is_complex else max(settings.rerank_threshold_simple, base_threshold - 0.1)
 
         if settings.use_flashrank and reranker is not None:
             reranked_db = await reranker.rerank(
@@ -167,7 +167,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                     question,
                     relevant_db,
                     embedder._reranker,
-                    threshold=0.3,
+                    threshold=settings.rerank_floor,
                     min_sentences=2,
                 )
             except Exception as e:
