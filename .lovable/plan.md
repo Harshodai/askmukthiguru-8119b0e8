@@ -1,69 +1,74 @@
-## Goal
-Make chat errors actionable and visible globally, surface auth status in the header, enable one-tap retry of the last prompt, and fix alignment of starter-question chips so they line up cleanly with the message column.
+# Phased Plan
 
-## 1. Global error banner + toast (new: `src/components/chat/ChatErrorBanner.tsx`, `src/lib/chatErrorBus.ts`)
+Scope is large. I'll execute in 4 phases, committing after each so nothing is half-done.
 
-- Add a tiny pub/sub store (`chatErrorBus`) so any layer (streaming loop, auth listener, memory API) can publish a `ChatError { kind, title, summary, detail, messageId?, retryable }`.
-- `ChatErrorBanner` mounts inside `ChatInterface` just under `ChatHeader`. Sticky, dismissible, single active banner at a time, dedupes within 5s (reuse existing toast dedupe rule).
-- Banner shows: icon + 1-line summary + "Details" (scrolls to/opens the message's error card) + "Retry" + "Dismiss".
-- Also fires a sonner `toast.error` for transient confirmation; toast has the same "Details" action that calls `chatErrorBus.focus(messageId)`.
-- `ChatMessage` subscribes via a `data-error-id` attribute; "Details" sets focus + expands the existing `<details>` "Technical detail" disclosure already wired in the last pass.
+## Phase 1 — Frontend features (1 turn)
 
-## 2. Auth status indicator in `ChatHeader`
+**Multi-device resume prompt**
 
-- Add `useAuthStatus()` hook (wraps `supabase.auth.getSession` + `onAuthStateChange`) returning `signed_in | session_expired | anonymous`.
-- Header pill (next to the Memory pill):
-  - Green dot · "Signed in" (shows email on hover)
-  - Amber dot · "Session expired" → button "Sign in again" → `navigate('/auth?redirect=/chat')`
-  - Grey dot · "Guest" → "Sign in" link
-- On `TOKEN_REFRESHED` failure or 401 from `/api/chat`, flip to `session_expired` and publish a banner via `chatErrorBus`.
+- Read `profiles.last_message_id` + `last_active_at` on app mount (after auth).
+- If `last_active_at` exists AND current device has no matching conversation in localStorage → show toast/modal "Continue from where you left off?" with Resume / Dismiss.
+- New file: `src/components/chat/ResumePrompt.tsx`, hook `src/hooks/useResumeSession.ts`.
+- Requires backend column `last_message_id` (already documented in `docs/IMPROVEMENTS_BACKEND.md`). I'll ship a Supabase migration to add it if missing.
 
-## 3. One-tap "Retry last message"
+**Web Push (VAPID, native)**
 
-- `ChatInterface` already tracks messages; add `retryLastUserMessage()`:
-  1. Find last `role==='user'` message.
-  2. Truncate any failed guru message after it.
-  3. Re-run the existing send pipeline with the same text + thread context.
-- Surface the action in three places, all calling the same handler:
-  - Banner "Retry" button.
-  - Per-message error card "Retry" (already present — rewire to this).
-  - Floating "↻ Retry last message" pill above composer when the latest guru bubble has `message.error` and user is idle.
-- Disable while `streaming`.
+- Generate VAPID keys (one-time, locally) → store `VITE_VAPID_PUBLIC_KEY` in `.env` + `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` as Supabase secrets.
+- New service worker: `public/push-sw.js` (separate from app SW — push only, no caching, per PWA skill rules).
+- New component: `src/components/common/PushPermissionPrompt.tsx` — soft-asks after first meditation session (not on cold load).
+- New table: `push_subscriptions(user_id, endpoint, p256dh, auth, created_at)` + RLS.
+- New edge function: `push-subscribe` (stores subscription) + update existing `daily-teaching-push` to read from table.
 
-## 4. Friendly error-code panel (new: `src/components/chat/ErrorCodePanel.tsx`)
+## Phase 2 — Admin deep audit (2 turns)
 
-- Maps `MessageErrorKind` → `{ code, title, cause, nextStep, docsHref? }`:
-  - `unauthorized` → AUTH_401 · "Your session expired" · "Sign in again to continue. Your draft is saved."
-  - `rate_limited` → RATE_429 · "Too many requests" · "Wait ~30s, then retry. Upgrade plan for higher limits."
-  - `server_error` → MODEL_5XX · "Model unavailable" · "Backend is recovering. Retry in a moment; we'll fall back to offline guidance."
-  - `network` → NET_OFFLINE · "Can't reach the guru service" · "Check your connection, then Retry."
-  - `timeout` → TIME_OUT · "Response took too long" · "Retry — long answers may need a second attempt."
-  - `unknown` → UNK · "Something went off-path" · "Retry; if it persists, share the technical detail with support."
-- Rendered inside the per-message error card AND as the expanded content when the banner's "Details" is clicked.
-- Includes copy-trace button (`request_id` + last error message) for support.
+For each admin page (Overview, Queries, Retrieval, Quality, Feedback, Alerts, Triggers, Telemetry, Evals, Prompts, Admins, Ingestion, Logs, DailyTeaching):
 
-## 5. Starter questions alignment
+1. Open page in preview, screenshot.
+2. Run SQL against the source table(s) used by the KPI.
+3. Compare displayed value vs SQL truth.
+4. Fix broken queries in `src/admin/hooks/useAdminData.ts` and components.
+5. Add empty-state handling where data is sparse.
 
-In `ChatInterface` / empty-state block currently rendering the suggested prompts:
+Deliverable: `docs/ADMIN_AUDIT_REPORT.md` listing every metric, its source SQL, the bug, the fix.
 
-- Wrap chips in the same max-width column as `MessageList` (use a shared `chat-column` class: `max-w-3xl mx-auto px-4 sm:px-6`).
-- Switch from left-ragged flex-wrap to `grid grid-cols-1 sm:grid-cols-2 gap-2` with `items-stretch`, so chips have equal height and align to the message column edges.
-- Center the empty-state heading + chips block vertically only when there are no messages; once messages exist, never render chips below them (current bug: misaligned because chips sit outside the column).
-- Constrain chip text to 2 lines with `line-clamp-2`, consistent `text-sm font-serif`, `rounded-2xl border border-ojas/20 bg-ojas/5 hover:bg-ojas/10`.
+## Phase 3 — Chat UX polish (1 turn)
 
-## 6. Files touched
+Quick pass on chat — review session replay + screenshot, list issues, fix top 5.
 
-- New: `src/components/chat/ChatErrorBanner.tsx`, `src/components/chat/ErrorCodePanel.tsx`, `src/lib/chatErrorBus.ts`, `src/hooks/useAuthStatus.ts`, `src/hooks/useRetryLastMessage.ts`.
-- Edited: `src/components/chat/ChatInterface.tsx`, `src/components/chat/ChatHeader.tsx`, `src/components/chat/ChatMessage.tsx`, `src/components/chat/MessageList.tsx` (chat-column class), `src/lib/chatStorage.ts` (no schema change; reuse `MessageError`).
+## Phase 4 — Load test + Production hosting (1 turn)
 
-## 7. Validation
+**Light smoke load test**
 
-- Manual: kill backend → banner + toast + retry pill all appear; click Retry → re-sends. Expire token (delete from storage) → header flips to "Session expired", banner offers "Sign in again". Send a prompt while offline → error card shows NET_OFFLINE panel with next step.
-- Tests: extend `aiServiceStreaming.test.ts` for 401 → `unauthorized` mapping; new `useRetryLastMessage.test.ts`; snapshot `ErrorCodePanel` for each kind.
-- Visual: empty-state chips align flush with first message bubble's left/right edges at 384px, 768px, 1280px viewports.
+- New `scripts/load/smoke.sh` — uses `curl` + `hey` (or `wrk` via nix) to hit:
+  - `/healthz` edge function (50 RPS, 2 min) → assert p95 < 500ms.
+  - `chat-rate-limit` edge function (burst 60 req in 10s from same user) → assert 429 kicks in correctly.
+- Output: `docs/LOAD_TEST_RESULTS.md` with p50/p95/p99.
+- Add Shields.io badge to README pointing at `/healthz`.
 
-## Out of scope
+**Production hosting research (India-first, cheap)**
+Web search for current pricing (June 2026) across:
 
-- No backend changes (error codes are mapped client-side from HTTP status + existing error payload).
-- No new auth providers; reuses existing Google + email flow.
-- No design tokens added — uses existing Golden Hour palette.
+- Hetzner CAX/CPX (EU) + Cloudflare India PoPs
+- E2E Networks (Delhi/Mumbai)
+- Yotta Shakti (Mumbai)
+- Railway / Render
+- Azure India Central / AWS Mumbai (for comparison)
+
+Deliverable: `docs/PRODUCTION_HOSTING_INDIA.md` with:
+
+- Monthly cost table for 1k DAU / 10k DAU
+- India p95 latency estimates
+- Model serving cost (Sarvam 30B vs Lovable AI Gateway vs OpenRouter India)
+- Step-by-step deploy guide for the **recommended** option
+- Cost-cutting playbook (semantic cache, smaller embedding model, batch nightly digests)
+
+## Technical details
+
+- Backend infra changes that can't be done from Lovable (FastAPI rate-limit, RAGAS gate, etc.) stay as copy-pasteable snippets in `docs/IMPROVEMENTS_BACKEND.md` — already exists, I'll extend.
+- All new Supabase tables get explicit GRANTs + RLS per project rules.
+- No 3D lotus, Golden Hour palette preserved, glassmorphism intact.
+- Service worker for push is messaging-only (per PWA skill: messaging workers are exempt from offline-SW guards).
+
+## Execution order
+
+Reply with **"go"** to start Phase 1. After each phase I'll pause briefly so you can sanity-check before I burn credits on the next one. and also the UI UX in chat page is not looking good make sure the UI is neat and clean in all devices and also the spacing is huge between the first line and below pills

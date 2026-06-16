@@ -7,6 +7,7 @@ import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { SereneMindProvider } from "@/components/common/SereneMindProvider";
+import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
 
 // Pages
 const Index = lazy(() => import("./pages/Index"));
@@ -113,8 +114,10 @@ const App = () => {
           </Routes>
           <SessionExpiredHandler />
           <CookieConsentBanner />
+          <PushPermissionPrompt />
           <SonnerToaster richColors closeButton position="top-right" />
           <Toaster />
+
         </BrowserRouter>
       </SereneMindProvider>
     </QueryClientProvider>
