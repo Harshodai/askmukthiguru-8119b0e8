@@ -14,6 +14,32 @@ const intermediateDir = path.join(projectRoot, '.understand-anything/intermediat
 const tmpDir = path.join(projectRoot, '.understand-anything/tmp');
 const pythonPath = '/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python';
 
+const fileToCategory = {};
+
+function mapCategory(category) {
+  switch (category) {
+    case 'docs':
+      return { type: 'document', prefix: 'document:' };
+    case 'config':
+      return { type: 'config', prefix: 'config:' };
+    case 'infra':
+      return { type: 'service', prefix: 'service:' };
+    case 'data':
+      return { type: 'table', prefix: 'table:' };
+    case 'code':
+    case 'script':
+    case 'markup':
+    default:
+      return { type: 'file', prefix: 'file:' };
+  }
+}
+
+function getFileNodeId(filePath, category) {
+  const cat = category || fileToCategory[filePath];
+  const { prefix } = mapCategory(cat);
+  return `${prefix}${filePath}`;
+}
+
 async function run() {
   const metaPath = path.join(projectRoot, '.understand-anything/meta.json');
   const graphPath = path.join(projectRoot, '.understand-anything/knowledge-graph.json');
@@ -77,6 +103,10 @@ async function run() {
   const importMapInputPath = path.join(tmpDir, 'ua-import-map-input.json');
   const importMapOutputPath = path.join(tmpDir, 'ua-import-map-output.json');
   const scanFiles = JSON.parse(fs.readFileSync(rawScanPath, 'utf8'));
+  
+  for (const f of scanFiles.files) {
+    fileToCategory[f.path] = f.fileCategory;
+  }
   
   fs.writeFileSync(importMapInputPath, JSON.stringify({
     projectRoot,
@@ -144,10 +174,11 @@ async function run() {
       const edges = [];
       
       for (const res of structure.results) {
-        const fileId = `file:${res.path}`;
+        const { type: fileType, prefix: filePrefix } = mapCategory(res.fileCategory);
+        const fileId = `${filePrefix}${res.path}`;
         nodes.push({
           id: fileId,
-          type: res.fileCategory,
+          type: fileType,
           name: path.basename(res.path),
           filePath: res.path,
           summary: `Source file containing code, configuration, or documentation. Path: ${res.path}`,
@@ -192,7 +223,7 @@ async function run() {
         
         const imports = batch.batchImportData?.[res.path] || [];
         for (const imp of imports) {
-          edges.push({ source: fileId, target: `file:${imp}`, type: 'imports', direction: 'forward', weight: 0.8, description: `Imports ${imp}` });
+          edges.push({ source: fileId, target: getFileNodeId(imp), type: 'imports', direction: 'forward', weight: 0.8, description: `Imports ${imp}` });
         }
       }
       
