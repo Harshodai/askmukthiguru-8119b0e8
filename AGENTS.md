@@ -149,10 +149,14 @@ Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
 
 ## Local Codebase Intelligence & Memory MCP Layer
 
-In addition to `code-review-graph`, this workspace is integrated with three dedicated local/global MCP servers under `mcp-servers/`:
+In addition to `code-review-graph`, this workspace is integrated with four dedicated local/global MCP servers and plugins:
 1. **Graphify**: Offline AST codebase graph tool (provides `code-review-graph` MCP tools).
 2. **Claude-Mem**: Long-term episodic/semantic memory worker (SQLite + ChromaDB).
 3. **CodeGraph**: AST query engine using WASM-compiled tree-sitter grammars.
+4. **Understand Anything**: Multi-agent codebase knowledge graph builder and visualizer.
+
+- **Auto-Sync Hook**: A post-commit hook at `.git/hooks/post-commit` automatically runs `node scripts/ops/update-understand-graph.cjs` in the background on every commit to keep the graph (`.understand-anything/knowledge-graph.json`) fresh.
+- **Manual Sync**: Run `node scripts/ops/update-understand-graph.cjs` to force sync the graph.
 
 ### Strict Environment Constraints
 - **Node.js v22 LTS Only**: Do **NOT** upgrade Node.js to Node `25.x` or run CodeGraph commands under Node 25. Node 25 has a critical WASM compiler Zone allocation bug that causes out-of-memory crashes (`Zone allocation constraints`) during tree-sitter compilation. Always keep the shell environment linked to Node 22 LTS (`/opt/homebrew/opt/node@22/bin`).
@@ -160,7 +164,7 @@ In addition to `code-review-graph`, this workspace is integrated with three dedi
 - **Git Worktree Cleanup**: In agentic sessions, temporary git worktrees (`.claude/worktrees/agent-*`) can accumulate. This causes severe local git indexing lag. You **MUST** run `git worktree prune` and explicitly delete any temporary worktrees you created (`git worktree remove --force <path>`) before finishing your session.
 
 ### Utilizing Local MCP Tools
-- **Explore first, grep last**: Use CodeGraph and Graphify MCP tools (`semantic_search_nodes`, `query_graph`, `get_impact_radius`) rather than running heavy recursive glob/grep commands across thousands of files. It saves token costs, prevents host memory thrashing, and respects structural linkages.
+- **Explore first, grep last**: Use CodeGraph, Graphify, and Understand Anything rather than running heavy recursive glob/grep commands across thousands of files. It saves token costs, prevents host memory thrashing, and respects structural linkages.
 - **Memory Recalls**: Leverage `claude-mem` to recall key patterns or historical insights across conversation checkpoints.
 
 Respond terse like smart caveman. All technical substance stay. Only fluff die.

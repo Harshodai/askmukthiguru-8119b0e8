@@ -143,3 +143,7 @@ credentials.json
 backend/scripts/precompute_retrieval.py
 backend/services/doctrine_cache.py
 backend/services/model_failover.py
+
+# Understand Anything caches
+.understand-anything/intermediate/
+.understand-anything/diff-overlay.json
