@@ -15,7 +15,7 @@ test.describe('Seeker Journey', () => {
 
     // Verify Auth Page Navigation
     await expect(page).toHaveURL(/.*\/auth/);
-    await expect(page.locator('h1')).toHaveText('AskMukthiGuru');
+    await expect(page.locator('h1')).toHaveText('Sign in to AskMukthiGuru');
 
     // Verify Auth Form
     await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -201,8 +201,9 @@ test.describe('Seeker Journey', () => {
       localStorage.setItem('sb-fynkjimvuimakgtidvuq-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSession));
+      localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('askmukthiguru_profile', JSON.stringify(mockProfile));
-
+      
       // Bypasses the PrePracticeGate immediately
       sessionStorage.setItem('askmukthiguru_pre_practice_asked', '1');
 

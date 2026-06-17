@@ -81,6 +81,7 @@ class ChatStreamRequestOrchestrator:
             try:
                 yield "event: status\ndata: Query received, starting pipeline…\n\n"
 
+                HEARTBEAT_INTERVAL = 5.0
                 while True:
                     if pipeline_task.done() and stream_queue.empty():
                         break
@@ -90,14 +91,26 @@ class ChatStreamRequestOrchestrator:
                             item = stream_queue.get_nowait()
                         else:
                             get_task = asyncio.create_task(stream_queue.get())
+                            heartbeat = asyncio.create_task(asyncio.sleep(HEARTBEAT_INTERVAL))
                             done, pending = await asyncio.wait(
-                                [pipeline_task, get_task],
+                                [pipeline_task, get_task, heartbeat],
                                 return_when=asyncio.FIRST_COMPLETED
                             )
                             if get_task in done:
+                                heartbeat.cancel()
                                 item = get_task.result()
+                            elif heartbeat in done:
+                                get_task.cancel()
+                                try:
+                                    await get_task
+                                except asyncio.CancelledError:
+                                    pass
+                                if tokens_streamed == 0:
+                                    yield "event: status\ndata: The Guru is connecting with the teachings...\n\n"
+                                continue
                             else:
                                 get_task.cancel()
+                                heartbeat.cancel()
                                 try:
                                     await get_task
                                 except asyncio.CancelledError:
@@ -120,6 +133,10 @@ class ChatStreamRequestOrchestrator:
 
                 # Pipeline task completed
                 result = await pipeline_task
+            except asyncio.TimeoutError:
+                logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
+                yield "event: error\ndata: The Guru took too long to respond. Please try again.\n\n"
+                return
             except Exception as e:
                 logger.error(f"Pipeline execution failed: {e}")
                 yield f"event: error\ndata: Internal server error\n\n"

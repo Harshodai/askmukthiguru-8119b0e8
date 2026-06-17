@@ -58,6 +58,9 @@ _CLASS_KEYWORDS: dict[str, list[str]] = {
         "beautiful state", "ekam", "sri preethaji", "sri krishnaji", "oneness",
         "soul sync", "deeksha", "manifest 2026", "universal intelligence",
         "spiritual vision", "inner truth", "consciousness", "enlightenment",
+        "practice", "practicing", "how to practice", "how do i", "how do you",
+        "how can i", "how should i", "how to", "steps to", "guide me", "teach me",
+        "learn to", "guidelines", "instructions", "steps", "process", "method",
     ],
 }
 

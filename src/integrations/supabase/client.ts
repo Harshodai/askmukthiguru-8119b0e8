@@ -10,6 +10,7 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISH
     '[supabase] Missing required environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be defined at build time. Falling back to local defaults.'
   );
 }
+console.log('[supabase client] initialized with URL:', SUPABASE_URL);
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+console.log('[supabase client] storageKey:', (supabase.auth as any).storageKey);
 
 // Periodic token refresh as a safety net (autoRefreshToken handles most cases)
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes

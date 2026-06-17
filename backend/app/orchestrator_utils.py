@@ -42,8 +42,9 @@ _DEEP_QUERY_PATTERNS: list[str] = [
     r"\btest the bot\b", r"\btry to confuse\b",
 ]
 
-# Doctrine keyword fast-path triggers
+# Doctrine keyword fast-path triggers (aggressive: common spiritual terms + founder names)
 _DOCTRINE_FAST_PATH_KEYWORDS: list[str] = [
+    # Core teachings
     "four sacred secrets", "four secrets", "sacred secret",
     "deeksha", "oneness blessing",
     "soul sync", "soul-sync",
@@ -52,6 +53,12 @@ _DOCTRINE_FAST_PATH_KEYWORDS: list[str] = [
     "beautiful state", "beautiful state teachings",
     "preethaji", "krishnaji", "founder",
     "loka seva", "ekam world",
+    # Expanded for broader fast-path coverage
+    "meditation", "serene mind", "breath", "breathing",
+    "consciousness", "oneness", "surrender", "bliss",
+    "suffering", "soul", "spiritual", "divine", "enlightenment",
+    "karma", "dharma", "moksha", "atma", "guru",
+    "peace", "love", "gratitude", "compassion", "wisdom",
 ]
 
 
@@ -153,32 +160,42 @@ async def select_graph_for_query(
         if re.search(pattern, q):
             return "deep"
 
+    # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
+    # even with doctrine keywords (avoids "What is deeksha and how do I practice it?")
+    _MULTI_PART_INDICATORS = [
+        r"\band\b", r"\balso\b", r"\bplus\b", r"\bbesides\b",
+        r"\bin addition\b", r"\bfurthermore\b", r"\bmoreover\b",
+    ]
+    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
+
     # Check if intent router already classified as simple
     if detected_intent in ("FACTUAL", "QUERY"):
-        if len(tokens) <= 15:
+        # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
+        if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
+            if len(tokens) <= 25:
+                return "fast"
+        if len(tokens) <= 20:
             return "fast"
 
-    # Check doctrine-specific fast path triggers
-    for keyword in _DOCTRINE_FAST_PATH_KEYWORDS:
-        if keyword in q:
-            if len(tokens) <= 12:
-                return "fast"
-
     # Check simple query patterns
-    if len(tokens) <= 8:
+    if len(tokens) <= 10:
         for st in _SIMPLE_QUERY_STARTS:
             if q.startswith(st):
                 return "fast"
 
-    # Broader regex-based simple query detection
+    # Broader regex-based simple query detection (expanded thresholds)
     simple_patterns = [
         r"^(what|who|where|when|how|why|is|are|can|do|does|did)\s",
         r"^(tell me|explain|describe|define)\s+(about|the|what|how)",
         r"^(what is|what are|who is|who are|where is|where are)\s+",
     ]
     for pattern in simple_patterns:
-        if re.search(pattern, q) and len(tokens) <= 10:
+        if re.search(pattern, q) and len(tokens) <= 12:
             return "fast"
+
+    # Final catch-all: short greetings and statements
+    if len(tokens) <= 4 and detected_intent in ("CASUAL", "GREETING"):
+        return "fast"
 
     return "standard"
 
