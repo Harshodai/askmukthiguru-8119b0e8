@@ -48,6 +48,7 @@ export type AIErrorCode =
   | 'rate_limited'
   | 'unauthorized'
   | 'server_error'
+  | 'timeout'
   | 'network'
   | 'unknown';
 
@@ -72,6 +73,27 @@ export interface ProactiveSereneMindTrigger {
   suggested_response?: string;
   /** Krishnaji/Preethaji teaching streamed as a guru message before the modal opens */
   teachings_prelude?: string;
+}
+
+// ── Backend health check (cached for 30s, non-blocking) ──
+let _healthLastChecked = 0;
+let _healthStatus: 'unknown' | 'up' | 'down' = 'unknown';
+
+async function checkBackendHealth(endpoint: string): Promise<'up' | 'down'> {
+  const now = Date.now();
+  if (now - _healthLastChecked < 30_000) return _healthStatus as 'up' | 'down';
+  _healthLastChecked = now;
+  try {
+    const baseUrl = new URL(endpoint).origin;
+    const resp = await fetch(`${baseUrl}/api/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5_000),
+    });
+    _healthStatus = resp.ok ? 'up' : 'down';
+  } catch {
+    _healthStatus = 'down';
+  }
+  return _healthStatus;
 }
 
 // Auto-detect backend URL:
@@ -368,95 +390,93 @@ export const sendMessage = async (
   }
 
   if (provider === 'custom' && endpoint) {
-    try {
-      const trimmedMessages = messages.slice(-20);
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+    const trimmedMessages = messages.slice(-20);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
 
-      const startMs = Date.now();
-      const response = await fetch(endpoint, {
+    const buildBody = () => JSON.stringify({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
+        ...trimmedMessages,
+      ],
+      user_message: userMessage,
+      meditation_step: meditationStep,
+      session_id: sessionId,
+      language: currentConfig.language || 'en',
+      ...(lastSereneMindAt != null
+        ? { last_serene_mind_at: lastSereneMindAt / 1000 }
+        : {}),
+      ...(seekerContext ? { seeker_context: seekerContext } : {}),
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+    const doFetch = (signal?: AbortSignal) =>
+      fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
-            ...trimmedMessages,
-          ],
-          user_message: userMessage,
-          meditation_step: meditationStep,
-          session_id: sessionId,
-          language: currentConfig.language || 'en',
-          ...(lastSereneMindAt != null
-            ? { last_serene_mind_at: lastSereneMindAt / 1000 }
-            : {}),
-          ...(seekerContext ? { seeker_context: seekerContext } : {}),
-        }),
+        body: buildBody(),
+        signal: signal || controller.signal,
       });
 
+    const startMs = Date.now();
+    try {
+      let response = await doFetch();
+
       if (!response.ok) {
+        if (response.status === 504) {
+          return {
+            content: '',
+            error: 'The Guru took too long to respond. Please retry your question.',
+            errorCode: 'timeout',
+          };
+        }
+
         // Auto-retry on 401 with token refresh
         if (response.status === 401 && token) {
           const newToken = await refreshAccessToken();
           if (newToken) {
-            // Retry the request with the new token
             const retryResponse = await fetch(endpoint, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${newToken}`,
               },
-              body: JSON.stringify({
-                messages: [
-                  { role: 'system', content: systemPrompt },
-                  ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
-                  ...trimmedMessages,
-                ],
-                user_message: userMessage,
-                meditation_step: meditationStep,
-                session_id: sessionId,
-                language: currentConfig.language || 'en',
-                ...(lastSereneMindAt != null
-                  ? { last_serene_mind_at: lastSereneMindAt / 1000 }
-                  : {}),
-                ...(seekerContext ? { seeker_context: seekerContext } : {}),
-              }),
+              body: buildBody(),
             });
 
             if (retryResponse.ok) {
-              const data = await retryResponse.json();
-              await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'non-stream' } });
+              response = retryResponse;
+            } else {
               return {
-                content: data.response || data.choices?.[0]?.message?.content || data.content,
-                intent: data.intent,
-                citations: data.citations || [],
-                meditationStep: data.meditation_step || 0,
-                blocked: data.blocked || false,
-                blockReason: data.block_reason,
-                proactiveSereneMind: data.proactive_serene_mind ?? null,
+                content: '',
+                error: `API error: ${retryResponse.status}`,
+                errorCode: httpStatusToErrorCode(retryResponse.status),
               };
             }
           }
-        }
-
-        const errorCode = httpStatusToErrorCode(response.status);
-        let errorDetail = `API error: ${response.status}`;
-        try {
-          const errorData = await response.clone().json();
-          if (errorData?.detail) {
-            errorDetail += ` - ${errorData.detail}`;
+        } else {
+          const errorCode = httpStatusToErrorCode(response.status);
+          let errorDetail = `API error: ${response.status}`;
+          try {
+            const errorData = await response.clone().json();
+            if (errorData?.detail) {
+              errorDetail += ` - ${errorData.detail}`;
+            }
+          } catch {
+            // Ignore JSON parse errors
           }
-        } catch {
-          // Ignore JSON parse errors
+          return {
+            content: '',
+            error: errorDetail,
+            errorCode,
+          };
         }
-        return {
-          content: getPlaceholderResponse(),
-          error: errorDetail,
-          errorCode,
-        };
       }
 
       const data = await response.json();
@@ -470,14 +490,30 @@ export const sendMessage = async (
         blockReason: data.block_reason,
         proactiveSereneMind: data.proactive_serene_mind ?? null,
       };
-    } catch (error) {
-      console.error('AI Service Error:', error);
-      const err = error as any;
+    } catch (err: any) {
+      let code: AIErrorCode = 'network';
+      let message = err?.message || 'Connection failed';
+      if (err?.name === 'AbortError') {
+        code = 'timeout';
+        message = 'The request timed out before the Guru could respond.';
+      } else if (err instanceof TypeError && /fetch|network/i.test(message)) {
+        code = 'network';
+        // Fire-and-forget health check to update cached status for next request
+        checkBackendHealth(endpoint);
+        message = _healthStatus === 'down'
+          ? 'Cannot reach the Guru — backend is unavailable. Please try again later.'
+          : 'Network or backend is unreachable. Please check your connection.';
+      } else if (err instanceof DOMException && err.code === 'ENOTFOUND') {
+        code = 'unknown';
+        message = 'Could not resolve the backend server address.';
+      }
       return {
-        content: getPlaceholderResponse(),
-        error: error instanceof Error ? error.message : 'Connection failed',
-        errorCode: err?.errorCode || 'network',
+        content: '',
+        error: message,
+        errorCode: code,
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -485,7 +521,9 @@ export const sendMessage = async (
   // API keys must never be stored or used in the browser.
   // Use a server-side proxy (Edge Function) if OpenAI integration is needed.
 
-  return { content: getPlaceholderResponse() };
+  // Final fallback: no provider matched or unreachable code path.
+  // Return empty content so ChatInterface renders the error state.
+  return { content: '', errorCode: 'unknown' as AIErrorCode };
 };
 
 export const generateSummary = async (messages: MessagePayload[]): Promise<string> => {

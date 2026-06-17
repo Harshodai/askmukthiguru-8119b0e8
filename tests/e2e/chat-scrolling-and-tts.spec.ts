@@ -285,6 +285,8 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
       localStorage.setItem('sb-fynkjimvuimakgtidvuq-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSessionLocal));
+      localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSessionLocal));
+      localStorage.setItem('sb-127-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('askmukthiguru_profile', JSON.stringify(mockProfileLocal));
       localStorage.setItem('askmukthiguru_consent_v1', 'accepted'); // PREVENT Cookie Banner Overlay
     });
@@ -349,6 +351,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
       localStorage.setItem('sb-fynkjimvuimakgtidvuq-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSessionLocal));
+      localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('askmukthiguru_profile', JSON.stringify(mockProfileLocal));
       localStorage.setItem('askmukthiguru_consent_v1', 'accepted'); // PREVENT Cookie Banner Overlay
       sessionStorage.setItem('askmukthiguru_pre_practice_asked', '1');

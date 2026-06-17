@@ -7,6 +7,7 @@ Design Patterns:
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 import logging
@@ -55,15 +56,22 @@ class ChatRequestOrchestrator:
 
         is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
 
-        result = await self.coordinator.execute(
-            user_msg=user_msg,
-            preferred_lang=preferred_lang,
-            chat_body=chat_body,
-            meditation_step=chat_body.meditation_step,
-            session_id=chat_body.session_id,
-            user=user,
-            is_benchmark=is_benchmark,
-        )
+        try:
+            result = await self.coordinator.execute(
+                user_msg=user_msg,
+                preferred_lang=preferred_lang,
+                chat_body=chat_body,
+                meditation_step=chat_body.meditation_step,
+                session_id=chat_body.session_id,
+                user=user,
+                is_benchmark=is_benchmark,
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
+            raise HTTPException(
+                status_code=504,
+                detail="The Guru took too long to respond. Please try again.",
+            )
 
         # Telemetry background logging
         background_tasks.add_task(

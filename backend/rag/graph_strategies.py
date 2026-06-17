@@ -32,7 +32,6 @@ from rag.nodes import (
     explain_retrieval,
     format_final_answer,
     generate_answer,
-    generate_hyde,
     grade_documents,
     handle_casual,
     handle_distress,
@@ -40,7 +39,7 @@ from rag.nodes import (
     handle_meditation,
     init_services,
     intent_router,
-    navigate_knowledge_tree,
+    navigate_and_hyde,
     reflect_on_answer,
     rerank_documents,
     retrieve_documents,
@@ -222,8 +221,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("intent_router", intent_router)
         graph.add_node("resolve_followup", resolve_followup)
         graph.add_node("decompose_query", decompose_query)
-        graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
-        graph.add_node("generate_hyde", generate_hyde)
+        graph.add_node("navigate_and_hyde", navigate_and_hyde)
         graph.add_node("retrieve_documents", retrieve_documents)
         graph.add_node("rerank_documents", rerank_documents)
         graph.add_node("grade_documents", grade_documents)
@@ -259,10 +257,8 @@ class StandardGraphStrategy(GraphStrategy):
 
         graph.add_edge("web_search", "resolve_followup")
         graph.add_edge("resolve_followup", "decompose_query")
-        graph.add_edge("decompose_query", "navigate_knowledge_tree")
-        graph.add_edge("decompose_query", "generate_hyde")
-        graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
-        graph.add_edge("generate_hyde", "retrieve_documents")
+        graph.add_edge("decompose_query", "navigate_and_hyde")
+        graph.add_edge("navigate_and_hyde", "retrieve_documents")
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
         graph.add_edge("grade_documents", "check_context_sufficiency")
@@ -401,8 +397,7 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("intent_router", intent_router)
         graph.add_node("resolve_followup", resolve_followup)
         graph.add_node("decompose_query", decompose_query)
-        graph.add_node("navigate_knowledge_tree", navigate_knowledge_tree)
-        graph.add_node("generate_hyde", generate_hyde)
+        graph.add_node("navigate_and_hyde", navigate_and_hyde)
         graph.add_node("retrieve_documents", retrieve_documents)
         graph.add_node("rerank_documents", rerank_documents)
         graph.add_node("grade_documents", grade_documents)
@@ -440,10 +435,8 @@ class DeepGraphStrategy(GraphStrategy):
 
         graph.add_edge("web_search", "resolve_followup")
         graph.add_edge("resolve_followup", "decompose_query")
-        graph.add_edge("decompose_query", "navigate_knowledge_tree")
-        graph.add_edge("decompose_query", "generate_hyde")
-        graph.add_edge("navigate_knowledge_tree", "retrieve_documents")
-        graph.add_edge("generate_hyde", "retrieve_documents")
+        graph.add_edge("decompose_query", "navigate_and_hyde")
+        graph.add_edge("navigate_and_hyde", "retrieve_documents")
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
         graph.add_edge("grade_documents", "check_context_sufficiency")

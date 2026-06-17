@@ -14,6 +14,8 @@ from services.embedding_service import EmbeddingService
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
 
+import re
+
 from . import _services
 from .utils import (
     _grounded_citation_urls,
@@ -31,6 +33,97 @@ logger = logging.getLogger(__name__)
 
 # Module-level semantic cache instance (lazy-initialized)
 _semantic_cache: Optional[Any] = None
+
+# Threshold at which parent text gets adaptive excerpting instead of full injection
+_ADAPTIVE_PARENT_THRESHOLD = 1800
+
+
+def _split_into_sentences(text: str) -> list[str]:
+    """Split text into sentences using regex boundary detection."""
+    sentence_ends = re.split(r"(?<=[.!?])\s+", text)
+    return [s.strip() for s in sentence_ends if s.strip()]
+
+
+def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500) -> str:
+    """
+    Extract the most relevant excerpt from a long parent text.
+
+    Scores sentences by keyword overlap with the query, then selects
+    a contiguous window around the highest-scoring sentence, respecting
+    max_chars. Falls back to head truncation if scoring fails.
+    """
+    sentences = _split_into_sentences(parent_text)
+    if not sentences:
+        return parent_text[:max_chars]
+
+    # Extract non-trivial query keywords (length > 2, not common stop-words)
+    stop_words = {"the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "day", "get", "has", "him", "his", "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy", "did", "its", "let", "put", "say", "she", "too", "use"}
+    query_words = set()
+    for word in re.findall(r"\b\w+\b", query.lower()):
+        if len(word) > 2 and word not in stop_words:
+            query_words.add(word)
+
+    if not query_words:
+        return parent_text[:max_chars]
+
+    # Score each sentence by keyword overlap
+    scores = []
+    for s in sentences:
+        s_lower = s.lower()
+        score = sum(1 for w in query_words if w in s_lower)
+        scores.append(score)
+
+    best_idx = max(range(len(scores)), key=lambda i: scores[i])
+
+    # Build window around best sentence, expanding outward
+    selected: list[str] = [sentences[best_idx]]
+    current_len = len(selected[0])
+    left, right = best_idx - 1, best_idx + 1
+
+    while current_len < max_chars and (left >= 0 or right < len(sentences)):
+        candidates = []
+        if left >= 0:
+            candidates.append((left, sentences[left], "left"))
+        if right < len(sentences):
+            candidates.append((right, sentences[right], "right"))
+        # Prefer higher scoring side, or right for forward reading flow
+        candidates.sort(key=lambda x: (scores[x[0]], x[2] == "right"), reverse=True)
+        idx, sentence, _ = candidates[0]
+        if current_len + len(sentence) + 1 > max_chars:
+            break
+        if idx < best_idx:
+            selected.insert(0, sentence)
+            left -= 1
+        else:
+            selected.append(sentence)
+            right += 1
+        current_len += len(sentence) + 1
+
+    excerpt = " ".join(selected)
+    if len(excerpt) < 200 and len(parent_text) > max_chars:
+        # Fallback: head truncation if excerpt is too short
+        return parent_text[:max_chars]
+    return excerpt
+
+
+async def navigate_and_hyde(state: GraphState, config: dict = None) -> dict:
+    """Run ``navigate_knowledge_tree`` and ``generate_hyde`` in parallel.
+
+    Uses `asyncio.gather` with error isolation so a failure in one node does not
+    block the other. Results are merged into a single state update dict.
+    """
+    results = await asyncio.gather(
+        navigate_knowledge_tree(state, config),
+        generate_hyde(state, config),
+        return_exceptions=True,
+    )
+    merged: dict = {}
+    for r in results:
+        if isinstance(r, Exception):
+            logger.warning(f"Parallel node error (navigate_and_hyde): {r}")
+            continue
+        merged.update(r)
+    return merged
 
 
 @log_metrics
@@ -168,7 +261,11 @@ async def retrieve_for_single_query(
         if parent_id and parent_text:
             if parent_id not in seen_parents:
                 seen_parents.add(parent_id)
-                doc["text"] = parent_text
+                # Adaptive chunking: excerpt very long parent text to preserve context window
+                if len(parent_text) > _ADAPTIVE_PARENT_THRESHOLD:
+                    doc["text"] = _adaptive_parent_excerpt(query, parent_text)
+                else:
+                    doc["text"] = parent_text
                 resolved_chunks.append(doc)
         else:
             resolved_chunks.append(doc)
@@ -195,6 +292,9 @@ async def retrieve_for_single_query(
             lg_node_lines = [line for line in deduped_lines if line.strip()]
             if len(lg_node_lines) > 50:
                 graph_answer = "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
+            # Normalise score by LightRAG content richness so it doesn't
+            # clobber downstream rankers with an arbitrary 1.0.
+            lg_score = min(0.9, 0.7 + 0.02 * len(lg_node_lines))
             lightrag_results.append(
                 {
                     "text": graph_answer,
@@ -203,7 +303,7 @@ async def retrieve_for_single_query(
                     "content_type": "graph_summary",
                     "chunk_index": 0,
                     "raptor_level": 0,
-                    "score": 1.0,
+                    "score": lg_score,
                 }
             )
 

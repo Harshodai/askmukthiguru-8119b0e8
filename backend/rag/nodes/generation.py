@@ -183,8 +183,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     if len(relevant_docs) > 0:
         total_raw_len = sum(len(doc.get("text", "")) for doc in relevant_docs)
-        use_compression = getattr(settings, "rag_use_context_compression", False)
+        # Auto-enable context compression when context exceeds threshold, regardless of flag.
+        # The flag can still explicitly disable it, but by default we compress for large contexts.
+        compression_setting = getattr(settings, "rag_use_context_compression", "auto")
         threshold = getattr(settings, "rag_context_compression_threshold", 10000)
+        use_compression = compression_setting is True or (compression_setting == "auto" and total_raw_len > threshold)
 
         if use_compression and total_raw_len > threshold:
             async def compress_and_format(doc):

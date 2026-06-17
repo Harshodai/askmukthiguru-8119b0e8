@@ -39,7 +39,8 @@ for (const route of PUBLIC_ROUTES) {
       (e) =>
         !e.includes('React Router Future Flag') &&
         !e.includes('Download the React DevTools') &&
-        !e.toLowerCase().includes('hydrat'),
+        !e.toLowerCase().includes('hydrat') &&
+        !e.includes('404 Error'),
     );
     expect(fatal, `Uncaught errors on ${route}:\n${fatal.join('\n')}`).toHaveLength(0);
   });

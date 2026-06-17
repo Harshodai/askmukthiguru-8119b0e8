@@ -66,7 +66,7 @@ export default function RetrievalPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Avg top similarity score</CardTitle></CardHeader>
         <CardContent>
-          <TimeseriesChart data={simTs} formatter={(v) => v.toFixed(3)} />
+          <TimeseriesChart data={simTs} formatter={(v) => (typeof v === 'number' ? v.toFixed(3) : '')} />
         </CardContent>
       </Card>
 
@@ -115,7 +115,7 @@ export default function RetrievalPage() {
                     className="block border border-border rounded-md p-3 text-sm hover:bg-muted/40"
                   >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">top {e.top_score.toFixed(3)}</Badge>
+                      <Badge variant="outline">top {typeof e.top_score === 'number' ? e.top_score.toFixed(3) : 'N/A'}</Badge>
                       <span className="flex-1 truncate">{truncate(e.query_text, 80)}</span>
                       <span className="text-xs text-muted-foreground">{fmtDateTime(e.created_at)}</span>
                     </div>

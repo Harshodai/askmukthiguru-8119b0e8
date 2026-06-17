@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -26,6 +26,16 @@ import { TraceDrawer } from "@/admin/components/TraceDrawer";
 import { EmptyState } from "@/admin/components/EmptyState";
 import { Search, X } from "lucide-react";
 
+interface QueryItem {
+  id: string;
+  created_at: string;
+  query_text: string;
+  model?: string;
+  prompt_version_id?: string;
+  latency_ms?: number;
+  status: string;
+}
+
 export default function QueriesPage() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState(params.get("search") ?? "");
@@ -35,6 +45,8 @@ export default function QueriesPage() {
   const [model, setModel] = useState<string | undefined>(params.get("model") ?? undefined);
   const [minScore, setMinScore] = useState(Number(params.get("min") ?? 0));
   const [openId, setOpenId] = useState<string | null>(params.get("trace"));
+  const [sortField, setSortField] = useState<string>(params.get("sort") ?? "created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">((params.get("dir") as "asc" | "desc") ?? "desc");
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -43,8 +55,10 @@ export default function QueriesPage() {
     if (model) next.set("model", model);
     if (minScore) next.set("min", String(minScore));
     if (openId) next.set("trace", openId);
+    next.set("sort", sortField);
+    next.set("dir", sortDir);
     setParams(next, { replace: true });
-  }, [search, promptVersionId, model, minScore, openId, setParams]);
+  }, [search, promptVersionId, model, minScore, openId, sortField, sortDir, setParams]);
 
 
   const { data: prompts } = usePromptVersions();
@@ -56,6 +70,33 @@ export default function QueriesPage() {
     minJudgeScore: minScore > 0 ? minScore : undefined,
     limit: 200,
   });
+
+  const sortedData = useMemo(() => {
+    if (!data) return [];
+    return [...data].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "created_at":
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case "latency_ms":
+          cmp = (a.latency_ms ?? 0) - (b.latency_ms ?? 0);
+          break;
+        case "query_text":
+          cmp = a.query_text.localeCompare(b.query_text);
+          break;
+        case "model":
+          cmp = (a.model ?? "unknown").localeCompare(b.model ?? "unknown");
+          break;
+        case "status":
+          cmp = a.status.localeCompare(b.status);
+          break;
+        default:
+          cmp = 0;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [data, sortField, sortDir]);
 
   const promptLabel = (id: string | null | undefined) => {
     if (!id) return "v0 (default)";
@@ -167,6 +208,31 @@ export default function QueriesPage() {
               </Button>
             )}
           </div>
+
+          <div className="md:col-span-12 flex items-center gap-2 pt-3 border-t mt-1">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">Sort by</label>
+            <Select value={sortField} onValueChange={setSortField}>
+              <SelectTrigger className="h-8 text-xs w-[140px]">
+                <SelectValue placeholder="Sort field" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at">Time</SelectItem>
+                <SelectItem value="query_text">Query</SelectItem>
+                <SelectItem value="model">Model</SelectItem>
+                <SelectItem value="latency_ms">Latency</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortDir} onValueChange={(v) => setSortDir(v as "asc" | "desc")}>
+              <SelectTrigger className="h-8 text-xs w-[130px]">
+                <SelectValue placeholder="Direction" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">Ascending</SelectItem>
+                <SelectItem value="desc">Descending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -174,7 +240,7 @@ export default function QueriesPage() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">Loading…</div>
-          ) : !data?.length ? (
+          ) : !sortedData.length ? (
             <EmptyState title="No queries match your filters" />
           ) : (
             <Table>
@@ -189,7 +255,7 @@ export default function QueriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((q) => (
+                {sortedData.map((q) => (
                   <TableRow
                     key={q.id}
                     className="cursor-pointer"

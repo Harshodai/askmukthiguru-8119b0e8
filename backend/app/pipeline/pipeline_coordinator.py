@@ -31,7 +31,7 @@ from typing import Any
 from app.config import settings
 from app.context import correlation_id_var
 from app.dependencies import ServiceContainer
-from app.metrics import REQUEST_COUNT, REQUEST_LATENCY
+from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, REQUEST_LATENCY
 from app.orchestrator_utils import (
     cache_language_key,
     get_expected_keywords,
@@ -44,6 +44,7 @@ from langgraph.errors import GraphRecursionError
 from rag.graph import create_initial_state
 from rag.memory import normalize_session_id
 from rag.timeout_utils import TimeoutBudget, budget_var
+from services.hot_cache import hot_cache
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
 logger = logging.getLogger(__name__)
@@ -307,9 +308,36 @@ class PipelineCoordinator:
     # ------------------------------------------------------------------
 
     async def _check_cache(self, cache_key: str, is_indic: bool, preferred_lang: str) -> PipelineResult | None:
-        """Return a PipelineResult if cache hit, else None."""
+        """Return a PipelineResult if cache hit, else None.
+
+        Checks tiers in order (fastest → slowest):
+          1. Hot cache (in-memory dict, <1ms lookup)
+          2. Exact cache (Redis, ~1-5ms lookup)
+          3. Semantic cache (Qdrant vector, ~20-50ms lookup)
+        """
+        # --- 1. Hot cache (sub-millisecond) ---
+        hot_hit = hot_cache.get(cache_key)
+        if hot_hit is not None:
+            response, citations, cached_intent = hot_hit
+            if cached_intent.upper() in ("CASUAL", "GREETING"):
+                return None
+            CACHE_OPERATIONS.labels(cache_type="hot", result="hit").inc()
+            return PipelineResult(
+                final_answer=response,
+                intent=cached_intent,
+                meditation_step=0,
+                citations=citations,
+                trace_id=str(uuid.uuid4()),
+                latency_ms=0,
+                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
+                model_provider=getattr(settings, "llm_provider", None),
+                route_decision="hot_cache",
+                cache_hit=True,
+            )
+
+        # --- 2. Exact + Semantic cache ---
         cached = self.container.exact_cache.get(cache_key)
-        if cached is None:
+        if cached is None and self.container.semantic_cache and self.container.semantic_cache.is_available:
             cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
 
         if cached is not None:
@@ -481,7 +509,18 @@ class PipelineCoordinator:
 
             budget = TimeoutBudget(total_budget=settings.pipeline_timeout)
             token = budget_var.set(budget)
-            graph_variant = await select_graph_for_query(user_msg_en, container=self.container)
+
+            # Pre-classify intent before graph selection for fast-path routing
+            from rag.nodes.on_device_intent import classify_with_reason
+            on_device_result = classify_with_reason(user_msg_en)
+            detected_intent = on_device_result[0] if on_device_result else None
+            if detected_intent:
+                initial_state["intent"] = detected_intent
+                # Pre-fill query_tier from on-device classifier
+                if "query_tier" not in initial_state:
+                    initial_state["query_tier"] = "tier2_simple" if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION") else "tier3_complex"
+
+            graph_variant = await select_graph_for_query(user_msg_en, container=self.container, detected_intent=detected_intent)
             initial_state["query_tier"] = graph_variant
 
             # OpenRouter fast path: skip graph for simple queries (Phase 2.4 will remove this)
@@ -584,9 +623,13 @@ class PipelineCoordinator:
                 logger.warning(f"Memory extraction failed (non-fatal): {e}")
 
     async def _update_cache(self, cache_key: str, final_answer: str, intent: str, med_step: int, citations: list) -> None:
-        """Update exact and semantic caches."""
+        """Update all cache tiers: hot (in-memory), exact (Redis), semantic (Qdrant)."""
         if intent in ["QUERY", "CASUAL", "FACTUAL"]:
             try:
+                # Update hot cache first (fastest, no I/O)
+                hot_cache.put(cache_key, final_answer, citations, ttl=300.0, intent=intent)
+
+                # Update exact cache (Redis)
                 self.container.exact_cache.put(
                     query=cache_key,
                     response=final_answer,
@@ -594,14 +637,17 @@ class PipelineCoordinator:
                     citations=citations,
                     meditation_step=med_step,
                 )
-                await asyncio.to_thread(
-                    self.container.semantic_cache.put,
-                    query=cache_key,
-                    response=final_answer,
-                    intent=intent,
-                    citations=citations,
-                    meditation_step=med_step,
-                )
+
+                # Update semantic cache (Qdrant — slowest, guarded)
+                if self.container.semantic_cache and self.container.semantic_cache.is_available:
+                    await asyncio.to_thread(
+                        self.container.semantic_cache.put,
+                        query=cache_key,
+                        response=final_answer,
+                        intent=intent,
+                        citations=citations,
+                        meditation_step=med_step,
+                    )
             except Exception as e:
                 logger.warning(f"Cache update failed (non-fatal): {e}")
 

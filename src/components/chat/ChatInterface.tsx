@@ -600,7 +600,7 @@ export const ChatInterface = () => {
   }, [messages]);
 
   const handleSubmit = async (
-    e: React.FormEvent,
+    e?: React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent,
     overrideText?: string,
     options: {
       appendUser?: boolean;
@@ -609,7 +609,9 @@ export const ChatInterface = () => {
       bypassCache?: boolean;
     } = {},
   ) => {
-    e.preventDefault();
+    if (e && 'preventDefault' in e) {
+      e.preventDefault();
+    }
     const textToSend = overrideText ?? inputValue;
     if (!textToSend.trim() || isTyping) {
       return;
@@ -1037,7 +1039,10 @@ export const ChatInterface = () => {
         const guruMessage: Message = {
           id: generateId(),
           role: 'guru',
-          content: response.content,
+          // If the backend returned an error and no content, show a friendly fallback instead of an empty bubble.
+          content: response.content || (response.errorCode
+            ? 'The Guru is resting. Please try again in a moment.'
+            : ''),
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
           error: responseError,

@@ -16,10 +16,14 @@ export function useRequireAuth() {
     let cancelled = false;
 
     const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (import.meta.env.DEV) {
-        console.log('[useRequireAuth] session user id:', session?.user?.id ?? null);
+      try {
+        console.log('[useRequireAuth] localStorage keys:', Object.keys(localStorage));
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('[useRequireAuth] session:', session, 'error:', error);
+      } catch (err) {
+        console.error('[useRequireAuth] getSession crashed:', err);
       }
+      const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!session?.user) {
         // Save current path for post-login redirect

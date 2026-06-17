@@ -9,6 +9,26 @@ interface AskDataPanelProps {
   kpiContext?: string;
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+
+async function apiPost(path: string, body: unknown) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`API error ${response.status}: ${errText}`);
+  }
+  return response.json();
+}
+
 export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,13 +41,10 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
     setError(null);
     setResult(null);
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("admin-ask", {
-        body: { question, kpi_context: kpiContext ?? "" },
+      const data = await apiPost("/api/admin/ask", {
+        question,
+        kpi_context: kpiContext ?? "",
       });
-      if (fnErr) {
-        setError(fnErr.message);
-        return;
-      }
       if (data?.response) setResult(data.response);
       else setError(data?.error ?? "Empty response.");
     } catch (e) {
