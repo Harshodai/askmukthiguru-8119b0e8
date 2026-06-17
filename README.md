@@ -174,10 +174,11 @@ The repository features 15 pre-compiled technical agent skills containing struct
 
 ## Codebase Intelligence & Memory Layer (Local MCP Servers)
 
-To streamline local pair-programming, codebase exploration, and long-term memory across session boundaries, three isolated codebase-intelligence Model Context Protocol (MCP) servers are fully integrated:
+To streamline local pair-programming, codebase exploration, and long-term memory across session boundaries, four isolated codebase-intelligence Model Context Protocol (MCP) servers and plugins are fully integrated:
 1. **Graphify**: Offline AST-based codebase graph generator and visualizer.
 2. **Claude-Mem**: Persistent SQLite and ChromaDB semantic memory database.
 3. **CodeGraph**: Fast tree-sitter AST parser, search, and semantic intelligence engine.
+4. **Understand Anything**: Multi-agent AST static analysis plugin that builds an interactive, dark-luxury knowledge graph dashboard of files, functions, classes, and dependencies.
 
 These are registered:
 - **Locally**: In [.mcp.json](.mcp.json) for Codex/Antigravity IDE.
@@ -192,6 +193,22 @@ These are registered:
 To re-build or update the codebase indexes, run the following commands:
 - **Graphify**: `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python -m graphify update . --force`
 - **CodeGraph**: `node mcp-servers/codegraph/dist/bin/codegraph.js init`
+- **Understand Anything**: Run `node scripts/ops/update-understand-graph.cjs` to parse the codebase and compile the graph.
+
+### Viewing the Understand Anything UI Graph
+To explore the knowledge graph in the interactive dashboard:
+1. Go to the cached plugin directory:
+   ```bash
+   cd ~/.claude/plugins/cache/understand-anything/understand-anything/*
+   ```
+2. Start the dev server in the background:
+   ```bash
+   GRAPH_DIR=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8 pnpm dev:dashboard
+   ```
+3. Open the URL with the access token printed in the console (e.g. `http://127.0.0.1:5173/?token=...`).
+
+### Automatic Updates via Commit Hook
+A git `post-commit` hook is installed at `.git/hooks/post-commit`. It runs in the background on every commit to keep CodeGraph, Graphify, and Understand Anything indexes perfectly synchronized without manual intervention.
 
 ## Project Structure
 
