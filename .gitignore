@@ -144,6 +144,6 @@ backend/scripts/precompute_retrieval.py
 backend/services/doctrine_cache.py
 backend/services/model_failover.py
 
-# Understand Anything caches
-.understand-anything/intermediate/
-.understand-anything/diff-overlay.json
+# Understand Anything outputs and caches
+.understand-anything/
+!.understand-anything/.understandignore
