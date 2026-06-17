@@ -113,6 +113,18 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
 
     question = state["question"]
     lower_q = question.lower()
+
+    # Pre-classified intent: pipeline_coordinator already ran on-device classifier
+    pre_intent = state.get("intent")
+    if pre_intent:
+        return {
+            "intent": pre_intent,
+            "query_tier": state.get("query_tier", "tier2_simple"),
+            "evaluation_trace": _trace_update(
+                state, intent=pre_intent, query_tier=state.get("query_tier", "tier2_simple"),
+                routing_reason="pre_classified_from_pipeline_coordinator"
+            ),
+        }
     ollama = _services._ollama
 
     # Check if we're in an active meditation session (state machine check)
@@ -367,9 +379,36 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
 
 
 async def handle_casual(state: GraphState, config: dict = None) -> dict:
-    """Handle casual conversation with multi-turn awareness."""
+    """Handle casual conversation with multi-turn awareness.
+
+    Belt-and-suspenders guard: if the query contains spiritual practice
+    or doctrinal keywords, redirect to FACTUAL pipeline instead of
+    returning a casual greeting. This prevents greeting responses for
+    queries like "how do i practice soul sync" if LLM misclassifies.
+    """
     if state.get("final_answer"):
         return state
+
+    _SPIRITUAL_PRACTICE_SIGNALS = [
+        r"\bpractice\b", r"\bpracticing\b", r"\bhow\s+(do|can|should)\s+i\b",
+        r"\bsoul\s+sync\b", r"\bdeeksha\b", r"\bmeditat", r"\bbeautiful\s+state\b",
+        r"\bsacred\s+secret", r"\bconsciousness", r"\benlightenment\b",
+        r"\boneness", r"\bekam\b", r"\bpreethaji\b", r"\bkrishnaji\b",
+        r"\bteach\b", r"\bguide\b", r"\bguideline\b", r"\binstruction",
+        r"\bstep", r"\bmethod\b", r"\bprocess\b", r"\bhow\s+to\b",
+    ]
+    lower = state.get("question", "").lower()
+    if any(re.search(p, lower, re.I) for p in _SPIRITUAL_PRACTICE_SIGNALS):
+        logger.info("handle_casual guard: query contains spiritual practice signals, redirecting to FACTUAL")
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier2_simple",
+            "evaluation_trace": state.get("evaluation_trace", []) + [{
+                "node": "handle_casual",
+                "result": "redirected_to_factual",
+                "reason": "spiritual_practice_signals_detected",
+            }],
+        }
 
     from rag.nodes.utils import emit_status
     await emit_status(config, "Saying hello...")

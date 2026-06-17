@@ -163,7 +163,7 @@ CIRCUIT_BREAKER_FAILURES = Gauge(
 CACHE_OPERATIONS = Counter(
     "guru_cache_operations_total",
     "Cache operations by type and result",
-    ["cache_type", "result"],  # cache_type: exact|semantic, result: hit|miss
+    ["cache_type", "result"],  # cache_type: hot|exact|semantic, result: hit|miss
 )
 
 CACHE_HIT_RATIO = Gauge(

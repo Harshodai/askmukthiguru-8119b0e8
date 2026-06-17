@@ -153,14 +153,22 @@ class SemanticCacheService:
                     best_entry = entry
 
             if best_score >= self._threshold and best_entry:
+                # Block generic greeting responses from being served — they occur when a
+                # specific question (e.g. "how to practice soul sync") matches a generic
+                # cached intent (e.g. "casual" greeting) due to high semantic similarity.
+                cached_intent = best_entry.get("intent", "").upper()
+                response_text = best_entry.get("response", "")
+                if cached_intent in ("CASUAL", "GREETING"):
+                    self._misses += 1
+                    return None
                 self._hits += 1
                 logger.info(
                     f"Semantic cache HIT (similarity={best_score:.4f}, "
                     f"threshold={self._threshold}, hits={self._hits})"
                 )
                 return {
-                    "response": best_entry["response"],
-                    "intent": best_entry.get("intent", "QUERY"),
+                    "response": response_text,
+                    "intent": cached_intent,
                     "citations": best_entry.get("citations", []),
                     "meditation_step": best_entry.get("meditation_step", 0),
                     "cached_at": best_entry.get("cached_at", 0),

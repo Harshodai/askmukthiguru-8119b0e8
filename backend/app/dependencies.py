@@ -155,12 +155,16 @@ class ServiceContainer:
         # Layer 4b: Semantic Cache & Exact Cache (depends on embedding + redis + qdrant)
         from services.cache_service import RedisCacheAdapter
         self.exact_cache = RedisCacheAdapter(redis_url=settings.redis_url)
-        self.semantic_cache = SemanticCacheAdapter(
-            redis_url=settings.redis_url,
-            qdrant_url=settings.qdrant_url if not settings.qdrant_local_path else None,
-            qdrant_path=settings.qdrant_local_path if settings.qdrant_local_path else None,
-            embedding_service=self.embedding,
-        )
+        try:
+            self.semantic_cache = SemanticCacheAdapter(
+                redis_url=settings.redis_url,
+                qdrant_url=settings.qdrant_url if not settings.qdrant_local_path else None,
+                qdrant_path=settings.qdrant_local_path if settings.qdrant_local_path else None,
+                embedding_service=self.embedding,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to initialize semantic cache: {exc}. Continuing without semantic caching.")
+            self.semantic_cache = None
 
         # Layer 4c: Language Router (no dependencies)
         self.language_router = LanguageRouter()

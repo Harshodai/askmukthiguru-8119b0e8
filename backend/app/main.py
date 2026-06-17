@@ -109,6 +109,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.endpoints.auth import router as auth_router
 from app.api.health import router as health_router
+from app.api.cache_metrics import router as cache_metrics_router
 from app.core.database import init_db
 from app.core.limiter import limiter
 from routers.admin import admin_router
@@ -483,6 +484,7 @@ app.include_router(auth_router, prefix="/api/auth")
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(health_router, prefix="")
+app.include_router(cache_metrics_router, prefix="/api")
 
 # Unit 24: Compliance router (GDPR audit log access)
 from routers.compliance import router as compliance_router

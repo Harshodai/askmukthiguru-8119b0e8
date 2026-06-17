@@ -268,25 +268,34 @@ class SemanticCacheAdapter(ICacheRepository):
     ) -> None:
         import redis
 
-        self._redis = redis.from_url(
-            redis_url,
-            decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
-            retry_on_timeout=True,
-        )
-        if qdrant_path:
-            self._qdrant = QdrantClient(path=qdrant_path)
-        else:
-            self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False, timeout=60.0)
         self._embedder = embedding_service
         self._ttl = ttl if ttl is not None else getattr(settings, "semantic_cache_ttl", _CACHE_TTL)
         self._collection = f"mukthi_semantic_cache_{settings.embedding_dimension}d"
         self._threshold = getattr(settings, "semantic_cache_similarity", 0.78)
         self._hits = 0
         self._misses = 0
+        self._redis = None
+        self._qdrant = None
+        self._available = False
 
-        self._init_collection()
+        try:
+            self._redis = redis.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5,
+                retry_on_timeout=True,
+            )
+            if qdrant_path:
+                self._qdrant = QdrantClient(path=qdrant_path)
+            else:
+                self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False, timeout=60.0)
+            self._init_collection()
+            self._available = True
+        except Exception as e:
+            logger.warning(f"SemanticCacheAdapter init failed: {e}. Semantic caching disabled.")
+            self._redis = None
+            self._qdrant = None
 
     def _init_collection(self):
         try:
@@ -411,7 +420,7 @@ class SemanticCacheAdapter(ICacheRepository):
 
     @property
     def is_available(self) -> bool:
-        return True
+        return self._available
 
     @property
     def stats(self) -> dict:
