@@ -77,7 +77,7 @@ def migrate():
         payload = {
             "name": name,
             "version": version,
-            "body": row["content"],
+            "content": row["content"],
             "description": row.get("description", ""),
             "author": row.get("author", "system"),
             "active": bool(row["is_active"]),

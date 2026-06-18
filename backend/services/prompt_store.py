@@ -14,7 +14,7 @@ Design:
 Store: Supabase public.prompt_versions table
 
 Schema:
-  prompt_versions(id, name, version, body, description, author, active, created_at)
+  prompt_versions(id, name, version, content, description, author, active, created_at)
 
 Usage:
     from services.prompt_store import PromptStore, get_prompt_store
@@ -51,7 +51,7 @@ def _row_to_pv(row: dict) -> PromptVersion:
         id=row["id"],
         name=row["name"],
         version=row["version"],
-        content=row.get("body", ""),
+        content=row.get("content", row.get("body", "")),
         description=row.get("description", ""),
         author=row.get("author", "system"),
         created_at=row.get("created_at", _now_iso()),
@@ -116,7 +116,7 @@ class PromptStore:
         payload = {
             "name": name,
             "version": ver,
-            "body": content,
+            "content": content,
             "description": description,
             "author": author,
             "active": activate,
