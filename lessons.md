@@ -1,5 +1,11 @@
 # Agentic Lessons & Memory
 
+## Jun 18, 2026 — Ollama Fallback Removal & Graceful Degradation
+- **Problem**: Non-English queries crashed with 500 errors because OpenRouter free tier rate-limited and Ollama fallback returned 404 (`/v1/chat/completions` not supported on host Ollama version)
+- **Fix**: Replaced `_fallback_ollama()` with `_graceful_degradation()` in `openrouter_service.py:127`. Instead of crashing, returns a friendly message ("I'm experiencing a temporary connectivity issue...")
+- **Result**: 64/64 queries passed (from 33/64). Zero 500 errors. Hindi, Telugu, Hinglish, Tenglish ALL return native-language responses
+- **Lesson**: Never cascade external service failures → user-facing 500s. Degrade gracefully with user-visible message. The semantic cache now covers most multilingual variants after warmup (59/64 cache hits, <20ms avg)
+
 This file documents key implementation patterns, architectural decisions, and "lessons learned" during the development of Mukthi Guru.
 
 ## Feature Implementations (May 2026)

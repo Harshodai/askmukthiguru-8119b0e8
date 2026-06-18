@@ -113,15 +113,6 @@ class MultiProviderLLMService:
                 rpm=200,
                 timeout=30.0,
             ),
-            "ollama": ProviderConfig(
-                name="Ollama Local",
-                api_key_env="OLLAMA_API_KEY",
-                base_url="http://host.docker.internal:11434/v1",
-                models=["gemma2:2b", "llama3.2:3b"],
-                default_model="gemma2:2b",
-                rpm=999,
-                timeout=60.0,
-            ),
         }
 
         self.circuit_breakers = {
@@ -133,7 +124,7 @@ class MultiProviderLLMService:
             for name, cfg in self.providers.items()
         }
 
-        self._provider_priority = ["sarvam", "openrouter", "ollama"]
+        self._provider_priority = ["sarvam", "openrouter"]
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if not self._init_session:
