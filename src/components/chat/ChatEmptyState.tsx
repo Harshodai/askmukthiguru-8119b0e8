@@ -1,14 +1,11 @@
 /**
  * Empty-state cards rendered above the starter suggestions on a fresh chat.
- * - "Continue last conversation" — when the user has prior history.
- * - "Today's teaching" — daily Krishnaji teaching pulled from useDailyTeaching.
- *
- * Cards are intentionally compact and use the project's golden / glassmorphism
- * tokens so they sit naturally beneath the welcome message.
+ * Redesigned: hero-style "Continue last conversation" card, with "Today's
+ * Teaching" as a paired secondary card. Uses semantic ojas/gold tokens only.
  */
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, History } from 'lucide-react';
+import { ArrowRight, Sparkles, History, MessageSquare } from 'lucide-react';
 import { loadConversations, type Conversation } from '@/lib/chatStorage';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
@@ -48,55 +45,81 @@ export const ChatEmptyState = ({
 
   if (!lastConvo && !teaching?.caption) return null;
 
+  const userMessageCount = lastConvo?.messages.filter((m) => m.role === 'user').length ?? 0;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.25 }}
-      className="grid grid-cols-1 sm:grid-cols-2 gap-3 mx-auto max-w-xl pt-2"
+      transition={{ delay: 0.2, duration: 0.5 }}
+      className={`grid gap-3 w-full ${
+        lastConvo && teaching?.caption ? 'md:grid-cols-5' : 'grid-cols-1'
+      }`}
     >
       {lastConvo && (
-        <button
+        <motion.button
           type="button"
           onClick={() => onResume(lastConvo)}
-          className="group text-left rounded-2xl border border-ojas/25 bg-card/60 hover:bg-ojas/10 hover:border-ojas/50 backdrop-blur-sm p-4 transition-all"
+          whileHover={{ y: -2 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className={`group relative text-left rounded-2xl border border-ojas/30 bg-gradient-to-br from-card/80 to-ojas/[0.04] hover:border-ojas/60 backdrop-blur-md p-5 transition-all shadow-sm hover:shadow-lg hover:shadow-ojas/10 overflow-hidden ${
+            teaching?.caption ? 'md:col-span-3' : ''
+          }`}
           aria-label="Continue last conversation"
         >
-          <div className="flex items-center gap-2 mb-1.5">
-            <History className="w-3.5 h-3.5 text-ojas" />
-            <span className="text-[10px] font-semibold text-ojas uppercase tracking-widest">
-              Continue
+          <div
+            aria-hidden
+            className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-ojas/0 via-ojas/70 to-ojas/0 opacity-60 group-hover:opacity-100 transition-opacity"
+          />
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-full bg-ojas/15 flex items-center justify-center">
+              <History className="w-3.5 h-3.5 text-ojas" />
+            </div>
+            <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.15em]">
+              Continue where you left off
             </span>
-            <span className="text-[10px] text-foreground/50 ml-auto">
+            <span className="text-[10px] text-foreground/45 ml-auto tabular-nums">
               {formatRelative(lastConvo.updatedAt)}
             </span>
           </div>
-          <p className="text-sm text-foreground/85 font-serif line-clamp-2 leading-snug">
-            {lastConvo.preview || 'Resume your last conversation'}
+          <p className="text-[15px] text-foreground/90 font-serif leading-relaxed line-clamp-2 mb-3">
+            {lastConvo.preview || 'Resume your last conversation with the Guru'}
           </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-ojas/80 group-hover:text-ojas">
-            Resume <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[11px] text-foreground/55">
+              <MessageSquare className="w-3 h-3" />
+              <span>{userMessageCount} {userMessageCount === 1 ? 'message' : 'messages'}</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-medium text-ojas group-hover:gap-2 transition-all">
+              Resume <ArrowRight className="w-3.5 h-3.5" />
+            </div>
           </div>
-        </button>
+        </motion.button>
       )}
 
       {teaching?.caption && (
-        <button
+        <motion.button
           type="button"
           onClick={onOpenTeaching}
-          className="group text-left rounded-2xl border border-ojas/25 bg-ojas/5 hover:bg-ojas/10 hover:border-ojas/50 backdrop-blur-sm p-4 transition-all"
+          whileHover={{ y: -2 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className={`group relative text-left rounded-2xl border border-ojas/30 bg-gradient-to-br from-ojas/[0.08] to-ojas/[0.02] hover:border-ojas/60 backdrop-blur-md p-5 transition-all shadow-sm hover:shadow-lg hover:shadow-ojas/10 overflow-hidden ${
+            lastConvo ? 'md:col-span-2' : ''
+          }`}
           aria-label="Open today's teaching"
         >
-          <div className="flex items-center gap-2 mb-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-ojas animate-pulse" />
-            <span className="text-[10px] font-semibold text-ojas uppercase tracking-widest">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-full bg-ojas/15 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 text-ojas animate-pulse" />
+            </div>
+            <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.15em]">
               Today&apos;s Teaching
             </span>
           </div>
-          <p className="text-sm text-foreground/85 font-serif italic line-clamp-3 leading-snug">
+          <p className="text-[14px] text-foreground/85 font-serif italic leading-relaxed line-clamp-3">
             &ldquo;{teaching.caption}&rdquo;
           </p>
-        </button>
+        </motion.button>
       )}
     </motion.div>
   );
