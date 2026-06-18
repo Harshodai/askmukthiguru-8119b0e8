@@ -124,33 +124,25 @@ class OpenRouterService:
                     self._request_count = 0
             self._request_count += 1
 
-    async def _fallback_ollama(self, messages: list[dict], max_tokens: int = 2048, temperature: float = 0.1, operation: str = "fallback") -> str:
-        """Fall back to local Ollama when OpenRouter is unavailable."""
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                payload = {
-                    "model": "gemma2:2b",
-                    "messages": messages,
-                    "max_tokens": min(max_tokens, 1024),
-                    "temperature": temperature,
-                }
-                resp = await client.post(
-                    "http://host.docker.internal:11434/v1/chat/completions",
-                    json=payload,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                content = data["choices"][0]["message"]["content"]
-                self._track_token_usage(
-                    tokens_in=self._estimate_tokens(str(messages)),
-                    tokens_out=self._estimate_tokens(content),
-                    model="gemma2:2b",
-                )
-                logger.info(f"Ollama fallback successful for {operation} ({len(content)} chars)")
-                return content
-        except Exception as e:
-            logger.error(f"Ollama fallback also failed for {operation}: {e}")
-            raise
+    async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
+        """Return a graceful fallback response when OpenRouter is unavailable.
+        
+        This avoids 500 errors — instead the user gets a meaningful message.
+        """
+        logger.warning(f"Using graceful degradation for {operation}")
+        # Check if the last message looks like a question
+        last_msg = messages[-1]["content"] if messages else ""
+        is_question = any(last_msg.lower().startswith(q) for q in ["what", "how", "who", "where", "why", "when", "can", "do", "is", "are"])
+        if is_question:
+            return (
+                "I'm currently experiencing a temporary connectivity issue with my knowledge base. "
+                "Please try your question again in a few moments. "
+                "I'll be happy to help you once I'm fully connected."
+            )
+        return (
+            "I'm here and listening. However, I'm experiencing a temporary connection issue "
+            "with my backend services. Please try again shortly."
+        )
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
@@ -189,13 +181,13 @@ class OpenRouterService:
     ) -> str:
         """Call OpenRouter API with circuit breaker, rate limit, retries, and token tracking.
         
-        Falls back to local Ollama when OpenRouter is rate limited or circuit is open.
+        Falls back to graceful degradation when OpenRouter is unavailable.
         """
         await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
-            logger.warning(f"OpenRouter circuit breaker open — falling back to Ollama for {operation}")
-            return await self._fallback_ollama(messages, max_tokens=max_tokens, temperature=temperature, operation=operation)
+            logger.warning(f"OpenRouter circuit breaker open — graceful degradation for {operation}")
+            return await self._graceful_degradation(messages, operation=operation)
 
         payload = {
             "model": model,
@@ -254,8 +246,8 @@ class OpenRouterService:
             is_connection_error = isinstance(exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException))
             if is_rate_limit or is_connection_error:
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
-                logger.warning(f"OpenRouter {reason} during {operation} — falling back to Ollama")
-                return await self._fallback_ollama(messages, max_tokens=max_tokens, temperature=temperature, operation=operation)
+                logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
+                return await self._graceful_degradation(messages, operation=operation)
             self._circuit.record_failure()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
