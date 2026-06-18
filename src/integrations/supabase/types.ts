@@ -274,6 +274,24 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string
@@ -445,6 +463,93 @@ export type Database = {
           id?: string
           question?: string
           tags?: string[] | null
+        }
+        Relationships: []
+      }
+      guru_core_memory: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      guru_memories: {
+        Row: {
+          claim: string | null
+          confidence: number | null
+          content: string
+          created_at: string
+          decay_score: number | null
+          embedding: string | null
+          id: string
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          claim?: string | null
+          confidence?: number | null
+          content: string
+          created_at?: string
+          decay_score?: number | null
+          embedding?: string | null
+          id?: string
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          claim?: string | null
+          confidence?: number | null
+          content?: string
+          created_at?: string
+          decay_score?: number | null
+          embedding?: string | null
+          id?: string
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      guru_session_summaries: {
+        Row: {
+          created_at: string
+          id: string
+          session_id: string
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          session_id: string
+          summary: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_id?: string
+          summary?: string
+          user_id?: string
         }
         Relationships: []
       }
