@@ -341,7 +341,7 @@ export async function* sendMessageStreaming(
         if (!line.startsWith('data: ')) continue;
         const payload = line.slice(6);
         if (payload.trim() === '[DONE]') {
-          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'stream' } });
+          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'stream' } });
           return;
         }
 
