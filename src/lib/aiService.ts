@@ -172,11 +172,37 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
   return 'unknown';
 };
 
-async function recordMetric(_metric: { type: string; value: number; tags?: Record<string, string> }) {
-  // No-op: no telemetry endpoint is deployed. Previously POSTed to `${DEFAULT_ENDPOINT}/api/telemetry`,
-  // which routed to the guru-chat function and returned 400 missing_user_message. Re-enable only
-  // when a dedicated telemetry edge function exists.
-  return;
+interface RecordMetricInput {
+  type: string;
+  value: number;
+  userMessageId?: string | null;
+  lastMessageId?: string | null;
+  sessionId?: string | null;
+  tags?: Record<string, string>;
+}
+
+/**
+ * Best-effort client-side telemetry. Strictly validates that `userMessageId`
+ * is present before invoking the edge function. Silently no-ops on missing IDs
+ * or transport failure — telemetry must never break the chat UX.
+ */
+async function recordMetric(metric: RecordMetricInput): Promise<void> {
+  const userMessageId = metric.userMessageId?.trim();
+  if (!userMessageId) return; // hard guard — never call telemetry without an id
+  try {
+    await supabase.functions.invoke('telemetry', {
+      body: {
+        user_message_id: userMessageId,
+        last_message_id: metric.lastMessageId ?? null,
+        session_id: metric.sessionId ?? null,
+        metric_type: metric.type,
+        metric_value: metric.value,
+        tags: metric.tags ?? {},
+      },
+    });
+  } catch {
+    // swallow — telemetry is fire-and-forget
+  }
 }
 
 /**
