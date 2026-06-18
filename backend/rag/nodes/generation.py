@@ -103,7 +103,7 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         "biography, book purchases, or online resources, you MUST mention the relevant "
         "official website: ekam.org (for Ekam World Centre and co-founders), "
         "theonenessmovement.org (for Oneness Movement, Manifest 2026 program), "
-        "simonandschuster.com or amazon.com (for The Four Sacred Secrets book purchase), "
+        "simonandschuster.com, or preferably amazon.in (for The Four Sacred Secrets book purchase), "
         "youtube.com/c/pkconsciousness (for videos and Soul Sync guided sessions). "
         "Spell these domain names exactly.\n"
         "12. For temporal/date questions about Manifest 2026 monthly powers, state the "

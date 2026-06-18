@@ -405,20 +405,40 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 )}
               </div>
 
-              {/* Lazy YouTube Thumbnails (click-to-load) */}
-              {isGuru && citations.length > 0 && (
-                <div className="space-y-2.5 mt-2">
-                  {citations
-                    .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
-                    .map((url) => {
-                      const videoId = url.includes('v=')
-                        ? url.split('v=')[1]?.split('&')[0]
-                        : url.split('/').pop();
-                      if (!videoId) return null;
-                      return <LazyYouTube key={videoId} videoId={videoId} url={url} />;
-                    })}
-                </div>
-              )}
+              {/* Lazy YouTube Thumbnails — show max 2 inline, rest in references */}
+              {isGuru && citations.length > 0 && (() => {
+                const ytUrls = citations
+                  .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
+                  .map((url) => {
+                    const videoId = url.includes('v=')
+                      ? url.split('v=')[1]?.split('&')[0]
+                      : url.split('/').pop();
+                    return videoId ? { videoId, url } : null;
+                  })
+                  .filter(Boolean) as { videoId: string; url: string }[];
+                const inline = ytUrls.slice(0, 2);
+                const extra = ytUrls.slice(2);
+                return inline.length > 0 ? (
+                  <div className="space-y-2.5 mt-2">
+                    {inline.map(({ videoId, url }) => (
+                      <LazyYouTube key={videoId} videoId={videoId} url={url} />
+                    ))}
+                    {extra.length > 0 && (
+                      <details className="mt-1.5 rounded-lg border border-ojas/15 bg-ojas/5 px-3 py-2">
+                        <summary className="text-[11px] font-medium text-ojas/80 cursor-pointer select-none flex items-center gap-1.5">
+                          <Youtube className="w-3 h-3" />
+                          {extra.length} more video{extra.length > 1 ? 's' : ''}
+                        </summary>
+                        <div className="space-y-2.5 mt-2">
+                          {extra.map(({ videoId, url }) => (
+                            <LazyYouTube key={videoId} videoId={videoId} url={url} />
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                ) : null;
+              })()}
 
               {/* Timestamp + action buttons */}
               <div className="flex items-center justify-between mt-1 gap-2">
@@ -592,11 +612,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               </details>
             )}
 
-            {/* Sources / Citations */}
+            {/* Sources / Citations — collapsed by default, max 3 shown inline */}
             {isGuru && citations.length > 0 && (
-              <div className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/80 to-card/50 backdrop-blur-sm px-4 py-3">
-                {/* Section Header */}
-                <div className="flex items-center gap-2 mb-2.5">
+              <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/80 to-card/50 backdrop-blur-sm px-4 py-3 group/details">
+                <summary className="flex items-center gap-2 cursor-pointer list-none">
                   <BookOpen className="w-3.5 h-3.5 text-ojas" />
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-ojas/80">
                     References
@@ -604,11 +623,11 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   <span className="text-[10px] text-muted-foreground/75 ml-auto bg-muted/30 px-2 py-0.5 rounded-full">
                     {citations.length} {citations.length === 1 ? 'source' : 'sources'}
                   </span>
-                </div>
+                </summary>
 
-                {/* Citation Cards */}
-                <div className="flex flex-col gap-2">
-                  {citations.map((url, i) => {
+                {/* Citation Cards — show first 3 inline */}
+                <div className="flex flex-col gap-2 mt-2">
+                  {citations.slice(0, 3).map((url, i) => {
                     const ytId = getYouTubeId(url);
                     const isYT = isYouTubeUrl(url);
                     const displayName = getSourceDisplayName(url, i);
@@ -657,7 +676,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                               {displayName}
                             </p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[10px] text-muted-foreground/60 truncate">
+                              <span className="text-[10px] text-muted-foreground/60 truncate max-w-[180px]">
                                 {domain}
                               </span>
                               <span className="text-[10px] text-ojas/40 hidden group-hover:inline-flex items-center gap-0.5 group-hover/link:underline transition-all">
@@ -669,8 +688,39 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       </div>
                     );
                   })}
+
+                  {/* Show more when >3 citations — rest as compact links */}
+                  {citations.length > 3 && (
+                    <details className="mt-1">
+                      <summary className="text-[11px] text-ojas/70 hover:text-ojas cursor-pointer list-none flex items-center gap-1 py-1">
+                        <ExternalLink className="w-3 h-3" />
+                        Show {citations.length - 3} more source{citations.length > 4 ? 's' : ''}
+                      </summary>
+                      <div className="flex flex-col gap-2 mt-2">
+                        {citations.slice(3).map((url, i) => {
+                          const displayName = getSourceDisplayName(url, i + 3);
+                          const domain = getDomain(url);
+                          return (
+                            <a
+                              key={`${url}-${i + 3}`}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/20 bg-background/30 hover:bg-background/60 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3 text-ojas/60 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-medium text-ojas line-clamp-1">{displayName}</p>
+                                <p className="text-[10px] text-muted-foreground/50 truncate max-w-[200px]">{domain}</p>
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  )}
                 </div>
-              </div>
+              </details>
             )}
           </div>
 
