@@ -67,7 +67,7 @@ const DailyTeachingPage = () => {
           id: item.id,
           imageUrl: item.image_url,
           caption: item.caption ?? undefined,
-          createdAt: item.created_at,
+          createdAt: item.created_at ?? new Date().toISOString(),
         }))
       );
     }

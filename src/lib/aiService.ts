@@ -503,7 +503,7 @@ export const sendMessage = async (
         message = _healthStatus === 'down'
           ? 'Cannot reach the Guru — backend is unavailable. Please try again later.'
           : 'Network or backend is unreachable. Please check your connection.';
-      } else if (err instanceof DOMException && err.code === 'ENOTFOUND') {
+      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
         code = 'unknown';
         message = 'Could not resolve the backend server address.';
       }
