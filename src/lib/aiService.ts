@@ -172,11 +172,37 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
   return 'unknown';
 };
 
-async function recordMetric(_metric: { type: string; value: number; tags?: Record<string, string> }) {
-  // No-op: no telemetry endpoint is deployed. Previously POSTed to `${DEFAULT_ENDPOINT}/api/telemetry`,
-  // which routed to the guru-chat function and returned 400 missing_user_message. Re-enable only
-  // when a dedicated telemetry edge function exists.
-  return;
+interface RecordMetricInput {
+  type: string;
+  value: number;
+  userMessageId?: string | null;
+  lastMessageId?: string | null;
+  sessionId?: string | null;
+  tags?: Record<string, string>;
+}
+
+/**
+ * Best-effort client-side telemetry. Strictly validates that `userMessageId`
+ * is present before invoking the edge function. Silently no-ops on missing IDs
+ * or transport failure — telemetry must never break the chat UX.
+ */
+async function recordMetric(metric: RecordMetricInput): Promise<void> {
+  const userMessageId = metric.userMessageId?.trim();
+  if (!userMessageId) return; // hard guard — never call telemetry without an id
+  try {
+    await supabase.functions.invoke('telemetry', {
+      body: {
+        user_message_id: userMessageId,
+        last_message_id: metric.lastMessageId ?? null,
+        session_id: metric.sessionId ?? null,
+        metric_type: metric.type,
+        metric_value: metric.value,
+        tags: metric.tags ?? {},
+      },
+    });
+  } catch {
+    // swallow — telemetry is fire-and-forget
+  }
 }
 
 /**
@@ -203,6 +229,10 @@ export async function* sendMessageStreaming(
   seekerContext?: string,
   /** Optional AbortSignal — when aborted, fetch + reader exit cleanly. */
   signal?: AbortSignal,
+  /** Stable id of the user message being sent — required for telemetry. */
+  userMessageId?: string,
+  /** Stable id of the previous assistant message (if any) — for telemetry context. */
+  lastMessageId?: string,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -311,7 +341,7 @@ export async function* sendMessageStreaming(
         if (!line.startsWith('data: ')) continue;
         const payload = line.slice(6);
         if (payload.trim() === '[DONE]') {
-          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'stream' } });
+          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'stream' } });
           return;
         }
 
@@ -361,7 +391,7 @@ export async function* sendMessageStreaming(
         }
       }
     }
-    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'stream' } });
+    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {
     reader.releaseLock();
   }
@@ -377,6 +407,8 @@ export const sendMessage = async (
   /** Unix ms of last completed Serene Mind session (from localStorage) */
   lastSereneMindAt?: number | null,
   seekerContext?: string,
+  userMessageId?: string,
+  lastMessageId?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
@@ -476,7 +508,7 @@ export const sendMessage = async (
       }
 
       const data = await response.json();
-      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'non-stream' } });
+      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'non-stream' } });
       return {
         content: data.response || data.choices?.[0]?.message?.content || data.content,
         intent: data.intent,
