@@ -30,6 +30,9 @@ export const CODE_BY_KIND: Record<MessageErrorKind, { code: string; nextStep: st
   server_error: { code: 'MODEL_5XX', nextStep: 'The model is recovering. Retry in a moment.' },
   network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
   timeout: { code: 'TIME_OUT', nextStep: 'The Guru took too long. Retry — answers may need another attempt.' },
+  backend_down: { code: 'BACKEND_DOWN', nextStep: 'The Guru is offline. Please try again shortly.' },
+  connection_refused: { code: 'CONN_REFUSED', nextStep: 'Connection refused by server. Retry in a moment.' },
+  dns_failure: { code: 'DNS_FAIL', nextStep: 'Could not resolve the server address. Check your network.' },
   unknown: { code: 'ERR_UNKNOWN', nextStep: 'Retry. If it persists, copy the technical detail and share with support.' },
 };
 
