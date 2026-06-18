@@ -407,6 +407,8 @@ export const sendMessage = async (
   /** Unix ms of last completed Serene Mind session (from localStorage) */
   lastSereneMindAt?: number | null,
   seekerContext?: string,
+  userMessageId?: string,
+  lastMessageId?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
