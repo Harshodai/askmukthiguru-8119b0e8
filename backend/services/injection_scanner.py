@@ -31,3 +31,17 @@ class InjectionScanner:
             "patterns": matches,
             "severity": severity,
         }
+
+
+def scan_chunks_for_injection(chunks: list[str]) -> tuple[list[str], list[tuple[int, str, str]]]:
+    if not chunks:
+        return [], []
+    clean = []
+    risky = []
+    for i, chunk in enumerate(chunks):
+        result = InjectionScanner.scan_chunk(chunk)
+        if not result["injection_detected"]:
+            clean.append(chunk)
+        else:
+            risky.append((i, chunk[:80], result["severity"]))
+    return clean, risky
