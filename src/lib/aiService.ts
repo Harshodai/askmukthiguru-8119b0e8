@@ -229,6 +229,10 @@ export async function* sendMessageStreaming(
   seekerContext?: string,
   /** Optional AbortSignal — when aborted, fetch + reader exit cleanly. */
   signal?: AbortSignal,
+  /** Stable id of the user message being sent — required for telemetry. */
+  userMessageId?: string,
+  /** Stable id of the previous assistant message (if any) — for telemetry context. */
+  lastMessageId?: string,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = currentConfig;
 
