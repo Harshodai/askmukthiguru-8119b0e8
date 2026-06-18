@@ -174,6 +174,9 @@ class GraphState(TypedDict):
     model_provider: Optional[str]
     route_decision: Optional[str]
 
+        # Confidence Gate
+    low_confidence_retrieval: Optional[bool]
+
     # Web Search (real-time temporal queries)
     needs_web_search: bool
     web_search_results: list[dict]

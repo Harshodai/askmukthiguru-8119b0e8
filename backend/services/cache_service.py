@@ -351,11 +351,18 @@ class SemanticCacheAdapter(ICacheRepository):
                 payload_str = self._redis.get(redis_key)
 
                 if payload_str:
-                    self._hits += 1
-                    logger.info(
-                        f"Semantic Cache HIT (score={hit.score:.3f}, hits={self._hits}, misses={self._misses})"
-                    )
-                    return json.loads(payload_str)
+                    cached = json.loads(payload_str)
+                    cached_lang = cached.get("language", "en")
+                    if cached_lang != lang:
+                        logger.info(
+                            f"Semantic Cache language mismatch: cached={cached_lang}, requested={lang}. Treating as miss."
+                        )
+                    else:
+                        self._hits += 1
+                        logger.info(
+                            f"Semantic Cache HIT (score={hit.score:.3f}, lang={lang}, hits={self._hits}, misses={self._misses})"
+                        )
+                        return cached
                 else:
                     # Redis TTL expired, but Qdrant vector remains. Act as miss.
                     pass
@@ -386,6 +393,7 @@ class SemanticCacheAdapter(ICacheRepository):
             "citations": citations,
             "meditation_step": meditation_step,
             "cached_at": time.time(),
+            "language": lang,
         }
 
         try:

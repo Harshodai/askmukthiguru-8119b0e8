@@ -178,15 +178,6 @@ Deno.serve(async (req) => {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  if (!LOVABLE_API_KEY) {
-    return new Response(
-      JSON.stringify({ error: "missing_lovable_api_key" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
 
   let body: ChatRequest;
   try {
@@ -280,9 +271,14 @@ Deno.serve(async (req) => {
     ? `\n\n[Seeker context — stable facts about this person, use to personalise responses]\n${rawSeekerCtx}`
     : "";
 
+  // Language instruction: if requested, inject at end of system prompt
+  const langInstruction = body.language && body.language !== "en"
+    ? `\n\nIMPORTANT: The user speaks "${body.language}". You MUST respond entirely in ${body.language}, using the vocabulary and phrasing of a native speaker. Do NOT reply in English unless the user writes in English.`
+    : "";
+
   // Always inject the trusted system prompt; never honor client-supplied system messages
   const llmMessages: IncomingMessage[] = [
-    { role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem + seekerBlock },
+    { role: "system" as const, content: DEFAULT_SYSTEM_PROMPT + ragSystem + seekerBlock + langInstruction },
     ...history,
     { role: "user" as const, content: body.user_message },
   ];
@@ -294,6 +290,18 @@ Deno.serve(async (req) => {
 
   // ── Non-streaming path ────────────────────────────────────────────
   if (!wantsStream) {
+    if (!LOVABLE_API_KEY) {
+      return new Response(
+        JSON.stringify({
+          error: "ai_backend_unavailable",
+          detail: "No AI backend configured for cloud fallback. Set VITE_BACKEND_URL to your FastAPI backend.",
+        }),
+        {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
     try {
       const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -368,6 +376,13 @@ Deno.serve(async (req) => {
       let fullAnswer = "";
       let status: "ok" | "error" = "ok";
       try {
+        if (!LOVABLE_API_KEY) {
+          status = "error";
+          controller.enqueue(sseEvent("error", "No AI backend configured for cloud fallback. Set VITE_BACKEND_URL."));
+          controller.enqueue(sseEvent("done", { intent: "CASUAL", citations, meditation_step: 0 }));
+          controller.close();
+          return;
+        }
         controller.enqueue(sseEvent("status", "thinking"));
         const upstream = await fetch(
           "https://ai.gateway.lovable.dev/v1/chat/completions",

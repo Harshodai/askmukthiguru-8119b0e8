@@ -124,6 +124,34 @@ class OpenRouterService:
                     self._request_count = 0
             self._request_count += 1
 
+    async def _fallback_ollama(self, messages: list[dict], max_tokens: int = 2048, temperature: float = 0.1, operation: str = "fallback") -> str:
+        """Fall back to local Ollama when OpenRouter is unavailable."""
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                payload = {
+                    "model": "gemma2:2b",
+                    "messages": messages,
+                    "max_tokens": min(max_tokens, 1024),
+                    "temperature": temperature,
+                }
+                resp = await client.post(
+                    "http://host.docker.internal:11434/v1/chat/completions",
+                    json=payload,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                self._track_token_usage(
+                    tokens_in=self._estimate_tokens(str(messages)),
+                    tokens_out=self._estimate_tokens(content),
+                    model="gemma2:2b",
+                )
+                logger.info(f"Ollama fallback successful for {operation} ({len(content)} chars)")
+                return content
+        except Exception as e:
+            logger.error(f"Ollama fallback also failed for {operation}: {e}")
+            raise
+
     @staticmethod
     def _estimate_tokens(text: str) -> int:
         """Fast heuristic: ~1.3 tokens per word."""
@@ -159,14 +187,15 @@ class OpenRouterService:
         operation: str = "generate",
         **kwargs,
     ) -> str:
-        """Call OpenRouter API with circuit breaker, rate limit, retries, and token tracking."""
+        """Call OpenRouter API with circuit breaker, rate limit, retries, and token tracking.
+        
+        Falls back to local Ollama when OpenRouter is rate limited or circuit is open.
+        """
         await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
-            raise CircuitOpenException(
-                provider="openrouter",
-                message=f"Circuit breaker OPEN for openrouter",
-            )
+            logger.warning(f"OpenRouter circuit breaker open — falling back to Ollama for {operation}")
+            return await self._fallback_ollama(messages, max_tokens=max_tokens, temperature=temperature, operation=operation)
 
         payload = {
             "model": model,
@@ -222,8 +251,10 @@ class OpenRouterService:
                 isinstance(exc, httpx.HTTPStatusError)
                 and exc.response.status_code == 429
             )
-            if not is_rate_limit:
-                self._circuit.record_failure()
+            if is_rate_limit:
+                logger.warning(f"OpenRouter rate limited (429) during {operation} — falling back to Ollama")
+                return await self._fallback_ollama(messages, max_tokens=max_tokens, temperature=temperature, operation=operation)
+            self._circuit.record_failure()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
 

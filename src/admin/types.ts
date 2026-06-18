@@ -4,6 +4,34 @@
 
 export type ISODate = string;
 
+export interface TelemetryEvent {
+  id: string;
+  user_id: string | null;
+  session_id: string | null;
+  user_message_id: string;
+  last_message_id: string | null;
+  metric_type: string;
+  metric_value: number;
+  tags: Record<string, unknown>;
+  created_at: ISODate;
+}
+
+export interface TelemetryFilters extends Partial<DateRange> {
+  user_id?: string;
+  session_id?: string;
+  metric_type?: string;
+  user_message_id?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TelemetryResponse {
+  data: TelemetryEvent[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
 export interface PromptVersion {
   id: string;
   name: string;

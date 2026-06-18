@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import * as api from "@/admin/lib/api";
 import { useAdminFilters } from "@/admin/lib/filtersStore";
-import type { QueryFilters, TimeseriesMetric } from "@/admin/types";
+import type { QueryFilters, TimeseriesMetric, TelemetryFilters } from "@/admin/types";
 
 const useRangeKey = () => {
   const { filters, refreshKey } = useAdminFilters();
@@ -196,5 +196,15 @@ export function useLiveFeed(enabled: boolean) {
     queryFn: api.pollLiveFeed,
     refetchInterval: enabled ? 3000 : false,
     enabled,
+  });
+}
+
+export function useTelemetryEvents(filters: Omit<TelemetryFilters, "from" | "to"> = {}) {
+  const { filters: globalFilters } = useAdminFilters();
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "telemetry", JSON.stringify(filters), ...key],
+    queryFn: () =>
+      api.listTelemetryEvents({ from: globalFilters.from, to: globalFilters.to, ...filters }),
   });
 }

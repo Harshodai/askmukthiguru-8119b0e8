@@ -84,7 +84,21 @@
       "Bash(xargs -n1 basename)",
       "Read(//tmp/**)",
       "Bash(grep -oP '`\\\\w+?\\(_service\\)?\\\\.py`' /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/CLAUDE.md)",
-      "Bash(rtk read *)"
+      "Bash(rtk read *)",
+      "Bash(rtk find *)",
+      "Bash(rtk npm *)",
+      "Bash(rtk curl *)",
+      "Bash(rtk docker *)",
+      "Bash(xargs -I{} sh -c 'grep -q \"Beloved, I.*here with you\" \"{}\" 2>/dev/null && echo {}')",
+      "Bash(rtk git *)",
+      "Bash(grep -rn --include=\"*.py\" -E \"except[[:space:]]*:$\" backend/)",
+      "Bash(sed -i 's|https://www.simonandschuster.com/books/The-Four-Sacred-Secrets|https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319|g' backend/tests/test_benchmarks.py)",
+      "Bash(sed -i 's|simonandschuster.com\"|amazon.in\"|g' backend/tests/test_benchmarks.py)",
+      "Bash(perl -i -pe's|https://www.simonandschuster.com/books/The-Four-Sacred-Secrets|https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319|g' backend/tests/test_benchmarks.py)",
+      "Bash(perl -i -pe 's/simonandschuster.com\\\\\"/amazon.in\\\\\"/g' backend/tests/test_benchmarks.py)",
+      "Bash(sed -i '' 's|https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112170|https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319|g' /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/benchmarks/reports/dashboard.html)",
+      "Bash(sed -i '' 's|https://www.amazon.com/four-sacred-secrets-prosperity-beautiful/dp/1982112170|https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319|g' /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/benchmarks/reports/dashboard.html)",
+      "Bash(rtk tsc *)"
     ]
   },
   "enableAllProjectMcpServers": true,

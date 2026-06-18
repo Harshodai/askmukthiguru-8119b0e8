@@ -4,6 +4,7 @@ This file serves as a knowledge base for AI agents interacting with this workspa
 
 ## Plan & Review
 ### Before starting work
+- **CRITICAL: First read `lessons.md`** — search for keywords matching the task scope. Existing lessons contain fixes for repeated regressions (Serene Mind double-wrap, telemetry blocking, Lovable key hard-dependency). Reading first prevents re-debugging known issues.
 - Always in plan mode to make a plan.
 - After getting the plan, write the plan to `.claude/tasks/TASK_NAME.md`.
 - The plan should be a detailed implementation plan with the reasoning behind it, and tasks broken down.

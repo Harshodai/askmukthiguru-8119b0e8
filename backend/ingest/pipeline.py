@@ -54,8 +54,10 @@ from ingest.youtube_loader import (
 from services.adaptive_chunking_adapter import AdaptiveChunkingAdapter
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
+from services.injection_scanner import scan_chunks_for_injection
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
+from services.pii_scanner import redact_pii
 from services.proposition_service import PropositionService
 from services.qdrant_service import QdrantService
 
@@ -232,8 +234,11 @@ class IngestionPipeline:
 
         self._notify(on_progress, "Starting raw text processing...", 0.1)
 
-        # Step 1: Clean
+        # Step 1: Clean & redact PII
         clean_text = clean_transcript(text)
+        clean_text, pii_found = redact_pii(clean_text)
+        if pii_found:
+            logger.warning(f"PII redacted from source_url={source_url} — {pii_found} instances")
 
         # Step 2: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.3)
@@ -355,9 +360,12 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        # Step 2: Clean
+        # Step 2: Clean & redact PII
         self._notify(on_progress, "Cleaning text...", 0.3)
         clean_text = clean_transcript(raw_text)
+        clean_text, pii_found = redact_pii(clean_text)
+        if pii_found:
+            logger.warning(f"PII redacted from video url={url} — {pii_found} instances")
 
         # Step 3: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
@@ -478,8 +486,11 @@ class IngestionPipeline:
         self._notify(on_progress, "Analyzing spiritual topics...", 0.4)
         topics = await self._extract_topics(raw_text)
 
-        # 3. Clean and Partition
+        # 3. Clean & redact PII
         clean_text = clean_transcript(raw_text)
+        clean_text, pii_found = redact_pii(clean_text)
+        if pii_found:
+            logger.warning(f"PII redacted from enhanced video url={url} — {pii_found} instances")
 
         # 4. Partition into topic-based sub-sections
         self._notify(on_progress, "Partitioning by topic relevance...", 0.6)
@@ -686,8 +697,11 @@ class IngestionPipeline:
                     errors.append({"url": video["url"], "error": "Rejected by auditor"})
                     continue
 
-                # Clean, chunk, embed, index
+                # Clean & redact PII, then chunk, embed, index
                 clean_text = clean_transcript(raw_text)
+                clean_text, pii_found = redact_pii(clean_text)
+                if pii_found:
+                    logger.warning(f"PII redacted from playlist video url={video['url']} — {pii_found} instances")
                 video_title = transcript.get("title", "")
                 video_speaker = transcript.get("speaker", "Unknown")
                 video_topic = transcript.get("topic", "Spiritual")
@@ -778,6 +792,9 @@ class IngestionPipeline:
 
         self._notify(on_progress, "Cleaning and indexing...", 0.6)
         clean_text = clean_transcript(result["text"])
+        clean_text, pii_found = redact_pii(clean_text)
+        if pii_found:
+            logger.warning(f"PII redacted from file url={url} — {pii_found} instances")
 
         chunks_count = self._chunk_embed_index(
             clean_text,
@@ -816,17 +833,27 @@ class IngestionPipeline:
         if not chunks:
             return 0
 
+        # Injection scan and skip risky chunks
+        clean_chunks, risky_chunks = scan_chunks_for_injection(chunks)
+        if risky_chunks:
+            logger.warning(
+                f"Injection patterns detected in {len(risky_chunks)}/{len(chunks)} chunks "
+                f"from source_url={source_url} — skipped"
+            )
+        if not clean_chunks:
+            return 0
+
         # Check for existing content and delete for clean re-ingestion
         if self._qdrant.check_source_exists(source_url):
             logger.info(f"Source already indexed, overwriting: {source_url}")
             self._qdrant.delete_by_source(source_url)
 
         # Generate both dense and sparse embeddings in one pass
-        embeddings = self._embedder.encode_batch(chunks)
+        embeddings = self._embedder.encode_batch(clean_chunks)
 
         # Build metadata for each chunk
         metadatas = []
-        for i in range(len(chunks)):
+        for i in range(len(clean_chunks)):
             base_meta = {
                 "source_url": source_url,
                 "title": title,
@@ -842,7 +869,7 @@ class IngestionPipeline:
 
         # Upsert to Qdrant with both dense and sparse vectors
         return self._qdrant.upsert_chunks(
-            chunks,
+            clean_chunks,
             embeddings["dense"],
             metadatas,
             sparse_vectors=embeddings["sparse"],

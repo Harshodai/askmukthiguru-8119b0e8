@@ -67,6 +67,7 @@ ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_chat_sessions_select" ON public.chat_sessions FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "own_chat_sessions_insert" ON public.chat_sessions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_chat_sessions_delete" ON public.chat_sessions FOR DELETE TO authenticated USING (auth.uid() = user_id);
+ALTER TABLE public.chat_sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS chat_sessions_user_created_idx ON public.chat_sessions (user_id, created_at DESC);
 
 -- Touch trigger for updated_at on guru_memories + guru_core_memory

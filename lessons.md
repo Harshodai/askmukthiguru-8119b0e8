@@ -1138,7 +1138,25 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Lesson learned**: Combining automated regex-based cleaning with surgical deletion of placeholder nodes guarantees 100% database sanitization, preventing semantic context contamination during RAG retrieval.
 
 
-### 74. Multi-Platform Local MCP Server Setup & Integration (June 2026)
+### 74. SQLite → Supabase Consolidation: Single Operational DB Pattern (June 2026)
+- **Problem**: The app had 3 SQLite databases (`cost_tracking.db`, `prompt_store.db`, `mukthi_users.db`) alongside Supabase. SQLite files got wiped on `make docker-rebuild-web`, causing data loss. The `mukthi_users.db` was a FastAPI-Users legacy auth DB with 0 active users.
+- **Solution**: Consolidated all operational data into Supabase PostgreSQL:
+  - `cost_tracker.py`: Replaced `sqlite3` with Supabase client writes to `token_usage` table
+  - `prompt_store.py`: Replaced `sqlite3` with Supabase client writes to `prompt_versions` table
+  - `feedback_service.py`: Replaced SQLAlchemy/AsyncSession with Supabase client writes to `feedback_events` table
+  - `routers/feedback.py`: Removed `Depends(get_db)`, uses Supabase directly
+  - `main.py`: Removed `init_db()` call (no more SQLite auth table creation)
+  - `models/feedback.py`: Deleted (dead SQLAlchemy model)
+- **What stayed SQLite**: GPTCache internal SQLite (3rd-party) and compliance JSONL audit log (intentional immutable design)
+- **What stayed FastAPI-Users**: `auth_service.py` still imports `get_db` + `User` for legacy auth routes — removing would break the auth router
+- **Key migration pattern** (`cost_tracker.py`/`prompt_store.py`): All services use a shared `_get_client()` from `app.telemetry_db` for Supabase client creation — single auth source
+- **Migration SQL** created at `supabase/migrations/20260618110000_db_consolidation.sql` covering: `token_usage` table, `prompt_versions` schema extensions (description, author, semver), RLS fix for `conversation_memories` (service_role full access), FK fix for `guru_session_summaries` (NULL user_id for anonymous), and `feedback_events` column additions
+- **Zero data loss rebuild**: `make docker-rebuild-web` only rebuilds stateless `backend` + `frontend` containers — Qdrant/Neo4j/Redis volumes stay untouched
+- **Lesson**: Named Docker volumes for Qdrant/Neo4j/Redis survive any container lifecycle event. Stateless web tiers can be rebuilt freely. SQLite files inside containers will always be ephemeral — migrate to persistent DB (Supabase) for any data that must survive deployments.
+- **Additional Lesson**: When consolidating databases, do NOT use feature flags or rollback paths. Go direct. The old SQLite files become dead code — remove them and the services referencing them. Keep only genuinely intentional survivors (GPTCache internal, compliance JSONL).
+- **Additional Lesson**: `auth_service.py` with FastAPI-Users + Supabase dual auth is a cross-cutting dependency. Removing `database.py` would break the auth router — keep the legacy SQLAlchemy `get_db` alive until FastAPI-Users is fully deprecated from every route.
+
+### 75. Multi-Platform Local MCP Server Setup & Integration (June 2026)
 - **Problem**: Setting up advanced MCP servers (`graphify`, `claude-mem`, `codegraph`) as custom intelligence and memory layers for different agents (Google Antigravity, Codex, Claude Code, Hermes) requires compiling multiple project types (Python and TypeScript), orchestrating database structures (ChromaDB, SQLite), and registering them across multiple global/project configs (`.mcp.json`, `~/.claude.json`, `~/.hermes/config.yaml`) without runtime clashes or dependency conflicts.
 - **Solution**:
   - **Graphify**: Installed in editable mode inside the project `.venv` using `/venv/bin/pip install -e "mcp-servers/graphify[mcp]"`, and ran `graphify update . --force` for a 100% offline local AST scan (162K nodes and 269K edges indexed with 0 cloud LLM cost).
@@ -1899,3 +1917,120 @@ The LLM response for web search and general queries often includes raw URLs and 
   - 1. Unified configuration/settings control allows rapid tuning and clean separation of pipeline code from runtime business constraints.
   - 2. Prompt caching benefits significantly from a structured layout that groups long-lived knowledge context blocks ahead of variable request/session state inputs.
   - 3. Reusable state machine nodes (e.g., meditation flow) must protect their starting paths against keyword collisions in interrogative queries to maintain a clean re-routing separation.
+
+---
+
+### 131. Lovable API Key Decoupling — Edge Functions Must Gracefully Degrade (June 2026)
+
+- **Problem**: The `guru-chat` Supabase Edge Function hard-required `LOVABLE_API_KEY` at the top of `Deno.serve()`, returning a **500 crash** when the key was missing. This made the function completely unusable in environments where Lovable is not configured (local Docker, self-hosted deployments, CI).
+- **Root Cause**: An early-return guard checked `if (!LOVABLE_API_KEY)` → `return 500` before any request processing. This violated the principle that core infrastructure should gracefully degrade, not crash.
+- **Impact**: Every request to guru-chat on non-Lovable environments returned 500, making it appear broken. The frontend correctly deferred to `VITE_BACKEND_URL` (backend FastAPI) when available, but the edge function (cloud fallback) was permanently unavailable for inspection/testing.
+- **Fix Applied**:
+  1. Removed the hard early-return 500 guard for `LOVABLE_API_KEY`.
+  2. Added **per-path graceful guards**: non-streaming returns 503 with `ai_backend_unavailable` + descriptive `detail`; streaming emits SSE error + done events, then closes cleanly.
+  3. Status code changed from `500` → `503` (Service Unavailable), which correctly signals "this is a transient config issue, not a bug."
+  4. Frontend `httpStatusToErrorCode()` maps 503 to `server_error`, and existing error handling already displays the `detail` field from the response body.
+- **Pattern**: Follow the `memory-extract` pattern — external API keys should be optional with graceful fallback, not hard dependencies that crash.
+- **Template for future edge functions**:
+  ```typescript
+  const API_KEY = Deno.env.get("SOME_API_KEY");
+  // At call site, not at top:
+  if (!API_KEY) {
+    return new Response(
+      JSON.stringify({ error: "service_unavailable", detail: "Explain what is missing and how to fix it" }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  // Proceed with API_KEY...
+  ```
+- **Never Again Rule**: **NEVER** put an early-return hard 500 at the top of an edge function for a missing optional API key. Let the function start, process what it can, and only guard at the exact call site with a graceful 503. This makes the function inspectable, testable, and debuggable even when the external service is not configured.
+
+### 132. Local Supabase Edge Function Testing Requires Valid JWTs (June 2026)
+
+- **Problem**: Testing edge functions locally with `curl` failed with `401 Unauthorized` — `{"msg":"Error: Auth header is not 'Bearer {token}'"}` or `{"msg":"Error: Missing authorization header"}`.
+- **Root Cause**: The Supabase Kong API gateway validates the `Authorization` header on edge function requests. Anon keys (`sb_publishable_*`) and service role keys (`sb_secret_*`) are NOT JWTs — they cannot pass Kong's JWT validation. Only real user JWTs obtained via `POST /auth/v1/signup` or `POST /auth/v1/token?grant_type=password` with valid credentials are accepted.
+- **Fix**: Obtain a valid JWT by signing up a test user:
+  ```bash
+  JWT=$(curl -s -X POST "http://127.0.0.1:54321/auth/v1/signup" \
+    -H "Content-Type: application/json" \
+    -H "apikey: $ANON_KEY" \
+    -d '{"email":"test@test.com","password":"test123456"}' \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))")
+  ```
+  Then use it: `curl -H "Authorization: Bearer $JWT" ...`
+- **Pattern**: Always sign up a fresh test user for local edge function testing. The anon key is for client-side Supabase JS SDK init, not for bearer auth.
+- **Never Again Rule**: When testing Supabase Edge Functions via curl/postman, **never** pass the anon or service role key as Bearer token. Always obtain a real JWT via signup/signin first.
+
+### 133. Must Reread `lessons.md` Before Any Plan or Change
+
+- **Problem**: Repeated regression on known issues — Serene Mind `setOnComplete` double-wrapping, telemetry blocking chat flow, Lovable API key hard dependency. Each was documented in `lessons.md` but not consulted before the next session.
+- **Root Cause**: No structural enforcement to review existing lessons before planning new work. Lessons were "written but forgotten" — the most common failure mode in lessons-learned practice.
+- **Fix**: Added this section as a persistent reminder. Future agents and developers MUST read `lessons.md` before planning any change and append new lessons after completing any fix.
+- **Process**:
+  1. **Before making any plan**: Read `lessons.md` — search for relevant keywords matching the task scope.
+  2. **After completing any fix**: Append the lesson to `lessons.md` with structured format: Problem → Root Cause → Impact → Fix → Pattern → Never Again Rule.
+  3. **Before any git push**: Verify no lessons were missed by scanning git diff for new patterns that warrant documentation.
+- **Never Again Rule**: **Never** start coding, editing, or planning without first reading `lessons.md`. If the relevant section exists, you save hours of re-debugging. If it doesn't, you ensure the new lesson is captured so the next session doesn't repeat the same mistake.
+
+---
+
+### 134. Semantic Cache Cross-Language Collision — Store Language in Cache Payload (June 2026)
+
+- **Problem**: The semantic cache (`SemanticCacheAdapter`) stored responses keyed by Qdrant embedding similarity without tracking the original **language** (`hi`, `te`, `ta`, etc.). When a Hindi query about "anxiety" was cached, a semantically similar Telugu query (also about anxiety) would retrieve the Hindi response because the embedding cosine similarity exceeded the 0.78 threshold.
+- **Symptom**: User asks in Telugu ("నాకు ఈ రోజు చాలా ఆందోళనగా ఉంది") but receives a Hindi response ("मुझे आपकी चिंता समझ में आती है"). `cache_hit: true`, `route_decision: "semantic_cache"`, latency ~1s.
+- **Root Cause**: `cache_language_key()` correctly generates `{lang}:{query}` format keys. The `SemanticCacheAdapter.get()` correctly splits off the language prefix. But:
+  1. Cache `put()` stored `response`, `intent`, `citations`, `cached_at` — but NOT `"language": lang`.
+  2. Cache `get()` retrieved the nearest Qdrant neighbor by embedding similarity only, without checking if the cached response language matched the requested language.
+- **Impact**: Every multilingual user with a semantically similar query to a previously cached response in a different language gets the wrong language response.
+- **Fix Applied**:
+  1. **`put()`**: Added `"language": lang` to the Redis payload dictionary.
+  2. **`get()`**: After retrieving cached payload, compare `cached.get("language", "en")` with requested `lang`. On mismatch, log + treat as cache miss instead of returning stale response.
+- **Files Changed**: `backend/services/cache_service.py` — lines 383-389 (put payload), lines 354-365 (get language check).
+- **Pattern**: When caching responses that are language-sensitive, always store `language` as a first-class field in the payload and verify on retrieval. Embedding similarity alone is not sufficient for multilingual cache hits.
+- **Never Again Rule**: **ALWAYS** store `"language": lang` in any cache payload that contains LLM-generated text. **ALWAYS** compare stored language vs requested language on cache retrieval before returning a hit. Embedding-based similarity caches (GPTCache, Qdrant) will happily return cross-language hits because "anxiety in Hindi" and "anxiety in Telugu" are semantically identical embeddings.
+
+### 135. Semantic Cache Cross-User Data Leak — Namespace Isolation (June 2026)
+
+- **Problem**: The semantic cache used a single Qdrant collection for all users. A user's personalized query (e.g., "What does the guru say about my career?") would return a cached response intended for a *different* user, leaking personal advice across users.
+- **Root Cause**: `_cache_key()` and `_index_key()` in `SemanticCacheAdapter` generated keys based on query embedding similarity only — no user or tenant namespace isolation. Personalized intents (`personal_coaching`, `career_guidance`, etc.) were cached in the same bucket as generic queries.
+- **Fix Applied**:
+  1. **`_cache_key()`**: Scoped by `user_id` and `tenant_id` — personalized intents get `user:{user_id}:tenant:{tenant_id}:{query_hash}`, generic intents use `shared:{query_hash}`.
+  2. **`_index_key()`**: Same namespace isolation applied to Qdrant collection point IDs.
+  3. **`get()` / `put()`**: Propagate `user_id`, `tenant_id`, and `intent` through the cache interface.
+- **Pattern**: Any cache that can contain user-specific data MUST be namespace-scoped. Uses two tiers: `shared:*` for intent-agnostic/generic queries, `user:{id}:*` for personalized queries. This maximizes cache hit rate for public knowledge while preventing cross-user data leak.
+
+### 136. Memory Layer Silent Degradation — Timeout + Empty Fallback (June 2026)
+
+- **Problem**: When the memory service timed out, it raised `UnboundLocalError` (`cannot access local variable 'all_entries' where it is not associated with a value`) because `all_entries` was only initialized inside a try block. This killed the entire pipeline when memory was slow.
+- **Root Cause**: `asyncio.wait_for` with too-aggressive timeout (200ms) and no fallback initialization. The variable `all_entries` was scoped inside the `try:` block, so a timeout-exit bypassed its assignment, leaving it unbound for the return statement.
+- **Fix Applied**:
+  1. **Timeout increased** from 200ms → 2s to handle real memory latency.
+  2. **WARNING logged** on timeout instead of crashing.
+  3. **Empty list initialized** before try block so timeout falls back to empty memory gracefully.
+- **Pattern**: Always initialize fallback/default values before try blocks that may raise or timeout. Never declare a variable that will be consumed in a `finally` or post-try scope *inside* the try block.
+
+### 137. OpenRouter 429 / Circuit-Breaker — Local Ollama Fallback (June 2026)
+
+- **Problem**: OpenRouter free tier (8 RPM) would hit rate limits or the circuit breaker would open after repeated failures. Pipeline crashed with `HTTPError` instead of degrading gracefully.
+- **Root Cause**: `_call_api()` in `openrouter_service.py` only raised on HTTP errors — no fallback path to a local model when OpenRouter was throttled or the circuit was open.
+- **Fix Applied**:
+  1. **`_fallback_ollama()`** — New method that sends the same prompt to local Ollama (`gemma2:2b`) as emergency fallback.
+  2. **`_call_api()`** — Catches 429 and circuit-open states, logs the fallback, and delegates to `_fallback_ollama()`.
+  3. **Metadata preserved** — Response payload includes `{"model_used": "ollama_fallback"}` so telemetry can track fallback rate.
+- **Pattern**: Any cloud API call in a user-facing path must have a local fallback. Track fallback rate in telemetry to know when to upgrade API quota.
+
+### 138. PII Redaction Before Embedding — Ingest Pipeline Scanner (June 2026)
+
+- **Problem**: User uploaded spiritual content containing Aadhaar numbers, phone numbers, email addresses. These were transcribed, chunked, and embedded into Qdrant permanently — making PII impossible to delete from vector DB without full re-index.
+- **Fix Applied**:
+  1. **`services/pii_scanner.py`** — Regex-based scan for email, phone, Aadhaar, SSN, IP addresses with `scan()` and `redact()` methods.
+  2. **`ingest/pipeline.py`** — Added `redact_pii()` call after every `clean_transcript()` across all ingest paths (video, enhanced video, playlist, file, raw text).
+- **Pattern**: PII redaction must happen *before* chunking and embedding — after that it's too late for vector DB. Apply at ingestion time only, never at query time (to avoid latency).
+
+### 139. Injection Scanner Before Vector Indexing — Chunk-Level Security Gate (June 2026)
+
+- **Problem**: Malicious content containing prompt injection patterns (instruction override, system prompt manipulation, role-play attacks) could be ingested into the knowledge base. At query time, these would be retrieved and fed to the LLM, enabling indirect prompt injection attacks.
+- **Fix Applied**:
+  1. **`services/injection_scanner.py`** — Detects 5 injection pattern types: instruction override, role-play, system override, token injection, unicode hidden chars + redacted PII markers. Each with severity classification.
+  2. **`ingest/pipeline.py`** — Added `scan_chunks_for_injection()` in `_embed_and_index()` to filter out risky chunks before they reach Qdrant.
+- **Pattern**: Security gates must operate at both ingestion-time (prevent bad data from entering the index) and query-time (guardrails check output). Ingestion-time gates protect the index; query-time gates protect the response.
