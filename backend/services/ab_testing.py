@@ -239,13 +239,13 @@ def get_ab_router() -> ABTestRouter:
 
 def _register_default_experiments(router: ABTestRouter) -> None:
     """Register the baseline A/B experiments for production."""
-    # Model experiment: test llama3.2:3b as 20% traffic for classification tasks
+    # Model experiment: test different classification models
     router.register(ABTestConfig(
         name="classifier_model_v1",
-        variants=["llama3.2:3b", "gemma3:4b"],
+        variants=["meta-llama/llama-3.2-3b-instruct:free", "anthropic/claude-3.5-haiku"],
         weights=[0.8, 0.2],
         experiment_type="model",
-        description="Test gemma3:4b for classification tasks (20% of traffic)",
+        description="Test claude-3.5-haiku for classification tasks (20% of traffic)",
     ))
 
     # Temperature experiment: test higher temperature for creative responses

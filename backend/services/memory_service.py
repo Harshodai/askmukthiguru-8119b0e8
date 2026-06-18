@@ -226,11 +226,8 @@ class MemoryService:
                 )
                 model_name = settings.model_for_classification
             else:
-                client = AsyncOpenAI(
-                    base_url=f"{settings.ollama_base_url}/v1",
-                    api_key="ollama",
-                )
-                model_name = settings.model_for_classification
+                logger.warning(f"Memory extraction: no supported LLM provider ({settings.llm_provider})")
+                return []
 
             # Embed existing core memories to avoid duplicates
             existing_cores = await self.get_core(user_id)

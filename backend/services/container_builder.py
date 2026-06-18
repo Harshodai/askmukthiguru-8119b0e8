@@ -94,10 +94,8 @@ class ContainerBuilder:
         container.ollama = LLMProviderFactory.create_provider(provider_name)
 
         # Wire TranslationProvider using TranslationProviderFactory
-        underlying_ollama = LLMServiceFactory.create("ollama")
         underlying_sarvam = LLMServiceFactory.create("sarvam_cloud")
         container.translation = TranslationProviderFactory.create_provider(
-            ollama_service=underlying_ollama,
             sarvam_service=underlying_sarvam,
         )
 

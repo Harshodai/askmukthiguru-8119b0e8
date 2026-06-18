@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from services.llm_factory import LLMServiceFactory
 from services.translation.base import TranslationProvider
-from services.translation.ollama_provider import OllamaTranslationProvider
-from services.translation.routing_provider import RoutingTranslationProvider
 from services.translation.sarvam_provider import SarvamTranslationProvider
+from services.translation.routing_provider import RoutingTranslationProvider
+
+logger = logging.getLogger(__name__)
 
 
 class TranslationProviderFactory:
@@ -18,15 +21,12 @@ class TranslationProviderFactory:
         sarvam_service=None,
     ) -> TranslationProvider:
         """Create and return a TranslationProvider instance."""
-        if ollama_service is None:
-            ollama_service = LLMServiceFactory.create("ollama")
         if sarvam_service is None:
             sarvam_service = LLMServiceFactory.create("sarvam_cloud")
 
-        ollama_provider = OllamaTranslationProvider(ollama_service)
         sarvam_provider = SarvamTranslationProvider(sarvam_service)
 
         return RoutingTranslationProvider(
-            ollama_provider=ollama_provider,
+            ollama_provider=None,
             sarvam_provider=sarvam_provider,
         )
