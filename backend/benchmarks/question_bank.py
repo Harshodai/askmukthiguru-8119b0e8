@@ -1759,9 +1759,9 @@ QUERIES = {
         },
         {
             "q": "Where is the book 'The Four Sacred Secrets' available for purchase?",
-            "must_mention": ["amazon.com", "simon & schuster"],
+            "must_mention": ["amazon.in", "simon & schuster"],
             "expected_links": [
-                "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112170"
+                "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
             ],
         },
         {
@@ -1771,8 +1771,8 @@ QUERIES = {
         },
         {
             "q": "Do you have the link to the publisher's page for The Four Sacred Secrets?",
-            "must_mention": ["simonandschuster.com"],
-            "expected_links": ["simonandschuster.com"],
+            "must_mention": ["amazon.in"],
+            "expected_links": ["amazon.in"],
         },
         {
             "q": "What is the URL to learn about Manifest 2026 event powers?",
@@ -2052,7 +2052,7 @@ VERIFIED_SOURCES = {
         "title": "The Four Sacred Secrets: For Love and Prosperity",
         "authors": "Sri Preethaji & Sri Krishnaji",
         "publisher": "Simon & Schuster (2019)",
-        "link": "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112170",
+        "link": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
     },
     "youtube_channel": {
         "title": "Sri Preethaji & Sri Krishnaji Official YouTube",

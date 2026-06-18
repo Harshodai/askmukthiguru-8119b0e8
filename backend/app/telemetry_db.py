@@ -272,6 +272,21 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         # Until token telemetry is populated, use a conservative 800 input / 350 output token estimate.
         estimated_cost_inr = total_queries * (((800 / 1_000_000) * 2.5) + ((350 / 1_000_000) * 10))
 
+        # 6. Feedback thumbs_up_rate from feedback table
+        try:
+            fb_query = client.table("feedback").select("rating")
+            if safe_from:
+                fb_query = fb_query.gte("created_at", safe_from)
+            fb_data = fb_query.execute().data or []
+            if fb_data:
+                thumbs = [f for f in fb_data if f.get("rating") is not None]
+                up = sum(1 for f in thumbs if f["rating"] > 0)
+                thumbs_up_rate = up / len(thumbs) if thumbs else 0.0
+            else:
+                thumbs_up_rate = 0.0
+        except Exception:
+            thumbs_up_rate = 0.0
+
         return {
             "total_queries": total_queries,
             "total_seekers": total_seekers,
@@ -279,7 +294,7 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
             "p95_latency_ms": int(p95),
             "hallucination_rate": hallucination_rate,
             "serene_mind_trigger_rate": trigger_rate,
-            "thumbs_up_rate": 0.85,  # TODO: implement feedback table query
+            "thumbs_up_rate": round(thumbs_up_rate, 2),
             "estimated_cost_usd": 0,
             "estimated_cost_inr": estimated_cost_inr,
             "error_rate": error_rate,

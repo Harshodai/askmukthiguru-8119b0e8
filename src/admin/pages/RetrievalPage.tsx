@@ -20,14 +20,49 @@ import { TimeseriesChart } from "@/admin/components/TimeseriesChart";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/admin/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { AlertCircle, Server } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function RetrievalPage() {
-  const { data, isLoading } = useRetrievalHealth();
+  const { data, isLoading, error } = useRetrievalHealth();
   const { data: empties } = useEmptyRetrievals();
   const { data: dead } = useDeadDocs();
   const { data: sim } = useSimilarityTrend(14);
 
+  const backendDown = !!error;
+
   const simTs = sim?.map((p) => ({ bucket: p.bucket, value: p.avg_top_score })) ?? [];
+
+  if (backendDown) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Retrieval health</h1>
+          <p className="text-sm text-muted-foreground">
+            Vector-search quality and per-source contribution.
+          </p>
+        </div>
+        <Card className="border-destructive/30">
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <Server className="w-10 h-10 text-muted-foreground/60" />
+            <div>
+              <h3 className="text-lg font-medium flex items-center gap-2 justify-center">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                Backend unavailable
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                Could not connect to the backend API. The retrieval health data requires a running backend.
+                Ensure the backend container is healthy and <code className="text-xs bg-muted px-1 py-0.5 rounded">VITE_BACKEND_URL</code> is configured.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -89,13 +124,21 @@ export default function RetrievalPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.sources.map((s) => (
-                    <TableRow key={s.source}>
-                      <TableCell className="font-mono text-xs">{s.source}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtInt(s.count)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{fmtPct(s.avgFaith)}</TableCell>
+                  {data?.sources?.length ? (
+                    data.sources.map((s: { source: string; count: number; avgFaith: number }) => (
+                      <TableRow key={s.source}>
+                        <TableCell className="font-mono text-xs">{s.source}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtInt(s.count)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtPct(s.avgFaith)}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                        No retrieval data available yet
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -108,7 +151,7 @@ export default function RetrievalPage() {
               {!empties?.length ? (
                 <EmptyState title="No empty retrievals" />
               ) : (
-                empties.map((e) => (
+                empties.map((e: { query_id: string; top_score: number; query_text: string; created_at: string }) => (
                   <Link
                     key={e.query_id}
                     to={`/admin/queries?trace=${e.query_id}`}
@@ -133,7 +176,7 @@ export default function RetrievalPage() {
               {!dead?.length ? (
                 <EmptyState title="Every source was retrieved at least once" />
               ) : (
-                dead.map((d) => (
+                dead.map((d: { source: string }) => (
                   <div key={d.source} className="text-sm font-mono text-muted-foreground">
                     {d.source}
                   </div>

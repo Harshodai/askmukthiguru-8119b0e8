@@ -121,7 +121,7 @@ _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
      "https://www.youtube.com/c/pkconsciousness"),
     (["four sacred secrets", "sacred secret", "inner truth", "spiritual vision",
       "spiritual right action", "universal intelligence", "connected consciousness"],
-     "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112170"),
+     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
     (["manifest 2026", "monthly power", "karma cleansing", "power of intention",
       "lokaa foundation", "lokaa", "village welfare"],
      "https://theonenessmovement.org/manifest"),
@@ -140,9 +140,11 @@ _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
     (["theonenessmovement.org", "oneness movement"],
      "https://theonenessmovement.org/"),
     (["amazon.com/Four-Sacred-Secrets", "amazon"],
-     "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112170"),
+     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
+    (["amazon.in/Four-Sacred-Secrets", "amazon.in", "amazon india"],
+     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
     (["simon & schuster", "simonandschuster.com", "simon and schuster"],
-     "https://www.simonandschuster.com/books/The-Four-Sacred-Secrets/Preethaji/9781982112172"),
+     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
 ]
 
 # -----------------------------------------------------------------------
