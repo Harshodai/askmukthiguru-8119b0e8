@@ -185,7 +185,7 @@ export const SereneMindModal = ({
             className="relative z-10 w-full max-w-sm"
           >
             <div className="relative rounded-3xl bg-card/80 backdrop-blur-xl border border-border/40 shadow-2xl px-6 py-8 text-center">
-              {!isGated && (
+              {(!isGated || phase === 'complete') && (
                 <button
                   onClick={onClose}
                   className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted transition-colors"

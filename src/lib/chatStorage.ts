@@ -7,7 +7,7 @@ export interface MessageFeedback {
   timestamp: Date;
 }
 
-export type MessageErrorKind = 'network' | 'unauthorized' | 'rate_limited' | 'server_error' | 'timeout' | 'connection_refused' | 'dns_failure' | 'backend_down' | 'unknown';
+export type MessageErrorKind = 'network' | 'unauthorized' | 'rate_limited' | 'server_error' | 'timeout' | 'connection_refused' | 'dns_failure' | 'backend_down' | 'telemetry_failed' | 'unknown';
 
 export interface MessageError {
   kind: MessageErrorKind;

@@ -71,6 +71,7 @@ import {
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
+import { telemetryEvents } from '@/lib/telemetryEvents';
 import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
 
@@ -302,6 +303,11 @@ export const ChatInterface = () => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // ── Telemetry failure → toast ────────────────────────────────────
+  useEffect(() => telemetryEvents.subscribe((title, summary) => {
+    toast({ title, description: summary, variant: 'default', duration: 5000 });
+  }), [toast]);
 
   // ── Textarea auto-resize ─────────────────────────────────────────
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -881,7 +887,7 @@ export const ChatInterface = () => {
             ]);
             setTimeout(() => {
               setIsAwaitingSereneMind(true);
-              setSereneMindOnComplete(() => () => {
+              setSereneMindOnComplete(() => {
                 setIsAwaitingSereneMind(false);
                 setSereneMindOnComplete(null);
               });
@@ -908,7 +914,7 @@ export const ChatInterface = () => {
             ]);
             setTimeout(() => {
               setIsAwaitingSereneMind(true);
-              setSereneMindOnComplete(() => () => {
+              setSereneMindOnComplete(() => {
                 setIsAwaitingSereneMind(false);
                 setSereneMindOnComplete(null);
               });
@@ -1075,14 +1081,14 @@ export const ChatInterface = () => {
               timestamp: new Date(),
             },
           ]);
-          setTimeout(() => {
-            setIsAwaitingSereneMind(true);
-            setSereneMindOnComplete(() => () => {
-              setIsAwaitingSereneMind(false);
-              setSereneMindOnComplete(null);
-            });
-            openSereneMind('breathing', true);
-          }, 7000);
+setTimeout(() => {
+setIsAwaitingSereneMind(true);
+              setSereneMindOnComplete(() => {
+                setIsAwaitingSereneMind(false);
+                setSereneMindOnComplete(null);
+              });
+              openSereneMind('breathing', true);
+            }, 7000);
         }
 
         // Heuristic fallback for non-streaming path (same logic as streaming)

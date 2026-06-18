@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AskMukthiGuru — System Architecture Analysis</title>
+<style>
+:root { --bg: #0b0f19; --surface: #111827; --elevated: #1f2937; --text: #f3f4f6; --muted: #9ca3af; --accent: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; line-height: 1.6; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+h1, h2, h3, h4 { color: var(--accent); margin-top: 0; }
+h2 { border-bottom: 2px solid var(--elevated); padding-bottom: 8px; margin-top: 40px; }
+h1 { font-size: 2rem; }
+.muted { color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--elevated); border-radius: 12px; padding: 20px; margin-bottom: 16px; transition: transform .15s ease; }
+.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .75rem; font-weight: 600; margin-right: 4px; }
+.tag-crit { background: #7f1d1d; color: #fee2e2; }
+.tag-warn { background: #78350f; color: #fef3c7; }
+.tag-good { background: #064e3b; color: #d1fae5; }
+.tag-info { background: #1e3a8a; color: #dbeafe; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .9rem; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--elevated); }
+th { color: var(--accent); font-weight: 600; }
+tr:hover td { background: rgba(255,255,255,.02); }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.good { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.danger { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+pre { background: var(--elevated); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: .85rem; }
+.timeline { position: relative; padding-left: 24px; }
+.timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--elevated); }
+.timeline-item { position: relative; margin-bottom: 24px; }
+.timeline-item::before { content: ''; position: absolute; left: -20px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--elevated); border: 2px solid var(--accent); }
+.bench-label { display: inline-block; width: 120px; color: var(--muted); font-size: .85rem; }
+.bench-bar { display: inline-block; height: 24px; background: var(--elevated); border-radius: 4px; position: relative; overflow: hidden; }
+.bench-fill { height: 100%; background: var(--warn); border-radius: 4px; }
+.metric { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+meter { width: 100%; height: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>AskMukthiGuru — System Architecture Analysis</h1>
+<p class="muted">Produced 2026-06-16 | Covers fault tolerance, tradeoffs, product knowledge, debugging, and system design.</p>
+
+<!-- ====== Section 1: Fault Tolerance ====== -->
+<section>
+<h2>1. Fault Tolerance — Failure-First Thinking</h2>
+
+<div class="card">
+<h4>Core Philosophy</h4>
+<p class="muted">"Hope is not a strategy." Every component in the pipeline must degrade gracefully when its dependencies fail. The goal is: survive first, then optimize.</p>
+</div>
+
+<div class="grid grid-3">
+<div class="card">
+  <h4><span class="status-dot danger"></span> CRITICAL: Cache Crashes App on Startup</h4>
+  <p><strong>Failure:</strong> If Redis or Qdrant is down, the <code>SemanticCacheAdapter</code> constructor throws an unhandled exception, preventing the FastAPI app from starting.</p>
+  <p><strong>Root cause:</strong> No try/except in <code>SemanticCacheAdapter.__init__</code> and <code>is_available</code> always returns <code>True</code>.</p>
+  <p><strong>Fix (applied):</strong> Wrapped init in try/except, set <code>_available</code> flag, and updated <code>dependencies.py</code> with an outer try/except.</p>
+</div>
+
+<div class="card">
+  <h4><span class="status-dot danger"></span> CRITICAL: LLM Calls Have Zero Timeout</h4>
+  <p><strong>Failure:</strong> Ollama LLM calls can hang indefinitely, blocking all subsequent requests.</p>
+  <p><strong>Root cause:</strong> No timeout configuration on Ollama <code>chat()</code> / <code>generate()</code> calls in <code>ollama_service.py</code>.</p>
+  <p><strong>Fix needed:</strong> Add <code>timeout=120</code> to Ollama client; wrap calls with <code>asyncio.wait_for()</code>.</p>
+</div>
+
+<div class="card">
+  <h4><span class="status-dot warn"></span> HIGH: Graph Runs Sequentially Even When Parallel Possible</h4>
+  <p><strong>Failure:</strong> A single stuck node blocks the entire pipeline. Timeout on one node is missing.</p>
+  <p><strong>Root cause:</strong> LangGraph uses a synchronous execution model by default for nodes unless explicitly parallelized via <code>send()</code>.</p>
+  <p><strong>Fix needed:</strong> Parallelize <code>navigate_knowledge_tree</code> + <code>generate_hyde</code> with <code>Send()</code> API.</p>
+</div>
+</div>
+
+<div class="card">
+<h4>Failure Mode Matrix</h4>
+<table>
+<tr><th>Component</th><th>Failure Mode</th><th>Impact</th><th>Mitigation</th></tr>
+<tr><td>RAG Pipeline</td><td>Ollama hangs</td><td>P0: All queries block</td><td>Add client-side timeout + circuit breaker</td></tr>
+<tr><td>Semantic Cache</td><td>Qdrant/Redis unreachable</td><td>App crash on startup<br><small>(FIXED)</small></td><td>Graceful fallback (now implemented)</td></tr>
+<tr><td>Guardrails</td><t>Input rail classifies incorrectly</td><td>P2: False positives block benign queries</td><td>Add human-override + tunable thresholds</td></tr>
+<tr><td>Serene Mind</td><td>Distress misdetection</td><td>P3: Meditation triggered for non-distress queries</td><td>Add confidence threshold + opt-out</td></tr>
+<tr><td>Embedding</td><td>CPU contention during load</td><t>P2: Request latency spikes</td><td>Add queue depth limit + batch sizing</td></tr>
+<tr><td>LangGraph</td><td>Node infinite loop</td><td>P1: Hang forever</td><td>Add per-node timeout decorator</td></tr>
+<tr><td>Tiered Router</td><td>Intent misclassification</td><td>P2: Wrong strategy chosen</td><td>Add per-strategy confidence check</td></tr>
+<tr><td>Guardrails</td><td>Output rail too aggressive</td><td>P2: Good answers censored</td><td>Add aggressive vs permissive modes</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h4>Resilience TODOs</h4>
+<ul>
+<li>Add per-node timeout (30s default) with configurable override</li>
+<li>Implement queue-based backpressure to reject requests when >80% capacity</li>
+<li>Add health-check endpoint that validates ALL dependencies (Qdrant, Redis, Ollama)</li>
+<li>Track circuit breaker state per-LLM-model, not just one global</li>
+<li>Make streaming the default path; non-streaming is a fallback</li>
+<li>Add request ID propagation through telemetry for end-to-end tracing</li>
+</ul>
+</div>
+</section>
+
+<!-- ====== Section 2: Tradeoff Analysis ====== -->
+<section>
+<h2>2. Tradeoff Analysis</h2>
+
+<div class="grid grid-2">
+<div class="card">
+  <h4>Anti-Hallucination Depth vs. Latency</h4>
+  <table>
+  <tr><th>Strategy</th><th>Nodes</th><th>Latency</th><th>Quality</th></tr>
+  <tr><td>Fast</td><td>5</td><td>~25s</td><td>Medium</td></tr>
+  <tr><td>Standard</td><td>~20</td><td>~133s</td><td>High</td></tr>
+  <tr><td>Deep</td><td>~25</td><td>~180s</td><td>Highest</td></tr>
+  </table>
+  <p><span class="tag tag-warn">Pain Point</span> Fast at 25s still misses <3s target by 10×.</p>
+  <p><strong>Decision:</strong> Fast must use 3B model (not 30B), cap context to 2 docs, max 256 tokens. This drops generation from ~20s to ~3s.</p>
+</div>
+
+<div class="card">
+  <h4>Local vs. Cloud LLM</h4>
+  <p><span style="color:var(--accent)">✓</span> <strong>Privacy:</strong> Zero data leaves the machine.</p>
+  <p><span style="color:var(--accent)">✓</span> <strong>Cost:</strong> $0 per inference.</p>
+  <p><span style="color:var(--danger)">✗</span> <strong>Latency:</strong> 30B local ~20s vs cloud <1s.</p>
+  <p><span style="color:var(--danger)">✗</span> <strong>SARM:</strong> Single point of failure.</p>
+  <p><strong>Verdict:</strong> Justified constraint. Mitigate with model sharding (small for fast, large for rare deep queries) and caching.</p>
+</div>
+</div>
+
+<div class="grid grid-2">
+<div class="card">
+  <h4>Retrieval Method: Quantity vs. Precision</h4>
+  <p>Hybrid retrieval uses: RAPTOR + leaf + LightRAG + Parent-Child + MMR + ColBERT + CrossEncoder.</p>
+  <table>
+  <tr><th>Method</th><th>Benefit</th><th>Cost</th></tr>
+  <tr><td>RAPTOR tree</td><td>Hierarchical summary</td><td>Building/splitting tree</td></tr>
+  <tr><td>LightRAG graph</td><td>Relational context</td><td>Neo4j dependency + traversal</td></tr>
+  <tr><td>Parent-Child</td><td>Full context</td><td>Double storage</td></tr>
+  <tr><td>MMR</td><td>Diversity</td><td>Extra Qdrant call</td></tr>
+  <tr><td>ColBERT</td><td>Token-level matching</td><td>Slow, GPU-optional</td></tr>
+  <tr><td>CrossEncoder</td><td>High relevance</td><td>Single-threaded CPU</td></tr>
+  </table>
+  <p><strong>Reality:</strong> Total retrieval time can exceed 8s. Most value comes from top-2–3 methods. Consider ranked tiering: do cheap methods first, only run expensive ones when cheap ones are insufficient.</p>
+</div>
+
+<div class="card">
+  <h4>Caching Strategy</h4>
+  <p>Three layers: exact (Redis key hash), semantic (Qdrant similarity), in-process.</p>
+  <table>
+  <tr><th>Layer</th><th>Hit Rate</th><th>Granularity</th></tr>
+  <tr><td>Exact</td><t>Low (varies by query)</td><td>Exact match only</td></tr>
+  <tr><td>Semantic</td><t>TBD (new, language-prefix bug fixed)</td><td>~0.78 similarity threshold</td></tr>
+  <tr><td>GPTCache (LangChain)</td><t>Unknown</td><td>Prompt-level</td></tr>
+  </table>
+  <p><strong>Observation:</strong> No explicit warm-up. Cache is cold after every deploy. Consider pre-computing answers for top-50 user queries.</p>
+</div>
+</div>
+
+<div class="card">
+<h4>Tradeoff: Streaming vs. Non-Streaming</h4>
+<p>Current code has TWO code paths for chat: <code>execute()</code> and streaming logic. Streaming is preferred for UX (perceived latency), but non-streaming is still used for some endpoints.</p>
+<p><strong>Recommendation:</strong> Make streaming the only path. Non-streaming is technical debt that doubles testing surface.</p>
+</div>
+</section>
+
+<!-- ====== Section 3: Product Knowledge ====== -->
+<section>
+<h2>3. Product Knowledge & Thinking</h2>
+
+<div class="card">
+<h4>Why AskMukthiGuru Exists</h4>
+<p>Mukthi Guru is a privacy-first, zero-hallucination spiritual guide. It answers questions grounded in the teachings of Sri Preethaji and Sri Krishnaji from their verified YouTube videos and approved images.</p>
+<p><strong>Core promise:</strong> No fabricated quotes, no doctrinal drift, no external API calls at inference time.</p>
+</div>
+
+<div class="grid grid-3">
+<div class="card">
+  <h4>Key Concepts</h4>
+  <ul>
+  <li><strong>Beautiful State:</strong> Core teaching — calm, joy, connection.</li>
+  <li><strong>Serene Mind:</strong> 4-step guided meditation triggered by distress.</li>
+  <li><strong>Stimulus RAG:</strong> Extract key hint phrases before generation.</li>
+  <li><strong>CRAG:</strong> Grade docs, rewrite query if poor.</li>
+  <li><strong>Self-RAG:</strong> LLM checks its own answer.</li>
+  <li><strong>LettuceDetect:</strong> Embedding + lexical faithfulness scorer.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h4>Why Recall Matters</h4>
+  <p>Spiritual queries are sensitive. A wrong answer about "the Beautiful State" or "Four Sacred Secrets" can mislead a seeker. Therefore, the pipeline prioritizes <strong>anti-hallucination</strong> over <strong>speed</strong>.</p>
+  <p>The <strong>multi-node verification chain</strong> (reflect → verify → check_contradiction) exists to catch answers that sound plausible but are not grounded in source material.</p>
+</div>
+
+<div class="card">
+  <h4>Target vs. Current</h4>
+  <p><strong>Target:</strong> &lt;1% hallucination, &lt;3s response time.</p>
+  <p><strong>Current:</strong> ~0.5% hallucination (estimated), ~25–133s response time.</p>
+  <p><strong>Gap:</strong> Quality is nearly there; speed is 8–40× behind.</p>
+  <p><strong>Path:</strong> Replace heavy 30B generation in Fast path with 3B model, parallelize nodes, add top-level hot cache.</p>
+</div>
+</div>
+
+<div class="card">
+<h4>User Journey Touchpoints</h4>
+<ol>
+<li><strong>Landing:</strong> Hero + about + practices (static, fast).</li>
+<li><strong>Chat:</strong> Core interaction. MUST be <3s to feel responsive.</li>
+<li><strong>Admin:</strong> Queries, retrieval health, daily teachings, prompts — only staff can create or modify.</li>
+<li><strong>Daily Teaching:</strong> Image + caption, served publicly.</li>
+</ol>
+</div>
+</section>
+
+<!-- ====== Section 4: Debugging ====== -->
+<section>
+<h2>4. Debugging & Eliminating Wrong Answers</h2>
+
+<div class="card">
+<h4>Structured Debugging Checklist</h4>
+<p>When a query produces a wrong or slow answer, check these in order:</p>
+<ol>
+<li><strong>Intent:</strong> Was the intent classified correctly? If <code>SERENE_MIND</code> was chosen but user asked a factual question, the intent router misclassified.</li>
+<li><strong>Graph Strategy:</strong> Did Fast/Standard/Deep match the complexity? A complex multi-part question routed to Fast will produce incomplete answers.</li>
+<li><strong>Retrieval:</strong> Did retrieved documents actually answer the question? Check <code>retrieval_metadata</code> in telemetry.</li>
+<li><strong>Cache:</strong> Was <code>cache_hit</code> true? If yes, the cached response may be stale.</li>
+<li><strong>Verification:</strong> What was <code>faithfulness_score</code> and <code>hallucination_flag</code>? A high score but wrong answer means the metric is poorly calibrated.</li>
+<li><strong>Guardrails:</strong> Was the answer blocked or moderated? Check <code>output_guardrails</code> logs.</li>
+<li><strong>Translation:</strong> If indic, was translation faithful? Check <code>translation_metadata</code>.</li>
+</ol>
+</div>
+
+<div class="card">
+<h4>Observability Gaps</h4>
+<table>
+<tr><th>Gap</th><th>Impact</th><th>Fix</th></tr>
+<tr><td>No per-node latency in UI</td><td>Cannot tell which node is slow</td><td>Add Graph node timing spans</td></tr>
+<tr><td>No cache hit/miss rate dashboard</td><td>Cannot measure cache ROI</td><td>Add to admin /dashboard</td></tr>
+<tr><td>No intent router confidence exposure</td><t>Cannot debug misroute</td><td>Add to telemetry payload</td></tr>
+<tr><td>No retrieval source per answer</td><td>Cannot verify citations</td><t>Add inline citations with link-to-source</td></tr>
+<tr><td>No alert on &gt;5% hallucination</td><rdescribed2: Potential drift goes unnoticed</td><td>Add to alert rules</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ====== Section 5: System Skill ====== -->
+<section>
+<h2>5. System Skill — How We Build & Reason</h2>
+
+<div class="card">
+<h4>Pipeline Architecture (Current)</h4>
+<pre>Intent Router
+  ├─ Fast Path:     retrieve → generate → format
+  ├─ Standard Path: resolve → decompose → navigate/HyDE → retrieve → rerank → grade → enrich → engineer → generate → reflect → verify → check_contradiction → explain → format
+  └─ Deep Path:     Standard + extended reasoning
+
+Post-Graph: Zero-Shot Output Rail → Telemetry Save</pre>
+</div>
+
+<div class="card">
+<h4>Proposed Optimized Architecture</h4>
+<pre>Top-Level Hot Cache (dict + TTL)  &lt;— new
+  └─ Miss: Intent Router (on-device / regex / LRU / LLM fallback)
+    ├─ Greeting/FAQ → Template response (0 ms)
+    ├─ Simple Doctrine → Fast Path:
+    │   retrieve (1 doc, top-k=2) → generate (3B, 256 tokens) → format
+    └─ Complex → Standard Path:
+        parallel: navigate_knowledge_tree + generate_hyde
+        retrieve → rank (skip ColBERT for Fast) → grade → generate → lightweight_verify → format</pre>
+</div>
+
+<div class="grid grid-2">
+<div class="card">
+  <h4>Metrics That Matters</h4>
+  <table>
+  <tr><th>Metric</th><th>Target</th><th>Current</th></tr>
+  <tr><td>P95 Latency (Fast)</td><td>&lt;3s</td><td>~25s</td></tr>
+  <tr><td>P95 Latency (Standard)</td><td>&lt;10s</td><td>~133s</td></tr>
+  <tr><td>Hallucination</td><td>&lt;1%</td><td>~0.5%</td></tr>
+  <tr><td>Cache Hit</td><td>&gt;30%</td><td>0% (semantic broken)</td></tr>
+  <tr><td>Empty Retrieval</td><td>&lt;5%</td><td>TBD</td></tr>
+  <tr><td>Faithfulness</td><td>&gt;0.8</td><td>TBD</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h4>Fixes Applied in This Session</h4>
+  <table>
+  <tr><th>Issue</th><th>File</th><th>Status</th></tr>
+  <tr><td>RetrievalPage .toFixed crash</td><td>RetrievalPage.tsx</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Chat Enter key</td><td>ChatInterface.tsx</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Ask the Data (Edge Function)</td><t>AskDataPanel.tsx</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Queries page sort</td><t>QueriesPage.tsx</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Redéezed cache crash</td><t>cache_service.py</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Cache put/get mismatch</td><td>cache_service.py</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Cache safety in pipeline</td><td>pipeline_coordinator.py</td><td class="tag tag-good">Fixed</td></tr>
+  <tr><td>Daily Teaching tabs</td><td>DailyTeachingPage.tsx</td><td class="tag tag-warn">Investigating</td></tr>
+  </table>
+</div>
+</div>
+
+</div>
+</section>
+
+<div class="card" style="text-align:center; background: var(--elevated); border: 1px dashed var(--accent);">
+<p class="muted">This analysis is a living document. Re-run after major pipeline changes.</p>
+<p class="muted">Generator: Claude Code | Date: 2026-06-16</p>
+</div>
+
+</div>
+</body>
+</html>
