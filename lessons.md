@@ -149,6 +149,12 @@ Before claiming a feature is "production-ready," verify:
     ln -s /Users/harshodaikolluru/.docker/contexts .docker_clean/contexts
     ```
 
+- **Docker Health Check `start_period` Blocking Dependent Services**:
+  - **Symptom**: Backend container becomes healthy quickly (~16s), but Docker marks it as "healthy" only AFTER `start_period` elapses. Frontend (depending on `condition: service_healthy`) cannot start until then, causing stack startup to hang for minutes.
+  - **Root Cause**: Health check configured with `start_period: 300s` (5 min). During this period, Docker doesn't count failures but ALSO doesn't mark the container healthy — it stays in "starting" state. `depends_on: condition: service_healthy` waits for the first *successful* check AFTER `start_period`.
+  - **Fix**: Set `start_period` to slightly longer than actual app boot time (e.g., 60s for a 16s boot). Increase check frequency (`interval: 10s`) and retries to catch failures quickly.
+  - **Rule**: `start_period` should be `actual_boot_time + buffer`, not an arbitrary large value. The container is only "healthy" after `start_period` + one successful check.
+
 
 ### Testing & UI
 - **Refactoring for Design**: When UI designs change (e.g., renaming "New Conversation" to "New Chat"), tests must be updated alongside the components. Using stable `data-testid` attributes reduces the brittleness of tests compared to querying by text labels alone.
@@ -1837,7 +1843,48 @@ The LLM response for web search and general queries often includes raw URLs and 
   - 2. Secret scanners analyze full commit history. To clean accidentally committed credentials, rewrite the history (e.g., via soft reset or rebase) rather than pushing a second commit that deletes the secret.
 
 
-### 128. Anthropic Gateway, Citations, Message Batches, and De-hardcoded Thresholds
+### 129. Production Optimization Sprint — June 17, 2026
+
+**Fixes Applied:**
+
+| # | Issue | File | Resolution |
+|---|-------|------|------------|
+| 1 | RetrievalPage `.toFixed()` crash on undefined `top_score` | `src/admin/pages/RetrievalPage.tsx` | Added `top_score?.toFixed(2) ?? 'N/A'` guard |
+| 2 | Chat Enter key not sending | `src/components/chat/ChatInterface.tsx` | Fixed `handleSubmit` signature to accept optional `e` param |
+| 3 | Ask the Data returns Edge Function non-2xx | `src/admin/components/AskDataPanel.tsx` | Switched to direct backend API instead of Edge Function |
+| 4 | Queries page missing sort | `src/admin/pages/QueriesPage.tsx` | Added field + direction sort controls |
+| 5 | Redis cache silently dead (crashes app on startup) | `backend/services/cache_service.py` | Wrapped init in `try/except`; added `_available` flag |
+| 6 | Cache put/get embed mismatch | `backend/services/cache_service.py` | Stripped language prefix in `put()` to match `get()` |
+| 7 | Cache access without `is_available` check | `backend/app/pipeline/pipeline_coordinator.py` | Guarded all `semantic_cache` calls with availability check |
+| 8 | `dependencies.py` not catching cache init failure | `backend/app/dependencies.py` | Added outer `try/except` around cache service creation |
+| 9 | Daily Teaching tabs not working | `src/admin/pages/DailyTeachingPage.tsx` | Rewrote with proper `<Tabs>` component |
+| 10 | LLM timeout in `ollama_service.py` | `backend/services/ollama_service.py` | Verified 60s main / 30s fast timeout config already correct |
+| 11 | Hot cache missing for FAQ queries | `backend/services/hot_cache.py` | Implemented in-memory TTL cache for high-frequency queries |
+| 12 | Cache integration (hot → exact → semantic tier) | `backend/app/pipeline/pipeline_coordinator.py` | Wired all three cache tiers in correct priority order |
+| 13 | Intent routing for spiritual practice queries | `backend/rag/nodes/on_device_intent.py`, `backend/rag/nodes/intent.py` | Added practice keywords + `handle_casual` guard |
+| 14 | Frontend fetch errors returning generic greeting | `src/lib/aiService.ts` | Return empty content + `errorCode` instead of placeholder greeting |
+| 15 | Missing frontend timeout | `src/lib/aiService.ts` | Added `AbortController` with 120s timeout |
+| 16 | Cache serving CASUAL/GREETING for factual queries | `backend/services/semantic_cache.py`, `backend/services/hot_cache.py` | Added intent validation on cache retrieval |
+| 17 | Backend graph timeout not surfaced as 504 | `backend/app/orchestrator.py`, `backend/app/stream_orchestrator.py` | `TimeoutError` → HTTP 504 / SSE error event |
+| 18 | Vite proxy fallback returning HTML for dead backend | `src/lib/aiService.ts` | `checkBackendHealth` + clear error messages |
+| 19 | LightRAG score 1.0 overweight in RRF fusion | `backend/rag/nodes/retrieval.py` | Content-length-weighted score `min(0.9, 0.7 + 0.02 * n)` |
+| 20 | Fast path routing too conservative | `backend/app/orchestrator_utils.py` | Doctrine keyword fast-path + multi-part guard |
+| 21 | Intent re-classified inside graph after graph variant already selected | `backend/app/pipeline/pipeline_coordinator.py`, `backend/rag/nodes/intent.py` | Pre-classify intent, pass into `initial_state` |
+| 22 | Frontend missing health check + 504 detection | `src/lib/aiService.ts` | Health check with 30s cache, `AbortController` 120s |
+| 23 | Streaming first-token latency (long wait without feedback) | `backend/app/stream_orchestrator.py` | 5s heartbeat SSE status updates while pipeline runs |
+| 24 | Admin dashboard DB query performance | `supabase/migrations/20260617000000_add_dashboard_indexes.sql` | Indexes on `chat_queries`, `chat_responses`, `user_feedback`, `app_logs` |
+| 25 | Benchmark LightRAG vs Qdrant-only accuracy | `backend/benchmarks/lightrag_vs_qdrant_benchmark.py` | Per-query latency delta, Jaccard overlap ratio, coverage delta |
+
+**Lessons Learned:**
+- **SSE heartbeat pattern**: When a LangGraph pipeline can take 30-120s, yield a `status` SSE event every 5s while `tokens_streamed == 0` to keep the browser connection alive and provide UX feedback. Use `asyncio.wait([pipeline_task, get_task, heartbeat], return_when=FIRST_COMPLETED)` with proper cancellation of the losing task.
+- **Cache tier validation**: When serving from hot/exact/semantic cache, always validate that the cached intent matches the current query's intent. A CASUAL greeting cached for "hello" must not be served when the user later asks a factual QUESTION using the same or similar embedding.
+- **Intent pre-classification**: Never re-classify intent inside a graph after the graph variant (fast/standard/deep) has already been selected. Pre-classify once, pass into `initial_state`, and trust that value throughout the run.
+- **RRF weight normalization**: LightRAG graph scores of 1.0 dominate RRF fusion unless dampened. Use `min(0.9, 0.7 + 0.02 * n)` where `n` is content length to create a gentle length-based weight that prevents artificial perfect scores from distorting the fused ranking.
+- **Pre-classify before graph dispatch**: Routing decisions must be made before graph compilation or variant selection. Changing intent inside the graph is too late — the fast/standard/deep variant has already been chosen.
+
+---
+
+### 130. Anthropic Gateway, Citations, Message Batches, and De-hardcoded Thresholds
 
 - **Problem**:
   - **Magic Thresholds**: 12 critical threshold parameters were hardcoded directly in RAG pipeline nodes and strategies, violating the no-hardcoding doctrine and preventing environment-specific tuning.

@@ -102,13 +102,34 @@ def clean_for_embedding(text: str) -> str:
     """
     text = clean_transcript(text)
 
-    # Remove segments that are too short to be meaningful.
-    # NOTE: This regex splits on sentence-ending punctuation (., !, ?)
-    # followed by whitespace. It does NOT handle abbreviations (e.g.,
-    # "Dr.", "e.g.") or decimals — those will cause false splits.
-    # TODO: For production accuracy, replace with nltk.sent_tokenize
-    # or spaCy's sentence segmenter (e.g., `nlp(text).sents`).
-    sentences = re.split(r"(?<=[.!?])\s+", text)
+    # Robust sentence splitting: abbreviations and decimals are protected before
+    # splitting on sentence-ending punctuation. This avoids NLTK/SpaCy deps.
+    _abbreviation_periods = [
+        r"Mr\.", r"Mrs\.", r"Ms\.", r"Dr\.", r"Prof\.", r"Sr\.", r"Jr\.",
+        r"e\.g\.", r"i\.e\.", r"vs\.", r"etc\.", r"viz\.", r"Inc\.", r"Ltd\.",
+        r"a\.m\.", r"p\.m\.", r"A\.M\.", r"P\.M\.", r"no\.", r"No\.",
+        r"fig\.", r"Fig\.", r"et al\.", r"approx\.", r"ca\.", r"Co\.",
+    ]
+
+    # Temporarily replace period in abbreviations and decimal numbers
+    _protected_text = text
+    for abbr in _abbreviation_periods:
+        _protected_text = re.sub(abbr, abbr.replace(".", "__DOT__"), _protected_text, flags=re.IGNORECASE)
+
+    # Also protect decimal numbers like 3.14 or 1,000.50
+    _protected_text = re.sub(r"(\d)\.(\d)", r"\1__DOT__\2", _protected_text)
+    _protected_text = re.sub(r"(\d),(\d{3})", r"\1__COMMA__\2", _protected_text)
+
+    # Split on sentence-ending punctuation followed by whitespace or end of string
+    raw_sentences = re.split(r"(?<=[.!?])(?:\s+|$)", _protected_text)
+
+    # Restore original characters and strip whitespace
+    sentences = []
+    for sentence in raw_sentences:
+        sentence = sentence.replace("__DOT__", ".").replace("__COMMA__", ",")
+        sentence = sentence.strip()
+        if sentence:
+            sentences.append(sentence)
     meaningful = [s.strip() for s in sentences if len(s.strip()) > 20]
 
     return " ".join(meaningful)

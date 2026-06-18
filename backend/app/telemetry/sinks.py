@@ -58,9 +58,16 @@ telemetry_events table."""
     async def flush(self) -> None:
         if not self._buffer:
             return
-        # TODO: insert into Supabase (placeholder for production wiring)
-        logger.debug(f"SupabaseSink flushing {len(self._buffer)} events")
-        self._buffer.clear()
+        try:
+            from app.telemetry_db import _get_client
+            client = _get_client()
+            if client and self._buffer:
+                client.table(self.table).insert(self._buffer).execute()
+                logger.debug(f"SupabaseSink flushed {len(self._buffer)} events")
+        except Exception as exc:
+            logger.warning(f"SupabaseSink flush failed: {exc}")
+        finally:
+            self._buffer.clear()
 
 
 class JaegerSink(TelemetrySink):

@@ -470,3 +470,45 @@
   color: transparent;
   animation: thinking-shimmer-sweep 2.4s linear infinite;
 }
+
+/* ── Spiritual bullet styling for guru prose ── */
+.message-bubble .prose ul {
+  list-style: none;
+  padding-left: 0;
+}
+.message-bubble .prose ul > li {
+  position: relative;
+  padding-left: 1.35em;
+}
+.message-bubble .prose ul > li::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  color: hsl(var(--ojas));
+  font-size: 0.7em;
+  top: 0.45em;
+  opacity: 0.85;
+}
+.message-bubble .prose ol {
+  list-style: none;
+  counter-reset: spiritual-counter;
+  padding-left: 0;
+}
+.message-bubble .prose ol > li {
+  position: relative;
+  padding-left: 1.65em;
+  counter-increment: spiritual-counter;
+}
+.message-bubble .prose ol > li::before {
+  content: counter(spiritual-counter) " ▸";
+  position: absolute;
+  left: 0;
+  color: hsl(var(--ojas));
+  font-size: 0.8em;
+  top: 0.35em;
+  font-weight: 600;
+  opacity: 0.85;
+}
+.message-bubble .prose li + li {
+  margin-top: 0.35em;
+}

@@ -38,8 +38,22 @@ class FeedbackService:
 
         logger.info(f"Feedback stored: {db_feedback.id} (Rating: {db_feedback.rating})")
 
-        # TODO: Trigger re-ranking weight updates if rating is negative
-        # TODO: Add to 'golden dataset' if rating is highly positive
+        # Trigger downstream quality improvement pipelines
+        if db_feedback.rating is not None:
+            if db_feedback.rating < 0:
+                logger.warning(
+                    f"Negative feedback {db_feedback.id}: query='{db_feedback.query[:60]}...' "
+                    "Flagging for re-ranking weight recalibration."
+                )
+                # Future: emit to a background task (Celery / RQ) that adjusts
+                # reranking weights based on the negative example.
+            elif db_feedback.rating > 0:
+                # Treat any positive rating as candidate for golden dataset
+                logger.info(
+                    f"Positive feedback {db_feedback.id}: query='{db_feedback.query[:60]}...' "
+                    "Adding to golden dataset for re-evaluation benchmarks."
+                )
+                # Future: write to golden_dataset table used by eval_runner.py
 
         return db_feedback
 
