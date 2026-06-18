@@ -251,8 +251,10 @@ class OpenRouterService:
                 isinstance(exc, httpx.HTTPStatusError)
                 and exc.response.status_code == 429
             )
-            if is_rate_limit:
-                logger.warning(f"OpenRouter rate limited (429) during {operation} — falling back to Ollama")
+            is_connection_error = isinstance(exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException))
+            if is_rate_limit or is_connection_error:
+                reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
+                logger.warning(f"OpenRouter {reason} during {operation} — falling back to Ollama")
                 return await self._fallback_ollama(messages, max_tokens=max_tokens, temperature=temperature, operation=operation)
             self._circuit.record_failure()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")

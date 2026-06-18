@@ -44,3 +44,11 @@ class PIIScanner:
         text = cls.SSN_REGEX.sub("[REDACTED_SSN]", text)
         text = cls.IP_REGEX.sub("[REDACTED_IP]", text)
         return text
+
+
+def redact_pii(text: str) -> tuple[str, int]:
+    result = PIIScanner.scan(text)
+    if not result["has_pii"]:
+        return text, 0
+    redacted = PIIScanner.redact(text)
+    return redacted, len(result["details"])
