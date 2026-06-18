@@ -1363,32 +1363,50 @@ return (
             scrollContainerRef={scrollContainerRef}
           />
 
-          {/* Suggested starters — tightened spacing under welcome message */}
+          {/* Suggested starters — refined hierarchy: empty-state cards first, then pills */}
           {showStarters && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="space-y-2.5 mt-1"
+              className="space-y-5 mt-4"
             >
-              {/* Empty-state cards: resume last + today's teaching */}
               <ChatEmptyState
                 currentConversationId={currentConversation?.id}
                 onResume={handleSelectConversation}
               />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
-                {STARTER_SUGGESTIONS.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="px-3 py-2.5 rounded-xl text-[13px] font-serif border border-ojas/20 bg-card/50 hover:bg-ojas/10 hover:border-ojas/45 text-foreground/85 hover:text-foreground transition-all text-center leading-snug min-h-[48px] flex items-center justify-center"
-                  >
-                    <span className="line-clamp-2">{suggestion}</span>
-                  </button>
-                ))}
+
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ojas/25 to-transparent" />
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-foreground/45 font-medium">
+                    Or begin with
+                  </span>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ojas/25 to-transparent" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
+                  {STARTER_SUGGESTIONS.map((suggestion, idx) => (
+                    <motion.button
+                      key={suggestion}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.35 + idx * 0.05 }}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      whileHover={{ y: -1 }}
+                      className="group relative px-4 py-3 rounded-xl text-[13.5px] font-serif border border-ojas/20 bg-card/40 hover:bg-ojas/[0.06] hover:border-ojas/50 text-foreground/85 hover:text-foreground transition-all text-left leading-relaxed overflow-hidden"
+                    >
+                      <span
+                        aria-hidden
+                        className="absolute inset-y-2 left-0 w-[2px] bg-ojas/0 group-hover:bg-ojas/60 rounded-r transition-all"
+                      />
+                      <span className="block pl-1.5">{suggestion}</span>
+                    </motion.button>
+                  ))}
+                </div>
               </div>
             </motion.div>
           )}
+
 
           {/* Unified thinking indicator + Stop generating button. */}
           <div className="flex items-start gap-2">
