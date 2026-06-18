@@ -14,6 +14,9 @@ import type {
   QualityData,
   IngestionHealth,
   ChatQuery as _ChatQueryUnused2,
+  TelemetryEvent,
+  TelemetryFilters,
+  TelemetryResponse,
 
   ChatQuery,
 } from '@/admin/types';
@@ -472,4 +475,45 @@ export async function runEval(name?: string) {
   });
   if (error) throw new Error(error.message);
   return data;
+}
+
+// ── Telemetry Events (admin only) ───────────────────────────────────────────
+export async function listTelemetryEvents(
+  filters: TelemetryFilters,
+): Promise<TelemetryResponse> {
+  const {
+    user_id,
+    session_id,
+    metric_type,
+    user_message_id,
+    from,
+    to,
+    limit = 100,
+    offset = 0,
+  } = filters;
+
+  const { data, error, count } = await supabase.functions.invoke('admin-telemetry', {
+    body: {
+      user_id,
+      session_id,
+      metric_type,
+      user_message_id,
+      from: from?.toISOString(),
+      to: to?.toISOString(),
+      limit,
+      offset,
+    },
+  });
+
+  if (error) {
+    console.error('listTelemetryEvents failed', error);
+    throw new Error(error.message || 'Failed to fetch telemetry events');
+  }
+
+  return {
+    data: data?.data ?? [],
+    count: data?.count ?? 0,
+    limit: data?.limit ?? limit,
+    offset: data?.offset ?? offset,
+  };
 }

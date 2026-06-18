@@ -1,10 +1,8 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.database import get_db
 from app.core.feedback_store import FeedbackStore
 from app.core.limiter import limiter
 from schemas.feedback import FeedbackCreate, FeedbackResponse
@@ -20,23 +18,20 @@ jsonl_store = FeedbackStore()
 async def submit_feedback(
     request: Request,
     feedback_in: FeedbackCreate,
-    db: AsyncSession = Depends(get_db),
     user: Optional[dict] = Depends(get_current_user_from_supabase),
 ):
     """
     Submit feedback (rating and optional text) for a generated answer.
     """
-    service = FeedbackService(db)
+    service = FeedbackService()
     user_id = user.get("id") if user else None
 
-    # Save to JSONL store for RAG analytics/fine-tuning (Production Report requirement)
-    # Convert rating format: 1/-1 -> "up"/"down"
     jsonl_store.record_feedback(
         session_id=user_id or "anonymous",
         query=feedback_in.query,
         response=feedback_in.answer,
         rating="up" if feedback_in.rating > 0 else "down",
-        intent="QUERY",  # Assume query for now, could be passed in metadata
+        intent="QUERY",
     )
 
     return await service.create_feedback(feedback_in, user_id=user_id)
@@ -45,7 +40,6 @@ async def submit_feedback(
 @router.get("/history", response_model=list[FeedbackResponse])
 async def get_feedback_history(
     limit: int = 50,
-    db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user_from_supabase),
 ):
     """
@@ -53,5 +47,5 @@ async def get_feedback_history(
     """
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
-    service = FeedbackService(db)
+    service = FeedbackService()
     return await service.get_feedback_history(limit=limit)

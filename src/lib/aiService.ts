@@ -190,7 +190,7 @@ async function recordMetric(metric: RecordMetricInput): Promise<void> {
   const userMessageId = metric.userMessageId?.trim();
   if (!userMessageId) return; // hard guard — never call telemetry without an id
   try {
-    await supabase.functions.invoke('telemetry', {
+    const { error } = await supabase.functions.invoke('telemetry', {
       body: {
         user_message_id: userMessageId,
         last_message_id: metric.lastMessageId ?? null,
@@ -200,8 +200,15 @@ async function recordMetric(metric: RecordMetricInput): Promise<void> {
         tags: metric.tags ?? {},
       },
     });
-  } catch {
-    // swallow — telemetry is fire-and-forget
+    if (error) {
+      console.warn('[telemetry] invoke error', error);
+      const { telemetryEvents } = await import('@/lib/telemetryEvents');
+      telemetryEvents.emitFailure('Telemetry submission failed', error.message || 'Could not record usage metric.');
+    }
+  } catch (e) {
+    console.warn('[telemetry] network error', e);
+    const { telemetryEvents } = await import('@/lib/telemetryEvents');
+    telemetryEvents.emitFailure('Telemetry unavailable', 'Usage metrics could not be recorded. Chat is unaffected.');
   }
 }
 

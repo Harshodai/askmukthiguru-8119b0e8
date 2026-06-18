@@ -75,25 +75,17 @@ class SemanticCacheService:
         except Exception as e:
             logger.warning(f"Semantic cache unavailable: {e}")
 
-    def _cache_key(self, idx: int) -> str:
-        """Generate Redis key for cached entry."""
-        return f"mukthiguru:semcache:{idx}"
+    def _cache_key(self, idx: int, user_id: str = "", tenant_id: str = "default") -> str:
+        if user_id:
+            return f"mukthiguru:semcache:{tenant_id}:{user_id}:{idx}"
+        return f"mukthiguru:semcache:{tenant_id}:shared:{idx}"
 
-    def _index_key(self) -> str:
-        """Key for the list of all cache entry IDs."""
-        return "mukthiguru:semcache:index"
+    def _index_key(self, user_id: str = "", tenant_id: str = "default") -> str:
+        if user_id:
+            return f"mukthiguru:semcache:{tenant_id}:{user_id}:index"
+        return f"mukthiguru:semcache:{tenant_id}:shared:index"
 
-    def get(self, query: str, query_embedding: Optional[list[float]] = None) -> Optional[dict]:
-        """
-        Look up a semantically similar cached response.
-
-        Args:
-            query: The user's query text
-            query_embedding: Pre-computed embedding (optional, saves recomputation)
-
-        Returns:
-            Cached response dict or None if no semantic match
-        """
+    def get(self, query: str, query_embedding: Optional[list[float]] = None, user_id: str = "", tenant_id: str = "default") -> Optional[dict]:
         if not self._available or not self._redis:
             return None
 
@@ -111,7 +103,7 @@ class SemanticCacheService:
 
         try:
             # Get all cached entry IDs
-            index_data = self._redis.get(self._index_key())
+            index_data = self._redis.get(self._index_key(user_id=user_id, tenant_id=tenant_id))
             if not index_data:
                 self._misses += 1
                 return None
@@ -122,7 +114,7 @@ class SemanticCacheService:
             # SINGLE pipelined MGET. Previously this loop made N round-trips
             # to Redis (one per cached entry); now it makes one. Cuts cache
             # lookup latency from ~N*RTT to ~1*RTT.
-            cache_keys = [self._cache_key(eid) for eid in entry_ids]
+            cache_keys = [self._cache_key(eid, user_id=user_id, tenant_id=tenant_id) for eid in entry_ids]
             try:
                 entry_blobs = self._redis.mget(cache_keys)
             except Exception as mget_err:
@@ -191,8 +183,9 @@ class SemanticCacheService:
         citations: list[str],
         query_embedding: Optional[list[float]] = None,
         meditation_step: int = 0,
+        user_id: str = "",
+        tenant_id: str = "default",
     ) -> None:
-        """Store a response in the semantic cache with its embedding."""
         if not self._available or not self._redis:
             return
 
@@ -221,13 +214,14 @@ class SemanticCacheService:
                 "citations": citations,
                 "meditation_step": meditation_step,
                 "cached_at": time.time(),
+                "user_id": user_id,
             }
 
-            cache_key = self._cache_key(entry_id)
+            cache_key = self._cache_key(entry_id, user_id=user_id, tenant_id=tenant_id)
             self._redis.setex(cache_key, self._ttl, json.dumps(entry))
 
             # Update index
-            index_data = self._redis.get(self._index_key())
+            index_data = self._redis.get(self._index_key(user_id=user_id, tenant_id=tenant_id))
             entry_ids = json.loads(index_data) if index_data else []
 
             if entry_id not in entry_ids:
@@ -236,10 +230,10 @@ class SemanticCacheService:
                 if len(entry_ids) > 500:
                     # Remove oldest entries
                     for old_id in entry_ids[: len(entry_ids) - 500]:
-                        self._redis.delete(self._cache_key(old_id))
+                        self._redis.delete(self._cache_key(old_id, user_id=user_id, tenant_id=tenant_id))
                     entry_ids = entry_ids[-500:]
 
-                self._redis.setex(self._index_key(), self._ttl * 2, json.dumps(entry_ids))
+                self._redis.setex(self._index_key(user_id=user_id, tenant_id=tenant_id), self._ttl * 2, json.dumps(entry_ids))
 
             logger.debug(f"Semantic cache: stored entry {entry_id} ({len(entry_ids)} total)")
 

@@ -719,7 +719,7 @@ QUERIES = {
             "verified": True,
             "expected_links": [
                 "simonandschuster.com/books/The-Four-Sacred-Secrets",
-                "amazon.com/Four-Sacred-Secrets",
+                "amazon.in/Four-Sacred-Secrets",
             ],
         },
         {
@@ -959,7 +959,7 @@ VERIFIED_SOURCES = {
         "title": "The Four Sacred Secrets: For Love and Prosperity",
         "authors": "Sri Preethaji & Sri Krishnaji",
         "publisher": "Simon & Schuster (2019)",
-        "link": "https://www.amazon.com/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1982112170",
+        "link": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
     },
     "youtube_channel": {
         "title": "Sri Preethaji & Sri Krishnaji Official YouTube",

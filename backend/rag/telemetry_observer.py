@@ -59,16 +59,30 @@ class MetricsObserver(NodeObserver):
 
 
 class LoggingObserver(NodeObserver):
-    """Emit structured logs per node."""
+    """Emit structured logs per node with pipeline state context."""
 
     async def on_before_execute(self, command: NodeCommand, state: GraphState) -> None:
-        logger.info(f"[node] {command.name} starting")
+        query_id = state.get("request_id", "unknown")[:8]
+        intent = state.get("intent", "?")
+        logger.info(f"[node] {command.name} starting (q={query_id}, intent={intent})")
 
     async def on_after_execute(self, command: NodeCommand, state: GraphState, result: dict) -> None:
-        logger.info(f"[node] {command.name} finished — keys={list(result.keys())}")
+        query_id = state.get("request_id", "unknown")[:8]
+        docs = len(state.get("documents", []) or [])
+        reranked = len(state.get("reranked_docs", []) or [])
+        relevant = len(state.get("relevant_docs", []) or [])
+        confidence = state.get("confidence_score", "?")
+        rewrite_cnt = state.get("rewrite_count", 0)
+        logger.info(
+            f"[node] {command.name} done (q={query_id}, docs={docs}, "
+            f"reranked={reranked}, relevant={relevant}, "
+            f"confidence={confidence}, rewrites={rewrite_cnt}) "
+            f"— result_keys={list(result.keys())}"
+        )
 
     async def on_error(self, command: NodeCommand, state: GraphState, error: Exception) -> None:
-        logger.error(f"[node] {command.name} failed: {error}")
+        query_id = state.get("request_id", "unknown")[:8]
+        logger.error(f"[node] {command.name} failed (q={query_id}): {error}")
 
 
 class SelfCorrectionObserver(NodeObserver):

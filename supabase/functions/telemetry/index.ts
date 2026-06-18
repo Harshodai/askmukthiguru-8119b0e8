@@ -1,5 +1,5 @@
 // Telemetry edge function: stores client-side metrics keyed by user_message_id.
-// verify_jwt = false (default). Accepts anonymous + authenticated. Best-effort writes.
+// verify_jwt = true. Requires authenticated user. Validates ownership of IDs.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -15,6 +15,7 @@ interface MetricBody {
   metric_type?: string;
   metric_value?: number;
   tags?: Record<string, unknown>;
+  user_id?: string; // Optional: if provided, must match authenticated user
 }
 
 Deno.serve(async (req: Request) => {
@@ -36,7 +37,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { user_message_id, last_message_id, session_id, metric_type, metric_value, tags } = body;
+  const { user_message_id, last_message_id, session_id, metric_type, metric_value, tags, user_id } = body;
   if (!user_message_id || typeof user_message_id !== "string") {
     return new Response(JSON.stringify({ error: "missing_user_message_id" }), {
       status: 400,
@@ -51,21 +52,57 @@ Deno.serve(async (req: Request) => {
   }
   const value = typeof metric_value === "number" && Number.isFinite(metric_value) ? metric_value : 0;
 
-  // Resolve user (optional)
-  let userId: string | null = null;
+  // Require authentication - verify JWT
   const authHeader = req.headers.get("Authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    try {
-      const userClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader } } },
-      );
-      const { data } = await userClient.auth.getUser();
-      userId = data.user?.id ?? null;
-    } catch {
-      // ignore — anonymous telemetry still allowed
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "unauthorized", detail: "Authentication required" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const userClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } },
+  );
+  const { data: { user }, error: userErr } = await userClient.auth.getUser();
+  if (userErr || !user) {
+    return new Response(JSON.stringify({ error: "unauthorized", detail: "Invalid or expired token" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const authenticatedUserId = user.id;
+
+  // If user_id provided in body, validate it matches authenticated user
+  if (user_id && user_id !== authenticatedUserId) {
+    return new Response(JSON.stringify({ error: "forbidden", detail: "user_id mismatch" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // If session_id provided, validate it belongs to the authenticated user
+  let validatedSessionId: string | null = session_id ?? null;
+  if (session_id) {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: sessionData, error: sessionErr } = await admin
+      .from("chat_sessions")
+      .select("id")
+      .eq("id", session_id)
+      .eq("user_id", authenticatedUserId)
+      .maybeSingle();
+    if (sessionErr || !sessionData) {
+      return new Response(JSON.stringify({ error: "forbidden", detail: "session_id does not belong to user" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+    validatedSessionId = sessionData.id;
   }
 
   const admin = createClient(
@@ -74,8 +111,8 @@ Deno.serve(async (req: Request) => {
   );
 
   const { error } = await admin.from("telemetry_events").insert({
-    user_id: userId,
-    session_id: session_id ?? null,
+    user_id: authenticatedUserId,
+    session_id: validatedSessionId,
     user_message_id,
     last_message_id: last_message_id ?? null,
     metric_type,

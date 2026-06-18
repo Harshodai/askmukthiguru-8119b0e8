@@ -120,12 +120,33 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             ),
         }
 
-    await emit_status(config, "Filtering for relevance...")
-    question = state.get("rewritten_query") or state["question"]
     reranked_docs = state["reranked_docs"]
 
     if not reranked_docs:
         return {"relevant_docs": []}
+
+    rerank_scores = [d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None]
+    if rerank_scores:
+        top_score = max(rerank_scores)
+        min_score = settings.rerank_min_score
+        if top_score < min_score:
+            logger.warning(
+                f"Confidence gate: top rerank score {top_score:.3f} < min {min_score}. "
+                f"Rejecting {len(reranked_docs)} docs."
+            )
+            return {
+                "relevant_docs": [],
+                "low_confidence_retrieval": True,
+                "evaluation_trace": _trace_update(
+                    state,
+                    relevant_count=0,
+                    low_confidence=True,
+                    top_rerank_score=round(top_score, 4),
+                ),
+            }
+
+    await emit_status(config, "Filtering for relevance...")
+    question = state.get("rewritten_query") or state["question"]
 
     intent = state.get("intent", "FACTUAL")
     if intent == "DISTRESS":

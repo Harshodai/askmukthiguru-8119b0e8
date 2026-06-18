@@ -110,7 +110,6 @@ from slowapi.errors import RateLimitExceeded
 from app.api.endpoints.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.cache_metrics import router as cache_metrics_router
-from app.core.database import init_db
 from app.core.limiter import limiter
 from routers.admin import admin_router
 from routers.feedback import router as feedback_router
@@ -211,8 +210,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("=== Starting Mukthi Guru Backend ===")
 
-    # 1. Initialize DB and Create tables if needed
-    await init_db()
+    # 1. Initialize telemetry DB (Supabase — single operational DB)
     await init_telemetry_db()
 
     # 2. Dependency injection container setup (loads all services)
@@ -655,7 +653,7 @@ async def _prepare_user_memory(
                     semantic_m = await container.memory_service.search_semantic(user_id, last_query, limit=3, min_similarity=0.6)
                 return core_m, semantic_m
 
-            core_m, semantic_m = await asyncio.wait_for(fetch_memory_layer(), timeout=0.200)
+            core_m, semantic_m = await asyncio.wait_for(fetch_memory_layer(), timeout=2.0)
 
             # Format memory context blocks
             memory_blocks = []
@@ -671,9 +669,11 @@ async def _prepare_user_memory(
                 else:
                     memory_context = new_memory_context
         except asyncio.TimeoutError:
-            logger.warning(f"Memory layer fetch timed out for user {user_id} (exceeded 200ms budget)")
+            core_m, semantic_m = [], []
+            logger.warning(f"Memory layer fetch timed out for user {user_id} (exceeded 2s budget)")
         except Exception as e:
-            logger.warning(f"Memory layer fetch failed: {e}")
+            core_m, semantic_m = [], []
+            logger.warning(f"Memory layer fetch failed for user {user_id}: {e}")
 
     distress_history = []
     for mem in recent_memories:
