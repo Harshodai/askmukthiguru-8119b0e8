@@ -939,6 +939,42 @@ export type Database = {
         }
         Relationships: []
       }
+      telemetry_events: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_id: string | null
+          metric_type: string
+          metric_value: number
+          session_id: string | null
+          tags: Json | null
+          user_id: string | null
+          user_message_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_id?: string | null
+          metric_type: string
+          metric_value: number
+          session_id?: string | null
+          tags?: Json | null
+          user_id?: string | null
+          user_message_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_id?: string | null
+          metric_type?: string
+          metric_value?: number
+          session_id?: string | null
+          tags?: Json | null
+          user_id?: string | null
+          user_message_id?: string
+        }
+        Relationships: []
+      }
       trace_spans: {
         Row: {
           created_at: string
