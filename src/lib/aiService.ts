@@ -172,15 +172,11 @@ const httpStatusToErrorCode = (status: number): AIErrorCode => {
   return 'unknown';
 };
 
-async function recordMetric(metric: { type: string; value: number; tags?: Record<string, string> }) {
-  if (typeof window === 'undefined') return;
-  try {
-    await fetch(`${DEFAULT_ENDPOINT}/api/telemetry`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...metric, timestamp: Date.now() }),
-    });
-  } catch { /* silent */ }
+async function recordMetric(_metric: { type: string; value: number; tags?: Record<string, string> }) {
+  // No-op: no telemetry endpoint is deployed. Previously POSTed to `${DEFAULT_ENDPOINT}/api/telemetry`,
+  // which routed to the guru-chat function and returned 400 missing_user_message. Re-enable only
+  // when a dedicated telemetry edge function exists.
+  return;
 }
 
 /**
