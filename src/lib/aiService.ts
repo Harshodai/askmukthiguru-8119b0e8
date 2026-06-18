@@ -508,7 +508,7 @@ export const sendMessage = async (
       }
 
       const data = await response.json();
-      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'non-stream' } });
+      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'non-stream' } });
       return {
         content: data.response || data.choices?.[0]?.message?.content || data.content,
         intent: data.intent,
