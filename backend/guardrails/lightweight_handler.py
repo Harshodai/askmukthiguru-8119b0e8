@@ -361,12 +361,8 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                             api_key=settings.openrouter_api_key,
                         )
                     else:
-                        base_url = f"{settings.ollama_base_url}/v1"
-                        api_key = "ollama"
-                        openai_client = AsyncOpenAI(
-                            base_url=base_url,
-                            api_key=api_key,
-                        )
+                        logger.warning(f"guardrails_llm fallback provider not configured (provider={settings.llm_provider})")
+                        openai_client = None
 
                     client = instructor.from_openai(
                         openai_client,

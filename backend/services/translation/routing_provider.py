@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class RoutingTranslationProvider(TranslationProvider):
-    """Dynamic translation router that uses Sarvam Cloud when available, falling back to Ollama."""
+    """Dynamic translation router that uses Sarvam Cloud when available."""
 
     def __init__(
         self,
-        ollama_provider: TranslationProvider,
+        ollama_provider: TranslationProvider | None,
         sarvam_provider: TranslationProvider,
     ) -> None:
         self._ollama = ollama_provider
@@ -30,15 +30,7 @@ class RoutingTranslationProvider(TranslationProvider):
         target_lang: str,
         **kwargs: Any,
     ) -> str:
-        """Translate text using Sarvam if configured and available, otherwise Ollama."""
-        # Check if ollama_provider is a Mock during testing
-        if type(self._ollama).__name__ in ("MagicMock", "AsyncMock", "Mock") or hasattr(
-            self._ollama, "mock_calls"
-        ):
-            return await self._ollama.translate_text(
-                text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
-            )
-
+        """Translate text using Sarvam if configured and available."""
         if (
             settings.sarvam_api_key
             and not settings.sarvam_api_key.startswith("sk_dummy")
@@ -50,12 +42,11 @@ class RoutingTranslationProvider(TranslationProvider):
                 )
             except Exception as e:
                 logger.error(
-                    f"Error in dynamic Sarvam translation routing: {e}, falling back to Ollama"
+                    f"Sarvam translation failed: {e}"
                 )
+                raise
 
-        return await self._ollama.translate_text(
-            text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
-        )
+        raise RuntimeError("No translation provider available (Sarvam not configured)")
 
     async def health_check(self) -> bool:
         """Return True if active translation provider is healthy."""
@@ -67,5 +58,5 @@ class RoutingTranslationProvider(TranslationProvider):
             try:
                 return await self._sarvam.health_check()
             except Exception:
-                pass
-        return await self._ollama.health_check()
+                return False
+        return False
