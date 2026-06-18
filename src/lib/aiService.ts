@@ -391,7 +391,7 @@ export async function* sendMessageStreaming(
         }
       }
     }
-    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, tags: { provider: 'custom', endpoint: 'stream' } });
+    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {
     reader.releaseLock();
   }
