@@ -178,6 +178,13 @@ class Settings(BaseSettings):
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
     redis_url: str = "redis://redis:6379/0"
 
+    # --- Job Queue & Backpressure ---
+    queue_enabled: bool = True
+    queue_max_size: int = 20
+    queue_concurrency: int = 3
+    queue_job_ttl: int = 600
+    queue_default_timeout: int = 300
+
     # --- Server ---
     host: str = "0.0.0.0"
     port: int = 8000

@@ -272,6 +272,15 @@ async def lifespan(app: FastAPI):
     # 9. Wire NodeObservers (Metrics + Logging) for the RAG pipeline
     _register_node_observers()
 
+    # 10. Start Job Queue workers (if queue enabled)
+    if getattr(container, "job_queue", None):
+        try:
+            from app.orchestrator import queue_worker_factory
+            await container.job_queue.start(queue_worker_factory)
+            logger.info("JobQueue workers started")
+        except Exception as e:
+            logger.warning(f"Failed to start JobQueue workers: {e}")
+
     logger.info("=== Mukthi Guru Backend Ready ===")
     yield
 
@@ -301,6 +310,14 @@ async def lifespan(app: FastAPI):
     from services.config_watcher import stop_config_watcher
 
     await stop_config_watcher()
+
+    # Stop Job Queue workers
+    if getattr(container, "job_queue", None) and getattr(container.job_queue, "_running", False):
+        try:
+            await container.job_queue.stop()
+            logger.info("JobQueue workers stopped")
+        except Exception as e:
+            logger.warning(f"JobQueue shutdown error: {e}")
 
     shutdown()
 
@@ -517,6 +534,8 @@ app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(health_router, prefix="")
 app.include_router(cache_metrics_router, prefix="/api")
+from app.api.job_routes import router as job_router
+app.include_router(job_router)
 
 # Unit 24: Compliance router (GDPR audit log access)
 from routers.compliance import router as compliance_router
@@ -721,7 +740,7 @@ async def _prepare_user_memory(
 
 
 
-@app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
+@app.post("/api/chat", tags=["Chat"])
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat")
 async def chat_endpoint(
@@ -730,13 +749,57 @@ async def chat_endpoint(
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
-) -> ChatResponse:
+):
     """
     Main conversational endpoint.
 
-    Delegates to ChatRequestOrchestrator.
+    When queue is enabled (default), returns 202 with job_id immediately.
+    Add ?wait=true to block for result (backward compat).
+    Delegates inline to ChatRequestOrchestrator when queue is disabled.
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message)
+
+    is_benchmark = request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None)
+
+    if container.job_queue and settings.queue_enabled and not is_benchmark:
+        from app.services.job_queue import QueueFullError
+
+        chat_body_dict = chat_body.model_dump()
+        user_dict = {"id": user.get("id", "anonymous")} if user else {"id": "anonymous"}
+        request_data = {"chat_body": chat_body_dict, "user": user_dict, "is_benchmark": False}
+        try:
+            job_id = await container.job_queue.enqueue(
+                request_data, user.get("id", "anonymous"), is_stream=False
+            )
+        except QueueFullError:
+            from fastapi.responses import JSONResponse as JR
+            return JR(
+                status_code=429,
+                content={"error": "Too Many Requests", "detail": "Server is busy. Please try again shortly."},
+                headers={"Retry-After": "5"},
+            )
+
+        if request.query_params.get("wait", "").lower() == "true":
+            from app.schemas import ChatResponse as CR
+            deadline = time.time() + settings.queue_default_timeout
+            while time.time() < deadline:
+                job = await container.job_queue.get_job(job_id)
+                if job and job["status"] == "completed" and job["result"]:
+                    return CR(**job["result"])
+                if job and job["status"] == "failed":
+                    raise HTTPException(status_code=500, detail=job.get("error", "Pipeline failed"))
+                await asyncio.sleep(0.5)
+            raise HTTPException(status_code=504, detail="Pipeline timeout")
+
+        from fastapi.responses import JSONResponse as JR
+        return JR(
+            status_code=202,
+            content={
+                "job_id": job_id,
+                "status": "queued",
+                "poll_url": f"/api/jobs/{job_id}",
+            },
+        )
 
     from app.orchestrator import ChatRequestOrchestrator
 
@@ -757,13 +820,120 @@ async def chat_stream_endpoint(
     """
     Streaming chat endpoint using Server-Sent Events (SSE).
 
-    Delegates to ChatStreamRequestOrchestrator.
+    When queue enabled (default), returns 202 with stream_url immediately.
+    Client then connects to GET /api/chat/stream/{job_id} for SSE.
+    Delegates inline to ChatStreamRequestOrchestrator when queue is disabled.
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message)
+
+    is_benchmark = request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None)
+
+    if container.job_queue and settings.queue_enabled and not is_benchmark:
+        from app.services.job_queue import QueueFullError
+
+        chat_body_dict = chat_body.model_dump()
+        user_dict = {"id": user.get("id", "anonymous")} if user else {"id": "anonymous"}
+        request_data = {"chat_body": chat_body_dict, "user": user_dict, "is_benchmark": False}
+        try:
+            job_id = await container.job_queue.enqueue(
+                request_data, user.get("id", "anonymous"), is_stream=True
+            )
+        except QueueFullError:
+            from fastapi.responses import JSONResponse as JR
+            return JR(
+                status_code=429,
+                content={"error": "Too Many Requests", "detail": "Server is busy. Please try again shortly."},
+                headers={"Retry-After": "5"},
+            )
+
+        from fastapi.responses import JSONResponse as JR
+        return JR(
+            status_code=202,
+            content={
+                "job_id": job_id,
+                "status": "queued",
+                "stream_url": f"/api/chat/stream/{job_id}",
+            },
+        )
+
     from app.stream_orchestrator import ChatStreamRequestOrchestrator
 
     orchestrator = ChatStreamRequestOrchestrator(container)
     return await orchestrator.orchestrate_stream(request, chat_body, background_tasks, user)
+
+
+@app.get("/api/chat/stream/{job_id}", tags=["Chat"])
+async def chat_stream_poll(
+    job_id: str,
+    container: ServiceContainer = Depends(get_container),
+):
+    """
+    SSE endpoint for queued streaming jobs.
+
+    Reads events from Redis Stream (populated by worker) and streams them as SSE.
+    """
+    if not container.job_queue:
+        raise HTTPException(status_code=503, detail="Job queue is disabled")
+
+    import json
+    import redis.asyncio as aioredis
+    r = aioredis.from_url(settings.redis_url, decode_responses=True)
+    stream_key = f"job:stream:{job_id}:events"
+
+    async def _sse():
+        last_id = "0"
+        timeout = settings.queue_default_timeout
+        deadline = time.time() + timeout
+        try:
+            while time.time() < deadline:
+                try:
+                    results = await r.xread(
+                        {stream_key: last_id}, count=10, block=2000
+                    )
+                except Exception:
+                    await asyncio.sleep(0.5)
+                    continue
+                if not results:
+                    job_meta = await r.hgetall(f"job:{job_id}:meta")
+                    if job_meta:
+                        status = job_meta.get("status", "")
+                        if status == "failed":
+                            yield "event: error\ndata: Pipeline failed\n\n"
+                            return
+                        if status == "cancelled":
+                            yield "event: error\ndata: Job cancelled\n\n"
+                            return
+                        if status == "completed" and last_id == "0":
+                            await asyncio.sleep(0.5)
+                            continue
+                        if status in ("completed", "failed") and last_id != "0":
+                            yield "event: done\ndata: {}\n\n"
+                            return
+                    continue
+                for stream_name, entries in results:
+                    for entry_id, fields in entries:
+                        last_id = entry_id
+                        data = fields.get("data", "")
+                        if data == "__COMPLETE__":
+                            yield "event: done\ndata: {}\n\n"
+                            return
+                        try:
+                            parsed = json.loads(data)
+                            if isinstance(parsed, dict):
+                                evt = parsed.get("event", "status")
+                                dat = parsed.get("data", "")
+                                yield f"event: {evt}\ndata: {dat}\n\n"
+                            else:
+                                yield f"event: token\ndata: {str(parsed)}\n\n"
+                        except (json.JSONDecodeError, TypeError):
+                            yield f"event: token\ndata: {data}\n\n"
+                await asyncio.sleep(0.1)
+            yield "event: error\ndata: Stream timeout\n\n"
+        finally:
+            await r.aclose()
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(_sse(), media_type="text/event-stream")
 
 
 

@@ -134,6 +134,18 @@ class ContainerBuilder:
         container.cost_tracker = get_cost_tracker()
 
         container.exact_cache = RedisCacheAdapter(redis_url=settings.redis_url)
+
+        if settings.queue_enabled:
+            from app.services.job_queue import JobQueueService
+            container.job_queue = JobQueueService(
+                redis_url=settings.redis_url,
+                max_queue=settings.queue_max_size,
+                max_concurrency=settings.queue_concurrency,
+                job_ttl=settings.queue_job_ttl,
+            )
+        else:
+            container.job_queue = None
+
         container.semantic_cache = SemanticCacheAdapter(
             redis_url=settings.redis_url,
             qdrant_url=settings.qdrant_url if not settings.qdrant_local_path else None,
