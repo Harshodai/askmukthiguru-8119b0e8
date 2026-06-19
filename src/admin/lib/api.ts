@@ -17,7 +17,7 @@ import type {
   TelemetryEvent,
   TelemetryFilters,
   TelemetryResponse,
-
+  QueueResponse,
   ChatQuery,
 } from '@/admin/types';
 import * as db from './mockData';
@@ -516,4 +516,12 @@ export async function listTelemetryEvents(
     limit: data?.limit ?? limit,
     offset: data?.offset ?? offset,
   };
+}
+
+export async function listQueueJobs(limit = 100): Promise<QueueResponse> {
+  return withDevFallback(
+    'listQueueJobs',
+    () => fetchWithAuth(`/api/admin/queue?limit=${limit}`),
+    () => ({ jobs: [], queue_enabled: false, total: 0 }),
+  );
 }

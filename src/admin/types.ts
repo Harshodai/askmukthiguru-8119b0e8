@@ -358,6 +358,21 @@ export interface QualityData {
   }>;
 }
 
+export interface QueueJob {
+  job_id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  user_id: string;
+  created_at: number;
+  is_stream: boolean;
+  queue_position: number | null;
+}
+
+export interface QueueResponse {
+  jobs: QueueJob[];
+  queue_enabled: boolean;
+  total: number;
+}
+
 export interface IngestionHealth {
   status: string;
   last_run: ISODate;
