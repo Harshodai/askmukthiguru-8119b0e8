@@ -306,6 +306,13 @@ export async function* sendMessageStreaming(
       (err as any).errorCode = 'unknown';
       throw err;
     }
+    const pos = jobData.queue_position;
+    yield {
+      type: 'status' as const,
+      text: pos && pos > 1
+        ? `Queued at position ${pos}…`
+        : 'Request queued…',
+    };
     const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
     const streamUrl = jobData.stream_url || `${baseUrl}/api/chat/stream/${jobId}`;
     response = await fetch(streamUrl, {

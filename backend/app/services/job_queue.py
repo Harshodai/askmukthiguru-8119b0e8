@@ -105,8 +105,8 @@ class JobQueueService:
         request_data: dict,
         user_id: str,
         is_stream: bool = False,
-    ) -> str:
-        """Enqueue a job. Returns job_id. Raises QueueFullError if queue is full."""
+    ) -> tuple[str, int]:
+        """Enqueue a job. Returns (job_id, queue_position). Raises QueueFullError if queue is full."""
         job_id = f"job_{uuid.uuid4().hex[:12]}"
         r = await self._get_redis()
         now = time.time()
@@ -122,6 +122,7 @@ class JobQueueService:
         pipe.rpush("job_queue:pending", job_id)
         pipe.expire("job_queue:pending", self._job_ttl)
         await pipe.execute()
+        queue_position = await r.llen("job_queue:pending")
         try:
             self._queue.put_nowait(job_id)
         except asyncio.QueueFull:
@@ -129,7 +130,7 @@ class JobQueueService:
             await r.delete(f"job:{job_id}:meta")
             raise QueueFullError("Server is busy. Please try again shortly.")
         logger.info(f"JobQueue: enqueued {job_id} (stream={is_stream}, user={user_id})")
-        return job_id
+        return job_id, queue_position
 
     async def get_job(self, job_id: str) -> Optional[dict]:
         r = await self._get_redis()

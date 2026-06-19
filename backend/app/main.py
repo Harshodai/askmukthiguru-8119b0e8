@@ -768,7 +768,7 @@ async def chat_endpoint(
         user_dict = {"id": user.get("id", "anonymous")} if user else {"id": "anonymous"}
         request_data = {"chat_body": chat_body_dict, "user": user_dict, "is_benchmark": False}
         try:
-            job_id = await container.job_queue.enqueue(
+            job_id, queue_pos = await container.job_queue.enqueue(
                 request_data, user.get("id", "anonymous"), is_stream=False
             )
         except QueueFullError:
@@ -797,6 +797,7 @@ async def chat_endpoint(
             content={
                 "job_id": job_id,
                 "status": "queued",
+                "queue_position": queue_pos,
                 "poll_url": f"/api/jobs/{job_id}",
             },
         )
@@ -835,7 +836,7 @@ async def chat_stream_endpoint(
         user_dict = {"id": user.get("id", "anonymous")} if user else {"id": "anonymous"}
         request_data = {"chat_body": chat_body_dict, "user": user_dict, "is_benchmark": False}
         try:
-            job_id = await container.job_queue.enqueue(
+            job_id, queue_pos = await container.job_queue.enqueue(
                 request_data, user.get("id", "anonymous"), is_stream=True
             )
         except QueueFullError:
@@ -852,6 +853,7 @@ async def chat_stream_endpoint(
             content={
                 "job_id": job_id,
                 "status": "queued",
+                "queue_position": queue_pos,
                 "stream_url": f"/api/chat/stream/{job_id}",
             },
         )
