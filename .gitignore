@@ -147,3 +147,4 @@ backend/services/model_failover.py
 # Understand Anything outputs and caches
 .understand-anything/
 !.understand-anything/.understandignore
+supabase/functions/.env
