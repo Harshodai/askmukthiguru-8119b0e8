@@ -62,7 +62,6 @@ class MemoryService:
                 self._supabase.rpc(
                     "match_user_memories",
                     {
-                        "p_user_id": user_id,
                         "p_query_embedding": query_embedding,
                         "p_k": limit,
                         "p_min_sim": min_similarity,
@@ -305,7 +304,7 @@ class MemoryService:
                 f"{len(extracted.episodic_memories)} episodic, summary={bool(extracted.session_summary)}"
             )
         except Exception as e:
-            logger.warning(f"Memory extraction via Instructor failed: {e}. Falling back to default empty memory.")
+            logger.warning(f"Memory extraction failed: {e}. Falling back to default empty memory.")
             # Default empty memory structure
             extracted = MemoryExtraction(core_memories=[], episodic_memories=[], session_summary="Conversation session completed.")
 

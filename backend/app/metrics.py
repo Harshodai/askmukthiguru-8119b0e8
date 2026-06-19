@@ -173,6 +173,187 @@ CACHE_HIT_RATIO = Gauge(
 )
 
 # ===================================================================
+# P90/P99 Hybrid Search Metrics (Phase 1.1)
+# ===================================================================
+
+SEARCH_PATH_TOTAL = Counter(
+    "guru_search_path_total",
+    "Requests routed to each search path",
+    ["path"],  # p90, p99
+)
+
+SEARCH_LATENCY_MS = Histogram(
+    "guru_search_latency_ms",
+    "Search latency per path in ms",
+    ["path"],  # p90, p99
+    buckets=[5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
+)
+
+# ===================================================================
+# Node Error / Fallback Metrics (Phase 2.2)
+# ===================================================================
+
+NODE_ERROR_TOTAL = Counter(
+    "guru_node_error_total",
+    "Node execution errors by node name",
+    ["node"],
+)
+
+NODE_FALLBACK_TOTAL = Counter(
+    "guru_node_fallback_total",
+    "Node fallback activations by node name",
+    ["node"],
+)
+
+# ===================================================================
+# Embedding Cache Metrics (Phase 1.3)
+# ===================================================================
+
+EMBEDDING_CACHE_OPS = Counter(
+    "guru_embedding_cache_ops_total",
+    "Embedding cache operations by result",
+    ["result"],  # hit, miss
+)
+
+EMBEDDING_CACHE_SIZE = Gauge(
+    "guru_embedding_cache_size",
+    "Current size of the embedding LRU cache",
+)
+
+# ===================================================================
+# Dependency Health Metrics (Phase 2.4)
+# ===================================================================
+
+DEPENDENCY_HEALTH = Gauge(
+    "guru_dependency_health",
+    "Dependency health status (0=unhealthy, 1=healthy)",
+    ["name"],  # qdrant, redis, supabase, openrouter, sarvam
+)
+
+DEPENDENCY_PHI = Gauge(
+    "guru_dependency_phi",
+    "Dependency φ-Accural failure detector value",
+    ["name"],
+)
+
+# ===================================================================
+# Context Compression Metrics (Phase 3.2)
+# ===================================================================
+
+CONTEXT_COMPRESSION_RATIO = Histogram(
+    "guru_context_compression_ratio",
+    "Context compression ratio (chunks after / chunks before)",
+    buckets=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+)
+
+# ===================================================================
+# Reranker Metrics (Phase 2.3)
+# ===================================================================
+
+RERANK_LATENCY_MS = Histogram(
+    "guru_rerank_latency_ms",
+    "Rerank latency in ms",
+    buckets=[10, 25, 50, 100, 200, 500, 1000, 2000],
+)
+
+RERANK_METHOD = Counter(
+    "guru_rerank_method",
+    "Rerank method used",
+    ["method"],  # cross, hybrid
+)
+
+RERANK_DOCS_COUNT = Histogram(
+    "guru_rerank_docs_count",
+    "Number of documents being reranked",
+    buckets=[1, 3, 5, 10, 20, 50, 100],
+)
+
+# ===================================================================
+# Node Latency Metrics (Phase 2.2)
+# ===================================================================
+
+NODE_LATENCY_MS = Histogram(
+    "guru_node_latency_ms",
+    "Node execution latency in ms",
+    ["node"],
+    buckets=[10, 25, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
+)
+
+# ===================================================================
+# Search Confidence Metrics (Phase 1.1)
+# ===================================================================
+
+SEARCH_CONFIDENCE_SCORE = Histogram(
+    "guru_search_confidence_score",
+    "Intent confidence score distribution",
+    buckets=[0.1, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95, 0.99],
+)
+
+# ===================================================================
+# Semantic Cache Metrics (Phase 1.2)
+# ===================================================================
+
+SEMANTIC_CACHE_LOOKUP_LATENCY = Histogram(
+    "guru_semantic_cache_lookup_latency",
+    "Semantic cache lookup latency in ms",
+    buckets=[1, 2, 5, 10, 20, 50, 100, 200],
+)
+
+# ===================================================================
+# Idempotency Metrics (Phase 3.3)
+# ===================================================================
+
+IDEMPOTENCY_CACHE_HIT_TOTAL = Counter(
+    "guru_idempotency_cache_hit_total",
+    "Idempotency cache hits",
+)
+
+IDEMPOTENCY_CACHE_MISS_TOTAL = Counter(
+    "guru_idempotency_cache_miss_total",
+    "Idempotency cache misses",
+)
+
+IDEMPOTENCY_KEY_COLLISIONS_TOTAL = Counter(
+    "guru_idempotency_key_collisions_total",
+    "Idempotency key collisions",
+)
+
+# ===================================================================
+# Context Compression Extras (Phase 3.2)
+# ===================================================================
+
+CONTEXT_CHUNKS_BEFORE = Gauge(
+    "guru_context_chunks_before",
+    "Chunks before compression",
+)
+
+CONTEXT_CHUNKS_AFTER = Gauge(
+    "guru_context_chunks_after",
+    "Chunks after compression",
+)
+
+CONTEXT_TOKENS_SAVED = Gauge(
+    "guru_context_tokens_saved",
+    "Tokens saved by compression",
+)
+
+# ===================================================================
+# Generation Metrics (Phase 2.1)
+# ===================================================================
+
+GENERATION_TEMPERATURE = Gauge(
+    "guru_generation_temperature",
+    "Generation temperature per strategy",
+    ["strategy"],  # fast, standard, deep
+)
+
+GENERATION_TOP_K = Gauge(
+    "guru_generation_top_k",
+    "Generation top_k per strategy",
+    ["strategy"],
+)
+
+# ===================================================================
 # Verification Metrics
 # ===================================================================
 

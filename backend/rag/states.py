@@ -189,3 +189,13 @@ class GraphState(TypedDict):
     # Evaluation trace (production AI reliability)
     # Machine-readable trajectory data for benchmarks and trace dashboards.
     evaluation_trace: Annotated[dict, add_dicts]
+
+    # Context Window Budget (Phase 3.2)
+    # Remaining token budget for generation, decremented as context is packed.
+    # Initialized from settings.context_window_total before the generation node.
+    token_budget_remaining: int
+
+    # Confidence Tier (Phase 1.1)
+    # Tier classification for P90/P99 path selection: "high" | "medium" | "low"
+    # Set by intent_router based on confidence score thresholds.
+    confidence_tier: Optional[str]

@@ -144,6 +144,55 @@ class RerankerService:
         """
         return await asyncio.to_thread(self._rerank_sync, query, documents, top_k, min_score)
 
+    def _run_cross_encoder(
+        self,
+        query: str,
+        documents: list[dict[str, Any]],
+        min_score: float,
+        start_time: float,
+    ) -> list[dict[str, Any]] | None:
+        if self._fallback_reranker is None:
+            return None
+        import gc
+        import numpy as np
+        import torch
+        gc.collect()
+        pairs = [(query, doc["text"]) for doc in documents]
+        with torch.inference_mode():
+            raw_scores = self._fallback_reranker.predict(pairs)
+
+        def _sigmoid(x):
+            return 1.0 / (1.0 + np.exp(-x))
+
+        reranked_docs = []
+        for doc, raw_score in zip(documents, raw_scores):
+            doc_copy = doc.copy()
+            score = float(_sigmoid(raw_score))
+            doc_copy["rerank_score"] = score
+            doc_copy["rerank_raw_logit"] = float(raw_score)
+            reranked_docs.append(doc_copy)
+
+        reranked_docs = sorted(reranked_docs, key=lambda d: d["rerank_score"], reverse=True)
+        duration = time.perf_counter() - start_time
+        logger.info(f"CrossEncoder reranked {len(documents)} docs in {duration:.4f}s")
+
+        above_threshold = [d for d in reranked_docs if d["rerank_score"] >= min_score]
+
+        if not above_threshold and reranked_docs:
+            above_threshold = reranked_docs[:1]
+            logger.warning(
+                f"All {len(reranked_docs)} docs scored below threshold {min_score}. "
+                f"Keeping top-1 (score={reranked_docs[0]['rerank_score']:.4f})"
+            )
+
+        filtered_count = len(reranked_docs) - len(above_threshold)
+        if filtered_count > 0:
+            logger.info(
+                f"CrossEncoder threshold {min_score}: filtered {filtered_count} docs below threshold"
+            )
+
+        return above_threshold
+
     def _rerank_sync(
         self,
         query: str,
@@ -165,45 +214,49 @@ class RerankerService:
         effective_min_score = min_score if min_score is not None else settings.rerank_min_score
         start_time = time.perf_counter()
 
+        cross_encoder_cutoff = getattr(settings, "cross_encoder_cutoff", 20)
+        use_cross_primary = len(documents) <= cross_encoder_cutoff or settings.use_cross_encoder_only
+
+        if use_cross_primary:
+            try:
+                if self._fallback_reranker is None:
+                    self._load_fallback()
+                result = self._run_cross_encoder(query, documents, effective_min_score, start_time)
+                if result is not None:
+                    return result[:top_k]
+            except Exception as e:
+                logger.error(f"CrossEncoder primary failed, falling back to FlashRank: {e}")
+
         if not self._is_fallback and self._ranker is not None:
             try:
                 from flashrank import RerankRequest
 
-                # Format passages for FlashRank: [{"id": idx, "text": doc["text"]}]
-                # Store the original docs mapped by index to preserve all original metadata (metadata, ids, etc.)
                 passages = []
                 for idx, doc in enumerate(documents):
                     passages.append({"id": idx, "text": doc.get("text", "")})
 
                 rerank_request = RerankRequest(query=query, passages=passages)
 
-                # FlashRank returns a list of dictionaries with 'id', 'text', 'score' ordered by score descending
                 results = self._ranker.rerank(rerank_request)
 
-                # Reconstruct and score documents
                 reranked_docs = []
                 for result in results:
                     orig_idx = int(result["id"])
                     orig_doc = documents[orig_idx].copy()
 
-                    # FlashRank scores are in range [0, 1]
                     score = float(result["score"])
                     orig_doc["rerank_score"] = score
-                    orig_doc["rerank_raw_logit"] = (
-                        score  # FlashRank does not expose logits directly, so use score
-                    )
+                    orig_doc["rerank_raw_logit"] = score
                     reranked_docs.append(orig_doc)
 
                 duration = time.perf_counter() - start_time
                 logger.info(f"FlashRank reranked {len(documents)} docs in {duration:.4f}s")
 
-                # Filter by threshold
                 above_threshold = [
                     d for d in reranked_docs if d["rerank_score"] >= effective_min_score
                 ]
 
                 if not above_threshold and reranked_docs:
-                    # If ALL docs are below threshold, keep the top 1 as minimum fallback
                     above_threshold = reranked_docs[:1]
                     logger.warning(
                         f"All {len(reranked_docs)} docs scored below threshold {effective_min_score}. "
@@ -220,52 +273,14 @@ class RerankerService:
 
             except Exception as e:
                 logger.error(
-                    f"❌ FlashRank rerank execution failed, falling back to CrossEncoder: {e}",
+                    f"FlashRank rerank execution failed, falling back to CrossEncoder: {e}",
                     exc_info=True,
                 )
-                # Fall through to the sentence-transformers CrossEncoder fallback below
                 self._load_fallback()
 
-        # Fallback CrossEncoder execution
-        logger.info("Executing CrossEncoder fallback reranking.")
-        import gc
+        if self._fallback_reranker is not None:
+            result = self._run_cross_encoder(query, documents, effective_min_score, start_time)
+            if result is not None:
+                return result[:top_k]
 
-        import torch
-        gc.collect()
-        pairs = [(query, doc["text"]) for doc in documents]
-        with torch.inference_mode():
-            raw_scores = self._fallback_reranker.predict(pairs)
-
-        import numpy as np
-
-        def _sigmoid(x):
-            return 1.0 / (1.0 + np.exp(-x))
-
-        reranked_docs = []
-        for doc, raw_score in zip(documents, raw_scores):
-            doc_copy = doc.copy()
-            score = float(_sigmoid(raw_score))
-            doc_copy["rerank_score"] = score
-            doc_copy["rerank_raw_logit"] = float(raw_score)
-            reranked_docs.append(doc_copy)
-
-        reranked_docs = sorted(reranked_docs, key=lambda d: d["rerank_score"], reverse=True)
-        duration = time.perf_counter() - start_time
-        logger.info(f"CrossEncoder fallback reranked {len(documents)} docs in {duration:.4f}s")
-
-        above_threshold = [d for d in reranked_docs if d["rerank_score"] >= effective_min_score]
-
-        if not above_threshold and reranked_docs:
-            above_threshold = reranked_docs[:1]
-            logger.warning(
-                f"All {len(reranked_docs)} docs scored below threshold {effective_min_score}. "
-                f"Keeping top-1 (score={reranked_docs[0]['rerank_score']:.4f})"
-            )
-
-        filtered_count = len(reranked_docs) - len(above_threshold)
-        if filtered_count > 0:
-            logger.info(
-                f"Fallback CrossEncoder threshold {effective_min_score}: filtered {filtered_count} docs below threshold"
-            )
-
-        return above_threshold[:top_k]
+        return []

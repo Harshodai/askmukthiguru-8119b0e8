@@ -97,6 +97,7 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": "FACTUAL",
             "query_tier": query_tier,
+            "confidence_tier": "medium",
             "needs_web_search": needs_web_search,
             "evaluation_trace": _trace_update(
                 state, intent="FACTUAL", query_tier=query_tier,
@@ -117,11 +118,17 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # Pre-classified intent: pipeline_coordinator already ran on-device classifier
     pre_intent = state.get("intent")
     if pre_intent:
+        _qt = state.get("query_tier", "tier2_simple")
         return {
             "intent": pre_intent,
-            "query_tier": state.get("query_tier", "tier2_simple"),
+            "query_tier": _qt,
+            "confidence_tier": (
+                "high" if _qt in ("tier2_simple", "fast") and pre_intent != "CASUAL"
+                else "low" if _qt == "tier3_complex"
+                else "medium"
+            ),
             "evaluation_trace": _trace_update(
-                state, intent=pre_intent, query_tier=state.get("query_tier", "tier2_simple"),
+                state, intent=pre_intent, query_tier=_qt,
                 routing_reason="pre_classified_from_pipeline_coordinator"
             ),
         }
@@ -153,6 +160,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 return {
                     "intent": "DISTRESS",
                     "query_tier": "tier2_simple",
+                    "confidence_tier": "high",
                     "evaluation_trace": _trace_update(
                         state, intent="DISTRESS", query_tier="tier2_simple",
                         routing_reason="serene_mind_keyword_distress",
@@ -172,6 +180,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": "FACTUAL",
             "query_tier": "tier3_complex",
+            "confidence_tier": "low",
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
                 state, intent="FACTUAL", query_tier="tier3_complex",
@@ -190,6 +199,10 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": mapped_intent,
             "query_tier": query_tier,
+            "confidence_tier": (
+                "high" if mapped_intent != "CASUAL"
+                else "medium"
+            ),
             "evaluation_trace": _trace_update(
                 state, intent=mapped_intent, query_tier=query_tier,
                 routing_reason="regex_prerouter"
@@ -223,6 +236,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 return {
                     "intent": mapped_intent,
                     "query_tier": query_tier,
+                    "confidence_tier": (
+                        "high" if query_tier in ("tier2_simple", "fast") and mapped_intent != "CASUAL"
+                        else "low" if query_tier == "tier3_complex"
+                        else "medium"
+                    ),
                     "needs_web_search": needs_web,
                     "evaluation_trace": _trace_update(
                         state,
@@ -241,6 +259,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
+            "confidence_tier": "high",
             "evaluation_trace": _trace_update(
                 state, intent="FACTUAL", query_tier="tier2_simple",
                 routing_reason="heuristic_capability"
@@ -254,6 +273,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": "FACTUAL",
                 "query_tier": "tier2_simple",
+                "confidence_tier": "high",
                 "evaluation_trace": _trace_update(
                     state, intent="FACTUAL", query_tier="tier2_simple",
                     routing_reason="heuristic_simple"
@@ -274,6 +294,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": cached_intent,
                 "query_tier": tier,
+                "confidence_tier": (
+                    "high" if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
+                    else "low" if tier == "tier3_complex"
+                    else "medium"
+                ),
                 "evaluation_trace": _trace_update(
                     state, intent=cached_intent, query_tier=tier,
                     routing_reason="cache_hit"
@@ -282,6 +307,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": cached_intent,
             "query_tier": tier,
+            "confidence_tier": (
+                "high" if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
+                else "low" if tier == "tier3_complex"
+                else "medium"
+            ),
             "evaluation_trace": _trace_update(
                 state, intent=cached_intent, query_tier=tier,
                 routing_reason="cache_hit"
@@ -300,6 +330,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": intent,
                 "query_tier": tier,
+                "confidence_tier": (
+                    "high" if tier in ("tier2_simple", "fast") and intent != "CASUAL"
+                    else "low" if tier == "tier3_complex"
+                    else "medium"
+                ),
                 "evaluation_trace": _trace_update(
                     state, intent=intent, query_tier=tier,
                     routing_reason=routing_reason
@@ -372,6 +407,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     return {
         "intent": intent,
         "query_tier": query_tier,
+        "confidence_tier": (
+            "high" if query_tier in ("tier2_simple", "fast") and intent != "CASUAL"
+            else "low" if query_tier == "tier3_complex"
+            else "medium"
+        ),
         "evaluation_trace": _trace_update(
             state, intent=intent, query_tier=query_tier, routing_reason="classifier"
         ),
@@ -403,6 +443,7 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
+            "confidence_tier": "high",
             "evaluation_trace": state.get("evaluation_trace", []) + [{
                 "node": "handle_casual",
                 "result": "redirected_to_factual",

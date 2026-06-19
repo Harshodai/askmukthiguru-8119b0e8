@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from services.user_profile_service import LanguagePreference, SpiritualLevel
 
 
 class MessagePayload(BaseModel):
@@ -16,7 +18,7 @@ class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
 
     messages: list[MessagePayload] = Field(..., description="Conversation history")
-    user_message: str = Field(..., description="Current user message")
+    user_message: str = Field(..., min_length=1, max_length=10000, description="Current user message")
     session_id: Optional[str] = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
     language: Optional[str] = Field(default="en", description="Preferred language")
@@ -24,6 +26,33 @@ class ChatRequest(BaseModel):
         default=None,
         description="Unix timestamp of the user's last completed Serene Mind session (client-reported)",
     )
+
+
+class ProfileUpdate(BaseModel):
+    """Schema for updating user profile."""
+
+    preferred_language: Optional[str] = Field(None, description="Preferred language code")
+    spiritual_level: Optional[str] = Field(None, description="Spiritual level")
+    topics_of_interest: Optional[list[str]] = Field(None, description="Topics the user is interested in")
+    codemix_preference: Optional[bool] = Field(None, description="Prefer code-mixed responses")
+
+    @field_validator("preferred_language")
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid = {m.value for m in LanguagePreference}
+            if v not in valid:
+                raise ValueError(f"Must be one of {valid}")
+        return v
+
+    @field_validator("spiritual_level")
+    @classmethod
+    def validate_spiritual_level(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            valid = {m.value for m in SpiritualLevel}
+            if v not in valid:
+                raise ValueError(f"Must be one of {valid}")
+        return v
 
 
 class ChatResponse(BaseModel):

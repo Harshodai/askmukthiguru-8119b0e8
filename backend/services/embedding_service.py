@@ -49,9 +49,12 @@ class EmbeddingService:
         # REQUIRED for multilingual-e5-large-instruct
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
         # Embedding cache to avoid redundant encodes
+        from app.config import settings
+        from app.metrics import EMBEDDING_CACHE_OPS, EMBEDDING_CACHE_SIZE
         from services.cache_service import EmbeddingCache
 
-        self._embed_cache = EmbeddingCache(max_size=1000)
+        self._embed_cache = EmbeddingCache(max_size=settings.embedding_cache_size)
+        EMBEDDING_CACHE_SIZE.set(self._embed_cache.max_size)
         logger.info("Embedding service initialized (lazy load)")
 
     def _thread_setup(self) -> None:

@@ -422,15 +422,36 @@ def _generation_kwargs(state: GraphState) -> dict:
     intent = state.get("intent", "FACTUAL")
     query_tier = state.get("query_tier")
 
+    base = {}
     if intent == "DISTRESS":
-        return {"num_predict": 2048}
+        base["num_predict"] = 2048
+    elif query_tier in ("fast", "tier2_simple"):
+        base["num_predict"] = 512
+    elif intent in {"FACTUAL", "QUERY"}:
+        base["num_predict"] = 1024
+    elif intent in {"RELATIONAL", "ADVERSARIAL"}:
+        base["num_predict"] = 768
+    else:
+        base["num_predict"] = 768
+
+    # Temperature per graph mode (Phase 2.1)
     if query_tier in ("fast", "tier2_simple"):
-        return {"num_predict": 512}
-    if intent in {"FACTUAL", "QUERY"}:
-        return {"num_predict": 1024}
-    if intent in {"RELATIONAL", "ADVERSARIAL"}:
-        return {"num_predict": 768}
-    return {"num_predict": 768}
+        base["temperature"] = settings.generation_temp_fast
+    elif query_tier in ("deep", "tier3_complex"):
+        base["temperature"] = settings.generation_temp_deep
+    else:
+        base["temperature"] = settings.generation_temp_standard
+
+    # Record generation metrics (Phase 2.1)
+    try:
+        from app.metrics import GENERATION_TEMPERATURE, GENERATION_TOP_K
+        tier_label = "fast" if query_tier in ("fast", "tier2_simple") else "deep" if query_tier in ("deep", "tier3_complex") else "standard"
+        GENERATION_TEMPERATURE.labels(strategy=tier_label).set(base.get("temperature", 0.7))
+        GENERATION_TOP_K.labels(strategy=tier_label).set(base.get("num_predict", 1024))
+    except Exception:
+        pass
+
+    return base
 
 
 def select_llm_model(query: str, context_len: int) -> str:
@@ -551,18 +572,46 @@ def enforce_source_diversity(citations: list[dict | str], min_distinct: int = 2)
 
 
 def log_metrics(func):
-    """Decorator to log execution time of nodes and record into GraphState.node_timings."""
+    """Decorator to log execution time of nodes and record into GraphState.node_timings.
+
+    Also implements per-node error boundaries (Phase 2.2): if a node raises,
+    the error is caught, logged, and a fallback result is returned instead of
+    crashing the entire pipeline.
+    """
 
     @functools.wraps(func)
     async def wrapper(state: GraphState, *args, **kwargs):
         start = time.time()
-        result = await func(state, *args, **kwargs)
-        duration = time.time() - start
-        duration_ms = round(duration * 1000, 1)
-
         node_name = func.__name__
         request_id = state.get("request_id")
         log_extra = {"request_id": request_id} if request_id else {}
+
+        try:
+            result = await func(state, *args, **kwargs)
+        except Exception as e:
+            duration = time.time() - start
+            duration_ms = round(duration * 1000, 1)
+            logger.error(
+                f"Node '{node_name}' failed after {duration:.4f}s ({duration_ms}ms): {e}",
+                extra=log_extra,
+                exc_info=True,
+            )
+            from app.metrics import NODE_ERROR_TOTAL, NODE_FALLBACK_TOTAL
+            try:
+                NODE_ERROR_TOTAL.labels(node=node_name).inc()
+                NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
+            except Exception:
+                pass
+            return {
+                "error": str(e),
+                "node": node_name,
+                "fallback": True,
+                "node_timings": {node_name: duration_ms},
+            }
+
+        duration = time.time() - start
+        duration_ms = round(duration * 1000, 1)
+
         logger.info(
             f"Node '{node_name}' finished in {duration:.4f}s ({duration_ms}ms)", extra=log_extra
         )

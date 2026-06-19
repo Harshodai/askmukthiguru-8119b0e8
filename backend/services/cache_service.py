@@ -70,6 +70,10 @@ class EmbeddingCache:
         self._cache[key] = embedding
 
     @property
+    def max_size(self) -> int:
+        return self._max_size
+
+    @property
     def stats(self) -> dict:
         total = self._hits + self._misses
         return {

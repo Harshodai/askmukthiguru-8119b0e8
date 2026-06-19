@@ -111,6 +111,7 @@ from app.api.endpoints.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.cache_metrics import router as cache_metrics_router
 from app.core.limiter import limiter
+from app.sanitization import sanitize_user_input
 from routers.admin import admin_router
 from routers.feedback import router as feedback_router
 
@@ -410,10 +411,43 @@ class SecurityHeadersMiddleware:
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Auth endpoint rate limiter middleware — tight limits on login/reset/register
+_AUTH_LIMIT_PATHS: frozenset[str] = frozenset({
+    "/api/auth/jwt/login",
+    "/api/auth/register",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+})
+
+
+@app.middleware("http")
+async def auth_rate_limit_middleware(request: Request, call_next):
+    if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
+        client_ip = request.client.host if request.client else "unknown"
+        # Simple in-memory sliding-window limiter: 5 POST/min per auth endpoint
+        now = time.time()
+        key = f"auth_rl:{request.url.path}:{client_ip}"
+        timestamps = getattr(app.state, key, [])
+        timestamps = [t for t in timestamps if now - t < 60.0]
+        if len(timestamps) >= 5:
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Too Many Requests", "message": "Auth rate limit exceeded. Try again later."},
+            )
+        timestamps.append(now)
+        setattr(app.state, key, timestamps)
+    return await call_next(request)
+
+
 # Token-bucket rate limiter for /api/chat
 from app.middleware.rate_limit import TokenBucketMiddleware
 
 app.add_middleware(TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60)
+
+# Idempotency middleware for mutating endpoints (Phase 3.3)
+from app.middleware.idempotency import IdempotencyMiddleware
+
+app.add_middleware(IdempotencyMiddleware, redis_url=settings.redis_url)
 
 
 # In-flight tracker middleware for graceful drain (R3)
@@ -584,7 +618,7 @@ def _cache_language_key(message: str, language: str) -> str:
 # === Request/Response DTOs ===
 
 
-from app.schemas import ChatRequest, ChatResponse
+from app.schemas import ChatRequest, ChatResponse, ProfileUpdate
 
 
 class IngestRequest(BaseModel):
@@ -702,6 +736,8 @@ async def chat_endpoint(
 
     Delegates to ChatRequestOrchestrator.
     """
+    chat_body.user_message = sanitize_user_input(chat_body.user_message)
+
     from app.orchestrator import ChatRequestOrchestrator
 
     orchestrator = ChatRequestOrchestrator(container)
@@ -723,6 +759,7 @@ async def chat_stream_endpoint(
 
     Delegates to ChatStreamRequestOrchestrator.
     """
+    chat_body.user_message = sanitize_user_input(chat_body.user_message)
     from app.stream_orchestrator import ChatStreamRequestOrchestrator
 
     orchestrator = ChatStreamRequestOrchestrator(container)
@@ -848,7 +885,7 @@ async def get_breath_teaching(
 
 
 class SpeechTTSRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=5000)
     target_language_code: str
     speaker: Optional[str] = None
 
@@ -1141,7 +1178,7 @@ async def get_profile_endpoint(
 
 @app.put("/api/profile", tags=["Profile"])
 async def update_profile_endpoint(
-    profile_data: dict,
+    profile_data: ProfileUpdate,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ):
@@ -1149,27 +1186,16 @@ async def update_profile_endpoint(
     if not container.user_profile:
         raise HTTPException(status_code=501, detail="User profile service not enabled")
 
-    # Load current profile
     profile = await container.user_profile.get_or_create_profile(user["id"])
 
-    # Update allowed fields
-    if "preferred_language" in profile_data:
-        try:
-            profile.preferred_language = LanguagePreference(profile_data["preferred_language"])
-        except ValueError:
-            pass
-
-    if "spiritual_level" in profile_data:
-        try:
-            profile.spiritual_level = SpiritualLevel(profile_data["spiritual_level"])
-        except ValueError:
-            pass
-
-    if "topics_of_interest" in profile_data:
-        profile.topics_of_interest = profile_data["topics_of_interest"]
-
-    if "codemix_preference" in profile_data:
-        profile.codemix_preference = bool(profile_data["codemix_preference"])
+    if profile_data.preferred_language is not None:
+        profile.preferred_language = LanguagePreference(profile_data.preferred_language)
+    if profile_data.spiritual_level is not None:
+        profile.spiritual_level = SpiritualLevel(profile_data.spiritual_level)
+    if profile_data.topics_of_interest is not None:
+        profile.topics_of_interest = profile_data.topics_of_interest
+    if profile_data.codemix_preference is not None:
+        profile.codemix_preference = profile_data.codemix_preference
 
     await container.user_profile.update_profile(profile)
     return asdict(profile)
