@@ -35,6 +35,7 @@ from app.telemetry_db import (
     get_trigger_trend,
 )
 from services.auth_service import get_current_user_from_supabase
+from app.dependencies import get_container, ServiceContainer
 
 admin_router = APIRouter(
     tags=["admin"],
@@ -551,4 +552,19 @@ async def preview_ab_assignment(
         "is_control": result.is_control,
         "assignment_hash": result.assignment_hash,
     }
+
+
+@admin_router.get("/queue")
+async def list_queue_jobs(
+    limit: int = Query(100, ge=1, le=500),
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+):
+    """List all active/queued jobs for admin queue monitor."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    if not container.job_queue:
+        return {"jobs": [], "queue_enabled": False}
+    jobs = await container.job_queue.list_jobs(limit=limit)
+    return {"jobs": jobs, "queue_enabled": True, "total": len(jobs)}
 

@@ -44,6 +44,7 @@ const AlertsPage = lazy(() => import("./admin/pages/AlertsPage"));
 const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
 const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
 const FeedbackPage = lazy(() => import("./admin/pages/FeedbackPage"));
+const JobsPage = lazy(() => import("./admin/pages/JobsPage"));
 
 const queryClient = new QueryClient();
 
@@ -85,6 +86,7 @@ const App = () => {
               <Route path="topics" element={<TopicsPage />} />
               <Route path="prompts" element={<PromptsPage />} />
               <Route path="evals" element={<EvalsPage />} />
+              <Route path="queue" element={<JobsPage />} />
               <Route path="ingestion" element={<IngestionPage />} />
               <Route path="logs" element={<LogsPage />} />
               <Route path="telemetry" element={<TelemetryPage />} />

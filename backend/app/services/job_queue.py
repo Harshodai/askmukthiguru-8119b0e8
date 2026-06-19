@@ -150,6 +150,33 @@ class JobQueueService:
             "error": error_raw,
         }
 
+    async def list_jobs(self, limit: int = 100) -> list[dict]:
+        """List all active (non-expired) jobs. Returns most recent first."""
+        r = await self._get_redis()
+        pending_ids = await r.lrange("job_queue:pending", 0, -1)
+        pending_set = set(pending_ids)
+        cursor = 0
+        jobs: list[dict] = []
+        while True:
+            cursor, keys = await r.scan(cursor, match="job:*:meta", count=200)
+            for key in keys:
+                job_id = key.replace("job:", "").replace(":meta", "")
+                meta = await r.hgetall(key)
+                if meta:
+                    jobs.append({
+                        "job_id": job_id,
+                        "status": meta.get("status", "unknown"),
+                        "user_id": meta.get("user_id", ""),
+                        "created_at": float(meta.get("created_at", 0)),
+                        "is_stream": meta.get("is_stream") == "1",
+                        "queue_position": (pending_ids.index(job_id) + 1)
+                            if job_id in pending_set else None,
+                    })
+            if not cursor:
+                break
+        jobs.sort(key=lambda j: j["created_at"], reverse=True)
+        return jobs[:limit]
+
     async def cancel_job(self, job_id: str) -> bool:
         r = await self._get_redis()
         meta = await r.hgetall(f"job:{job_id}:meta")
