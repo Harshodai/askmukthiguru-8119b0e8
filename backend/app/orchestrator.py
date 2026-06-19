@@ -142,3 +142,133 @@ class ChatRequestOrchestrator:
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-fatal): {e}")
+
+
+# ── Job Queue Worker Factory ─────────────────────────────────────────────
+
+
+async def queue_worker_factory(
+    request_data: dict,
+    is_stream: bool,
+    job_id: str,
+) -> dict:
+    """Called by JobQueueService workers to execute pipeline jobs.
+
+    Reconstructs orchestrator state from serialized request_data.
+    """
+    from app.dependencies import get_container
+    from app.schemas import ChatRequest
+    container = get_container()
+    user = request_data.get("user", {})
+    chat_body = ChatRequest(**request_data.get("chat_body", {}))
+
+    if is_stream:
+        from app.stream_orchestrator import ChatStreamRequestOrchestrator
+        orch = ChatStreamRequestOrchestrator(container)
+        stream_queue: asyncio.Queue = asyncio.Queue()
+        pipeline_task = asyncio.create_task(
+            orch.coordinator.execute(
+                user_msg=chat_body.user_message.strip(),
+                preferred_lang=chat_body.language or "en",
+                chat_body=chat_body,
+                meditation_step=chat_body.meditation_step,
+                session_id=chat_body.session_id,
+                user=user,
+                is_benchmark=False,
+                stream_queue=stream_queue,
+            )
+        )
+        drain_task = asyncio.create_task(
+            _drain_stream_to_redis(stream_queue, pipeline_task, job_id, container)
+        )
+        try:
+            await pipeline_task
+        except Exception:
+            pass
+        await drain_task
+        return {"job_id": job_id, "status": "streamed"}
+
+    orch = ChatRequestOrchestrator(container)
+    try:
+        from unittest.mock import MagicMock
+        fake_request = MagicMock()
+        fake_request.headers.get.return_value = None
+        from fastapi import BackgroundTasks
+        fake_bg = BackgroundTasks()
+        response = await orch.orchestrate(fake_request, chat_body, fake_bg, user)
+        await fake_bg()
+        return _response_to_dict(response)
+    except HTTPException as exc:
+        return {"error": exc.detail, "status_code": exc.status_code}
+    except Exception as exc:
+        logger.error(f"Queue worker: job {job_id} failed: {exc}")
+        return {"error": str(exc)}
+
+
+async def _drain_stream_to_redis(
+    stream_queue: asyncio.Queue,
+    pipeline_task: asyncio.Task,
+    job_id: str,
+    container: ServiceContainer,
+) -> None:
+    """Drain SSE events from stream_queue into Redis Stream, best-effort."""
+    try:
+        import json
+        r = None
+        if container.job_queue:
+            import redis.asyncio as aioredis
+            r = aioredis.from_url(settings.redis_url, decode_responses=True)
+        stream_key = f"job:stream:{job_id}:events"
+        HEARTBEAT_INTERVAL = 5.0
+        while True:
+            if pipeline_task.done() and stream_queue.empty():
+                break
+            try:
+                if pipeline_task.done():
+                    item = stream_queue.get_nowait()
+                else:
+                    get_task = asyncio.create_task(stream_queue.get())
+                    heartbeat = asyncio.create_task(asyncio.sleep(HEARTBEAT_INTERVAL))
+                    done, pending = await asyncio.wait(
+                        [pipeline_task, get_task, heartbeat],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    if get_task in done:
+                        heartbeat.cancel()
+                        item = get_task.result()
+                    else:
+                        get_task.cancel()
+                        heartbeat.cancel()
+                        try:
+                            await get_task
+                        except asyncio.CancelledError:
+                            pass
+                        if stream_queue.empty():
+                            break
+                        item = stream_queue.get_nowait()
+            except (asyncio.QueueEmpty, ValueError):
+                break
+            if r:
+                payload = json.dumps(item, default=str) if isinstance(item, dict) else item
+                try:
+                    await r.xadd(stream_key, {"data": payload}, maxlen=1000)
+                except Exception:
+                    pass
+        if r:
+            await r.xadd(stream_key, {"data": "__COMPLETE__"}, maxlen=1000)
+            await r.expire(stream_key, 600)
+            await r.aclose()
+    except Exception as exc:
+        logger.warning(f"Stream drain failed for {job_id}: {exc}")
+
+
+def _response_to_dict(response) -> dict:
+    """Convert ChatResponse to a JSON-serializable dict."""
+    import dataclasses
+    if hasattr(response, "model_dump"):
+        return response.model_dump()
+    if hasattr(response, "dict"):
+        return response.dict()
+    if dataclasses.is_dataclass(response):
+        return dataclasses.asdict(response)
+    return {"response": str(response)}

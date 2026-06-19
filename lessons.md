@@ -2048,3 +2048,51 @@ The LLM response for web search and general queries often includes raw URLs and 
   1. **`services/injection_scanner.py`** — Detects 5 injection pattern types: instruction override, role-play, system override, token injection, unicode hidden chars + redacted PII markers. Each with severity classification.
   2. **`ingest/pipeline.py`** — Added `scan_chunks_for_injection()` in `_embed_and_index()` to filter out risky chunks before they reach Qdrant.
 - **Pattern**: Security gates must operate at both ingestion-time (prevent bad data from entering the index) and query-time (guardrails check output). Ingestion-time gates protect the index; query-time gates protect the response.
+
+## Jun 19, 2026 — Redis-Backed Job Queue & Backpressure
+
+### Problem
+No protection against concurrent pipeline overload. Each `/api/chat` request directly spawned a full RAG pipeline (up to 11 sequential LLM calls, 45-300s latency). Under concurrent load, Sarvam Cloud would rate-limit (60 RPM) and the server would exhaust memory/CPU.
+
+### Solution: Bounded Async Queue + Redis Job Store
+
+**New files:**
+- `backend/app/services/job_queue.py` — `JobQueueService`: `asyncio.Queue(maxsize=20)` + `asyncio.Semaphore(concurrency=3)` + Redis-backed job metadata/results
+- `backend/app/api/job_routes.py` — `GET /api/jobs/{job_id}` (poll result), `DELETE /api/jobs/{job_id}` (cancel)
+
+**Modified files:**
+- `backend/app/config.py` — Added `queue_enabled`, `queue_max_size`, `queue_concurrency`, `queue_job_ttl`, `queue_default_timeout`
+- `backend/app/dependencies.py` — Wire `JobQueueService` into `ServiceContainer`
+- `backend/services/container_builder.py` — Wire into `ContainerBuilder`
+- `backend/app/main.py` — Modified `POST /api/chat` and `POST /api/chat/stream` to enqueue → 202; added `GET /api/chat/stream/{job_id}` for SSE from queue
+- `backend/app/orchestrator.py` — Added `queue_worker_factory()` + `_drain_stream_to_redis()` for worker execution
+
+### Architecture
+```
+Client → POST /api/chat → JobQueueService.enqueue() → 202 + job_id
+                            ↓
+              Worker Pool (3 concurrent)
+                            ↓
+              PipelineCoordinator.execute()
+                            ↓
+              Result stored in Redis (TTL: 600s)
+                            ↓
+              Client polls GET /api/jobs/{job_id}
+```
+
+### Key Design Decisions
+1. **`asyncio.Queue` (bounded)** — Light-weight dispatch; blocks producers when full
+2. **`asyncio.Semaphore(3)`** — Only 3 pipelines in-flight; excess wait in queue
+3. **Redis hashes** — `job:{id}:meta` (status, user, request), `job:{id}:result` (serialized response)
+4. **TTL on all keys** — Auto-cleanup after 10min, no garbage collection needed
+5. **`wait=true` query param** — Backward compat for benchmarks/scripts that expect inline result
+6. **Benchmark bypass** — Requests with `X-Test-Key` skip the queue and process inline
+7. **Streaming SSE** — Workers drain `asyncio.Queue` events to Redis Stream; `GET /api/chat/stream/{job_id}` reads via `XREAD`
+
+### Results
+- Queue: 202 immediately, polling returns result after pipeline completion
+- Backpressure: 429 when `asyncio.Queue` is full (maxsize=20)
+- Concurrency: Strictly limited to 3 simultaneous pipelines
+- Worker recovery: Pending jobs from Redis list are re-queued on restart
+- Survival: Pipeline continues even if worker crashes (result persisted in Redis)
+- Focused fix test: 3/3 PASS

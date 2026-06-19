@@ -166,6 +166,18 @@ class ServiceContainer:
             logger.warning(f"Failed to initialize semantic cache: {exc}. Continuing without semantic caching.")
             self.semantic_cache = None
 
+        # Layer 4b.5: Job Queue (Redis-backed)
+        if settings.queue_enabled:
+            from app.services.job_queue import JobQueueService
+            self.job_queue = JobQueueService(
+                redis_url=settings.redis_url,
+                max_queue=settings.queue_max_size,
+                max_concurrency=settings.queue_concurrency,
+                job_ttl=settings.queue_job_ttl,
+            )
+        else:
+            self.job_queue = None
+
         # Layer 4c: Language Router (no dependencies)
         self.language_router = LanguageRouter()
 
