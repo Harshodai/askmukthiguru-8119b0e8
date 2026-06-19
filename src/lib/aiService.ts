@@ -297,6 +297,42 @@ export async function* sendMessageStreaming(
     }
   }
 
+  // Queue integration: 202 Accepted → connect to job SSE stream
+  if (response.status === 202) {
+    const jobData = await response.json();
+    const jobId = jobData.job_id;
+    if (!jobId) {
+      const err = new Error('Queue returned 202 but no job_id');
+      (err as any).errorCode = 'unknown';
+      throw err;
+    }
+    const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
+    const streamUrl = jobData.stream_url || `${baseUrl}/api/chat/stream/${jobId}`;
+    response = await fetch(streamUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/event-stream',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal,
+    });
+    if (!response.ok || !response.body) {
+      let errorDetail = `Job stream failed: ${response.status}`;
+      try {
+        const errorData = await response.clone().json();
+        if (errorData?.detail) {
+          errorDetail += ` - ${errorData.detail}`;
+        }
+      } catch {
+        // Ignore JSON parse errors
+      }
+      const err = new Error(errorDetail);
+      (err as any).status = response.status;
+      (err as any).errorCode = httpStatusToErrorCode(response.status);
+      throw err;
+    }
+  }
+
   if (!response.ok || !response.body) {
     let errorDetail = `Streaming failed: ${response.status}`;
     try {
@@ -462,6 +498,48 @@ export const sendMessage = async (
     const startMs = Date.now();
     try {
       let response = await doFetch();
+
+      // Queue integration: 202 Accepted → poll job endpoint until completed/failed
+      if (response.status === 202) {
+        const jobData = await response.json();
+        const jobId = jobData.job_id;
+        if (!jobId) {
+          return { content: '', error: 'Queue returned 202 but no job_id', errorCode: 'unknown' };
+        }
+        const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
+        const pollUrl = jobData.poll_url || `${baseUrl}/api/jobs/${jobId}`;
+        const pollStart = Date.now();
+        while (Date.now() - pollStart < 120_000) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const pollResp = await fetch(pollUrl, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (pollResp.ok) {
+              const job = await pollResp.json();
+              if (job.status === 'completed') {
+                const result = job.result;
+                await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'non-stream-queue' } });
+                return {
+                  content: result.response || result.content || '',
+                  intent: result.intent,
+                  citations: result.citations || [],
+                  meditationStep: result.meditation_step || 0,
+                  blocked: result.blocked || false,
+                  blockReason: result.block_reason,
+                  proactiveSereneMind: result.proactive_serene_mind ?? null,
+                };
+              }
+              if (job.status === 'failed') {
+                return { content: '', error: job.error || 'Job processing failed', errorCode: 'server_error' };
+              }
+            }
+          } catch {
+            // Network hiccup — keep polling
+          }
+        }
+        return { content: '', error: 'The Guru took too long to respond. Please retry your question.', errorCode: 'timeout' };
+      }
 
       if (!response.ok) {
         if (response.status === 504) {

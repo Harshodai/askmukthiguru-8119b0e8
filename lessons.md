@@ -2096,3 +2096,56 @@ Client → POST /api/chat → JobQueueService.enqueue() → 202 + job_id
 - Worker recovery: Pending jobs from Redis list are re-queued on restart
 - Survival: Pipeline continues even if worker crashes (result persisted in Redis)
 - Focused fix test: 3/3 PASS
+
+## Jun 19, 2026 — supabase/config.toml Auth Section Deleted (Google OAuth Broken)
+
+### Problem
+Google Sign-In on `/auth` was not working. `supabase.auth.signInWithOAuth({ provider: 'google' })` failed silently because GoTrue had no Google OAuth provider configuration.
+
+### Root Cause
+Commit `372ef6d9` replaced the full 104-line `supabase/config.toml` with a 7-line stub containing only function configs, stripping:
+- Entire `[auth]` section (site_url, redirect URLs, JWT settings)
+- `[auth.external.google]` — `enabled = true`, `client_id`, `secret`
+- `[auth.external.facebook]` — same
+
+### Impact
+Every OAuth flow silently failed. No error surface in frontend — just a blank redirect or spinner. Took investigation to correlate the broken OAuth with unrelated config-toml cleanup.
+
+### Fix
+1. Restored `[auth]` section with all redirect URLs, Google/Facebook provider configs
+2. Kept existing `[functions.*]` configs intact
+3. Restarted: `npx supabase stop && npx supabase start`
+
+### Task: NEVER AGAIN
+- [ ] Add a **pre-commit hook** that validates `supabase/config.toml` contains `[auth.external.google]` with `enabled = true`
+- [ ] Run `npx supabase status` after any `config.toml` change to confirm auth services are healthy
+- [ ] Search git diff for `supabase/config.toml` in every PR review before merging
+
+### Pattern
+`supabase/config.toml` is the **source of truth** for local Supabase auth. Any edit that removes `[auth]` or `[auth.external.*]` silently breaks all OAuth. There is no runtime error — GoTrue simply returns no auth options.
+
+### Never Again Rule
+**NEVER** delete or edit `[auth]` or `[auth.external.*]` sections from `supabase/config.toml` without immediately running `npx supabase restart` and verifying `GET /auth/v1/health` returns Google provider as enabled. Any config.toml cleanup must preserve the full auth section.
+
+## Jun 19, 2026 — Redis-Backed Job Queue with Frontend Polling & SSE Redirect
+
+### Backend Architecture
+- **Queue**: Redis-backed `JobQueueService` with bounded `asyncio.Queue` (max 20), concurrency Semaphore (3 workers), and full worker pool lifecycle (start on app startup, stop on shutdown).
+- **Storage**: Jobs stored in Redis hashes (`job:{id}:meta`), with pending jobs in a Redis list (`job_queue:pending`) for crash recovery. Streaming jobs write SSE events to Redis Streams (`job:stream:{id}:events`).
+- **Endpoints**:
+  - `POST /api/chat` → 202 `{job_id, poll_url}` when queue enabled; 200 direct response when queue disabled
+  - `POST /api/chat/stream` → 202 `{job_id, stream_url}` when queue enabled; SSE direct when queue disabled
+  - `GET /api/chat/stream/{job_id}` → SSE reader from Redis Stream
+  - `GET /api/jobs/{job_id}` → poll for job status/result
+  - `DELETE /api/jobs/{job_id}` → cancel queued job
+- **Worker factory**: Reconstructs orchestrator state from serialized `request_data` JSON. Streaming path uses `_drain_stream_to_redis` (reads from `asyncio.Queue` and writes to Redis Stream with heartbeat + completion marker).
+- **Config**: `queue_enabled: bool = True`, `queue_max_size: int = 20`, `queue_concurrency: int = 3`, `queue_job_ttl: int = 600`, `queue_default_timeout: int = 300` in `config.py`.
+
+### Frontend Integration (aiService.ts)
+- **Non-streaming (`sendMessage`)**: Catches 202 → parses `job_id` → polls `GET /api/jobs/{job_id}` every 2s (max 120s) → returns `AIResponse` on completion, `server_error` on failure, `timeout` on expiry.
+- **Streaming (`sendMessageStreaming`)**: Catches 202 → parses `job_id` + `stream_url` → re-fetches `GET {stream_url}` with SSE headers → overwrites `response` → existing SSE reader parses tokens/done/status events unchanged.
+- **429 handling**: Unchanged — `httpStatusToErrorCode(429)` → `'rate_limited'` flows through existing `buildMessageError` → `ChatErrorBanner` path.
+- **No UI changes needed**: Queue is transparent to `ChatInterface.tsx`. Existing loading/error states handle the delay naturally.
+
+### Pattern
+Frontend should never know about the queue. The service layer (`aiService.ts`) abstracts 202 polling and SSE redirect so the UI layer sees only the same `AIResponse` / `StreamChunk` types. Backend uses `?wait=true` for optional synchronous fallback, and config-gated `queue_enabled` for zero-risk deployment (toggle feature on/off without frontend changes).
