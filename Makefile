@@ -25,6 +25,10 @@ dev: ## Start local development servers (Backend & Frontend)
 	@chmod +x backend/start_local.sh
 	@cd backend && ./start_local.sh
 
+supabase-edge: ## Start Supabase Edge Functions runtime with env vars
+	@echo "${GREEN}Starting Edge Functions runtime...${NC}"
+	@cd supabase && (npx supabase functions serve --env-file functions/.env &)
+
 lint: ## Run Ruff linter on backend
 	@echo "${GREEN}Running linter...${NC}"
 	@cd backend && ruff check .

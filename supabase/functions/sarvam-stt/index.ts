@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     const sarvamLang = toSarvamLang(langRaw);
     const upstream = new FormData();
     upstream.append("file", file as Blob, (file as File).name || "audio.webm");
-    upstream.append("model", "saarika:v2");
+    upstream.append("model", "saarika:v2.5");
     upstream.append("language_code", sarvamLang);
     upstream.append("with_diarization", "false");
 
