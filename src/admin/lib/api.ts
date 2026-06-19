@@ -492,7 +492,7 @@ export async function listTelemetryEvents(
     offset = 0,
   } = filters;
 
-  const { data, error, count } = await supabase.functions.invoke('admin-telemetry', {
+  const { data, error } = await supabase.functions.invoke('admin-telemetry', {
     body: {
       user_id,
       session_id,
