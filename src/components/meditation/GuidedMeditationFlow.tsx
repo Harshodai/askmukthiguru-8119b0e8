@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Pause, SkipForward } from 'lucide-react';
+import { X, Play, Pause, SkipForward, RotateCcw } from 'lucide-react';
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import {
@@ -15,6 +15,41 @@ interface GuidedMeditationFlowProps {
 
 type BreathPhase = 'inhale' | 'hold' | 'exhale';
 
+// Persistence key — survives reload / accidental close.
+const RESUME_KEY = 'serene_mind_resume_v1';
+const RESUME_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
+
+interface ResumePayload {
+  sessionId: string;
+  stepIndex: number;
+  elapsed: number;
+  savedAt: number;
+}
+
+const readResume = (): ResumePayload | null => {
+  try {
+    const raw = localStorage.getItem(RESUME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ResumePayload;
+    if (!parsed || Date.now() - parsed.savedAt > RESUME_TTL_MS) {
+      localStorage.removeItem(RESUME_KEY);
+      return null;
+    }
+    if (parsed.stepIndex >= GUIDED_STEPS.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeResume = (p: ResumePayload) => {
+  try { localStorage.setItem(RESUME_KEY, JSON.stringify(p)); } catch { /* noop */ }
+};
+
+const clearResume = () => {
+  try { localStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
+};
+
 export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowProps) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -22,10 +57,13 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
   const [breathPhase, setBreathPhase] = useState<BreathPhase>('inhale');
   const [breathTimer, setBreathTimer] = useState(0);
   // Reflection state
-  const [reflectionStep, setReflectionStep] = useState<0 | 1 | 2 | 3>(0); // 0=mood, 1=journal, 2=gratitude, 3=done
+  const [reflectionStep, setReflectionStep] = useState<0 | 1 | 2 | 3>(0);
   const [selectedMood, setSelectedMood] = useState<string>('');
   const [journalText, setJournalText] = useState('');
   const [gratitudeText, setGratitudeText] = useState('');
+  // Resume + close-confirm UX
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [resumeOffer, setResumeOffer] = useState<ResumePayload | null>(null);
   const sessionIdRef = useRef(generateSessionId());
   const startTimeRef = useRef<number>(0);
 
@@ -33,22 +71,69 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
   const isComplete = currentStepIndex >= GUIDED_STEPS.length;
   const stepProgress = step ? Math.min(elapsed / step.durationSeconds, 1) : 1;
 
-  // Reset on open
+  // On open: detect unfinished prior session and offer resume.
   useEffect(() => {
-    if (isOpen) {
-      setCurrentStepIndex(0);
-      setElapsed(0);
-      setIsPlaying(false);
-      setBreathPhase('inhale');
-      setBreathTimer(0);
-      setReflectionStep(0);
-      setSelectedMood('');
-      setJournalText('');
-      setGratitudeText('');
-      sessionIdRef.current = generateSessionId();
-      startTimeRef.current = Date.now();
+    if (!isOpen) return;
+    const prior = readResume();
+    if (prior) {
+      setResumeOffer(prior);
+      // Defer reset until the user chooses Resume or Start fresh.
+      return;
     }
+    // Fresh start
+    setCurrentStepIndex(0);
+    setElapsed(0);
+    setIsPlaying(false);
+    setBreathPhase('inhale');
+    setBreathTimer(0);
+    setReflectionStep(0);
+    setSelectedMood('');
+    setJournalText('');
+    setGratitudeText('');
+    sessionIdRef.current = generateSessionId();
+    startTimeRef.current = Date.now();
   }, [isOpen]);
+
+  // Persist progress every tick while running so an unexpected close is recoverable.
+  useEffect(() => {
+    if (!isOpen || isComplete || resumeOffer) return;
+    writeResume({
+      sessionId: sessionIdRef.current,
+      stepIndex: currentStepIndex,
+      elapsed,
+      savedAt: Date.now(),
+    });
+  }, [isOpen, isComplete, resumeOffer, currentStepIndex, elapsed]);
+
+  const acceptResume = () => {
+    if (!resumeOffer) return;
+    sessionIdRef.current = resumeOffer.sessionId;
+    startTimeRef.current = Date.now() - resumeOffer.elapsed * 1000;
+    setCurrentStepIndex(resumeOffer.stepIndex);
+    setElapsed(resumeOffer.elapsed);
+    setReflectionStep(0);
+    setSelectedMood('');
+    setJournalText('');
+    setGratitudeText('');
+    setIsPlaying(true);
+    setResumeOffer(null);
+  };
+
+  const discardResume = () => {
+    clearResume();
+    setCurrentStepIndex(0);
+    setElapsed(0);
+    setIsPlaying(false);
+    setBreathPhase('inhale');
+    setBreathTimer(0);
+    setReflectionStep(0);
+    setSelectedMood('');
+    setJournalText('');
+    setGratitudeText('');
+    sessionIdRef.current = generateSessionId();
+    startTimeRef.current = Date.now();
+    setResumeOffer(null);
+  };
 
   // Main timer
   useEffect(() => {
@@ -57,7 +142,6 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
       setElapsed((prev) => {
         const next = prev + 1;
         if (next >= step.durationSeconds) {
-          // Advance step
           setCurrentStepIndex((si) => si + 1);
           return 0;
         }
@@ -75,7 +159,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
       setBreathTimer((prev) => {
         const next = prev + 1;
         if (breathPhase === 'inhale' && next >= bp.inhale) {
-          setBreathPhase('hold');
+          setBreathPhase(bp.hold > 0 ? 'hold' : 'exhale');
           return 0;
         }
         if (breathPhase === 'hold' && next >= bp.hold) {
@@ -100,20 +184,51 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
       savedOnCompleteRef.current = true;
       const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
       completeMeditationSession(sessionIdRef.current, durationSec, 0);
+      clearResume();
     }
     if (!isComplete) savedOnCompleteRef.current = false;
   }, [isComplete]);
 
-  const handleClose = useCallback(() => {
-    if (isPlaying && !isComplete && startTimeRef.current > 0) {
-      // Save partial session
+  const requestClose = useCallback(() => {
+    // If the user has not started yet, or has finished, close immediately.
+    if (!isPlaying && elapsed === 0 && currentStepIndex === 0) {
+      onClose();
+      return;
+    }
+    if (isComplete) {
+      onClose();
+      return;
+    }
+    // Otherwise ask before abandoning practice.
+    setIsPlaying(false);
+    setShowCloseConfirm(true);
+  }, [isPlaying, elapsed, currentStepIndex, isComplete, onClose]);
+
+  const confirmPauseAndExit = useCallback(() => {
+    // Progress is already persisted to localStorage every tick — keep it
+    // so the user can resume next time they open the modal.
+    writeResume({
+      sessionId: sessionIdRef.current,
+      stepIndex: currentStepIndex,
+      elapsed,
+      savedAt: Date.now(),
+    });
+    setShowCloseConfirm(false);
+    onClose();
+  }, [currentStepIndex, elapsed, onClose]);
+
+  const confirmEndAndExit = useCallback(() => {
+    // User chose to abandon — save partial session for stats, then clear resume.
+    if (startTimeRef.current > 0) {
       const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
       if (durationSec > 10) {
         completeMeditationSession(sessionIdRef.current, durationSec, 0);
       }
     }
+    clearResume();
+    setShowCloseConfirm(false);
     onClose();
-  }, [isPlaying, isComplete, onClose]);
+  }, [onClose]);
 
   const skipStep = useCallback(() => {
     setCurrentStepIndex((prev) => prev + 1);
@@ -123,6 +238,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
   }, []);
 
   if (!isOpen) return null;
+
 
   return (
     <AnimatePresence>
