@@ -22,6 +22,7 @@ interface ThinkingPillsProps {
  */
 export const mapStatusToLabel = (raw: string): string => {
   const lower = raw.toLowerCase();
+  if (lower.includes('queued')) return 'Queued';
   if (lower.includes('still processing') || lower.includes('heartbeat')) return 'heartbeat';
   if (lower.includes('safety') || lower.includes('message safety')) return 'Safety check';
   if (lower.includes('understanding') || lower.includes('translating') || lower.includes('language'))
