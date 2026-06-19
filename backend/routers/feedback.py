@@ -26,12 +26,11 @@ async def submit_feedback(
     service = FeedbackService()
     user_id = user.get("id") if user else None
 
-    jsonl_store.record_feedback(
+    await jsonl_store.record_feedback(
         session_id=user_id or "anonymous",
         query=feedback_in.query,
         response=feedback_in.answer,
-        rating="up" if feedback_in.rating > 0 else "down",
-        intent="QUERY",
+        feedback="positive" if feedback_in.rating > 0 else "negative",
     )
 
     return await service.create_feedback(feedback_in, user_id=user_id)

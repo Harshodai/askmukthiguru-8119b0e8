@@ -31,7 +31,7 @@ from typing import Any
 from app.config import settings
 from app.context import correlation_id_var
 from app.dependencies import ServiceContainer
-from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, REQUEST_LATENCY
+from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, REQUEST_LATENCY, SEARCH_PATH_TOTAL, SEARCH_LATENCY_MS
 from app.orchestrator_utils import (
     cache_language_key,
     get_expected_keywords,
@@ -44,6 +44,8 @@ from langgraph.errors import GraphRecursionError
 from rag.graph import create_initial_state
 from rag.memory import normalize_session_id
 from rag.timeout_utils import TimeoutBudget, budget_var
+from services.health_monitor import HealthMonitor
+from services.turboquant_cache import TurboQuantCache
 from services.hot_cache import hot_cache
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
@@ -58,6 +60,8 @@ class PipelineCoordinator:
         self.telemetry = TelemetryPublisher()
         from app.coalescer import build_coalescer
         self.coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
+        self._vector_cache: TurboQuantCache | None = None
+        self._health_monitor: HealthMonitor | None = None
 
     async def _stage(
         self,
@@ -117,6 +121,8 @@ class PipelineCoordinator:
         """
         start_time = time.time()
         cache_key = cache_language_key(user_msg, preferred_lang)
+        # Pass original query text for vector cache embedding lookup
+        query_for_embedding = user_msg
         is_indic = preferred_lang and not preferred_lang.startswith("en")
         user_id = user.get("id", "anonymous") if user else "anonymous"
         stable_session_id = normalize_session_id(session_id, user_id)
@@ -130,7 +136,7 @@ class PipelineCoordinator:
         # 1. Cache Check
         # ------------------------------------------------------------------
         _s = time.time_ns()
-        cached_result = await self._check_cache(cache_key, is_indic, preferred_lang)
+        cached_result = await self._check_cache(cache_key, query_for_embedding, is_indic, preferred_lang)
         await self._stage("cache_check", trace_id, start_ns=_s, status="cached" if cached_result else "success")
         if cached_result is not None:
             latency_ms = int((time.time() - start_time) * 1000)
@@ -307,13 +313,14 @@ class PipelineCoordinator:
     # Private helpers
     # ------------------------------------------------------------------
 
-    async def _check_cache(self, cache_key: str, is_indic: bool, preferred_lang: str) -> PipelineResult | None:
+    async def _check_cache(self, cache_key: str, query_text: str, is_indic: bool, preferred_lang: str) -> PipelineResult | None:
         """Return a PipelineResult if cache hit, else None.
 
         Checks tiers in order (fastest → slowest):
           1. Hot cache (in-memory dict, <1ms lookup)
-          2. Exact cache (Redis, ~1-5ms lookup)
-          3. Semantic cache (Qdrant vector, ~20-50ms lookup)
+          2. Vector cache (local TurboVec index, sub-ms lookup) — P90 fast path
+          3. Exact cache (Redis, ~1-5ms lookup)
+          4. Semantic cache (Qdrant vector, ~20-50ms lookup)
         """
         # --- 1. Hot cache (sub-millisecond) ---
         hot_hit = hot_cache.get(cache_key)
@@ -335,7 +342,36 @@ class PipelineCoordinator:
                 cache_hit=True,
             )
 
-        # --- 2. Exact + Semantic cache ---
+        # --- 2. Vector cache (P90 fast path, sub-ms lookup via TurboVec) ---
+        if settings.hybrid_search_enabled:
+            cache_hit = await self._check_vector_cache(cache_key, query_text)
+            if cache_hit is not None:
+                SEARCH_PATH_TOTAL.labels(path="p90").inc()
+                response, citations, cached_intent = cache_hit
+                output_check = await self.container.guardrails.check_output(response)
+                final_response = output_check["moderated_response"] if output_check["blocked"] else response
+
+                if is_indic and final_response != response:
+                    final_response = await self.container.translation.translate_text(
+                        text=final_response, source_lang="en", target_lang=preferred_lang
+                    )
+
+                return PipelineResult(
+                    final_answer=final_response,
+                    intent=cached_intent,
+                    meditation_step=0,
+                    citations=citations,
+                    trace_id=str(uuid.uuid4()),
+                    latency_ms=0,
+                    model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
+                    model_provider=getattr(settings, "llm_provider", None),
+                    route_decision="vector_cache_p90",
+                    cache_hit=True,
+                )
+
+        SEARCH_PATH_TOTAL.labels(path="p99").inc()
+
+        # --- 3. Exact + Semantic cache ---
         cached = self.container.exact_cache.get(cache_key)
         if cached is None and self.container.semantic_cache and self.container.semantic_cache.is_available:
             cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
@@ -364,6 +400,67 @@ class PipelineCoordinator:
                 cache_hit=True,
             )
         return None
+
+    def _ensure_vector_cache(self) -> TurboQuantCache:
+        """Lazy-init TurboQuantCache."""
+        if self._vector_cache is None:
+            self._vector_cache = TurboQuantCache(
+                dimension=settings.embedding_dimension,
+                max_size=settings.faiss_cache_size,
+            )
+        return self._vector_cache
+
+    async def _check_vector_cache(self, cache_key: str, query_text: str) -> tuple[str, list, str] | None:
+        """Check vector cache. Returns (response, citations, intent) or None."""
+        vcache = self._ensure_vector_cache()
+        if vcache.size == 0:
+            return None
+
+        embedding = await self._embed_query(query_text)
+        if embedding is None:
+            return None
+
+        results = vcache.search(
+            query_embedding=embedding,
+            top_k=1,
+            threshold=settings.semantic_cache_similarity,
+        )
+        if not results:
+            return None
+
+        best = results[0]
+        meta = best["metadata"]
+        score = best["score"]
+        SEARCH_LATENCY_MS.labels(path="p90").observe(float(score))
+        return (
+            meta.get("response", ""),
+            meta.get("citations", []),
+            meta.get("intent", "QUERY"),
+        )
+
+    async def _embed_query(self, query_text: str) -> list[float] | None:
+        """Compute embedding for a query text."""
+        try:
+            embedder = getattr(self.container, "embedding", None)
+            if embedder is None:
+                return None
+            if hasattr(embedder, "encode_single_full"):
+                enc = embedder.encode_single_full(query_text)
+                emb = enc.get("dense")
+                if hasattr(emb, "tolist"):
+                    return emb.tolist()
+                return emb
+            elif hasattr(embedder, "encode"):
+                result = embedder.encode(query_text)
+                if isinstance(result, dict):
+                    return result.get("dense") or result.get("embedding")
+                if hasattr(result, "tolist"):
+                    return result.tolist()
+                return result
+            return None
+        except Exception:
+            logger.warning("Failed to compute query embedding for vector cache", exc_info=True)
+            return None
 
     def _is_circuit_open(self) -> bool:
         """Check if the circuit breaker is open."""

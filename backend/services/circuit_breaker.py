@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional
 
+from app.config import settings
 from app.constants import CIRCUIT_BREAKER_CONFIGS, CircuitBreakerProvider
 
 logger = logging.getLogger(__name__)
@@ -211,8 +212,21 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
     - HALF_OPEN: If all test calls succeed → CLOSED, if any fails → OPEN
     """
 
+    _phi_monitor: Optional[HealthMonitor] = field(default=None, repr=False)
+
     def can_execute(self) -> bool:
         if self._state == CircuitState.CLOSED:
+            if settings.phi_accrual_enabled:
+                try:
+                    from services.health_monitor import HealthMonitor as _HM
+                    monitor = _HM()
+                    phi = monitor.get_phi(self.config.provider)
+                    is_healthy = monitor.is_healthy(self.config.provider)
+                    if not is_healthy:
+                        self._transition_to_open(f"phi={phi:.2f} > threshold")
+                        return False
+                except Exception:
+                    pass
             return True
 
         if self._state == CircuitState.OPEN:
@@ -238,6 +252,14 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
     def record_failure(self, error: Exception = None) -> None:
         self._failures += 1
         self._last_failure_time = time.time()
+
+        if settings.phi_accrual_enabled:
+            try:
+                from services.health_monitor import HealthMonitor as _HM
+                monitor = _HM()
+                monitor.record_heartbeat(self.config.provider, success=False)
+            except Exception:
+                pass
 
         if self._state == CircuitState.HALF_OPEN:
             self._transition_to_open("(failed during half-open test)")

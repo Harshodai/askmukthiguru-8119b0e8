@@ -69,7 +69,7 @@ dependencies = [
     "PyPDF2>=3.0.0",
     "pymupdf>=1.23.0",
     "PyYAML>=6.0.0",
-    "faiss-cpu>=1.8.0"
+    "turbovec>=0.8.0"
 ]
 
 [project.optional-dependencies]

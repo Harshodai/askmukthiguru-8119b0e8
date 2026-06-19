@@ -9,18 +9,24 @@ class FeedbackCreate(BaseModel):
 
     query: str = Field(..., description="The original user query")
     answer: str = Field(..., description="The generated answer being rated")
-    rating: int = Field(..., description="1 for upvote, -1 for downvote")
+    rating: int = Field(..., ge=-1, le=1, description="1 for upvote, -1 for downvote")
     feedback_text: Optional[str] = Field(None, description="Optional qualitative feedback")
     metadata_json: Optional[dict[str, Any]] = Field(
         None, description="Detailed metadata including retrieved doc IDs and scores"
     )
 
 
-class FeedbackResponse(FeedbackCreate):
+class FeedbackResponse(BaseModel):
     """Schema for returning feedback data."""
 
     id: str
-    user_id: Optional[str]
-    created_at: datetime
+    user_id: Optional[str] = None
+    rating: int = 0
+    query_text: str = ""
+    answer_text: str = ""
+    feedback_text: str = ""
+    comment: Optional[str] = None
+    metadata_json: Optional[dict[str, Any]] = None
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

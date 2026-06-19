@@ -242,6 +242,45 @@ class Settings(BaseSettings):
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
 
+    # Qdrant-backed semantic cache (Phase 1.2)
+    semantic_cache_qdrant_collection: str = "semantic_cache"  # Qdrant collection name
+    semantic_cache_hnsw_ef: int = 128  # HNSW ef parameter for cache lookups
+
+    # --- P90/P99 Hybrid Search (Phase 1.1) ---
+    p90_confidence_threshold: float = 0.8  # Confidence above which P90 fast-path is used
+    p99_timeout_ms: int = 5000  # P99 full-pipeline timeout in ms
+    faiss_cache_size: int = 500  # Number of top docs mirrored in local FAISS index
+    hybrid_search_enabled: bool = True  # Feature flag: enable P90/P99 hybrid search
+
+    # --- Embedding Cache (Phase 1.3) ---
+    embedding_cache_size: int = 10000  # LRU cache size for content-hash embeddings
+
+    # --- Temperature per Graph Mode (Phase 2.1) ---
+    generation_temp_fast: float = 0.3  # Temperature for fast-graph generation
+    generation_temp_standard: float = 0.7  # Temperature for standard-graph generation
+    generation_temp_deep: float = 0.9  # Temperature for deep-graph generation
+    generation_top_k_fast: int = 40
+    generation_top_k_standard: int = 50
+    generation_top_k_deep: int = 100
+    generation_top_p_standard: float = 0.9
+    generation_top_p_deep: float = 0.95
+
+    # --- Context Budget (Phase 3.2) ---
+    context_window_total: int = 8192  # Total context window in tokens
+    context_system_prompt_reserve: float = 0.20  # Fraction of budget reserved for system prompt
+    context_history_reserve: float = 0.10  # Fraction of budget reserved for conversation history
+    context_budget_enabled: bool = True  # Feature flag: enable context budget manager
+
+    # --- Feature flags (Phase 2-3) ---
+    phi_accrual_enabled: bool = True
+    use_qdrant_semantic_cache: bool = True
+    use_cross_encoder_only: bool = False
+    use_gateway_service: bool = False
+
+    # --- Idempotency (Phase 3.3) ---
+    idempotency_ttl_seconds: int = 86400
+    idempotency_redis_prefix: str = "idempotency:"
+
     # --- User Profiles & Persistence ---
     user_profile_enabled: bool = True  # Enable user profiles and persistent memory
     krutrim_api_key: str = ""  # Fallback Indian LLM provider
