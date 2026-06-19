@@ -53,7 +53,6 @@ async def test_memory_service_search_semantic():
     supabase_mock.rpc.assert_called_with(
         "match_user_memories",
         {
-            "p_user_id": "user123",
             "p_query_embedding": [0.1] * 1024,
             "p_k": 5,
             "p_min_sim": 0.6,

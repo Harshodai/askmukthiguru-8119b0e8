@@ -74,6 +74,9 @@ celery>=5.4.0
 apscheduler>=3.10.0
 gunicorn>=23.0.0
 
+# --- Local Vector Cache (Phase 1.1) ---
+turbovec>=0.8.0
+
 # --- Heavy / Optional (install separately if needed) ---
 # These cause pip resolution issues or are very large.
 # Install individually after base install if needed:

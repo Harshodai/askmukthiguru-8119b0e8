@@ -205,7 +205,7 @@ class ChatStreamRequestOrchestrator:
     ) -> None:
         """Log query trace to telemetry sink."""
         try:
-            self.telemetry_sink.log_query_trace(
+            await self.telemetry_sink.log_query_trace(
                 query_id=result.trace_id,
                 session_id=session_id,
                 user_id=user_id,

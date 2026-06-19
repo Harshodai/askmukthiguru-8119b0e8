@@ -40,6 +40,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_register(self, user: User, request: Request | None = None):
         logger.info(f"User {user.id} has registered.")
 
+    async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
+        logger.info(f"Password reset token generated for user {user.id}")
+        # TODO: Integrate with email delivery service (SendGrid, Resend, etc.)
+
+    async def on_after_reset_password(self, user: User, request: Request | None = None):
+        logger.info(f"Password reset completed for user {user.id}")
+
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)

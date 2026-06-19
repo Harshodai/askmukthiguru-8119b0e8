@@ -124,6 +124,14 @@ class OpenRouterService:
                     self._request_count = 0
             self._request_count += 1
 
+    async def _record_rate_limit_response(self) -> None:
+        """Adjust rate limiter after receiving a 429 response."""
+        now = time.time()
+        async with self._rpm_lock:
+            self._request_count = self._rpm_limit
+            delay = 60.0 - (now - self._window_start)
+            logger.warning(f"OpenRouter returned 429 — rate limiter exhausted for {delay:.1f}s")
+
     async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
         """Return a graceful fallback response when OpenRouter is unavailable.
         
@@ -245,6 +253,8 @@ class OpenRouterService:
             )
             is_connection_error = isinstance(exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException))
             if is_rate_limit or is_connection_error:
+                if is_rate_limit:
+                    await self._record_rate_limit_response()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
@@ -345,50 +355,64 @@ class OpenRouterService:
                 message="Circuit breaker OPEN in generate_stream",
             )
 
-        try:
-            client = await self._get_http_client()
-            buffer = ""
-            
-            # Use post directly to hit /chat/completions endpoint
-            async with client.stream(
-                "POST",
-                "/chat/completions",
-                json=payload,
-            ) as resp:
-                resp.raise_for_status()
-                
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:]
-                        if data_str.strip() == "[DONE]":
-                            break
-                        try:
-                            data = json.loads(data_str)
-                            delta_msg = data.get("choices", [{}])[0].get("delta", {})
-                            delta = delta_msg.get("content") or ""
-                            if delta:
-                                buffer += delta
-                                yield delta
-                        except json.JSONDecodeError:
-                            pass
+        last_error = None
+        for attempt in range(self._max_retries):
+            try:
+                client = await self._get_http_client()
+                buffer = ""
 
-            self._circuit.record_success()
+                async with client.stream(
+                    "POST",
+                    "/chat/completions",
+                    json=payload,
+                ) as resp:
+                    resp.raise_for_status()
 
-            # Track tokens
-            prompt_tokens = self._estimate_tokens(str(messages))
-            completion_tokens = self._estimate_tokens(buffer)
-            self._track_token_usage(tokens_in=prompt_tokens, tokens_out=completion_tokens, model=model)
+                    async for line in resp.aiter_lines():
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                delta_msg = data.get("choices", [{}])[0].get("delta", {})
+                                delta = delta_msg.get("content") or ""
+                                if delta:
+                                    buffer += delta
+                                    yield delta
+                            except json.JSONDecodeError:
+                                pass
 
-        except Exception as e:
-            # Do NOT count 429 as a circuit breaker failure (same rationale as above).
-            is_rate_limit = (
-                isinstance(e, httpx.HTTPStatusError)
-                and e.response.status_code == 429
+                self._circuit.record_success()
+
+                prompt_tokens = self._estimate_tokens(str(messages))
+                completion_tokens = self._estimate_tokens(buffer)
+                self._track_token_usage(tokens_in=prompt_tokens, tokens_out=completion_tokens, model=model)
+                return
+
+            except Exception as e:
+                last_error = e
+                is_rate_limit = (
+                    isinstance(e, httpx.HTTPStatusError)
+                    and e.response.status_code == 429
+                )
+                if is_rate_limit:
+                    await self._record_rate_limit_response()
+                    wait = min(2 ** attempt, 8)
+                    logger.warning(f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s")
+                    await asyncio.sleep(wait)
+                else:
+                    self._circuit.record_failure()
+                    logger.error(f"OpenRouter streaming failed: {e}")
+                    raise
+
+        if not self._circuit.can_execute():
+            raise CircuitOpenException(
+                provider="openrouter",
+                message="Circuit breaker OPEN in generate_stream",
             )
-            if not is_rate_limit:
-                self._circuit.record_failure()
-            logger.error(f"OpenRouter streaming failed: {e}")
-            raise
+        logger.error(f"OpenRouter streaming exhausted {self._max_retries} retries: {last_error}")
+        raise last_error or Exception("Streaming failed after all retries")
 
     # -----------------------------------------------------------------------
     # Classification / RAG Operations
