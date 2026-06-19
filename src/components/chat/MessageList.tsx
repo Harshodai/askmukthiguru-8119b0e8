@@ -58,6 +58,7 @@ const VirtualMessageWrapper = ({
   return (
     <div
       ref={containerRef}
+      data-message-id={id}
       style={{
         minHeight: `${height}px`,
         contentVisibility: 'auto',
