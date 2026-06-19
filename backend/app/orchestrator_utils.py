@@ -102,12 +102,15 @@ async def select_graph_for_query(
     # 1. Dynamic LLM-based classification (preferred)
     if container:
         try:
-            # Prefer openrouter for fast classification if configured
-            provider = getattr(container, "openrouter", None)
-            from app.config import settings
+            # Use openrouter for classification only when use_openrouter_for_simple is enabled
 
-            if not provider or not getattr(settings, "openrouter_api_key", None):
-                # Fallback to the main configured classifier
+            provider = None
+            if getattr(settings, "use_openrouter_for_simple", False):
+                provider = getattr(container, "openrouter", None)
+                if not provider or not getattr(settings, "openrouter_api_key", None):
+                    provider = None
+
+            if not provider:
                 provider = getattr(container, "ollama", None)
 
             if provider:
@@ -115,23 +118,26 @@ async def select_graph_for_query(
                 system_prompt = "You are a query complexity classifier. Respond only with JSON containing the key 'tier'."
                 user_prompt = CLASSIFY_COMPLEXITY_PROMPT.format(query=query)
 
-                # Call fast classification method
-                if hasattr(provider, "_generate_fast"):
-                    res = await provider._generate_fast(
+                # Wrap classification call with timeout to fail fast if
+                # OpenRouter rate limiter is sleeping (57s on 429).
+                async def _classify() -> str:
+                    if hasattr(provider, "_generate_fast"):
+                        return await provider._generate_fast(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                            temperature=0.0,
+                            max_tokens=50,
+                            timeout=3.0,
+                        )
+                    return await provider.generate(
                         system_prompt=system_prompt,
                         user_prompt=user_prompt,
                         temperature=0.0,
                         max_tokens=50,
                         timeout=3.0,
                     )
-                else:
-                    res = await provider.generate(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        temperature=0.0,
-                        max_tokens=50,
-                        timeout=3.0,
-                    )
+
+                res = await asyncio.wait_for(_classify(), timeout=8.0)
 
                 if not res:
                     raise ValueError("Empty response from classifier provider")

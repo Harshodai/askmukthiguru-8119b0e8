@@ -1,5 +1,13 @@
 # Agentic Lessons & Memory
 
+## Jun 19, 2026 — OpenRouter Classification Gate & Rate Limiter Timeout Fix
+- **Problem**: `select_graph_for_query()` in `orchestrator_utils.py` called OpenRouter for query complexity classification on EVERY request, ignoring `use_openrouter_for_simple`. The flag only gated the graph-bypass generation path in `pipeline_coordinator.py`, not the classifier call.
+- **Fix**: Gated OpenRouter selection with `use_openrouter_for_simple` check in `select_graph_for_query()`. When disabled, Ollama fallback is used.
+- **Second Problem**: Even with the gate fixed, `_enforce_rate_limit()` in `openrouter_service.py` slept 57s ON EVERY CALL after a 429 (because `_record_rate_limit_response()` sets `request_count = rpm_limit`, and the next `_enforce_rate_limit()` sees `count >= limit` and sleeps). This happened BEFORE the circuit breaker check, blocking the pipeline.
+- **Fix**: Wrapped the provider classification call in `asyncio.wait_for(_classify(), timeout=8.0)` so if OpenRouter's rate limiter sleeps 57s, the classification fails fast and falls back to heuristic tier detection.
+- **Result**: OpenRouter fast path works when rate limits allow; when 429ed, system degrades gracefully in ~8s (vs 57s) to full Sarvam pipeline.
+- **Lesson**: NEVER assume a rate limiter's sleep will wake up fast enough for production. Wrap all external service calls in short timeouts. The `use_openrouter_for_simple` flag must gate BOTH classification AND generation, not just generation.
+
 ## Jun 18, 2026 — Ollama Fallback Removal & Graceful Degradation
 - **Problem**: Non-English queries crashed with 500 errors because OpenRouter free tier rate-limited and Ollama fallback returned 404 (`/v1/chat/completions` not supported on host Ollama version)
 - **Fix**: Replaced `_fallback_ollama()` with `_graceful_degradation()` in `openrouter_service.py:127`. Instead of crashing, returns a friendly message ("I'm experiencing a temporary connectivity issue...")

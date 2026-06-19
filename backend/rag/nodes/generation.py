@@ -484,23 +484,44 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                         **generation_kwargs,
                     )
         else:
-            if stream_queue:
-                answer = ""
-                async for chunk in ollama.generate_stream(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    **generation_kwargs,
-                ):
-                    if chunk:
-                        await stream_queue.put(chunk)
-                        answer += chunk
+            from app.config import settings as app_settings
+            if app_settings.llm_provider == "sarvam_cloud":
+                from services.sarvam_service import SarvamCloudService
+                sarvam = SarvamCloudService()
+                if stream_queue:
+                    answer = ""
+                    async for chunk in sarvam.generate_stream(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **generation_kwargs,
+                    ):
+                        if chunk:
+                            await stream_queue.put(chunk)
+                            answer += chunk
+                else:
+                    answer = await sarvam.generate(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **generation_kwargs,
+                    )
             else:
-                answer = await ollama.generate(
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    timeout=get_node_timeout("generate_answer", 60.0),
-                    **generation_kwargs,
-                )
+                if stream_queue:
+                    answer = ""
+                    async for chunk in ollama.generate_stream(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **generation_kwargs,
+                    ):
+                        if chunk:
+                            await stream_queue.put(chunk)
+                            answer += chunk
+                else:
+                    answer = await ollama.generate(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        timeout=get_node_timeout("generate_answer", 60.0),
+                        **generation_kwargs,
+                    )
 
     answer = strip_cot(answer)
     answer = _ensure_keywords_in_answer(answer, question)
@@ -736,7 +757,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         logger.warning(
             f"Final: Answer rejected (faithful={is_faithful}, "
             f"verified={verified}, confidence={confidence}, "
-            f"citations={len(citations)}, answer_len={len(answer)})"
+            f"citations={len(citations)}, answer_len={len(answer) if answer else 0})"
         )
         return {
             "final_answer": FALLBACK_RESPONSE,
