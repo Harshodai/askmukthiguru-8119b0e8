@@ -180,9 +180,9 @@ class Settings(BaseSettings):
 
     # --- Job Queue & Backpressure ---
     queue_enabled: bool = True
-    queue_max_size: int = 20
-    queue_concurrency: int = 3
-    queue_job_ttl: int = 600
+    queue_max_size: int = 50
+    queue_concurrency: int = 5
+    queue_job_ttl: int = 1800
     queue_default_timeout: int = 300
 
     # --- Server ---
