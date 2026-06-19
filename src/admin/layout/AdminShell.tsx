@@ -16,6 +16,7 @@ import {
   LogOut,
   ThumbsUp,
   Image,
+  ListOrdered,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const NAV = [
   { to: "/admin/topics", label: "Topics", icon: Sparkles },
   { to: "/admin/prompts", label: "Prompts", icon: FileText },
   { to: "/admin/evals", label: "Evals", icon: ClipboardCheck },
+  { to: "/admin/queue", label: "Queue", icon: ListOrdered },
   { to: "/admin/ingestion", label: "Ingestion", icon: Boxes },
   { to: "/admin/logs", label: "Logs", icon: ScrollText },
   { to: "/admin/telemetry", label: "Telemetry", icon: Activity },
