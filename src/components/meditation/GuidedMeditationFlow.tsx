@@ -250,7 +250,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
       >
         {/* Close */}
         <button
-          onClick={handleClose}
+          onClick={requestClose}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
         >
           <X className="w-5 h-5 text-muted-foreground" />
@@ -301,7 +301,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
                 >
                   Continue
                 </button>
-                <button onClick={handleClose} className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <button onClick={requestClose} className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   Skip to chat
                 </button>
               </>
@@ -373,7 +373,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
                   You have completed your practice. Carry this {selectedMood.toLowerCase()} state into your day.
                 </p>
                 <button
-                  onClick={handleClose}
+                  onClick={requestClose}
                   className="px-6 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
                 >
                   Return to Chat
