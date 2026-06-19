@@ -446,7 +446,89 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
             </div>
           </div>
         )}
+
+        {/* Resume offer — shown when a prior, unfinished session exists. */}
+        {resumeOffer && !isComplete && (
+          <div className="absolute inset-0 z-20 bg-background/95 backdrop-blur-sm flex items-center justify-center px-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-sm rounded-2xl border border-ojas/30 bg-card/90 p-6 text-center space-y-4 shadow-xl"
+              role="dialog"
+              aria-label="Resume your practice"
+            >
+              <div className="w-12 h-12 mx-auto rounded-full bg-ojas/15 flex items-center justify-center">
+                <RotateCcw className="w-5 h-5 text-ojas" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold text-foreground">Resume your practice?</h3>
+                <p className="text-sm text-muted-foreground">
+                  You paused at <span className="text-foreground/90 font-medium">{GUIDED_STEPS[resumeOffer.stepIndex]?.title ?? 'an earlier step'}</span>.
+                  Continue right where you left off.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={discardResume}
+                  className="flex-1 py-2.5 rounded-full border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  Start fresh
+                </button>
+                <button
+                  type="button"
+                  onClick={acceptResume}
+                  className="flex-1 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-sm font-semibold"
+                >
+                  Resume
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Close-confirm — gentle pause prompt instead of silent exit. */}
+        {showCloseConfirm && (
+          <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur-sm flex items-center justify-center px-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-sm rounded-2xl border border-ojas/30 bg-card/95 p-6 text-center space-y-4 shadow-xl"
+              role="alertdialog"
+              aria-label="Pause this practice?"
+            >
+              <h3 className="text-lg font-semibold text-foreground">Pause this practice?</h3>
+              <p className="text-sm text-muted-foreground">
+                You can continue right where you left off the next time you open Serene Mind.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowCloseConfirm(false); setIsPlaying(true); }}
+                  className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-sm font-semibold"
+                >
+                  Keep going
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPauseAndExit}
+                  className="w-full py-2.5 rounded-full border border-border text-sm font-medium text-foreground/85 hover:bg-muted transition-colors"
+                >
+                  Pause &amp; close
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmEndAndExit}
+                  className="w-full py-2 text-xs text-muted-foreground/80 hover:text-destructive transition-colors"
+                >
+                  End practice
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );
 };
+
