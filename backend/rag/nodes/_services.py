@@ -19,6 +19,7 @@ _context_compressor: Any = None
 _lettuce_detect: Any = None
 _reranker: Any = None
 _web_search: Any = None
+_sarvam_cloud: Any = None
 
 
 def __getattr__(name: str) -> Any:
@@ -47,6 +48,7 @@ def init_services(
     context_compressor=None,
     web_search=None,
     semantic_cache: Any = None,
+    sarvam_cloud: Any = None,
 ) -> None:
     """Inject service dependencies into the nodes module.
 
@@ -69,7 +71,7 @@ def init_services(
     from services.lettuce_detect_service import LettuceDetectService
     from services.reranker_service import RerankerService
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _injected_semantic_cache
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _injected_semantic_cache, _sarvam_cloud
 
     _ollama = ollama
     _embedder = embedder
@@ -77,6 +79,7 @@ def init_services(
     _lightrag = lightrag
     _serene_mind = serene_mind
     _web_search = web_search
+    _sarvam_cloud = sarvam_cloud
     _injected_semantic_cache = semantic_cache
 
     _reranker = RerankerService()
