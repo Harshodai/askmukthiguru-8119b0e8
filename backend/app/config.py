@@ -13,14 +13,6 @@ Includes configs for:
 
 from __future__ import annotations
 
-import os
-
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-
 from functools import lru_cache
 from typing import Optional
 
@@ -508,10 +500,18 @@ class Settings(BaseSettings):
     def validate_api_keys(self):
         """Fail-fast on missing required API keys for the active provider."""
         provider = self.llm_provider.lower()
-        if provider == "sarvam_cloud" and not self.sarvam_api_key.strip():
-            raise ValueError("sarvam_api_key is required when llm_provider='sarvam_cloud'")
-        if provider == "openrouter" and not self.openrouter_api_key.strip():
-            raise ValueError("openrouter_api_key is required when llm_provider='openrouter'")
+        required_keys = {
+            "sarvam_cloud": "sarvam_api_key",
+            "openrouter": "openrouter_api_key",
+            "anthropic": "anthropic_api_key",
+            "krutrim": "krutrim_api_key",
+            "emergent": "emergent_llm_key",
+        }
+        key_attr = required_keys.get(provider)
+        if key_attr:
+            value = getattr(self, key_attr, "") or ""
+            if not value.strip():
+                raise ValueError(f"{key_attr} is required when llm_provider='{provider}'")
         return self
 
 
