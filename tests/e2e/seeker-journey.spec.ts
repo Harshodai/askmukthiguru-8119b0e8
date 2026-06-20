@@ -34,87 +34,129 @@ test.describe('Seeker Journey', () => {
     // Console log listener for debugging
     page.on('console', msg => console.log(`[BROWSER LOG] [${msg.type()}] ${msg.text()}`));
     page.on('pageerror', err => console.log(`[PAGE ERROR] ${err.message}\n${err.stack}`));
+    page.on('request', req => console.log(`[REQUEST] ${req.method()} ${req.url()}`));
     page.on('requestfailed', request => console.log(`[REQUEST FAILED] ${request.url()}: ${request.failure()?.errorText}`));
 
     // A. Intercept network endpoints to provide mock responses for E2E consistency
-    await page.route('**/api/profile', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          preferred_language: 'hi',
-          codemix_preference: true,
-          topics_of_interest: [],
-        }),
-      });
-    });
-
-    await page.route('**/api/speech/stt', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          transcript: 'నమో గురుజీ',
-          language_code: 'te',
-        }),
-      });
-    });
-
-    await page.route('**/api/chat/stream', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/event-stream',
-        body: [
-          'event: status\n',
-          'data: Thinking\n\n',
-          'event: message\n',
-          'data: {"content": "ప్రణామం, నేను మీకు సహాయం చేయగలను."}\n\n',
-          'event: done\n',
-          'data: {"intent": "CASUAL", "citations": [], "meditation_step": 0}\n\n',
-          'data: [DONE]\n\n',
-        ].join(''),
-      });
-    });
-
-    await page.route('**/api/speech/tts', async (route) => {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          detail: 'TTS engine voice not found',
-        }),
-      });
-    });
-
-    await page.route('**/auth/v1/user', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'mock-user-uuid',
-          aud: 'authenticated',
-          role: 'authenticated',
-          email: 'seeker@example.com',
-          email_confirmed_at: '2026-05-20T00:00:00Z',
-          user_metadata: {
-            full_name: 'Test Seeker',
+    await page.route(/\/api\/profile/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
           },
-          created_at: '2026-05-20T00:00:00Z',
-          updated_at: '2026-05-20T00:00:00Z',
-        }),
-      });
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            preferred_language: 'hi',
+            codemix_preference: true,
+            topics_of_interest: [],
+          }),
+        });
+      }
     });
 
-    await page.route('**/auth/v1/token**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: 'mock-access-token',
-          token_type: 'bearer',
-          expires_in: 3600,
-          refresh_token: 'mock-refresh-token',
-          user: {
+    await page.route(/\/api\/speech\/stt/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            transcript: 'నమో గురుజీ',
+            language_code: 'te',
+          }),
+        });
+      }
+    });
+
+    await page.route(/\/api\/chat\/stream/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'text/event-stream',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: [
+            'event: status\n',
+            'data: Thinking\n\n',
+            'event: message\n',
+            'data: {"content": "ప్రణామం, నేను మీకు సహాయం చేయగలను."}\n\n',
+            'event: done\n',
+            'data: {"intent": "CASUAL", "citations": [], "meditation_step": 0}\n\n',
+            'data: [DONE]\n\n',
+          ].join(''),
+        });
+      }
+    });
+
+    await page.route(/\/api\/speech\/tts/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            detail: 'TTS engine voice not found',
+          }),
+        });
+      }
+    });
+
+    await page.route(/\/auth\/v1\/user/, async (route) => {
+      const request = route.request();
+      console.log(`[ROUTE MOCK] auth/v1/user: ${request.method()} ${request.url()}`);
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
             id: 'mock-user-uuid',
             aud: 'authenticated',
             role: 'authenticated',
@@ -125,35 +167,246 @@ test.describe('Seeker Journey', () => {
             },
             created_at: '2026-05-20T00:00:00Z',
             updated_at: '2026-05-20T00:00:00Z',
+          }),
+        });
+      }
+    });
+
+    await page.route(/\/auth\/v1\/token/, async (route) => {
+      const request = route.request();
+      console.log(`[ROUTE MOCK] auth/v1/token: ${request.method()} ${request.url()}`);
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
           },
-        }),
-      });
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            access_token: 'mock-access-token',
+            token_type: 'bearer',
+            expires_in: 3600,
+            refresh_token: 'mock-refresh-token',
+            user: {
+              id: 'mock-user-uuid',
+              aud: 'authenticated',
+              role: 'authenticated',
+              email: 'seeker@example.com',
+              email_confirmed_at: '2026-05-20T00:00:00Z',
+              user_metadata: {
+                full_name: 'Test Seeker',
+              },
+              created_at: '2026-05-20T00:00:00Z',
+              updated_at: '2026-05-20T00:00:00Z',
+            },
+          }),
+        });
+      }
     });
 
-    await page.route('**/rest/v1/daily_teachings**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{
-          id: 'mock-teaching-id',
-          image_url: 'https://example.com/mock-wisdom.jpg',
-          caption: 'Live in a beautiful state.',
-          created_at: '2026-05-20T00:00:00Z',
-          expires_at: null
-        }]),
-      });
+    await page.route(/\/rest\/v1\/daily_teachings/, async (route) => {
+      const request = route.request();
+      console.log(`[ROUTE MOCK] daily_teachings: ${request.method()} ${request.url()}`);
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([{
+            id: 'mock-teaching-id',
+            image_url: 'https://example.com/mock-wisdom.jpg',
+            caption: 'Live in a beautiful state.',
+            created_at: '2026-05-20T00:00:00Z',
+            expires_at: null
+          }]),
+        });
+      }
     });
 
-    await page.route('**/rest/v1/meditation_sessions**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([]),
-      });
+    await page.route(/\/rest\/v1\/meditation_sessions/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([]),
+        });
+      }
+    });
+
+    await page.route(/\/rest\/v1\/profiles/, async (route) => {
+      const request = route.request();
+      console.log(`[ROUTE MOCK] profiles: ${request.method()} ${request.url()}`);
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([{
+            id: 'mock-user-uuid',
+            display_name: 'Test Seeker',
+            preferred_language: 'hi',
+            theme: 'dark',
+            tts_enabled: true,
+          }]),
+        });
+      }
+    });
+
+    await page.route(/\/rest\/v1\/conversations/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([{
+            id: 'mock-conversation-id',
+            title: 'Mock Conversation',
+            created_at: '2026-05-20T00:00:00Z',
+            user_id: 'mock-user-uuid',
+          }]),
+        });
+      }
+    });
+
+    await page.route(/\/rest\/v1\/chat_messages/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([]),
+        });
+      }
+    });
+
+    await page.route(/\/rest\/v1\/guru_memories/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([]),
+        });
+      }
+    });
+
+    await page.route(/\/functions\/v1\//, async (route) => {
+      const request = route.request();
+      const url = request.url();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else if (url.includes('sarvam-stt')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({
+            transcript: 'నమో గురుజీ',
+            language_code: 'te',
+          }),
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ success: true }),
+        });
+      }
     });
 
     // B. Setup page initialization listener to mock hardware APIs before page scripts load
     await page.addInitScript(() => {
+      // Mock Service Worker to prevent intercept failures in Playwright
+      Object.defineProperty(navigator, 'serviceWorker', {
+        get: () => ({
+          register: () => Promise.resolve({
+            active: null,
+            installing: null,
+            waiting: null,
+            onupdatefound: null,
+            unregister: () => Promise.resolve(true),
+            update: () => Promise.resolve(),
+          }),
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }),
+        configurable: true,
+      });
+
       // 1. Mock Supabase Authenticated Session (Bypassing real login)
       const mockSession = {
         access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjo5OTk5OTk5OTk5LCJzdWIiOiJtb2NrLXVzZXItdXVpZCIsImVtYWlsIjoic2Vla2VyQGV4YW1wbGUuY29tIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCJ9LCJ1c2VyX21ldGFkYXRhIjp7ImZ1bGxfbmFtZSI6IlRlc3QgU2Vla2VyIn19.signature',
@@ -202,6 +455,7 @@ test.describe('Seeker Journey', () => {
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSession));
+      localStorage.setItem('sb-127-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('askmukthiguru_profile', JSON.stringify(mockProfile));
       
       // Bypasses the PrePracticeGate immediately
@@ -336,6 +590,11 @@ test.describe('Seeker Journey', () => {
     // Stop recording to trigger API upload
     await activeMicButton.click();
 
+    // Wait for the language detection toast and click "Switch"
+    const switchButton = page.getByRole('button', { name: 'Switch' });
+    await expect(switchButton).toBeVisible({ timeout: 10000 });
+    await switchButton.click();
+
     // G. Verify STT returned results, populated text area, and automatically switched language to Telugu (te)
     // The language picker button should automatically update to native Telugu: 'తెలుగు'
     await expect(langPickerButton).toContainText('తెలుగు');
@@ -359,7 +618,7 @@ test.describe('Seeker Journey', () => {
     // I. Verify graceful fallback warning is displayed on TTS failure
     const errorToastTitle = page.locator('text=Voice Output Notice').last();
     await expect(errorToastTitle).toBeVisible({ timeout: 15000 });
-    const errorToastDesc = page.locator('text=Voice output is not supported for te. Showing text only.').last();
+    const errorToastDesc = page.locator("text=Voice output isn't available for Telugu right now. Showing text only.").last();
     await expect(errorToastDesc).toBeVisible({ timeout: 15000 });
   });
 });

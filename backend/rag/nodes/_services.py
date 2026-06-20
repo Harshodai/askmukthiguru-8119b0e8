@@ -26,6 +26,11 @@ def __getattr__(name: str) -> Any:
         global _injected_semantic_cache, _fallback_cache
         if _injected_semantic_cache is not None:
             return _injected_semantic_cache
+        # Finding #18: log when falling back to in-memory cache
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "_semantic_cache not injected — using InMemoryCacheAdapter fallback"
+        )
         if _fallback_cache is None:
             from services.cache_service import InMemoryCacheAdapter
             _fallback_cache = InMemoryCacheAdapter()
@@ -90,11 +95,11 @@ def init_services(
     try:
         from app.config import settings
         if getattr(settings, "use_semantic_router", True):
-            from services.semantic_router import SemanticRouter
+            from services.semantic_router import IntentSemanticRouter
 
             encode_fn = _resolve_router_encoder(embedder)
             if encode_fn is not None:
-                router = SemanticRouter.get_default()
+                router = IntentSemanticRouter.get_default()
                 router.prime(encode_fn)
     except Exception as exc:  # noqa: BLE001 — never block startup over router
         import logging as _logging

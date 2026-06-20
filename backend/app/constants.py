@@ -114,7 +114,7 @@ PROVIDER_MODELS = {
     },
     LLMProvider.OPENROUTER: {
         "default": "meta-llama/llama-3.3-70b-instruct:free",
-        "classify": "meta-llama/llama-3.2-3b-instruct:free",
-        "fast": "meta-llama/llama-3.2-3b-instruct:free",
+        "classify": "meta-llama/llama-3.1-8b-instruct",
+        "fast": "meta-llama/llama-3.1-8b-instruct",
     },
 }

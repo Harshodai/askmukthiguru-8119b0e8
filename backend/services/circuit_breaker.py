@@ -63,10 +63,6 @@ class CircuitBreakerConfig:
             return cls(provider=provider, **config)
         # Fallback defaults
         return cls(provider=provider)
-    recovery_timeout: float = 90.0
-    half_open_max_calls: int = 3
-    # Optional: custom exception types that count as failures
-    failure_exceptions: tuple = (Exception,)
 
 
 @dataclass

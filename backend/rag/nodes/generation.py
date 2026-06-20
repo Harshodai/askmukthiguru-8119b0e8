@@ -32,6 +32,9 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+# Lazily-initialised singletons used by provider branches.
+_sarvam_cloud_service = None
+
 
 @log_metrics
 async def context_engineer(state: GraphState, config: dict = None) -> dict:
@@ -146,15 +149,18 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if history_lines:
             history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
 
-    # Dynamic token budget safety enforcement to prevent TokenBudgetExceeded
+    # Dynamic token budget safety enforcement (finding #17: cap baseline, lower floor)
     max_budget = getattr(settings, "max_tokens_per_request", 2000)
     baseline_tokens = 1500
+    memory_context = state.get("memory_context") or ""
     if history_str:
         baseline_tokens += int(len(history_str.split()) * 1.3)
-    memory_context = state.get("memory_context") or ""
     if memory_context:
         baseline_tokens += int(len(memory_context.split()) * 1.3)
-    max_context_tokens = max(1000, max_budget - baseline_tokens)
+    # Clamp baseline so it can't exceed max_budget
+    baseline_tokens = min(baseline_tokens, max_budget - 200)
+    remaining = max_budget - baseline_tokens
+    max_context_tokens = max(200, remaining)
 
     logger.info(f"BUDGET DEBUG: max_budget={max_budget}, baseline_tokens={baseline_tokens}, max_context_tokens={max_context_tokens}, original_docs_count={len(relevant_docs)}")
 
@@ -487,7 +493,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             from app.config import settings as app_settings
             if app_settings.llm_provider == "sarvam_cloud":
                 from services.sarvam_service import SarvamCloudService
-                sarvam = SarvamCloudService()
+                global _sarvam_cloud_service
+                if _sarvam_cloud_service is None:
+                    _sarvam_cloud_service = SarvamCloudService()
+                sarvam = _sarvam_cloud_service
                 if stream_queue:
                     answer = ""
                     async for chunk in sarvam.generate_stream(
@@ -738,13 +747,13 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
 
     if is_faithful and verified:
         pass
-    elif citations and confidence >= 2 and answer:
+    elif is_faithful and citations and confidence >= 5 and answer:
         logger.info(
             f"Final: Verification soft-pass (faithful={is_faithful}, "
             f"verified={verified}, confidence={confidence}, "
             f"citations={len(citations)})"
         )
-    elif answer and len(answer.strip()) > 50 and confidence >= 2:
+    elif is_faithful and answer and len(answer.strip()) > 50 and confidence >= 4:
         logger.info(
             f"Final: Allowing substantive answer through (len={len(answer)}, "
             f"confidence={confidence}, citations={len(citations)})"
@@ -826,6 +835,6 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 intent=state.get("intent", "QUERY"),
                 citations=citations,
             )
-        except Exception:
-            pass
+        except Exception as cache_exc:
+            logger.warning("Cache write failed: %s", cache_exc, exc_info=True)
     return result

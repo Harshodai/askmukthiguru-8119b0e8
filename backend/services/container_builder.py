@@ -21,6 +21,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _create_semantic_router(embedding_service):
+    """Factory: create semantic model router if enabled in config."""
+    from app.config import settings
+    from services.semantic_model_router import SemanticModelRouter
+
+    if not getattr(settings, "semantic_router_enabled", True):
+        logger.info("SemanticModelRouter disabled via config")
+        return None
+
+    router = SemanticModelRouter(embedding_service)
+    logger.info("SemanticModelRouter initialized (embedding-based classification)")
+    return router
+
+
 class ContainerBuilder:
     """
     Step-by-step builder that constructs a ServiceContainer.
@@ -88,6 +102,7 @@ class ContainerBuilder:
 
         container = self._container
         container.embedding = EmbeddingService()
+        container.semantic_router = _create_semantic_router(container.embedding)
 
         # Wire LLMProvider using LLMProviderFactory
         provider_name = settings.llm_provider.lower()
