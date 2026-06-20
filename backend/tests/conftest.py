@@ -1,6 +1,11 @@
 import os
 import sys
 
+# Configure threading limits before heavy numerical libraries are imported.
+from app.core.threading_config import configure_threading
+
+configure_threading()
+
 # Point REDIS_URL to local host-mapped Redis for testing
 os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@127.0.0.1:6379/0"
 os.environ["IS_PRODUCTION"] = "false"
