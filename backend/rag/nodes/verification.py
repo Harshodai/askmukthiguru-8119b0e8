@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Self-Reflection: bypassing for simple query tier")
-        return {"needs_correction": False, "reflection_feedback": None}
+        logger.info("Self-Reflection: simple tier – running lightweight LettuceDetect")
 
     answer = state.get("answer")
     relevant_docs = state.get("relevant_docs", [])
@@ -38,7 +37,10 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled self-consistency block below
 
     if not answer or not relevant_docs:
-        return {"needs_correction": False}
+        return {
+            "needs_correction": True,
+            "reflection_feedback": "Empty answer or no retrieved documents.",
+        }
 
     await emit_status(config, "Reviewing the response for clarity...")
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
@@ -83,14 +85,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 async def verify_answer(state: GraphState, config: dict = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Combined verify: bypassing for simple query tier")
-        return {
-            "is_faithful": True,
-            "verification": {"passed": True, "details": "Bypassed for simple query tier"},
-            "confidence_score": 10.0,
-            "faithfulness_score": 1.0,
-            "relevancy_score": 1.0,
-        }
+        logger.info("Combined verify: simple tier – running lightweight LettuceDetect")
 
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
@@ -102,15 +97,15 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     context = "\n\n".join(doc["text"] for doc in relevant_docs)
 
     if not context or len(context.strip()) < 200:
-        logger.info(
-            f"Combined verify: context too short ({len(context)} chars) for meaningful verification — soft-passing with moderate confidence"
+        logger.warning(
+            f"Combined verify: context too short ({len(context)} chars) for meaningful verification — rejecting"
         )
         return {
-            "is_faithful": True,
-            "verification": {"passed": True, "details": "Context too short for scoring — soft pass"},
-            "confidence_score": 5.0,
-            "faithfulness_score": 0.65,
-            "relevancy_score": 0.65,
+            "is_faithful": False,
+            "verification": {"passed": False, "details": "Context too short for scoring — unverified"},
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
         }
 
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
@@ -127,8 +122,10 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         claim_verification_passed = not cove_failed
         claim_verification_details = cove_result["details"]
     else:
-        claim_verification_passed = True
-        claim_verification_details = "Disabled for performance (not tier3_complex)"
+        # Finding #43: non-tier3 queries use lightweight single-claim
+        # check instead of hard-coded pass=True
+        claim_verification_passed = is_faithful_ld
+        claim_verification_details = f"Lightweight claim check (non-tier3): faithful={is_faithful_ld}"
     # --- END CoVe ---
     consistency_check_passed = True
     consistency_feedback = ""
@@ -140,23 +137,21 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     consistency_factor = 1.0 if consistency_check_passed else 0.8
 
     confidence_score = max(1.0, min(10.0, base_confidence * claim_verification_factor * consistency_factor))
-    if answer and len(answer.strip()) > 30:
-        confidence_score = max(confidence_score, 3.0)
 
     try:
         VERIFICATION_RESULTS.labels(result="faithful" if is_faithful_ld else "hallucinated").inc()
         VERIFICATION_RESULTS.labels(result="pass" if is_valid else "fail").inc()
         CONFIDENCE_SCORES.observe(confidence_score)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"Prometheus metrics failed during verification: {exc}")
 
     relevancy_score = 1.0 if is_valid else faithfulness_score
 
     try:
         FAITHFULNESS_SCORE.observe(faithfulness_score)
         RELEVANCY_SCORE.observe(relevancy_score)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(f"Prometheus metrics failed during verification: {exc}")
 
     logger.info(
         f"Combined verify (Enhanced): "
@@ -226,7 +221,7 @@ async def check_contradiction(state: GraphState, config: dict = None) -> dict:
     except Exception as e:
         logger.error(f"Contradiction check failed: {e}")
         return {
-            "evaluation_trace": _trace_update(state, contradiction_detected=False),
+            "evaluation_trace": _trace_update(state, contradiction_detected=True),
         }
 
 
@@ -310,7 +305,8 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
                 if "yes" in resp.lower():
                     supported += 1
             except Exception:
-                supported += 1  # lenient: count as supported on error
+                # Fail-closed: sub-question verification error means NOT supported
+                pass
 
         ratio = supported / max(len(sub_qs), 1)
         passed = ratio >= settings.verifier_pass_ratio
@@ -319,5 +315,5 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
             "details": f"CoVe: {supported}/{len(sub_qs)} sub-questions supported (ratio={ratio:.2f})",
         }
     except Exception as e:
-        logger.warning(f"CoVe sub-question check failed: {e}")
-        return {"passed": True, "details": "CoVe failed, defaulting to pass"}
+        logger.error(f"CoVe sub-question check failed: {e}")
+        return {"passed": False, "details": "CoVe failed, marking as unverified"}

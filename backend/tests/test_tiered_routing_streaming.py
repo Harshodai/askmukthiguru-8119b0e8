@@ -221,28 +221,36 @@ async def test_generate_answer_streaming(mock_services):
 
     mock_ollama.generate_stream = mock_stream
 
-    state = GraphState(
-        question="What is meditation?",
-        chat_history=[],
-        request_id="test-11",
-        query_tier="tier2_simple",
-        relevant_docs=[{"text": "some teaching", "source_url": "url1"}],
-        detected_language="en",
-        ab_model="primary",
-    )
+    # Force Ollama provider to avoid real SarvamCloudService HTTP calls
+    from app.config import settings
+    original_provider = settings.llm_provider
+    settings.llm_provider = "ollama"
 
-    queue = asyncio.Queue()
-    config = {"configurable": {"stream_queue": queue}}
+    try:
+        state = GraphState(
+            question="What is meditation?",
+            chat_history=[],
+            request_id="test-11",
+            query_tier="tier2_simple",
+            relevant_docs=[{"text": "some teaching", "source_url": "url1"}],
+            detected_language="en",
+            ab_model="primary",
+        )
 
-    res = await nodes.generate_answer(state, config=config)
-    assert res["answer"] == "Meditate\n\n*(Teachings referenced: meditation)*"
+        queue = asyncio.Queue()
+        config = {"configurable": {"stream_queue": queue}}
 
-    # Verify queue contains the tokens
-    tokens = []
-    while not queue.empty():
-        tokens.append(await queue.get())
+        res = await nodes.generate_answer(state, config=config)
+        assert res["answer"] == "Meditate\n\n*(Teachings referenced: meditation)*"
 
-    assert "".join(tokens) == "Meditate"
+        # Verify queue contains the tokens
+        tokens = []
+        while not queue.empty():
+            tokens.append(await queue.get())
+
+        assert "".join(tokens) == "Meditate"
+    finally:
+        settings.llm_provider = original_provider
 
 
 @pytest.mark.asyncio

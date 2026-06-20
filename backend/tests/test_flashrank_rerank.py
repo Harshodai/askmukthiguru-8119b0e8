@@ -45,10 +45,14 @@ def test_reranker_service_initialization_and_fallback():
 
 
 @pytest.mark.asyncio
-async def test_rerank_with_flashrank():
+async def test_rerank_with_flashrank(monkeypatch):
     """
     Test reranking using FlashRank ONNX engine path.
     """
+    from app.config import settings
+    monkeypatch.setattr(settings, "cross_encoder_cutoff", 0, raising=False)
+    monkeypatch.setattr(settings, "use_cross_encoder_only", False)
+
     # Set up mock flashrank output structure
     mock_ranker = MagicMock()
     mock_ranker.rerank.return_value = [

@@ -34,10 +34,11 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     web_docs = [doc for doc in documents if doc.get("content_type") == "web_search"]
     db_docs = [doc for doc in documents if doc.get("content_type") != "web_search"]
     
-    # Auto-assign high rerank score to web search documents
+    # Finding #29: web docs no longer get unconditional 0.95 score
+    # They receive a moderate default (0.7) since grading will validate relevance
     for doc in web_docs:
         if "rerank_score" not in doc:
-            doc["rerank_score"] = 0.95
+            doc["rerank_score"] = 0.70
 
     reranked_db = []
     if db_docs:
@@ -156,15 +157,30 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             f"CRAG batch: DISTRESS intent, bypassing grading, accepted {len(relevant)} docs"
         )
     else:
-        # Separate web search docs from DB docs
+        # Grade ALL docs — web search must pass relevance too (finding #44)
         web_docs = [doc for doc in reranked_docs if doc.get("content_type") == "web_search"]
         db_docs = [doc for doc in reranked_docs if doc.get("content_type") != "web_search"]
 
-        relevant_web = list(web_docs)
-        web_reasons = ["Web search auto-pass" for _ in web_docs]
-
+        relevant_web = []
+        web_reasons = []
         relevant_db = []
         db_reasons = []
+
+        if web_docs:
+            try:
+                web_texts = [doc["text"] for doc in web_docs]
+                t_out_web = get_node_timeout("grade_documents", 20.0)
+                web_results = await ollama.grade_relevance(question=question, doc_texts=web_texts, timeout=t_out_web)
+                for doc, res in zip(web_docs, web_results):
+                    if res["relevant"]:
+                        relevant_web.append(doc)
+                    web_reasons.append(res["reason"])
+            except Exception as e:
+                logger.warning(
+                    f"Grading failed for web docs: {e}. Falling back to top-3 reranked web docs."
+                )
+                relevant_web = web_docs[:3]
+                web_reasons = [f"Grading fallback: {e}" for _ in relevant_web]
 
         if db_docs:
             try:
