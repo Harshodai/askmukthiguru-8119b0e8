@@ -18,11 +18,14 @@ The /api/chat endpoint orchestrates the full flow:
 import asyncio
 import logging
 import os
+import secrets
 import sys
+import time
+
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import (
     BackgroundTasks,
@@ -48,15 +51,13 @@ from app.core.threading_config import configure_threading
 
 configure_threading()
 
-import time
-import uuid
-
 from app.config import settings
 from app.dependencies import ServiceContainer, get_container, shutdown, startup
 from app.metrics import REQUEST_COUNT, metrics_endpoint
 from app.observability import init_observability
 from app.telemetry_db import init_telemetry_db
 from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
+from app.security_utils import build_csp, TTLRateLimiter
 
 telemetry_sink = SupabaseTelemetrySink()
 telemetry_worker = TelemetryWorker(telemetry_sink)
@@ -387,27 +388,20 @@ if settings.enable_correlation_ids:
     app.add_middleware(CorrelationIDMiddleware)
 
 # ── Security Headers Middleware (auto-added by security_audit.py) ──
-SECURITY_HEADERS = {
+# CSP is generated per-request with a fresh nonce so 'unsafe-inline' is not needed.
+_SECURITY_HEADERS_STATIC = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "X-XSS-Protection": "1; mode=block",
-    "Content-Security-Policy": (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https:; "
-        "connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
-        "frame-ancestors 'none';"
-    ),
 }
 
 
 class SecurityHeadersMiddleware:
-    """Adds OWASP-recommended security headers to every response."""
+    """Adds OWASP-recommended security headers to every response.
+    Generates a per-request nonce for the Content-Security-Policy."""
 
     def __init__(self, app):
         self.app = app
@@ -417,13 +411,17 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        nonce = secrets.token_urlsafe(16)
+
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 msg_headers = list(message.get("headers", []))
                 msg_headers.extend(
                     (name.lower().encode("ascii"), value.encode("utf-8"))
-                    for name, value in SECURITY_HEADERS.items()
+                    for name, value in _SECURITY_HEADERS_STATIC.items()
                 )
+                csp = build_csp(nonce)
+                msg_headers.append((b"content-security-policy", csp.encode("utf-8")))
                 message["headers"] = msg_headers
             await send(message)
 
@@ -431,6 +429,10 @@ class SecurityHeadersMiddleware:
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+# ── TTL-based in-memory rate limiter ──
+_AUTH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=5)
+
 
 # Auth endpoint rate limiter middleware — tight limits on login/reset/register
 _AUTH_LIMIT_PATHS: frozenset[str] = frozenset({
@@ -445,26 +447,12 @@ _AUTH_LIMIT_PATHS: frozenset[str] = frozenset({
 async def auth_rate_limit_middleware(request: Request, call_next):
     if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
         client_ip = request.client.host if request.client else "unknown"
-        # Sliding-window limiter with TTL + max-key cleanup (finding #21)
-        now = time.time()
         key = f"auth_rl:{request.url.path}:{client_ip}"
-        # Periodic cleanup: evict stale rate-limit keys from app.state
-        if not hasattr(app.state, "_auth_rl_last_cleanup") or now - app.state._auth_rl_last_cleanup > 300:
-            stale_keys = [k for k in dir(app.state) if k.startswith("auth_rl:")]
-            for k in stale_keys:
-                ts = getattr(app.state, k, [])
-                if not ts or now - ts[-1] > 120:
-                    delattr(app.state, k)
-            app.state._auth_rl_last_cleanup = now
-        timestamps = getattr(app.state, key, [])
-        timestamps = [t for t in timestamps if now - t < 60.0]  # prune stale entries
-        if len(timestamps) >= 5:
+        if not _AUTH_RATE_LIMITER.is_allowed(key):
             return JSONResponse(
                 status_code=429,
                 content={"error": "Too Many Requests", "message": "Auth rate limit exceeded. Try again later."},
             )
-        timestamps.append(now)
-        setattr(app.state, key, timestamps)
     return await call_next(request)
 
 
