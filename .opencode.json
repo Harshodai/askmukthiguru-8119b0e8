@@ -1,5 +1,14 @@
 {
   "mcpServers": {
+    "headroom": {
+      "command": "/Users/harshodaikolluru/.local/bin/headroom",
+      "args": [
+        "mcp",
+        "serve"
+      ],
+      "type": "stdio",
+      "env": []
+    },
     "code-review-graph": {
       "command": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python3.12",
       "args": [
