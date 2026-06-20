@@ -22,9 +22,13 @@ from .utils import _trace_update, get_node_timeout, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 
-# Simple LRU cache for intent classification
-_intent_classification_cache: dict[str, tuple[str, str]] = {}
+# LRU cache for intent classification (finding #33: proper LRU with TTL)
+import time as _time
+from collections import OrderedDict as _OrderedDict
+
+_intent_classification_cache: _OrderedDict[str, tuple[str, str, float]] = _OrderedDict()
 _INTENT_CACHE_MAX = 1000
+_INTENT_CACHE_TTL = 3600  # 1 hour
 
 _CAPABILITY_PATTERNS = [
     "what can you", "what do you know", "what topics", "what kind of things",
@@ -84,24 +88,36 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
     """Classify user message -> DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION."""
     try:
         return await _intent_router_impl(state, config)
-    except Exception as e:
+    except Exception:
         logger.exception("Intent router failed, falling back to safe default")
         question = state.get("question", "")
         lower_q = question.lower()
         needs_web_search = False
         query_tier = "tier2_simple"
+        intent = "FACTUAL"
+        # Check distress keywords before defaulting to FACTUAL (finding #47)
+        try:
+            from services.serene_mind_engine import DistressLevel
+            serene_mind = _services._serene_mind
+            if serene_mind is not None:
+                keyword_assessment = serene_mind.assess_distress(question, state.get("chat_history", []))
+                if keyword_assessment.level >= DistressLevel.MODERATE:
+                    intent = "DISTRESS"
+                    query_tier = "tier2_simple"
+        except Exception:
+            pass  # If distress check also fails, fall through to FACTUAL
         if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
             needs_web_search = True
             query_tier = "tier3_complex"
             logger.info("Intent Router Fallback: temporal pattern detected, enabling web search")
         return {
-            "intent": "FACTUAL",
+            "intent": intent,
             "query_tier": query_tier,
             "confidence_tier": "medium",
             "needs_web_search": needs_web_search,
             "evaluation_trace": _trace_update(
-                state, intent="FACTUAL", query_tier=query_tier,
-                routing_reason="semantic_router_fallback",
+                state, intent=intent, query_tier=query_tier,
+                routing_reason="intent_fallback_with_distress_check",
                 needs_web_search=needs_web_search
             ),
         }
@@ -217,9 +233,9 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # intent + tier without any pattern matching in Python code.
     if getattr(settings, "use_semantic_router", True):
         try:
-            from services.semantic_router import SemanticRouter
+            from services.semantic_router import IntentSemanticRouter
 
-            router = SemanticRouter.get_default()
+            router = IntentSemanticRouter.get_default()
             router_match = router.classify(question, meditation_step=meditation_step)
         except Exception as exc:  # noqa: BLE001 — never block routing over a router error
             logger.debug("SemanticRouter classification failed (%s); falling back.", exc)
@@ -285,12 +301,17 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # ---- Cache check ----
     cache_key = lower_q.strip()
     if cache_key in _intent_classification_cache:
-        cached_intent, cached_complexity = _intent_classification_cache[cache_key]
-        if cached_intent == "QUERY":
-            cached_intent = "FACTUAL"
-        tier = "tier2_simple" if cached_complexity == "simple" else "tier3_complex"
-        if cached_intent == "FACTUAL":
-            logger.info(f"Intent Router: cache hit — {cached_intent} | {tier}")
+        entry = _intent_classification_cache[cache_key]
+        cached_intent, cached_complexity, cached_ts = entry
+        if _time.time() - cached_ts > _INTENT_CACHE_TTL:
+            del _intent_classification_cache[cache_key]
+        else:
+            _intent_classification_cache.move_to_end(cache_key)  # LRU access
+            if cached_intent == "QUERY":
+                cached_intent = "FACTUAL"
+            tier = "tier2_simple" if cached_complexity == "simple" else "tier3_complex"
+            if cached_intent == "FACTUAL":
+                logger.info(f"Intent Router: cache hit — {cached_intent} | {tier}")
             return {
                 "intent": cached_intent,
                 "query_tier": tier,
@@ -304,19 +325,6 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                     routing_reason="cache_hit"
                 ),
             }
-        return {
-            "intent": cached_intent,
-            "query_tier": tier,
-            "confidence_tier": (
-                "high" if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
-                else "low" if tier == "tier3_complex"
-                else "medium"
-            ),
-            "evaluation_trace": _trace_update(
-                state, intent=cached_intent, query_tier=tier,
-                routing_reason="cache_hit"
-            ),
-        }
 
     # ---- On-Device Intent Classifier (Phase 3 / Strategic) ----
     # Fast keyword/embedding classification before expensive LLM call.
@@ -396,10 +404,10 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             query_tier = "tier3_complex"
 
     # Store in cache
-    _intent_classification_cache[cache_key] = (intent, complexity)
+    # Store in cache with TTL timestamp
+    _intent_classification_cache[cache_key] = (intent, complexity, _time.time())
     if len(_intent_classification_cache) > _INTENT_CACHE_MAX:
-        oldest = next(iter(_intent_classification_cache))
-        del _intent_classification_cache[oldest]
+        _intent_classification_cache.popitem(last=False)  # FIFO eviction for OrderedDict
 
     logger.info(
         f"Intent Router: classified '{question[:80]}...' -> {intent} | tier -> {query_tier} (question_len={len(question)})"
@@ -589,7 +597,7 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     except (TypeError, ValueError):
         step = 0
     question = state.get("question", "").lower()
-    from rag.meditation import MEDITATION_SCRIPTS, get_meditation_complete_message
+    from rag.meditation import MEDITATION_SCRIPTS
 
     start_step = getattr(settings, "meditation_start_step", 1)
     safe_fallback = getattr(settings, "meditation_safe_fallback", True)
