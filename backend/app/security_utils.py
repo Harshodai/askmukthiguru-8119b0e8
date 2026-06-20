@@ -14,6 +14,7 @@ import os
 import re
 import secrets
 import time
+from collections import deque
 from typing import Optional
 
 # YouTube video ID: exactly 11 characters, alphanumeric, hyphen, underscore
@@ -192,3 +193,51 @@ def validate_origin_referer(origin: Optional[str], allowed_origins: list[str]) -
         if origin == allowed or origin.startswith(allowed.rstrip("/") + "/"):
             return True
     return False
+
+
+# ── CSP Builder ──
+def build_csp(nonce: str) -> str:
+    """Return a nonce-based Content-Security-Policy header value."""
+    return (
+        f"default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com; "
+        f"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+        f"font-src 'self' https://fonts.gstatic.com; "
+        f"img-src 'self' data: https:; "
+        f"connect-src 'self' https://api.sarvam.ai https://*.supabase.co wss://*.supabase.co; "
+        f"frame-ancestors 'none';"
+    )
+
+
+# ── TTL Rate Limiter ──
+class TTLRateLimiter:
+    """Simple TTL-backed rate limiter using per-key deques of timestamps."""
+
+    def __init__(self, ttl: float, max_requests: int):
+        self.ttl = ttl
+        self.max_requests = max_requests
+        self._store: dict[str, deque] = {}
+
+    def is_allowed(self, key: str, now: Optional[float] = None) -> bool:
+        now = now or time.time()
+        ts = self._store.get(key)
+        if ts is None:
+            self._store[key] = deque([now], maxlen=self.max_requests + 1)
+            return True
+        cutoff = now - self.ttl
+        while ts and ts[0] < cutoff:
+            ts.popleft()
+        if len(ts) >= self.max_requests:
+            return False
+        ts.append(now)
+        return True
+
+    def clear_expired(self, now: Optional[float] = None) -> None:
+        now = now or time.time()
+        cutoff = now - self.ttl
+        for key in list(self._store.keys()):
+            q = self._store[key]
+            while q and q[0] < cutoff:
+                q.popleft()
+            if not q:
+                del self._store[key]
