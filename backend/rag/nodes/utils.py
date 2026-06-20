@@ -602,12 +602,25 @@ def log_metrics(func):
                 NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
             except Exception:
                 pass
-            return {
+            # Unit 9: preserve the full expected GraphState shape so downstream
+            # nodes (e.g. verify_answer, format_final_answer) do not KeyError when
+            # the previous node failed. Copy existing state first, then add safe
+            # defaults and fallback metadata.
+            fallback = {
                 "error": str(e),
                 "node": node_name,
                 "fallback": True,
                 "node_timings": {node_name: duration_ms},
             }
+            result = dict(state)
+            result.setdefault("relevant_docs", [])
+            result.setdefault("reranked_docs", [])
+            result.setdefault("documents", [])
+            result.setdefault("answer", None)
+            result.setdefault("citations", [])
+            result.setdefault("final_answer", None)
+            result.update(fallback)
+            return result
 
         duration = time.time() - start
         duration_ms = round(duration * 1000, 1)

@@ -160,8 +160,28 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         web_docs = [doc for doc in reranked_docs if doc.get("content_type") == "web_search"]
         db_docs = [doc for doc in reranked_docs if doc.get("content_type") != "web_search"]
 
-        relevant_web = list(web_docs)
-        web_reasons = ["Web search auto-pass" for _ in web_docs]
+        relevant_web = []
+        web_reasons = []
+
+        if web_docs:
+            try:
+                web_texts = [doc["text"] for doc in web_docs]
+                t_out_web = get_node_timeout("grade_documents", 20.0)
+                web_results = await ollama.grade_relevance(
+                    question=question, doc_texts=web_texts, timeout=t_out_web
+                )
+                for doc, res in zip(web_docs, web_results):
+                    if res["relevant"]:
+                        relevant_web.append(doc)
+                    web_reasons.append(res["reason"])
+            except Exception as e:
+                # Unit 9 fail-safe: if web grading raises, keep only the top-3
+                # reranked web docs instead of unconditionally accepting all of them.
+                logger.warning(
+                    f"Grading failed for web docs: {e}. Falling back to top-3 reranked web docs."
+                )
+                relevant_web = web_docs[:3]
+                web_reasons = [f"Grading fallback: {e}" for _ in relevant_web]
 
         relevant_db = []
         db_reasons = []
