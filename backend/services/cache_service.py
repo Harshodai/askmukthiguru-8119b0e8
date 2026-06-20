@@ -203,7 +203,7 @@ class RedisCacheAdapter(ICacheRepository):
                 logger.info(f"Redis Cache HIT (hits={self._hits}, misses={self._misses})")
                 return json.loads(result)
         except Exception as e:
-            logger.warning(f"Redis get failed: {e}")
+            logger.warning(f"Redis get failed for query={query}: {e}")
 
         self._misses += 1
         return None
@@ -226,7 +226,7 @@ class RedisCacheAdapter(ICacheRepository):
             }
             self._redis.setex(key, self._ttl, json.dumps(payload))
         except Exception as e:
-            logger.warning(f"Redis put failed: {e}")
+            logger.warning(f"Redis put failed for query={query}: {e}")
 
     def invalidate_all(self) -> None:
         """Clear the entire cache via namespace deletion using non-blocking SCAN batched pipeline."""

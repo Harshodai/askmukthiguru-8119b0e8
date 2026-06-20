@@ -171,7 +171,7 @@ class SemanticCacheService:
             return None
 
         except Exception as e:
-            logger.warning(f"Semantic cache lookup failed: {e}")
+            logger.warning(f"Semantic cache lookup failed for query={query}: {e}")
             self._misses += 1
             return None
 
@@ -238,7 +238,7 @@ class SemanticCacheService:
             logger.debug(f"Semantic cache: stored entry {entry_id} ({len(entry_ids)} total)")
 
         except Exception as e:
-            logger.warning(f"Semantic cache store failed: {e}")
+            logger.warning(f"Semantic cache store failed for query={query}: {e}")
 
     def invalidate_all(self) -> None:
         """Clear all semantic cache entries."""

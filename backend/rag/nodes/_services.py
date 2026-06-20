@@ -22,21 +22,7 @@ _web_search: Any = None
 _sarvam_cloud: Any = None
 
 
-def __getattr__(name: str) -> Any:
-    if name == "_semantic_cache":
-        global _injected_semantic_cache, _fallback_cache
-        if _injected_semantic_cache is not None:
-            return _injected_semantic_cache
-        # Finding #18: log when falling back to in-memory cache
-        import logging as _logging
-        _logging.getLogger(__name__).warning(
-            "_semantic_cache not injected — using InMemoryCacheAdapter fallback"
-        )
-        if _fallback_cache is None:
-            from services.cache_service import InMemoryCacheAdapter
-            _fallback_cache = InMemoryCacheAdapter()
-        return _fallback_cache
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+# InMemoryCacheAdapter fallback removed (Unit 8) — missing service is now a hard error
 
 
 def init_services(

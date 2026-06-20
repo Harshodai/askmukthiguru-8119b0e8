@@ -123,7 +123,9 @@
       "Bash(./venv/bin/python -m pytest tests/test_log_metrics_fallback.py tests/test_reranking_fail_safe.py -v --tb=short)",
       "Bash(./venv/bin/python -m pytest tests/test_csp_rate_limiter.py -v --tb=short)",
       "Bash(./.venv/bin/pytest *)",
-      "Bash(./.venv/bin/python3 *)"
+      "Bash(./.venv/bin/python3 *)",
+      "Bash(/opt/homebrew/opt/python@3.12/bin/python3.12 *)",
+      "Bash(venv/bin/python --version)"
     ]
   },
   "enableAllProjectMcpServers": true,
