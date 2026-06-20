@@ -24,6 +24,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -97,6 +98,13 @@ class Settings(BaseSettings):
     node_model_overrides: dict[str, str] = {}
     graph_hard_deadline_s: float = 20.0   # DEAD CONFIG — not used by LangGraph, kept for compatibility
 
+    # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
+    semantic_router_enabled: bool = True        # Toggle between semantic (fast) and LLM-based (slow) routing
+    semantic_router_top_k: int = 3              # How many nearest utterances vote on the tier
+    semantic_router_confidence_threshold: float = 0.65  # Max similarity must exceed this to trust the router
+    semantic_router_fallback_llm: bool = False  # If True, fall back to LLM classifier when confidence is low
+    semantic_router_shadow_mode: bool = False   # If True, run semantic router alongside heuristic but return heuristic result (for A/B comparison)
+
     # --- Safety Limits ---
     chat_history_max_messages: int = 20  # Cap conversation context to prevent OOM/timeouts
     max_input_length: int = 2000  # Max user message length in characters
@@ -117,7 +125,7 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
-    openrouter_classify_model: str = "meta-llama/llama-3.2-3b-instruct:free"
+    openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
     use_openrouter_for_simple: bool = True
     openrouter_rpm_limit: int = 20
 
@@ -495,6 +503,16 @@ class Settings(BaseSettings):
         if self.raptor_summary_model:  # Explicit override
             return self.raptor_summary_model
         return self.model_for_generation  # Default to generation model
+
+    @model_validator(mode="after")
+    def validate_api_keys(self):
+        """Fail-fast on missing required API keys for the active provider."""
+        provider = self.llm_provider.lower()
+        if provider == "sarvam_cloud" and not self.sarvam_api_key.strip():
+            raise ValueError("sarvam_api_key is required when llm_provider='sarvam_cloud'")
+        if provider == "openrouter" and not self.openrouter_api_key.strip():
+            raise ValueError("openrouter_api_key is required when llm_provider='openrouter'")
+        return self
 
 
 @lru_cache
