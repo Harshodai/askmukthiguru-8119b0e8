@@ -604,6 +604,7 @@ def log_metrics(func):
                 pass
             return {
                 "error": str(e),
+                "relevant_docs": state.get("relevant_docs", []),  # Finding #32: preserve expected shape
                 "node": node_name,
                 "fallback": True,
                 "node_timings": {node_name: duration_ms},

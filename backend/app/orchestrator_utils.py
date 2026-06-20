@@ -79,8 +79,11 @@ User Query: {query}
 Output:"""
 
 
+from app.telemetry_db import log_router_decision
+
+
 async def select_graph_for_query(
-    query: str, container: Optional[Any] = None, detected_intent: Optional[str] = None
+    query: str, container: Optional[ServiceContainer] = None, detected_intent: Optional[str] = None
 ) -> str:
     """Select the most appropriate compiled graph variant for a query using dynamic LLM classification with heuristic fallback.
 
@@ -97,74 +100,70 @@ async def select_graph_for_query(
     if not query:
         return "standard"
 
+    threshold = getattr(settings, "semantic_router_confidence_threshold", 0.65)
+    shadow_mode = getattr(settings, "semantic_router_shadow_mode", False)
     q = query.lower().strip()
 
-    # 1. Dynamic LLM-based classification (preferred)
-    if container:
+    # 1. Semantic router (embedding-based, sub-100 ms, zero LLM call)
+    semantic_tier: str | None = None
+    semantic_confidence: float = 0.0
+    if container and hasattr(container, "semantic_router"):
         try:
-            # Use openrouter for classification only when use_openrouter_for_simple is enabled
-
-            provider = None
-            if getattr(settings, "use_openrouter_for_simple", False):
-                provider = getattr(container, "openrouter", None)
-                if not provider or not getattr(settings, "openrouter_api_key", None):
-                    provider = None
-
-            if not provider:
-                provider = getattr(container, "ollama", None)
-
-            if provider:
-                import json
-                system_prompt = "You are a query complexity classifier. Respond only with JSON containing the key 'tier'."
-                user_prompt = CLASSIFY_COMPLEXITY_PROMPT.format(query=query)
-
-                # Wrap classification call with timeout to fail fast if
-                # OpenRouter rate limiter is sleeping (57s on 429).
-                async def _classify() -> str:
-                    if hasattr(provider, "_generate_fast"):
-                        return await provider._generate_fast(
-                            system_prompt=system_prompt,
-                            user_prompt=user_prompt,
-                            temperature=0.0,
-                            max_tokens=50,
-                            timeout=3.0,
+            semantic_router = getattr(container, "semantic_router", None)
+            if semantic_router:
+                semantic_tier, semantic_confidence = semantic_router.classify_with_score(query)
+                logger.info(
+                    f"SemanticModelRouter: classified as '{semantic_tier}' "
+                    f"(confidence={semantic_confidence:.3f})"
+                )
+                if semantic_confidence >= threshold and not shadow_mode:
+                    # Fast path: log and return immediately
+                    try:
+                        asyncio.create_task(
+                            log_router_decision(
+                                query=query,
+                                tier=semantic_tier,
+                                confidence=semantic_confidence,
+                                method="semantic",
+                            )
                         )
-                    return await provider.generate(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        temperature=0.0,
-                        max_tokens=50,
-                        timeout=3.0,
+                    except Exception:
+                        pass
+                    return semantic_tier
+                # In shadow mode: continue to heuristic but log the semantic result
+                if shadow_mode:
+                    logger.info(
+                        f"SemanticModelRouter shadow mode: semantic='{semantic_tier}' "
+                        f"(conf={semantic_confidence:.3f}), continuing to heuristic for actual routing"
                     )
+                else:
+                    logger.warning(
+                        f"SemanticModelRouter low confidence ({semantic_confidence:.3f} < {threshold}). "
+                        f"Falling back to heuristics."
+                    )
+        except Exception as exc:
+            logger.warning(f"SemanticModelRouter failed: {exc}. Falling back to heuristics.")
 
-                res = await asyncio.wait_for(_classify(), timeout=8.0)
-
-                if not res:
-                    raise ValueError("Empty response from classifier provider")
-                res_clean = res.strip()
-                if res_clean.startswith("```"):
-                    lines = res_clean.splitlines()
-                    if len(lines) >= 3:
-                        res_clean = "\n".join(lines[1:-1]).strip()
-
-                first_brace = res_clean.find("{")
-                last_brace = res_clean.rfind("}")
-                if first_brace != -1 and last_brace != -1:
-                    data = json.loads(res_clean[first_brace:last_brace+1])
-                    tier = data.get("tier", "").strip().lower()
-                    if tier in ("fast", "standard", "deep"):
-                        logger.info(f"Dynamic LLM Query Router: classified query as '{tier}'")
-                        return tier
-        except Exception as e:
-            logger.warning(f"Dynamic LLM Query Router failed: {e}. Falling back to heuristics.")
-
-    # 2. Heuristic fallback (original logic)
+    # 2. Heuristic fallback (no LLM call)
     tokens = q.split()
 
     # Check deep patterns first (highest priority)
     for pattern in _DEEP_QUERY_PATTERNS:
         if re.search(pattern, q):
-            return "deep"
+            heuristic_tier = "deep"
+            try:
+                asyncio.create_task(
+                    log_router_decision(
+                        query=query,
+                        tier=heuristic_tier,
+                        confidence=1.0,
+                        method="heuristic",
+                        shadow_tier=semantic_tier if shadow_mode else None,
+                    )
+                )
+            except Exception:
+                pass
+            return heuristic_tier
 
     # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
     # even with doctrine keywords (avoids "What is deeksha and how do I practice it?")
@@ -174,20 +173,23 @@ async def select_graph_for_query(
     ]
     is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
 
+    # Determine heuristic tier
+    heuristic_tier = "standard"
+
     # Check if intent router already classified as simple
     if detected_intent in ("FACTUAL", "QUERY"):
         # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
         if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
             if len(tokens) <= 25:
-                return "fast"
-        if len(tokens) <= 20:
-            return "fast"
+                heuristic_tier = "fast"
+        elif len(tokens) <= 20:
+            heuristic_tier = "fast"
 
     # Check simple query patterns
     if len(tokens) <= 10:
         for st in _SIMPLE_QUERY_STARTS:
             if q.startswith(st):
-                return "fast"
+                heuristic_tier = "fast"
 
     # Broader regex-based simple query detection (expanded thresholds)
     simple_patterns = [
@@ -197,13 +199,27 @@ async def select_graph_for_query(
     ]
     for pattern in simple_patterns:
         if re.search(pattern, q) and len(tokens) <= 12:
-            return "fast"
+            heuristic_tier = "fast"
 
     # Final catch-all: short greetings and statements
     if len(tokens) <= 4 and detected_intent in ("CASUAL", "GREETING"):
-        return "fast"
+        heuristic_tier = "fast"
 
-    return "standard"
+    # Log heuristic decision (fire-and-forget)
+    try:
+        asyncio.create_task(
+            log_router_decision(
+                query=query,
+                tier=heuristic_tier,
+                confidence=1.0,
+                method="heuristic",
+                shadow_tier=semantic_tier if shadow_mode else None,
+            )
+        )
+    except Exception:
+        pass
+
+    return heuristic_tier
 
 
 def should_skip_verification(query_tier: str, detected_intent: str) -> bool:

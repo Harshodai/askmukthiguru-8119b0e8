@@ -48,8 +48,9 @@ async function run() {
   
   let isIncremental = false;
   let lastCommit = '';
+  const forceFull = process.argv.includes('--full');
   
-  if (fs.existsSync(metaPath) && fs.existsSync(graphPath)) {
+  if (!forceFull && fs.existsSync(metaPath) && fs.existsSync(graphPath)) {
     try {
       const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
       lastCommit = meta.gitCommitHash;

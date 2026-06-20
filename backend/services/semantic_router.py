@@ -215,7 +215,7 @@ class _Encoder:
 # ---------------------------------------------------------------------------
 
 
-class SemanticRouter:
+class IntentSemanticRouter:
     """Embeddings-first intent router, configured entirely via YAML.
 
     Construction is intentionally cheap (no encoder calls). Call
@@ -235,7 +235,7 @@ class SemanticRouter:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def get_default(cls) -> "SemanticRouter":
+    def get_default(cls) -> "IntentSemanticRouter":
         """Singleton accessor — preserves the in-process centroid cache."""
         return cls()
 
@@ -347,3 +347,7 @@ class SemanticRouter:
 
     def route_names(self) -> list[str]:
         return [r.name for r in self._routes]
+
+
+# Backward compatibility alias
+SemanticRouter = IntentSemanticRouter

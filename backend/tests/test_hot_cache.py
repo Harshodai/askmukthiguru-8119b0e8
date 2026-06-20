@@ -48,12 +48,20 @@ class TestHotCache:
         cache = HotCache(default_ttl_s=300.0, max_size=4)
         for i in range(5):
             cache.put(f"query-{i}", f"answer-{i}", [])
-        # After exceeding max_size by 1, eviction halves the store (2 entries remain)
-        assert len(cache._store) <= 2
+        # Eviction trims the store down to max_size (4 entries remain)
+        assert len(cache._store) == 4
+        assert cache.get("query-0") is None
 
     def test_stats(self) -> None:
         cache = HotCache(default_ttl_s=300.0, max_size=10)
-        assert cache.stats() == {"size": 0, "alive": 0, "max_size": 10}
+        assert cache.stats() == {
+            "size": 0,
+            "alive": 0,
+            "max_size": 10,
+            "hits": 0,
+            "misses": 0,
+            "hit_rate": 0.0,
+        }
         cache.put("q1", "a1", [])
         cache.put("q2", "a2", [])
         stats = cache.stats()

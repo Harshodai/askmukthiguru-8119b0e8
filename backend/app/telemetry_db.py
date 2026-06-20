@@ -59,6 +59,52 @@ class PIIScrubber:
         return text
 
 
+async def log_router_decision(
+    query: str,
+    tier: str,
+    confidence: float,
+    method: str,
+    shadow_tier: str | None = None,
+) -> str | None:
+    """Log a routing decision to the router_decisions table.
+
+    Args:
+        query: Original user query (will be PII-scrubbed).
+        tier: The selected tier (fast/standard/deep).
+        confidence: Max cosine similarity (confidence score).
+        method: 'semantic', 'heuristic', or 'fallback'.
+        shadow_tier: Optional — when in shadow mode, the semantic router's tier for A/B comparison.
+
+    Returns:
+        The trace_id if logged successfully, None otherwise.
+    """
+    client = _get_client()
+    if not client:
+        return None
+
+    import uuid
+    from datetime import datetime, timezone
+
+    trace_id = str(uuid.uuid4())
+    decision_payload = {
+        "id": trace_id,
+        "query_text": PIIScrubber.scrub(query),
+        "tier": tier,
+        "confidence": round(confidence, 6),
+        "method": method,
+        "shadow_tier": shadow_tier,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    try:
+        client.table("router_decisions").insert(decision_payload).execute()
+        logger.debug(f"Logged router decision {trace_id} to telemetry")
+        return trace_id
+    except Exception as e:
+        logger.warning(f"Failed to log router decision to telemetry: {e}")
+        return None
+
+
 async def log_query_trace(query_data: dict, response_data: dict) -> None:
     """Log a complete query and response trace to Supabase."""
     client = _get_client()
@@ -222,11 +268,15 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         total_queries = query.execute().count or 0
 
         # 2. Total seekers (unique anon_user_id or user_id)
-        # Simplified: count unique user_ids if available, otherwise anon
-        seeker_query = client.table("chat_queries").select("user_id", count="exact")
+        seeker_query = client.table("chat_queries").select("user_id, anon_user_id")
         if safe_from:
             seeker_query = seeker_query.gte("created_at", safe_from)
-        total_seekers = seeker_query.execute().count or 0
+        if safe_to:
+            seeker_query = seeker_query.lte("created_at", safe_to)
+        seeker_rows = seeker_query.execute().data or []
+        unique_seekers = {r.get("user_id") or r.get("anon_user_id") for r in seeker_rows}
+        unique_seekers.discard(None)
+        total_seekers = len(unique_seekers)
 
         # 3. Latency and Errors
         # We fetch last 1000 to compute percentiles locally (Supabase free tier lacks complex agg)
@@ -236,7 +286,7 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         metric_query = metric_query.order("created_at", desc=True).limit(1000)
         metrics = metric_query.execute().data or []
 
-        latencies = [m["latency_ms"] for m in metrics if m.get("latency_ms")]
+        latencies = [m["latency_ms"] for m in metrics if m.get("latency_ms") is not None]
         errors = [m for m in metrics if m.get("status") == "error"]
 
         import statistics
@@ -272,11 +322,13 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
         # Until token telemetry is populated, use a conservative 800 input / 350 output token estimate.
         estimated_cost_inr = total_queries * (((800 / 1_000_000) * 2.5) + ((350 / 1_000_000) * 10))
 
-        # 6. Feedback thumbs_up_rate from feedback table
+        # 6. Feedback thumbs_up_rate from feedback_events table
         try:
-            fb_query = client.table("feedback").select("rating")
+            fb_query = client.table("feedback_events").select("rating")
             if safe_from:
                 fb_query = fb_query.gte("created_at", safe_from)
+            if safe_to:
+                fb_query = fb_query.lte("created_at", safe_to)
             fb_data = fb_query.execute().data or []
             if fb_data:
                 thumbs = [f for f in fb_data if f.get("rating") is not None]
@@ -284,7 +336,8 @@ async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = Non
                 thumbs_up_rate = up / len(thumbs) if thumbs else 0.0
             else:
                 thumbs_up_rate = 0.0
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to fetch feedback_events in KPIs: {e}")
             thumbs_up_rate = 0.0
 
         return {
@@ -378,8 +431,7 @@ async def get_timeseries_data(
         elif metric == "cost_usd":
             query = client.table("chat_queries").select("cost_estimate, created_at")
         elif metric == "thumbs_up_rate":
-            # Placeholder - would need feedback table
-            query = client.table("chat_queries").select("created_at")
+            query = client.table("feedback_events").select("rating, created_at")
         elif metric == "retrieval_hit_rate":
             # Would need to check if citations exist
             query = client.table("chat_responses").select("citations, created_at")
@@ -443,9 +495,12 @@ async def get_timeseries_data(
                     buckets_data[bucket_index]["value"] += cost
                     buckets_data[bucket_index]["count"] += 1
                 elif metric == "thumbs_up_rate":
-                    # Placeholder
-                    buckets_data[bucket_index]["value"] += 0
-                    buckets_data[bucket_index]["count"] += 1
+                    rating = item.get("rating")
+                    if rating is not None:
+                        buckets_data[bucket_index]["ratings"] = buckets_data[bucket_index].get(
+                            "ratings", []
+                        ) + [rating]
+                        buckets_data[bucket_index]["count"] += 1
                 elif metric == "retrieval_hit_rate":
                     citations = item.get("citations", [])
                     hit = len(citations) > 0 if isinstance(citations, list) else False
@@ -465,11 +520,17 @@ async def get_timeseries_data(
                 index = int(len(latencies) * 0.95)
                 bucket["value"] = latencies[index] if latencies else 0
             elif metric in ["hallucination_rate", "thumbs_up_rate", "retrieval_hit_rate"]:
-                bucket["value"] = bucket["value"] / bucket["count"] if bucket["count"] > 0 else 0
+                if metric == "thumbs_up_rate":
+                    ratings = bucket.get("ratings", [])
+                    up = sum(1 for r in ratings if r > 0)
+                    bucket["value"] = up / len(ratings) if ratings else 0.0
+                else:
+                    bucket["value"] = bucket["value"] / bucket["count"] if bucket["count"] > 0 else 0
             # For queries and cost_usd, value is already summed
 
             # Remove temporary fields
             bucket.pop("latencies", None)
+            bucket.pop("ratings", None)
             result.append({"bucket": bucket["bucket"], "value": bucket["value"]})
 
         return result

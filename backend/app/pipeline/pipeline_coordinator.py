@@ -24,6 +24,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import random
+import re
 import time
 import uuid
 from typing import Any
@@ -50,6 +52,38 @@ from services.hot_cache import hot_cache
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
 logger = logging.getLogger(__name__)
+
+# ---- Kill #3: Randomized warm greetings for instant CASUAL short-circuit ----
+# Industry standard (ChatGPT, Perplexity): greetings return <200ms with no LLM call.
+_WARM_GREETINGS = [
+    "\U0001f64f Namaste, dear seeker! I am Mukthi Guru, here to walk with you on the path of awakening. What wisdom would you like to explore today?",
+    "\U0001f64f Welcome, dear friend! I am here to share the timeless wisdom of Sri Preethaji and Sri Krishnaji. How may I serve your journey?",
+    "\U0001f64f Namaste! A beautiful state begins with a single question. What's on your heart today?",
+    "\U0001f64f Hello, beloved seeker! Every moment is an invitation to awaken. What would you like to explore together?",
+    "\U0001f64f Pranam! I am Mukthi Guru, your companion on the path of inner peace. What question brings you here today?",
+    "\U0001f64f Welcome! As Sri Preethaji teaches, every encounter is an opportunity for connection. How can I guide you today?",
+    "\U0001f64f Namaste! May our conversation bring you closer to the Beautiful State. What would you like to know?",
+    "\U0001f64f Hello, dear one! I am here with the wisdom of the ancient teachings and the vision of Sri Krishnaji. Ask me anything.",
+    "\U0001f64f Welcome back! The path of awakening continues with each new question. What shall we explore?",
+    "\U0001f64f Namaste, dear seeker! Like a Soul Sync breath, let us begin with presence. What is in your heart?",
+]
+
+# Regex for instant greeting detection (no embedding, no LLM)
+_GREETING_RE = re.compile(
+    r"^\s*(hi|hello|hey|namaste|pranam|namaskar|namasthe|greetings|"
+    r"good\s*(morning|afternoon|evening|night)|howdy|yo|hola|\U0001f64f)\s*[!.?]*\s*$",
+    re.IGNORECASE,
+)
+
+# Distress keyword pre-screen for Kill #4 — only triggers full analysis when present
+_DISTRESS_KEYWORD_RE = re.compile(
+    r"\b(suicid|kill\s*my|want\s*to\s*die|end\s*my\s*life|hurt\s*my|self[-\s]*harm|"
+    r"hopeless|crying|panic|anxiety|depress|grief|alone|miserable|worthless|"
+    r"helpless|nobody\s*cares|no\s*point|give\s*up|can'?t\s*go\s*on|overwhelm|"
+    r"suffering|pain|afraid|scared|terrif|agony|desper|broken|tut\s*chuk|"
+    r"akela|kashtam|dukh|takleef|udas)\b",
+    re.IGNORECASE,
+)
 
 
 class PipelineCoordinator:
@@ -187,19 +221,53 @@ class PipelineCoordinator:
             )
 
         # ------------------------------------------------------------------
-        # 5. Distress Detection
+        # 4b. CASUAL Short-Circuit (Kill #3)
         # ------------------------------------------------------------------
+        # Industry standard: greetings return <200ms with no LLM call.
+        # Only fires for pure greetings ("Hello", "Namaste", "Hi!") — anything
+        # with spiritual keywords falls through to the full pipeline.
+        if _GREETING_RE.match(user_msg_en):
+            greeting = random.choice(_WARM_GREETINGS)
+            if is_indic:
+                greeting = await self.container.translation.translate_text(
+                    text=greeting, source_lang="en", target_lang=preferred_lang
+                )
+            latency_ms = int((time.time() - start_time) * 1000)
+            logger.info(f"Instant greeting short-circuit: {latency_ms}ms")
+            return PipelineResult(
+                final_answer=greeting,
+                intent="CASUAL",
+                trace_id=trace_id,
+                latency_ms=latency_ms,
+                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
+                model_provider=getattr(settings, "llm_provider", None),
+                route_decision="instant_greeting",
+                cache_hit=False,
+            )
+
+        # ------------------------------------------------------------------
+        # 5. Distress Detection (Kill #4: conditional)
+        # ------------------------------------------------------------------
+        # Skip full LLM-based distress analysis for queries that are clearly
+        # factual/casual with no distress keywords. Safety is preserved:
+        # any query containing distress language always gets full analysis.
         _s = time.time_ns()
-        assessment = await self._detect_distress(user_msg_en, state)
+        _has_distress_keywords = bool(_DISTRESS_KEYWORD_RE.search(user_msg_en))
+        if _has_distress_keywords:
+            assessment = await self._detect_distress(user_msg_en, state)
+        else:
+            assessment = None
         await self._stage("distress_detection", trace_id, start_ns=_s)
 
         # ------------------------------------------------------------------
-        # 6. Proactive Serene Mind
+        # 6. Proactive Serene Mind (conditional on distress presence)
         # ------------------------------------------------------------------
         _s = time.time_ns()
-        proactive_data = await self._maybe_trigger_proactive_serene_mind(
-            assessment, user_id, chat_body, state
-        )
+        proactive_data = None
+        if _has_distress_keywords:
+            proactive_data = await self._maybe_trigger_proactive_serene_mind(
+                assessment, user_id, chat_body, state
+            )
         if proactive_data:
             state["proactive_serene_mind"] = proactive_data
         await self._stage("proactive_serene_mind", trace_id, start_ns=_s)
@@ -617,24 +685,14 @@ class PipelineCoordinator:
                 if "query_tier" not in initial_state:
                     initial_state["query_tier"] = "tier2_simple" if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION") else "tier3_complex"
 
+            # Kill #7: select_graph_for_query uses pure heuristics now (sub-1ms).
+            # It respects the detected_intent from on-device and does NOT make
+            # an LLM call. We use the result to pick the graph variant but do
+            # NOT overwrite query_tier — on-device tier is authoritative.
             graph_variant = await select_graph_for_query(user_msg_en, container=self.container, detected_intent=detected_intent)
-            initial_state["query_tier"] = graph_variant
-
-            # OpenRouter fast path: skip graph for simple queries (Phase 2.4 will remove this)
-            if graph_variant == "fast" and getattr(settings, "use_openrouter_for_simple", False):
-                try:
-                    openrouter = getattr(self.container, "openrouter", None)
-                    if openrouter and openrouter.is_available:
-                        logger.info("OpenRouter fast path: bypassing graph for simple factual query")
-                        answer = await openrouter.generate(
-                            system_prompt="You are a helpful spiritual guide...",
-                            user_prompt=user_msg_en,
-                            timeout=30.0,
-                        )
-                        logger.info("OpenRouter fast path: success")
-                        return {**initial_state, "final_answer": answer, "intent": "QUERY", "citations": []}
-                except Exception as e:
-                    logger.warning(f"OpenRouter fast path failed ({e}), falling through to graph pipeline")
+            # Only set query_tier if on-device didn't already set it
+            if "query_tier" not in initial_state or initial_state.get("query_tier") is None:
+                initial_state["query_tier"] = graph_variant
 
             selected_graph = getattr(self.container, f"{graph_variant}_graph")
             try:

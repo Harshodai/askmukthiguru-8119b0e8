@@ -59,9 +59,9 @@ def _keyword_overlap_encoder():
 
 
 def _build_router_with_stub():
-    from services.semantic_router import SemanticRouter
+    from services.semantic_router import IntentSemanticRouter
 
-    router = SemanticRouter()
+    router = IntentSemanticRouter()
     router.prime(_keyword_overlap_encoder())
     return router
 

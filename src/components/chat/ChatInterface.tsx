@@ -552,11 +552,19 @@ export const ChatInterface = () => {
     setAILanguage(code);
     clearResponseCache();
     updateProfile({ preferredLanguage: code });
+
+    const newLangObj = LANGUAGES.find((l) => l.code === code);
+    toast({
+      title: '🌐 Language Switched',
+      description: `Language set to ${newLangObj?.name ?? code}.`,
+      duration: 3000,
+    });
+
     if (isListening) {
       stopListening();
       setTimeout(() => startListening(), 150);
     }
-  }, [isListening, stopListening, startListening, updateProfile]);
+  }, [isListening, stopListening, startListening, updateProfile, toast]);
 
   // Save conversation whenever messages change (use ref to avoid re-render loop)
   const currentConversationRef = useRef(currentConversation);

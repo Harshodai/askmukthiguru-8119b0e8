@@ -89,6 +89,8 @@ class ServiceContainer:
 
         # Layer 2: Model services (depend on config only)
         self.embedding = EmbeddingService()
+        from services.semantic_model_router import SemanticModelRouter
+        self.semantic_router = SemanticModelRouter(self.embedding)
         self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
         
         # Wire TranslationProvider using TranslationProviderFactory

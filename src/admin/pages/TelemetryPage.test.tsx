@@ -2,37 +2,53 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import TelemetryPage from "./TelemetryPage";
 
+// Mock the hook from useAdminData
+vi.mock("@/admin/hooks/useAdminData", () => ({
+  useTelemetryEvents: vi.fn().mockReturnValue({
+    data: {
+      count: 2,
+      data: [
+        {
+          id: "event-1",
+          created_at: "2026-06-19T12:00:00Z",
+          metric_type: "ai_response_time",
+          metric_value: 125,
+          user_id: "user-123",
+          session_id: "session-456",
+          user_message_id: "msg-789",
+          tags: { model: "gpt-4" },
+        },
+        {
+          id: "event-2",
+          created_at: "2026-06-19T12:05:00Z",
+          metric_type: "token_usage",
+          metric_value: 450,
+          user_id: "user-123",
+          session_id: "session-456",
+          user_message_id: "msg-789",
+          tags: { tokens: "completion" },
+        },
+      ],
+    },
+    isLoading: false,
+  }),
+}));
+
 describe("TelemetryPage", () => {
-  it("uses the default local Jaeger URL", () => {
-    vi.stubEnv("VITE_JAEGER_UI_URL", "");
-
+  it("renders the telemetry page header and filters", () => {
     render(<TelemetryPage />);
 
-    expect(screen.getByTitle("Jaeger Telemetry")).toHaveAttribute(
-      "src",
-      "http://localhost:16686",
-    );
+    expect(screen.getByText("Telemetry Events")).toBeInTheDocument();
+    expect(screen.getByText("Raw telemetry events — AI response times, token usage, and pipeline latencies.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("msg_abc123…")).toBeInTheDocument();
   });
 
-  it("uses VITE_JAEGER_UI_URL when configured", () => {
-    vi.stubEnv("VITE_JAEGER_UI_URL", "http://localhost:9999");
-
+  it("renders the telemetry event rows correctly", () => {
     render(<TelemetryPage />);
 
-    expect(screen.getByTitle("Jaeger Telemetry")).toHaveAttribute(
-      "src",
-      "http://localhost:9999",
-    );
-    expect(screen.getByRole("link", { name: /open jaeger/i })).toHaveAttribute(
-      "href",
-      "http://localhost:9999",
-    );
-  });
-
-  it("shows a direct-open fallback when the iframe is unavailable", () => {
-    vi.stubEnv("VITE_JAEGER_UI_URL", "http://localhost:9999");
-    render(<TelemetryPage />);
-
-    expect(screen.getByText(/embedded view is unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText("ai_response_time")).toBeInTheDocument();
+    expect(screen.getByText("125ms")).toBeInTheDocument();
+    expect(screen.getByText("token_usage")).toBeInTheDocument();
+    expect(screen.getByText("450")).toBeInTheDocument();
   });
 });

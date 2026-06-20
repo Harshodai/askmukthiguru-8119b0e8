@@ -34,7 +34,7 @@ export default function EvalsPage() {
     try {
       const res = await runEval();
       toast.success(`Eval complete — ${res?.summary?.passed}/${res?.summary?.total} passed`);
-      qc.invalidateQueries({ queryKey: ["admin", "evals"] });
+      qc.invalidateQueries({ queryKey: ["admin", "eval-runs"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Eval failed");
     } finally {
