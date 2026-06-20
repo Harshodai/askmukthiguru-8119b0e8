@@ -33,7 +33,6 @@ from fastapi import (
     HTTPException,
     Request,
     UploadFile,
-    status,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -43,6 +42,11 @@ from pydantic import BaseModel, Field
 
 # Fix import paths — run from backend/ directory
 sys.path.insert(0, ".")
+
+# Configure threading limits before importing any heavy numerical libraries.
+from app.core.threading_config import configure_threading
+
+configure_threading()
 
 import time
 import uuid
@@ -107,9 +111,9 @@ def record_token_usage(endpoint: str):
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.api.cache_metrics import router as cache_metrics_router
 from app.api.endpoints.auth import router as auth_router
 from app.api.health import router as health_router
-from app.api.cache_metrics import router as cache_metrics_router
 from app.core.limiter import limiter
 from app.sanitization import sanitize_user_input
 from routers.admin import admin_router
@@ -441,11 +445,19 @@ _AUTH_LIMIT_PATHS: frozenset[str] = frozenset({
 async def auth_rate_limit_middleware(request: Request, call_next):
     if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
         client_ip = request.client.host if request.client else "unknown"
-        # Simple in-memory sliding-window limiter: 5 POST/min per auth endpoint
+        # Sliding-window limiter with TTL + max-key cleanup (finding #21)
         now = time.time()
         key = f"auth_rl:{request.url.path}:{client_ip}"
+        # Periodic cleanup: evict stale rate-limit keys from app.state
+        if not hasattr(app.state, "_auth_rl_last_cleanup") or now - app.state._auth_rl_last_cleanup > 300:
+            stale_keys = [k for k in dir(app.state) if k.startswith("auth_rl:")]
+            for k in stale_keys:
+                ts = getattr(app.state, k, [])
+                if not ts or now - ts[-1] > 120:
+                    delattr(app.state, k)
+            app.state._auth_rl_last_cleanup = now
         timestamps = getattr(app.state, key, [])
-        timestamps = [t for t in timestamps if now - t < 60.0]
+        timestamps = [t for t in timestamps if now - t < 60.0]  # prune stale entries
         if len(timestamps) >= 5:
             return JSONResponse(
                 status_code=429,
@@ -535,6 +547,7 @@ app.include_router(feedback_router, prefix="/api")
 app.include_router(health_router, prefix="")
 app.include_router(cache_metrics_router, prefix="/api")
 from app.api.job_routes import router as job_router
+
 app.include_router(job_router)
 
 # Unit 24: Compliance router (GDPR audit log access)
@@ -637,7 +650,7 @@ def _cache_language_key(message: str, language: str) -> str:
 # === Request/Response DTOs ===
 
 
-from app.schemas import ChatRequest, ChatResponse, ProfileUpdate
+from app.schemas import ChatRequest, ProfileUpdate
 
 
 class IngestRequest(BaseModel):
@@ -878,6 +891,7 @@ async def chat_stream_poll(
         raise HTTPException(status_code=503, detail="Job queue is disabled")
 
     import json
+
     import redis.asyncio as aioredis
     r = aioredis.from_url(settings.redis_url, decode_responses=True)
     stream_key = f"job:stream:{job_id}:events"
