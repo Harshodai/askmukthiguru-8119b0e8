@@ -196,6 +196,7 @@ class StandardGraphStrategy(GraphStrategy):
             serene_mind_engine,
             web_search=kwargs.get("web_search"),
             semantic_cache=kwargs.get("semantic_cache"),
+            sarvam_cloud=kwargs.get("sarvam_cloud"),
         )
 
         graph = StateGraph(GraphState)
@@ -311,6 +312,7 @@ class FastGraphStrategy(GraphStrategy):
             serene_mind_engine,
             web_search=kwargs.get("web_search"),
             semantic_cache=kwargs.get("semantic_cache"),
+            sarvam_cloud=kwargs.get("sarvam_cloud"),
         )
 
         graph = StateGraph(GraphState)
@@ -382,6 +384,7 @@ class DeepGraphStrategy(GraphStrategy):
             serene_mind_engine,
             web_search=kwargs.get("web_search"),
             semantic_cache=kwargs.get("semantic_cache"),
+            sarvam_cloud=kwargs.get("sarvam_cloud"),
         )
 
         graph = StateGraph(GraphState)

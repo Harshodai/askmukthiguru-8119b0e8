@@ -120,7 +120,10 @@
       "Bash(/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/venv/bin/python -m ruff check guardrails/lightweight_handler.py tests/test_guardrails.py)",
       "Bash(awk '{print $2}')",
       "Bash(./venv/bin/python -m pytest tests/test_guardrails.py -v --tb=short)",
-      "Bash(./venv/bin/python -m pytest tests/test_log_metrics_fallback.py tests/test_reranking_fail_safe.py -v --tb=short)"
+      "Bash(./venv/bin/python -m pytest tests/test_log_metrics_fallback.py tests/test_reranking_fail_safe.py -v --tb=short)",
+      "Bash(./venv/bin/python -m pytest tests/test_csp_rate_limiter.py -v --tb=short)",
+      "Bash(./.venv/bin/pytest *)",
+      "Bash(./.venv/bin/python3 *)"
     ]
   },
   "enableAllProjectMcpServers": true,

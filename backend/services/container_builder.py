@@ -110,6 +110,7 @@ class ContainerBuilder:
 
         # Wire TranslationProvider using TranslationProviderFactory
         underlying_sarvam = LLMServiceFactory.create("sarvam_cloud")
+        container.sarvam_cloud = underlying_sarvam
         container.translation = TranslationProviderFactory.create_provider(
             sarvam_service=underlying_sarvam,
         )
@@ -250,6 +251,7 @@ class ContainerBuilder:
                 serene_mind_engine=container.serene_mind,
                 web_search=container.web_search,
                 semantic_cache=container.semantic_cache,
+                sarvam_cloud=container.sarvam_cloud,
             )
 
         container.fast_graph = build_graph(strategies["fast"])

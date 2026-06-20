@@ -32,9 +32,6 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
-# Lazily-initialised singletons used by provider branches.
-_sarvam_cloud_service = None
-
 
 @log_metrics
 async def context_engineer(state: GraphState, config: dict = None) -> dict:
@@ -253,7 +250,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         sys_tokens = estimate_tokens(sys_p)
         base_user_tokens = estimate_tokens(user_p_template.format(knowledge=""))
 
-        allowed_knowledge_tokens = max_budget - (sys_tokens + base_user_tokens + 250)
+        allowed_knowledge_tokens = max(0, max_budget - (sys_tokens + base_user_tokens + 250))
         current_knowledge = layers.get('knowledge', '')
         current_knowledge_tokens = estimate_tokens(current_knowledge)
 
@@ -263,7 +260,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 f"to {allowed_knowledge_tokens} tokens to respect max_budget {max_budget}"
             )
             layers = dict(layers)
-            layers['knowledge'] = cap_to_token_budget(current_knowledge, max(500, allowed_knowledge_tokens))
+            layers['knowledge'] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens)
 
     is_tier2 = state.get("query_tier") == "fast"
     if layers and is_tier2:
@@ -492,11 +489,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         else:
             from app.config import settings as app_settings
             if app_settings.llm_provider == "sarvam_cloud":
-                from services.sarvam_service import SarvamCloudService
-                global _sarvam_cloud_service
-                if _sarvam_cloud_service is None:
-                    _sarvam_cloud_service = SarvamCloudService()
-                sarvam = _sarvam_cloud_service
+                sarvam = _services._sarvam_cloud
                 if stream_queue:
                     answer = ""
                     async for chunk in sarvam.generate_stream(
