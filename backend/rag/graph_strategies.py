@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import abc
 import logging
-import re
 from typing import TYPE_CHECKING
 
 from langgraph.graph import END, StateGraph
@@ -57,7 +56,7 @@ def route_after_intent(state: GraphState) -> str:
     intent = state.get("intent", "CASUAL")
     needs_web_search = state.get("needs_web_search", False)
     if intent == "DISTRESS":
-        return "query"
+        return "distress"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
     elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION"]:
@@ -81,8 +80,9 @@ async def lightweight_verify(state: GraphState) -> dict:
     Lightweight verification node using LettuceDetect for faithfulness checking.
 
     - Skips verification entirely for fast/tier2_simple queries (returns is_faithful=True)
-    - Uses LettuceDetectService for standard queries with 0.25 threshold
-    - Adds domain boost for doctrine keywords and answer-length heuristic
+    - Uses LettuceDetectService for standard queries with settings.lettuce_detect_threshold
+    - FAIL-CLOSED: missing score/faithfulness result, empty inputs, or any error is
+      treated as unfaithful.
     """
     query_tier = state.get("query_tier", "standard")
     if query_tier in ("fast", "tier2_simple"):
@@ -94,7 +94,7 @@ async def lightweight_verify(state: GraphState) -> dict:
         context = "\n\n".join(d.get("content", "") for d in context if isinstance(d, dict))
 
     if not answer or not context:
-        return {"is_faithful": True, "verification": {"skipped": True, "reason": "empty answer or context"}}
+        return {"is_faithful": False, "confidence_score": 0.0, "verification": {"skipped": False, "reason": "empty answer or context"}}
 
     try:
         from app.dependencies import get_container
@@ -108,32 +108,15 @@ async def lightweight_verify(state: GraphState) -> dict:
             answer=answer,
         )
 
-        is_faithful = result.get("is_faithful", True)
-        score = result.get("score", 1.0)
+        # Fail-closed: missing keys default to unfaithful / zero score.
+        is_faithful = result.get("is_faithful", False)
+        score = result.get("score", 0.0)
 
         # Apply settings threshold (stricter than Lettuce's internal 0.22)
         if score < settings.lettuce_detect_threshold:
             is_faithful = False
 
-        # Domain boost for doctrine keywords
-        doctrine_terms = {
-            "deeksha", "oneness blessing", "soul sync", "breath awareness",
-            "four sacred secrets", "spiritual vision", "inner truth",
-            "universal intelligence", "spiritual right action", "ekam",
-            "parietal", "frontal lobe", "golden light", "beautiful state",
-            "suffering state", "surrender", "consciousness", "meditation",
-            "karma", "dharma", "moksha", "atma", "brahman",
-            "manifest 2026", "heart connection", "feminine energies",
-            "power of intention", "power of health", "family connection",
-            "self-love", "karma cleansing", "letting go", "gratitude", "rebirth",
-        }
-        if any(term in answer.lower() for term in doctrine_terms):
-            is_faithful = True
-
-        # Answer-length heuristic: long, cited answers are likely grounded
-        has_citation = bool(re.search(r"\[Source:|Watch more here:", answer))
-        if len(answer) > 200 and has_citation and any(term in answer.lower() for term in doctrine_terms):
-            is_faithful = True
+        # REMOVED: Doctrine-boost auto-pass (findings #1/#49). Pure LettuceDetect score + threshold is sufficient.
 
         return {
             "is_faithful": is_faithful,
@@ -144,8 +127,8 @@ async def lightweight_verify(state: GraphState) -> dict:
             },
         }
     except Exception as e:
-        logger.warning(f"lightweight_verify failed: {e}, defaulting to faithful")
-        return {"is_faithful": True, "verification": {"error": str(e)}}
+        logger.error(f"lightweight_verify failed: {e}, marking as unverified")
+        return {"is_faithful": False, "confidence_score": 0.0, "verification": {"error": str(e)}}
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +212,8 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("check_context_sufficiency", check_context_sufficiency)
         graph.add_node("rewrite_query", rewrite_query)
         graph.add_node("generate_answer", generate_answer)
-        graph.add_node("lightweight_verify", lightweight_verify)
+        graph.add_node("reflect_on_answer", reflect_on_answer)
+        graph.add_node("verify_answer", verify_answer)
         graph.add_node("explain_retrieval", explain_retrieval)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
@@ -280,8 +264,17 @@ class StandardGraphStrategy(GraphStrategy):
 
         graph.add_edge("rewrite_query", "retrieve_documents")
 
-        graph.add_edge("generate_answer", "lightweight_verify")
-        graph.add_edge("lightweight_verify", "format_final_answer")
+        graph.add_edge("generate_answer", "reflect_on_answer")
+        graph.add_conditional_edges(
+            "reflect_on_answer",
+            _route_after_reflection,
+            {
+                "rewrite": "rewrite_query",
+                "fallback": "handle_fallback",
+                "verify": "verify_answer",
+            },
+        )
+        graph.add_edge("verify_answer", "format_final_answer")
         graph.add_edge("explain_retrieval", "format_final_answer")
 
         # --- Terminal edges ---
