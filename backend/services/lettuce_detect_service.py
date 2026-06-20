@@ -37,7 +37,7 @@ class LettuceDetectService:
         """
         start = time.time()
         if not answer.strip() or not context.strip():
-            return {"is_faithful": True, "score": 1.0, "details": "Empty input."}
+            return {"is_faithful": False, "score": 0.0, "details": "Empty input."}
 
         # Clean answer to remove source citation lists to prevent false negatives
         clean_answer = re.sub(r"📚 \*Sources & Teachings:\*.*", "", answer, flags=re.DOTALL).strip()
@@ -47,7 +47,7 @@ class LettuceDetectService:
             s.strip() for s in re.split(r"(?<=[.!?])\s+", clean_answer) if len(s.strip()) > 10
         ]
         if not sentences:
-            return {"is_faithful": True, "score": 1.0, "details": "No testable sentences."}
+            return {"is_faithful": False, "score": 0.0, "details": "No testable sentences."}
 
         # Split context into paragraphs/chunks
         context_chunks = [c.strip() for c in context.split("\n\n") if c.strip()]
@@ -64,14 +64,6 @@ class LettuceDetectService:
                 import numpy as np
 
                 for sentence in sentences:
-                    # Skip common conversational filler
-                    if any(
-                        filler in sentence.lower()
-                        for filler in ["namaste", "thank you", "hello", "how are you", "blessings"]
-                    ):
-                        scores.append(1.0)
-                        continue
-
                     sentence_emb = self.embedder.encode_single_full(sentence)["dense"]
 
                     # Compute cosine similarity with all context chunks
@@ -82,24 +74,12 @@ class LettuceDetectService:
                         similarities.append(float(np.dot(s_norm, c_norm)))
 
                     max_sim = max(similarities) if similarities else 0.0
-                    # Doctrine-aware boost: spiritual paraphrasing is often
-                    # scored impossibly low by pure cosine.  Give known
-                    # doctrine terms a +0.15 boost before applying threshold.
-                    _doctrine_terms = {
-                        "deeksha", "oneness blessing", "soul sync", "breath awareness",
-                        "four sacred secrets", "spiritual vision", "inner truth",
-                        "universal intelligence", "spiritual right action", "ekam",
-                        "parietal", "frontal lobe", "golden light", "beautiful state",
-                        "suffering state", "surrender", "consciousness", "meditation",
-                        "karma", "dharma", "moksha", "atma", "brahman",
-                    }
-                    if any(term in sentence.lower() for term in _doctrine_terms):
-                        max_sim += 0.15
-
                     scores.append(max_sim)
 
-                    # Threshold lowered from 0.35 to 0.22 to stop flagging
-                    # paraphrased spiritual answers as hallucinations.
+                    # Strict threshold: no doctrine/conversational auto-passes.
+                    # Removing these heuristics closes verification bypasses
+                    # (findings #1, #14, #45) at the cost of possible false
+                    # positives on spiritual paraphrasing.
                     if max_sim < 0.22:
                         unsupported_sentences.append((sentence, max_sim))
             except Exception as e:
@@ -122,13 +102,8 @@ class LettuceDetectService:
 
         avg_score = sum(scores) / len(scores) if scores else 1.0
 
-        # Auto-pass heuristic: long, cited answers that mention doctrine
-        # are almost certainly grounded — the embedding check is just noisy.
-        answer_has_citation = bool(re.search(r"\[Source:|Watch more here:", answer))
-        if len(answer) > 200 and any(term in answer.lower() for term in _doctrine_terms) and answer_has_citation:
-            is_faithful = True
-        else:
-            is_faithful = len(unsupported_sentences) == 0
+        # Faithfulness determined by sentence-level scoring only (auto-pass removed)
+        is_faithful = len(unsupported_sentences) == 0
         duration = (time.time() - start) * 1000
 
         details = f"Scored {len(sentences)} sentences in {duration:.2f}ms. "
