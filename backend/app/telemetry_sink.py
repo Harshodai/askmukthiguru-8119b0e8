@@ -157,41 +157,9 @@ class SupabaseTelemetrySink:
                 )
 
         # Fallback to direct insertion
-        await self.log_query_trace_direct(**payload_dict)
+        await self.log_query_trace_direct(payload_dict)
 
-    async def log_query_trace_direct(
-        self,
-        query_id: str,
-        session_id: str,
-        user_id: str,
-        query_text: str,
-        model: str,
-        latency_ms: int,
-        status: str,
-        created_at: str,
-        response_text: Optional[str] = None,
-        citations: Optional[list[str]] = None,
-        faithfulness: float = 1.0,
-        answer_relevancy: float = 1.0,
-        context_precision: float = 1.0,
-        context_recall: float = 1.0,
-        hallucination_flag: bool = False,
-        confidence_score: Optional[float] = None,
-        judge_reasoning: str = "",
-        retrieval_metadata: Optional[dict[str, Any]] = None,
-        spans: Optional[list[dict[str, Any]]] = None,
-        trigger_events: Optional[list[dict[str, Any]]] = None,
-        safety_events: Optional[list[dict[str, Any]]] = None,
-        provider: Optional[str] = None,
-        route_decision: Optional[str] = None,
-        cache_hit: Optional[bool] = None,
-        ttft_ms: Optional[int] = None,
-        tokens_per_second: Optional[float] = None,
-        prompt_tokens: Optional[int] = None,
-        completion_tokens: Optional[int] = None,
-        cost_estimate: Optional[float] = None,
-        evaluation_trace: Optional[dict[str, Any]] = None,
-    ) -> None:
+    async def log_query_trace_direct(self, payload_dict: dict) -> None:
         """
         Asynchronously write telemetry data into all relevant Supabase tables.
         This runs in an executor to avoid blocking the main async loop.
@@ -200,9 +168,30 @@ class SupabaseTelemetrySink:
             logger.debug("SupabaseTelemetrySink is disabled, skipping log.")
             return
 
-        query_id = self._coerce_uuid(query_id) or str(uuid.uuid4())
-        session_id = self._coerce_uuid(session_id)
-        user_id = self._coerce_uuid(user_id)
+        # Unpack the common payload dict for backward-compatibility with the rest of the method
+        p = payload_dict
+        query_id = self._coerce_uuid(p.get("query_id")) or str(uuid.uuid4())
+        # Local aliases from payload so the rest of the code can keep using the flat names
+        session_id = self._coerce_uuid(p.get("session_id"))
+        user_id = self._coerce_uuid(p.get("user_id"))
+        query_text = p.get("query_text")
+        model = p.get("model")
+        latency_ms = p.get("latency_ms")
+        status = p.get("status")
+        created_at = p.get("created_at")
+        response_text = p.get("response_text")
+        citations = p.get("citations")
+        faithfulness = p.get("faithfulness", 1.0)
+        answer_relevancy = p.get("answer_relevancy", 1.0)
+        context_precision = p.get("context_precision", 1.0)
+        context_recall = p.get("context_recall", 1.0)
+        hallucination_flag = p.get("hallucination_flag", False)
+        confidence_score = p.get("confidence_score")
+        judge_reasoning = p.get("judge_reasoning", "")
+        retrieval_metadata = p.get("retrieval_metadata")
+        spans = p.get("spans")
+        trigger_events = p.get("trigger_events")
+        safety_events = p.get("safety_events")
 
         # Prepare Payloads
         # 1. chat_queries
