@@ -149,6 +149,83 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_access: {
+        Row: {
+          assistant_id: string
+          created_at: string
+          granted_via: string
+          user_id: string
+        }
+        Insert: {
+          assistant_id: string
+          created_at?: string
+          granted_via?: string
+          user_id: string
+        }
+        Update: {
+          assistant_id?: string
+          created_at?: string
+          granted_via?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_access_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistants: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          invite_code: string | null
+          knowledge_tags: string[]
+          name: string
+          slug: string
+          starter_questions: Json
+          system_prompt: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["assistant_visibility"]
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          invite_code?: string | null
+          knowledge_tags?: string[]
+          name: string
+          slug: string
+          starter_questions?: Json
+          system_prompt?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["assistant_visibility"]
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          invite_code?: string | null
+          knowledge_tags?: string[]
+          name?: string
+          slug?: string
+          starter_questions?: Json
+          system_prompt?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["assistant_visibility"]
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           citations: string[] | null
@@ -294,6 +371,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          assistant_id: string | null
           created_at: string
           id: string
           preview: string | null
@@ -302,6 +380,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assistant_id?: string | null
           created_at?: string
           id?: string
           preview?: string | null
@@ -310,6 +389,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assistant_id?: string | null
           created_at?: string
           id?: string
           preview?: string | null
@@ -317,7 +397,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_teachings: {
         Row: {
@@ -717,6 +805,45 @@ export type Database = {
           model?: string
           output_per_1k?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_favorite: boolean
+          source_conversation_id: string | null
+          source_message_id: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          source_conversation_id?: string | null
+          source_message_id?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          source_conversation_id?: string | null
+          source_message_id?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1123,6 +1250,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      assistant_visibility: "public" | "link" | "private"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1251,6 +1379,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      assistant_visibility: ["public", "link", "private"],
     },
   },
 } as const
