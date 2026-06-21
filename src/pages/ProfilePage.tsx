@@ -266,9 +266,10 @@ const ProfilePage = () => {
         {/* I'll stop here to avoid creating too large a chunk, but I'll continue below if needed. */}
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-5 mb-8">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="stats">Insights</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="memory">Memory</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
