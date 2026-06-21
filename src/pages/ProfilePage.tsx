@@ -497,9 +497,14 @@ const ProfilePage = () => {
               </Card>
             </TabsContent>
 
+            <TabsContent value="notes" className="space-y-6 mt-0">
+              <NotesPanel />
+            </TabsContent>
+
             <TabsContent value="memory" className="space-y-6 mt-0">
               <MemoryManager />
             </TabsContent>
+
 
             <TabsContent value="settings" className="space-y-6 mt-0">
               <TwoFactorSettings />
