@@ -268,6 +268,7 @@ export async function* sendMessageStreaming(
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
+    ...buildAssistantContext(),
   });
 
   const doFetch = (tok: string | undefined) =>
