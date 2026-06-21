@@ -115,6 +115,8 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
         </div>
 
         <div className="flex items-center gap-2">
+          <AssistantSwitcher />
+
           {authed && (
             <Popover>
               <PopoverTrigger asChild>
