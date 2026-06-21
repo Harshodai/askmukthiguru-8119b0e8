@@ -156,7 +156,26 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [feedbackComment, setFeedbackComment] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(message.content);
+    const [noteSaved, setNoteSaved] = useState(false);
     const { toast } = useToast();
+    const { createNote } = useNotes();
+
+    const handleSaveAsNote = useCallback(async () => {
+      const snippet = (queryText ? `**Question:** ${queryText}\n\n**Teaching:**\n` : '') + message.content;
+      const note = await createNote({
+        title: queryText ? queryText.slice(0, 80) : 'Teaching',
+        body: snippet,
+        tags: ['from-chat'],
+        source_message_id: message.id,
+      });
+      if (note) {
+        setNoteSaved(true);
+        setTimeout(() => setNoteSaved(false), 2000);
+        toast({ title: 'Saved to Notes', description: 'Find it under Profile → Notes.' });
+      } else {
+        toast({ title: 'Sign in to save notes', variant: 'destructive' });
+      }
+    }, [createNote, message.content, message.id, queryText, toast]);
 
     const handleCopy = useCallback(async () => {
       try {
