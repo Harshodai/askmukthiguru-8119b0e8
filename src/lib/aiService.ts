@@ -529,6 +529,7 @@ export const sendMessage = async (
         ? { last_serene_mind_at: lastSereneMindAt / 1000 }
         : {}),
       ...(seekerContext ? { seeker_context: seekerContext } : {}),
+      ...buildAssistantContext(),
     });
 
     const controller = new AbortController();
