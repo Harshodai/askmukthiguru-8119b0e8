@@ -1,104 +1,103 @@
-## Scope
+# Plan: Chat Ruthless Audit + Consistency + Two New Features
 
-Five hard problems, one ruthless sweep. No partial fixes.
-
----
-
-### 1. "Continue where you left off" — automated tests + correctness
-
-**Problem:** No guarantee the resume path uses the correct `last_message_id` or scrolls to the right anchor. Regressions silent.
-
-**Fix:**
-
-- Add `data-message-id={msg.id}` on every rendered message in `MessageList.tsx`.
-- In `ChatPage`/`ChatInterface`, on mount-with-prior-session: read `last_message_id` from `chat_sessions` (server) or localStorage fallback, then `scrollIntoView({ block: 'start' })` on that anchor; if missing, scroll to bottom.
-- Tests (`src/test/resumeChat.test.tsx`):
-  1. Loads conversation, sets `last_message_id` → component renders messages, calls `scrollIntoView` on the correct node.
-  2. Missing `last_message_id` → falls back to last message.
-  3. `last_message_id` not found in list (deleted) → falls back gracefully, logs warning.
-  4. On unmount / new message arrival, `last_message_id` is updated in storage.
-- Add E2E spec `tests/e2e/resume-chat.spec.ts`: send 3 messages, reload, assert viewport contains the last user message at the top.
+Scope: complete the pending Lovable-side work, do a thorough audit of the chat section, fix every UX issue found, enforce visual consistency across the app, and add two new capabilities (Sub-Modules / Custom Assistants, Notes). Backend (Python/FastAPI) is out of scope — work stays in the Lovable frontend + Supabase (Lovable Cloud) edge functions/tables.
 
 ---
 
-### 2. Chat UI/UX — top-notch, responsive
+## Part A — Chat Audit (findings to fix)
 
-**Problems observed:** cramped message spacing, ugly starter pill alignment, wasted horizontal space, two "Thinking…" pills appearing simultaneously.
+Audit targets: `ChatInterface`, `ChatHeader`, `ChatMessage`, `MessageList`, `ChatEmptyState`, `ThinkingPills`, `DesktopSidebar`, `MobileConversationSheet`, `ScrollToBottomFab`, `SereneMindModal`, `SlashCommandMenu`, composer, and the empty/resume hero.
 
-**Fix — message layout:**
+Issues to fix:
 
-- Rebuild `MessageList` with a consistent vertical rhythm: `space-y-6` on desktop, `space-y-5` on tablet, `space-y-4` on mobile (Tailwind responsive).
-- Assistant messages: no bubble background, full readable line-length (`max-w-[68ch]`), gold left accent only on hover.
-- User messages: rounded pill bubble using semantic `--chat-user` / `--chat-user-foreground` tokens (defined in `index.css`); right-aligned with `max-w-[80%]`.
-- Avatars: guru photo for assistant (sm on mobile, md on desktop), initials for user. Hidden on `< sm` to reclaim space.
-- Markdown: tighter prose, proper `prose-invert` tokens, code blocks with horizontal scroll.
+1. Spacing inconsistency between user vs assistant turns; assistant max-width changes between viewports.
+2. Sample question pills still misaligned on mobile (overflow, uneven row heights, weak tap targets).
+3. "Continue where you left off" card under-uses horizontal space and visually disconnects from the transcript.
+4. Composer: textarea height jitter, submit button stretches, attach/voice icons not aligned, focus ring inconsistent with tokens.
+5. Mobile (384px) header crowding — guru avatar + title + actions wrap awkwardly.
+6. Sidebar collapse animation flickers; floating reopen toggle z-index conflicts with FAB.
+7. Scroll behavior: jumps on streamed token append; resume anchor sometimes off by one due to image/avatar layout shift.
+8. Color/contrast drift — a handful of `text-white`, `bg-black/40` literals still present; must move to semantic tokens.
+9. Markdown rendering: lists tight, code blocks no horizontal scroll on mobile, links no hover state.
+10. Error banner stacks with toast — dedupe into a single inline retry affordance.
+11. Keyboard a11y: pill grid not arrow-navigable; composer Enter/Shift+Enter inconsistent across browsers.
+12. Tablet (768–1024): wasted whitespace on right rail; messages should expand to `max-w-[78ch]`.
 
-**Fix — empty state & starter pills:**
-
-- Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`, equal-height cards via `auto-rows-fr`, 16px gap.
-- "Continue where you left off" hero card spans full width on all breakpoints, with relative time + message count + a primary CTA button.
-
-**Fix — double Thinking pill:**
-
-- Root cause: both `ThinkingPills` (streaming status) and a fallback "thinking" placeholder message are rendered when streaming starts. Audit `ChatInterface` state machine.
-- Single source of truth: only show `ThinkingPills` when `status === 'submitted' || status === 'streaming' && !firstTokenReceived`. Remove the placeholder bubble. Add Vitest covering the transition.
-
-**Fix — responsive:**
-
-- ChatHeader: collapse sidebar trigger + title into 44px touch target on mobile; show full nav on `md+`.
-- Composer: full-width sticky bottom, safe-area inset for iOS, max-width container on desktop.
-- Test at 360px, 414px, 768px, 1024px, 1440px viewports via Playwright snapshot specs.
+Fix strategy: rebuild chat surface on AI Elements primitives (`Conversation`, `Message`, `MessageContent`, `MessageResponse`, `PromptInput`, `Shimmer`) per the chat-ui-composition rules, keep our streaming + resume + telemetry logic intact, and replace bespoke bubbles with tokenized variants.
 
 ---
 
-### 3. Two Thinking Pills bug (formal)
+## Part B — Visual Consistency Pass
 
-Already covered in §2 but elevated: write a focused unit test `ThinkingPills.dedup.test.tsx` reproducing the duplicate render before fixing, then make it green.
-
----
-
-### 4. Serene Mind meditation — authentic Preethaji protocol + close-safety
-
-**Problem:** Current flow does not match Sri Preethaji's actual Serene Mind protocol. Closing the modal abandons the user mid-practice.
-
-**Authentic Serene Mind (4-step, ~3 min):**
-
-1. **Observe the Body** (~45s) — settle, scan from crown to feet.
-2. **Observe the Breath** (~45s) — 4-in / 6-out, count cycles.
-3. **Observe the Sound** (~45s) — open awareness to ambient sound.
-4. **Be with Compassion** (~45s) — send a wish of well-being.
-
-Update `meditationSteps.ts` and `breathTechniques.ts` to these exact stages, narration tuned to Preethaji's wording (gentle, present-tense, no Western mindfulness jargon).
-
-**Close-safety / resumability:**
-
-- Persist current step + elapsed time to `meditation_sessions` (DB) + `localStorage` every 5s.
-- When user clicks X or navigates away, show a soft confirm: "Pause this practice? You can continue right where you left off." with Pause / Cancel.
-- On modal reopen or next visit: detect unfinished session (< 24h old) and offer a "Resume your practice" card with step name + remaining time.
-- If they choose to start fresh, archive the old session as `status='abandoned'`.
-- Tests: `SereneMind.resume.test.tsx` covers persist-tick, close-confirm, resume-detect, fresh-start-archive.
+- Single source of truth: extend `src/index.css` Golden Hour tokens (`--surface`, `--surface-elev`, `--chat-user`, `--chat-user-foreground`, `--accent-gold`, `--ring-gold`).
+- Remove every hardcoded color in chat + landing + profile + admin shell; replace with tokens.
+- Standardize spacing scale (4 / 8 / 12 / 16 / 24 / 32) and radii (`--radius-sm/md/lg`).
+- Typography: lock display + body pair; one H1 per route; consistent prose styles.
+- Responsive rules: mobile `< 640`, tablet `640–1024`, desktop `> 1024` — verified on header, sidebar, chat, profile, practices, landing.
+- Motion: unify framer-motion easings/durations in a `motion.ts` preset.
 
 ---
 
-### 5. Cross-device polish
+## Part C — Feature 1: Sub-Modules / Custom Assistants
 
-- Add Playwright responsive smoke specs for `/`, `/chat`, `/practices` at 3 viewports each (mobile 390, tablet 820, desktop 1440). Assert no horizontal scroll, key CTAs visible, touch targets ≥ 44px.
-- Audit `index.css` semantic tokens; ensure `--chat-user`, `--chat-user-foreground`, `--chat-assistant-accent` exist and pass WCAG AA in both themes.
+Decision: **Yes, ship it** — adds clear value (focused, gated experiences distinct from general guidance) and is the natural home for SKY / unreleased private teachings + relationship guidance.
+
+Shape:
+
+- **Assistants** = curated personas with their own system prompt, allowed knowledge sources, intro, and starter prompts.
+- Built-in: `General Guru` (default), `Relationship Guidance`, `SKY Teachings (Private)`.
+- **Access tiers**:
+  - Public: General + Relationship.
+  - Link-gated: private assistants joined via invite link/code (e.g. `/join/sky-...`). Stored in `assistant_access` table per user.
+  - Custom: users with `creator` role can author their own assistant (name, avatar, system prompt, starter questions, optional knowledge filter).
+- UI: assistant switcher in `ChatHeader` (pill dropdown showing avatar + name); selected assistant is persisted per conversation. Empty state + sample questions adapt to the active assistant.
+- Knowledge scoping: assistant carries an optional `knowledge_tag` array; passed to chat API so backend can filter retrieval (frontend contract only — backend filter is additive, out of scope here).
+
+Tables (Lovable Cloud):
+
+- `assistants(id, slug, name, description, avatar_url, system_prompt, starter_questions jsonb, knowledge_tags text[], visibility enum public|link|private, created_by, created_at)`
+- `assistant_access(user_id, assistant_id, granted_via text, created_at)` — RLS: user reads own rows; service_role writes via edge function on invite redemption.
+- `conversations.assistant_id` (new nullable FK).
+- Edge function `redeem-assistant-invite` validates code and grants access.
 
 ---
 
-### Execution order
+## Part D — Feature 2: Notes
 
-1. Add data attributes + resume logic + tests (§1).
-2. Token additions in `index.css`; refactor `MessageList` + `ChatMessage` spacing/layout (§2).
-3. Kill duplicate Thinking pill + tests (§3 / §2).
-4. Rewrite `meditationSteps.ts`, add pause-on-close + resume UI + persistence + tests (§4).
-5. Playwright responsive specs (§5).
-6. Run `npm test`, `bunx vitest run`, Playwright suite. Zero failures, zero warnings.
+Value: lets users keep teachings/insights they resonated with; exportable from any chat response or written freely. Lives under Profile.
 
-### Out of scope
+Shape:
 
-- Backend RAG changes, edge function rewrites, new tables (memory tables already shipped).
-- Voice / TTS narration audio files for meditation (text-only stays).
+- "Save as note" action on every assistant message (bookmark icon next to copy).
+- "New note" composer in Profile → Notes tab (title, body markdown, tags, source link to original message if any).
+- List view with search, tag filter, sort by recent/favorite.
+- Export: copy-to-clipboard, download `.md`, share image (reuse `WisdomCardGenerator`).
+- Bulk export all notes as `.zip` of markdown.
 
-Approve and I start ruthlessly from step 1. Sure and let me know if I need to anything from backend as well and also since the chat ui is main selling. Make sure its top notch and world class and also the ui when user goes top and down the spacing between one message and another from user or from system completion is very huge. There are some small issues, identify them, just see for yourself once these developments and then you can only know the issues
+Table: `notes(id, user_id, title, body, tags text[], source_message_id, source_conversation_id, is_favorite, created_at, updated_at)` with RLS scoped to `auth.uid()`, full GRANT block, `updated_at` trigger.
+
+Routes:
+
+- `/profile/notes` (list)
+- `/profile/notes/:id` (detail/edit)
+
+---
+
+## Part E — Execution Order
+
+1. Audit fixes 1–12 + AI Elements migration of chat surface.
+2. Token + consistency sweep across app.
+3. Notes feature (tables → API hook → Profile UI → message action).
+4. Assistants feature (tables → switcher → empty state per assistant → invite redemption edge function).
+5. Tests: extend Vitest for `MessageList`, `ChatHeader` switcher, `useNotes`, resume anchor; Playwright smoke at 390 / 820 / 1440.
+6. Final pass: a11y, contrast, mobile.
+
+---
+
+## Out of Scope
+
+- Backend retrieval changes (knowledge_tag filtering is wired in payload only). I need what needs to be done in backend via an docs .md so that I can refer that and get that implemented and also make sure nothing breaks
+- Voice/TTS changes.
+- Real-time collaboration on notes.
+
+Approve to start with Part A + B immediately; Parts C & D follow in the same session.

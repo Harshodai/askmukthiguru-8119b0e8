@@ -1,6 +1,7 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote } from 'lucide-react';
+import { useNotes } from '@/hooks/useNotes';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
@@ -155,7 +156,26 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [feedbackComment, setFeedbackComment] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(message.content);
+    const [noteSaved, setNoteSaved] = useState(false);
     const { toast } = useToast();
+    const { createNote } = useNotes();
+
+    const handleSaveAsNote = useCallback(async () => {
+      const snippet = (queryText ? `**Question:** ${queryText}\n\n**Teaching:**\n` : '') + message.content;
+      const note = await createNote({
+        title: queryText ? queryText.slice(0, 80) : 'Teaching',
+        body: snippet,
+        tags: ['from-chat'],
+        source_message_id: message.id,
+      });
+      if (note) {
+        setNoteSaved(true);
+        setTimeout(() => setNoteSaved(false), 2000);
+        toast({ title: 'Saved to Notes', description: 'Find it under Profile → Notes.' });
+      } else {
+        toast({ title: 'Sign in to save notes', variant: 'destructive' });
+      }
+    }, [createNote, message.content, message.id, queryText, toast]);
 
     const handleCopy = useCallback(async () => {
       try {
@@ -488,6 +508,17 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       title={saved ? 'Saved to memory' : 'Save to memory'}
                     >
                       <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
+                    </button>
+                    <button
+                      onClick={handleSaveAsNote}
+                      className={`p-1 rounded-full transition-colors ${
+                        noteSaved
+                          ? 'bg-prana/15 text-prana'
+                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                      }`}
+                      title={noteSaved ? 'Saved to Notes' : 'Save as note'}
+                    >
+                      <StickyNote className={`w-3 h-3 ${noteSaved ? 'fill-current' : ''}`} />
                     </button>
                     <button
                       onClick={() => setShowWisdomCard(true)}
