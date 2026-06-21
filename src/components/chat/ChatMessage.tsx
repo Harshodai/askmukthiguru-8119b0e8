@@ -510,6 +510,17 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
                     </button>
                     <button
+                      onClick={handleSaveAsNote}
+                      className={`p-1 rounded-full transition-colors ${
+                        noteSaved
+                          ? 'bg-prana/15 text-prana'
+                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                      }`}
+                      title={noteSaved ? 'Saved to Notes' : 'Save as note'}
+                    >
+                      <StickyNote className={`w-3 h-3 ${noteSaved ? 'fill-current' : ''}`} />
+                    </button>
+                    <button
                       onClick={() => setShowWisdomCard(true)}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                       title="Share as Wisdom Card"
