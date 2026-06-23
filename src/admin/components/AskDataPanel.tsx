@@ -3,56 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Search, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAskData } from "@/admin/hooks/useAskData";
 
 interface AskDataPanelProps {
   kpiContext?: string;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
-
-async function apiPost(path: string, body: unknown) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`API error ${response.status}: ${errText}`);
-  }
-  return response.json();
-}
-
 export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
   const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function ask(question: string) {
-    if (!question.trim()) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      const data = await apiPost("/api/admin/ask", {
-        question,
-        kpi_context: kpiContext ?? "",
-      });
-      if (data?.response) setResult(data.response);
-      else setError(data?.error ?? "Empty response.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { result, error, loading, ask } = useAskData();
 
   const examples = [
     "What is the current p95 latency?",
@@ -72,7 +31,7 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (q.trim()) ask(q.trim());
+            if (q.trim()) ask(q.trim(), kpiContext);
           }}
           className="flex gap-2"
         >
@@ -97,7 +56,7 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
               disabled={loading}
               onClick={() => {
                 setQ(e);
-                ask(e);
+                ask(e, kpiContext);
               }}
             >
               {e}
