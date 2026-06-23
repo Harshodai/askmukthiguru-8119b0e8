@@ -81,7 +81,7 @@ class ContainerBuilder:
         """Layer 2: LLM, embedding, and translation services."""
         from app.config import settings
         from services.embedding_service import EmbeddingService
-        from services.llm import LLMProviderFactory, OllamaProvider
+        from services.llm import LLMProviderFactory, OllamaProvider, SarvamProvider
         from services.llm_factory import LLMServiceFactory
         from services.model_registry import ModelRegistry
         from services.translation import TranslationProviderFactory
@@ -92,6 +92,13 @@ class ContainerBuilder:
         # Wire LLMProvider using LLMProviderFactory
         provider_name = settings.llm_provider.lower()
         container.ollama = LLMProviderFactory.create_provider(provider_name)
+
+        # Unit 7: expose the SarvamCloudService instance so generation nodes can use
+        # dependency injection instead of a module-level lazy singleton.
+        if isinstance(container.ollama, SarvamProvider):
+            container.sarvam_cloud = container.ollama._service
+        else:
+            container.sarvam_cloud = None
 
         # Wire TranslationProvider using TranslationProviderFactory
         underlying_sarvam = LLMServiceFactory.create("sarvam_cloud")
@@ -235,6 +242,7 @@ class ContainerBuilder:
                 serene_mind_engine=container.serene_mind,
                 web_search=container.web_search,
                 semantic_cache=container.semantic_cache,
+                sarvam_cloud_service=container.sarvam_cloud,
             )
 
         container.fast_graph = build_graph(strategies["fast"])

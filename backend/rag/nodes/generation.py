@@ -33,6 +33,53 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
+def _compute_context_budget(
+    max_budget: int,
+    baseline_tokens: int,
+    history_str: str,
+    memory_context: str,
+    min_context_tokens: int = 200,
+) -> tuple[int, int]:
+    """Compute baseline and retrieved-context token budgets without overflow.
+
+    The context budget is floored at ``min_context_tokens`` when the overall
+    ``max_budget`` can accommodate it. When ``max_budget`` itself is smaller than
+    the floor, we clamp to ``max_budget`` and log a warning so a small-budget
+    overflow is not silently masked by ``max(...)``.
+    """
+    max_budget = max(0, int(max_budget))
+    baseline_tokens = max(0, int(baseline_tokens))
+    if history_str:
+        baseline_tokens += int(len(history_str.split()) * 1.3)
+    if memory_context:
+        baseline_tokens += int(len(memory_context.split()) * 1.3)
+
+    if max_budget < min_context_tokens:
+        logger.warning(
+            "max_budget %d is below minimum context floor %d; "
+            "clamping context budget to max_budget",
+            max_budget,
+            min_context_tokens,
+        )
+        return 0, max_budget
+
+    baseline_tokens = min(baseline_tokens, max_budget - min_context_tokens)
+    remaining = max_budget - baseline_tokens
+    max_context_tokens = max(min_context_tokens, remaining)
+
+    assert 0 <= baseline_tokens <= max_budget, (
+        f"baseline {baseline_tokens} out of [0, {max_budget}]"
+    )
+    assert min_context_tokens <= max_context_tokens <= max_budget, (
+        f"context budget {max_context_tokens} out of "
+        f"[{min_context_tokens}, {max_budget}]"
+    )
+    assert baseline_tokens + max_context_tokens <= max_budget, (
+        f"baseline+context {baseline_tokens + max_context_tokens} exceeds {max_budget}"
+    )
+    return baseline_tokens, max_context_tokens
+
+
 @log_metrics
 async def context_engineer(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State."""
@@ -148,13 +195,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     # Dynamic token budget safety enforcement to prevent TokenBudgetExceeded
     max_budget = getattr(settings, "max_tokens_per_request", 2000)
-    baseline_tokens = 1500
-    if history_str:
-        baseline_tokens += int(len(history_str.split()) * 1.3)
-    memory_context = state.get("memory_context") or ""
-    if memory_context:
-        baseline_tokens += int(len(memory_context.split()) * 1.3)
-    max_context_tokens = max(1000, max_budget - baseline_tokens)
+    baseline_tokens, max_context_tokens = _compute_context_budget(
+        max_budget=max_budget,
+        baseline_tokens=1500,
+        history_str=history_str,
+        memory_context=state.get("memory_context") or "",
+    )
 
     logger.info(f"BUDGET DEBUG: max_budget={max_budget}, baseline_tokens={baseline_tokens}, max_context_tokens={max_context_tokens}, original_docs_count={len(relevant_docs)}")
 
@@ -251,13 +297,22 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         current_knowledge = layers.get('knowledge', '')
         current_knowledge_tokens = estimate_tokens(current_knowledge)
 
-        if current_knowledge_tokens > allowed_knowledge_tokens:
+        if allowed_knowledge_tokens <= 0:
+            logger.warning(
+                "Dynamic budget: allowed_knowledge_tokens=%d (non-positive) for "
+                "max_budget=%d; clearing layers['knowledge'] to avoid overflow",
+                allowed_knowledge_tokens,
+                max_budget,
+            )
+            layers = dict(layers)
+            layers['knowledge'] = ""
+        elif current_knowledge_tokens > allowed_knowledge_tokens:
             logger.info(
                 f"Dynamic budget: capping layers['knowledge'] from {current_knowledge_tokens} "
                 f"to {allowed_knowledge_tokens} tokens to respect max_budget {max_budget}"
             )
             layers = dict(layers)
-            layers['knowledge'] = cap_to_token_budget(current_knowledge, max(500, allowed_knowledge_tokens))
+            layers['knowledge'] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens)
 
     is_tier2 = state.get("query_tier") == "fast"
     if layers and is_tier2:
@@ -347,10 +402,17 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     from services.gateways.anthropic_gateway import AnthropicGateway, AnthropicGatewayError
 
-    gateway = AnthropicGateway.from_settings()
+    gateway = None
+    try:
+        gateway = AnthropicGateway.from_settings()
+    except AnthropicGatewayError as exc:
+        logger.warning(f"AnthropicGateway config error, falling back to legacy LLM: {exc}")
+    except Exception as exc:
+        logger.warning(f"AnthropicGateway unavailable, falling back to legacy LLM: {exc}")
+
     used_gateway = False
 
-    if gateway.enabled:
+    if gateway and gateway.enabled:
         try:
             logger.info("Using AnthropicGateway for generation")
             # Strip manual citation instructions
@@ -485,43 +547,39 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     )
         else:
             from app.config import settings as app_settings
+
+            async def _generate_with(provider, add_timeout: bool = False):
+                if stream_queue:
+                    answer = ""
+                    async for chunk in provider.generate_stream(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **generation_kwargs,
+                    ):
+                        if chunk:
+                            await stream_queue.put(chunk)
+                            answer += chunk
+                    return answer
+                kwargs = dict(generation_kwargs)
+                if add_timeout:
+                    kwargs["timeout"] = get_node_timeout("generate_answer", 60.0)
+                return await provider.generate(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    **kwargs,
+                )
+
             if app_settings.llm_provider == "sarvam_cloud":
-                from services.sarvam_service import SarvamCloudService
-                sarvam = SarvamCloudService()
-                if stream_queue:
-                    answer = ""
-                    async for chunk in sarvam.generate_stream(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        **generation_kwargs,
-                    ):
-                        if chunk:
-                            await stream_queue.put(chunk)
-                            answer += chunk
-                else:
-                    answer = await sarvam.generate(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        **generation_kwargs,
+                sarvam = _services._sarvam_cloud
+                if sarvam is None:
+                    logger.error(
+                        "SarvamCloudService not injected; falling back to Ollama"
                     )
+                    answer = await _generate_with(ollama, add_timeout=True)
+                else:
+                    answer = await _generate_with(sarvam, add_timeout=False)
             else:
-                if stream_queue:
-                    answer = ""
-                    async for chunk in ollama.generate_stream(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        **generation_kwargs,
-                    ):
-                        if chunk:
-                            await stream_queue.put(chunk)
-                            answer += chunk
-                else:
-                    answer = await ollama.generate(
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        timeout=get_node_timeout("generate_answer", 60.0),
-                        **generation_kwargs,
-                    )
+                answer = await _generate_with(ollama, add_timeout=True)
 
     answer = strip_cot(answer)
     answer = _ensure_keywords_in_answer(answer, question)
@@ -827,5 +885,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 citations=citations,
             )
         except Exception:
-            pass
+            logger.exception(
+                "Semantic cache write failed for question %r",
+                state.get("question"),
+            )
     return result

@@ -90,6 +90,13 @@ class ServiceContainer:
         # Layer 2: Model services (depend on config only)
         self.embedding = EmbeddingService()
         self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
+
+        # Unit 7: expose underlying SarvamCloudService when it is the active provider
+        from services.llm.sarvam_provider import SarvamProvider
+        if isinstance(self.ollama, SarvamProvider):
+            self.sarvam_cloud = self.ollama._service
+        else:
+            self.sarvam_cloud = None
         
         # Wire TranslationProvider using TranslationProviderFactory
         from services.translation import TranslationProviderFactory
