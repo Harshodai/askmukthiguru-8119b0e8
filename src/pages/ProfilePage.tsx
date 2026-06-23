@@ -71,6 +71,7 @@ import { loadConversations } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { MemoryManager } from '@/components/profile/MemoryManager';
+import { NotesPanel } from '@/components/profile/NotesPanel';
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
@@ -266,9 +267,10 @@ const ProfilePage = () => {
         {/* I'll stop here to avoid creating too large a chunk, but I'll continue below if needed. */}
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-5 mb-8">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="stats">Insights</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="memory">Memory</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
@@ -496,9 +498,14 @@ const ProfilePage = () => {
               </Card>
             </TabsContent>
 
+            <TabsContent value="notes" className="space-y-6 mt-0">
+              <NotesPanel />
+            </TabsContent>
+
             <TabsContent value="memory" className="space-y-6 mt-0">
               <MemoryManager />
             </TabsContent>
+
 
             <TabsContent value="settings" className="space-y-6 mt-0">
               <TwoFactorSettings />
