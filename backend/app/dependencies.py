@@ -92,6 +92,13 @@ class ServiceContainer:
         from services.semantic_model_router import SemanticModelRouter
         self.semantic_router = SemanticModelRouter(self.embedding)
         self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
+
+        # Unit 7: expose underlying SarvamCloudService when it is the active provider
+        from services.llm.sarvam_provider import SarvamProvider
+        if isinstance(self.ollama, SarvamProvider):
+            self.sarvam_cloud = self.ollama._service
+        else:
+            self.sarvam_cloud = None
         
         # Wire TranslationProvider using TranslationProviderFactory
         from services.translation import TranslationProviderFactory
