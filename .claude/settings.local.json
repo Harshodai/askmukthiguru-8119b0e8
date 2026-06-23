@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787"
+  },
   "permissions": {
     "allow": [
       "Bash(rm -f workflow_part2.py workflow_reconstructed.py workflow_reconstructed_v2.py && ls workflow_*.py 2>&1 || echo \"All workflow files removed\")",
@@ -135,8 +138,37 @@
     "claude-mem",
     "codegraph"
   ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/harshodaikolluru/.local/bin/headroom init hook ensure --profile init-askmukthiguru-8119b0e8-99416ee9 --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/harshodaikolluru/.local/bin/headroom init hook ensure --profile init-askmukthiguru-8119b0e8-99416ee9 --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": false
+  },
+  "enabledPlugins": {
+    "headroom@headroom-marketplace": true
   }
 }
