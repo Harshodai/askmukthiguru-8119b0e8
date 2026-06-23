@@ -67,6 +67,7 @@ def init_services(
     _web_search = web_search
     _sarvam_cloud = sarvam_cloud
     _injected_semantic_cache = semantic_cache
+    _sarvam_cloud = sarvam_cloud
 
     _reranker = RerankerService()
     _lettuce_detect = LettuceDetectService(embedder)

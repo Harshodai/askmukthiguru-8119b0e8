@@ -66,6 +66,7 @@ _semantic_cache: Any = None
 _lettuce_detect: Any = None
 _reranker: Any = None
 _context_compressor: Any = None
+_sarvam_cloud: Any = None
 settings: Any = app_settings
 
 from types import ModuleType
@@ -85,6 +86,7 @@ class NodesModule(ModuleType):
             "_lettuce_detect",
             "_reranker",
             "_context_compressor",
+            "_sarvam_cloud",
         }:
             return getattr(_services, name)
         if name in {
@@ -108,6 +110,7 @@ class NodesModule(ModuleType):
             "_lettuce_detect",
             "_reranker",
             "_context_compressor",
+            "_sarvam_cloud",
         }:
             setattr(_services, name, value)
         else:
