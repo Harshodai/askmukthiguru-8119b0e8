@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { listQueueJobs, type QueueJob } from '@/admin/lib/api';
+import { listQueueJobs } from '@/admin/lib/api';
+import type { QueueJob } from '@/admin/types';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,

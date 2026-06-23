@@ -6,6 +6,7 @@ import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+import { AssistantSwitcher } from '@/components/chat/AssistantSwitcher';
 
 import { useAuthStatus } from '@/hooks/useAuthStatus';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
@@ -114,6 +115,8 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
         </div>
 
         <div className="flex items-center gap-2">
+          <AssistantSwitcher />
+
           {authed && (
             <Popover>
               <PopoverTrigger asChild>
