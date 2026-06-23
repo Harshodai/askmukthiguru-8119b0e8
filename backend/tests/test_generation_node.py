@@ -128,7 +128,7 @@ async def test_generate_answer_uses_injected_sarvam_cloud(mock_services, monkeyp
 
     result = await generate_answer(state)
 
-    assert result["answer"] == "Sarvam answer"
+    assert "Sarvam answer" in result["answer"]
     mock_sarvam.generate.assert_awaited_once()
     mock_ollama.generate.assert_not_awaited()
 

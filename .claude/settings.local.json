@@ -128,7 +128,9 @@
       "Bash(./.venv/bin/pytest *)",
       "Bash(./.venv/bin/python3 *)",
       "Bash(/opt/homebrew/opt/python@3.12/bin/python3.12 *)",
-      "Bash(venv/bin/python --version)"
+      "Bash(venv/bin/python --version)",
+      "Bash(../.venv/bin/python -m pytest tests/test_generation_node.py tests/test_intent_router.py tests/test_log_metrics_fallback.py tests/test_reranking_fail_safe.py -q --tb=short)",
+      "Bash(../.venv/bin/python -m py_compile rag/nodes/reranking.py)"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -164,11 +166,11 @@
       }
     ]
   },
+  "enabledPlugins": {
+    "headroom@headroom-marketplace": true
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": false
-  },
-  "enabledPlugins": {
-    "headroom@headroom-marketplace": true
   }
 }
