@@ -204,6 +204,7 @@ async def retrieve_for_single_query(
     embedder: EmbeddingService,
     qdrant: QdrantService,
     lightrag: Optional[LightRAGService],
+    knowledge_tags: Optional[list[str]] = None,
 ) -> list[dict]:
     """Retrieve documents for a single sub-query, decoupled from state."""
     augmented_query = query
@@ -222,6 +223,7 @@ async def retrieve_for_single_query(
         sparse_vector=query_embedding["sparse"],
         raptor_level=1,
         query=query_for_embedding,
+        knowledge_tags=knowledge_tags,
     )
 
     chunk_task = asyncio.to_thread(
@@ -232,6 +234,7 @@ async def retrieve_for_single_query(
         raptor_level=0,
         cluster_ids=selected_clusters if selected_clusters else None,
         query=query_for_embedding,
+        knowledge_tags=knowledge_tags,
     )
 
     tasks = [summary_task, chunk_task]
@@ -383,6 +386,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     selected_clusters = state.get("selected_clusters", [])
     hyde_text = state.get("hyde_text")
     intent = state.get("intent", "FACTUAL")
+    knowledge_tags = state.get("knowledge_tags") or []
     embedder = _services._embedder
     qdrant = _services._qdrant
     lightrag = _services._lightrag
@@ -400,6 +404,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     embedder,
                     qdrant,
                     lightrag if query_tier == "tier3_complex" else None,
+                    knowledge_tags=knowledge_tags,
                 ),
                 timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )
@@ -439,6 +444,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                             embedder,
                             qdrant,
                             lightrag if query_tier == "tier3_complex" else None,
+                            knowledge_tags=knowledge_tags,
                         ),
                         timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
                     )
@@ -493,6 +499,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             sparse_vector=query_embedding["sparse"],
             raptor_level=0,
             cluster_ids=None,
+            knowledge_tags=knowledge_tags,
         )
 
         for doc in fallback_results:
@@ -549,6 +556,7 @@ def route_sub_queries(state: GraphState) -> list[Send]:  # noqa: F821 — Send i
     hyde_text = state.get("hyde_text")
     intent = state.get("intent", "FACTUAL")
     selected_clusters = state.get("selected_clusters", [])
+    knowledge_tags = state.get("knowledge_tags") or []
 
     logger.info(f"route_sub_queries: dispatching {len(sub_queries)} parallel branch(es) via Send")
 
@@ -565,6 +573,7 @@ def route_sub_queries(state: GraphState) -> list[Send]:  # noqa: F821 — Send i
                 "request_id": state.get("request_id"),
                 "user_id": state.get("user_id"),
                 "query_tier": state.get("query_tier"),
+                "knowledge_tags": knowledge_tags,
                 "sub_results": [],
             },
         )
@@ -589,6 +598,7 @@ async def retrieve_single(state: GraphState) -> dict:
         embedder=embedder,
         qdrant=qdrant,
         lightrag=lightrag if state.get("query_tier") == "tier3_complex" else None,
+        knowledge_tags=state.get("knowledge_tags") or [],
     )
 
     logger.debug(f"retrieve_single[{sub_query[:40]}]: {len(docs)} docs retrieved")
@@ -627,6 +637,7 @@ async def merge_sub_results(state: GraphState) -> dict:
             sparse_vector=query_embedding["sparse"],
             raptor_level=0,
             cluster_ids=None,
+            knowledge_tags=state.get("knowledge_tags") or [],
         )
         for doc in fallback_results:
             th = hash(doc["text"][:100])

@@ -118,6 +118,9 @@ def create_initial_state(
     chat_history: Optional[list[dict]] = None,
     meditation_step: int = 0,
     request_id: Optional[str] = None,
+    assistant_slug: Optional[str] = None,
+    knowledge_tags: Optional[list[str]] = None,
+    assistant_system_prompt: Optional[str] = None,
 ) -> GraphState:
     """
     Create the initial state for a pipeline invocation.
@@ -192,6 +195,10 @@ def create_initial_state(
         model_used=None,
         model_provider=None,
         route_decision=None,
+        # Assistant context
+        assistant_slug=assistant_slug,
+        knowledge_tags=knowledge_tags or [],
+        assistant_system_prompt=assistant_system_prompt,
         # Web Search
         needs_web_search=False,
         web_search_results=[],

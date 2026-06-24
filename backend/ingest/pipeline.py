@@ -161,6 +161,7 @@ class IngestionPipeline:
         url: str,
         max_accuracy: bool = False,
         on_progress: Optional[Callable[[str, float], None]] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """
         Main entry point: ingest content from any supported URL.
@@ -169,12 +170,15 @@ class IngestionPipeline:
 
         Args:
             url: YouTube video/playlist URL or image URL
+            max_accuracy: If True, use enhanced transcription/hierarchical chunks
             on_progress: Optional callback(status_message, percent_complete)
+            tags: Knowledge tags to attach to every chunk (defaults to ["general"])
 
         Returns:
             Dict with 'chunks_indexed', 'summaries_created', 'source_url', etc.
         """
         self._notify(on_progress, "Detecting content type...", 0.05)
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
 
         # === Route to correct loader ===
         from app.security_utils import is_valid_youtube_url
@@ -189,13 +193,13 @@ class IngestionPipeline:
             }
 
         if is_playlist_url(url) or is_channel_url(url):
-            return await self._ingest_playlist(url, max_accuracy, on_progress)
+            return await self._ingest_playlist(url, max_accuracy, on_progress, tags=tags)
         elif is_image_url(url):
-            return await self._ingest_image(url, on_progress)
+            return await self._ingest_image(url, on_progress, tags=tags)
         if extract_video_id(url):
             if max_accuracy:
-                return await self._ingest_video_enhanced(url, on_progress)
-            return await self._ingest_video(url, max_accuracy, on_progress)
+                return await self._ingest_video_enhanced(url, on_progress, tags=tags)
+            return await self._ingest_video(url, max_accuracy, on_progress, tags=tags)
         else:
             return {
                 "status": "error",
@@ -214,12 +218,14 @@ class IngestionPipeline:
         content_type: str = "migration",
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """
         Ingest raw text directly, bypassing any fetching/loaders.
         Useful for migrations or re-processing existing data.
         """
         import hashlib
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(content_hash):
@@ -270,6 +276,7 @@ class IngestionPipeline:
             topic=topic,
             content_type=content_type,
             extra_metadatas=extra_metadatas,
+            tags=tags,
         )
 
         # Step 6: RAPTOR tree
@@ -305,8 +312,10 @@ class IngestionPipeline:
         url: str,
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Ingest a single YouTube video."""
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         video_id = extract_video_id(url)
         if not video_id:
             return {"status": "error", "message": "Invalid YouTube URL"}
@@ -408,6 +417,7 @@ class IngestionPipeline:
             topic=video_topic,
             content_type="video",
             extra_metadatas=extra_metadatas,
+            tags=tags,
         )
 
         # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
@@ -444,6 +454,7 @@ class IngestionPipeline:
         self,
         url: str,
         on_progress: Optional[Callable] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """
         Production Ingestion (Phase 3): Enhanced video processing.
@@ -451,6 +462,7 @@ class IngestionPipeline:
         """
         import uuid
 
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         video_id = extract_video_id(url)
         self._notify(on_progress, "Phase 3: Starting enhanced ingestion...", 0.1)
 
@@ -562,6 +574,7 @@ class IngestionPipeline:
                 topic="Multi-Topic",  # Override by individual chunk's topic in extra_metadatas
                 content_type="video_enhanced",
                 extra_metadatas=all_extra_metadatas,
+                tags=tags,
             )
 
         # 5. Build RAPTOR and Graph
@@ -626,8 +639,10 @@ class IngestionPipeline:
         url: str,
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Ingest all videos in a YouTube playlist/channel using concurrent extraction."""
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         self._notify(on_progress, "Fetching playlist/channel videos...", 0.05)
         videos = get_playlist_video_urls(url)
 
@@ -733,6 +748,7 @@ class IngestionPipeline:
                     speaker=video_speaker,
                     topic=video_topic,
                     content_type="video",
+                    tags=tags,
                 )
                 total_chunks += chunks_count
 
@@ -776,8 +792,10 @@ class IngestionPipeline:
         self,
         url: str,
         on_progress: Optional[Callable] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Ingest text from an image via OCR."""
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         self._notify(on_progress, "Extracting text from image...", 0.3)
         result = await process_image_url(url, self._ocr)
 
@@ -801,6 +819,7 @@ class IngestionPipeline:
             source_url=url,
             title=result.get("title", ""),
             content_type="image",
+            tags=tags,
         )
 
         self._notify(on_progress, "Complete!", 1.0)
@@ -823,6 +842,7 @@ class IngestionPipeline:
         speaker: str = "Unknown",
         topic: str = "Spiritual",
         extra_metadatas: Optional[list[dict]] = None,
+        tags: Optional[list[str]] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -832,6 +852,8 @@ class IngestionPipeline:
         """
         if not chunks:
             return 0
+
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
 
         # Injection scan and skip risky chunks
         clean_chunks, risky_chunks = scan_chunks_for_injection(chunks)
@@ -862,10 +884,14 @@ class IngestionPipeline:
                 "content_type": content_type,
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
+                "tags": tags,
             }
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
             metadatas.append(base_meta)
+
+        # Persist source-level metadata to telemetry (best-effort)
+        self._record_kb_source(source_url, title, content_type, tags)
 
         # Upsert to Qdrant with both dense and sparse vectors
         return self._qdrant.upsert_chunks(
@@ -874,6 +900,40 @@ class IngestionPipeline:
             metadatas,
             sparse_vectors=embeddings["sparse"],
         )
+
+    def _record_kb_source(
+        self,
+        source_url: str,
+        title: str,
+        content_type: str,
+        tags: list[str],
+    ) -> None:
+        """Best-effort persistence of source metadata to kb_sources telemetry table."""
+        try:
+            from datetime import datetime, timezone
+
+            from app.telemetry_db import _get_client
+
+            client = _get_client()
+            if not client:
+                return
+
+            payload = {
+                "source_url": source_url,
+                "title": title,
+                "content_type": content_type,
+                "tags": tags,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            # Upsert by source_url if the table supports it; otherwise insert.
+            try:
+                client.table("kb_sources").upsert(payload).execute()
+            except Exception:
+                client.table("kb_sources").insert(payload).execute()
+            logger.debug(f"Recorded kb_sources entry for {source_url}")
+        except Exception as e:
+            # Non-fatal: ingestion must succeed even if telemetry table is absent.
+            logger.warning(f"Failed to record kb_sources entry for {source_url}: {e}")
 
     def _hierarchical_split(
         self, text: str, title: str = "", speaker: str = "", topic: str = ""
@@ -937,6 +997,7 @@ class IngestionPipeline:
         content_type: str,
         speaker: str = "Unknown",
         topic: str = "Spiritual",
+        tags: Optional[list[str]] = None,
     ) -> int:
         """
         Split text → embed → upsert to Qdrant.
@@ -945,7 +1006,7 @@ class IngestionPipeline:
         """
         chunks = self._split_text(text, title=title, speaker=speaker, topic=topic)
         return self._embed_and_index(
-            chunks, source_url, title, content_type, speaker=speaker, topic=topic
+            chunks, source_url, title, content_type, speaker=speaker, topic=topic, tags=tags
         )
 
     def _split_text(
