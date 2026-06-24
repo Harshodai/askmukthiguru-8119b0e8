@@ -73,6 +73,10 @@ class EmbeddingCache:
             "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
         }
 
+    def health_check(self) -> bool:
+        """Embedding cache has no external dependencies; always healthy."""
+        return True
+
 
 class InMemoryCacheAdapter(ICacheRepository):
     """
@@ -143,6 +147,10 @@ class InMemoryCacheAdapter(ICacheRepository):
                 else "N/A"
             ),
         }
+
+    def health_check(self) -> bool:
+        """In-memory exact cache has no external dependencies; always healthy."""
+        return True
 
 
 class SearchResultCache:
@@ -215,3 +223,7 @@ class SearchResultCache:
             "misses": self._misses,
             "hit_rate": f"{self._hits / total:.1%}" if total > 0 else "N/A",
         }
+
+    def health_check(self) -> bool:
+        """Search-result cache has no external dependencies; always healthy."""
+        return True

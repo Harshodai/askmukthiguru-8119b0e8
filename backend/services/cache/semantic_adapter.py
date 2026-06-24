@@ -80,6 +80,17 @@ class SemanticCacheAdapter(ICacheRepository):
     def mode(self) -> str:
         return self._mode
 
+    def health_check(self) -> bool:
+        """Verify Qdrant and Redis connections are alive."""
+        if not self._available or self._qdrant is None or self._redis is None:
+            return False
+        try:
+            qdrant_ok = self._qdrant.get_collections() is not None
+            redis_ok = self._redis.ping()
+            return qdrant_ok and redis_ok
+        except Exception:
+            return False
+
     def _init_collection(self):
         try:
             collections = [c.name for c in self._qdrant.get_collections().collections]
