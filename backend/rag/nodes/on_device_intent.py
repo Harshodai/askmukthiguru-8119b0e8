@@ -97,13 +97,17 @@ def _build_centroids() -> dict[str, list[float]]:
         # Already built (even if empty due to missing encoder)
         pass
     encoder = _get_encoder()
-    if not encoder:
+    if not encoder or not hasattr(encoder, "encode"):
         return {}
     # Build centroids from keyword seeds
     centroids = {}
     for label, words in _CLASS_KEYWORDS.items():
         all_phrases = words + [label.lower()]
-        embeddings = encoder.encode(all_phrases)
+        try:
+            embeddings = encoder.encode(all_phrases)
+        except Exception:
+            logger.warning("On-device classifier: encoder.encode failed; disabling embedding path")
+            return {}
         centroids[label] = np.mean(embeddings, axis=0).tolist()
     _CLASS_CENTROIDS = centroids
     return centroids
@@ -163,14 +167,18 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
 
     # 2. Embedding-based match
     encoder = _get_encoder()
-    if not encoder:
+    if not encoder or not hasattr(encoder, "encode"):
         return None
 
     centroids = _CLASS_CENTROIDS or _build_centroids()
     if not centroids:
         return None
 
-    emb = encoder.encode(text)
+    try:
+        emb = encoder.encode(text)
+    except Exception:
+        logger.warning("On-device classifier: encoder.encode failed; falling back to keyword path")
+        return None
     best_label: str | None = None
     best_score = -1.0
     for label, centroid in centroids.items():

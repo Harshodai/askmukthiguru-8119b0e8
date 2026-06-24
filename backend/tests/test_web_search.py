@@ -9,6 +9,7 @@ Tests cover:
 """
 
 import asyncio
+import importlib.util
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,6 +21,8 @@ sys.path.insert(0, "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backen
 # Mock ddgs module if missing to prevent patch() from failing under python 3.12
 if "ddgs" not in sys.modules:
     sys.modules["ddgs"] = MagicMock()
+
+_duckduckgo_search_available = importlib.util.find_spec("duckduckgo_search") is not None
 
 from services.web_search_service import (
     DuckDuckGoProvider,
@@ -79,6 +82,7 @@ class TestDomainAllowlisting:
 # ─── Search Provider Tests ───
 
 class TestDuckDuckGoProvider:
+    @pytest.mark.skipif(not _duckduckgo_search_available, reason="duckduckgo_search not installed")
     @patch("duckduckgo_search.DDGS")
     @patch("ddgs.DDGS", create=True)
     def test_search_returns_results(self, mock_ddgs_fallback, mock_ddgs_class):
@@ -102,6 +106,7 @@ class TestDuckDuckGoProvider:
         assert results[0]["url"] == "https://www.ekam.org/events"
         assert results[0]["snippet"] == "Upcoming events at Ekam..."
 
+    @pytest.mark.skipif(not _duckduckgo_search_available, reason="duckduckgo_search not installed")
     @patch("duckduckgo_search.DDGS")
     @patch("ddgs.DDGS", create=True)
     def test_search_limits_results(self, mock_ddgs_fallback, mock_ddgs_class):

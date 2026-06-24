@@ -66,6 +66,7 @@ from services.qdrant_service import QdrantService
 logger = logging.getLogger(__name__)
 
 
+from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.auditor import DataAuditor
 from ingest.corrector import TranscriptCorrector
 
@@ -1077,7 +1078,9 @@ class IngestionPipeline:
             )
             return chunks
 
-        if settings.use_adaptive_chunking:
+        if settings.use_ingest_adaptive_chunker and len(text) >= settings.adaptive_chunking_min_chars:
+            chunks = AdaptiveChunker(self._embedder).chunk_document(text)
+        elif settings.use_adaptive_chunking:
             chunks = self._adaptive_chunker.chunk_document(text)
         elif semantic:
             chunks = self._semantic_split(text)
