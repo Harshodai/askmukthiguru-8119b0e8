@@ -2149,3 +2149,74 @@ Every OAuth flow silently failed. No error surface in frontend — just a blank 
 
 ### Pattern
 Frontend should never know about the queue. The service layer (`aiService.ts`) abstracts 202 polling and SSE redirect so the UI layer sees only the same `AIResponse` / `StreamChunk` types. Backend uses `?wait=true` for optional synchronous fallback, and config-gated `queue_enabled` for zero-risk deployment (toggle feature on/off without frontend changes).
+
+## Jun 24, 2026 — Suppressed Python 3.14 resource_tracker Leaked Semaphores Warnings
+
+### Problem
+When terminating `fcc-server` (part of the `free-claude-code` proxy tool), the Python 3.14 resource tracker printed a `UserWarning` about leaked semaphore objects:
+```
+UserWarning: resource_tracker: There appear to be 8 leaked semaphore objects to clean up at shutdown: ...
+```
+
+### Solution
+- Added `warnings.filterwarnings("ignore", category=UserWarning, message="resource_tracker: There appear to be")` to the top of `cli/entrypoints.py`.
+- Propagated the warnings filter to any child processes (like the `resource_tracker` subprocess itself) by modifying the `PYTHONWARNINGS` environment variable:
+  ```python
+  if "PYTHONWARNINGS" in os.environ:
+      if "ignore:resource_tracker" not in os.environ["PYTHONWARNINGS"]:
+          os.environ["PYTHONWARNINGS"] += ",ignore:resource_tracker:UserWarning"
+  else:
+      os.environ["PYTHONWARNINGS"] = "ignore:resource_tracker:UserWarning"
+  ```
+
+### Pattern
+When dealing with cosmetic warnings emitted at Python shutdown from subprocesses (such as the `resource_tracker` process used by `multiprocessing`), standard warning filters in the parent process may not propagate. Update the `PYTHONWARNINGS` environment variable in the parent process before any child processes are initialized, which ensures that children inherit the warning filters and silence the noise.
+
+## Jun 24, 2026 — Fixed `fcc-server` /model → `400 invalid model name` when using non-reasoning NIM models
+
+### Problem
+When using `fcc-claude` with `/model` set to `anthropic/nvidia_nim/deepseek-ai/deepseek-v4-pro` (or similar non-reasoning NIM models like `deepseek-v4-flash`), Claude Code returned `API Error: 400 invalid model name` after every message.
+
+### Root Cause
+`ENABLE_MODEL_THINKING=true` is set globally in `~/.fcc/.env`. When the proxy routes to NVIDIA NIM with thinking enabled, it injects `chat_template_kwargs: {thinking: true, enable_thinking: true, reasoning_budget: N}` into the request `extra_body`. NVIDIA NIM returns `400 invalid model name` for models that don't support reasoning (not a true model-name error — it's NIM's misleading rejection of thinking params on non-reasoning models).
+
+The existing retry logic in `providers/nvidia_nim/client.py` only retried on error text containing `"reasoning_budget"`, `"chat_template"`, or `"reasoning_content"`. NIM's actual error message `"invalid model name"` matched none of these, so the retry never fired.
+
+### Fix (applied to `/Users/harshodaikolluru/Public/free-claude-code/`)
+1. Added `_strip_thinking_fields()` to `providers/nvidia_nim/request.py` — strips `chat_template_kwargs` AND `reasoning_budget` from `extra_body`
+2. Added `clone_body_without_thinking()` helper that uses the new strip function
+3. Added retry case in `providers/nvidia_nim/client.py::_get_retry_request_body()` — when NIM returns 400 with `"invalid model name"`, retry without all thinking params
+4. Copied fixed files to the uv-tool install path: `~/.local/share/uv/tools/free-claude-code/lib/python3.14/site-packages/providers/nvidia_nim/`
+
+### Pattern
+- **ALWAYS copy fixed files to the uv tool install directory** when editing `free-claude-code` source in `/Users/harshodaikolluru/Public/free-claude-code/`. The `fcc-server` binary runs from `~/.local/share/uv/tools/free-claude-code/`, not the source repo. Source edits only take effect after copying + clearing `.pyc` cache + restarting `fcc-server`.
+- **NIM "invalid model name" = model doesn't support thinking params.** Non-reasoning models (`deepseek-v4-pro`, `deepseek-v4-flash`, etc.) reject `chat_template_kwargs`. The fix is to strip all thinking params and retry.
+- Valid NIM reasoning models (that DO support thinking): `nvidia/nemotron-3-super-120b-a12b`, DeepSeek-R1.
+
+## Jun 24, 2026 — Definitive Workflow for Editing free-claude-code Source
+
+### Problem
+Manual file copying between source repo (`/Users/harshodaikolluru/Public/free-claude-code`) and uv tool install (`~/.local/share/uv/tools/free-claude-code/`) caused version mismatches. The source was old; the installed package was newer with a refactored `providers/transports/` structure (no more `providers/openai_compat.py`).
+
+### Correct Workflow
+```bash
+# 1. Keep source repo up to date
+cd /Users/harshodaikolluru/Public/free-claude-code
+git pull --rebase
+
+# 2. Apply fixes to source repo files (never edit installed files directly)
+
+# 3. Kill the running server
+kill $(lsof -ti:8082) 2>/dev/null
+
+# 4. Reinstall from local source — ONE command, zero manual copying
+uv tool install . --reinstall
+
+# 5. Restart
+fcc-server
+```
+
+### Key Rule
+**NEVER manually copy files to the uv tool install directory.** Always `git pull`, edit source, then `uv tool install . --reinstall`.
+The uv tool install is disposable — it gets rebuilt from source.
+

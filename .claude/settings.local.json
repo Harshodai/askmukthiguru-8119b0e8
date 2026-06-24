@@ -130,7 +130,12 @@
       "Bash(/opt/homebrew/opt/python@3.12/bin/python3.12 *)",
       "Bash(venv/bin/python --version)",
       "Bash(../.venv/bin/python -m pytest tests/test_generation_node.py tests/test_intent_router.py tests/test_log_metrics_fallback.py tests/test_reranking_fail_safe.py -q --tb=short)",
-      "Bash(../.venv/bin/python -m py_compile rag/nodes/reranking.py)"
+      "Bash(../.venv/bin/python -m py_compile rag/nodes/reranking.py)",
+      "Bash(git clone *)",
+      "Bash(git ls-remote *)",
+      "Bash(mkdir -p __TRACKED_VAR__/test)",
+      "Bash(touch __TRACKED_VAR__/test/file)",
+      "WebFetch(domain:codeload.github.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
