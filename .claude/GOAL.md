@@ -30,10 +30,10 @@
   - Fail-closed init behaviour preserved via `CacheInitializationError`
   - Health checks available through `ServiceContainer.health_status()`
 
-- [ ] **Unit 12 — Decompose `backend/services/qdrant_service.py`**
-  - Split query, index, neighbour-lookup, and RAPTOR concerns
-  - Preserve metadata filtering hooks needed for assistant tags
-  - *Status:* still monolithic; no `backend/services/qdrant/` package yet
+- [x] **Unit 12 — Decompose `backend/services/qdrant_service.py`**
+  - Split into `backend/services/qdrant/{searcher,indexer,neighbours,raptor,filters,exceptions,utils}.py`
+  - Facade in `backend/services/qdrant_service.py` preserves public API
+  - Metadata/tag filtering hooks preserved and propagated to all hybrid prefetches
 
 - [x] **Unit 13 — Decompose `backend/app/main.py`**
   - Routes moved into `backend/app/api/{chat,health,ingest,memory,profile,speech,job_routes,cache_metrics}.py`
@@ -69,10 +69,9 @@
   - Retrieval empty-set / cutoff tests: `backend/tests/test_retrieval_quality.py`
   - *Note:* pack exists but could be tightened into one canonical regression module.
 
-- [ ] **Unit 19 — Frontend regression pack**
-  - Add Vitest tests for `aiService` health/fallback paths
-  - Add component tests for `ChatInterface`, `ChatMessage`, and `LanguageSelector`
-  - *Status:* only `src/tests/auth.e2e.test.ts` exists; component/unit regression tests missing
+- [x] **Unit 19 — Frontend regression pack**
+  - `src/test/aiService.regression.test.ts` covers health/fallback/streaming paths
+  - `src/test/components/{ChatInterface,ChatMessage,LanguageSelector}.test.tsx` cover component behavior
 
 ---
 
@@ -82,31 +81,30 @@
 
 Source: `docs/BACKEND_INTEGRATION_ASSISTANTS_AND_NOTES.md`
 
-- [ ] Add `AssistantContext` optional field to chat request contract
-- [ ] Apply `assistant.system_prompt` override in prompt assembly (preserve safety layers)
-- [ ] Apply `assistant.knowledge_tags` filter in Qdrant retrieval
-- [ ] Hard exclude `tags: ["sky"]` unless request explicitly includes `"sky"`
-- [ ] Add `tags text[]` to chunk metadata / `kb_sources`
-- [ ] Add `assistant_slug` column/log to `chat_queries` telemetry
-- [ ] Add `tags` parameter to `IngestionPipeline.ingest_url()` and CLI scripts
-- [ ] Add tag multi-select to ingestion UI
-- [ ] Non-regression: no `assistant` block behaves exactly as today
+- [x] Add `AssistantContext` optional field to chat request contract (`backend/app/schemas.py`)
+- [x] Apply `assistant.system_prompt` override in prompt assembly while preserving safety layers
+- [x] Apply `assistant.knowledge_tags` filter in Qdrant retrieval; hard exclude `tags: ["sky"]` unless explicitly requested
+- [x] Add `tags text[]` to chunk payload and `kb_sources` telemetry records
+- [x] Add `assistant_slug` log to `chat_queries` telemetry sink (`backend/app/telemetry_sink.py`)
+- [x] Add `tags` parameter to `IngestionPipeline.ingest_url()` and CLI bulk ingestion scripts (`--tags`)
+- [x] Add tag multi-select to ingestion UI (`ingest-ui/index.html` + `app.js`)
+- [ ] Non-regression smoke tests: run `backend/benchmarks/smoke_doctrine.py` with/without assistant block
+- [ ] Database migration: add `assistant_slug` column to `chat_queries` in Supabase (backend insert already sends the field)
 
 ### 5.2 Retrieval-quality improvements
 
 Inspired by the "Biggest improvement to RAG wasn't a better LLM" principles. Status and mapping documented in `docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md`.
 
 - [x] **Better chunking strategy (implemented, partly gated)**
-  - Evaluate current `RecursiveCharacterTextSplitter` + proposition + adaptive chunking
-  - Sentence-boundary-aware chunking available via `backend/ingest/boundary_chunker.py`
-  - Boundary overlap preserves whole sentences
-  - *Gaps:* boundary chunker not default; Indic-language sentence splitter not yet added
+  - `RecursiveCharacterTextSplitter` remains default; `backend/ingest/boundary_chunker.py` provides sentence-boundary splitting
+  - `backend/ingest/adaptive_chunking.py` ports `ekimetrics/adaptive-chunking` and is wired behind `use_ingest_adaptive_chunker`
+  - *Gaps:* set flags default after benchmark validation; add Indic-language sentence splitter
 
 - [x] **Metadata-based filtering (implemented, used in chat)**
   - `source_url`, `title`, `tags`, detected `language`, and `source_type` stored in Qdrant metadata
   - `knowledge_tags` threaded through retrieval from `GraphState` to `qdrant.search()`
   - `kb_sources` telemetry table records source-level tags
-  - *Gaps:* assistant-aware tag filtering and hard `sky` exclude still pending
+  - Assistant-aware tag filtering and hard `sky` exclusion active
 
 - [x] **Removing duplicate content (implemented, opt-in)**
   - Near-duplicate detection at ingestion time via `backend/ingest/deduplication.py`
@@ -131,7 +129,7 @@ Repo: `https://github.com/yifanfeng97/hyper-extract`
 
 - [x] Fetch and read the repository structure, README, and core modules
 - [x] Identify techniques applicable to our pipeline (document structure, atom facts, graph/hypergraph extraction)
-- [ ] Port/adapt the highest-value extraction logic into `backend/ingest/` without adding heavy dependencies
+- [ ] Port/adapt the highest-value extraction logic into `backend/ingest/` without adding heavy dependencies (in progress)
 - [ ] Document the decision and alternatives in `docs/HYPER_EXTRACT_INTEGRATION.md`
 
 ### 5.4 `ekimetrics/adaptive-chunking` study and integration — DONE
@@ -148,10 +146,10 @@ Repo: `https://github.com/ekimetrics/adaptive-chunking`
 
 ## Phase 6 — Continuous verification
 
-- [ ] Run `backend/tests/` and `src/test/` + `src/tests/` after every unit
-- [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression
-- [ ] Keep `main` green; commit each unit separately
-- [ ] Push `main` to origin after each verified batch
+- [x] Run `backend/tests/` and `src/test/` + `src/tests/` after every unit
+- [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression after the current batch
+- [x] Keep `main` green; commit each unit separately
+- [ ] Push `main` to origin after full suite + smoke are green
 
 ---
 
@@ -165,7 +163,7 @@ Repo: `https://github.com/ekimetrics/adaptive-chunking`
 
 ## Next immediate step
 
-- Finalise **Unit 12** (`qdrant_service.py` decomposition).
-- Complete **Unit 19** frontend regression pack.
-- Enable and benchmark gated retrieval-quality flags (`retrieval_score_delta_enabled`, `retrieval_deduplication_enabled`, `use_ingest_adaptive_chunker`).
-- Continue **Phase 5.1** Custom Assistants & Notes backend integration.
+- Complete **Phase 5.3** hyper-extract integration.
+- Run `backend/benchmarks/smoke_doctrine.py` and `backend/tests/` full suite.
+- Commit current fixes and push `main`.
+- Produce `docs/PENDING_AND_EDGE_CASES.md` handoff document.

@@ -17,7 +17,8 @@ from app.schemas import AssistantContext, ChatRequest
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.nodes.generation import context_engineer, generate_answer
 from rag.nodes import _services
-from services.qdrant_service import QdrantService, _build_tag_conditions, _merge_filter
+from services.qdrant.searcher import QdrantSearcher
+from services.qdrant_service import _build_tag_conditions
 
 
 # ---------------------------------------------------------------------------
@@ -82,12 +83,10 @@ class TestQdrantSearchFiltering:
     """Hybrid-search prefetches must all honor assistant tag filters."""
 
     @pytest.fixture
-    def service(self):
-        svc = QdrantService.__new__(QdrantService)
-        svc._collection = "test_collection"
-        svc._client = MagicMock()
-        svc._client.query_points.return_value = MagicMock(points=[])
-        return svc
+    def searcher(self):
+        client = MagicMock()
+        client.query_points.return_value = MagicMock(points=[])
+        return QdrantSearcher(client, "test_collection")
 
     @staticmethod
     def _filter_predicates(filter_obj):
@@ -102,8 +101,8 @@ class TestQdrantSearchFiltering:
                     out[key].append((cond.key, tuple(match.any)))
         return out
 
-    def test_hybrid_prefetches_include_tag_filters(self, service):
-        service.search(
+    def test_hybrid_prefetches_include_tag_filters(self, searcher):
+        searcher.search(
             query_vector=[0.1] * 384,
             limit=10,
             sparse_vector={"1": 0.5},
@@ -111,7 +110,7 @@ class TestQdrantSearchFiltering:
             query="what is love",
         )
 
-        call = service._client.query_points.call_args
+        call = searcher._client.query_points.call_args
         prefetches = call.kwargs["prefetch"]
 
         for prefetch in prefetches:
@@ -119,8 +118,8 @@ class TestQdrantSearchFiltering:
             assert ("tags", ("love",)) in predicates["must"], "requested tag must be required"
             assert ("tags", "sky") in predicates["must_not"], "sky must be excluded"
 
-    def test_hybrid_prefetches_allow_sky_when_opted_in(self, service):
-        service.search(
+    def test_hybrid_prefetches_allow_sky_when_opted_in(self, searcher):
+        searcher.search(
             query_vector=[0.1] * 384,
             limit=10,
             sparse_vector={"1": 0.5},
@@ -128,7 +127,7 @@ class TestQdrantSearchFiltering:
             query="sky teachings",
         )
 
-        call = service._client.query_points.call_args
+        call = searcher._client.query_points.call_args
         prefetches = call.kwargs["prefetch"]
 
         for prefetch in prefetches:
@@ -136,15 +135,15 @@ class TestQdrantSearchFiltering:
             assert ("tags", ("sky",)) in predicates["must"]
             assert ("tags", "sky") not in predicates["must_not"]
 
-    def test_dense_fallback_uses_tag_filter(self, service):
+    def test_dense_fallback_uses_tag_filter(self, searcher):
         """When no sparse vector is provided, dense-only search still filters."""
-        service.search(
+        searcher.search(
             query_vector=[0.1] * 384,
             limit=10,
             knowledge_tags=["meditation"],
         )
 
-        call = service._client.query_points.call_args
+        call = searcher._client.query_points.call_args
         assert "query_filter" in call.kwargs
         predicates = self._filter_predicates(call.kwargs["query_filter"])
         assert ("tags", ("meditation",)) in predicates["must"]

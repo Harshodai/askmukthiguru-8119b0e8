@@ -6,6 +6,7 @@ so that /api/ingest/status returns consistent data regardless
 of which backend pod handles the request.
 """
 
+import json
 import time
 import typing
 from typing import Optional
@@ -23,7 +24,9 @@ except ImportError:
 class IngestionTracker:
     """Base interface for ingestion tracking."""
 
-    def update(self, url: str, message: str, percent: float) -> None:
+    def update(
+        self, url: str, message: str, percent: float, tags: Optional[list[str]] = None
+    ) -> None:
         raise NotImplementedError  # pragma: no cover
 
     def get_all(self) -> dict:
@@ -39,25 +42,31 @@ class _InMemoryIngestionTracker(IngestionTracker):
     def __init__(self) -> None:
         self._data: dict = {}
 
-    def update(self, url: str, message: str, percent: float) -> None:
+    def update(
+        self, url: str, message: str, percent: float, tags: Optional[list[str]] = None
+    ) -> None:
         self._data[url] = {
             "url": url,
             "message": message,
             "progress": percent,
             "updated_at": time.time(),
             "status": "processing" if percent < 1.0 else "success",
+            "tags": tags or [],
         }
 
     def get_all(self) -> dict:
         return self._data.copy()
 
-    def mark_error(self, url: str, error_message: str) -> None:
+    def mark_error(
+        self, url: str, error_message: str, tags: Optional[list[str]] = None
+    ) -> None:
         self._data[url] = {
             "url": url,
             "message": error_message,
             "progress": 0.0,
             "updated_at": time.time(),
             "status": "error",
+            "tags": tags or [],
         }
 
 
@@ -77,13 +86,16 @@ class RedisIngestionTracker(IngestionTracker):
     def _key(self, url: str) -> str:
         return f"{self._KEY_PREFIX}:{url}"
 
-    def update(self, url: str, message: str, percent: float) -> None:
+    def update(
+        self, url: str, message: str, percent: float, tags: Optional[list[str]] = None
+    ) -> None:
         data = {
             "url": url,
             "message": message,
             "progress": str(percent),
             "updated_at": str(time.time()),
             "status": "processing" if percent < 1.0 else "success",
+            "tags": json.dumps(tags or []),
         }
         key = self._key(url)
         self._client.hset(key, mapping=data)  # type: ignore[no-untyped-call]
@@ -96,10 +108,17 @@ class RedisIngestionTracker(IngestionTracker):
             data = self._client.hgetall(key)  # type: ignore[no-untyped-call]
             if data:
                 url = key.replace(f"{self._KEY_PREFIX}:", "")
-                result[url] = {k: v for k, v in data.items()}
+                item = {k: v for k, v in data.items()}
+                try:
+                    item["tags"] = json.loads(item.get("tags", "[]"))
+                except Exception:
+                    item["tags"] = []
+                result[url] = item
         return result
 
-    def mark_error(self, url: str, error_message: str) -> None:
+    def mark_error(
+        self, url: str, error_message: str, tags: Optional[list[str]] = None
+    ) -> None:
         key = self._key(url)
         data = {
             "url": url,
@@ -107,6 +126,7 @@ class RedisIngestionTracker(IngestionTracker):
             "progress": "0.0",
             "updated_at": str(time.time()),
             "status": "error",
+            "tags": json.dumps(tags or []),
         }
         self._client.hset(key, mapping=data)  # type: ignore[no-untyped-call]
         self._client.expire(key, self._TTL)  # type: ignore[no-untyped-call]

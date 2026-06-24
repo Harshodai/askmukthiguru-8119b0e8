@@ -152,24 +152,29 @@ class QdrantSearcher:
 
         if sparse_vector or query_phonetic_tokens:
             try:
+                leaf_filter = self._merge_filter(
+                    search_filter,
+                    [FieldCondition(key="raptor_level", match=MatchValue(value=0))],
+                )
+                summary_filter = self._merge_filter(
+                    search_filter,
+                    [FieldCondition(key="raptor_level", match=MatchValue(value=1))],
+                )
+
                 prefetch_queries = [
                     # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
                         query=query_vector,
                         using="dense",
                         limit=internal_limit,
-                        filter=Filter(
-                            must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]
-                        ),
+                        filter=leaf_filter,
                     ),
                     # Prefetch 2: Summaries (Level 1)
                     Prefetch(
                         query=query_vector,
                         using="dense",
                         limit=internal_limit // 2,
-                        filter=Filter(
-                            must=[FieldCondition(key="raptor_level", match=MatchValue(value=1))]
-                        ),
+                        filter=summary_filter,
                     ),
                 ]
 
@@ -186,18 +191,16 @@ class QdrantSearcher:
 
                 # Prefetch 4: Indic Phonetic Matching (Phonetically-filtered dense search)
                 if query_phonetic_tokens:
+                    phonetic_should = [
+                        FieldCondition(key="phonetic_tokens", match=MatchValue(value=tok))
+                        for tok in query_phonetic_tokens
+                    ]
+                    phonetic_filter = self._merge_filter(search_filter, [], extra_should=phonetic_should)
                     prefetch_queries.append(
                         Prefetch(
                             query=query_vector,
                             using="dense",
-                            filter=Filter(
-                                should=[
-                                    FieldCondition(
-                                        key="phonetic_tokens", match=MatchValue(value=tok)
-                                    )
-                                    for tok in query_phonetic_tokens
-                                ]
-                            ),
+                            filter=phonetic_filter,
                             limit=internal_limit,
                         )
                     )
@@ -241,6 +244,28 @@ class QdrantSearcher:
             }
             for hit in hits
         ]
+
+    @staticmethod
+    def _merge_filter(
+        base_filter: Optional[Filter],
+        extra_must: list[FieldCondition],
+        extra_should: Optional[list[FieldCondition]] = None,
+    ) -> Filter:
+        """Merge extra must/should conditions into ``base_filter``.
+
+        Preserves existing ``must_not`` conditions (e.g. hard ``sky`` exclusion).
+        """
+        must = list(base_filter.must) if base_filter and base_filter.must else []
+        must.extend(extra_must)
+        must_not = list(base_filter.must_not) if base_filter and base_filter.must_not else None
+        should = list(base_filter.should) if base_filter and base_filter.should else []
+        if extra_should:
+            should.extend(extra_should)
+        return Filter(
+            must=must if must else None,
+            must_not=must_not,
+            should=should if should else None,
+        )
 
     def _dense_search(self, query_vector, limit, search_filter):
         """Dense-only search using the named 'dense' vector."""
