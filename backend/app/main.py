@@ -49,12 +49,13 @@ from app.coalescer import build_coalescer as _build_coalescer
 coalescer = _build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
 # Existing routers
+from app.api.admin import admin_router
 from app.api.cache_metrics import router as cache_metrics_router
+from app.api.compliance import router as compliance_router
 from app.api.endpoints.auth import router as auth_router
+from app.api.feedback import router as feedback_router
 from app.api.health import router as health_router
 from app.core.limiter import limiter
-from routers.admin import admin_router
-from routers.feedback import router as feedback_router
 
 # Newly-extracted route groups
 from app.api.chat import router as chat_router
@@ -63,7 +64,7 @@ from app.api.memory import router as memory_router
 from app.api.profile import router as profile_router
 from app.api.speech import router as speech_router
 
-# Job, trace, and compliance routers are imported where needed below to avoid
+# Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
 
 telemetry_sink = SupabaseTelemetrySink()
@@ -493,11 +494,6 @@ app.include_router(memory_router, prefix="/api")
 from app.api.job_routes import router as job_router
 
 app.include_router(job_router)
-
-# Unit 24: Compliance router (GDPR audit log access)
-from routers.compliance import router as compliance_router
-
-app.include_router(compliance_router)
 
 # Mount trace dashboard routes
 from app.trace_dashboard import router as trace_router

@@ -16,6 +16,7 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any, Optional
 
+from anyio import Lock as AsyncLock
 import httpx
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -64,13 +65,13 @@ class OpenRouterService:
         self._circuit = DefaultCircuitBreaker(config)
 
         # Rate limiting state
-        self._rpm_lock = asyncio.Lock()
+        self._rpm_lock = AsyncLock()
         self._request_count = 0
         self._window_start = time.time()
 
         # Connection pooling: AsyncClient
         self._http_client: Optional[httpx.AsyncClient] = None
-        self._http_client_lock = asyncio.Lock()
+        self._http_client_lock = AsyncLock()
 
         logger.info(
             f"OpenRouter Service initialized: "

@@ -1,8 +1,8 @@
 """Krutrim AI integration as alternative/fallback LLM provider."""
 
-import asyncio
 import logging
 
+from anyio import Lock as AsyncLock
 import httpx
 
 from app.config import settings
@@ -25,7 +25,7 @@ class KrutrimService:
         self._model = "krutrim-pro-v1"
         # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
         self._http_client = None
-        self._http_client_lock = asyncio.Lock()
+        self._http_client_lock = AsyncLock()
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create the singleton HTTP client with connection pooling."""

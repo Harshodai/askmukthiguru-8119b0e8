@@ -10,6 +10,7 @@ import asyncio
 import logging
 import time
 
+from anyio import Lock as AsyncLock
 from app.telemetry.events import HealthStatus, StageCompleted, StageFailed, StageStarted
 from app.telemetry.sinks import ConsoleSink, TelemetrySink
 
@@ -20,7 +21,7 @@ class TelemetryPublisher:
     """Singleton event publisher that fans out to registered sinks."""
 
     _instance: "TelemetryPublisher | None" = None
-    _lock = asyncio.Lock()
+    _lock = AsyncLock()
 
     def __new__(cls, *args, **kwargs):  # noqa: ARG004
         if cls._instance is None:

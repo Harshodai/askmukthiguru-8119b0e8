@@ -26,7 +26,7 @@ def setup_admin_override():
         app.dependency_overrides.pop(get_current_user_from_supabase, None)
 
 
-@patch("routers.admin.get_recent_traces")
+@patch("app.api.admin.get_recent_traces")
 def test_fetch_telemetry_traces_success(mock_get_recent):
     mock_get_recent.return_value = [{"id": "trace-1", "user_message": "test"}]
     response = client.get("/api/admin/traces?limit=10")
@@ -37,7 +37,7 @@ def test_fetch_telemetry_traces_success(mock_get_recent):
     mock_get_recent.assert_called_once_with(10)
 
 
-@patch("routers.admin.get_query_trace")
+@patch("app.api.admin.get_query_trace")
 def test_fetch_query_trace_success(mock_get_query_trace):
     mock_get_query_trace.return_value = {
         "query": {"id": "trace-1", "user_message": "test"},
@@ -54,14 +54,14 @@ def test_fetch_query_trace_success(mock_get_query_trace):
     mock_get_query_trace.assert_called_once_with("trace-1")
 
 
-@patch("routers.admin.get_query_trace")
+@patch("app.api.admin.get_query_trace")
 def test_fetch_query_trace_not_found(mock_get_query_trace):
     mock_get_query_trace.return_value = None
     response = client.get("/api/admin/traces/trace-not-found")
     assert response.status_code == 404
 
 
-@patch("routers.admin.get_eval_runs")
+@patch("app.api.admin.get_eval_runs")
 def test_fetch_evaluations_success(mock_get_eval_runs):
     mock_get_eval_runs.return_value = [{"id": "eval-1", "score": 0.98}]
     response = client.get("/api/admin/evaluations")
