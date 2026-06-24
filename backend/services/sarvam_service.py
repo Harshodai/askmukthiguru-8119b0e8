@@ -30,6 +30,7 @@ import time
 from collections.abc import AsyncIterator
 from typing import Optional
 
+from anyio import Lock as AsyncLock
 import httpx
 
 from app.config import settings
@@ -107,12 +108,12 @@ class SarvamCloudService:
         sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
         self._circuit = DefaultCircuitBreaker(sarvam_config)
         self._last_request_time = 0.0
-        self._rate_limit_lock = asyncio.Lock()
+        self._rate_limit_lock = AsyncLock()
         self._max_tokens_limit = 32768
 
         # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
         self._http_client = None
-        self._http_client_lock = asyncio.Lock()
+        self._http_client_lock = AsyncLock()
 
         # Also set env for any code that might use langchain-sarvam internally
         os.environ["SARVAM_API_KEY"] = self._api_key

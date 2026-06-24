@@ -33,6 +33,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from anyio import Event as AsyncEvent
+
 logger = logging.getLogger(__name__)
 
 # Default paths to watch for changes (relative to backend/)
@@ -88,7 +90,7 @@ def _reload_settings() -> None:
         logger.warning(f"ConfigWatcher: settings reload failed: {exc}")
 
 
-async def _watchfiles_loop(watch_paths: list[Path], stop_event: asyncio.Event) -> None:
+async def _watchfiles_loop(watch_paths: list[Path], stop_event: AsyncEvent) -> None:
     """Main loop using watchfiles for inotify-based change detection."""
     try:
         from watchfiles import awatch
@@ -107,7 +109,7 @@ async def _watchfiles_loop(watch_paths: list[Path], stop_event: asyncio.Event) -
         logger.warning(f"ConfigWatcher (watchfiles): unexpected error: {exc}")
 
 
-async def _polling_loop(watch_paths: list[Path], stop_event: asyncio.Event) -> None:
+async def _polling_loop(watch_paths: list[Path], stop_event: AsyncEvent) -> None:
     """Fallback polling loop — checks mtime every 30s."""
     logger.info(
         f"ConfigWatcher: polling mode ({_POLL_INTERVAL}s interval) on "
@@ -137,7 +139,7 @@ class ConfigWatcher:
 
     def __init__(self) -> None:
         self._task: Optional[asyncio.Task] = None
-        self._stop_event = asyncio.Event()
+        self._stop_event = AsyncEvent()
 
     async def start(self) -> None:
         """Start the background config watcher task."""

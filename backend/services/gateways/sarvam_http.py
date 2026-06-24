@@ -17,6 +17,7 @@ import re
 import time
 from typing import Optional
 
+from anyio import Lock as AsyncLock
 import httpx
 
 from app.config import settings
@@ -71,12 +72,12 @@ class SarvamHTTPGateway:
 
         # Rate limiting
         self._last_request_time = 0.0
-        self._rate_limit_lock = asyncio.Lock()
+        self._rate_limit_lock = AsyncLock()
         self._max_tokens_limit = 32768
 
         # Connection pooling
         self._http_client: httpx.AsyncClient | None = None
-        self._http_client_lock = asyncio.Lock()
+        self._http_client_lock = AsyncLock()
 
         # Back-compat: set env for any code still using langchain-sarvam
         os.environ["SARVAM_API_KEY"] = self._api_key
