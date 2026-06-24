@@ -235,3 +235,49 @@ class RaptorIndexer:
         )
 
         return list(summaries)
+
+    async def summarize_parent_chunks(
+        self,
+        chunks: list[dict],
+        max_concurrent: int = 4,
+    ) -> list[dict]:
+        """
+        Generate a brief summary for each parent-level chunk.
+
+        Parent summaries are stored as metadata on RAPTOR level-1 summary nodes
+        so retrieval can expose both the cluster summary and a parent-chunk
+        summary when useful. This is optional and invoked when max_accuracy
+        or a config flag enables it.
+
+        Args:
+            chunks: List of chunk dicts with at least a 'text' key.
+            max_concurrent: Max parallel LLM calls.
+
+        Returns:
+            List of dicts {text, summary, source_url, title} preserving provenance.
+        """
+        if not chunks:
+            return []
+
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def _summarize_chunk(chunk: dict) -> dict:
+            text = chunk.get("text", "").strip()
+            if not text:
+                return {**chunk, "summary": ""}
+
+            async with semaphore:
+                try:
+                    summary = await self._llm.summarize([text])
+                    return {
+                        **chunk,
+                        "summary": summary.strip(),
+                    }
+                except Exception as e:
+                    logger.warning(f"RAPTOR: parent-chunk summary failed: {e}")
+                    return {
+                        **chunk,
+                        "summary": text[:250],
+                    }
+
+        return await asyncio.gather(*[_summarize_chunk(c) for c in chunks])
