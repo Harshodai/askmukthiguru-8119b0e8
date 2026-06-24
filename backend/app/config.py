@@ -177,6 +177,11 @@ class Settings(BaseSettings):
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
     redis_url: str = "redis://redis:6379/0"
+    # --- Cache Mode ---
+    # "best_effort" = try Redis, fall back to in-memory if unavailable (default).
+    # "redis"       = require Redis; raise a clear startup error if unavailable.
+    # "memory"      = use in-memory cache only (no Redis dependency).
+    cache_mode: str = "best_effort"
 
     # --- Job Queue & Backpressure ---
     queue_enabled: bool = True
