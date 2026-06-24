@@ -13,7 +13,7 @@ _embedder: Any = None
 _qdrant: Any = None
 _lightrag: Any = None
 _serene_mind: Any = None
-_injected_semantic_cache: Any = None
+_semantic_cache: Any = None
 _fallback_cache: Any = None
 _context_compressor: Any = None
 _lettuce_detect: Any = None
@@ -57,7 +57,7 @@ def init_services(
     from services.lettuce_detect_service import LettuceDetectService
     from services.reranker_service import RerankerService
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _injected_semantic_cache, _sarvam_cloud
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud
 
     _ollama = ollama
     _embedder = embedder
@@ -67,7 +67,6 @@ def init_services(
     _web_search = web_search
     _sarvam_cloud = sarvam_cloud
     _injected_semantic_cache = semantic_cache
-    _sarvam_cloud = sarvam_cloud
 
     _reranker = RerankerService()
     _lettuce_detect = LettuceDetectService(embedder)
