@@ -15,14 +15,14 @@ service instances are created. All other modules depend on abstractions.
 import asyncio
 import logging
 import threading
+import warnings
+from typing import Any
 
 from app.config import settings
 from guardrails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_deep_graph, build_fast_graph, build_rag_graph
-from services.cache_service import SemanticCacheAdapter, init_llm_cache
 from services.circuit_breaker import initialize_circuit_breakers
-from services.compliance_logger import get_compliance_logger  # Unit 24
 from services.embedding_service import EmbeddingService
 from services.ingestion_tracker import IngestionTracker
 from services.ingestion_tracker import build_tracker as build_ingestion_tracker
@@ -53,6 +53,18 @@ def _create_llm_service():
     return LLMProviderFactory.create_provider(provider)
 
 
+# Required singletons that must be non-None after container construction.
+_REQUIRED_SINGLETONS = frozenset({
+    "ingestion_tracker",
+    "qdrant",
+    "embedding",
+    "ollama",
+    "guardrails",
+    "exact_cache",
+    "circuit_breaker_registry",
+})
+
+
 class ServiceContainer:
     """
     Composition Root: Creates and holds all singleton service instances.
@@ -61,18 +73,45 @@ class ServiceContainer:
 
     All services are created once during startup and shared across
     all request handlers. This avoids re-loading models on every request.
+
+    Construction is split into builder stages so initialization order and
+    dependency wiring are explicit and testable. Use ContainerBuilder
+    (services/container_builder.py) for new code; the deprecated
+    __init__ path is retained for backward compatibility.
     """
 
     def __init__(self) -> None:
-        """Initialize all services in dependency order."""
-        import warnings
+        """Initialize all services in dependency order (deprecated path)."""
         warnings.warn(
             "ServiceContainer.__init__ is deprecated. Use ContainerBuilder().build() instead. "
-            "This method will be removed in a future release. See golden-singing-puzzle.md for details.",
+            "This method will be removed in a future release.",
             DeprecationWarning,
             stacklevel=2,
         )
         logger.info("Initializing service container (DEPRECATED: use ContainerBuilder)...")
+
+        self._build_infrastructure()
+        self._build_vector_services()
+        self._build_llm_services()
+        self._build_observability()
+        self._build_guardrails_and_cache()
+        self._build_profiles()
+        self._build_ingestion()
+        self._build_graphs()
+        self._di_health_check()
+
+        logger.info(
+            f"All services initialized "
+            f"(Serene Mind: {'enabled' if self.serene_mind else 'disabled'}, "
+            f"Guardrails: {self.guardrails.provider_name}, "
+            f"Semantic Cache: {'enabled' if self.semantic_cache and self.semantic_cache.is_available else 'disabled'})"
+        )
+
+    # === Builder stages =======================================================
+
+    def _build_infrastructure(self) -> None:
+        """Layer 1: Core infrastructure services with no external dependencies."""
+        from services.cache import init_llm_cache
 
         # State: Active ingestion progress — shared across pods via Redis
         self.ingestion_tracker: IngestionTracker = build_ingestion_tracker(
@@ -82,100 +121,84 @@ class ServiceContainer:
         # Initialize LLM caching (GPTCache)
         init_llm_cache()
 
-        # Layer 1: Core services (no dependencies)
+        # Vector / graph infrastructure
         self.qdrant = QdrantService()
         self.qdrant.init_collection()
         self.lightrag = lightrag_service
 
-        # Layer 2: Model services (depend on config only)
-        self.embedding = EmbeddingService()
-        from services.semantic_model_router import SemanticModelRouter
-        self.semantic_router = SemanticModelRouter(self.embedding)
-        self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
-
-        # Unit 7: expose underlying SarvamCloudService when it is the active provider
-        from services.llm.sarvam_provider import SarvamProvider
-        if isinstance(self.ollama, SarvamProvider):
-            self.sarvam_cloud = self.ollama._service
-        else:
-            self.sarvam_cloud = None
-        
-        # Wire TranslationProvider using TranslationProviderFactory
-        from services.translation import TranslationProviderFactory
-        self.translation = TranslationProviderFactory.create_provider()
-        
+        # Other infrastructure
         self.ocr = OCRService()
         self.krutrim = KrutrimService()
+        self.language_router = LanguageRouter()
 
-        # Circuit Breaker Registry (provider-agnostic)
-        self.circuit_breaker_registry = initialize_circuit_breakers()
-        logger.info("CircuitBreakerRegistry initialized and active provider set")
+    def _build_vector_services(self) -> None:
+        """Layer 2: Embedding and semantic-router services."""
+        from services.semantic_model_router import SemanticModelRouter
 
-        # Unit 25: Model failover registry (primary Ollama → fallback Ollama → Krutrim)
-        from services.llm import OllamaProvider
+        self.embedding = EmbeddingService()
+        self.semantic_router = SemanticModelRouter(self.embedding)
+
+    def _build_llm_services(self) -> None:
+        """Layer 3: LLM, translation, failover, and circuit-breaker services."""
+        from services.llm import LLMProviderFactory, OllamaProvider
+        from services.llm_factory import LLMServiceFactory
+        from services.openrouter_service import OpenRouterService
+        from services.translation import TranslationProviderFactory
+
+        self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
+
+        # Wire TranslationProvider using TranslationProviderFactory
+        self.sarvam_cloud = LLMServiceFactory.create("sarvam_cloud")
+        self.translation = TranslationProviderFactory.create_provider(
+            sarvam_service=self.sarvam_cloud,
+        )
+
+        # OpenRouter free-tier service for fast/simple queries
+        self.openrouter = OpenRouterService()
+
+        # Model registry only for Ollama
         if isinstance(self.ollama, OllamaProvider):
             self.model_registry = ModelRegistry(self.ollama._service, self.krutrim)
         else:
             self.model_registry = None
             logger.info("ModelRegistry not created: non-Ollama provider active")
 
+        # Circuit Breaker Registry (provider-agnostic)
+        self.circuit_breaker_registry = initialize_circuit_breakers()
+        logger.info("CircuitBreakerRegistry initialized and active provider set")
 
-        # Unit 24: Compliance logger singleton
+    def _build_observability(self) -> None:
+        """Layer 4: Observability, cost tracking, A/B testing, and prompt store."""
+        from services.ab_testing import get_ab_router
+        from services.compliance_logger import get_compliance_logger
+        from services.cost_tracker import get_cost_tracker
+        from services.prompt_store import get_prompt_store
+
         self.compliance_logger = get_compliance_logger()
         logger.info("ComplianceLogger initialized (GDPR-safe audit logging active)")
 
-        # Unit 16: A/B Testing Router
-        from services.ab_testing import get_ab_router
         self.ab_router = get_ab_router()
         logger.info("ABTestRouter initialized")
 
-        # Unit 22: Prompt versioning store (lazy seed on first use)
-        from services.prompt_store import get_prompt_store
         self.prompt_store = get_prompt_store()
         logger.info("PromptStore initialized (SQLite-backed)")
 
-        # Unit 23: Cost attribution tracker
-        from services.cost_tracker import get_cost_tracker
         self.cost_tracker = get_cost_tracker()
         logger.info("CostTracker initialized")
 
-        # Layer 3: Emotional Intelligence (depends on embedding, config-gated)
-        if settings.serene_mind_enabled:
-            self.serene_mind = SereneMindEngine(embedding_service=self.embedding)
-        else:
-            self.serene_mind = None
-            logger.info("Serene Mind Engine disabled via config (SERENE_MIND_ENABLED=false)")
+    def _build_guardrails_and_cache(self) -> None:
+        """Layer 5: Guardrails, exact/semantic caches, job queue, and web search."""
+        from services.cache import CacheFactory
 
-        # Layer 3b: Web Search (real-time temporal queries, config-gated)
-        if settings.web_search_enabled:
-            self.web_search = WebSearchService(
-                allowed_domains=settings.web_search_allowed_domains_list,
-                provider=settings.web_search_provider,
-                max_results=settings.web_search_max_results,
-                searxng_url=settings.searxng_url if settings.web_search_provider == "searxng" else None,
-            )
-        else:
-            self.web_search = None
-            logger.info("Web Search disabled via config (WEB_SEARCH_ENABLED=false)")
-
-        # Layer 4: Guardrails (depends on config)
         self.guardrails = GuardrailsService()
 
-        # Layer 4b: Semantic Cache & Exact Cache (depends on embedding + redis + qdrant)
-        from services.cache_service import RedisCacheAdapter
-        self.exact_cache = RedisCacheAdapter(redis_url=settings.redis_url)
-        try:
-            self.semantic_cache = SemanticCacheAdapter(
-                redis_url=settings.redis_url,
-                qdrant_url=settings.qdrant_url if not settings.qdrant_local_path else None,
-                qdrant_path=settings.qdrant_local_path if settings.qdrant_local_path else None,
-                embedding_service=self.embedding,
-            )
-        except Exception as exc:
-            logger.warning(f"Failed to initialize semantic cache: {exc}. Continuing without semantic caching.")
-            self.semantic_cache = None
+        # Cache adapters honor the configured cache_mode setting.
+        self.exact_cache = CacheFactory.create_exact_cache()
+        self.semantic_cache = CacheFactory.create_semantic_cache(
+            embedding_service=self.embedding,
+        )
 
-        # Layer 4b.5: Job Queue (Redis-backed)
+        # Job Queue (Redis-backed)
         if settings.queue_enabled:
             from app.services.job_queue import JobQueueService
             self.job_queue = JobQueueService(
@@ -187,14 +210,30 @@ class ServiceContainer:
         else:
             self.job_queue = None
 
-        # Layer 4c: Language Router (no dependencies)
-        self.language_router = LanguageRouter()
+        # Web Search (real-time temporal queries, config-gated)
+        if settings.web_search_enabled:
+            self.web_search = WebSearchService(
+                allowed_domains=settings.web_search_allowed_domains_list,
+                provider=settings.web_search_provider,
+                max_results=settings.web_search_max_results,
+                searxng_url=settings.searxng_url if settings.web_search_provider == "searxng" else None,
+            )
+        else:
+            self.web_search = None
+            logger.info("Web Search disabled via config (WEB_SEARCH_ENABLED=false)")
 
-        # Layer 4d: User Profiles (depends on supabase)
+    def _build_profiles(self) -> None:
+        """Layer 6: Emotional intelligence and user profiles."""
+        from services.memory_service import MemoryService
+
+        if settings.serene_mind_enabled:
+            self.serene_mind = SereneMindEngine(embedding_service=self.embedding)
+        else:
+            self.serene_mind = None
+            logger.info("Serene Mind Engine disabled via config (SERENE_MIND_ENABLED=false)")
+
         if settings.user_profile_enabled:
             from supabase import create_client
-
-            from services.memory_service import MemoryService
 
             supabase_client = None
             if settings.supabase_url and settings.supabase_key:
@@ -213,7 +252,8 @@ class ServiceContainer:
             self.user_profile = None
             self.memory_service = None
 
-        # Layer 5: Ingestion pipeline (depends on all services)
+    def _build_ingestion(self) -> None:
+        """Layer 7: Ingestion pipeline (depends on core services)."""
         self.ingestion = IngestionPipeline(
             qdrant_service=self.qdrant,
             embedding_service=self.embedding,
@@ -222,10 +262,11 @@ class ServiceContainer:
             ocr_service=self.ocr,
         )
 
-        # Layer 6: RAG graph variants (depends on core services + serene mind)
+    def _build_graphs(self) -> None:
+        """Layer 8: RAG graph variants (depends on core services + serene mind)."""
         # LightRAG degraded-service flag: if Neo4j was unreachable during
         # lightrag.initialize(), the graph still builds but without graph
-        # enrichment.  The service itself logs the warning.
+        # enrichment. The service itself logs the warning.
         self.fast_graph = build_fast_graph(
             ollama_service=self.ollama,
             embedding_service=self.embedding,
@@ -253,12 +294,23 @@ class ServiceContainer:
         # Backward-compatible alias — defaults to standard graph
         self.rag_graph = self.standard_graph
 
-        logger.info(
-            f"All services initialized "
-            f"(Serene Mind: {'enabled' if self.serene_mind else 'disabled'}, "
-            f"Guardrails: {self.guardrails.provider_name}, "
-            f"Semantic Cache: {'enabled' if self.semantic_cache.is_available else 'disabled'})"
-        )
+    def _di_health_check(self) -> None:
+        """Verify that required singletons are non-None and log any missing ones."""
+        missing: list[str] = []
+        for name in _REQUIRED_SINGLETONS:
+            value = getattr(self, name, None)
+            if value is None:
+                missing.append(name)
+                logger.error(f"DI health check: required singleton '{name}' is None")
+            else:
+                logger.debug(f"DI health check: '{name}' OK")
+
+        if missing:
+            logger.warning(f"DI health check failed for {len(missing)} required singleton(s): {missing}")
+        else:
+            logger.info("DI health check passed: all required singletons are initialized")
+
+    # === Public API ==========================================================
 
     @property
     def lightrag_degraded(self) -> bool:
@@ -285,7 +337,7 @@ class ServiceContainer:
             "ocr": ocr_ok,
             "guardrails": self.guardrails.is_available,
             "guardrails_provider": self.guardrails.provider_name,
-            "semantic_cache": self.semantic_cache.is_available,
+            "semantic_cache": self.semantic_cache.is_available if self.semantic_cache else False,
             "lightrag_degraded": self.lightrag_degraded,
             "embedding": True,
             "qdrant_count": qdrant_count,
@@ -293,7 +345,6 @@ class ServiceContainer:
 
     def update_progress(self, url: str, message: str, percent: float) -> None:
         """Update progress for a specific ingestion URL."""
-
         self.ingestion_tracker.update(url, message, percent)
 
     def get_ingest_status(self) -> dict:
