@@ -89,7 +89,7 @@ Source: `docs/BACKEND_INTEGRATION_ASSISTANTS_AND_NOTES.md`
 - [x] Add `tags` parameter to `IngestionPipeline.ingest_url()` and CLI bulk ingestion scripts (`--tags`)
 - [x] Add tag multi-select to ingestion UI (`ingest-ui/index.html` + `app.js`)
 - [ ] Non-regression smoke tests: run `backend/benchmarks/smoke_doctrine.py` with/without assistant block
-- [ ] Database migration: add `assistant_slug` column to `chat_queries` in Supabase (backend insert already sends the field)
+- [x] Database migration: add `assistant_slug` column to `chat_queries` in Supabase (backend insert already sends the field) — SQL ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`
 
 ### 5.2 Retrieval-quality improvements
 
@@ -151,7 +151,8 @@ Repo: `https://github.com/ekimetrics/adaptive-chunking`
 - [x] Run `backend/tests/` and `src/test/` + `src/tests/` after every unit
 - [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression after the current batch
 - [x] Keep `main` green; commit each unit separately
-- [ ] Push `main` to origin after full suite + smoke are green
+- [x] Push `main` to origin after verified batches (latest: migration commit `f8a645b3`)
+- [x] Prune stale worktrees — `git worktree list` now shows only the main working tree
 
 ---
 
