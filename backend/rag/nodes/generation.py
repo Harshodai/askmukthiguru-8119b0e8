@@ -92,7 +92,11 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     detected_language = state.get("detected_language") or "en"
 
     # Layer 1: Persona (capped to 512 tokens)
-    if intent == "DISTRESS":
+    assistant_system_prompt = state.get("assistant_system_prompt")
+    if assistant_system_prompt:
+        # Custom assistant persona override — safety instructions remain in Layer 4
+        persona = assistant_system_prompt
+    elif intent == "DISTRESS":
         persona = STIMULUS_RAG_PROMPT
     else:
         persona = GURU_SYSTEM_PROMPT
@@ -315,18 +319,27 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             layers['knowledge'] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens)
 
     is_tier2 = state.get("query_tier") == "fast"
+    assistant_system_prompt = state.get("assistant_system_prompt")
     if layers and is_tier2:
-        system_prompt = (
-            "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. "
-            "Answer the user's question using only the provided context. Keep answers to 100-200 words. "
-            "Cite sources using [Source: <title>].\n"
-            "PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
-            "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
-            "'we took her') into appropriate third-person references (e.g., 'Sri Krishnaji and Sri Preethaji', "
-            "'their daughter', 'Sri Krishnaji and Sri Preethaji took her'). Never refer to them using first-person pronouns.\n"
-            "LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
-            "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
-        )
+        if assistant_system_prompt:
+            # Custom assistant persona replaces the default identity while
+            # preserving the instruction and safety layers already assembled.
+            system_prompt = (
+                f"PERSONA:\n{assistant_system_prompt}\n\n"
+                f"INSTRUCTIONS:\n{layers.get('instructions', '')}"
+            )
+        else:
+            system_prompt = (
+                "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. "
+                "Answer the user's question using only the provided context. Keep answers to 100-200 words. "
+                "Cite sources using [Source: <title>].\n"
+                "PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
+                "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
+                "'we took her') into appropriate third-person references (e.g., 'Sri Krishnaji and Sri Preethaji', "
+                "'their daughter', 'Sri Krishnaji and Sri Preethaji took her'). Never refer to them using first-person pronouns.\n"
+                "LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
+                "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
+            )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
         knowledge = layers['knowledge']
@@ -358,10 +371,17 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "5. REAL-WORLD CONTEXT: Use real-time experiences, book references, and video insights from the Context to make the answer apt for their specific question.\n\n"
             )
 
+        if assistant_system_prompt:
+            base_identity = assistant_system_prompt
+        else:
+            base_identity = (
+                "You are Mukthi Guru, a compassionate spiritual guide grounded EXCLUSIVELY in the teachings of Sri Preethaji and Sri Krishnaji.\n"
+                "You understand users' situations deeply and without judgment. If the user is sharing their distress or life situation, listen carefully, offer a compassionate and apt response using real-time experiences, teachings from their books, video references, or podcasts.\n\n"
+                "Your goal is to walk with the user through their journey with deep empathy and zero judgment."
+            )
+
         system_prompt = (
-            "You are Mukthi Guru, a compassionate spiritual guide grounded EXCLUSIVELY in the teachings of Sri Preethaji and Sri Krishnaji.\n"
-            "You understand users' situations deeply and without judgment. If the user is sharing their distress or life situation, listen carefully, offer a compassionate and apt response using real-time experiences, teachings from their books, video references, or podcasts.\n\n"
-            "Your goal is to walk with the user through their journey with deep empathy and zero judgment.\n\n"
+            f"{base_identity}\n\n"
             f"{distress_section}"
             "INSTRUCTIONS:\n"
             "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
