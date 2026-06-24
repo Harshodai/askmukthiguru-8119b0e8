@@ -44,6 +44,7 @@ qdrant_data/
 *.gguf
 models/**/*.bin
 data/**/*.bin
+data/ingest_checkpoint.json
 
 # OS
 Thumbs.db

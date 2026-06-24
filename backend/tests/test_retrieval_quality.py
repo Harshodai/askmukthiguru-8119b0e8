@@ -9,6 +9,7 @@ Covers:
 - Transcript cleaner normalization
 """
 
+import types
 from unittest.mock import MagicMock
 
 import pytest
@@ -141,6 +142,59 @@ class TestRetrievalCutoffHelpers:
         from rag.nodes.retrieval import _apply_score_delta_cutoff
 
         assert _apply_score_delta_cutoff([]) == []
+
+    def test_score_delta_cutoff_keeps_results_when_all_scores_low(self):
+        from rag.nodes.retrieval import _apply_score_delta_cutoff
+
+        docs = [
+            {"text": "A", "score": 0.05},
+            {"text": "B", "score": 0.03},
+            {"text": "C", "score": 0.01},
+        ]
+        result = _apply_score_delta_cutoff(docs, score_key="score", min_ratio=0.5)
+        assert len(result) >= 1
+        assert result[0]["text"] == "A"
+        assert any(doc["text"] == "B" for doc in result)
+
+
+class TestRetrievalDedup:
+    def test_dedup_collapses_duplicate_docs(self, monkeypatch):
+        from rag.nodes.retrieval import _apply_retrieval_dedup
+
+        monkeypatch.setattr(
+            "rag.nodes.retrieval.settings",
+            types.SimpleNamespace(retrieval_deduplication_enabled=True, retrieval_dedup_threshold=0.85),
+        )
+        docs = [
+            {"text": "The beautiful state is a state of calm and joy.", "score": 0.9},
+            {"text": "The beautiful state is a state of calm and joy.", "score": 0.85},
+            {"text": "Surrender leads to letting go of control.", "score": 0.7},
+        ]
+        result = _apply_retrieval_dedup(docs)
+        assert len(result) == 2
+        texts = {doc["text"] for doc in result}
+        assert "The beautiful state is a state of calm and joy." in texts
+        assert "Surrender leads to letting go of control." in texts
+
+    def test_dedup_preserves_unique_docs(self, monkeypatch):
+        from rag.nodes.retrieval import _apply_retrieval_dedup
+
+        monkeypatch.setattr(
+            "rag.nodes.retrieval.settings",
+            types.SimpleNamespace(retrieval_deduplication_enabled=True, retrieval_dedup_threshold=0.85),
+        )
+        docs = [
+            {"text": "Breath restores peace.", "score": 0.9},
+            {"text": "Observation dissolves the ego.", "score": 0.8},
+            {"text": "Surrender opens the heart.", "score": 0.7},
+        ]
+        result = _apply_retrieval_dedup(docs)
+        assert len(result) == 3
+        assert {doc["text"] for doc in result} == {
+            "Breath restores peace.",
+            "Observation dissolves the ego.",
+            "Surrender opens the heart.",
+        }
 
 
 class TestCleanerImprovements:

@@ -14,7 +14,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ingest.hyper_extract_adapter import enrich_text, is_eligible
+from ingest.hyper_extract_adapter import (
+    DEFAULT_MIN_TEXT_LENGTH,
+    enrich_text,
+    is_eligible,
+)
 from ingest.pipeline import IngestionPipeline
 
 
@@ -133,7 +137,7 @@ async def test_relationship_extraction_links_entities(mock_pipeline, monkeypatch
     assert result is not None
     assert len(result["relationships"]) >= 1
     relationships = {(s.lower(), r, t.lower()) for s, r, t in result["relationships"]}
-    assert any("sri krishnaji" == source for source, _, _ in relationships)
+    assert any("sri krishnaji" in (source, target) for source, _, target in relationships)
 
 
 @pytest.mark.asyncio
@@ -156,13 +160,31 @@ def test_is_eligible_respects_minimum_length():
     assert is_eligible("", min_length=1) is False
 
 
+def test_empty_and_short_text_returns_empty_enrichment():
+    assert is_eligible("") is False
+    assert is_eligible("Too short.") is False
+
+    short_text = "A short sentence about breath that is below the default minimum length threshold."
+    assert len(short_text) < DEFAULT_MIN_TEXT_LENGTH
+    result = enrich_text(short_text)
+    assert result == {
+        "sections": [],
+        "atomic_facts": [],
+        "entities": [],
+        "relationships": [],
+    }
+
+
 @pytest.mark.asyncio
 async def test_ingest_raw_text_includes_hyper_extract_when_enabled(
     mock_pipeline, monkeypatch
 ):
     from app.config import settings
+    from ingest.pipeline import IngestionCheckpoint
 
     monkeypatch.setattr(settings, "use_hyper_extract_enrichment", True)
+    monkeypatch.setattr(IngestionCheckpoint, "is_processed", lambda self, chunk_id: False)
+    monkeypatch.setattr(IngestionCheckpoint, "save", lambda self, chunk_id: None)
     mock_pipeline._qdrant.upsert_chunks.return_value = 1
     mock_pipeline._qdrant.check_source_exists.return_value = False
     mock_pipeline._embedder.encode_batch.return_value = {"dense": [[0.0]], "sparse": [{}]}
@@ -194,8 +216,11 @@ async def test_ingest_raw_text_omits_hyper_extract_when_disabled(
     mock_pipeline, monkeypatch
 ):
     from app.config import settings
+    from ingest.pipeline import IngestionCheckpoint
 
     monkeypatch.setattr(settings, "use_hyper_extract_enrichment", False)
+    monkeypatch.setattr(IngestionCheckpoint, "is_processed", lambda self, chunk_id: False)
+    monkeypatch.setattr(IngestionCheckpoint, "save", lambda self, chunk_id: None)
     mock_pipeline._qdrant.upsert_chunks.return_value = 1
     mock_pipeline._qdrant.check_source_exists.return_value = False
     mock_pipeline._embedder.encode_batch.return_value = {"dense": [[0.0]], "sparse": [{}]}

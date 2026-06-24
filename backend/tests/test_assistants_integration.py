@@ -9,6 +9,7 @@ Covers:
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -149,6 +150,34 @@ class TestQdrantSearchFiltering:
         assert ("tags", ("meditation",)) in predicates["must"]
         assert ("tags", "sky") in predicates["must_not"]
 
+    def test_empty_knowledge_tags_exclude_sky(self, searcher):
+        searcher.search(
+            query_vector=[0.1] * 384,
+            limit=10,
+            sparse_vector={"1": 0.5},
+            knowledge_tags=[],
+            query="hello",
+        )
+        call = searcher._client.query_points.call_args
+        for prefetch in call.kwargs["prefetch"]:
+            predicates = self._filter_predicates(prefetch.filter)
+            assert ("tags", "sky") in predicates["must_not"]
+            assert not any(key == "tags" for key, _ in predicates["must"])
+
+    def test_general_knowledge_tags_exclude_sky(self, searcher):
+        searcher.search(
+            query_vector=[0.1] * 384,
+            limit=10,
+            sparse_vector={"1": 0.5},
+            knowledge_tags=["general"],
+            query="what is love",
+        )
+        call = searcher._client.query_points.call_args
+        for prefetch in call.kwargs["prefetch"]:
+            predicates = self._filter_predicates(prefetch.filter)
+            assert ("tags", ("general",)) in predicates["must"]
+            assert ("tags", "sky") in predicates["must_not"]
+
 
 # ---------------------------------------------------------------------------
 # Prompt assembly
@@ -259,3 +288,26 @@ async def test_telemetry_includes_assistant_slug(monkeypatch):
 
     inserted = mock_table.insert.call_args[0][0]
     assert inserted["assistant_slug"] == "health-assistant"
+
+
+@pytest.mark.asyncio
+async def test_telemetry_stream_includes_assistant_slug():
+    sink = SupabaseTelemetrySink.__new__(SupabaseTelemetrySink)
+    sink.client = None
+    sink.redis = AsyncMock()
+
+    await sink.log_query_trace(
+        query_id="q-2",
+        session_id="s-2",
+        user_id="u-2",
+        query_text="hello",
+        model="sarvam-30b",
+        latency_ms=100,
+        status="success",
+        created_at="2026-06-23T00:00:00Z",
+        assistant_slug="stream-assistant",
+    )
+
+    serialized_payload = sink.redis.xadd.call_args.args[1]["payload"]
+    payload = json.loads(serialized_payload)
+    assert payload["assistant_slug"] == "stream-assistant"
