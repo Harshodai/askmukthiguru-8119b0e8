@@ -199,6 +199,10 @@ class TurboQuantCache:
     def is_available(self) -> bool:
         return True
 
+    def health_check(self) -> bool:
+        """TurboQuant local cache has no required external dependencies."""
+        return True
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------

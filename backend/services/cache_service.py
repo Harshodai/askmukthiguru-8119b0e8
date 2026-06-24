@@ -19,10 +19,12 @@ from services.cache import (
     CacheInitializationError,
     CacheMode,
     EmbeddingCache,
+    HotCache,
     InMemoryCacheAdapter,
     RedisCacheAdapter,
     SearchResultCache,
     SemanticCacheAdapter,
+    hot_cache,
     init_llm_cache,
 )
 
@@ -31,9 +33,11 @@ __all__ = [
     "CacheInitializationError",
     "CacheMode",
     "EmbeddingCache",
+    "HotCache",
     "InMemoryCacheAdapter",
-    "init_llm_cache",
     "RedisCacheAdapter",
     "SearchResultCache",
     "SemanticCacheAdapter",
+    "hot_cache",
+    "init_llm_cache",
 ]

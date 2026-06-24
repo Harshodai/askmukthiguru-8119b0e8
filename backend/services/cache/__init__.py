@@ -5,6 +5,7 @@ callers continue to work after the package split.
 """
 from services.cache.exceptions import CacheInitializationError
 from services.cache.factory import CacheFactory, CacheMode
+from services.cache.hot_cache_adapter import HotCache, hot_cache
 from services.cache.llm_cache import init_llm_cache
 from services.cache.memory_adapter import EmbeddingCache, InMemoryCacheAdapter, SearchResultCache
 from services.cache.redis_adapter import RedisCacheAdapter
@@ -15,7 +16,9 @@ __all__ = [
     "CacheInitializationError",
     "CacheMode",
     "EmbeddingCache",
+    "HotCache",
     "InMemoryCacheAdapter",
+    "hot_cache",
     "init_llm_cache",
     "RedisCacheAdapter",
     "SearchResultCache",

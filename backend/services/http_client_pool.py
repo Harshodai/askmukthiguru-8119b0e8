@@ -25,13 +25,14 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
+from anyio import Lock as AsyncLock
 import httpx
 
 logger = logging.getLogger(__name__)
 
 # Global singleton
 _client: Optional[httpx.AsyncClient] = None
-_lock = asyncio.Lock()
+_lock = AsyncLock()
 
 DEFAULT_LIMITS = httpx.Limits(
     max_connections=20,

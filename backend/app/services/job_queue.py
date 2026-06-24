@@ -8,6 +8,8 @@ import uuid
 from enum import Enum
 from typing import Any, Callable, Optional
 
+from anyio import Semaphore as AsyncSemaphore
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,8 +45,8 @@ class JobQueueService:
         self._redis_url = redis_url
         self._max_queue = max_queue
         self._job_ttl = job_ttl
-        self._semaphore = asyncio.Semaphore(max_concurrency)
-        self._queue: asyncio.Queue[str] = asyncio.Queue(maxsize=max_queue)
+        self._semaphore = AsyncSemaphore(max_concurrency)
+        self._queue: asyncio.Queue[str] | None = None
         self._redis: Any = None
         self._workers: list[asyncio.Task] = []
         self._running = False
@@ -63,6 +65,8 @@ class JobQueueService:
         and must return the result dict (for sync) or None (for stream).
         """
         self._running = True
+        if self._queue is None:
+            self._queue = asyncio.Queue(maxsize=self._max_queue)
         r = await self._get_redis()
         pending = await r.lrange("job_queue:pending", 0, -1)
         recovered = 0
@@ -72,7 +76,7 @@ class JobQueueService:
                 recovered += 1
             except asyncio.QueueFull:
                 break
-        for i in range(self._semaphore._value):
+        for i in range(self._semaphore.value):
             worker = asyncio.create_task(self._worker_loop(worker_factory, i))
             self._workers.append(worker)
         logger.info(
@@ -94,7 +98,7 @@ class JobQueueService:
 
     @property
     def queue_size(self) -> int:
-        return self._queue.qsize()
+        return self._queue.qsize() if self._queue is not None else 0
 
     @property
     def max_queue(self) -> int:
@@ -123,6 +127,8 @@ class JobQueueService:
         pipe.expire("job_queue:pending", self._job_ttl)
         await pipe.execute()
         queue_position = await r.llen("job_queue:pending")
+        if self._queue is None:
+            self._queue = asyncio.Queue(maxsize=self._max_queue)
         try:
             self._queue.put_nowait(job_id)
         except asyncio.QueueFull:

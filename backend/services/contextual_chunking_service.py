@@ -24,6 +24,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from anyio import Semaphore as AsyncSemaphore
+
 if TYPE_CHECKING:
     from services.ollama_service import OllamaService
 
@@ -79,7 +81,7 @@ class ContextualChunkingService:
     ) -> None:
         self._llm = llm
         self._max_doc_chars = max_doc_chars
-        self._sem = asyncio.Semaphore(concurrency)
+        self._sem = AsyncSemaphore(concurrency)
 
     # ------------------------------------------------------------------
     # Public API

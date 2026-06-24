@@ -15,7 +15,6 @@ service instances are created. All other modules depend on abstractions.
 import asyncio
 import logging
 import threading
-import warnings
 from typing import Any
 
 from app.config import settings
@@ -76,35 +75,15 @@ class ServiceContainer:
 
     Construction is split into builder stages so initialization order and
     dependency wiring are explicit and testable. Use ContainerBuilder
-    (services/container_builder.py) for new code; the deprecated
-    __init__ path is retained for backward compatibility.
+    (services/container_builder.py) to construct instances; this class
+    no longer has a public constructor.
     """
 
     def __init__(self) -> None:
-        """Initialize all services in dependency order (deprecated path)."""
-        warnings.warn(
-            "ServiceContainer.__init__ is deprecated. Use ContainerBuilder().build() instead. "
-            "This method will be removed in a future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        logger.info("Initializing service container (DEPRECATED: use ContainerBuilder)...")
-
-        self._build_infrastructure()
-        self._build_vector_services()
-        self._build_llm_services()
-        self._build_observability()
-        self._build_guardrails_and_cache()
-        self._build_profiles()
-        self._build_ingestion()
-        self._build_graphs()
-        self._di_health_check()
-
-        logger.info(
-            f"All services initialized "
-            f"(Serene Mind: {'enabled' if self.serene_mind else 'disabled'}, "
-            f"Guardrails: {self.guardrails.provider_name}, "
-            f"Semantic Cache: {'enabled' if self.semantic_cache and self.semantic_cache.is_available else 'disabled'})"
+        """Prevent direct instantiation — use ContainerBuilder().build()."""
+        raise NotImplementedError(
+            "ServiceContainer must be constructed via ContainerBuilder().build(). "
+            "Direct instantiation is not supported."
         )
 
     # === Builder stages =======================================================
@@ -295,7 +274,7 @@ class ServiceContainer:
         self.rag_graph = self.standard_graph
 
     def _di_health_check(self) -> None:
-        """Verify that required singletons are non-None and log any missing ones."""
+        """Verify that required singletons are non-None."""
         missing: list[str] = []
         for name in _REQUIRED_SINGLETONS:
             value = getattr(self, name, None)
@@ -306,9 +285,11 @@ class ServiceContainer:
                 logger.debug(f"DI health check: '{name}' OK")
 
         if missing:
-            logger.warning(f"DI health check failed for {len(missing)} required singleton(s): {missing}")
-        else:
-            logger.info("DI health check passed: all required singletons are initialized")
+            raise RuntimeError(
+                f"DI health check failed for {len(missing)} required singleton(s): {missing}. "
+                f"Required: {sorted(_REQUIRED_SINGLETONS)}"
+            )
+        logger.info("DI health check passed: all required singletons are initialized")
 
     # === Public API ==========================================================
 
