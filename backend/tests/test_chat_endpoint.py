@@ -122,6 +122,9 @@ def mock_get_container():
         "total_chunks": 100,
     }
 
+    # Mock job queue (queue_enabled is true by default, but tests run synchronously)
+    mock_container.job_queue = None
+
     return mock_container
 
 
@@ -265,6 +268,7 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
         "semantic_cache": True,
         "total_chunks": 100,
     }
+    mock_container.job_queue = None
 
     # Temporarily override the container dependency
     app.dependency_overrides[get_container] = lambda: mock_container

@@ -179,9 +179,11 @@ class TestCleanerImprovements:
 @pytest.mark.asyncio
 async def test_raptor_parent_chunk_summarization(monkeypatch):
     """RAPTOR parent-chunk summarization uses the injected LLM."""
-    from ingest.raptor import RaptorIndexer
-
     from unittest.mock import AsyncMock
+
+    # Avoid importing RaptorIndexer at top level because it pulls sklearn.
+    ingest_raptor = pytest.importorskip("ingest.raptor")
+    RaptorIndexer = ingest_raptor.RaptorIndexer
 
     mock_embedder = MagicMock()
     mock_llm = MagicMock()

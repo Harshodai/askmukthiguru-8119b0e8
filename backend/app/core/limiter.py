@@ -27,11 +27,13 @@ def _rate_limit_key_func(request: Request) -> str:
     return get_remote_address(request)
 
 
-# Use Redis-backed storage when REDIS_URL is available so rate limits
-# are enforced across all horizontally-scaled pods.
-_redis_url = os.environ.get("REDIS_URL")
+# Use Redis-backed storage only when REDIS_URL is explicitly configured and valid.
+# Empty strings or invalid URIs must fall back to in-memory to keep tests and
+# single-node local dev running without a Redis dependency.
+_redis_url = os.environ.get("REDIS_URL", "").strip()
+_redis_schemes = ("redis://", "rediss://", "unix://")
 
-if _redis_url:
+if _redis_url and _redis_url.lower().startswith(_redis_schemes):
     logger.info("Rate limiting backed by Redis")
     limiter = Limiter(
         key_func=_rate_limit_key_func,
@@ -39,10 +41,16 @@ if _redis_url:
         default_limits=["200/minute"],  # High default for benchmark key
     )
 else:
-    logger.warning(
-        "REDIS_URL not set; rate-limit storage is in-memory (per pod). "
-        "Deploy REDIS_URL env var for cross-pod rate limiting."
-    )
+    if _redis_url:
+        logger.warning(
+            f"REDIS_URL '{_redis_url[:20]}...' is not a valid Redis URI; "
+            "rate-limit storage is in-memory (per pod)."
+        )
+    else:
+        logger.warning(
+            "REDIS_URL not set; rate-limit storage is in-memory (per pod). "
+            "Deploy REDIS_URL env var for cross-pod rate limiting."
+        )
     limiter = Limiter(
         key_func=_rate_limit_key_func,
         default_limits=["200/minute"],

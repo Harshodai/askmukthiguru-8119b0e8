@@ -21,6 +21,7 @@ import os
 import secrets
 import sys
 import time
+import uuid
 
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -456,15 +457,17 @@ async def auth_rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# Token-bucket rate limiter for /api/chat
+# Token-bucket rate limiter for /api/chat (only when Redis is configured)
 from app.middleware.rate_limit import TokenBucketMiddleware
 
-app.add_middleware(TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60)
+if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
+    app.add_middleware(TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60)
 
 # Idempotency middleware for mutating endpoints (Phase 3.3)
 from app.middleware.idempotency import IdempotencyMiddleware
 
-app.add_middleware(IdempotencyMiddleware, redis_url=settings.redis_url)
+if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
+    app.add_middleware(IdempotencyMiddleware, redis_url=settings.redis_url)
 
 
 # In-flight tracker middleware for graceful drain (R3)
