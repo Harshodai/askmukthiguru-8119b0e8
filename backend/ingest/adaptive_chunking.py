@@ -202,9 +202,13 @@ class AdaptiveChunker:
         full_text: str,
     ) -> tuple[str, list[str]]:
         """Score every candidate and return the name/chunks with highest score."""
-        best_name = "recursive"
+        if not candidates:
+            return "recursive", []
+
+        first_name, first_chunks = next(iter(candidates.items()))
+        best_name = first_name
         best_score = -1.0
-        best_chunks = candidates[best_name]
+        best_chunks = first_chunks
 
         for name, chunks in candidates.items():
             score = self._score(chunks, full_text)

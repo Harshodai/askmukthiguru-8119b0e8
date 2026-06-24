@@ -27,11 +27,10 @@ FROM base AS deps
 # Install 'uv' for state-of-the-art fast dependency installation
 RUN pip install --no-cache-dir uv
 
-COPY backend/pyproject.toml .
-# Compile the modern pyproject.toml into a strict lockfile and install it
+COPY backend/requirements.txt ./
+# Install the pre-compiled requirements.txt directly
 # 'uv' installs packages 10-100x faster than standard pip
-RUN uv pip compile pyproject.toml -o requirements.txt && \
-    uv pip install --system --no-cache -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # --- Stage 2: Final image ---
 FROM base AS final
