@@ -18,9 +18,9 @@ def test_write_jsonl(tmp_path: Path):
     assert out.read_text().count("\n") == 2
 
 
-def test_build_artifact_writes_manifest():
+def test_build_artifact_writes_manifest(tmp_path: Path):
     out_dir = build_artifact(
-        limit=3, report=None, artifact_dir=Path("/tmp/askmukthiguru-dspy-test")
+        limit=3, report=None, artifact_dir=tmp_path / "askmukthiguru-dspy-test"
     )
     assert (out_dir / "manifest.json").exists()
     assert (out_dir / "examples.jsonl").exists()

@@ -245,6 +245,8 @@ class Settings(BaseSettings):
     flashrank_model: str = "auto"
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 5000
+    use_ingest_adaptive_chunker: bool = False  # Use ingest.adaptive_chunking port for max_accuracy mode
+    use_boundary_chunker: bool = False
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
 
@@ -396,6 +398,7 @@ class Settings(BaseSettings):
     rerank_threshold_complex: float = 0.01
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
+    cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the
