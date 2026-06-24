@@ -177,6 +177,11 @@ class Settings(BaseSettings):
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
     redis_url: str = "redis://redis:6379/0"
+    # --- Cache Mode ---
+    # "best_effort" = try Redis, fall back to in-memory if unavailable (default).
+    # "redis"       = require Redis; raise a clear startup error if unavailable.
+    # "memory"      = use in-memory cache only (no Redis dependency).
+    cache_mode: str = "best_effort"
 
     # --- Job Queue & Backpressure ---
     queue_enabled: bool = True
@@ -391,19 +396,6 @@ class Settings(BaseSettings):
     rerank_threshold_complex: float = 0.01
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
-
-    # --- Retrieval-Quality Improvements (batch/retrieval-improvements) ---
-    # All flags default to False so existing behavior is preserved.
-    use_boundary_chunker: bool = False  # Use sentence/paragraph boundary-aware splitter
-    ingestion_deduplication_enabled: bool = False  # Near-duplicate removal during ingestion
-    ingestion_dedup_threshold: float = 0.85
-    raptor_parent_summaries_enabled: bool = False  # Summarize parent chunks for RAPTOR metadata
-    retrieval_deduplication_enabled: bool = False  # Near-duplicate removal at retrieval time
-    retrieval_dedup_threshold: float = 0.85
-    retrieval_score_delta_enabled: bool = False  # Drop retrieved docs below 0.5x top score
-    rerank_score_delta_enabled: bool = False  # Drop reranked docs below 0.5x top score
-    crag_score_delta_ratio: float = 0.5  # CRAG relevance floor as fraction of top rerank score
-    rag_top_k_retrieval_after_cutoff: int = 20  # Final retrieval budget after cutoffs
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the
