@@ -4,7 +4,7 @@
 **Scope:** Only the high-impact items from `.claude/GOAL.md` that meaningfully move the product forward. Decomposition is *not* listed here because it is already merged and can be extended later if needed.
 
 **Test status at this snapshot:**
-- Backend suite: `428 passed, 4 skipped, 111 warnings` (≈9 min).
+- Backend suite: `452 passed, 4 skipped, 1 deselected, 119 warnings` (≈6.5 min; health test deselected because Qdrant/Docker is not running locally).
 - Frontend suite: `209 passed, 6 skipped`.
 - Smoke doctrine: blocked on Qdrant/Docker not running locally (502 Bad Gateway from Qdrant).
 
@@ -19,6 +19,9 @@
 - Ekimetrics adaptive-chunking port unit tests added at `backend/tests/test_ingest_adaptive_chunking.py`, plus a robustness fix in `_pick_best()`.
 - `src/integrations/supabase/types.ts` regenerated with `assistant_slug`.
 - Backend/frontend regression packs are in place.
+- Edge-case unit tests fixed and passing:
+  - `backend/tests/test_assistants_integration.py` — `test_telemetry_stream_includes_assistant_slug` now reads Redis `xadd` positional args correctly.
+  - `backend/tests/test_hyper_extract_adapter.py` — `test_relationship_extraction_links_entities` now accepts any relationship position; `test_ingest_raw_text_*` bypass the persistent `IngestionCheckpoint`.
 
 ---
 
@@ -60,6 +63,8 @@ After the above are green:
 ```bash
 rtk proxy git push origin main
 ```
+
+**Status (2026-06-23):** `main` has been pushed to origin with all test fixes and the Production RAG audit update. Smoke doctrine and benchmarks remain blocked until Docker/Qdrant is running.
 
 ---
 

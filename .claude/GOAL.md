@@ -89,6 +89,7 @@ Source: `docs/BACKEND_INTEGRATION_ASSISTANTS_AND_NOTES.md`
 - [x] Add `tags` parameter to `IngestionPipeline.ingest_url()` and CLI bulk ingestion scripts (`--tags`)
 - [x] Add tag multi-select to ingestion UI (`ingest-ui/index.html` + `app.js`)
 - [ ] Non-regression smoke tests: run `backend/benchmarks/smoke_doctrine.py` with/without assistant block (E2E helper created at `backend/benchmarks/verify_custom_assistants.py`; needs Docker/Qdrant)
+- [x] Edge-case unit tests fixed: `test_telemetry_stream_includes_assistant_slug`, `test_relationship_extraction_links_entities`, `test_ingest_raw_text_includes_hyper_extract_when_enabled`
 - [x] Database migration: add `assistant_slug` column to `chat_queries` in Supabase — SQL ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`; `src/integrations/supabase/types.ts` regenerated
 
 ### 5.2 Retrieval-quality improvements
@@ -162,10 +163,10 @@ Source: `docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md` audit gaps.
 ## Phase 6 — Continuous verification
 
 - [x] Run `backend/tests/` and `src/test/` + `src/tests/` after every unit
-- [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression after the current batch
-- [ ] Run `backend/benchmarks/smoke_doctrine.py` and `backend/benchmarks/ruthless_benchmark.py` with `RETRIEVAL_SCORE_DELTA_ENABLED=true` and `RETRIEVAL_DEDUPLICATION_ENABLED=true` to validate Phase 5.5 defaults
+- [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression after the current batch (blocked on local Docker/Qdrant)
+- [ ] Run `backend/benchmarks/smoke_doctrine.py` and `backend/benchmarks/ruthless_benchmark.py` with `RETRIEVAL_SCORE_DELTA_ENABLED=true` and `RETRIEVAL_DEDUPLICATION_ENABLED=true` to validate Phase 5.5 defaults (blocked on local Docker/Qdrant)
 - [x] Keep `main` green; commit each unit separately
-- [x] Push `main` to origin after verified batches (latest: migration commit `f8a645b3`)
+- [x] Push `main` to origin after verified batches (latest: test-fix commit `8425b9be`)
 - [x] Prune stale worktrees — `git worktree list` now shows only the main working tree
 
 ---
@@ -180,7 +181,7 @@ Source: `docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md` audit gaps.
 
 ## Next immediate step
 
-- Complete **Phase 5.3** hyper-extract integration.
-- Run `backend/benchmarks/smoke_doctrine.py` and `backend/tests/` full suite.
-- Commit current fixes and push `main`.
-- Produce `docs/PENDING_AND_EDGE_CASES.md` handoff document.
+- Start Docker/Qdrant locally and run `backend/benchmarks/smoke_doctrine.py` (with/without assistant block) and `backend/benchmarks/verify_custom_assistants.py`.
+- Apply the `assistant_slug` migration (`scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`) in Supabase.
+- Run Phase 5.5 benchmark validation (`ruthless_benchmark.py` with `RETRIEVAL_SCORE_DELTA_ENABLED=true` and `RETRIEVAL_DEDUPLICATION_ENABLED=true`) before flipping defaults.
+- Continue using `docs/PENDING_AND_EDGE_CASES.md` as the handoff doc.
