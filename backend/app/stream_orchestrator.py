@@ -44,6 +44,9 @@ class ChatStreamRequestOrchestrator:
         user_msg = chat_body.user_message.strip()
         preferred_lang = chat_body.language or "en"
         user_id = user.get("id", "anonymous") if user else "anonymous"
+        assistant_slug = (
+            chat_body.assistant.slug if chat_body.assistant else None
+        )
         is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
 
         if not user_msg:
@@ -191,7 +194,7 @@ class ChatStreamRequestOrchestrator:
 
             # Log telemetry in background
             background_tasks.add_task(
-                self._log_telemetry, result, user_id, session_id, user_msg
+                self._log_telemetry, result, user_id, session_id, user_msg, assistant_slug
             )
 
         return StreamingResponse(_sse(), media_type="text/event-stream")
@@ -202,6 +205,7 @@ class ChatStreamRequestOrchestrator:
         user_id: str,
         session_id: str,
         user_msg: str,
+        assistant_slug: Optional[str] = None,
     ) -> None:
         """Log query trace to telemetry sink."""
         try:
@@ -234,6 +238,7 @@ class ChatStreamRequestOrchestrator:
                     max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001), 2
                 ) if result.latency_ms else 0.0,
                 evaluation_trace=result.evaluation_trace,
+                assistant_slug=assistant_slug,
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-fatal): {e}")
