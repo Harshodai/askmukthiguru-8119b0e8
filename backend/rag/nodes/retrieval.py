@@ -37,6 +37,40 @@ _semantic_cache: Optional[Any] = None
 # Threshold at which parent text gets adaptive excerpting instead of full injection
 _ADAPTIVE_PARENT_THRESHOLD = 1800
 
+# Score-delta cutoff: drop documents whose score is less than this fraction of the top score.
+_SCORE_DELTA_RATIO = 0.5
+
+
+def _apply_score_delta_cutoff(docs: list[dict], score_key: str = "score", min_ratio: float = _SCORE_DELTA_RATIO) -> list[dict]:
+    """Drop low-scoring documents that are far below the top score."""
+    if not docs:
+        return []
+
+    scores = [doc.get(score_key, 0.0) for doc in docs]
+    top_score = max(scores)
+    if top_score <= 0:
+        return docs
+
+    floor = top_score * min_ratio
+    filtered = [doc for doc in docs if doc.get(score_key, 0.0) >= floor]
+    logger.debug(f"Score-delta cutoff: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)} docs")
+    return filtered
+
+
+def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
+    """Drop retrieved docs whose content is nearly identical to an already-selected doc."""
+    if not docs or not getattr(settings, "retrieval_deduplication_enabled", False):
+        return docs
+
+    try:
+        from ingest.deduplication import deduplicate_retrieved_docs
+
+        threshold = getattr(settings, "retrieval_dedup_threshold", 0.85)
+        return deduplicate_retrieved_docs(docs, threshold=threshold)
+    except Exception as e:
+        logger.warning(f"Retrieval deduplication failed (non-fatal): {e}")
+        return docs
+
 
 def _split_into_sentences(text: str) -> list[str]:
     """Split text into sentences using regex boundary detection."""
@@ -505,12 +539,19 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
         )
 
+    # Drop documents far below the top score (fewer-but-better chunks)
+    if getattr(settings, "retrieval_score_delta_enabled", False):
+        all_docs = _apply_score_delta_cutoff(all_docs, score_key="score")
+
+    # Near-duplicate removal at retrieval time
+    all_docs = _apply_retrieval_dedup(all_docs)
+
     web_docs = state.get("web_search_results", [])
     if web_docs:
         logger.info(f"Merging {len(web_docs)} web search results into primary document list")
         all_docs = web_docs + all_docs
 
-    if len(all_docs) > settings.rag_top_k_retrieval:
+    if len(all_docs) > getattr(settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval):
         question = state.get("rewritten_query") or state["question"]
         doc_texts = [doc["text"] for doc in all_docs]
 
@@ -634,12 +675,20 @@ async def merge_sub_results(state: GraphState) -> dict:
                 seen.add(th)
                 all_docs.append(doc)
 
+    # Drop documents far below the top score (fewer-but-better chunks)
+    if getattr(settings, "retrieval_score_delta_enabled", False):
+        all_docs = _apply_score_delta_cutoff(all_docs, score_key="score")
+
+    # Near-duplicate removal at retrieval time
+    all_docs = _apply_retrieval_dedup(all_docs)
+
     web_docs = state.get("web_search_results", [])
     if web_docs:
         logger.info(f"merge_sub_results: merging {len(web_docs)} web search results")
         all_docs = web_docs + all_docs
 
-    if len(all_docs) > settings.rag_top_k_retrieval:
+    top_k = getattr(settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval)
+    if len(all_docs) > top_k:
         question = state.get("rewritten_query") or state["question"]
         doc_texts = [doc["text"] for doc in all_docs]
         batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
@@ -650,11 +699,11 @@ async def merge_sub_results(state: GraphState) -> dict:
             query_embedding=query_emb,
             documents=all_docs,
             doc_embeddings=doc_embeddings,
-            top_k=settings.rag_top_k_retrieval,
+            top_k=top_k,
             lambda_param=0.7,
         )
 
     logger.info(
-        f"merge_sub_results: {len(all_results)} branch(es) -> {len(all_docs)} unique docs (RRF + MMR applied)"
+        f"merge_sub_results: {len(all_results)} branch(es) -> {len(all_docs)} unique docs (RRF + MMR + cutoffs applied)"
     )
     return {"documents": all_docs}

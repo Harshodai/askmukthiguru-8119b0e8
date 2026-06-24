@@ -392,6 +392,19 @@ class Settings(BaseSettings):
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
 
+    # --- Retrieval-Quality Improvements (batch/retrieval-improvements) ---
+    # All flags default to False so existing behavior is preserved.
+    use_boundary_chunker: bool = False  # Use sentence/paragraph boundary-aware splitter
+    ingestion_deduplication_enabled: bool = False  # Near-duplicate removal during ingestion
+    ingestion_dedup_threshold: float = 0.85
+    raptor_parent_summaries_enabled: bool = False  # Summarize parent chunks for RAPTOR metadata
+    retrieval_deduplication_enabled: bool = False  # Near-duplicate removal at retrieval time
+    retrieval_dedup_threshold: float = 0.85
+    retrieval_score_delta_enabled: bool = False  # Drop retrieved docs below 0.5x top score
+    rerank_score_delta_enabled: bool = False  # Drop reranked docs below 0.5x top score
+    crag_score_delta_ratio: float = 0.5  # CRAG relevance floor as fraction of top rerank score
+    rag_top_k_retrieval_after_cutoff: int = 20  # Final retrieval budget after cutoffs
+
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the
     # consumer code is expected to fall back to the legacy LLM stack.
