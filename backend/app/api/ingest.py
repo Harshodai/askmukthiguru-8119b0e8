@@ -32,6 +32,10 @@ class IngestRequest(BaseModel):
         default=False,
         description="If True, skip auto-generated captions (T3) and rely on Manual (T1) or Whisper (T2)",
     )
+    tags: list[str] = Field(
+        default=["general"],
+        description="Knowledge tags to attach to every indexed chunk",
+    )
 
 
 class IngestResponse(BaseModel):
@@ -84,15 +88,21 @@ async def ingest_endpoint(
         status = "ok"
         error_log = None
 
+        tags = list({t.strip().lower() for t in ingest_body.tags if t and t.strip()})
+        tags = tags or ["general"]
+
         def progress_callback(msg: str, pct: float):
-            container.update_progress(url, msg, pct)
+            container.update_progress(url, msg, pct, tags=tags)
 
         try:
             # Init tracker
-            container.update_progress(url, "Starting...", 0.0)
+            container.update_progress(url, "Starting...", 0.0, tags=tags)
 
             result = await container.ingestion.ingest_url(
-                url, max_accuracy=ingest_body.max_accuracy, on_progress=progress_callback
+                url,
+                max_accuracy=ingest_body.max_accuracy,
+                on_progress=progress_callback,
+                tags=tags,
             )
             logger.info(f"Ingestion complete: {result}")
             container.update_progress(url, "Complete!", 1.0)
@@ -109,7 +119,7 @@ async def ingest_endpoint(
             status = "failed"
             error_log = str(e)
             # Mark as error
-            container.ingestion_tracker.mark_error(url, str(e))
+            container.ingestion_tracker.mark_error(url, str(e), tags=tags)
         finally:
             duration_ms = int((time.time() - start_time) * 1000)
             try:

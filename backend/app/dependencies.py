@@ -324,9 +324,15 @@ class ServiceContainer:
             "qdrant_count": qdrant_count,
         }
 
-    def update_progress(self, url: str, message: str, percent: float) -> None:
+    def update_progress(
+        self,
+        url: str,
+        message: str,
+        percent: float,
+        tags: Optional[list[str]] = None,
+    ) -> None:
         """Update progress for a specific ingestion URL."""
-        self.ingestion_tracker.update(url, message, percent)
+        self.ingestion_tracker.update(url, message, percent, tags=tags)
 
     def get_ingest_status(self) -> dict:
         """Retrieve ingestion status from shared storage (Redis or in-memory)."""
