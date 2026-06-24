@@ -1,0 +1,171 @@
+# MukthiGuru — Comprehensive Remediation + Integration Goal
+
+**Scope:** Complete the remaining code-review remediation units, merge all pending worktree changes to `main`, implement the backend integration spec for Custom Assistants & Notes, study and integrate best ideas from `hyper-extract`, and apply retrieval-quality improvements.
+
+**Guiding principle:** Generation quality is a reflection of retrieval quality. Prioritize chunking, metadata filtering, deduplication, smaller-but-better context windows, and preprocessing before model changes.
+
+---
+
+## Phase 1 — Stabilise what we have (DONE)
+
+- [x] Unit 5 — Guardrail allowlist fail-safe
+- [x] Unit 6 — CSP + rate limiter hardening
+- [x] Unit 7 — Generation node reliability (SarvamCloudService DI, token budget)
+- [x] Unit 8 — Service locator cleanup, telemetry deduplication, cache log context
+- [x] Unit 9 — Reranking + intent fail-safes
+- [x] Merge all Unit 7/8/9 worktree commits into `main`
+- [x] Fix merge artefacts and verify regression tests pass
+
+---
+
+## Phase 2 — Backend decomposition (Units 10–14)
+
+- [x] **Unit 10 — Decompose `backend/rag/prompts.py`**
+  - Split monolithic prompts.py into `backend/rag/prompts/{guardrails,rag,system}.py` with re-export facade
+  - Add `backend/tests/test_prompts_decomposition.py`
+  - Merged to main (legacy `backend/rag/prompts.py` removed)
+
+- [x] **Unit 11 — Decompose `backend/services/cache_service.py`**
+  - Split into `backend/services/cache/{redis_adapter,semantic_adapter,memory_adapter,factory,exceptions,llm_cache,constants}.py`
+  - Fail-closed init behaviour preserved via `CacheInitializationError`
+  - Health checks available through `ServiceContainer.health_status()`
+
+- [ ] **Unit 12 — Decompose `backend/services/qdrant_service.py`**
+  - Split query, index, neighbour-lookup, and RAPTOR concerns
+  - Preserve metadata filtering hooks needed for assistant tags
+  - *Status:* still monolithic; no `backend/services/qdrant/` package yet
+
+- [x] **Unit 13 — Decompose `backend/app/main.py`**
+  - Routes moved into `backend/app/api/{chat,health,ingest,memory,profile,speech,job_routes,cache_metrics}.py`
+  - Middleware ordering preserved
+
+- [x] **Unit 14 — Decompose `backend/app/dependencies.py`**
+  - `ContainerBuilder` is the active construction path in `get_container()`
+  - Legacy `ServiceContainer.__init__` retained but emits `DeprecationWarning` and delegates to builder stages
+  - DI health verification at startup via `_di_health_check()`
+
+---
+
+## Phase 3 — Frontend decomposition (Units 15–17) — DONE
+
+- [x] **Unit 15 — Decompose `src/lib/aiService.ts`**
+  - Split chat transport, health polling, fallback/placeholder mode, and streaming into `src/lib/chat/`
+
+- [x] **Unit 16 — Decompose admin dashboard pages**
+  - Move data fetching into `src/admin/hooks/` and presentational components into `src/admin/components/`
+
+- [x] **Unit 17 — Component boundary cleanup**
+  - Extract reusable UI into `src/components/common/ui/`
+
+---
+
+## Phase 4 — Regression test packs (Units 18–19)
+
+- [x] **Unit 18 — Backend regression pack (partial / in good shape)**
+  - Contract test for `retrieve_documents`: `backend/tests/test_retrieve_documents_contract.py`
+  - Graph strategy wiring tests: `backend/tests/test_graph_strategies.py`
+  - Fail-closed guardrails tests: `backend/tests/test_guardrails.py`, `test_guardrails_chain.py`
+  - Intent fallback tests: `backend/tests/test_intent_router.py`
+  - Retrieval empty-set / cutoff tests: `backend/tests/test_retrieval_quality.py`
+  - *Note:* pack exists but could be tightened into one canonical regression module.
+
+- [ ] **Unit 19 — Frontend regression pack**
+  - Add Vitest tests for `aiService` health/fallback paths
+  - Add component tests for `ChatInterface`, `ChatMessage`, and `LanguageSelector`
+  - *Status:* only `src/tests/auth.e2e.test.ts` exists; component/unit regression tests missing
+
+---
+
+## Phase 5 — New integrations
+
+### 5.1 Backend Integration Spec — Custom Assistants & Notes
+
+Source: `docs/BACKEND_INTEGRATION_ASSISTANTS_AND_NOTES.md`
+
+- [ ] Add `AssistantContext` optional field to chat request contract
+- [ ] Apply `assistant.system_prompt` override in prompt assembly (preserve safety layers)
+- [ ] Apply `assistant.knowledge_tags` filter in Qdrant retrieval
+- [ ] Hard exclude `tags: ["sky"]` unless request explicitly includes `"sky"`
+- [ ] Add `tags text[]` to chunk metadata / `kb_sources`
+- [ ] Add `assistant_slug` column/log to `chat_queries` telemetry
+- [ ] Add `tags` parameter to `IngestionPipeline.ingest_url()` and CLI scripts
+- [ ] Add tag multi-select to ingestion UI
+- [ ] Non-regression: no `assistant` block behaves exactly as today
+
+### 5.2 Retrieval-quality improvements
+
+Inspired by the "Biggest improvement to RAG wasn't a better LLM" principles. Status and mapping documented in `docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md`.
+
+- [x] **Better chunking strategy (implemented, partly gated)**
+  - Evaluate current `RecursiveCharacterTextSplitter` + proposition + adaptive chunking
+  - Sentence-boundary-aware chunking available via `backend/ingest/boundary_chunker.py`
+  - Boundary overlap preserves whole sentences
+  - *Gaps:* boundary chunker not default; Indic-language sentence splitter not yet added
+
+- [x] **Metadata-based filtering (implemented, used in chat)**
+  - `source_url`, `title`, `tags`, detected `language`, and `source_type` stored in Qdrant metadata
+  - `knowledge_tags` threaded through retrieval from `GraphState` to `qdrant.search()`
+  - `kb_sources` telemetry table records source-level tags
+  - *Gaps:* assistant-aware tag filtering and hard `sky` exclude still pending
+
+- [x] **Removing duplicate content (implemented, opt-in)**
+  - Near-duplicate detection at ingestion time via `backend/ingest/deduplication.py`
+  - Deduplication pass in retrieval via `rag.nodes.retrieval._apply_retrieval_dedup()`
+  - *Gaps:* both flags are off by default; no persisted cross-ingest duplicate index
+
+- [x] **Retrieving fewer but more relevant chunks (implemented, gated)**
+  - Score-delta cutoff (`score < 0.5 * top_score`) implemented but gated by `retrieval_score_delta_enabled`
+  - MMR diversity reranking and rerank floor already active
+  - CRAG relevance grading implemented
+  - *Gaps:* score-delta and lowered top-k need benchmark validation before becoming default
+
+- [x] **Improving document preprocessing (implemented, default on)**
+  - Clean transcript artifacts (timestamps, filler words, bracketed captions)
+  - Normalize spiritual terms using `DOCTRINE_SYNONYMS`
+  - LLM transcript correction and auditor gate before indexing
+  - Parent-chunk summarization for RAPTOR available when `raptor_parent_summaries_enabled` is set
+
+### 5.3 `hyper-extract` study and integration — Study DONE / Code integration pending
+
+Repo: `https://github.com/yifanfeng97/hyper-extract`
+
+- [x] Fetch and read the repository structure, README, and core modules
+- [x] Identify techniques applicable to our pipeline (document structure, atom facts, graph/hypergraph extraction)
+- [ ] Port/adapt the highest-value extraction logic into `backend/ingest/` without adding heavy dependencies
+- [ ] Document the decision and alternatives in `docs/HYPER_EXTRACT_INTEGRATION.md`
+
+### 5.4 `ekimetrics/adaptive-chunking` study and integration — DONE
+
+Repo: `https://github.com/ekimetrics/adaptive-chunking`
+
+- [x] Fetch and read the repository structure, README, and core chunking strategy
+- [x] Identify how it can improve transcript/PDF ingestion beyond current `RecursiveCharacterTextSplitter`
+- [x] Port/adapt a lightweight adaptive chunking module into `backend/ingest/adaptive_chunking.py`
+- [x] Wire into `IngestionPipeline` behind `use_ingest_adaptive_chunker` config flag
+- [x] Document decision in `docs/ADAPTIVE_CHUNKING_INTEGRATION.md`
+
+---
+
+## Phase 6 — Continuous verification
+
+- [ ] Run `backend/tests/` and `src/test/` + `src/tests/` after every unit
+- [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression
+- [ ] Keep `main` green; commit each unit separately
+- [ ] Push `main` to origin after each verified batch
+
+---
+
+## Worktree policy
+
+- Create one worktree per unit / per parallel stream.
+- When a worktree branch is green, merge to `main` with `--no-ff` and descriptive message.
+- Remove stale worktrees after merge.
+
+---
+
+## Next immediate step
+
+- Finalise **Unit 12** (`qdrant_service.py` decomposition).
+- Complete **Unit 19** frontend regression pack.
+- Enable and benchmark gated retrieval-quality flags (`retrieval_score_delta_enabled`, `retrieval_deduplication_enabled`, `use_ingest_adaptive_chunker`).
+- Continue **Phase 5.1** Custom Assistants & Notes backend integration.
