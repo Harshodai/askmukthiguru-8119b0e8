@@ -40,7 +40,9 @@ class IngestionCheckpoint:
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
+from ingest.boundary_chunker import chunk_with_contextual_headers, split_text_at_boundaries
 from ingest.cleaner import clean_transcript
+from ingest.deduplication import deduplicate_by_payload
 from ingest.image_loader import is_image_url, process_image_url
 from ingest.raptor import RaptorIndexer
 from ingest.youtube_loader import (
@@ -275,6 +277,7 @@ class IngestionPipeline:
             speaker=speaker,
             topic=topic,
             content_type=content_type,
+            source_type=content_type,
             extra_metadatas=extra_metadatas,
             tags=tags,
         )
@@ -291,6 +294,9 @@ class IngestionPipeline:
             }
             for c in chunks
         ]
+        if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+            self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.87)
+            chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
         summaries_count = await self._raptor.build_tree(chunk_dicts)
 
         # Step 7: Graph RAG Extraction (Phase 4 Improvement)
@@ -416,6 +422,7 @@ class IngestionPipeline:
             speaker=video_speaker,
             topic=video_topic,
             content_type="video",
+            source_type="video",
             extra_metadatas=extra_metadatas,
             tags=tags,
         )
@@ -432,6 +439,9 @@ class IngestionPipeline:
             }
             for c in chunks
         ]
+        if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+            self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.82)
+            chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
         summaries_count = await self._raptor.build_tree(chunk_dicts)
 
         # Step 6: Graph RAG Extraction (Phase 4 Improvement)
@@ -573,6 +583,7 @@ class IngestionPipeline:
                 speaker=speaker,
                 topic="Multi-Topic",  # Override by individual chunk's topic in extra_metadatas
                 content_type="video_enhanced",
+                source_type="video",
                 extra_metadatas=all_extra_metadatas,
                 tags=tags,
             )
@@ -582,6 +593,8 @@ class IngestionPipeline:
         if all_chunks:
             # Build RAPTOR summaries using the actual compiled leaf chunks
             chunks_data = [{"text": c, "source_url": url, "title": video_title} for c in all_chunks]
+            if getattr(settings, "raptor_parent_summaries_enabled", False):
+                chunks_data = await self._raptor.summarize_parent_chunks(chunks_data)
             await self._raptor.build_tree(chunks_data)
 
         if self._lightrag:
@@ -726,13 +739,14 @@ class IngestionPipeline:
                     title=video_title,
                     speaker=video_speaker,
                     topic=video_topic,
-                    semantic=max_accuracy,
+                    semantic=max_accuracy and not settings.use_boundary_chunker,
+                    use_boundary=max_accuracy,
                 )
                 if not chunks:
                     continue
 
-                # Phase 2: Proposition Chunking
-                if max_accuracy:
+                # Phase 2: Proposition Chunking (only if not using boundary-aware chunking)
+                if max_accuracy and not settings.use_boundary_chunker:
                     proposition_chunks = []
                     for chunk in chunks:
                         props = await self._proposition_split(chunk)
@@ -748,6 +762,7 @@ class IngestionPipeline:
                     speaker=video_speaker,
                     topic=video_topic,
                     content_type="video",
+                    source_type="video",
                     tags=tags,
                 )
                 total_chunks += chunks_count
@@ -763,6 +778,8 @@ class IngestionPipeline:
                     }
                     for c in chunks
                 ]
+                if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+                    chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
                 summaries_count = await self._raptor.build_tree(chunk_dicts)
                 total_summaries += summaries_count
 
@@ -819,6 +836,7 @@ class IngestionPipeline:
             source_url=url,
             title=result.get("title", ""),
             content_type="image",
+            source_type="image",
             tags=tags,
         )
 
@@ -842,7 +860,9 @@ class IngestionPipeline:
         speaker: str = "Unknown",
         topic: str = "Spiritual",
         extra_metadatas: Optional[list[dict]] = None,
+        language: str = "en",
         tags: Optional[list[str]] = None,
+        source_type: Optional[str] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -854,6 +874,15 @@ class IngestionPipeline:
             return 0
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+
+        # Optional ingestion-time deduplication
+        if getattr(settings, "ingestion_deduplication_enabled", False):
+            placeholder_metas = [extra_metadatas[i] if extra_metadatas and i < len(extra_metadatas) else {} for i in range(len(chunks))]
+            chunks, extra_metadatas = deduplicate_by_payload(
+                chunks,
+                placeholder_metas,
+                threshold=settings.ingestion_dedup_threshold,
+            )
 
         # Injection scan and skip risky chunks
         clean_chunks, risky_chunks = scan_chunks_for_injection(chunks)
@@ -882,6 +911,9 @@ class IngestionPipeline:
                 "speaker": speaker,
                 "topic": topic,
                 "content_type": content_type,
+                "source_type": source_type or content_type,
+                "language": language,
+                "tags": tags or [],
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
                 "tags": tags,
@@ -998,6 +1030,7 @@ class IngestionPipeline:
         speaker: str = "Unknown",
         topic: str = "Spiritual",
         tags: Optional[list[str]] = None,
+        source_type: Optional[str] = None,
     ) -> int:
         """
         Split text → embed → upsert to Qdrant.
@@ -1006,18 +1039,43 @@ class IngestionPipeline:
         """
         chunks = self._split_text(text, title=title, speaker=speaker, topic=topic)
         return self._embed_and_index(
-            chunks, source_url, title, content_type, speaker=speaker, topic=topic, tags=tags
+            chunks,
+            source_url,
+            title,
+            content_type,
+            speaker=speaker,
+            topic=topic,
+            tags=tags,
+            source_type=source_type or content_type,
         )
 
     def _split_text(
-        self, text: str, title: str = "", speaker: str = "", topic: str = "", semantic: bool = False
+        self,
+        text: str,
+        title: str = "",
+        speaker: str = "",
+        topic: str = "",
+        semantic: bool = False,
+        use_boundary: bool = False,
     ) -> list[str]:
         """
-        Split text into chunks using either Semantic Chunking or Recursive splitting,
+        Split text into chunks using Boundary-aware, Semantic, Adaptive, or Recursive splitting,
         then prepend Contextual Chunk Headers.
         """
         if not text or len(text.strip()) < 50:
             return []
+
+        use_boundary = use_boundary or settings.use_boundary_chunker
+        if use_boundary:
+            chunks = chunk_with_contextual_headers(
+                text,
+                title=title,
+                speaker=speaker,
+                topic=topic,
+                target_size=settings.rag_chunk_size,
+                overlap_sentences=1,
+            )
+            return chunks
 
         if settings.use_adaptive_chunking:
             chunks = self._adaptive_chunker.chunk_document(text)
