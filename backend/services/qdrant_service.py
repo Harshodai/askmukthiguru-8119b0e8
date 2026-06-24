@@ -59,6 +59,20 @@ def _build_tag_conditions(knowledge_tags: list[str]) -> tuple[list[FieldConditio
 
     return must, must_not
 
+
+def _merge_filter(base_filter: Optional[Filter], extra_must: list[FieldCondition]) -> Filter:
+    """Return a new filter that merges ``extra_must`` into ``base_filter``.
+
+    Preserves any existing ``must_not`` conditions (e.g. the hard ``sky`` exclusion).
+    """
+    if not base_filter:
+        return Filter(must=extra_must)
+
+    must = list(base_filter.must) if base_filter.must else []
+    must.extend(extra_must)
+    return Filter(must=must, must_not=base_filter.must_not)
+
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -410,24 +424,29 @@ class QdrantService:
 
         if sparse_vector or query_phonetic_tokens:
             try:
+                leaf_filter = _merge_filter(
+                    search_filter,
+                    [FieldCondition(key="raptor_level", match=MatchValue(value=0))],
+                )
+                summary_filter = _merge_filter(
+                    search_filter,
+                    [FieldCondition(key="raptor_level", match=MatchValue(value=1))],
+                )
+
                 prefetch_queries = [
                     # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
                         query=query_vector,
                         using="dense",
                         limit=internal_limit,
-                        filter=Filter(
-                            must=[FieldCondition(key="raptor_level", match=MatchValue(value=0))]
-                        ),
+                        filter=leaf_filter,
                     ),
                     # Prefetch 2: Summaries (Level 1)
                     Prefetch(
                         query=query_vector,
                         using="dense",
                         limit=internal_limit // 2,
-                        filter=Filter(
-                            must=[FieldCondition(key="raptor_level", match=MatchValue(value=1))]
-                        ),
+                        filter=summary_filter,
                     ),
                 ]
 
@@ -444,18 +463,23 @@ class QdrantService:
 
                 # Prefetch 4: Indic Phonetic Matching (Phonetically-filtered dense search)
                 if query_phonetic_tokens:
+                    phonetic_should = [
+                        FieldCondition(key="phonetic_tokens", match=MatchValue(value=tok))
+                        for tok in query_phonetic_tokens
+                    ]
+                    if search_filter:
+                        phonetic_filter = Filter(
+                            must=list(search_filter.must) if search_filter.must else [],
+                            should=phonetic_should,
+                            must_not=search_filter.must_not,
+                        )
+                    else:
+                        phonetic_filter = Filter(should=phonetic_should)
                     prefetch_queries.append(
                         Prefetch(
                             query=query_vector,
                             using="dense",
-                            filter=Filter(
-                                should=[
-                                    FieldCondition(
-                                        key="phonetic_tokens", match=MatchValue(value=tok)
-                                    )
-                                    for tok in query_phonetic_tokens
-                                ]
-                            ),
+                            filter=phonetic_filter,
                             limit=internal_limit,
                         )
                     )
