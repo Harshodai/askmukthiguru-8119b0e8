@@ -88,8 +88,8 @@ Source: `docs/BACKEND_INTEGRATION_ASSISTANTS_AND_NOTES.md`
 - [x] Add `assistant_slug` log to `chat_queries` telemetry sink (`backend/app/telemetry_sink.py`)
 - [x] Add `tags` parameter to `IngestionPipeline.ingest_url()` and CLI bulk ingestion scripts (`--tags`)
 - [x] Add tag multi-select to ingestion UI (`ingest-ui/index.html` + `app.js`)
-- [ ] Non-regression smoke tests: run `backend/benchmarks/smoke_doctrine.py` with/without assistant block
-- [x] Database migration: add `assistant_slug` column to `chat_queries` in Supabase (backend insert already sends the field) — SQL ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`
+- [ ] Non-regression smoke tests: run `backend/benchmarks/smoke_doctrine.py` with/without assistant block (E2E helper created at `backend/benchmarks/verify_custom_assistants.py`; needs Docker/Qdrant)
+- [x] Database migration: add `assistant_slug` column to `chat_queries` in Supabase — SQL ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`; `src/integrations/supabase/types.ts` regenerated
 
 ### 5.2 Retrieval-quality improvements
 
@@ -146,10 +146,24 @@ Repo: `https://github.com/ekimetrics/adaptive-chunking`
 
 ---
 
+## Phase 5.5 — Production RAG defaults & persistent infrastructure
+
+Source: `docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md` audit gaps.
+
+- [ ] Validate and enable `retrieval_score_delta_enabled=true` as default after `smoke_doctrine.py` / `ruthless_benchmark.py` confirm no regression
+- [ ] Validate and enable `retrieval_deduplication_enabled=true` as default after benchmark confirmation
+- [ ] Lower `rag_top_k_retrieval` default from 30 to 15–20 once score-delta cutoff is active and validated
+- [ ] Enable `raptor_parent_summaries_enabled=true` by default after hierarchical ingestion benchmark run
+- [ ] Build persisted cross-ingest duplicate index / bloom filter so re-ingestion remembers prior MinHash signatures across restarts
+- [ ] Add transcript-aware Indic-language sentence splitter (currently `_split_into_sentences` is regex-based and English-centric)
+- [ ] Wire CRAG relevance floor to automatic query-rewrite fallback in `backend/rag/nodes/retrieval.py` instead of relying only on downstream grading
+- [ ] Add explicit paragraph-boundary-preserving overlap to `backend/ingest/boundary_chunker.py`
+
 ## Phase 6 — Continuous verification
 
 - [x] Run `backend/tests/` and `src/test/` + `src/tests/` after every unit
 - [ ] Run `backend/benchmarks/smoke_doctrine.py` for no-regression after the current batch
+- [ ] Run `backend/benchmarks/smoke_doctrine.py` and `backend/benchmarks/ruthless_benchmark.py` with `RETRIEVAL_SCORE_DELTA_ENABLED=true` and `RETRIEVAL_DEDUPLICATION_ENABLED=true` to validate Phase 5.5 defaults
 - [x] Keep `main` green; commit each unit separately
 - [x] Push `main` to origin after verified batches (latest: migration commit `f8a645b3`)
 - [x] Prune stale worktrees — `git worktree list` now shows only the main working tree

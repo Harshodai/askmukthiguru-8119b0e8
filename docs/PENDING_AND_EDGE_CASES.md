@@ -15,6 +15,9 @@
 - Custom Assistants & Notes backend integration: request contract, system-prompt override, `knowledge_tags` filtering, hard `sky` exclusion, chunk/`kb_sources` tags, `assistant_slug` telemetry, `--tags` CLI flag, and ingestion-UI tag multi-select.
 - `ekimetrics/adaptive-chunking` ported to `backend/ingest/adaptive_chunking.py` and wired behind `use_ingest_adaptive_chunker`.
 - Hyper-extract adapter (`backend/ingest/hyper_extract_adapter.py`) ported from `https://github.com/yifanfeng97/hyper-extract`, wired behind `use_hyper_extract_enrichment`, with tests and `docs/HYPER_EXTRACT_INTEGRATION.md`.
+- E2E Custom Assistants smoke script created at `backend/benchmarks/verify_custom_assistants.py`.
+- Ekimetrics adaptive-chunking port unit tests added at `backend/tests/test_ingest_adaptive_chunking.py`, plus a robustness fix in `_pick_best()`.
+- `src/integrations/supabase/types.ts` regenerated with `assistant_slug`.
 - Backend/frontend regression packs are in place.
 
 ---
@@ -33,8 +36,8 @@ Exact steps:
 **Note (2026-06-23):** Smoke doctrine was attempted but Qdrant returned `502 Bad Gateway` because Docker is not running locally. The code path executed correctly; the failure is infrastructure-only. Re-run after starting Docker.
 
 ### 2. Apply the `chat_queries.assistant_slug` migration
-SQL is ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`.
-After running it in Supabase, regenerate `src/integrations/supabase/types.ts` so the admin dashboards pick up the new column.
+- SQL is ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`. Run it in Supabase.
+- ✅ `src/integrations/supabase/types.ts` has been regenerated and now includes `assistant_slug`.
 
 ### 3. Benchmark and flip gated retrieval-quality flags
 These flags exist but are off by default. Do **not** flip them without numbers.
