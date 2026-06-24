@@ -32,13 +32,9 @@ Exact steps:
 
 **Note (2026-06-23):** Smoke doctrine was attempted but Qdrant returned `502 Bad Gateway` because Docker is not running locally. The code path executed correctly; the failure is infrastructure-only. Re-run after starting Docker.
 
-### 2. Add `chat_queries.assistant_slug` column
-Backend already sends the field. You just need the Supabase side:
-1. Add migration:
-   ```sql
-   alter table public.chat_queries add column assistant_slug text;
-   ```
-2. Regenerate `src/integrations/supabase/types.ts` so the admin dashboard can read it.
+### 2. Apply the `chat_queries.assistant_slug` migration
+SQL is ready at `scripts/migrations/20260623_add_chat_queries_assistant_slug.sql`.
+After running it in Supabase, regenerate `src/integrations/supabase/types.ts` so the admin dashboards pick up the new column.
 
 ### 3. Benchmark and flip gated retrieval-quality flags
 These flags exist but are off by default. Do **not** flip them without numbers.
@@ -80,6 +76,8 @@ rtk proxy npm test -- --run
 rtk proxy git push origin main
 ```
 
+**Worktree cleanup (2026-06-23):** `git worktree list` now reports only the main working tree. A few empty `.claude/worktrees/` directory stubs may remain on disk due to sandbox permissions, but they are no longer registered worktrees and can be removed with `rm -rf .claude/worktrees/*` outside the sandbox if desired.
+
 ---
 
 ## Edge cases that separate "done" from "top notch"
@@ -93,7 +91,7 @@ rtk proxy git push origin main
 | Malformed tags at API | `ingest.py` normalizes; bulk scripts normalize | Already handled, add test |
 | `chat_queries.assistant_slug` missing | Telemetry dashboards break | Add column + regenerate types |
 | Score-delta removes everything | Bad retrieval fallback | Unit test fallback path |
-| Worktrees left behind | Clutter repo | Run `git worktree list` and prune stale |
+| Worktrees left behind | Clutter repo | ✅ Pruned — only main working tree remains |
 
 ---
 
