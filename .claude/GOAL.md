@@ -61,13 +61,13 @@
 
 ## Phase 4 — Regression test packs (Units 18–19)
 
-- [x] **Unit 18 — Backend regression pack (partial / in good shape)**
+- [x] **Unit 18 — Backend regression pack**
   - Contract test for `retrieve_documents`: `backend/tests/test_retrieve_documents_contract.py`
   - Graph strategy wiring tests: `backend/tests/test_graph_strategies.py`
   - Fail-closed guardrails tests: `backend/tests/test_guardrails.py`, `test_guardrails_chain.py`
   - Intent fallback tests: `backend/tests/test_intent_router.py`
   - Retrieval empty-set / cutoff tests: `backend/tests/test_retrieval_quality.py`
-  - *Note:* pack exists but could be tightened into one canonical regression module.
+  - Hyper-extract adapter tests: `backend/tests/test_hyper_extract_adapter.py`
 
 - [x] **Unit 19 — Frontend regression pack**
   - `src/test/aiService.regression.test.ts` covers health/fallback/streaming paths
@@ -123,14 +123,16 @@ Inspired by the "Biggest improvement to RAG wasn't a better LLM" principles. Sta
   - LLM transcript correction and auditor gate before indexing
   - Parent-chunk summarization for RAPTOR available when `raptor_parent_summaries_enabled` is set
 
-### 5.3 `hyper-extract` study and integration — Study DONE / Code integration pending
+### 5.3 `hyper-extract` study and integration — DONE
 
 Repo: `https://github.com/yifanfeng97/hyper-extract`
 
 - [x] Fetch and read the repository structure, README, and core modules
 - [x] Identify techniques applicable to our pipeline (document structure, atom facts, graph/hypergraph extraction)
-- [ ] Port/adapt the highest-value extraction logic into `backend/ingest/` without adding heavy dependencies (in progress)
-- [ ] Document the decision and alternatives in `docs/HYPER_EXTRACT_INTEGRATION.md`
+- [x] Port/adapt the highest-value extraction logic into `backend/ingest/hyper_extract_adapter.py` without heavy dependencies
+- [x] Wire optional enrichment into `IngestionPipeline` behind `use_hyper_extract_enrichment`
+- [x] Add unit tests in `backend/tests/test_hyper_extract_adapter.py`
+- [x] Document the decision in `docs/HYPER_EXTRACT_INTEGRATION.md`
 
 ### 5.4 `ekimetrics/adaptive-chunking` study and integration — DONE
 
