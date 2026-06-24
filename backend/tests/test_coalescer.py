@@ -2,11 +2,23 @@ import asyncio
 import time
 
 import pytest
+import redis
 
 from app.coalescer import RedisCoalescer, _InMemoryCoalescer, build_coalescer
 
 # Use the Redis container running on localhost for testing
 REDIS_TEST_URL = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+
+
+def _redis_available() -> bool:
+    try:
+        client = redis.Redis.from_url(REDIS_TEST_URL, socket_connect_timeout=1, socket_timeout=1)
+        return client.ping() is True
+    except Exception:
+        return False
+
+
+_redis_up = _redis_available()
 
 
 @pytest.mark.asyncio
@@ -32,6 +44,7 @@ async def test_in_memory_coalescer_concurrency():
     assert call_count == 1  # Only run once
 
 
+@pytest.mark.skipif(not _redis_up, reason="Redis not reachable at test URL")
 @pytest.mark.asyncio
 async def test_redis_coalescer_concurrency():
     # Attempt to connect to the actual Redis instance on localhost
@@ -78,6 +91,7 @@ async def test_redis_coalescer_concurrency():
     await coalescer.close()
 
 
+@pytest.mark.skipif(not _redis_up, reason="Redis not reachable at test URL")
 @pytest.mark.asyncio
 async def test_redis_coalescer_leader_failure_takeover():
     coalescer = build_coalescer(REDIS_TEST_URL, ttl=5.0)

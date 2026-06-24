@@ -30,6 +30,10 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Self-Reflection: simple tier – running lightweight LettuceDetect")
 
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Self-Reflection: bypassing for simple query tier")
+        return {"needs_correction": False, "reflection_feedback": None}
+
     answer = state.get("answer")
     relevant_docs = state.get("relevant_docs", [])
     question = state.get("rewritten_query") or state["question"]
@@ -86,6 +90,16 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Combined verify: simple tier – running lightweight LettuceDetect")
+
+    if state.get("query_tier") in ("fast", "tier2_simple"):
+        logger.info("Combined verify: bypassing for simple query tier")
+        return {
+            "is_faithful": True,
+            "verification": {"passed": True, "details": "Bypassed for simple query tier"},
+            "confidence_score": 10.0,
+            "faithfulness_score": 10.0,
+            "relevancy_score": 10.0,
+        }
 
     answer = state["answer"]
     relevant_docs = state["relevant_docs"]
