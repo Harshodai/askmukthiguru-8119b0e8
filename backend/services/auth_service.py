@@ -7,6 +7,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from anyio import Lock as AsyncLock
 import jwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -128,7 +129,7 @@ class TestAuthStrategy(AuthStrategy):
 # Supabase local v2.x issues ES256 (ECDSA) tokens verified via JWKS.
 # We cache the client so JWKS is only fetched once (or on key rotation).
 _jwks_client: PyJWKClient | None = None
-_jwks_lock = asyncio.Lock()
+_jwks_lock = AsyncLock()
 
 
 def _get_jwks_url() -> str:

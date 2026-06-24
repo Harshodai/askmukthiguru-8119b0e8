@@ -18,6 +18,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 
+from anyio import Lock as AsyncLock
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
@@ -102,7 +103,7 @@ class OllamaService:
 
         # Connection pooling: Create a singleton httpx.AsyncClient for health checks and direct HTTP calls
         self._http_client = None
-        self._http_client_lock = asyncio.Lock()
+        self._http_client_lock = AsyncLock()
 
         # Circuit breaker: fail-fast after consecutive failures to prevent cascading hangs
         # Use provider-agnostic circuit breaker from shared module

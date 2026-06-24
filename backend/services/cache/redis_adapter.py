@@ -65,6 +65,15 @@ class RedisCacheAdapter(ICacheRepository):
     def is_available(self) -> bool:
         return self._redis is not None
 
+    def health_check(self) -> bool:
+        """Verify Redis connection is alive."""
+        if not self._redis:
+            return False
+        try:
+            return self._redis.ping()
+        except Exception:
+            return False
+
     def _make_key(self, query: str) -> str:
         """Normalize query and generate cache key."""
         normalized = query.strip().lower()
