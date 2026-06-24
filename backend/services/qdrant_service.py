@@ -173,7 +173,22 @@ class QdrantService:
                     field_name="phonetic_tokens",
                     field_schema="keyword",
                 )
-                # Create payload index on tags for assistant/notes scoped retrieval
+                # Metadata filter indexes for retrieval-quality improvements + assistants
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="source_url",
+                    field_schema="keyword",
+                )
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="source_type",
+                    field_schema="keyword",
+                )
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="language",
+                    field_schema="keyword",
+                )
                 self._client.create_payload_index(
                     collection_name=self._collection,
                     field_name="tags",
@@ -181,7 +196,7 @@ class QdrantService:
                 )
                 logger.info(
                     f"Created collection: {self._collection} "
-                    f"(dense={self._dimension}d + sparse, raptor_level and phonetic indexes)"
+                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, and metadata indexes)"
                 )
             else:
                 logger.info(f"Collection exists: {self._collection}")
@@ -336,6 +351,40 @@ class QdrantService:
                 FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
             )
 
+        # Metadata filters for retrieval-quality improvements + assistants
+        source_url = kwargs.get("source_url")
+        source_type = kwargs.get("source_type")
+        language = kwargs.get("language")
+        tags = kwargs.get("tags")
+        title_contains = kwargs.get("title_contains")
+
+        if source_url:
+            filter_conditions.append(
+                FieldCondition(key="source_url", match=MatchValue(value=source_url))
+            )
+        if source_type:
+            filter_conditions.append(
+                FieldCondition(key="source_type", match=MatchValue(value=source_type))
+            )
+        if language:
+            filter_conditions.append(
+                FieldCondition(key="language", match=MatchValue(value=language))
+            )
+        if tags:
+            tag_values = tags if isinstance(tags, list) else [tags]
+            if len(tag_values) == 1:
+                filter_conditions.append(
+                    FieldCondition(key="tags", match=MatchValue(value=tag_values[0]))
+                )
+            else:
+                filter_conditions.append(
+                    FieldCondition(key="tags", match=MatchAny(any=tag_values))
+                )
+        if title_contains:
+            filter_conditions.append(
+                FieldCondition(key="title", match=MatchValue(value=title_contains))
+            )
+
         tag_must, tag_must_not = _build_tag_conditions(kwargs.get("knowledge_tags", []))
         filter_conditions.extend(tag_must)
         search_filter = Filter(
@@ -436,6 +485,9 @@ class QdrantService:
                 "source_url": hit.payload.get("source_url", ""),
                 "title": hit.payload.get("title", ""),
                 "content_type": hit.payload.get("content_type", ""),
+                "source_type": hit.payload.get("source_type", hit.payload.get("content_type", "")),
+                "language": hit.payload.get("language", "en"),
+                "tags": hit.payload.get("tags", []),
                 "chunk_index": hit.payload.get("chunk_index", 0),
                 "raptor_level": hit.payload.get("raptor_level", 0),
                 "score": getattr(hit, "score", 0.0),
@@ -790,3 +842,81 @@ class QdrantService:
             remaining.remove(best_idx)
 
         return [documents[i] for i in selected_indices]
+
+    @staticmethod
+    def build_source_url_filter(source_url: str) -> Filter:
+        """Return a Qdrant filter matching a specific source URL."""
+        return Filter(
+            must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
+        )
+
+    @staticmethod
+    def build_source_type_filter(source_type: str) -> Filter:
+        """Return a Qdrant filter matching a source_type (youtube/image/text/video/etc.)."""
+        return Filter(
+            must=[FieldCondition(key="source_type", match=MatchValue(value=source_type))]
+        )
+
+    @staticmethod
+    def build_language_filter(language: str) -> Filter:
+        """Return a Qdrant filter matching a detected language code."""
+        return Filter(
+            must=[FieldCondition(key="language", match=MatchValue(value=language))]
+        )
+
+    @staticmethod
+    def build_tags_filter(tags: list[str] | str) -> Filter:
+        """Return a Qdrant filter matching one or more tags."""
+        tag_values = tags if isinstance(tags, list) else [tags]
+        if len(tag_values) == 1:
+            return Filter(
+                must=[FieldCondition(key="tags", match=MatchValue(value=tag_values[0]))]
+            )
+        return Filter(
+            must=[FieldCondition(key="tags", match=MatchAny(any=tag_values))]
+        )
+
+    @staticmethod
+    def build_title_filter(title: str) -> Filter:
+        """Return a Qdrant filter matching an exact title (useful for scoped retrieval)."""
+        return Filter(
+            must=[FieldCondition(key="title", match=MatchValue(value=title))]
+        )
+
+    @classmethod
+    def build_metadata_filter(
+        cls,
+        source_url: Optional[str] = None,
+        source_type: Optional[str] = None,
+        language: Optional[str] = None,
+        tags: Optional[list[str] | str] = None,
+        title: Optional[str] = None,
+        content_type: Optional[str] = None,
+        raptor_level: Optional[int] = None,
+    ) -> Filter:
+        """
+        Compose a Qdrant filter from available metadata fields.
+
+        All provided conditions are combined with AND semantics.
+        """
+        conditions: list[FieldCondition] = []
+        if source_url:
+            conditions.append(FieldCondition(key="source_url", match=MatchValue(value=source_url)))
+        if source_type:
+            conditions.append(FieldCondition(key="source_type", match=MatchValue(value=source_type)))
+        if language:
+            conditions.append(FieldCondition(key="language", match=MatchValue(value=language)))
+        if tags:
+            tag_values = tags if isinstance(tags, list) else [tags]
+            if len(tag_values) == 1:
+                conditions.append(FieldCondition(key="tags", match=MatchValue(value=tag_values[0])))
+            else:
+                conditions.append(FieldCondition(key="tags", match=MatchAny(any=tag_values)))
+        if title:
+            conditions.append(FieldCondition(key="title", match=MatchValue(value=title)))
+        if content_type:
+            conditions.append(FieldCondition(key="content_type", match=MatchValue(value=content_type)))
+        if raptor_level is not None:
+            conditions.append(FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level)))
+
+        return Filter(must=conditions)

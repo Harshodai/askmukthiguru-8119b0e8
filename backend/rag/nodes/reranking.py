@@ -40,17 +40,30 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         if "rerank_score" not in doc:
             doc["rerank_score"] = 0.70
 
+    def _apply_rerank_score_cutoff(docs: list[dict], score_key: str = "rerank_score", ratio: float = 0.5) -> list[dict]:
+        if not docs or not getattr(settings, "rerank_score_delta_enabled", False):
+            return docs
+        scores = [doc.get(score_key, 0.0) for doc in docs]
+        top_score = max(scores) if scores else 0.0
+        if top_score <= 0:
+            return docs
+        floor = top_score * ratio
+        filtered = [doc for doc in docs if doc.get(score_key, 0.0) >= floor]
+        logger.debug(f"Rerank score-delta: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)}")
+        return filtered
+
     reranked_db = []
     if db_docs:
         is_complex = state.get("is_complex", False)
         base_threshold = getattr(settings, "rerank_min_score", 0.2)
         threshold = settings.rerank_threshold_complex if is_complex else max(settings.rerank_threshold_simple, base_threshold - 0.1)
+        rerank_top_k = getattr(settings, "rag_top_k_rerank", 10)
 
         if settings.use_flashrank and reranker is not None:
             reranked_db = await reranker.rerank(
                 question,
                 db_docs,
-                top_k=10,
+                top_k=rerank_top_k,
                 min_score=threshold,
             )
         else:
@@ -58,10 +71,13 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
                 embedder.cascaded_rerank,
                 question,
                 db_docs,
-                colbert_top_k=20,
-                cross_top_k=10,
+                colbert_top_k=rerank_top_k * 2,
+                cross_top_k=rerank_top_k,
                 min_score=threshold,
             )
+
+        # Apply score-delta cutoff to keep fewer but better chunks
+        reranked_db = _apply_rerank_score_cutoff(reranked_db)
 
         # Apply MMR selection to database documents if they exceed the budget
         web_docs_count = len(web_docs)
@@ -145,6 +161,20 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                     top_rerank_score=round(top_score, 4),
                 ),
             }
+
+        # CRAG relevance floor: drop docs that fall below a fraction of the top score
+        crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
+        crag_floor = max(crag_floor, min_score)
+        before_count = len(reranked_docs)
+        reranked_docs = [
+            doc for doc in reranked_docs
+            if doc.get("rerank_score", 0.0) >= crag_floor
+        ]
+        if before_count != len(reranked_docs):
+            logger.info(
+                f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
+                f"{before_count} -> {len(reranked_docs)} docs"
+            )
 
     await emit_status(config, "Filtering for relevance...")
     question = state.get("rewritten_query") or state["question"]
