@@ -43,6 +43,7 @@ from app.config import settings
 from ingest.boundary_chunker import chunk_with_contextual_headers, split_text_at_boundaries
 from ingest.cleaner import clean_transcript
 from ingest.deduplication import deduplicate_by_payload
+from ingest.hyper_extract_adapter import enrich_text, is_eligible
 from ingest.image_loader import is_image_url, process_image_url
 from ingest.raptor import RaptorIndexer
 from ingest.youtube_loader import (
@@ -249,6 +250,10 @@ class IngestionPipeline:
         if pii_found:
             logger.warning(f"PII redacted from source_url={source_url} — {pii_found} instances")
 
+        # Step 1b: Optional Hyper-Extract enrichment (Phase 5.3)
+        self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.25)
+        hyper_extract_result = self._enrich_text(clean_text)
+
         # Step 2: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.3)
         extra_metadatas = None
@@ -312,6 +317,7 @@ class IngestionPipeline:
             "source_url": source_url,
             "chunks_indexed": chunks_count,
             "summaries_created": summaries_count,
+            "hyper_extract": hyper_extract_result,
         }
 
     async def _ingest_video(
@@ -382,6 +388,10 @@ class IngestionPipeline:
         clean_text, pii_found = redact_pii(clean_text)
         if pii_found:
             logger.warning(f"PII redacted from video url={url} — {pii_found} instances")
+
+        # Step 2b: Optional Hyper-Extract enrichment (Phase 5.3)
+        self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.35)
+        hyper_extract_result = self._enrich_text(clean_text)
 
         # Step 3: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
@@ -459,6 +469,7 @@ class IngestionPipeline:
             "chunks_indexed": chunks_count,
             "summaries_created": summaries_count,
             "text_length": len(clean_text),
+            "hyper_extract": hyper_extract_result,
         }
 
     async def _ingest_video_enhanced(
@@ -851,6 +862,27 @@ class IngestionPipeline:
             "summaries_created": 0,  # Too few for RAPTOR
             "text_length": len(clean_text),
         }
+
+    def _enrich_text(self, text: str) -> Optional[dict]:
+        """
+        Optional Hyper-Extract enrichment: structure, atomic facts, entities, relationships.
+
+        Safe no-op when disabled or text is outside configured length bounds.
+        Failures are logged and swallowed so enrichment never blocks ingestion.
+        """
+        if not getattr(settings, "use_hyper_extract_enrichment", False):
+            return None
+        if not is_eligible(text, settings.hyper_extract_min_chars):
+            return None
+        try:
+            return enrich_text(
+                text,
+                max_text_length=settings.hyper_extract_max_chars,
+                min_text_length=settings.hyper_extract_min_chars,
+            )
+        except Exception as e:
+            logger.warning(f"Hyper-Extract enrichment failed (non-fatal): {e}")
+            return None
 
     def _embed_and_index(
         self,

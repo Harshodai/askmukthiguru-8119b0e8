@@ -250,6 +250,11 @@ class Settings(BaseSettings):
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
 
+    # --- Hyper-Extract enrichment (Phase 5.3) ---
+    use_hyper_extract_enrichment: bool = False  # Enable lightweight structure/entity/fact extraction
+    hyper_extract_min_chars: int = 200  # Skip texts shorter than this
+    hyper_extract_max_chars: int = 50_000  # Hard cap to keep enrichment fast and safe
+
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
     semantic_cache_similarity: float = 0.92  # Cosine similarity threshold for cache hit
