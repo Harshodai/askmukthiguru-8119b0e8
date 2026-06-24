@@ -3,6 +3,11 @@
 **Last updated:** 2026-06-23
 **Scope:** Only the high-impact items from `.claude/GOAL.md` that meaningfully move the product forward. Decomposition is *not* listed here because it is already merged and can be extended later if needed.
 
+**Test status at this snapshot:**
+- Backend suite: `428 passed, 4 skipped, 111 warnings` (≈9 min).
+- Frontend suite: `209 passed, 6 skipped`.
+- Smoke doctrine: blocked on Qdrant/Docker not running locally (502 Bad Gateway from Qdrant).
+
 ---
 
 ## Already shipped (you can build on these)
@@ -31,11 +36,14 @@ Exact steps:
 
 ### 2. Smoke-test Custom Assistants non-regression
 Exact steps:
-1. Run `rtk proxy python3 backend/benchmarks/smoke_doctrine.py` **without** an `assistant` block → expect same baseline results.
-2. Run the same benchmark with `assistant.knowledge_tags=["general"]` → verify no `sky` chunks in citations.
-3. Run with `assistant.knowledge_tags=["sky"]` on a corpus with zero SKY chunks → expect graceful fallback, no 500.
-4. Check Supabase/telemetry that `chat_queries.assistant_slug` is populated.
-5. Fix any regression and commit.
+1. Start required infrastructure: `cd backend && docker compose up -d qdrant redis neo4j`.
+2. Run `rtk proxy python3 backend/benchmarks/smoke_doctrine.py` **without** an `assistant` block → expect same baseline results.
+3. Run the same benchmark with `assistant.knowledge_tags=["general"]` → verify no `sky` chunks in citations.
+4. Run with `assistant.knowledge_tags=["sky"]` on a corpus with zero SKY chunks → expect graceful fallback, no 500.
+5. Check Supabase/telemetry that `chat_queries.assistant_slug` is populated.
+6. Fix any regression and commit.
+
+**Note (2026-06-23):** Smoke doctrine was attempted but Qdrant returned `502 Bad Gateway` because Docker is not running locally. The code path executed correctly; the failure is infrastructure-only. Re-run after starting Docker.
 
 ### 3. Add `chat_queries.assistant_slug` column
 Backend already sends the field. You just need the Supabase side:
