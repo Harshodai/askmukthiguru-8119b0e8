@@ -174,7 +174,12 @@ class GraphState(TypedDict):
     model_provider: Optional[str]
     route_decision: Optional[str]
 
-        # Confidence Gate
+    # Assistant context (custom assistants + notes)
+    assistant_slug: Optional[str]
+    knowledge_tags: list[str]
+    assistant_system_prompt: Optional[str]
+
+    # Confidence Gate
     low_confidence_retrieval: Optional[bool]
 
     # Web Search (real-time temporal queries)
