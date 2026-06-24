@@ -44,6 +44,9 @@ class ChatRequestOrchestrator:
         preferred_lang = chat_body.language or "en"
         user_id = user.get("id", "anonymous") if user else "anonymous"
         session_id = normalize_session_id(chat_body.session_id, user_id)
+        assistant_slug = (
+            chat_body.assistant.slug if chat_body.assistant else None
+        )
 
         if not user_msg:
             raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -80,6 +83,7 @@ class ChatRequestOrchestrator:
             user_id=user_id,
             session_id=session_id,
             user_msg=user_msg,
+            assistant_slug=assistant_slug,
         )
 
         return ChatResponse(
@@ -107,6 +111,7 @@ class ChatRequestOrchestrator:
         user_id: str,
         session_id: str,
         user_msg: str,
+        assistant_slug: Optional[str] = None,
     ) -> None:
         """Log query trace to telemetry sink."""
         try:
@@ -139,6 +144,7 @@ class ChatRequestOrchestrator:
                     max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001), 2
                 ) if result.latency_ms else 0.0,
                 evaluation_trace=result.evaluation_trace,
+                assistant_slug=assistant_slug,
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-fatal): {e}")

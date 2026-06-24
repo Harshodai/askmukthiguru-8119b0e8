@@ -283,6 +283,7 @@ class PipelineCoordinator:
             lang_detection,
             memory_context,
             state.get("proactive_serene_mind"),
+            chat_body=chat_body,
             stream_queue=stream_queue,
         )
         await self._stage("langgraph", trace_id, start_ns=_s)
@@ -649,17 +650,22 @@ class PipelineCoordinator:
         lang_detection: Any,
         memory_context: str,
         proactive_data: dict | None,
+        chat_body: Any,
         stream_queue: asyncio.Queue | None = None,
     ) -> tuple[dict, int]:
         """Run the LangGraph pipeline and return (result, latency_ms)."""
         import random
 
         async def run():
+            assistant = getattr(chat_body, "assistant", None)
             initial_state = create_initial_state(
                 question=user_msg_en,
                 chat_history=chat_history_en,
                 meditation_step=meditation_step,
                 request_id=correlation_id_var.get(),
+                assistant_slug=getattr(assistant, "slug", None),
+                knowledge_tags=list(getattr(assistant, "knowledge_tags", []) or []),
+                assistant_system_prompt=getattr(assistant, "system_prompt", None),
             )
             initial_state["detected_language"] = lang_detection.primary.value if lang_detection else "en"
             initial_state["memory_context"] = memory_context
