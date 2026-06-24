@@ -507,12 +507,25 @@ def parse_args():
         action="store_true",
         help="Retry only the failed LightRAG chunks stored in state, then exit",
     )
+    parser.add_argument(
+        "--tags",
+        type=str,
+        default="general",
+        help="Comma-separated knowledge tags for ingested content (default: general)",
+    )
     return parser.parse_args()
+
+
+def _parse_tags(raw: str) -> list[str]:
+    """Normalize comma-separated tags to lowercase, deduplicated list."""
+    tags = {t.strip().lower() for t in raw.split(",") if t.strip()}
+    return sorted(tags) if tags else ["general"]
 
 
 async def main():
     global _shutdown_requested
     args = parse_args()
+    tags = _parse_tags(args.tags)
 
     # ── Signal Handlers for graceful shutdown ───────────────
     signal.signal(signal.SIGINT, _signal_handler)
@@ -784,7 +797,8 @@ async def main():
                 logger.info(
                     f"[Qdrant] Ingesting video: {url} (Attempt {attempt}/{max_attempts})..."
                 )
-                res = await pipeline.ingest_url(url, max_accuracy=True)
+                logger.info(f"[Tags] {tags}")
+                res = await pipeline.ingest_url(url, max_accuracy=True, tags=tags)
 
                 # Check status return to throw error and trigger the retry delays
                 if res.get("status") == "error":

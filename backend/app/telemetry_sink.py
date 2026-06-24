@@ -103,6 +103,7 @@ class SupabaseTelemetrySink:
         completion_tokens: Optional[int] = None,
         cost_estimate: Optional[float] = None,
         evaluation_trace: Optional[dict[str, Any]] = None,
+        assistant_slug: Optional[str] = None,
     ) -> None:
         """
         Serialize trace data and append to Redis Stream.
@@ -143,6 +144,7 @@ class SupabaseTelemetrySink:
             "completion_tokens": completion_tokens,
             "cost_estimate": cost_estimate,
             "evaluation_trace": evaluation_trace,
+            "assistant_slug": assistant_slug,
         }
 
         if self.redis:
@@ -188,6 +190,7 @@ class SupabaseTelemetrySink:
         hallucination_flag = p.get("hallucination_flag", False)
         confidence_score = p.get("confidence_score")
         judge_reasoning = p.get("judge_reasoning", "")
+        assistant_slug = p.get("assistant_slug")
         retrieval_metadata = p.get("retrieval_metadata")
         spans = p.get("spans")
         trigger_events = p.get("trigger_events")
@@ -212,6 +215,7 @@ class SupabaseTelemetrySink:
             "cache_hit": cache_hit,
             "ttft_ms": ttft_ms,
             "tokens_per_second": tokens_per_second,
+            "assistant_slug": assistant_slug,
         }
         query_payload = {k: v for k, v in query_payload.items() if v is not None}
 
