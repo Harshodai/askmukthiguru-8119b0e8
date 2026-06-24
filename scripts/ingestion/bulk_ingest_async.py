@@ -738,7 +738,8 @@ async def process_video_worker(
             try:
                 # ── STEP 1: Qdrant (CRITICAL) ──
                 logger.info(f"[Qdrant] {vid} (Attempt {attempt}/{max_attempts})...")
-                res = await pipeline.ingest_url(url, max_accuracy=True)
+                logger.info(f"[Tags] {tags}")
+                res = await pipeline.ingest_url(url, max_accuracy=True, tags=tags)
 
                 if res.get("status") == "error":
                     raise ValueError(res.get("message", "Ingestion pipeline returned error status"))
@@ -937,12 +938,25 @@ def parse_args():
         action="store_true",
         help="Remove permanently-failed videos from DLQ and metrics, then exit",
     )
+    parser.add_argument(
+        "--tags",
+        type=str,
+        default="general",
+        help="Comma-separated knowledge tags for ingested content (default: general)",
+    )
     return parser.parse_args()
+
+
+def _parse_tags(raw: str) -> list[str]:
+    """Normalize comma-separated tags to lowercase, deduplicated list."""
+    tags = {t.strip().lower() for t in raw.split(",") if t.strip()}
+    return sorted(tags) if tags else ["general"]
 
 
 async def main():
     global _shutdown_requested, _progress
     args = parse_args()
+    tags = _parse_tags(args.tags)
 
     # ── Signal Handlers for graceful shutdown ───────────────
     signal.signal(signal.SIGINT, _signal_handler)

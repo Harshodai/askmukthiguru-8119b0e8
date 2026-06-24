@@ -649,6 +649,10 @@ class IngestRequest(BaseModel):
         default=False,
         description="If True, skip auto-generated captions (T3) and rely on Manual (T1) or Whisper (T2)",
     )
+    tags: List[str] = Field(
+        default_factory=lambda: ["general"],
+        description="Knowledge tags to attach to every chunk (e.g. general, notes, sky)",
+    )
 
 
 class IngestResponse(BaseModel):
@@ -1292,7 +1296,10 @@ async def ingest_endpoint(
             container.update_progress(url, "Starting...", 0.0)
 
             result = await container.ingestion.ingest_url(
-                url, max_accuracy=ingest_body.max_accuracy, on_progress=progress_callback
+                url,
+                max_accuracy=ingest_body.max_accuracy,
+                on_progress=progress_callback,
+                tags=ingest_body.tags,
             )
             logger.info(f"Ingestion complete: {result}")
             container.update_progress(url, "Complete!", 1.0)

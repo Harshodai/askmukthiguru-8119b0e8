@@ -35,6 +35,30 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
+
+# Sentinel tag that requires explicit opt-in on every search
+_SKY_TAG = "sky"
+
+
+def _build_tag_conditions(knowledge_tags: list[str]) -> tuple[list[FieldCondition], list[FieldCondition]]:
+    """
+    Build (must, must_not) tag filter conditions.
+
+    - If tags are requested, the chunk must match at least one requested tag.
+    - The 'sky' tag is always excluded unless it is explicitly in the request.
+    """
+    must: list[FieldCondition] = []
+    must_not: list[FieldCondition] = []
+
+    requested = list({t.strip().lower() for t in (knowledge_tags or []) if t and t.strip()})
+    if requested:
+        must.append(FieldCondition(key="tags", match=MatchAny(any=requested)))
+
+    if _SKY_TAG not in requested:
+        must_not.append(FieldCondition(key="tags", match=MatchValue(value=_SKY_TAG)))
+
+    return must, must_not
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -147,6 +171,12 @@ class QdrantService:
                 self._client.create_payload_index(
                     collection_name=self._collection,
                     field_name="phonetic_tokens",
+                    field_schema="keyword",
+                )
+                # Create payload index on tags for assistant/notes scoped retrieval
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="tags",
                     field_schema="keyword",
                 )
                 logger.info(
@@ -305,7 +335,13 @@ class QdrantService:
             filter_conditions.append(
                 FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
             )
-        search_filter = Filter(must=filter_conditions) if filter_conditions else None
+
+        tag_must, tag_must_not = _build_tag_conditions(kwargs.get("knowledge_tags", []))
+        filter_conditions.extend(tag_must)
+        search_filter = Filter(
+            must=filter_conditions if filter_conditions else None,
+            must_not=tag_must_not if tag_must_not else None,
+        )
 
         # Extract Indic phonetic tokens from query for misspelling tolerance
         from services.phonetic import IndicPhoneticMatcher

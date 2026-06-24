@@ -14,6 +14,14 @@ class MessagePayload(BaseModel):
     content: str = Field(..., description="Message text")
 
 
+class AssistantContext(BaseModel):
+    """Optional assistant override for a chat turn."""
+
+    slug: str = Field(..., description="Assistant identifier")
+    system_prompt: Optional[str] = Field(default=None, description="Assistant-specific system persona")
+    knowledge_tags: list[str] = Field(default_factory=list, description="Tags to scope retrieval to")
+
+
 class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
 
@@ -25,6 +33,10 @@ class ChatRequest(BaseModel):
     last_serene_mind_at: Optional[float] = Field(
         default=None,
         description="Unix timestamp of the user's last completed Serene Mind session (client-reported)",
+    )
+    assistant: Optional[AssistantContext] = Field(
+        default=None,
+        description="Optional assistant context to scope persona and retrieval",
     )
 
 
