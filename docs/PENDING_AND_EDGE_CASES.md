@@ -14,27 +14,14 @@
 
 - Custom Assistants & Notes backend integration: request contract, system-prompt override, `knowledge_tags` filtering, hard `sky` exclusion, chunk/`kb_sources` tags, `assistant_slug` telemetry, `--tags` CLI flag, and ingestion-UI tag multi-select.
 - `ekimetrics/adaptive-chunking` ported to `backend/ingest/adaptive_chunking.py` and wired behind `use_ingest_adaptive_chunker`.
+- Hyper-extract adapter (`backend/ingest/hyper_extract_adapter.py`) ported from `https://github.com/yifanfeng97/hyper-extract`, wired behind `use_hyper_extract_enrichment`, with tests and `docs/HYPER_EXTRACT_INTEGRATION.md`.
 - Backend/frontend regression packs are in place.
 
 ---
 
 ## Main impactful work still to do
 
-### 1. Hyper-extract integration (Phase 5.3) — highest priority code task
-**Repo:** `https://github.com/yifanfeng97/hyper-extract`
-
-Goal: port the highest-value extraction ideas into `backend/ingest/` without heavy dependencies.
-
-Exact steps:
-1. Read the README and core modules of the repo.
-2. Create `backend/ingest/hyper_extract_adapter.py` that returns `{sections, atomic_facts, entities, relationships}` from a transcript/text.
-3. Use only Python stdlib / existing project deps.
-4. Wire it optionally into `IngestionPipeline` behind a new config flag `use_hyper_extract_enrichment`.
-5. Add `backend/tests/test_hyper_extract_adapter.py`.
-6. Write `docs/HYPER_EXTRACT_INTEGRATION.md`.
-7. Run `rtk proxy python3 -m pytest backend/tests/test_hyper_extract_adapter.py backend/tests/test_ingestion_pipeline.py -q`.
-
-### 2. Smoke-test Custom Assistants non-regression
+### 1. Smoke-test Custom Assistants non-regression
 Exact steps:
 1. Start required infrastructure: `cd backend && docker compose up -d qdrant redis neo4j`.
 2. Run `rtk proxy python3 backend/benchmarks/smoke_doctrine.py` **without** an `assistant` block → expect same baseline results.
@@ -45,7 +32,7 @@ Exact steps:
 
 **Note (2026-06-23):** Smoke doctrine was attempted but Qdrant returned `502 Bad Gateway` because Docker is not running locally. The code path executed correctly; the failure is infrastructure-only. Re-run after starting Docker.
 
-### 3. Add `chat_queries.assistant_slug` column
+### 2. Add `chat_queries.assistant_slug` column
 Backend already sends the field. You just need the Supabase side:
 1. Add migration:
    ```sql
@@ -53,7 +40,7 @@ Backend already sends the field. You just need the Supabase side:
    ```
 2. Regenerate `src/integrations/supabase/types.ts` so the admin dashboard can read it.
 
-### 4. Benchmark and flip gated retrieval-quality flags
+### 3. Benchmark and flip gated retrieval-quality flags
 These flags exist but are off by default. Do **not** flip them without numbers.
 
 | Flag | What to measure |
@@ -69,7 +56,7 @@ rtk proxy python3 backend/benchmarks/comprehensive_benchmark.py
 ```
 Document results in `docs/PRODUCTION_RAG_OVER_MILLIONS_OF_PDFS.md`. Only flip defaults where quality strictly improves and latency is acceptable.
 
-### 5. Push `main`
+### 4. Push `main`
 After the above are green:
 ```bash
 rtk proxy git push origin main
@@ -79,18 +66,16 @@ rtk proxy git push origin main
 
 ## If your tokens run out, do these in order
 
-1. Finish step 1 (hyper-extract adapter + tests + doc).
-2. Run the focused backend tests from step 1.
-3. Run step 2 smoke tests.
-4. Apply step 3 migration.
-5. Run step 4 benchmarks only if you have time; otherwise leave flags off.
-6. Push.
+1. Start Docker and run smoke doctrine with/without assistant block.
+2. Apply step 2 migration (`chat_queries.assistant_slug`).
+3. Run step 3 benchmarks only if you have time; otherwise leave flags off.
+4. Push.
 
 Quick verification commands:
 ```bash
-rtk proxy python3 -m pytest backend/tests/test_assistants_integration.py -q
-rtk proxy python3 -m pytest backend/tests/ -q --tb=short
+cd backend && docker compose up -d qdrant redis neo4j
 rtk proxy python3 backend/benchmarks/smoke_doctrine.py
+rtk proxy python3 -m pytest backend/tests/ -q --tb=short
 rtk proxy npm test -- --run
 rtk proxy git push origin main
 ```
@@ -108,7 +93,6 @@ rtk proxy git push origin main
 | Malformed tags at API | `ingest.py` normalizes; bulk scripts normalize | Already handled, add test |
 | `chat_queries.assistant_slug` missing | Telemetry dashboards break | Add column + regenerate types |
 | Score-delta removes everything | Bad retrieval fallback | Unit test fallback path |
-| Hyper-extract enabled on short/noisy transcript | Must not crash or hallucinate structure | Adapter tests |
 | Worktrees left behind | Clutter repo | Run `git worktree list` and prune stale |
 
 ---
@@ -119,3 +103,4 @@ rtk proxy git push origin main
 - Rewriting regression packs into one canonical module — nice to have.
 - Adding an Indic-language sentence splitter — do only if benchmarks show chunk quality is poor for Indic transcripts.
 - Cross-ingest duplicate index — only if duplicate content becomes a real problem.
+- Indexing atomic facts as separate Qdrant chunks or tagging chunks from extracted entities — do if smoke tests show retrieval gains.
