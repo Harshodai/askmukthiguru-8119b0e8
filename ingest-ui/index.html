@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mukthi Guru — Ingestion Portal</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Mukthi Guru Ingestion Portal</h1>
+      <p class="subtitle">Ingest YouTube videos, playlists, or approved images into the knowledge base.</p>
+    </header>
+
+    <section class="card" aria-labelledby="ingest-heading">
+      <h2 id="ingest-heading">New Ingestion</h2>
+
+      <form id="ingest-form" class="form">
+        <div class="field">
+          <label for="url">URL</label>
+          <input
+            id="url"
+            name="url"
+            type="url"
+            placeholder="https://www.youtube.com/watch?v=... or https://..."
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="tags">Knowledge Tags</label>
+          <select id="tags" name="tags" multiple aria-describedby="tags-help">
+            <option value="general" selected>general</option>
+            <option value="notes">notes</option>
+            <option value="sky">sky</option>
+            <option value="private">private</option>
+            <option value="meditation">meditation</option>
+            <option value="teaching">teaching</option>
+          </select>
+          <p id="tags-help" class="help">Hold Ctrl/Cmd to select multiple tags. <strong>sky</strong> content is excluded from normal retrieval unless explicitly requested.</p>
+        </div>
+
+        <div class="field checkbox">
+          <input id="max-accuracy" name="max_accuracy" type="checkbox" checked />
+          <label for="max-accuracy">Max accuracy ( Whisper + captions fallback )</label>
+        </div>
+
+        <button type="submit" id="submit-btn">Start Ingestion</button>
+      </form>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div id="progress" class="progress" hidden>
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="progress-heading">
+      <h2 id="progress-heading">Active & Recent Runs</h2>
+      <ul id="runs-list" class="runs-list"></ul>
+      <button id="refresh-btn" type="button">Refresh Status</button>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
