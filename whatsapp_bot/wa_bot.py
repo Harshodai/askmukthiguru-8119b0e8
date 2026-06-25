@@ -70,6 +70,7 @@ from twilio.request_validator import RequestValidator
 # ---------------------------------------------------------------------------
 API_URL = os.environ["ASKMUKTHIGURU_API_URL"].rstrip("/")
 JWT_SECRET = os.environ["JWT_SECRET"]
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ["TWILIO_AUTH_TOKEN"]
 TWILIO_FROM = os.environ.get("TWILIO_FROM", "")
 WA_DB_PATH = os.environ.get("WA_DB_PATH", "./wa_state.db")
@@ -204,7 +205,78 @@ def with_citations(text: str, citations: list[str]) -> str:
 # ---------------------------------------------------------------------------
 # Chat backend caller
 # ---------------------------------------------------------------------------
-def call_chat(phone: str, user_message: str) -> dict[str, Any]:
+import threading
+from twilio.rest import Client
+
+def push_message(phone: str, body: str) -> None:
+    """Send message asynchronously using Twilio REST API."""
+    if not TWILIO_ACCOUNT_SID or not TWILIO_FROM:
+        log.error("Missing TWILIO_ACCOUNT_SID or TWILIO_FROM; cannot send outbound message")
+        return
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            body=body,
+            from_=TWILIO_FROM,
+            to=phone
+        )
+        log.info(f"Successfully pushed outbound WhatsApp message to {phone}")
+    except Exception as e:
+        log.exception(f"Failed to push message via Twilio client: {e}")
+
+
+def poll_job_and_send_whatsapp(phone: str, job_id: str, jwt_token: str) -> None:
+    headers = {
+        "Authorization": f"Bearer {jwt_token}",
+        "Content-Type": "application/json",
+    }
+    
+    deadline = time.time() + WA_CHAT_TIMEOUT_S
+    while time.time() < deadline:
+        try:
+            resp = requests.get(
+                f"{API_URL}/api/jobs/{job_id}",
+                headers=headers,
+                timeout=5,
+            )
+            resp.raise_for_status()
+            job = resp.json()
+            status = job.get("status")
+            
+            if status == "completed":
+                result = job.get("result") or {}
+                answer_text = md_to_wa(result.get("response", "") or "")
+                answer_text = with_citations(answer_text, result.get("citations") or [])
+                if not answer_text:
+                    answer_text = FALLBACK_GENERIC
+                
+                # Persist response and updated state
+                append_message(phone, "assistant", answer_text)
+                update_state(
+                    phone,
+                    meditation_step=int(result.get("meditation_step") or 0),
+                    last_serene_at=int(time.time()) if int(result.get("meditation_step") or 0) == 0 else None,
+                )
+                
+                log.info("Job %s completed, pushing response to %s", job_id, phone)
+                push_message(phone, answer_text)
+                return
+                
+            elif status == "failed":
+                log.error("Job %s failed for %s: %s", job_id, phone, job.get("error"))
+                push_message(phone, FALLBACK_GENERIC)
+                return
+                
+        except Exception as e:
+            log.warning(f"Error polling job {job_id} for {phone}: {e}")
+            
+        time.sleep(1.0)
+        
+    log.warning("Job %s timed out for %s", job_id, phone)
+    push_message(phone, FALLBACK_DOWN)
+
+
+def call_chat(phone: str, user_message: str, jwt_token: str) -> dict[str, Any]:
     """POST /api/chat. Raises requests.HTTPError on non-2xx; caller handles."""
     state = state_for(phone)
     body = {
@@ -216,7 +288,7 @@ def call_chat(phone: str, user_message: str) -> dict[str, Any]:
         "last_serene_mind_at": state["last_serene_at"],
     }
     headers = {
-        "Authorization": f"Bearer {mint_jwt(phone)}",
+        "Authorization": f"Bearer {jwt_token}",
         "Content-Type": "application/json",
     }
     resp = requests.post(
@@ -226,7 +298,6 @@ def call_chat(phone: str, user_message: str) -> dict[str, Any]:
         timeout=WA_CHAT_TIMEOUT_S,
     )
     if resp.status_code == 401:
-        # Re-mint once (clock skew or stale cache) and retry
         log.warning("chat 401 — re-minting JWT and retrying once")
         headers["Authorization"] = f"Bearer {mint_jwt(phone)}"
         resp = requests.post(
@@ -249,6 +320,13 @@ def _verify_twilio(req) -> bool:
 
 def _twiml(message: str) -> tuple[str, int, dict]:
     safe = (message or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # If message is empty, return empty response tag
+    if not safe:
+        return (
+            "<?xml version='1.0' encoding='UTF-8'?>\n<Response></Response>",
+            200,
+            {"Content-Type": "application/xml"},
+        )
     return (
         f"<?xml version='1.0' encoding='UTF-8'?>\n<Response><Message>{safe}</Message></Response>",
         200,
@@ -279,9 +357,32 @@ def incoming():
     # 2. Persist the user's message
     append_message(phone, "user", body)
 
-    # 3. Call the chat backend
+    # 3. Call the chat backend asynchronously via job queue
+    jwt_token = mint_jwt(phone)
     try:
-        resp = call_chat(phone, body)
+        resp = call_chat(phone, body, jwt_token)
+        job_id = resp.get("job_id")
+        if job_id:
+            threading.Thread(
+                target=poll_job_and_send_whatsapp,
+                args=(phone, job_id, jwt_token),
+                daemon=True
+            ).start()
+            return _twiml("")
+        else:
+            answer_text = md_to_wa(resp.get("response", "") or "")
+            answer_text = with_citations(answer_text, resp.get("citations") or [])
+            if not answer_text:
+                answer_text = FALLBACK_GENERIC
+
+            append_message(phone, "assistant", answer_text)
+            update_state(
+                phone,
+                meditation_step=int(resp.get("meditation_step") or 0),
+                last_serene_at=int(time.time()) if int(resp.get("meditation_step") or 0) == 0 else None,
+            )
+            return _twiml(answer_text)
+
     except requests.Timeout:
         log.warning("chat timeout for %s", phone)
         return _twiml(FALLBACK_DOWN)
@@ -292,31 +393,6 @@ def incoming():
     except Exception:
         log.exception("chat call failed for %s", phone)
         return _twiml(FALLBACK_GENERIC)
-
-    # 4. Format response
-    answer_text = md_to_wa(resp.get("response", "") or "")
-    answer_text = with_citations(answer_text, resp.get("citations") or [])
-    if not answer_text:
-        answer_text = FALLBACK_GENERIC
-
-    # 5. Persist response and updated state
-    append_message(phone, "assistant", answer_text)
-    update_state(
-        phone,
-        meditation_step=int(resp.get("meditation_step") or 0),
-        last_serene_at=int(time.time()) if int(resp.get("meditation_step") or 0) == 0 else None,
-    )
-
-    # 6. Log trace_id for incident debugging
-    log.info(
-        "OK %s | trace=%s | tier=%s | latency=%sms",
-        phone,
-        resp.get("trace_id", "?"),
-        resp.get("query_tier", "?"),
-        resp.get("latency_ms", "?"),
-    )
-
-    return _twiml(answer_text)
 
 
 @app.route("/healthz", methods=["GET"])

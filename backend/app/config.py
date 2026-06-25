@@ -248,6 +248,10 @@ class Settings(BaseSettings):
     retrieval_dedup_threshold: float = 0.85
     ingestion_dedup_threshold: float = 0.85
     raptor_parent_summaries_enabled: bool = True
+    use_markitdown_parser: bool = True
+    rag_compression_similarity_threshold: float = 0.50
+    rag_cache_alignment_enabled: bool = True
+    rag_context_compression_enabled: bool = True
 
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True
