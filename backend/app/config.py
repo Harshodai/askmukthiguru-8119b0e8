@@ -224,7 +224,7 @@ class Settings(BaseSettings):
     raptor_summary_model: str = ""  # Auto-set from model_preset
 
     # --- RAG ---
-    rag_top_k_retrieval: int = 30
+    rag_top_k_retrieval: int = 20
     rag_top_k_rerank: int = 10
     rag_max_rewrites: int = 1
     rag_chunk_size: int = 1500
@@ -240,12 +240,21 @@ class Settings(BaseSettings):
     rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
     max_tokens_per_request: int = 12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
 
+    # --- Retrieval Quality Gates ---
+    retrieval_score_delta_enabled: bool = True
+    retrieval_deduplication_enabled: bool = True
+    ingestion_deduplication_enabled: bool = True
+    rag_top_k_retrieval_after_cutoff: int = 10
+    retrieval_dedup_threshold: float = 0.85
+    ingestion_dedup_threshold: float = 0.85
+    raptor_parent_summaries_enabled: bool = True
+
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True
     flashrank_model: str = "auto"
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 5000
-    use_ingest_adaptive_chunker: bool = False  # Use ingest.adaptive_chunking port for max_accuracy mode
+    use_ingest_adaptive_chunker: bool = True  # Use ingest.adaptive_chunking port for max_accuracy mode
     use_boundary_chunker: bool = False
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
