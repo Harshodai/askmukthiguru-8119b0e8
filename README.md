@@ -51,6 +51,7 @@ This builds and starts **all 6 services**:
  |---|---|
  | http://localhost | Main app (landing, chat, practices, profile) |
  | http://localhost/admin | Admin dashboard (login: `admin` / `admin`) |
+ | http://localhost/admin/rag-flow | RAG Flow Graph Page — Visualizes active LangGraph nodes and execution latency |
  | http://localhost/static-chat | Lightweight chat widget — Auth-protected |
  | http://localhost/static-ingest | Content ingestion portal — Admin-only |
  | http://localhost:8000/api/health | Backend health check |
