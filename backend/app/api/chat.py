@@ -441,3 +441,78 @@ async def get_breath_teaching(
     _breath_teaching_cache[technique_id] = {"teaching": teaching, "ts": _time.time()}
 
     return {"technique_id": technique_id, "teaching": teaching, "cached": False}
+
+
+@router.get("/admin/concept-graph")
+async def get_concept_graph(
+    container: ServiceContainer = Depends(get_container),
+):
+    """Query Neo4j for spiritual concept nodes and relationships for D3.js visualization."""
+    if not settings.neo4j_uri:
+        return {
+            "nodes": [
+                {"id": "Soul Stage", "group": "Practice"},
+                {"id": "Serene Mind", "group": "Practice"},
+                {"id": "Deeksha", "group": "Concept"},
+                {"id": "Ekam", "group": "Concept"},
+                {"id": "Four Sacred Secrets", "group": "Concept"},
+            ],
+            "links": [
+                {"source": "Soul Stage", "target": "Serene Mind", "type": "RELATED_TO"},
+                {"source": "Deeksha", "target": "Ekam", "type": "REFERS_TO"},
+                {"source": "Four Sacred Secrets", "target": "Soul Stage", "type": "CONTAINS"},
+            ]
+        }
+
+    try:
+        from neo4j import GraphDatabase
+        
+        def _query_graph():
+            driver = GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password)
+            )
+            nodes = {}
+            links = []
+            with driver.session() as session:
+                cypher = """
+                MATCH (n)-[r]->(m)
+                RETURN n.entity_name AS source_name, labels(n)[0] AS source_label,
+                       type(r) AS rel_type,
+                       m.entity_name AS target_name, labels(m)[0] AS target_label
+                LIMIT 100
+                """
+                result = session.run(cypher)
+                for record in result:
+                    src = record["source_name"]
+                    tgt = record["target_name"]
+                    if not src or not tgt:
+                        continue
+                    
+                    if src not in nodes:
+                        nodes[src] = {"id": src, "group": record["source_label"] or "Concept"}
+                    if tgt not in nodes:
+                        nodes[tgt] = {"id": tgt, "group": record["target_label"] or "Concept"}
+                        
+                    links.append({
+                        "source": src,
+                        "target": tgt,
+                        "type": record["rel_type"]
+                    })
+            return {"nodes": list(nodes.values()), "links": links}
+            
+        return await asyncio.to_thread(_query_graph)
+    except Exception as e:
+        logger.warning(f"Failed to query Neo4j concept-graph: {e}")
+        return {
+            "nodes": [
+                {"id": "Soul Stage", "group": "Practice"},
+                {"id": "Serene Mind", "group": "Practice"},
+                {"id": "Deeksha", "group": "Concept"},
+                {"id": "Ekam", "group": "Concept"},
+            ],
+            "links": [
+                {"source": "Soul Stage", "target": "Serene Mind", "type": "RELATED_TO"},
+                {"source": "Deeksha", "target": "Ekam", "type": "REFERS_TO"},
+            ]
+        }
