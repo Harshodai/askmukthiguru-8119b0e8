@@ -45,6 +45,7 @@ const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
 const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
 const FeedbackPage = lazy(() => import("./admin/pages/FeedbackPage"));
 const JobsPage = lazy(() => import("./admin/pages/JobsPage"));
+const RAGFlowPage = lazy(() => import("./admin/pages/RAGFlowPage"));
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,9 @@ const App = () => {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="admins" element={<AdminsPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
+              <Route path="rag-flow" element={
+                <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
+              } />
             </Route>
 
             {/* Seeker */}
