@@ -1,5 +1,10 @@
 # Agentic Lessons & Memory
 
+## Jun 25, 2026 — Phase 2 Ruthless Integrations (MarkItDown, headroom, Understand-Anything)
+- **Problem**: RAG performance needed improvements across vision multi-modality (parsing diagram PDFs), dynamic verbosity/cost control, failed response self-correction, and implicit teachings linking in Neo4j.
+- **Fix**: Centralized all paths and parameters in `constants.py` (no hardcoding). Converted `.docx`, `.pptx`, `.xlsx`, `.mp3`, `.wav`, `.m4a` via `MarkItDown` using local Ollama. Steered generation verbosity and downgraded routing to `tier2_simple` when conversation turn count grows high. Mined negative feedback via Ollama refiner background task to log failure patterns. Inserted `RELATED_TO`, `EXPANDS_ON`, and `CONTRADICTS` concept linkages in Neo4j based on embedding similarities and LLM verification.
+- **Lesson**: Do not hardcode any file paths or magic numbers (use constants). Local Ollama services can support OpenAI-compatible client libraries directly via their `/v1` endpoint. Use FastAPI `dependency_overrides` instead of mock `patch` for routing dependencies in unit tests.
+
 ## Jun 25, 2026 — Telemetry Sink Background Worker Crash & Config Verification
 - **Problem**: When running custom assistant benchmarks, SQL telemetry was never written to Supabase. Inspection of backend logs revealed the async background stream worker was crashing with `TypeError: SupabaseTelemetrySink.log_query_trace_direct() got an unexpected keyword argument 'query_id'`.
 - **Fix**: The worker was using `**payload` kwargs unpacking to invoke `log_query_trace_direct()`, but that method only accepts a single `payload_dict: dict` argument. Changed the call to pass `payload` directly without unpacking.
