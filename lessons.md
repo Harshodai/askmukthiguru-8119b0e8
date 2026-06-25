@@ -1,5 +1,12 @@
 # Agentic Lessons & Memory
 
+## Jun 25, 2026 — Telemetry Sink Background Worker Crash & Config Verification
+- **Problem**: When running custom assistant benchmarks, SQL telemetry was never written to Supabase. Inspection of backend logs revealed the async background stream worker was crashing with `TypeError: SupabaseTelemetrySink.log_query_trace_direct() got an unexpected keyword argument 'query_id'`.
+- **Fix**: The worker was using `**payload` kwargs unpacking to invoke `log_query_trace_direct()`, but that method only accepts a single `payload_dict: dict` argument. Changed the call to pass `payload` directly without unpacking.
+- **Second Problem**: Gated RAG quality flags (`retrieval_score_delta_enabled`, `retrieval_deduplication_enabled`, `ingestion_deduplication_enabled`) were referenced in ingestion and retrieval nodes but not explicitly declared in `Settings` (`app/config.py`). If a developer flipped `ingestion_deduplication_enabled` to `True` without defining `ingestion_dedup_threshold` in config, it would crash on `AttributeError`.
+- **Fix**: Declared all missing quality settings in `Settings` and configured default production thresholds (`rag_top_k_retrieval=20`, `use_ingest_adaptive_chunker=True`, and all quality gates enabled by default).
+- **Lesson**: Background async workers must have comprehensive error handling to avoid silently discarding queue events on signature mismatch crashes. Always declare and validate all active pipeline configurations inside Pydantic `Settings` to prevent runtime `AttributeError` crashes when enabling gated flags.
+
 ## Jun 19, 2026 — OpenRouter Classification Gate & Rate Limiter Timeout Fix
 - **Problem**: `select_graph_for_query()` in `orchestrator_utils.py` called OpenRouter for query complexity classification on EVERY request, ignoring `use_openrouter_for_simple`. The flag only gated the graph-bypass generation path in `pipeline_coordinator.py`, not the classifier call.
 - **Fix**: Gated OpenRouter selection with `use_openrouter_for_simple` check in `select_graph_for_query()`. When disabled, Ollama fallback is used.
