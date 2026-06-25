@@ -193,11 +193,24 @@ class IngestionPipeline:
 
         text = ""
         ext = os.path.splitext(file_path)[1].lower()
+        supported_exts = {".pdf", ".txt", ".csv", ".docx", ".pptx", ".xlsx", ".mp3", ".wav", ".m4a"}
+
+        if ext not in supported_exts:
+            return {"status": "error", "message": f"Unsupported file type: {ext}"}
 
         if settings.use_markitdown_parser:
             try:
                 from markitdown import MarkItDown
-                md = MarkItDown()
+                from openai import OpenAI
+                
+                # Configure local OpenAI-compatible client for Ollama
+                ollama_v1_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
+                llm_client = OpenAI(base_url=ollama_v1_url, api_key="ollama")
+                
+                md = MarkItDown(
+                    llm_client=llm_client,
+                    llm_model=settings.model_for_generation
+                )
                 # Run convert synchronously
                 result = md.convert(file_path)
                 text = result.text_content
@@ -215,7 +228,10 @@ class IngestionPipeline:
                 with open(file_path, encoding="utf-8") as f:
                     text = f.read()
             else:
-                return {"status": "error", "message": f"Unsupported file type: {ext}"}
+                return {
+                    "status": "error",
+                    "message": f"MarkItDown parser failed and no native fallback exists for {ext}"
+                }
 
         if not text.strip():
             return {"status": "error", "message": "No text extracted from file"}
@@ -382,6 +398,9 @@ class IngestionPipeline:
         if self._lightrag:
             self._notify(on_progress, "Extracting knowledge graph...", 0.95)
             await self._lightrag.ainsert(clean_text)
+
+        # Implicit Teachings Concept Connector & Conflict/Synergy Detector
+        await self._implicit_teachings_connector(chunks)
 
         checkpoint.save(content_hash)
         self._notify(on_progress, "Complete!", 1.0)
@@ -1342,3 +1361,126 @@ class IngestionPipeline:
             except Exception:
                 pass  # Progress callbacks should never crash the pipeline
         logger.info(f"[{progress:.0%}] {message}")
+
+    async def _implicit_teachings_connector(self, chunks: list[str]) -> None:
+        """
+        Calculates similarity of new chunk embeddings against all Neo4j concepts,
+        auto-creates RELATED_TO, and detects EXPANDS_ON / CONTRADICTS via fast LLM check.
+        """
+        if not settings.neo4j_uri:
+            return
+
+        try:
+            import asyncio
+            from neo4j import GraphDatabase
+            from app.constants import CONCEPT_SIMILARITY_THRESHOLD
+            from datetime import datetime
+            import numpy as np
+
+            # 1. Fetch all concept/entity nodes from Neo4j
+            def _get_entities():
+                driver = GraphDatabase.driver(
+                    settings.neo4j_uri,
+                    auth=(settings.neo4j_user, settings.neo4j_password)
+                )
+                entities = []
+                with driver.session() as session:
+                    result = session.run("MATCH (n) WHERE n.entity_name IS NOT NULL RETURN n.entity_name AS name, n.description AS desc LIMIT 150")
+                    for r in result:
+                        entities.append({
+                            "name": r["name"],
+                            "desc": r["desc"] or ""
+                        })
+                return entities
+
+            entities = await asyncio.to_thread(_get_entities)
+            if not entities:
+                return
+
+            # 2. Compute embeddings for these concepts/entities
+            texts_to_embed = [f"{e['name']}: {e['desc'][:100]}" for e in entities]
+            
+            entity_embeddings = []
+            for text in texts_to_embed:
+                emb = self._embedder.encode_single(text)
+                entity_embeddings.append(emb)
+
+            # 3. Process each chunk
+            for chunk_text in chunks[:15]:
+                chunk_emb = self._embedder.encode_single(chunk_text)
+                chunk_emb_arr = np.array(chunk_emb)
+                chunk_norm = np.linalg.norm(chunk_emb_arr)
+
+                matches = []
+                for i, emb in enumerate(entity_embeddings):
+                    emb_arr = np.array(emb)
+                    norm = np.linalg.norm(emb_arr)
+                    if chunk_norm > 0 and norm > 0:
+                        similarity = np.dot(chunk_emb_arr, emb_arr) / (chunk_norm * norm)
+                        if similarity >= CONCEPT_SIMILARITY_THRESHOLD:
+                            matches.append((entities[i], similarity))
+
+                # 4. Insert relations in Neo4j
+                if matches:
+                    logger.info(f"Implicit Teachings Concept Connector: Found {len(matches)} matches for chunk above threshold {CONCEPT_SIMILARITY_THRESHOLD}")
+                    
+                    for entity, sim in matches:
+                        rel_type = "RELATED_TO"
+                        reason = f"Cosine similarity {sim:.3f}"
+
+                        if sim >= 0.82:
+                            system_prompt = (
+                                "You are a Theology Conflict & Synergy Detector. "
+                                "Analyze these two spiritual teaching segments and determine if they "
+                                "CONTRADICT each other (e.g. conflicting timings, opposing steps) or if "
+                                "the new teaching EXPANDS_ON the existing one. "
+                                "Return exactly 'CONTRADICTS' or 'EXPANDS_ON' or 'RELATED_TO' followed by a short 1-sentence reason. "
+                                "Format: <RELATION_TYPE> | <reason>"
+                            )
+                            user_prompt = (
+                                f"New Teaching: {chunk_text}\n\n"
+                                f"Existing Teaching: {entity['name']}: {entity['desc']}"
+                            )
+                            try:
+                                response = await self._llm.generate(
+                                    system_prompt=system_prompt,
+                                    user_prompt=user_prompt
+                                )
+                                parts = response.strip().split("|")
+                                detected_rel = parts[0].strip()
+                                if detected_rel in ["CONTRADICTS", "EXPANDS_ON"]:
+                                    rel_type = detected_rel
+                                    if len(parts) > 1:
+                                        reason = parts[1].strip()
+                            except Exception as llm_err:
+                                logger.warning(f"Failed to run LLM synergy detector: {llm_err}")
+
+                        # Write to Neo4j
+                        def _write_relation(target_name, relation, desc, sim_val):
+                            driver = GraphDatabase.driver(
+                                settings.neo4j_uri,
+                                auth=(settings.neo4j_user, settings.neo4j_password)
+                            )
+                            with driver.session() as session:
+                                cypher = f"""
+                                MATCH (target) WHERE target.entity_name = $target_name
+                                MERGE (src:__Chunk__ {{text: $chunk_text}})
+                                MERGE (src)-[r:{relation} {{similarity: $similarity, description: $desc, created_at: $timestamp}}]->(target)
+                                """
+                                session.run(
+                                    cypher,
+                                    target_name=target_name,
+                                    chunk_text=chunk_text[:300],
+                                    similarity=float(sim_val),
+                                    desc=desc,
+                                    timestamp=datetime.utcnow().isoformat()
+                                )
+                        await asyncio.to_thread(
+                            _write_relation,
+                            entity["name"],
+                            rel_type,
+                            reason,
+                            sim
+                        )
+        except Exception as e:
+            logger.warning(f"Implicit Teachings Concept Connector failed: {e}")

@@ -38,7 +38,8 @@ async def test_ingestion_deduplication(tmp_path, monkeypatch):
         from pathlib import Path
         self.filepath = Path(filepath)
         self.filepath.parent.mkdir(exist_ok=True)
-        self.processed_chunks = self._load()
+        self.data = self._load()
+        self.processed_chunks = set(self.data.keys())
     
     monkeypatch.setattr(IngestionCheckpoint, "__init__", mock_init)
     

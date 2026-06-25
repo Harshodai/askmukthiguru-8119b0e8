@@ -80,6 +80,21 @@ def _compute_context_budget(
     return baseline_tokens, max_context_tokens
 
 
+def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
+    """Classifies user familiarity level deterministically based on query and history."""
+    all_text = (question + " " + " ".join([m.get("content", "") for m in chat_history])).lower()
+    
+    advanced_terms = ["deeksha", "soul sync", "aham", "frontal lobe", "parietal", "neurobiological", "golden light", "humming"]
+    practitioner_terms = ["meditation", "breath", "breath awareness", "teachings", "secrets", "wisdom", "practice"]
+    
+    if any(term in all_text for term in advanced_terms):
+        return "Advanced Meditator"
+    elif any(term in all_text for term in practitioner_terms):
+        return "Practitioner"
+    else:
+        return "Seeker"
+
+
 @log_metrics
 async def context_engineer(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State."""
@@ -94,12 +109,37 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     # Layer 1: Persona (capped to 512 tokens)
     assistant_system_prompt = state.get("assistant_system_prompt")
     if assistant_system_prompt:
-        # Custom assistant persona override — safety instructions remain in Layer 4
         persona = assistant_system_prompt
     elif intent == "DISTRESS":
         persona = STIMULUS_RAG_PROMPT
     else:
         persona = GURU_SYSTEM_PROMPT
+
+    # Dynamic Persona Adaptation based on User Level
+    user_level = classify_user_familiarity(state.get("question", ""), chat_history)
+    if user_level == "Seeker":
+        persona += (
+            "\n\n[USER CLASSIFICATION: SEEKER]\n"
+            "Style instruction: The user is a seeker new to these practices. "
+            "Use simple, comforting, and clear language. If you use any Sanskrit terms (e.g., Deeksha, Ananda, Aham), "
+            "always explain them simply. Avoid deep esoteric concepts and focus on basic steps."
+        )
+    elif user_level == "Practitioner":
+        persona += (
+            "\n\n[USER CLASSIFICATION: PRACTITIONER]\n"
+            "Style instruction: The user is a practitioner familiar with the basics. "
+            "Maintain a balanced tone: integrate core teachings with active meditation tips. "
+            "No need to over-explain basic terms, but keep descriptions practical and grounded."
+        )
+    else:  # Advanced Meditator
+        persona += (
+            "\n\n[USER CLASSIFICATION: ADVANCED MEDITATOR]\n"
+            "Style instruction: The user is an advanced meditator. "
+            "Provide deep, direct philosophical explanations. Reference the underlying spiritual concepts "
+            "and physiological terms (e.g., frontal lobe, parietal lobe activity) directly. "
+            "Focus on deep spiritual transformation."
+        )
+
     persona = cap_to_token_budget(persona, 512)
 
     # Layer 2: Knowledge (Retrieved Chunks)
@@ -161,6 +201,16 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         "specific month and power name together (e.g. 'January: Power of Intention').\n"
         "13. REVERSIBLE COMPRESSION — If the Knowledge provided is compressed or missing detail and you need the full uncompressed text of a document to answer accurately, you MUST output exactly '[RETRIEVE: <source_url>]' as your entire response. Do NOT add any other words or explanation."
     )
+    # headroom Cost Steering
+    history_messages_count = len(chat_history)
+    from app.constants import MAX_COST_STEERED_HISTORY_TURNS, COST_STEERED_BREVITY_LIMIT
+    cost_steered_brevity = history_messages_count > (MAX_COST_STEERED_HISTORY_TURNS * 2)
+
+    if cost_steered_brevity:
+        logger.info(f"headroom Cost Steering: history messages count {history_messages_count} > threshold. Forcing brevity and setting simple routing.")
+        # Inject instruction in Layer 4 (Instructions)
+        instructions += f"\n14. COST STEERING — The conversation history is long. You MUST be extremely concise and answer in under {COST_STEERED_BREVITY_LIMIT} words."
+
     instructions = cap_to_token_budget(instructions, 900)
 
     context_layers = {
@@ -171,7 +221,12 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     }
 
     logger.info("Context Engineering: Layers assembled and capped to strict token budgets")
-    return {"context_layers": context_layers}
+    
+    ret_dict = {"context_layers": context_layers}
+    if cost_steered_brevity:
+        ret_dict["query_tier"] = "tier2_simple"
+        
+    return ret_dict
 
 
 @log_metrics

@@ -118,3 +118,9 @@ PROVIDER_MODELS = {
         "fast": "meta-llama/llama-3.1-8b-instruct",
     },
 }
+
+# --- Phase 2 Ruthless Integration Constants ---
+FEEDBACK_LESSONS_FILE_PATH = "backend/data/feedback_lessons.jsonl"
+CONCEPT_SIMILARITY_THRESHOLD = 0.78
+MAX_COST_STEERED_HISTORY_TURNS = 3
+COST_STEERED_BREVITY_LIMIT = 80
