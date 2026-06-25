@@ -2227,3 +2227,39 @@ fcc-server
 **NEVER manually copy files to the uv tool install directory.** Always `git pull`, edit source, then `uv tool install . --reinstall`.
 The uv tool install is disposable — it gets rebuilt from source.
 
+## Jun 25, 2026 — Telemetry Sink Dict Unpacking Crash, Settings Gaps, and Migration Layout
+
+### Problem 1: Telemetry Sink Crash
+The background telemetry worker in `backend/app/telemetry_sink.py` crashed on query logging due to dictionary unpacking error: `unexpected keyword argument 'query_id'`.
+
+### Root Cause 1
+The telemetry worker received a payload dict and tried to push it via:
+```python
+await self.publish_telemetry_event(**payload)
+```
+But `publish_telemetry_event()` was declared to take a single `payload: dict` argument, not keyword arguments. Thus, unpacking it via `**payload` caused it to pass individual keys as kwargs, leading to a function signature mismatch and immediate crash.
+
+### Fix 1
+Changed the publish call to pass the dictionary directly without unpacking:
+```python
+await self.publish_telemetry_event(payload)
+```
+
+---
+
+### Problem 2: Settings AttributeError on Gated Features
+Flipping quality gates like `ingestion_deduplication_enabled = True` in `config.py` threw `AttributeError: Settings object has no attribute 'ingestion_dedup_threshold'` at runtime inside the ingestion pipeline.
+
+### Root Cause 2
+The code in `backend/ingest/pipeline.py` assumed `settings.ingestion_dedup_threshold` existed, but only the boolean gate `ingestion_deduplication_enabled` was declared in the Pydantic `Settings` class in `config.py`. 
+
+### Fix 2
+Always declare all dependent parameters (thresholds, default numbers, sizes) in `config.py` when implementing or turning on a gated feature.
+
+---
+
+### Problem 3: DB Migrations Not Auto-Applying
+The `assistant_slug` migration script was placed in `scripts/migrations/`, meaning a fresh/clean environment executing `npx supabase start` did not provision it, leading to schema drift.
+
+### Fix 3
+Place all DB migration scripts inside the official `supabase/migrations/` directory so they are automatically and reproducibly executed on local stack start.

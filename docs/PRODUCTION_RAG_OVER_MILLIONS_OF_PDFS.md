@@ -72,8 +72,8 @@ The chat pipeline already threads `knowledge_tags` from `GraphState` through `re
 
 ### What is missing / gated
 
-- Both dedup passes are disabled by default and must be enabled via config.
-- There is no persisted duplicate index or bloom filter across re-ingestion.
+- Both dedup passes (ingestion and retrieval) are now enabled by default.
+- There is no persisted duplicate index or bloom filter across re-ingestion (deferred).
 
 ---
 
@@ -94,9 +94,9 @@ The chat pipeline already threads `knowledge_tags` from `GraphState` through `re
 
 ### What is missing / gated
 
-- `retrieval_score_delta_enabled` is currently `False` by default.
-- The default `rag_top_k_retrieval=30` is still high; enabling the cutoff and lowering the cap should be validated with `smoke_doctrine.py` and `ruthless_benchmark.py`.
-- CRAG floor enforcement is present but not wired to automatically raise a rewrite if the floor fails.
+- `retrieval_score_delta_enabled` is now enabled by default.
+- The default `rag_top_k_retrieval` is now set to `20` (down from `30`) with the score-delta cutoff active.
+- CRAG floor enforcement is present but not wired to automatically raise a rewrite if the floor fails (deferred).
 
 ---
 
@@ -118,7 +118,7 @@ The chat pipeline already threads `knowledge_tags` from `GraphState` through `re
 
 ### What is missing / gated
 
-- `raptor_parent_summaries_enabled` is not set by default in `backend/app/config.py`; enable it for richer RAPTOR summaries.
+- `raptor_parent_summaries_enabled` is now enabled by default in `backend/app/config.py`.
 - There is no explicit paragraph-boundary-preserving overlap yet; the boundary chunker is the closest equivalent.
 
 ---
@@ -166,12 +166,12 @@ The live chat path is: **metadata filter → answer cache → vector search → 
 | Answer cache before search | Implemented | `backend/rag/nodes/retrieval.py:retrieve_documents()` checks `_services._semantic_cache.get()`; enabled via `semantic_cache_enabled` and `use_qdrant_semantic_cache`. |
 | Vector search | Implemented | `backend/services/qdrant_service.py:search()` with dense + sparse hybrid; default `rag_top_k_retrieval=30`. |
 | RRF merge + diversity | Implemented | `backend/rag/nodes/retrieval.py` merges Qdrant summary/leaf results and optional LightRAG graph via `_rrf_docs()`; MMR selection via `qdrant.mmr_select()`. |
-| Score-delta cutoff | Implemented, gated | `backend/rag/nodes/retrieval.py:_apply_score_delta_cutoff()`; flag `retrieval_score_delta_enabled` (currently defaults to `False`). |
-| Retrieval dedup | Implemented, gated | `backend/rag/nodes/retrieval.py:_apply_retrieval_dedup()`; flag `retrieval_deduplication_enabled` (currently defaults to `False`). |
+| Score-delta cutoff | Implemented, enabled | `backend/rag/nodes/retrieval.py:_apply_score_delta_cutoff()`; flag `retrieval_score_delta_enabled` (enabled by default). |
+| Retrieval dedup | Implemented, enabled | `backend/rag/nodes/retrieval.py:_apply_retrieval_dedup()`; flag `retrieval_deduplication_enabled` (enabled by default). |
 | Reranker | Implemented | `backend/rag/nodes/reranking.py:rerank_documents()` uses FlashRank when `use_flashrank=true`, otherwise CrossEncoder/ColBERT cascade; `rerank_min_score=0.35`; `rag_top_k_rerank=10`. |
 | 5-10 chunks to LLM | Implemented | `rag_top_k_rerank=10` is the default hard cap; CRAG grading (`grade_documents`) further trims to relevant docs, usually ≤10. |
 
-**Gaps:** score-delta and retrieval dedup are off by default; there is no persistent query-plan cache; the CRAG floor does not yet auto-trigger a query rewrite.
+**Gaps:** There is no persistent query-plan cache; the CRAG floor does not yet auto-trigger a query rewrite (deferred).
 
 **GOAL tracking:** `.claude/GOAL.md` Phase 5.5 (enable `retrieval_score_delta_enabled`, `retrieval_deduplication_enabled`, lower `rag_top_k_retrieval`, wire CRAG floor to rewrite).
 
@@ -213,8 +213,8 @@ Cache observability: `GET /api/metrics/cache` (`backend/app/api/cache_metrics.py
 |-----------|-------------|------------|---------------------|-------|
 | Better chunking | Yes | Partially | `use_boundary_chunker`, `use_ingest_adaptive_chunker` | `test_adaptive_chunking.py`, `chunk_size_evaluation.py` |
 | Metadata filtering | Yes | Partially | `knowledge_tags` request field | `test_retrieve_documents_contract.py` |
-| Deduplication | Yes | No | `ingestion_deduplication_enabled`, `retrieval_deduplication_enabled` | — |
-| Fewer-but-better chunks | Yes | Partially | `retrieval_score_delta_enabled` | `test_retrieval_quality.py`, `test_graph_strategies.py` |
+| Deduplication | Yes | Yes | `ingestion_deduplication_enabled`, `retrieval_deduplication_enabled` | — |
+| Fewer-but-better chunks | Yes | Yes | `retrieval_score_delta_enabled` | `test_retrieval_quality.py`, `test_graph_strategies.py` |
 | Preprocessing | Yes | Yes | `data_audit_enabled` | `test_ingestion_pipeline.py` |
 | Ingestion pipeline | Partial | Partially | `queue_enabled`, `rag_chunk_size`, `ocr_languages` | `test_ingestion_pipeline.py`, `test_ingest_adaptive_chunking.py` |
 | Embeddings & indexing | Partial | Yes (Qdrant) | `qdrant_url`, `embedding_model`, `embedding_dimension` | `test_embedding_service.py`, `test_retrieve_documents_contract.py` |
@@ -226,23 +226,16 @@ Cache observability: `GET /api/metrics/cache` (`backend/app/api/cache_metrics.py
 
 ## Recommended next steps
 
-1. **Enable the ekimetrics port by default** after one benchmark run confirms no regression:
-   ```bash
-   USE_INGEST_ADAPTIVE_CHUNKER=true
-   ```
-2. **Turn on retrieval deduplication and score-delta cutoff** and measure latency/quality:
-   ```bash
-   RETRIEVAL_DEDUPLICATION_ENABLED=true
-   RETRIEVAL_SCORE_DELTA_ENABLED=true
-   ```
-3. **Lower default top-k** from 30 to 15–20 once the cutoff is active and validated.
-4. **Enable `raptor_parent_summaries_enabled`** for hierarchical ingestion runs.
-5. **Expose the missing config knobs** in `backend/app/config.py`: `retrieval_score_delta_enabled`, `retrieval_deduplication_enabled`, `ingestion_deduplication_enabled`, `rag_top_k_retrieval_after_cutoff`, `retrieval_dedup_threshold`, `ingestion_dedup_threshold`.
+1. **[x] Enable the ekimetrics port by default** (completed)
+2. **[x] Turn on retrieval deduplication and score-delta cutoff** (completed)
+3. **[x] Lower default top-k from 30 to 20** (completed)
+4. **[x] Enable `raptor_parent_summaries_enabled`** (completed)
+5. **[x] Expose the missing config knobs** (completed)
 6. **Add S3 / GCS PDF loader and scanned-PDF OCR** so the ingestion pipeline matches the "millions of PDFs" scale.
 7. **Capture PDF structure metadata** (`doc_id`, `page_number`, `section_title`, `creation_timestamp`) in Qdrant payload.
 8. **Wire the retrieval cache** (`SearchResultCache`) into `retrieve_for_single_query` or replace it with the Qdrant semantic cache.
 9. **Add MRR reporting** and a scheduled re-embedding / rebuild job.
-10. **Run Phase 6 verification** (`smoke_doctrine.py` + `ruthless_benchmark.py`) with the Phase 5.5 defaults enabled.
+10. **[x] Run Phase 6 verification** (completed)
 
 ---
 
