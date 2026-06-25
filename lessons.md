@@ -2275,3 +2275,13 @@ The `assistant_slug` migration script was placed in `scripts/migrations/`, meani
 
 ### Fix 3
 Place all DB migration scripts inside the official `supabase/migrations/` directory so they are automatically and reproducibly executed on local stack start.
+
+---
+
+### Problem: Memory UI Display Gaps & Inefficient Bloat
+The frontend memories popover showed empty list items for users due to utilizing the optional `claim` field rather than standard `content` data. In addition, there was no auto-compaction strategy for episodic memories when they grew large.
+
+### Fix
+1. Updated `ChatHeader.tsx` to render `{m.content || m.claim}` in the memory list, ensuring memories display correctly.
+2. Added `compact_memories` to `MemoryService` in `memory_service.py` to auto-consolidate episodic memories using LLM once total exceeds 15, returning a maximum of 8 high-quality summaries. Used pre-generation of dense embeddings to ensure atomic DB replacement.
+
