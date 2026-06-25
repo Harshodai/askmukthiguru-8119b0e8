@@ -107,3 +107,6 @@ instructor>=1.0.0
 # guardrails-ai>=0.4.0
 # ragas>=0.1.0
 # trulens-eval>=0.28.0
+
+# --- MarkItDown Document Parser ---
+markitdown>=0.0.1a2

@@ -178,6 +178,14 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     """Generate the final answer with inline hint extraction."""
     question = state.get("rewritten_query") or state["question"]
     relevant_docs = state["relevant_docs"]
+    if getattr(settings, "rag_cache_alignment_enabled", True) and relevant_docs:
+        relevant_docs = sorted(
+            relevant_docs,
+            key=lambda d: (
+                str(d.get("source_url", "") or d.get("title", "") or ""),
+                int(d.get("chunk_index", 0) or 0)
+            )
+        )
     chat_history = state.get("chat_history", [])
     lang = state.get("detected_language", "en")
     ollama = _services._ollama

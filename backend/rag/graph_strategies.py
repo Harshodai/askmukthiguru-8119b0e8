@@ -59,7 +59,7 @@ def route_after_intent(state: GraphState) -> str:
         return "distress"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION"]:
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR"]:
         if needs_web_search:
             return "temporal"
         return "query"

@@ -62,6 +62,9 @@ _CLASS_KEYWORDS: dict[str, list[str]] = {
         "how can i", "how should i", "how to", "steps to", "guide me", "teach me",
         "learn to", "guidelines", "instructions", "steps", "process", "method",
     ],
+    "GUIDED_TOUR": [
+        "start the meditation journey", "guided tour", "guided pathway", "learning path", "journey", "tour", "start journey", "guided journey"
+    ],
 }
 
 # Normalise keys -> lowercase regex
@@ -244,7 +247,7 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
 
     # Map to tier
     tier = "tier3_complex"
-    if intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION"):
+    if intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION", "GUIDED_TOUR"):
         tier = "tier2_simple"
 
     return intent, tier, f"on_device_{intent.lower()}"

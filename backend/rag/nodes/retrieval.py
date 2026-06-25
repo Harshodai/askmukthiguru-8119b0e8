@@ -31,6 +31,129 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+
+async def query_neo4j_subgraph(query: str) -> str:
+    """
+    Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
+    """
+    from ingest.pipeline import extract_doctrine_tags
+    matched_concepts = extract_doctrine_tags(query)
+    if not matched_concepts:
+        return ""
+        
+    if not settings.neo4j_uri:
+        return ""
+        
+    try:
+        from neo4j import GraphDatabase
+        
+        def _run():
+            driver = GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password)
+            )
+            subgraph_context = []
+            with driver.session() as session:
+                cypher = """
+                MATCH (n1 {entity_name: $concept})-[r]->(n2)
+                RETURN n1.entity_name AS source, type(r) AS rel, r.description AS desc, n2.entity_name AS target
+                LIMIT 15
+                """
+                for concept in matched_concepts:
+                    result = session.run(cypher, concept=concept)
+                    for record in result:
+                        desc_str = f" - {record['desc']}" if record.get("desc") else ""
+                        subgraph_context.append(
+                            f"Relationship: {record['source']} -[{record['rel']}]-> {record['target']}{desc_str}"
+                        )
+            return subgraph_context
+
+        res = await asyncio.to_thread(_run)
+        if res:
+            return "\n[Targeted Subgraph Context]:\n" + "\n".join(res)
+    except Exception as e:
+        logger.warning(f"Failed to fetch Neo4j targeted subgraph: {e}")
+    return ""
+
+
+async def query_neo4j_guided_tour(query: str) -> list[dict]:
+    """
+    Query Neo4j for guided tour/pathway steps.
+    Returns list of dicts representing the steps, or a mock sequence if no graph database is configured/empty.
+    """
+    tour_name = "meditation journey"
+    if not settings.neo4j_uri:
+        return [
+            {
+                "content": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
+                "text": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
+                "title": "Step 1: Soul Stage",
+                "source_url": "neo4j://tour/meditation_journey/step1",
+                "chunk_index": 1,
+                "score": 1.0,
+            },
+            {
+                "content": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
+                "text": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
+                "title": "Step 2: Serene Mind",
+                "source_url": "neo4j://tour/meditation_journey/step2",
+                "chunk_index": 2,
+                "score": 0.9,
+            },
+        ]
+
+    try:
+        from neo4j import GraphDatabase
+        def _run():
+            driver = GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password)
+            )
+            steps = []
+            with driver.session() as session:
+                cypher = """
+                MATCH (t:Tour)-[:HAS_STEP]->(s:Step)
+                WHERE t.name CONTAINS $tour_name OR s.tour_name CONTAINS $tour_name
+                RETURN s.step_number AS step_number, s.title AS title, s.description AS description
+                ORDER BY s.step_number ASC
+                """
+                result = session.run(cypher, tour_name=tour_name)
+                for record in result:
+                    steps.append({
+                        "content": f"Step {record['step_number']}: {record['title']}. {record['description']}",
+                        "text": f"Step {record['step_number']}: {record['title']}. {record['description']}",
+                        "title": f"Step {record['step_number']}: {record['title']}",
+                        "source_url": f"neo4j://tour/{tour_name}/step{record['step_number']}",
+                        "chunk_index": record['step_number'],
+                        "score": 1.0 - (0.05 * record['step_number']),
+                    })
+            return steps
+
+        res = await asyncio.to_thread(_run)
+        if res:
+            return res
+    except Exception as e:
+        logger.warning(f"Failed to query Neo4j guided tour: {e}")
+
+    return [
+        {
+            "content": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
+            "text": "Step 1: Soul Stage. Focus on the connection with the Universal Intelligence, feeling the expansion of consciousness and dropping all resistance.",
+            "title": "Step 1: Soul Stage",
+            "source_url": "neo4j://tour/meditation_journey/step1",
+            "chunk_index": 1,
+            "score": 1.0,
+        },
+        {
+            "content": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
+            "title": "Step 2: Serene Mind",
+            "text": "Step 2: Serene Mind. Cultivate inner stillness using breathing patterns, settling into a space of quiet observation and deep presence.",
+            "source_url": "neo4j://tour/meditation_journey/step2",
+            "chunk_index": 2,
+            "score": 0.9,
+        },
+    ]
+
 # Module-level semantic cache instance (lazy-initialized)
 _semantic_cache: Optional[Any] = None
 
@@ -329,6 +452,10 @@ async def retrieve_for_single_query(
             lg_node_lines = [line for line in deduped_lines if line.strip()]
             if len(lg_node_lines) > 50:
                 graph_answer = "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
+            if intent == "RELATIONAL":
+                subgraph_ctx = await query_neo4j_subgraph(query)
+                if subgraph_ctx:
+                    graph_answer += "\n" + subgraph_ctx
             # Normalise score by LightRAG content richness so it doesn't
             # clobber downstream rankers with an arbitrary 1.0.
             lg_score = min(0.9, 0.7 + 0.02 * len(lg_node_lines))
@@ -362,6 +489,68 @@ async def retrieve_for_single_query(
     return deduped
 
 
+async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> list[dict]:
+    """Compress retrieved docs by keeping only sentences matching query threshold."""
+    if not docs:
+        return []
+    
+    all_sentences_with_meta = []
+    for doc_idx, doc in enumerate(docs):
+        text = doc.get("text", "") or doc.get("content", "")
+        if not text:
+            continue
+        sentences = _split_into_sentences(text)
+        for s in sentences:
+            all_sentences_with_meta.append({
+                "doc_idx": doc_idx,
+                "text": s,
+            })
+            
+    if not all_sentences_with_meta:
+        return docs
+        
+    sentence_texts = [item["text"] for item in all_sentences_with_meta]
+    try:
+        sentence_enc = await asyncio.to_thread(embedder.encode_batch, sentence_texts)
+        sentence_embs = sentence_enc["dense"]
+        
+        query_enc = await asyncio.to_thread(embedder.encode_single_full, query)
+        query_emb = query_enc["dense"]
+        
+        import numpy as np
+        query_norm = np.linalg.norm(query_emb)
+        
+        doc_idx_to_kept_sentences = {}
+        for idx, item in enumerate(all_sentences_with_meta):
+            emb = sentence_embs[idx]
+            emb_norm = np.linalg.norm(emb)
+            if emb_norm == 0 or query_norm == 0:
+                sim = 0.0
+            else:
+                sim = float(np.dot(emb, query_emb) / (emb_norm * query_norm))
+                
+            if sim >= getattr(settings, "rag_compression_similarity_threshold", 0.50):
+                doc_idx = item["doc_idx"]
+                if doc_idx not in doc_idx_to_kept_sentences:
+                    doc_idx_to_kept_sentences[doc_idx] = []
+                doc_idx_to_kept_sentences[doc_idx].append(item["text"])
+                
+        compressed_docs = []
+        for doc_idx, doc in enumerate(docs):
+            if doc_idx in doc_idx_to_kept_sentences:
+                kept_text = " ".join(doc_idx_to_kept_sentences[doc_idx])
+                new_doc = dict(doc)
+                new_doc["text"] = kept_text
+                new_doc["content"] = kept_text
+                compressed_docs.append(new_doc)
+                
+        logger.info(f"Context compression: reduced doc count from {len(docs)} to {len(compressed_docs)}")
+        return compressed_docs if compressed_docs else docs
+    except Exception as e:
+        logger.warning(f"Error during context compression: {e}")
+        return docs
+
+
 @log_metrics
 async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     """Two-phase hybrid retrieval from Qdrant."""
@@ -371,6 +560,22 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return contract_err
 
     query_tier = state.get("query_tier", "standard")
+    intent = state.get("intent", "FACTUAL")
+    if intent == "GUIDED_TOUR":
+        base_question = state.get("rewritten_query") or state["question"]
+        tour_docs = await query_neo4j_guided_tour(base_question)
+        return {
+            "documents": tour_docs,
+            "relevant_docs": tour_docs,
+            "sub_queries": [base_question],
+            "retrieval_queries": [base_question],
+            "evaluation_trace": state.get("evaluation_trace", []) + [{
+                "node": "retrieve_documents",
+                "result": "guided_tour_retrieved",
+                "count": len(tour_docs),
+            }],
+        }
+
     configurable = {}
     if getattr(settings, "SEMANTIC_CACHE_ENABLED", True):
         query = state.get("rewritten_query") or state["question"]
@@ -575,6 +780,24 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             top_k=settings.rag_top_k_retrieval,
             lambda_param=0.7,
         )
+
+    if not all_docs:
+        logger.info("RAG retrieval yielded zero chunks. Triggering web-search fallback.")
+        web_search_service = getattr(_services, "_web_search", None)
+        if web_search_service is not None:
+            try:
+                question = state.get("rewritten_query") or state["question"]
+                user_id = state.get("user_id")
+                web_results = await web_search_service.search(question, user_id=user_id)
+                if web_results:
+                    logger.info(f"Web-search fallback found {len(web_results)} results.")
+                    all_docs = web_results
+            except Exception as exc:
+                logger.warning(f"Web-search fallback failed: {exc}")
+
+    if getattr(settings, "rag_context_compression_enabled", True):
+        question = state.get("rewritten_query") or state["question"]
+        all_docs = await _compress_rag_context_impl(question, all_docs, embedder)
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {

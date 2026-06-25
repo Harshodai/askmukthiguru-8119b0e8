@@ -22,19 +22,41 @@ class IngestionCheckpoint:
     def __init__(self, filepath="data/ingest_checkpoint.json"):
         self.filepath = Path(filepath)
         self.filepath.parent.mkdir(exist_ok=True)
-        self.processed_chunks = self._load()
+        self.data = self._load()
+        self.processed_chunks = set(self.data.keys())
 
-    def _load(self):
+    def _load(self) -> dict:
         if self.filepath.exists():
-            return set(json.loads(self.filepath.read_text()))
-        return set()
+            try:
+                loaded = json.loads(self.filepath.read_text())
+                if isinstance(loaded, list):
+                    # Backward compatibility conversion: list to dict
+                    import time
+                    return {h: {"migrated": True, "timestamp": time.time()} for h in loaded}
+                elif isinstance(loaded, dict):
+                    return loaded
+            except Exception as e:
+                logger.warning(f"Failed to load checkpoint file: {e}")
+        return {}
 
-    def save(self, chunk_id: str):
+    def save(self, chunk_id: str, metadata: Optional[dict] = None):
+        import time
         self.processed_chunks.add(chunk_id)
-        self.filepath.write_text(json.dumps(list(self.processed_chunks)))
+        self.data[chunk_id] = metadata or {"timestamp": time.time()}
+        try:
+            self.filepath.write_text(json.dumps(self.data, indent=2))
+        except Exception as e:
+            logger.error(f"Failed to save checkpoint: {e}")
 
     def is_processed(self, chunk_id: str) -> bool:
         return chunk_id in self.processed_chunks
+
+    def prune_stale_entries(self, active_hashes: list[str]):
+        """Remove any entries from checkpoint that are no longer active."""
+        active_set = set(active_hashes)
+        self.data = {k: v for k, v in self.data.items() if k in active_set}
+        self.processed_chunks = set(self.data.keys())
+        self.filepath.write_text(json.dumps(self.data, indent=2))
 
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -66,10 +88,47 @@ from services.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
 
-
 from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.auditor import DataAuditor
 from ingest.corrector import TranscriptCorrector
+
+
+def is_valid_text_deterministic(text: str) -> tuple[bool, str]:
+    """
+    Run low-cost deterministic checks on text before calling LLMs.
+    Returns (is_valid, reason).
+    """
+    if not text or not text.strip():
+        return False, "Empty text"
+    
+    # Check length
+    if len(text.strip()) < 50:
+        return False, "Text too short (<50 characters)"
+        
+    # Check if mostly HTML tags
+    import re
+    html_tags = re.findall(r"<[^>]+>", text)
+    if html_tags and len(html_tags) * 15 > len(text):
+        return False, "Input contains mostly HTML tag structure"
+        
+    return True, ""
+
+
+def extract_doctrine_tags(text: str) -> list[str]:
+    """
+    Scans text for terms in DOCTRINE_SYNONYMS and returns matching canonical concepts.
+    """
+    from rag.nodes.utils import DOCTRINE_SYNONYMS
+    matched = set()
+    text_lower = text.lower()
+    for canonical, alternates in DOCTRINE_SYNONYMS.items():
+        for alt in alternates:
+            import re
+            pattern = r'\b' + re.escape(alt.lower()) + r'\b'
+            if re.search(pattern, text_lower):
+                matched.add(canonical)
+                break
+    return list(matched)
 
 
 class IngestionPipeline:
@@ -135,17 +194,28 @@ class IngestionPipeline:
         text = ""
         ext = os.path.splitext(file_path)[1].lower()
 
-        if ext == ".pdf":
-            from pypdf import PdfReader
+        if settings.use_markitdown_parser:
+            try:
+                from markitdown import MarkItDown
+                md = MarkItDown()
+                # Run convert synchronously
+                result = md.convert(file_path)
+                text = result.text_content
+            except Exception as e:
+                logger.error(f"MarkItDown conversion failed for {file_path}: {e}. Falling back to default parsers.")
 
-            reader = PdfReader(file_path)
-            for page in reader.pages:
-                text += page.extract_text() + "\n"
-        elif ext == ".txt":
-            with open(file_path, encoding="utf-8") as f:
-                text = f.read()
-        else:
-            return {"status": "error", "message": f"Unsupported file type: {ext}"}
+        if not text:
+            if ext == ".pdf":
+                from pypdf import PdfReader
+
+                reader = PdfReader(file_path)
+                for page in reader.pages:
+                    text += page.extract_text() + "\n"
+            elif ext in [".txt", ".csv"]:
+                with open(file_path, encoding="utf-8") as f:
+                    text = f.read()
+            else:
+                return {"status": "error", "message": f"Unsupported file type: {ext}"}
 
         if not text.strip():
             return {"status": "error", "message": "No text extracted from file"}
@@ -230,6 +300,9 @@ class IngestionPipeline:
         """
         import hashlib
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+        doc_tags = extract_doctrine_tags(text)
+        if doc_tags:
+            tags = list(set(tags + doc_tags))
         content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(content_hash):
@@ -359,6 +432,19 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
                 "message": "Content already processed. Skipped.",
+            }
+
+        # Step 1.15: Deterministic pre-filter to save LLM/API costs
+        is_ok, reason = is_valid_text_deterministic(raw_text)
+        if not is_ok:
+            logger.warning(f"Deterministic pre-filter rejected {url}: {reason}")
+            self._notify(on_progress, f"Rejected by pre-filter: {reason}", 1.0)
+            return {
+                "status": "error",
+                "message": f"Pre-filter rejection: {reason}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
             }
 
         # Step 1.2: Correct Transcript (Council Recommendation)
@@ -507,6 +593,19 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
                 "message": "Content already processed. Skipped.",
+            }
+
+        # Step 1.15: Deterministic pre-filter to save LLM/API costs
+        is_ok, reason = is_valid_text_deterministic(raw_text)
+        if not is_ok:
+            logger.warning(f"Deterministic pre-filter rejected {url}: {reason}")
+            self._notify(on_progress, f"Rejected by pre-filter: {reason}", 1.0)
+            return {
+                "status": "error",
+                "message": f"Pre-filter rejection: {reason}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
             }
 
         # Step 1.2: Correct Transcript (Council Recommendation)

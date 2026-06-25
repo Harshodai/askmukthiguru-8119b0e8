@@ -702,6 +702,7 @@ def route_by_intent(state: GraphState) -> str:
         "FOLLOW_UP",
         "ADVERSARIAL",
         "SAFETY_VIOLATION",
+        "GUIDED_TOUR",
     ]:
         return "query"
     elif intent in ["ERROR"]:
