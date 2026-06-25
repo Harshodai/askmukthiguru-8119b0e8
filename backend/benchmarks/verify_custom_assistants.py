@@ -42,11 +42,10 @@ async def query_chat_api(config: dict, payload: dict) -> httpx.Response:
 
 def check_db_telemetry(config: dict, expected_slug: str) -> bool:
     """Run a query inside the Supabase Postgres container to check telemetry."""
-    sql = "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;"
+    sql = f"SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = '{expected_slug}' LIMIT 1;"
     cmd = [
         "docker", "exec", "-i", config["db_container"],
         "psql", "-U", "postgres", "-d", "postgres",
-        "-v", f"slug={expected_slug}",
         "-c", sql
     ]
     try:

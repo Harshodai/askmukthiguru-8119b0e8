@@ -442,7 +442,7 @@ class TelemetryWorker:
                                 try:
                                     payload = json.loads(payload_str.decode("utf-8"))
                                     # Insert directly to Supabase via direct method
-                                    await self.sink.log_query_trace_direct(**payload)
+                                    await self.sink.log_query_trace_direct(payload)
                                 except Exception as parse_err:
                                     logger.error(
                                         f"Worker failed to process telemetry message {msg_id}: {parse_err}"
