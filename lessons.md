@@ -1,5 +1,11 @@
 # Agentic Lessons & Memory
 
+## Jun 25, 2026 — Ralph Loop Validation & RAG Flow Graph UI Integration
+- **Problem**: Needed to finalize the Teacher-Student Ralph loop verification and construct an interactive, premium visual RAG pipeline graph in the Admin console without breaking React routing or Vite builds.
+- **Fix**: Implemented Student model checking inside the refiner, batch CLI runner inside Docker backend container, and created a responsive React page using `@xyflow/react` with custom-styled card nodes, real-time latencies, and an inspector drawer. Registered routing paths in `App.tsx` and sidebar navigation links in `AdminShell.tsx`.
+- **Lesson**: Bypassing peer-dependency conflicts for `@xyflow/react` in Vite 8 projects requires `--legacy-peer-deps` during npm installation. Dynamically grouping nodes into vertical columns (columns by RAG pipeline category: Intent, Retrieval, Augmentation, Generation, Fallback) on the frontend canvas ensures layout stability and makes the graph highly adaptable to future strategy changes.
+- **Lesson 2**: Always run host builds (`npm run build`) before completing features to capture TS typing errors or bundler incompatibilities before committing.
+
 ## Jun 25, 2026 — Phase 2 Ruthless Integrations (MarkItDown, headroom, Understand-Anything)
 - **Problem**: RAG performance needed improvements across vision multi-modality (parsing diagram PDFs), dynamic verbosity/cost control, failed response self-correction, and implicit teachings linking in Neo4j.
 - **Fix**: Centralized all paths and parameters in `constants.py` (no hardcoding). Converted `.docx`, `.pptx`, `.xlsx`, `.mp3`, `.wav`, `.m4a` via `MarkItDown` using local Ollama. Steered generation verbosity and downgraded routing to `tier2_simple` when conversation turn count grows high. Mined negative feedback via Ollama refiner background task to log failure patterns. Inserted `RELATED_TO`, `EXPANDS_ON`, and `CONTRADICTS` concept linkages in Neo4j based on embedding similarities and LLM verification.
