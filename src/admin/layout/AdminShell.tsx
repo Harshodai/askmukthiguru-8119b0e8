@@ -17,6 +17,7 @@ import {
   ThumbsUp,
   Image,
   ListOrdered,
+  Network,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const NAV = [
   { to: "/admin/queries", label: "Queries", icon: MessagesSquare },
   { to: "/admin/quality", label: "Quality", icon: ShieldCheck },
   { to: "/admin/retrieval", label: "Retrieval", icon: Database },
+  { to: "/admin/rag-flow", label: "RAG Flow", icon: Network },
   { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
   { to: "/admin/daily-teaching", label: "Daily Teaching", icon: Image },
   { to: "/admin/triggers", label: "Triggers", icon: Activity },
