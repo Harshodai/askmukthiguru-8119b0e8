@@ -208,3 +208,11 @@ export function useTelemetryEvents(filters: Omit<TelemetryFilters, "from" | "to"
       api.listTelemetryEvents({ from: globalFilters.from, to: globalFilters.to, ...filters }),
   });
 }
+
+export function useRagFlowGraph(strategy: string) {
+  const key = useRangeKey();
+  return useQuery({
+    queryKey: ["admin", "rag-flow-graph", strategy, ...key],
+    queryFn: () => api.getRagFlowGraph(strategy),
+  });
+}
