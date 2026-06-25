@@ -795,6 +795,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             except Exception as exc:
                 logger.warning(f"Web-search fallback failed: {exc}")
 
+    raw_docs_copy = [dict(d) for d in all_docs]
+
     if getattr(settings, "rag_context_compression_enabled", True):
         question = state.get("rewritten_query") or state["question"]
         all_docs = await _compress_rag_context_impl(question, all_docs, embedder)
@@ -802,6 +804,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {
         "documents": all_docs,
+        "raw_documents": raw_docs_copy,
         "evaluation_trace": _trace_update(
             state,
             retrieval_queries=retrieval_queries,
