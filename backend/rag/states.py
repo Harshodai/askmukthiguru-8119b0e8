@@ -204,3 +204,6 @@ class GraphState(TypedDict):
     # Tier classification for P90/P99 path selection: "high" | "medium" | "low"
     # Set by intent_router based on confidence score thresholds.
     confidence_tier: Optional[str]
+
+    # headroom CCR raw documents repository
+    raw_documents: list[dict]

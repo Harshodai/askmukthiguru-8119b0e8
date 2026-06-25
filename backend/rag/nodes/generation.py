@@ -158,7 +158,8 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         "youtube.com/c/pkconsciousness (for videos and Soul Sync guided sessions). "
         "Spell these domain names exactly.\n"
         "12. For temporal/date questions about Manifest 2026 monthly powers, state the "
-        "specific month and power name together (e.g. 'January: Power of Intention')."
+        "specific month and power name together (e.g. 'January: Power of Intention').\n"
+        "13. REVERSIBLE COMPRESSION — If the Knowledge provided is compressed or missing detail and you need the full uncompressed text of a document to answer accurately, you MUST output exactly '[RETRIEVE: <source_url>]' as your entire response. Do NOT add any other words or explanation."
     )
     instructions = cap_to_token_budget(instructions, 900)
 
@@ -355,13 +356,16 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
     elif layers:
-        system_prompt = f"PERSONA:\n{layers['persona']}\n\nINSTRUCTIONS:\n{layers['instructions']}"
+        system_prompt = (
+            f"PERSONA:\n{layers['persona']}\n\n"
+            f"INSTRUCTIONS:\n{layers['instructions']}\n\n"
+            f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}"
+        )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
 
         user_prompt = (
             f"USER STATE:\n{layers['user_state']}\n\n"
-            f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}\n\n"
             f"QUESTION: {question}"
         )
         if history_str:
@@ -388,6 +392,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "Your goal is to walk with the user through their journey with deep empathy and zero judgment."
             )
 
+        memory = state.get("memory_context", "")
         system_prompt = (
             f"{base_identity}\n\n"
             f"{distress_section}"
@@ -408,11 +413,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
-
-        memory = state.get("memory_context", "")
-        user_prompt = (
-            f"CONTEXT (retrieved teachings):\n{memory}\n\n{context}\n\nQuestion: {question}"
-        )
+            
+        system_prompt += f"\n\nCONTEXT (retrieved teachings):\n{memory}\n\n{context}"
+        user_prompt = f"Question: {question}"
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
 
@@ -610,6 +613,128 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 answer = await _generate_with(ollama, add_timeout=True)
 
     answer = strip_cot(answer)
+
+    # ---- headroom CCR (Reversible Context Compression) Interception ----
+    import re
+    retrieve_match = re.search(r"\[RETRIEVE:\s*([^\]]+)\]", answer)
+    if retrieve_match:
+        target = retrieve_match.group(1).strip()
+        logger.info(f"headroom CCR: LLM requested uncompressed context for: '{target}'")
+        raw_docs = state.get("raw_documents", [])
+        found_doc = None
+        for doc in raw_docs:
+            if doc.get("source_url") == target or doc.get("title") == target or target in doc.get("source_url", "") or target in doc.get("title", ""):
+                found_doc = doc
+                break
+
+        if found_doc:
+            logger.info(f"headroom CCR: Found original uncompressed document: '{found_doc.get('title')}'")
+            new_relevant_docs = []
+            for doc in relevant_docs:
+                if doc.get("source_url") == found_doc.get("source_url"):
+                    new_relevant_docs.append(found_doc)
+                else:
+                    new_relevant_docs.append(doc)
+
+            context = "\n\n---\n\n".join(
+                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+                for doc in new_relevant_docs
+            )
+
+            if layers:
+                layers_copy = dict(layers)
+                knowledge = "\n\n".join(
+                    [
+                        f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
+                        for doc in new_relevant_docs
+                    ]
+                )
+                layers_copy['knowledge'] = cap_to_token_budget(knowledge, 3072)
+
+                system_prompt = (
+                    f"PERSONA:\n{layers_copy['persona']}\n\n"
+                    f"INSTRUCTIONS:\n{layers_copy['instructions']}\n\n"
+                    f"KNOWLEDGE (retrieved teachings):\n{layers_copy['knowledge']}"
+                )
+                if lang_suffix:
+                    system_prompt += f"\n\n{lang_suffix}"
+
+                user_prompt = (
+                    f"USER STATE:\n{layers_copy['user_state']}\n\n"
+                    f"QUESTION: {question}"
+                )
+                if history_str:
+                    user_prompt = f"{history_str}\n\n{user_prompt}"
+            else:
+                system_prompt = (
+                    f"{base_identity}\n\n"
+                    f"{distress_section}"
+                    "INSTRUCTIONS:\n"
+                    "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
+                    '2. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
+                    '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one.\n'
+                    "4. NEVER fabricate teachings or add information from your training data.\n"
+                    "5. Maintain a warm, compassionate, and wise tone.\n"
+                    "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
+                    "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
+                    "8. PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
+                    "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
+                    "'we took her') into appropriate third-person (e.g., 'Sri Krishnaji and Sri Preethaji', 'their daughter', "
+                    "'Sri Krishnaji and Sri Preethaji took her'). Never refer to them in the first person.\n"
+                    "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
+                    "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
+                )
+                if lang_suffix:
+                    system_prompt += f"\n\n{lang_suffix}"
+                system_prompt += f"\n\nCONTEXT (retrieved teachings):\n{memory}\n\n{context}"
+                user_prompt = f"Question: {question}"
+                if history_str:
+                    user_prompt = f"{history_str}\n\n{user_prompt}"
+
+            logger.info("headroom CCR: Re-generating answer with uncompressed context...")
+            if gateway and gateway.enabled:
+                try:
+                    system_prompt_gw = system_prompt.replace(
+                        "3. ALWAYS cite sources using [Source: <title>] format for EVERY factual claim. Each paragraph MUST have at least one citation.\n",
+                        ""
+                    ).replace(
+                        "Cite sources using [Source: <title>].\n",
+                        ""
+                    )
+                    documents = []
+                    for idx, doc in enumerate(new_relevant_docs):
+                        title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
+                        documents.append({
+                            "title": title,
+                            "text": doc.get("text", "")
+                        })
+                    if layers:
+                        gw_user_prompt = f"USER STATE:\n{layers['user_state']}\n\nQUESTION: {question}"
+                    else:
+                        gw_user_prompt = f"Question: {question}"
+                        if memory:
+                            gw_user_prompt = f"CONTEXT:\n{memory}\n\n{gw_user_prompt}"
+                    if history_str:
+                        gw_user_prompt = f"{history_str}\n\n{gw_user_prompt}"
+
+                    resp = await gateway.generate(
+                        system_prompt=system_prompt_gw,
+                        user_message=gw_user_prompt,
+                        documents=documents,
+                        max_tokens=generation_kwargs.get("max_tokens"),
+                        temperature=generation_kwargs.get("temperature"),
+                    )
+                    answer = resp.text
+                except Exception as exc:
+                    logger.warning(f"headroom CCR: Gateway retry failed: {exc}")
+            else:
+                from app.config import settings as app_settings
+                if app_settings.llm_provider == "sarvam_cloud" and _services._sarvam_cloud:
+                    answer = await _services._sarvam_cloud.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+                else:
+                    answer = await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+            answer = strip_cot(answer)
+
     answer = _ensure_keywords_in_answer(answer, question)
 
     if not answer or not answer.strip():
