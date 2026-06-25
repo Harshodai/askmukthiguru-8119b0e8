@@ -90,4 +90,66 @@ async def mine_failed_session(
     except Exception as e:
         logger.error(f"Failed to write to {FEEDBACK_LESSONS_FILE_PATH}: {e}")
 
+    # ---- Ralph Loop Student Validation Stage ----
+    suggested_correction = entry["suggested_correction"]
+    if suggested_correction and suggested_correction not in ("None", "N/A") and retrieved_context:
+        try:
+            logger.info("Ralph Loop: Initiating Student validation run...")
+            container = get_container()
+            
+            # 1. Initialize LettuceDetectService with container's embedding
+            from services.lettuce_detect_service import LettuceDetectService
+            lettuce = LettuceDetectService(embedder=container.embedding)
+            
+            # 2. Construct test system prompt incorporating the suggested correction
+            from rag.prompts import GURU_SYSTEM_PROMPT
+            test_system_prompt = (
+                f"{GURU_SYSTEM_PROMPT}\n\n"
+                f"CRITICAL RULE FOR THIS SESSION (based on past failure):\n"
+                f"{suggested_correction}"
+            )
+            
+            # 3. Call local student model (Ollama)
+            student_answer = await container.ollama.generate(
+                system_prompt=test_system_prompt,
+                user_prompt=f"Question: {query}\n\nCONTEXT (retrieved teachings):\n{retrieved_context}",
+            )
+            
+            # 4. Grade faithfulness
+            val_result = lettuce.score_faithfulness(query=query, context=retrieved_context, answer=student_answer)
+            is_faithful = val_result.get("is_faithful", False)
+            score = val_result.get("score", 0.0)
+            
+            logger.info(f"Ralph Loop Student output graded: is_faithful={is_faithful}, score={score}")
+            
+            # 5. If validated successfully, write to validated patches store
+            if is_faithful:
+                from app.constants import PROMPT_PATCHES_VALIDATED_FILE_PATH
+                validated_entry = {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "query": query,
+                    "suggested_correction": suggested_correction,
+                    "student_answer": student_answer,
+                    "score": score,
+                    "teacher_analysis": entry["analysis"],
+                }
+                
+                os.makedirs(os.path.dirname(PROMPT_PATCHES_VALIDATED_FILE_PATH), exist_ok=True)
+                with open(PROMPT_PATCHES_VALIDATED_FILE_PATH, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(validated_entry) + "\n")
+                logger.info(f"Ralph Loop: Validated patch recorded in {PROMPT_PATCHES_VALIDATED_FILE_PATH}")
+                entry["validated"] = True
+                entry["student_score"] = score
+                entry["student_answer"] = student_answer
+            else:
+                entry["validated"] = False
+                entry["student_score"] = score
+                entry["student_answer"] = student_answer
+                logger.info("Ralph Loop: Patch failed student validation run (faithfulness check did not pass).")
+                
+        except Exception as exc:
+            logger.error(f"Ralph Loop: Student validation run failed with error: {exc}")
+            entry["validated"] = False
+            entry["validation_error"] = str(exc)
+
     return entry

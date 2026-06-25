@@ -525,3 +525,22 @@ export async function listQueueJobs(limit = 100): Promise<QueueResponse> {
     () => ({ jobs: [], queue_enabled: false, total: 0 }),
   );
 }
+
+export async function getRagFlowGraph(strategy: string): Promise<any> {
+  return withDevFallback(
+    'getRagFlowGraph',
+    () => fetchWithAuth(`/api/admin/rag-flow-graph?strategy=${strategy}`),
+    () => ({
+      strategy,
+      nodes: [
+        { id: 'intent_router', label: 'Intent Router', avg_latency_ms: 250, invocation_count: 10 },
+        { id: 'retrieve_documents', label: 'Retrieve Documents', avg_latency_ms: 850, invocation_count: 10 },
+        { id: 'generate_answer', label: 'Generate Answer', avg_latency_ms: 1800, invocation_count: 10 },
+      ],
+      edges: [
+        { id: 'e-intent_router-retrieve_documents', source: 'intent_router', target: 'retrieve_documents', animated: true },
+        { id: 'e-retrieve_documents-generate_answer', source: 'retrieve_documents', target: 'generate_answer', animated: true },
+      ],
+    }),
+  );
+}

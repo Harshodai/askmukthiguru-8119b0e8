@@ -39,6 +39,7 @@ from app.telemetry_db import (
     get_topic_clusters,
     get_trigger_events,
     get_trigger_trend,
+    get_node_latencies,
 )
 from services.auth_service import get_current_user_from_supabase
 
@@ -89,6 +90,65 @@ async def fetch_prompts(
     except Exception as e:
         logger.error(f"Failed to fetch prompts: {e}")
         return []
+
+
+@admin_router.get("/rag-flow-graph")
+async def get_rag_flow_graph(
+    strategy: str = "standard",
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """
+    Expose the active RAG graph strategy nodes and edges, merged with average timing latencies.
+    Requires admin authentication.
+    """
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    try:
+        container = get_container()
+        
+        # Choose the correct graph based on strategy param
+        graph_obj = container.standard_graph
+        if strategy == "fast":
+            graph_obj = container.fast_graph
+        elif strategy == "deep":
+            graph_obj = container.deep_graph
+            
+        compiled_graph = graph_obj.get_graph()
+        
+        # 1. Fetch latency averages from Supabase (last 1000 spans)
+        latencies = await get_node_latencies(limit=1000)
+        latency_map = {item["node"]: item for item in latencies}
+        
+        # 2. Extract nodes
+        nodes = []
+        for key, node in compiled_graph.nodes.items():
+            avg_metrics = latency_map.get(key, {"avg_latency_ms": 0.0, "count": 0})
+            nodes.append({
+                "id": key,
+                "label": getattr(node, "name", key) or key,
+                "avg_latency_ms": avg_metrics["avg_latency_ms"],
+                "invocation_count": avg_metrics["count"],
+            })
+            
+        # 3. Extract edges
+        edges = []
+        for edge in compiled_graph.edges:
+            edges.append({
+                "id": f"e-{edge.source}-{edge.target}",
+                "source": edge.source,
+                "target": edge.target,
+                "animated": True,
+            })
+            
+        return {
+            "strategy": strategy,
+            "nodes": nodes,
+            "edges": edges,
+        }
+    except Exception as e:
+        logger.error(f"Failed to extract RAG flow graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to extract graph strategy: {str(e)}")
 
 
 @admin_router.get("/evaluations")
