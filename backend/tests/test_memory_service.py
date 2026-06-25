@@ -209,7 +209,7 @@ async def test_memory_service_extract_and_write(monkeypatch):
 
     # Verify calls
     add_explicit_mock.assert_any_call("user123", "User name is Harshodai", is_core=True)
-    add_explicit_mock.assert_any_call("user123", "User is feeling anxious", is_core=False)
+    add_explicit_mock.assert_any_call("user123", "User is feeling anxious", is_core=False, source="extracted", run_compaction=False)
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.insert.assert_called_with({
         "user_id": "user123",
@@ -256,4 +256,85 @@ async def test_memory_service_list_memories():
     select_mock1.eq.assert_called_with("user_id", "user123")
     select_mock2.eq.assert_called_with("user_id", "user123")
     order_mock.range.assert_called_with(10, 19)
+
+
+@pytest.mark.asyncio
+async def test_memory_service_compaction(monkeypatch):
+    # Mock supabase client
+    supabase_mock = MagicMock()
+    table_mock = MagicMock()
+    select_mock = MagicMock()
+    eq_mock = MagicMock()
+    order_mock = MagicMock()
+    execute_mock_select = MagicMock()
+    
+    supabase_mock.table.return_value = table_mock
+    table_mock.select.return_value = select_mock
+    select_mock.eq.return_value = eq_mock
+    eq_mock.order.return_value = order_mock
+    
+    # 16 existing memories to trigger compaction (threshold > 15)
+    existing_memories = [{"id": f"id{i}", "content": f"Memory {i}", "source": "extracted"} for i in range(16)]
+    execute_mock_select.data = existing_memories
+    order_mock.execute.return_value = execute_mock_select
+    
+    # Mock delete and insert
+    delete_mock = MagicMock()
+    delete_eq_mock = MagicMock()
+    delete_execute_mock = MagicMock()
+    table_mock.delete.return_value = delete_mock
+    delete_mock.eq.return_value = delete_eq_mock
+    delete_eq_mock.execute.return_value = delete_execute_mock
+    
+    insert_mock = MagicMock()
+    insert_execute_mock = MagicMock()
+    table_mock.insert.return_value = insert_mock
+    insert_mock.execute.return_value = insert_execute_mock
+    
+    # Mock embedding service
+    embedding_mock = MagicMock()
+    embedding_mock.encode_single_full.return_value = {"dense": [0.1] * 1024}
+    
+    # Mock settings
+    monkeypatch.setattr("services.memory_service.settings.llm_provider", "openrouter")
+    monkeypatch.setattr("services.memory_service.settings.openrouter_classify_model", "test-model")
+    
+    # Mock AsyncOpenAI completions
+    mock_client = AsyncMock()
+    mock_completions = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = '{"compacted_memories": ["Compacted Memory A", "Compacted Memory B"]}'
+    mock_completions.create.return_value = mock_response
+    mock_client.chat = MagicMock()
+    mock_client.chat.completions = mock_completions
+    
+    # Mock AsyncOpenAI constructor
+    import openai
+    class MockAsyncOpenAI:
+        def __init__(self, *args, **kwargs):
+            self.chat = mock_client.chat
+
+    monkeypatch.setattr(openai, "AsyncOpenAI", MockAsyncOpenAI)
+    
+    service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
+    await service.compact_memories("user123")
+    
+    # Verify interactions
+    table_mock.select.assert_called_with("id, content, source")
+    table_mock.delete.assert_called()
+    table_mock.insert.assert_called_with([
+        {
+            "user_id": "user123",
+            "content": "Compacted Memory A",
+            "embedding": [0.1] * 1024,
+            "source": "extracted"
+        },
+        {
+            "user_id": "user123",
+            "content": "Compacted Memory B",
+            "embedding": [0.1] * 1024,
+            "source": "extracted"
+        }
+    ])
 
