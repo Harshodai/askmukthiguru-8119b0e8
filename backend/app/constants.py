@@ -121,6 +121,7 @@ PROVIDER_MODELS = {
 
 # --- Phase 2 Ruthless Integration Constants ---
 FEEDBACK_LESSONS_FILE_PATH = "backend/data/feedback_lessons.jsonl"
+PROMPT_PATCHES_VALIDATED_FILE_PATH = "backend/data/prompt_patches_validated.jsonl"
 CONCEPT_SIMILARITY_THRESHOLD = 0.78
 MAX_COST_STEERED_HISTORY_TURNS = 3
 COST_STEERED_BREVITY_LIMIT = 80

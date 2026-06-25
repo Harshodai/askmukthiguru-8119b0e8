@@ -112,6 +112,7 @@ backend/repos/langfuse/
 backend/repos/opik/
 backend/repos/deepeval/
 backend/repos/docling/
+external_repos/
 
 # Playwright Test Outputs
 playwright-report/

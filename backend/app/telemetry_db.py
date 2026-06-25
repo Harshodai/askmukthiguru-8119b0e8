@@ -1446,3 +1446,36 @@ async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
     except Exception as e:
         logger.error(f"Failed to get query trace {query_id}: {e}")
         return None
+
+
+async def get_node_latencies(limit: int = 1000) -> list[dict[str, Any]]:
+    """Fetch average latencies of trace spans aggregated by node name."""
+    client = _get_client()
+    if not client:
+        return []
+    try:
+        resp = client.table("trace_spans").select("name, duration_ms").order("start_ms", desc=True).limit(limit).execute()
+        if not resp.data:
+            return []
+        
+        # Aggregate in Python
+        node_latencies = {}
+        for row in resp.data:
+            name = row.get("name")
+            dur = row.get("duration_ms") or 0.0
+            if name:
+                if name not in node_latencies:
+                    node_latencies[name] = []
+                node_latencies[name].append(dur)
+                
+        averages = []
+        for name, durs in node_latencies.items():
+            averages.append({
+                "node": name,
+                "avg_latency_ms": round(sum(durs) / len(durs), 2) if durs else 0.0,
+                "count": len(durs)
+            })
+        return averages
+    except Exception as e:
+        logger.error(f"Failed to query node latencies: {e}")
+        return []
