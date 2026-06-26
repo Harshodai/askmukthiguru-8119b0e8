@@ -466,7 +466,24 @@ class DeepGraphStrategy(GraphStrategy):
             },
         )
 
-        graph.add_edge("verify_answer", "check_contradiction")
+        # -----------------------------------------------------------------------
+        # Parallel verification fan-out (DeepGraph optimisation — [2.3.3])
+        # -----------------------------------------------------------------------
+        # verify_answer (LettuceDetect faithfulness) runs AFTER reflect_on_answer
+        # (needs the final corrected answer). check_contradiction (history scan) and
+        # explain_retrieval (citation reasoning) can run CONCURRENTLY from generate_answer
+        # since they only need `answer` + `relevant_docs` / `chat_history`, not the
+        # reflection corrections.
+        #
+        # Topology:
+        #   generate_answer ─┬─► reflect_on_answer ──► verify_answer ─────────────┐
+        #                    ├─► check_contradiction (parallel, no LLM deps)        ├─► format_final_answer → END
+        #                    └─► explain_retrieval (parallel citation reasoning)  ──┘
+        #
+        # Net saving vs. sequential verify→contradiction: ~5-10s/query on tier3_complex.
+        # -----------------------------------------------------------------------
+        graph.add_edge("generate_answer", "check_contradiction")  # parallel branch
+        graph.add_edge("verify_answer", "format_final_answer")
         graph.add_edge("check_contradiction", "format_final_answer")
         graph.add_edge("explain_retrieval", "format_final_answer")
 
