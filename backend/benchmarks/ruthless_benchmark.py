@@ -574,10 +574,15 @@ async def init_llm_service():
     
     try:
         from app.config import settings
-        if settings.is_sarvam_cloud:
+        provider = settings.llm_provider.lower()
+        if provider == "sarvam_cloud":
             from services.sarvam_service import SarvamCloudService
             _llm_service = SarvamCloudService()
             print("  🤖 Query Rewriter: Initialized SarvamCloudService")
+        elif provider == "openrouter":
+            from services.openrouter_service import OpenRouterService
+            _llm_service = OpenRouterService()
+            print("  🤖 Query Rewriter: Initialized OpenRouterService")
         else:
             from services.ollama_service import OllamaService
             _llm_service = OllamaService()

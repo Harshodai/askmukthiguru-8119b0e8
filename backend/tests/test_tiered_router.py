@@ -9,13 +9,18 @@ from rag.nodes import select_llm_model
 
 def test_select_llm_model_short_query():
     # Standard short query routes to sarvam-30b
-    model = select_llm_model(query="What is love?", context_len=500)
-    assert model == "sarvam-30b"
+    with patch("rag.nodes.settings") as mock_settings:
+        mock_settings.llm_provider = "sarvam_cloud"
+        mock_settings.sarvam_complex_routing_enabled = False
+        mock_settings.sarvam_cloud_model = "sarvam-30b"
+        model = select_llm_model(query="What is love?", context_len=500)
+        assert model == "sarvam-30b"
 
 
 def test_select_llm_model_long_context():
     # Long context query routes to sarvam-105b when complex routing is enabled
     with patch("rag.nodes.settings") as mock_settings:
+        mock_settings.llm_provider = "sarvam_cloud"
         mock_settings.sarvam_complex_routing_enabled = True
         mock_settings.sarvam_complex_context_chars = 20000
         mock_settings.sarvam_cloud_model = "sarvam-30b"
@@ -28,6 +33,7 @@ def test_select_llm_model_long_context():
 def test_select_llm_model_disabled_routing():
     # When complex routing is disabled, always use default model
     with patch("rag.nodes.settings") as mock_settings:
+        mock_settings.llm_provider = "sarvam_cloud"
         mock_settings.sarvam_complex_routing_enabled = False
         mock_settings.sarvam_cloud_model = "sarvam-30b"
         mock_settings.sarvam_cloud_complex_model = "sarvam-105b"
@@ -46,6 +52,7 @@ def test_select_llm_model_disabled_routing():
 )
 def test_select_llm_model_parametrized(query, context_len, expected):
     with patch("rag.nodes.settings") as mock_settings:
+        mock_settings.llm_provider = "sarvam_cloud"
         mock_settings.sarvam_complex_routing_enabled = True
         mock_settings.sarvam_complex_context_chars = 20000
         mock_settings.sarvam_cloud_model = "sarvam-30b"

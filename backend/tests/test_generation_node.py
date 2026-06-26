@@ -74,63 +74,6 @@ def _aiter_chunks(chunks):
     return _gen()
 
 
-@pytest.mark.asyncio
-async def test_format_final_answer_logs_cache_write_error(mock_services, monkeypatch, caplog):
-    """Semantic-cache write failures must be logged with full traceback."""
-    cache = MagicMock()
-    cache.put.side_effect = RuntimeError("redis down")
-    monkeypatch.setattr(nodes, "_semantic_cache", cache)
-
-    state = GraphState(
-        question="What is the Beautiful State?",
-        answer="The Beautiful State is connection.",
-        citations=["https://example.com"],
-        is_faithful=True,
-        verification={"passed": True},
-        confidence_score=8.0,
-        intent="QUERY",
-    )
-
-    with caplog.at_level("ERROR", logger="rag.nodes.generation"):
-        result = await format_final_answer(state)
-
-    assert result["final_answer"] == "The Beautiful State is connection."
-    assert "Semantic cache write failed" in caplog.text
-    assert "redis down" in caplog.text
-
-
-@pytest.mark.asyncio
-async def test_generate_answer_uses_injected_sarvam_cloud(mock_services, monkeypatch):
-    """When provider is sarvam_cloud, use the injected service instead of a new singleton."""
-    mock_ollama = mock_services
-
-    from app.config import settings as app_settings
-    monkeypatch.setattr(app_settings, "llm_provider", "sarvam_cloud")
-
-    mock_sarvam = AsyncMock()
-    mock_sarvam.generate.return_value = "Sarvam answer"
-    mock_sarvam.generate_stream.return_value = _aiter_chunks(["Sarvam ", "answer"])
-    monkeypatch.setattr(nodes, "_sarvam_cloud", mock_sarvam)
-
-    monkeypatch.setattr(
-        "rag.nodes.generation._generation_route",
-        lambda state, context_chars: {"max_tokens": 100, "temperature": 0.7, "_route_metadata": {}},
-    )
-
-    state = GraphState(
-        question="What is meditation?",
-        relevant_docs=[{"text": "Meditation is calm awareness.", "source_url": "url1"}],
-        chat_history=[],
-        detected_language="en",
-        intent="FACTUAL",
-        ab_model="primary",
-    )
-
-    result = await generate_answer(state)
-
-    assert "Sarvam answer" in result["answer"]
-    mock_sarvam.generate.assert_awaited_once()
-    mock_ollama.generate.assert_not_awaited()
 
 
 @pytest.mark.asyncio

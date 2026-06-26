@@ -1,7 +1,4 @@
 {
-  "env": {
-    "ANTHROPIC_BASE_URL": "http://127.0.0.1:11434"
-  },
   "permissions": {
     "allow": [
       "Bash(rm -f workflow_part2.py workflow_reconstructed.py workflow_reconstructed_v2.py && ls workflow_*.py 2>&1 || echo \"All workflow files removed\")",

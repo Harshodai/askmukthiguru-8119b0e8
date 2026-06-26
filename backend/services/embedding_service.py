@@ -81,6 +81,22 @@ class EmbeddingService:
         """Helper to load a specific encoder model into memory."""
         is_bge_m3 = (model_name == "BAAI/bge-m3")
         if is_bge_m3:
+            # Apply monkeypatch to fix transformers/FlagEmbedding dtype incompatibility
+            try:
+                from transformers import AutoModel
+                if not hasattr(AutoModel, "_original_from_pretrained_patched"):
+                    original_from_pretrained = AutoModel.from_pretrained
+                    @classmethod
+                    def patched_from_pretrained(cls, *args, **kwargs):
+                        if "dtype" in kwargs:
+                            kwargs["torch_dtype"] = kwargs.pop("dtype")
+                        return original_from_pretrained.__func__(cls, *args, **kwargs)
+                    AutoModel.from_pretrained = patched_from_pretrained
+                    AutoModel._original_from_pretrained_patched = True
+                    logger.info("Monkeypatched AutoModel.from_pretrained to support 'dtype' parameter.")
+            except Exception as e:
+                logger.warning(f"Failed to patch AutoModel.from_pretrained: {e}")
+
             from FlagEmbedding import BGEM3FlagModel
 
             logger.info(f"Loading encoder: {model_name} on device: {device}")

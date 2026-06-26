@@ -33,6 +33,22 @@ from app.core.threading_config import configure_threading
 
 configure_threading()
 
+# Set Python process memory limit early to prevent runaway OOM crashes.
+# Controlled by PYTHON_MEMORY_LIMIT_MB env var (default 2048 = 2GB).
+# Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
+try:
+    import resource as _resource
+    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "2048"))
+    _limit_bytes = _mb * 1024 * 1024
+    if hasattr(_resource, "RLIMIT_AS"):  # Linux only
+        _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
+        logger_tmp = logging.getLogger(__name__)
+        logger_tmp.info(f"Python memory limit set to {_mb}MB via RLIMIT_AS")
+    elif hasattr(_resource, "RLIMIT_DATA"):  # fallback
+        _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
+except Exception:
+    pass  # Non-fatal: Docker itself provides hard memory limits
+
 from app.config import settings
 from app.context import correlation_id_var
 from app.dependencies import ServiceContainer, get_container, shutdown, startup
