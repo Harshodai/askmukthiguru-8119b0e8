@@ -140,8 +140,14 @@ _KN_PATTERNS = {
     DistressLevel.CRISIS: [
         r"(ಆತ್ಮಹತ್ಯೆ|ಸಾಯಬೇಕು|ಬದುಕಲು\s*ಇಷ್ಟ\s*ಇಲ್ಲ)",
     ],
+    DistressLevel.SEVERE: [
+        r"(ತುಂಬಾ\s*ನೋವು|ನಂಬಿಕೆ\s*ಇಲ್ಲ|ಸಹಿಸಲು\s*ಆಗುತ್ತಿಲ್ಲ|ಬದುಕು\s*ಅರ್ಥಹೀನ)",
+    ],
     DistressLevel.MODERATE: [
         r"(ಒತ್ತಡ|ಭಯ|ಆತಂಕ|ದುಃಖ|ಒಂಟಿ|ನಿದ್ದೆ\s*ಬರಲ್ಲ)",
+    ],
+    DistressLevel.MILD: [
+        r"(ಆಯಾಸ|ಗೊಂದಲ|ಚಡಪಡ|ಅಶಾಂತ)",
     ],
 }
 
@@ -150,8 +156,30 @@ _BN_PATTERNS = {
     DistressLevel.CRISIS: [
         r"(আত্মহত্যা|মরে\s*যেতে\s*চাই|বেঁচে\s*থাকতে\s*চাই\s*না)",
     ],
+    DistressLevel.SEVERE: [
+        r"(অসহ্য|আর\s*পারছি\s*না|কোনো\s*আশা\s*নেই|জীবন\s*অর্থহীন)",
+    ],
     DistressLevel.MODERATE: [
         r"(চাপ|ভয়|উদ্বেগ|দুঃখ|একা|ঘুম\s*আসে\s*না)",
+    ],
+    DistressLevel.MILD: [
+        r"(ক্লান্ত|বিভ্রান্ত|অস্বস্তি|অশান্ত)",
+    ],
+}
+
+# Malayalam distress patterns
+_ML_PATTERNS = {
+    DistressLevel.CRISIS: [
+        r"(ആത്മഹത്യ|മരിക്കണം|ജീവിക്കാൻ\s*ആഗ്രഹമില്ല)",
+    ],
+    DistressLevel.SEVERE: [
+        r"(വളരെ\s*വേദന|പ്രതീക്ഷയില്ല|സഹിക്കാൻ\s*കഴിയുന്നില്ല|ജീവിതം\s*അർത്ഥരഹിതം)",
+    ],
+    DistressLevel.MODERATE: [
+        r"(സമ്മർദ്ദം|ഭയം|ആകാംക്ഷ|ദുഃഖം|ഒറ്റയ്ക്ക്|ഉറക്കം\s*വരുന്നില്ല)",
+    ],
+    DistressLevel.MILD: [
+        r"(ക്ഷീണം|ആശയക്കുഴപ്പം|അസ്വസ്ഥ|ചഞ്ചല)",
     ],
 }
 
@@ -178,6 +206,7 @@ for _name, _patterns in [
     ("te", _TE_PATTERNS),
     ("kn", _KN_PATTERNS),
     ("bn", _BN_PATTERNS),
+    ("ml", _ML_PATTERNS),
     ("hinglish", _HINGLISH_PATTERNS),
 ]:
     _ALL_PATTERNS[_name] = {
@@ -254,23 +283,32 @@ DISTRESS_RESPONSES = {
     DistressLevel.MILD: (
         "I sense you may be going through a challenging time. "
         "Remember, as Sri Preethaji teaches, every moment of discomfort "
-        "is an invitation to deepen your awareness. "
-        "Would you like to explore any specific teaching that might help? 🌱"
+        "is an invitation to deepen your awareness.\n\n"
+        "🌱 **Quick grounding technique**: Take a slow breath in for 4 counts, "
+        "hold for 4, exhale for 6. Repeat 3 times. This simple practice "
+        "can anchor you back to the present moment.\n\n"
+        "Would you like to explore a specific teaching that might help, "
+        "or try a Serene Mind micro-meditation?"
     ),
     DistressLevel.MODERATE: (
         "I hear you, and I want you to know that your feelings are completely valid. "
         "In moments like these, the teachings remind us that suffering is a doorway "
         "to transformation — not something to fight against, but to move through with awareness.\n\n"
-        "Would you like me to guide you through a Serene Mind meditation? "
-        "It can help you find some inner peace right now. 🙏"
+        "🧘 **Breathing practice**: Place your hand on your heart. "
+        "Breathe in slowly — feel your chest rise. Breathe out gently — feel any "
+        "tension release. Do this 5 times. As Sri Preethaji teaches, "
+        "'When you breathe with awareness, you return to the beautiful state.'\n\n"
+        "Would you like me to guide you through a full Serene Mind meditation? 🙏"
     ),
     DistressLevel.SEVERE: (
         "I feel the depth of your pain, and I want you to know — you are not alone. "
         "Your feelings matter, and there is light even in the darkest moments.\n\n"
         "Sri Krishnaji says: 'When you stop running from your suffering and turn towards it "
         "with awareness, transformation begins.'\n\n"
-        "I'd like to guide you through a calming Serene Mind meditation. "
-        "Would you like to begin? 🌸\n\n"
+        "🌸 **5-4-3-2-1 grounding**: Name 5 things you see, 4 you can touch, "
+        "3 you hear, 2 you smell, 1 you taste. This brings you firmly into the present.\n\n"
+        "I'd like to guide you through a Serene Mind meditation. "
+        "Would you like to begin?\n\n"
         "If you need to speak with someone right away, please reach out:\n"
     ),
     DistressLevel.CRISIS: (

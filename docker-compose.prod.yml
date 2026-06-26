@@ -1,15 +1,31 @@
 # ============================================================
 # Mukthi Guru — Production Docker Compose
 # ============================================================
-# This configuration is designed for deploying to a VPS (e.g., EC2, DigitalOcean).
-# It relies on environment variables set on the server and uses built images.
+# REQUIRED ENVIRONMENT VARIABLES (set on host before deploying):
+#   GHCR_ORG          — GitHub org/user for image registry (e.g., your-github-username)
+#   IMAGE_TAG         — Docker image tag (e.g., latest, v1.2.3, or git SHA)
+#   SUPABASE_URL      — Supabase project URL
+#   SUPABASE_ANON_KEY — Supabase anon key (frontend only)
+#   SUPABASE_SERVICE_ROLE_KEY — Supabase service role (backend)
+#   REDIS_PASSWORD    — Redis auth password
+#   JWT_SECRET        — JWT signing secret
+#   LLM_PROVIDER      — LLM provider (sarvam_cloud | ollama)
+#   SARVAM_API_KEY    — Sarvam API key (if using sarvam_cloud)
+#
+# Usage:
+#   export GHCR_ORG=your-org IMAGE_TAG=latest && docker compose -f docker-compose.prod.yml up -d
 
 version: '3.8'
+
+networks:
+  mukthiguru:
+    driver: bridge
+    name: mukthiguru-prod
 
 services:
   # --- Frontend (React + Nginx) ---
   frontend:
-    image: ghcr.io/your-org/askmukthiguru-frontend:latest
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-frontend:${IMAGE_TAG:-latest}
     container_name: mukthiguru-frontend-prod
     ports:
       - "80:80"
@@ -19,16 +35,25 @@ services:
       - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     depends_on:
       - backend
+    networks:
+      - mukthiguru
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+        reservations:
+          memory: 128M
 
   # --- Backend (FastAPI) ---
   backend:
-    image: ghcr.io/your-org/askmukthiguru-backend:latest
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
     container_name: mukthiguru-backend-prod
     environment:
       - ENV=production
@@ -39,15 +64,26 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - JWT_SECRET=${JWT_SECRET}
+      # Memory limit for Python process (set in main.py via resource.setrlimit)
+      - PYTHON_MEMORY_LIMIT_MB=${PYTHON_MEMORY_LIMIT_MB:-2048}
     depends_on:
       - qdrant
       - redis
+    networks:
+      - mukthiguru
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+        reservations:
+          memory: 512M
 
   # --- Vector DB (Qdrant) ---
   qdrant:
@@ -55,21 +91,44 @@ services:
     container_name: mukthiguru-qdrant-prod
     volumes:
       - qdrant_data:/qdrant/storage
+    networks:
+      - mukthiguru
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          memory: 512M
 
   # --- Cache (Redis) ---
   redis:
     image: redis:7-alpine
     container_name: mukthiguru-redis-prod
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
+    networks:
+      - mukthiguru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 600M
+        reservations:
+          memory: 128M
 
 volumes:
   qdrant_data:

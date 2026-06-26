@@ -43,3 +43,25 @@ nohup.out
 .idea/
 .DS_Store
 Thumbs.db
+
+# Exclude test/benchmark directories (not needed in production image)
+tests/
+benchmarks/
+**/test_*.py
+**/*_test.py
+
+# Exclude markdown and notebook files (docs don't belong in image)
+*.md
+*.ipynb
+.ipynb_checkpoints/
+
+# Exclude Python bytecode
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Exclude environment files (secrets must not leak into image)
+.env*
+!.env.example

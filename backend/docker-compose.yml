@@ -107,8 +107,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
-          cpus: '0.5'
+          memory: 3G
+          cpus: '2.0'
     restart: unless-stopped
 
   # --- FastAPI Backend ---
@@ -119,6 +119,8 @@ services:
     container_name: mukthiguru-backend
     ports:
       - "8000:8000"
+    env_file:
+      - ../.env
     environment:
       - IS_PRODUCTION=false
       - ENABLE_TEST_AUTH=true

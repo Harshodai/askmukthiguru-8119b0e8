@@ -652,6 +652,26 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return_exceptions=True,
     )
 
+    # --- BM25 text search fan-out (parallel with vector retrieval) ---
+    bm25_results: list[dict] = []
+    if getattr(settings, "bm25_retrieval_enabled", True):
+        try:
+            bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
+            bm25_raw = qdrant.scroll_content(
+                query=bm25_query,
+                limit=getattr(settings, "bm25_result_limit", 10),
+            )
+            for r in bm25_raw:
+                bm25_results.append({
+                    "text": r.get("content", ""),
+                    "score": r.get("score", 0.5),
+                    "metadata": r.get("metadata", {}),
+                    "source": "bm25_text",
+                })
+            logger.info(f"BM25 text search returned {len(bm25_results)} results")
+        except Exception as bm25_err:
+            logger.warning(f"BM25 text search failed (non-fatal): {bm25_err}")
+
     # Now consume the (likely already-completed) expansion task.
     # Cap total retrievals at 6 to bound LLM/Qdrant load.
     try:
@@ -707,6 +727,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         else:
             normalized_results.append(res)
     all_results = normalized_results
+
+    # Merge BM25 text search results as an additional RRF list
+    if bm25_results:
+        all_results.append(bm25_results)
 
     _RRF_K2 = 60
     rrf2_scores: dict[int, float] = {}

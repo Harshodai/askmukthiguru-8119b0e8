@@ -323,21 +323,25 @@ class PipelineCoordinator:
         await self._stage("memory_save", trace_id, start_ns=_s)
 
         # ------------------------------------------------------------------
-        # 10. Cache Update
-        # ------------------------------------------------------------------
-        _s = time.time_ns()
-        await self._update_cache(cache_key, final_answer, intent, med_step, citations)
-        await self._stage("cache_update", trace_id, start_ns=_s)
-
-        # ------------------------------------------------------------------
-        # 11. Output Guardrails
+        # 10. Output Guardrails
         # ------------------------------------------------------------------
         _s = time.time_ns()
         output_check = await self.container.guardrails.check_output(final_answer)
-        if output_check["blocked"]:
+        is_blocked = output_check["blocked"]
+        if is_blocked:
             logger.info(f"Output moderated: {output_check['reason']}")
             final_answer = output_check["moderated_response"]
-        await self._stage("output_guardrails", trace_id, start_ns=_s, status="error" if output_check["blocked"] else "success")
+        await self._stage("output_guardrails", trace_id, start_ns=_s, status="error" if is_blocked else "success")
+
+        # ------------------------------------------------------------------
+        # 11. Cache Update
+        # ------------------------------------------------------------------
+        _s = time.time_ns()
+        if not is_blocked:
+            await self._update_cache(cache_key, final_answer, intent, med_step, citations)
+        else:
+            logger.info("Skipping cache update: output was blocked by guardrails.")
+        await self._stage("cache_update", trace_id, start_ns=_s)
 
         # ------------------------------------------------------------------
         # 12. Result Assembly
@@ -376,6 +380,7 @@ class PipelineCoordinator:
             trigger_events=trigger_events,
             safety_events=safety_events,
             spans=spans,
+            follow_up_suggestions=graph_result.get("follow_up_suggestions", []),
         )
 
     # ------------------------------------------------------------------
@@ -532,13 +537,12 @@ class PipelineCoordinator:
             return None
 
     def _is_circuit_open(self) -> bool:
-        """Check if the circuit breaker is open."""
-        if not settings.is_sarvam_cloud:
-            return False
+        """Check if the circuit breaker is open for the active provider."""
         underlying = self.container.ollama
         if hasattr(underlying, "_service"):
             underlying = underlying._service
-        circuit = getattr(underlying, "_circuit", None)
+        # Check circuit breaker attribute (name varies by provider)
+        circuit = getattr(underlying, "_circuit", None) or getattr(underlying, "_circuit_breaker", None)
         return circuit is not None and not circuit.can_execute()
 
     def _circuit_open_result(self, is_benchmark: bool, start_time: float) -> PipelineResult:
@@ -692,10 +696,16 @@ class PipelineCoordinator:
                     initial_state["query_tier"] = "tier2_simple" if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION") else "tier3_complex"
 
             # Kill #7: select_graph_for_query uses pure heuristics now (sub-1ms).
-            # It respects the detected_intent from on-device and does NOT make
+            # It respects the detected_intent and query_tier from on-device and does NOT make
             # an LLM call. We use the result to pick the graph variant but do
             # NOT overwrite query_tier — on-device tier is authoritative.
-            graph_variant = await select_graph_for_query(user_msg_en, container=self.container, detected_intent=detected_intent)
+            tier_for_graph = initial_state.get("query_tier", "standard")
+            graph_variant = await select_graph_for_query(
+                user_msg_en,
+                container=self.container,
+                detected_intent=detected_intent,
+                query_tier=tier_for_graph,
+            )
             # Only set query_tier if on-device didn't already set it
             if "query_tier" not in initial_state or initial_state.get("query_tier") is None:
                 initial_state["query_tier"] = graph_variant
@@ -785,6 +795,23 @@ class PipelineCoordinator:
 
     async def _update_cache(self, cache_key: str, final_answer: str, intent: str, med_step: int, citations: list) -> None:
         """Update all cache tiers: hot (in-memory), exact (Redis), semantic (Qdrant)."""
+        # Audit cache updates: never cache fallback/refusal responses or empty results
+        refusal_indicators = [
+            "i don't have that specific teaching",
+            "please try asking another question",
+            "don't have any specific teaching",
+            "do not have that specific teaching",
+        ]
+        ans_lower = final_answer.lower()
+        if not final_answer.strip() or any(indicator in ans_lower for indicator in refusal_indicators):
+            logger.info("Skipping cache update: response is identified as a fallback/refusal.")
+            return
+
+        # For QUERY or FACTUAL intents, we must have citations to cache
+        if intent in ["QUERY", "FACTUAL"] and not citations:
+            logger.info("Skipping cache update: query/factual response has no citations.")
+            return
+
         if intent in ["QUERY", "CASUAL", "FACTUAL"]:
             try:
                 # Update hot cache first (fastest, no I/O)

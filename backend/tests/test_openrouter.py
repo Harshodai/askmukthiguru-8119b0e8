@@ -54,6 +54,7 @@ class FakeAsyncClient:
 @pytest.mark.asyncio
 async def test_openrouter_service_generate(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
+    monkeypatch.setattr(settings, "openrouter_generation_model", "some-other-model")
     
     # Capture client initialization
     async def fake_get_client(self):

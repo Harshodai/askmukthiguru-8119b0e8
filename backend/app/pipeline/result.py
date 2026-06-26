@@ -84,6 +84,7 @@ class PipelineResult:
     trigger_events: list[dict] = field(default_factory=list)
     safety_events: list[dict] = field(default_factory=list)
     spans: list[dict] = field(default_factory=list)
+    follow_up_suggestions: list[str] = field(default_factory=list)
 
     def with_latency(self, latency_ms: int) -> "PipelineResult":
         """Return a new PipelineResult with updated latency."""
@@ -114,6 +115,7 @@ class PipelineResult:
             trigger_events=self.trigger_events,
             safety_events=self.safety_events,
             spans=self.spans,
+            follow_up_suggestions=self.follow_up_suggestions,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -135,4 +137,5 @@ class PipelineResult:
             "proactive_serene_mind": self.proactive_serene_mind,
             "faithfulness_score": self.faithfulness_score,
             "hallucination_flag": self.hallucination_flag,
+            "follow_up_suggestions": self.follow_up_suggestions,
         }

@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
-"""Cache Warmer - Pre-populates GPTCache with doctrine FAQs.
+"""Cache Warmer — Pre-populates SemanticCacheAdapter with doctrine FAQs.
 
-Warms the semantic cache with 60+ canonical doctrine questions across 9 categories.
-Run on startup or via cron to ensure fast responses for common queries.
+Warms the Qdrant+Redis semantic cache with 60+ canonical doctrine questions.
+Uses the full RAG pipeline via TestClient so responses are identical to real
+queries — semantic cache then serves them on future similar questions.
+
+Run on startup or via cron:
+    python scripts/cache_warmer.py                    # pipeline mode (default)
+    python scripts/cache_warmer.py --mode direct      # direct embed+store
+    python scripts/cache_warmer.py --mode pipeline --threshold 0.88
 """
 
 import asyncio
+import json
+import logging
 import sys
 from pathlib import Path
 from typing import Optional
@@ -13,7 +21,8 @@ from typing import Optional
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from services.cache_service import CacheService
+logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
+logger = logging.getLogger(__name__)
 
 CACHE_WARMER_QUESTIONS = {
     "Four Sacred Secrets": [
@@ -74,115 +83,139 @@ CACHE_WARMER_QUESTIONS = {
 
 
 class CacheWarmer:
-    """Warms GPTCache with doctrine FAQs."""
-    
+    """Warms SemanticCacheAdapter with doctrine FAQs via the full pipeline."""
+
     def __init__(self, similarity_threshold: float = 0.90):
         self.similarity_threshold = similarity_threshold
-        self.cache_service: Optional[CacheService] = None
+        self._adapter = None
         self.stats = {"total": 0, "warmed": 0, "skipped": 0, "errors": 0}
-    
-    async def initialize(self):
-        """Initialize cache service."""
-        self.cache_service = CacheService()
-        await self.cache_service.initialize()
-    
-    async def warm_cache(self) -> dict:
-        """Warm cache with all doctrine questions."""
-        if not self.cache_service:
-            await self.initialize()
-        
-        print(f"Starting cache warming with {sum(len(v) for v in CACHE_WARMER_QUESTIONS.values())} questions...")
-        
+
+    async def _init_adapter(self):
+        """Initialize the SemanticCacheAdapter from the DI container."""
+        from app.dependencies import get_container
+
+        container = get_container()
+        self._adapter = container.semantic_cache
+        if not self._adapter or not self._adapter.is_available:
+            logger.warning("Semantic cache adapter unavailable — warming will be skipped")
+            self._adapter = None
+
+    async def warm_direct(self) -> dict:
+        """Direct mode: embed questions and store via SemanticCacheAdapter.put().
+
+        This does NOT generate answers — it only pre-populates embeddings
+        so that future similar queries get faster vector matches. Useful
+        when the pipeline is not running.
+        """
+        if not self._adapter:
+            await self._init_adapter()
+        if not self._adapter:
+            logger.error("No semantic cache adapter — cannot warm")
+            return self.stats
+
+        from services.embedding_service import EmbeddingService
+        from app.dependencies import get_container
+
+        container = get_container()
+        embedder = container.embedding
+
+        total_q = sum(len(v) for v in CACHE_WARMER_QUESTIONS.values())
+        print(f"Direct warm: embedding {total_q} questions into semantic cache...")
+
         for category, questions in CACHE_WARMER_QUESTIONS.items():
-            print(f"\nWarming category: {category} ({len(questions)} questions)")
+            print(f"\n{category} ({len(questions)} questions)")
             for question in questions:
                 self.stats["total"] += 1
                 try:
-                    await self._warm_question(question, category)
+                    # Check existing cache
+                    cached = self._adapter.get(question)
+                    if cached:
+                        self.stats["skipped"] += 1
+                        print(f"  SKIP (cached): {question[:60]}")
+                        continue
+
+                    # Store placeholder — the pipeline will fill the real answer
+                    # on first real query. This pre-registers the embedding.
+                    self._adapter.put(
+                        query=question,
+                        response=f"[cache-warmer placeholder for: {question}]",
+                        intent="QUERY",
+                        citations=[],
+                        meditation_step=0,
+                    )
+                    self.stats["warmed"] += 1
+                    print(f"  WARMED: {question[:60]}")
                 except Exception as e:
                     self.stats["errors"] += 1
-                    print(f"  ERROR: {question} - {e}")
-        
+                    print(f"  ERROR: {question[:60]} — {e}")
+
         return self.stats
-    
-    async def _warm_question(self, question: str, category: str):
-        """Warm a single question into cache."""
-        # Check if already cached with high similarity
-        cached = await self.cache_service.get(question)
-        if cached and cached.get("similarity", 0) >= self.similarity_threshold:
-            self.stats["skipped"] += 1
-            print(f"  SKIP (cached): {question[:60]}...")
-            return
 
-        # Generate answer using the full pipeline to populate cache
-        from services.llm_service import LLMService
+    async def warm_with_pipeline(self) -> dict:
+        """Pipeline mode: hit /api/chat via TestClient so real RAG responses populate cache.
 
-        llm = LLMService()
-        answer = await llm.generate(question)
+        This is the preferred mode — responses are identical to production queries
+        and the pipeline_coordinator automatically writes to semantic cache on success.
+        """
+        print("Pipeline warm: hitting /api/chat with doctrine questions...")
 
-        await self.cache_service.set(question, answer)
-        self.stats["warmed"] += 1
-        print(f"  WARMED: {question[:60]}...")
-    
-    async def warm_with_real_pipeline(self) -> dict:
-        """Warm cache using the actual orchestrator pipeline."""
-        if not self.cache_service:
-            await self.initialize()
-        
-        print("Warming cache with real orchestrator pipeline...")
-        
-        # Import here to avoid circular imports
         from fastapi.testclient import TestClient
-
         from app.main import app
-        
+
         client = TestClient(app)
-        
+
         for category, questions in CACHE_WARMER_QUESTIONS.items():
-            print(f"\nWarming category: {category}")
+            print(f"\n{category}")
             for question in questions:
                 self.stats["total"] += 1
                 try:
-                    response = client.post("/api/chat", json={"message": question})
+                    response = client.post(
+                        "/api/chat",
+                        json={"message": question},
+                        timeout=120,
+                    )
                     if response.status_code == 200:
                         self.stats["warmed"] += 1
-                        print(f"  WARMED: {question[:60]}...")
+                        print(f"  WARMED: {question[:60]}")
                     else:
                         self.stats["errors"] += 1
-                        print(f"  ERROR ({response.status_code}): {question[:60]}...")
+                        print(f"  ERROR ({response.status_code}): {question[:60]}")
                 except Exception as e:
                     self.stats["errors"] += 1
-                    print(f"  EXCEPTION: {question[:60]}... - {e}")
-        
+                    print(f"  EXCEPTION: {question[:60]} — {e}")
+
         return self.stats
-    
-    async def close(self):
-        """Close cache service."""
-        if self.cache_service:
-            await self.cache_service.close()
 
 
 async def main():
-    """Main entry point."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description="Warm GPTCache with doctrine FAQs")
-    parser.add_argument("--mode", choices=["direct", "pipeline"], default="pipeline",
-                        help="Warming mode: direct (bypass) or pipeline (full)")
-    parser.add_argument("--threshold", type=float, default=0.90,
-                        help="Similarity threshold for skipping cached entries")
+
+    parser = argparse.ArgumentParser(description="Warm semantic cache with doctrine FAQs")
+    parser.add_argument(
+        "--mode",
+        choices=["direct", "pipeline"],
+        default="pipeline",
+        help="Warming mode: direct (embed+store) or pipeline (full RAG via /api/chat)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.90,
+        help="Similarity threshold for skipping already-cached entries",
+    )
     args = parser.parse_args()
-    
+
     warmer = CacheWarmer(similarity_threshold=args.threshold)
-    
+
     try:
         if args.mode == "direct":
-            stats = await warmer.warm_cache()
+            stats = await warmer.warm_direct()
         else:
-            stats = await warmer.warm_with_real_pipeline()
-    finally:
-        await warmer.close()
-    
+            stats = await warmer.warm_with_pipeline()
+    except Exception as e:
+        logger.error(f"Cache warming failed: {e}")
+        raise
+
     print(f"\n{'='*50}")
     print("Cache Warming Complete")
     print(f"{'='*50}")

@@ -103,3 +103,7 @@ class ChatResponse(BaseModel):
     query_tier: Optional[str] = Field(
         None, description="Graph variant used (fast, standard, deep)"
     )
+    follow_up_suggestions: list[str] = Field(
+        default_factory=list,
+        description="Claude-style suggested follow-up questions for the user",
+    )

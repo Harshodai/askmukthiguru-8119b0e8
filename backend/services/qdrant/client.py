@@ -124,9 +124,31 @@ class QdrantClientManager:
                     field_name="tags",
                     field_schema="keyword",
                 )
+                # Full-text index on content for BM25-like keyword search
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="content",
+                    field_schema="text",
+                )
+                # Additional payload indexes for filtered queries
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="speaker",
+                    field_schema="keyword",
+                )
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="topic",
+                    field_schema="keyword",
+                )
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="content_type",
+                    field_schema="keyword",
+                )
                 logger.info(
                     f"Created collection: {self._collection} "
-                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, and metadata indexes)"
+                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, content-FTS, and metadata indexes)"
                 )
             else:
                 logger.info(f"Collection exists: {self._collection}")
@@ -136,6 +158,55 @@ class QdrantClientManager:
                 logger.info(f"Collection already exists (concurrent create): {self._collection}")
             else:
                 raise
+
+    def scroll_content(
+        self,
+        query: str,
+        limit: int = 20,
+        filter_cond: Optional[Any] = None,
+    ) -> list[dict[str, Any]]:
+        """BM25-like full-text search via Qdrant text_index on content field.
+
+        Uses Qdrant's scroll with text-matching filter for keyword retrieval.
+        Results are scored by text relevance, not vector similarity.
+        """
+        from qdrant_client.http.models import FieldCondition, MatchText, Filter
+
+        text_filter = Filter(
+            must=[FieldCondition(key="content", match=MatchText(text=query))]
+        )
+        # Combine with existing filter if provided
+        combined = text_filter
+        if filter_cond:
+            combined = Filter(
+                must=[text_filter, filter_cond]
+                if isinstance(filter_cond, Filter)
+                else text_filter.must + [filter_cond]
+            )
+
+        try:
+            results, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=combined,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+            return [
+                {
+                    "id": str(r.id),
+                    "content": r.payload.get("content", ""),
+                    "score": 0.5,  # BM25 has no score in scroll; assign neutral weight for RRF
+                    "metadata": {
+                        k: v for k, v in r.payload.items() if k != "content"
+                    },
+                    "source": "bm25_text",
+                }
+                for r in results
+            ]
+        except Exception as e:
+            logger.warning(f"BM25 text scroll failed: {e}")
+            return []
 
     def health_check(self) -> bool:
         """Check if Qdrant is reachable and collection exists."""

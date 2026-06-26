@@ -141,6 +141,10 @@ def create_initial_state(
         request_id=request_id,
         # Routing
         intent=None,
+        # headroom CCR raw documents
+        raw_documents=[],
+        # Claude-style follow-up suggestions (populated by format_final_answer)
+        follow_up_suggestions=[],
         # Retrieval
         documents=[],
         reranked_docs=[],

@@ -28,10 +28,13 @@ logger = logging.getLogger(__name__)
 async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Self-Reflection: simple tier – running lightweight LettuceDetect")
-
-    if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Self-Reflection: bypassing for simple query tier")
+        return {"needs_correction": False, "reflection_feedback": None}
+
+    # Skip for standard tier with short answers (< 150 chars)
+    answer = state.get("answer", "")
+    if state.get("query_tier") == "standard" and len(answer) < 150:
+        logger.info("Self-Reflection: standard tier with short answer – bypassing")
         return {"needs_correction": False, "reflection_feedback": None}
 
     answer = state.get("answer")
@@ -89,13 +92,22 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 async def verify_answer(state: GraphState, config: dict = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Combined verify: simple tier – running lightweight LettuceDetect")
-
-    if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Combined verify: bypassing for simple query tier")
         return {
             "is_faithful": True,
             "verification": {"passed": True, "details": "Bypassed for simple query tier"},
+            "confidence_score": 10.0,
+            "faithfulness_score": 10.0,
+            "relevancy_score": 10.0,
+        }
+
+    # Skip for standard tier with short answers (< 150 chars)
+    answer = state.get("answer", "")
+    if state.get("query_tier") == "standard" and len(answer) < 150:
+        logger.info("Combined verify: standard tier with short answer – bypassing")
+        return {
+            "is_faithful": True,
+            "verification": {"passed": True, "details": "Bypassed for standard tier short answer"},
             "confidence_score": 10.0,
             "faithfulness_score": 10.0,
             "relevancy_score": 10.0,
@@ -192,6 +204,12 @@ async def check_contradiction(state: GraphState, config: dict = None) -> dict:
     """Check if the newly generated answer contradicts previous conversation history."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Contradiction check: bypassing for simple query tier")
+        return {"evaluation_trace": _trace_update(state, contradiction_detected=False)}
+
+    # Skip for standard tier with short.answer  < 150 chars
+    answer = state.get("answer", "")
+    if state.get("query_tier") == "standard" and len(answer) < 150:
+        logger.info("Contradiction check: standard tier with short answer – bypassing")
         return {"evaluation_trace": _trace_update(state, contradiction_detected=False)}
 
     answer = state.get("answer", "")

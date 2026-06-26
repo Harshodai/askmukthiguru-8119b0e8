@@ -4,11 +4,11 @@
 
 -- Step 1: add nullable text column
 alter table public.chat_queries
-    add column assistant_slug text;
+    add column if not exists assistant_slug text;
 
 -- Step 2: optional index for admin dashboards / quality breakdowns by assistant
 -- drop index if exists idx_chat_queries_assistant_slug;
-create index idx_chat_queries_assistant_slug
+create index if not exists idx_chat_queries_assistant_slug
     on public.chat_queries(assistant_slug)
     where assistant_slug is not null;
 

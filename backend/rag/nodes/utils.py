@@ -455,15 +455,31 @@ def _generation_kwargs(state: GraphState) -> dict:
 
 
 def select_llm_model(query: str, context_len: int) -> str:
-    """Determines optimal model routing to balance latency and context capacity."""
+    """Determines optimal model routing to balance latency and context capacity.
+    
+    Returns model name appropriate for the configured LLM provider.
+    """
+    provider = getattr(settings, "llm_provider", "sarvam_cloud").lower()
     complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
-    if not complex_enabled:
+    
+    if provider == "sarvam_cloud":
+        if not complex_enabled:
+            return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
+        threshold = getattr(settings, "sarvam_complex_context_chars", 20000)
+        if context_len >= threshold or len(query) > 2000:
+            return getattr(settings, "sarvam_cloud_complex_model", "sarvam-105b")
         return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
-
-    threshold = getattr(settings, "sarvam_complex_context_chars", 20000)
-    if context_len >= threshold or len(query) > 2000:
-        return getattr(settings, "sarvam_cloud_complex_model", "sarvam-105b")
-
+    
+    elif provider == "openrouter":
+        if not complex_enabled:
+            return getattr(settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free")
+        # For OpenRouter, use the generation model for complex too (or a specific complex model if configured)
+        return getattr(settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free")
+    
+    elif provider == "ollama":
+        return getattr(settings, "ollama_model", "qwen2.5:32b")
+    
+    # Default fallback
     return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
 
 
@@ -485,7 +501,10 @@ def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
 
 
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
-    """Select generation model via config, not benchmark-answer hardcoding."""
+    """Select generation model via config, not benchmark-answer hardcoding.
+    
+    Works with any configured LLM provider (sarvam_cloud, openrouter, ollama).
+    """
     kwargs = _generation_kwargs(state)
     provider = getattr(settings, "llm_provider", "unknown")
     decision = state.get("query_tier") or "default"
@@ -494,15 +513,23 @@ def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     model = select_llm_model(question, context_chars)
 
     complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
-    complex_model = getattr(settings, "sarvam_cloud_complex_model", "")
     is_complex = state.get("query_tier") in ("deep", "tier3_complex") or bool(state.get("is_complex"))
     is_high_risk = state.get("intent") in {"ADVERSARIAL", "RELATIONAL"}
 
-    if complex_enabled and complex_model and (is_complex or is_high_risk):
-        model = complex_model
-        decision = "complex_model"
+    # Provider-specific complex model routing
+    if complex_enabled and (is_complex or is_high_risk):
+        if provider == "sarvam_cloud":
+            complex_model = getattr(settings, "sarvam_cloud_complex_model", "")
+        elif provider == "openrouter":
+            complex_model = getattr(settings, "openrouter_generation_model", "")
+        else:
+            complex_model = ""
+        if complex_model:
+            model = complex_model
+            decision = "complex_model"
 
-    if model and provider.lower() == "sarvam_cloud":
+    # Set model for ALL providers (not just sarvam_cloud)
+    if model:
         kwargs["model"] = model
 
     kwargs["_route_metadata"] = {

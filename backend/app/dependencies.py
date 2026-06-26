@@ -135,6 +135,15 @@ class ServiceContainer:
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
 
+        # Multi-provider LLM failover router (circuit breakers + rate limiting)
+        self.multi_provider_llm = None
+        try:
+            from services.multi_provider_llm import get_llm_service as get_multi_provider_llm
+            self.multi_provider_llm = get_multi_provider_llm()
+            logger.info("MultiProviderLLMService initialized (failover ready)")
+        except Exception as e:
+            logger.warning(f"MultiProviderLLMService init skipped: {e}")
+
         # Model registry only for Ollama
         if isinstance(self.ollama, OllamaProvider):
             self.model_registry = ModelRegistry(self.ollama._service, self.krutrim)
@@ -203,7 +212,7 @@ class ServiceContainer:
 
     def _build_profiles(self) -> None:
         """Layer 6: Emotional intelligence and user profiles."""
-        from services.memory_service import MemoryService
+        from services.memory_service_v2 import MemoryServiceV2
 
         if settings.serene_mind_enabled:
             self.serene_mind = SereneMindEngine(embedding_service=self.embedding)
@@ -222,7 +231,7 @@ class ServiceContainer:
                     logger.error(f"Failed to initialize Supabase client: {e}")
 
             self.user_profile = UserProfileService(supabase_client=supabase_client)
-            self.memory_service = MemoryService(
+            self.memory_service = MemoryServiceV2(
                 supabase_client=supabase_client,
                 embedding_service=self.embedding,
                 llm_service=self.ollama,

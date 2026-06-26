@@ -18,6 +18,7 @@ from app.security_utils import is_valid_youtube_url
 from app.telemetry_db import log_ingestion_run
 from ingest.image_loader import is_image_url
 from services.auth_service import get_current_user_from_supabase
+from services.tenant_context import set_tenant_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ async def ingest_endpoint(
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
+    _tenant=Depends(set_tenant_from_request),
 ) -> IngestResponse:
     """
     Content ingestion endpoint (Admin only).

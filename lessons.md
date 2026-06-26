@@ -1,5 +1,10 @@
 # Agentic Lessons & Memory
 
+## Jun 26, 2026 — Claude Code Dynamic Model Discovery & Thinking/Effort support
+- **Problem**: In Claude Code proxy client, selecting Claude 3.5 Sonnet showed "Effort not supported for Claude 3.5 Sonnet" and other custom models from OpenRouter/Nvidia NIM configured in Admin UI did not appear in the model selection picker.
+- **Fix**: Added `claude-3-7-sonnet-20250219` to `SUPPORTED_CLAUDE_MODELS` list in `api/model_catalog.py` of `free-claude-code`. Modified `~/.claude/settings.json` to change the active model to `claude-3-7-sonnet-20250219` and removed the `"availableModels"` array allowlist entirely.
+- **Lesson**: When `"availableModels"` is defined in `settings.json`, the Claude Code client strictly enforces it and completely bypasses querying the proxy's `/v1/models` endpoint for discovery. Removing `"availableModels"` entirely enables dynamic model discovery from the proxy gateway's `/v1/models` endpoint, populating the `/model` picker with all configured provider models.
+
 ## Jun 25, 2026 — Ralph Loop Validation & RAG Flow Graph UI Integration
 - **Problem**: Needed to finalize the Teacher-Student Ralph loop verification and construct an interactive, premium visual RAG pipeline graph in the Admin console without breaking React routing or Vite builds.
 - **Fix**: Implemented Student model checking inside the refiner, batch CLI runner inside Docker backend container, and created a responsive React page using `@xyflow/react` with custom-styled card nodes, real-time latencies, and an inspector drawer. Registered routing paths in `App.tsx` and sidebar navigation links in `AdminShell.tsx`.

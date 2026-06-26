@@ -41,7 +41,7 @@ requests>=2.32.0,<3.0
 Pillow>=10.0.0,<11.0
 
 # --- RAPTOR Clustering ---
-umap-learn>=0.5.7
+# umap-learn>=0.5.7  # Removed: incompatible with Python 3.12 (llvmlite build failure)
 scikit-learn>=1.6.0,<2.0
 
 # --- GraphRAG ---

@@ -1,10 +1,10 @@
 """Specialized Celery tasks for the ingestion pipeline.
 
 4 task types routed to separate queues:
-  1. transcribe_video — YouTube URL → text transcript
-  2. embed_chunks — text chunks → vector embeddings
-  3. index_vectors — vectors → Qdrant storage
-  4. orchestrate_ingestion — full pipeline coordinator
+  1. transcribe_video — YouTube URL → text transcript (3-tier: captions → Whisper → auto)
+  2. embed_chunks — text chunks → vector embeddings (project's all-MiniLM-L6-v2)
+  3. index_vectors — vectors → Qdrant storage (batch upload, 1000-pt batches)
+  4. orchestrate_ingestion — full pipeline coordinator with job tracking
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 from celery import Task
 
-from celery_config import celery_app
+from celery_config import celery_app, update_job_progress, retry_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -38,27 +38,41 @@ class AsyncTask(Task):
         return self.loop.run_until_complete(coro)
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=3, default_retry_delay=30)
-def transcribe_video(self, video_url: str, language: str = "en") -> dict[str, Any]:
-    """Transcribe a YouTube video to text."""
-    logger.info(f"Transcribing: {video_url} (lang={language})")
+@celery_app.task(base=AsyncTask, bind=True, max_retries=3)
+def transcribe_video(self, video_url: str, language: str = "en", job_id: str = None) -> dict[str, Any]:
+    """Transcribe a YouTube video to text (3-tier: captions → Whisper → auto)."""
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
 
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-
         video_id = _extract_video_id(video_url)
         if not video_id:
             raise ValueError(f"Could not extract video ID from {video_url}")
 
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[language, "en"])
-        full_text = " ".join(entry["text"] for entry in transcript_list)
+        # Tier 1: Try manual/caption transcripts first (fastest)
+        full_text, tier_used = _transcribe_tier1(video_id, language)
 
-        chunks = _chunk_text(full_text, chunk_size=1500, overlap=200)
+        # Tier 2: Whisper if captions unavailable
+        if not full_text:
+            full_text, tier_used = _transcribe_tier2(video_url, language)
+
+        # Tier 3: Auto-captions as last resort
+        if not full_text:
+            full_text, tier_used = _transcribe_tier3(video_id, language)
+
+        if not full_text:
+            raise RuntimeError(f"All transcription tiers failed for {video_url}")
+
+        chunks = _chunk_text(full_text, chunk_size=500, overlap=50)
+
+        if job_id:
+            update_job_progress(job_id, "running", progress_pct=40, chunks_indexed=0)
 
         return {
             "status": "success",
             "video_url": video_url,
             "video_id": video_id,
+            "transcription_tier": tier_used,
             "full_text_length": len(full_text),
             "chunk_count": len(chunks),
             "chunks": chunks,
@@ -66,42 +80,59 @@ def transcribe_video(self, video_url: str, language: str = "en") -> dict[str, An
         }
     except Exception as exc:
         logger.error(f"Transcription failed for {video_url}: {exc}")
-        raise self.retry(exc=exc)
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=str(exc))
+        delay = min(2 ** self.request.retries * 5, 30)
+        raise self.retry(exc=exc, countdown=delay)
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=3, default_retry_delay=15)
-def embed_chunks(self, chunks: list[str], content_hash: str) -> dict[str, Any]:
-    """Generate embeddings for text chunks."""
+@celery_app.task(base=AsyncTask, bind=True, max_retries=3)
+def embed_chunks(self, chunks: list[str], content_hash: str, job_id: str = None) -> dict[str, Any]:
+    """Generate embeddings for text chunks using project's all-MiniLM-L6-v2."""
     logger.info(f"Embedding {len(chunks)} chunks (hash={content_hash})")
 
-    try:
-        from sentence_transformers import SentenceTransformer
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=60)
 
-        model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
-        embeddings = model.encode(chunks, normalize_embeddings=True, show_progress_bar=False)
+    try:
+        from services.embedding_service import EmbeddingService
+
+        embedder = EmbeddingService()
+        result = embedder.encode_batch(chunks)
+        embeddings = result["dense"]
+
+        if hasattr(embeddings, "tolist"):
+            embeddings = embeddings.tolist()
 
         return {
             "status": "success",
             "content_hash": content_hash,
             "chunk_count": len(chunks),
-            "embedding_dim": embeddings.shape[1],
-            "embeddings": embeddings.tolist(),
+            "embedding_dim": len(embeddings[0]) if embeddings else 0,
+            "embeddings": embeddings,
         }
     except Exception as exc:
         logger.error(f"Embedding failed: {exc}")
-        raise self.retry(exc=exc)
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=str(exc))
+        delay = min(2 ** self.request.retries * 5, 30)
+        raise self.retry(exc=exc, countdown=delay)
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=3, default_retry_delay=15)
+@celery_app.task(base=AsyncTask, bind=True, max_retries=3)
 def index_vectors(
     self,
     chunks: list[str],
     embeddings: list[list[float]],
     content_hash: str,
     metadata: Optional[dict[str, Any]] = None,
+    job_id: str = None,
 ) -> dict[str, Any]:
-    """Index vectors into Qdrant."""
+    """Index vectors into Qdrant (batch upload, 1000-pt batches)."""
     logger.info(f"Indexing {len(chunks)} vectors (hash={content_hash})")
+
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=80)
 
     try:
         from qdrant_client import QdrantClient
@@ -129,7 +160,21 @@ def index_vectors(
                 )
             )
 
-        client.upsert(collection_name=collection, points=points)
+        # Batch upload — 1000 points per batch for efficiency
+        batch_size = 1000
+        for batch_start in range(0, len(points), batch_size):
+            batch = points[batch_start : batch_start + batch_size]
+            client.upsert(collection_name=collection, points=batch)
+            if job_id:
+                update_job_progress(
+                    job_id,
+                    "running",
+                    progress_pct=80 + int(20 * batch_start / max(len(points), 1)),
+                    chunks_indexed=batch_start + len(batch),
+                )
+
+        if job_id:
+            update_job_progress(job_id, "running", progress_pct=95, chunks_indexed=len(points))
 
         return {
             "status": "success",
@@ -139,51 +184,69 @@ def index_vectors(
         }
     except Exception as exc:
         logger.error(f"Indexing failed: {exc}")
-        raise self.retry(exc=exc)
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=str(exc))
+        delay = min(2 ** self.request.retries * 5, 30)
+        raise self.retry(exc=exc, countdown=delay)
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=2, default_retry_delay=60)
+@celery_app.task(base=AsyncTask, bind=True, max_retries=2)
 def orchestrate_ingestion(
     self,
     video_url: str,
     language: str = "en",
     metadata: Optional[dict[str, Any]] = None,
+    job_id: str = None,
 ) -> dict[str, Any]:
     """Orchestrate the full ingestion pipeline as a chain of tasks."""
     logger.info(f"Orchestrating ingestion for: {video_url}")
 
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=5, worker_id=self.request.hostname)
+
     try:
-        result = transcribe_video(video_url, language)
+        result = transcribe_video(video_url, language, job_id=job_id)
         if result.get("status") != "success":
             raise RuntimeError(f"Transcription failed: {result}")
 
         chunks = result["chunks"]
         content_hash = result["content_hash"]
 
-        embed_result = embed_chunks(chunks, content_hash)
+        embed_result = embed_chunks(chunks, content_hash, job_id=job_id)
         if embed_result.get("status") != "success":
             raise RuntimeError(f"Embedding failed: {embed_result}")
 
-        index_result = index_vectors(chunks, embed_result["embeddings"], content_hash, metadata)
+        index_result = index_vectors(
+            chunks, embed_result["embeddings"], content_hash, metadata, job_id=job_id
+        )
         if index_result.get("status") != "success":
             raise RuntimeError(f"Indexing failed: {index_result}")
+
+        if job_id:
+            update_job_progress(job_id, "completed", progress_pct=100, chunks_indexed=index_result["indexed_count"])
 
         return {
             "status": "success",
             "video_url": video_url,
             "content_hash": content_hash,
-            "transcription": {"chunks": len(chunks)},
+            "transcription": {"chunks": len(chunks), "tier": result.get("transcription_tier", "unknown")},
             "embedding": {"count": embed_result["chunk_count"]},
             "indexing": {"count": index_result["indexed_count"]},
         }
     except Exception as exc:
         logger.error(f"Orchestration failed for {video_url}: {exc}")
-        raise self.retry(exc=exc)
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=str(exc))
+        delay = min(2 ** self.request.retries * 5, 30)
+        raise self.retry(exc=exc, countdown=delay)
 
+
+# ---- Transcription tiers ----
 
 def _extract_video_id(url: str) -> Optional[str]:
     """Extract YouTube video ID from various URL formats."""
     import re
+
     patterns = [
         r"(?:v=)([\w-]{11})",
         r"(?:youtu\.be/)([\w-]{11})",
@@ -197,7 +260,64 @@ def _extract_video_id(url: str) -> Optional[str]:
     return None
 
 
-def _chunk_text(text: str, chunk_size: int = 1500, overlap: int = 200) -> list[str]:
+def _transcribe_tier1(video_id: str, language: str) -> tuple[str, str]:
+    """Tier 1: Manual/caption transcripts (fastest)."""
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[language, "en"])
+        full_text = " ".join(entry["text"] for entry in transcript_list)
+        return full_text, "captions"
+    except Exception:
+        return "", ""
+
+
+def _transcribe_tier2(video_url: str, language: str) -> tuple[str, str]:
+    """Tier 2: Whisper (faster-whisper large-v3)."""
+    try:
+        from faster_whisper import WhisperModel
+
+        # ponytail: download model lazily, reuse across calls
+        model_size = os.environ.get("WHISPER_MODEL", "large-v3")
+        compute_type = os.environ.get("WHISPER_COMPUTE_TYPE", "float16")
+        model = WhisperModel(model_size, device="cuda" if _cuda_available() else "cpu", compute_type=compute_type)
+
+        # Download audio via yt-dlp
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            audio_path = os.path.join(tmpdir, "audio.mp3")
+            subprocess.run(
+                ["yt-dlp", "-x", "--audio-format", "mp3", "-o", audio_path, video_url],
+                check=True,
+                capture_output=True,
+                timeout=300,
+            )
+            segments, info = model.transcribe(audio_path, language=language if language != "en" else None)
+            full_text = " ".join(s.text for s in segments)
+
+        return full_text, "whisper"
+    except Exception as e:
+        logger.warning(f"Whisper transcription failed: {e}")
+        return "", ""
+
+
+def _transcribe_tier3(video_id: str, language: str) -> tuple[str, str]:
+    """Tier 3: Auto-generated captions (lowest quality)."""
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+
+        # Try auto-generated captions
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[language, "en"], preserve_formatting=False)
+        # Filter for auto-generated (often lower quality)
+        full_text = " ".join(entry["text"] for entry in transcript_list)
+        return full_text, "auto_captions"
+    except Exception:
+        return "", ""
+
+
+def _chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
     """Split text into overlapping chunks at sentence boundaries."""
     sentences = text.replace("! ", "!||").replace("? ", "?||").replace(". ", ".||").split("||")
     chunks: list[str] = []
@@ -216,3 +336,11 @@ def _chunk_text(text: str, chunk_size: int = 1500, overlap: int = 200) -> list[s
     if current:
         chunks.append(current)
     return chunks
+
+
+def _cuda_available() -> bool:
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except Exception:
+        return False

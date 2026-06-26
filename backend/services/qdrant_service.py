@@ -180,6 +180,12 @@ class QdrantService:
         """Dense-only search using the named 'dense' vector."""
         return self._searcher._dense_search(query_vector, limit, search_filter)
 
+    def scroll_content(
+        self, query: str, limit: int = 20, filter_cond=None
+    ) -> list[dict]:
+        """BM25-like full-text search via Qdrant text_index on content field."""
+        return self._client_manager.scroll_content(query, limit, filter_cond)
+
     # === Neighbor / RAPTOR delegation =======================================
 
     def get_neighbor_chunks(self, source_url: str, chunk_index: int, window: int = 1) -> list[dict]:

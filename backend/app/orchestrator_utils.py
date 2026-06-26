@@ -24,12 +24,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Expanded simple query patterns (synced with intent.py _SIMPLE_QUERY_PATTERNS)
-_SIMPLE_QUERY_STARTS: tuple[str, ...] = (
-    "who", "what is", "what are", "when", "where", "how to", "how do",
-    "how does", "how many", "how much", "can you", "explain the",
-    "what did", "tell me about", "describe", "define", "meaning of",
-)
+# Simple query patterns (synced with intent.py — MUST be kept in lock-step)
+# Using re.search so phrases like "Explain the first sacred secret" still match.
+_SIMPLE_QUERY_PATTERNS: list[str] = [
+    r"^who\bs+",
+    r"^what\bs+(is|are)\b",
+    r"^when\b",
+    r"^where\b",
+    r"^how\s+(to|do|does|many|much)\b",
+    r"^can\s+you\b",
+    r"^explain\b",
+    r"^what\s+did\b",
+    r"^tell\s+me\s+about\b",
+    r"^describe\b",
+    r"^define\b",
+    r"^meaning\s+of\b",
+]
 
 # Deep query patterns — comparative, analytical, multi-hop
 _DEEP_QUERY_PATTERNS: list[str] = [
@@ -83,7 +93,10 @@ from app.telemetry_db import log_router_decision
 
 
 async def select_graph_for_query(
-    query: str, container: Optional[ServiceContainer] = None, detected_intent: Optional[str] = None
+    query: str,
+    container: Optional[ServiceContainer] = None,
+    detected_intent: Optional[str] = None,
+    query_tier: Optional[str] = None,
 ) -> str:
     """Select the most appropriate compiled graph variant for a query using dynamic LLM classification with heuristic fallback.
 
@@ -91,6 +104,7 @@ async def select_graph_for_query(
         query: Raw user query (already translated to English if necessary).
         container: The ServiceContainer instance to access LLM providers.
         detected_intent: Optional intent label from intent router.
+        query_tier: Optional tier label (tier2_simple, tier3_complex, etc.).
 
     Returns:
         "fast" — Simple factual queries (1-2 LLM calls, <20s)
@@ -176,20 +190,36 @@ async def select_graph_for_query(
     # Determine heuristic tier
     heuristic_tier = "standard"
 
-    # Check if intent router already classified as simple
+    # Respect intent router's tier classification
+    # All tier2_simple queries route to fast graph regardless of other heuristics
+    if query_tier in ("tier2_simple", "fast"):
+        heuristic_tier = "fast"
+        try:
+            asyncio.create_task(
+                log_router_decision(
+                    query=query,
+                    tier=heuristic_tier,
+                    confidence=1.0,
+                    method="tier_respect",
+                    shadow_tier=semantic_tier if shadow_mode else None,
+                )
+            )
+        except Exception:
+            pass
+        return heuristic_tier
+
+    # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
     if detected_intent in ("FACTUAL", "QUERY"):
-        # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
         if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
             if len(tokens) <= 25:
                 heuristic_tier = "fast"
         elif len(tokens) <= 20:
             heuristic_tier = "fast"
 
-    # Check simple query patterns
-    if len(tokens) <= 10:
-        for st in _SIMPLE_QUERY_STARTS:
-            if q.startswith(st):
-                heuristic_tier = "fast"
+    # Regex-based simple query detection (synced with intent.py _SIMPLE_QUERY_PATTERNS)
+    for pattern in _SIMPLE_QUERY_PATTERNS:
+        if re.search(pattern, q) and len(tokens) <= 15:
+            heuristic_tier = "fast"
 
     # Broader regex-based simple query detection (expanded thresholds)
     simple_patterns = [
@@ -198,7 +228,7 @@ async def select_graph_for_query(
         r"^(what is|what are|who is|who are|where is|where are)\s+",
     ]
     for pattern in simple_patterns:
-        if re.search(pattern, q) and len(tokens) <= 12:
+        if re.search(pattern, q) and len(tokens) <= 15:
             heuristic_tier = "fast"
 
     # Final catch-all: short greetings and statements

@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 EPHEMERAL_TTL = 900  # 15 minutes
 GLOBAL_MEMORY_COLLECTION = "global_memory"
+_LRU_MAX_SIZE = 1000  # ponytail: in-memory LRU fallback cap, bump if eviction rate >5%
 
 
 @dataclass
@@ -44,6 +46,9 @@ class MemoryServiceV2(MemoryService):
         super().__init__(supabase_client, embedding_service, llm_service)
         self._redis: Optional[aioredis.Redis] = None
         self._neo4j_driver = None
+        # LRU fallback when Redis is down — bounded, thread-safe via asyncio
+        self._lru_fallback: OrderedDict[str, str] = OrderedDict()
+        self._redis_available: Optional[bool] = None  # None = unchecked
 
     # ---- Tier 1: Ephemeral (Redis) ----
 
@@ -60,25 +65,36 @@ class MemoryServiceV2(MemoryService):
 
     async def set_ephemeral(self, user_id: str, key: str, value: Any, ttl: int = EPHEMERAL_TTL) -> bool:
         redis = await self._get_redis()
-        if not redis:
-            return False
-        try:
-            await redis.setex(f"ephemeral:{user_id}:{key}", ttl, json.dumps(value))
-            return True
-        except Exception as e:
-            logger.warning(f"Ephemeral set failed: {e}")
-            return False
+        cache_key = f"ephemeral:{user_id}:{key}"
+        serialized = json.dumps(value)
+        if redis:
+            try:
+                await redis.setex(cache_key, ttl, serialized)
+                self._redis_available = True
+                return True
+            except Exception as e:
+                logger.warning(f"Redis ephemeral set failed, falling back to LRU: {e}")
+                self._redis_available = False
+        # LRU fallback
+        self._lru_set(cache_key, serialized)
+        return True
 
     async def get_ephemeral(self, user_id: str, key: str) -> Optional[Any]:
         redis = await self._get_redis()
-        if not redis:
-            return None
-        try:
-            data = await redis.get(f"ephemeral:{user_id}:{key}")
-            return json.loads(data) if data else None
-        except Exception as e:
-            logger.warning(f"Ephemeral get failed: {e}")
-            return None
+        cache_key = f"ephemeral:{user_id}:{key}"
+        if redis and self._redis_available is not False:
+            try:
+                data = await redis.get(cache_key)
+                if data:
+                    self._redis_available = True
+                    return json.loads(data)
+                # Redis miss — check LRU in case it was written during outage
+            except Exception as e:
+                logger.warning(f"Redis ephemeral get failed, falling back to LRU: {e}")
+                self._redis_available = False
+        # LRU fallback
+        data = self._lru_get(cache_key)
+        return json.loads(data) if data else None
 
     async def get_ephemeral_session(self, user_id: str, session_id: str) -> dict[str, Any]:
         redis = await self._get_redis()
@@ -336,3 +352,20 @@ class MemoryServiceV2(MemoryService):
             await self._redis.close()
         if self._neo4j_driver:
             await self._neo4j_driver.close()
+
+    # ---- LRU fallback helpers ----
+
+    def _lru_set(self, key: str, value: str) -> None:
+        """Set value in in-memory LRU cache (bounded)."""
+        self._lru_fallback[key] = value
+        self._lru_fallback.move_to_end(key)
+        # Evict oldest entries if over cap
+        while len(self._lru_fallback) > _LRU_MAX_SIZE:
+            self._lru_fallback.popitem(last=False)
+
+    def _lru_get(self, key: str) -> Optional[str]:
+        """Get value from in-memory LRU cache."""
+        if key in self._lru_fallback:
+            self._lru_fallback.move_to_end(key)
+            return self._lru_fallback[key]
+        return None

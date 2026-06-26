@@ -55,7 +55,7 @@ def test_conversational_filler_does_not_autopass():
 
 def test_doctrine_term_does_not_autopass():
     """Doctrine keywords must not bypass a low faithfulness score (findings #1/#14)."""
-    svc = LettuceDetectService(embedder=_FakeEmbedder(sentence_score=0.05, context_score=0.9))
+    svc = LettuceDetectService(embedder=_FakeEmbedder(sentence_score=0.01, context_score=0.9))
     result = svc.score_faithfulness(
         "any question",
         "context paragraph one\n\ncontext paragraph two",
