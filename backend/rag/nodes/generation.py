@@ -655,17 +655,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     **kwargs,
                 )
 
-            if app_settings.llm_provider == "sarvam_cloud":
-                sarvam = _services._sarvam_cloud
-                if sarvam is None:
-                    logger.error(
-                        "SarvamCloudService not injected; falling back to Ollama"
-                    )
-                    answer = await _generate_with(ollama, add_timeout=True)
-                else:
-                    answer = await _generate_with(sarvam, add_timeout=False)
-            else:
-                answer = await _generate_with(ollama, add_timeout=True)
+            # Use the universal provider (ollama = configured LLM provider)
+            # sarvam_cloud is only for STT/TTS/Translation, not for generation
+            answer = await _generate_with(ollama, add_timeout=True)
 
     answer = strip_cot(answer)
 
@@ -783,11 +775,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 except Exception as exc:
                     logger.warning(f"headroom CCR: Gateway retry failed: {exc}")
             else:
-                from app.config import settings as app_settings
-                if app_settings.llm_provider == "sarvam_cloud" and _services._sarvam_cloud:
-                    answer = await _services._sarvam_cloud.generate(system_prompt=system_prompt, user_prompt=user_prompt)
-                else:
-                    answer = await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+                # Use the universal provider (ollama = configured LLM provider)
+                answer = await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)
             answer = strip_cot(answer)
 
     answer = _ensure_keywords_in_answer(answer, question)
@@ -983,6 +972,37 @@ def _clean_inline_citations(text: str) -> str:
     return text.strip()
 
 
+async def _generate_follow_up_suggestions(question: str, answer: str, intent: str) -> list[str]:
+    """Generate 3 Claude-style follow-up question suggestions via lightweight LLM call."""
+    try:
+        ollama = _services._ollama
+        if not ollama:
+            return []
+        system_prompt = (
+            "You are a helpful assistant generating short follow-up questions. "
+            "Given a user's question and a guru's answer, produce exactly 3 natural, "
+            "concise follow-up questions a spiritual seeker might ask next. "
+            "Return only the 3 questions, one per line, no numbering, no preamble."
+        )
+        user_prompt = (
+            f"User question: {question[:300]}\n"
+            f"Guru answer: {answer[:600]}\n"
+            f"Intent: {intent}\n\n"
+            "Generate 3 follow-up questions:"
+        )
+        raw = await ollama.generate(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            timeout=get_node_timeout("format_final_answer", 10.0),
+            max_retries=1,
+        )
+        suggestions = [q.strip() for q in raw.splitlines() if q.strip() and len(q.strip()) > 10][:3]
+        return suggestions
+    except Exception as exc:
+        logger.debug(f"Follow-up suggestion generation failed (non-fatal): {exc}")
+        return []
+
+
 async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     """Format the final response based on pipeline results."""
     await emit_status(config, "Finalizing your response...")
@@ -1068,10 +1088,25 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass
 
+    # Generate follow-up suggestions concurrently (non-blocking, best-effort)
+    question = state.get("question", "")
+    follow_up_suggestions: list[str] = []
+    if answer and question and intent not in ("DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"):
+        try:
+            follow_up_suggestions = await asyncio.wait_for(
+                _generate_follow_up_suggestions(question, answer, intent),
+                timeout=8.0,
+            )
+        except asyncio.TimeoutError:
+            logger.debug("Follow-up suggestions timed out — returning empty list")
+        except Exception as exc:
+            logger.debug(f"Follow-up suggestions skipped: {exc}")
+
     result = {
         "final_answer": answer,
         "citations": citations,
         "intent": intent,
+        "follow_up_suggestions": follow_up_suggestions,
         "evaluation_trace": _trace_update(
             state,
             final_answer_chars=len(answer),
@@ -1082,19 +1117,4 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     }
     if state.get("intent") == "DISTRESS":
         result["meditation_step"] = 1
-
-    if getattr(settings, "SEMANTIC_CACHE_ENABLED", True) and not state.get("cache_hit"):
-        try:
-            semantic_cache = _services._semantic_cache or InMemoryCacheAdapter()
-            semantic_cache.put(
-                state["question"],
-                response=answer,
-                intent=state.get("intent", "QUERY"),
-                citations=citations,
-            )
-        except Exception:
-            logger.exception(
-                "Semantic cache write failed for question %r",
-                state.get("question"),
-            )
     return result

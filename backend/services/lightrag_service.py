@@ -125,7 +125,10 @@ class LightRAGService:
                 except Exception as e:
                     logger.warning(f"LightRAG: OpenRouter task failed ({e}), falling back to default LLM")
 
-            if settings.llm_provider == "sarvam_cloud":
+            provider = settings.llm_provider.lower()
+            
+            # For Sarvam Cloud, use classification model to prevent reasoning runaway
+            if provider == "sarvam_cloud":
                 sys_prompt_str = system_prompt or ""
                 prompt_str = prompt or ""
 
@@ -148,8 +151,8 @@ class LightRAGService:
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "extraction"
                     logger.info(
-                        f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
-                    )
+f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
+)
                 elif (
                     "summary" in sys_prompt_str.lower()
                     or "merge" in sys_prompt_str.lower()
@@ -159,27 +162,34 @@ class LightRAGService:
                     kwargs["is_structured"] = True
                     kwargs["operation"] = "summarize"
                     logger.info(
-                        f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
-                    )
+f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
+)
                 else:
                     logger.info(
-                        f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
-                    )
+f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
+)
 
-            # Route LightRAG calls to the fast model (no reasoning).
-            # The main reasoning model produces 15+ KB thinking traces on broad queries,
-            # causing 30s timeouts in LightRAG's internal keyword extraction pipeline.
-            # The fast model (llama3.2:3b / qwen3:3b) handles extraction in 1-3s with zero overhead.
-            # sarvam_cloud already routes to classification model above; this handles the Ollama path.
-            if settings.llm_provider == "sarvam_cloud":
                 return await container.ollama.generate(
                     system_prompt=system_prompt or "You are a helpful assistant.",
                     user_prompt=prompt,
                     context=context,
                     **kwargs,
                 )
+            
+            # For OpenRouter, use _generate_fast (which uses classify model internally)
+            elif provider == "openrouter":
+                return await container.openrouter._generate_fast(
+                    system_prompt=system_prompt or "You are a helpful assistant.",
+                    user_prompt=prompt,
+                    context=context,
+                    timeout=25,
+                    max_retries=2,
+                    **kwargs,
+                )
+            
+            # For Ollama and other providers, use _generate_fast
             else:
-                # Ollama: force the fast classification model for ALL LightRAG internals.
+                # Force the fast classification model for ALL LightRAG internals.
                 # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
                 return await container.ollama._generate_fast(
                     system_prompt=system_prompt or "You are a helpful assistant.",

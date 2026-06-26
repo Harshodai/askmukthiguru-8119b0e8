@@ -20,6 +20,7 @@ from app.sanitization import sanitize_user_input
 from rag.memory import build_memory_context
 from services.auth_service import get_current_user_from_supabase
 from services.cost_tracker import TokenAccumulator, get_cost_tracker, token_accumulator_var
+from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ def record_token_usage(endpoint: str):
                 if acc and (acc.tokens_in > 0 or acc.tokens_out > 0):
                     try:
                         get_cost_tracker().record(
-                            tenant_id="default",
+                            tenant_id=TenantContext.get(),
                             user_id=user_id,
                             session_id=session_id,
                             model=acc.model,
@@ -144,6 +145,7 @@ async def chat_endpoint(
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
+    _tenant=Depends(set_tenant_from_request),
 ):
     """
     Main conversational endpoint.
@@ -208,6 +210,7 @@ async def chat_stream_endpoint(
     background_tasks: BackgroundTasks,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
+    _tenant=Depends(set_tenant_from_request),
 ):
     """
     Streaming chat endpoint using Server-Sent Events (SSE).

@@ -1,0 +1,660 @@
+# MukthiGuru — Kubernetes Production Deployment
+# Full specs for all services with HPA, resource limits, and scaling triggers.
+# Deploy: kubectl apply -f infrastructure/k8s_deployment.yaml
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mukthiguru
+
+---
+# ---- ConfigMap ----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mukthiguru-config
+  namespace: mukthiguru
+data:
+  QDRANT_URL: "http://qdrant:6333"
+  REDIS_URL: "redis://redis:6379/0"
+  NEO4J_URI: "bolt://neo4j:7687"
+  OLLAMA_MODEL: "sarvam-30b:latest"
+  SEMANTIC_CACHE_SIMILARITY: "0.90"
+  SEMANTIC_CACHE_ENABLED: "true"
+  WEB_SEARCH_ENABLED: "false"
+  SERENE_MIND_ENABLED: "true"
+
+---
+# ---- Secrets ----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mukthiguru-secrets
+  namespace: mukthiguru
+type: Opaque
+stringData:
+  SUPABASE_URL: "${SUPABASE_URL}"
+  SUPABASE_KEY: "${SUPABASE_KEY}"
+  NEO4J_USER: "neo4j"
+  NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+  SARVAM_API_KEY: "${SARVAM_API_KEY}"
+  OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+
+---
+# ---- FastAPI API ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: api
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: mukthiguru/api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: mukthiguru-config
+            - secretRef:
+                name: mukthiguru-secrets
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+  namespace: mukthiguru
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: mukthiguru
+spec:
+  selector:
+    app: mukthiguru
+    component: api
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP
+
+---
+# ---- Celery Transcription Workers (GPU) ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-transcription
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: celery-transcription
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: celery-transcription
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: celery-transcription
+    spec:
+      containers:
+        - name: worker
+          image: mukthiguru/backend:latest
+          command: ["celery", "-A", "celery_config", "worker", "-Q", "transcription", "-c", "2", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: mukthiguru-config
+            - secretRef:
+                name: mukthiguru-secrets
+          resources:
+            requests:
+              cpu: "4"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "32Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: whisper-models
+              mountPath: /root/.cache/whisper
+      volumes:
+        - name: whisper-models
+          persistentVolumeClaim:
+            claimName: whisper-models-pvc
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: celery-transcription-hpa
+  namespace: mukthiguru
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: celery-transcription
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: celery_queue_depth
+          selector:
+            matchLabels:
+              queue: transcription
+        target:
+          type: AverageValue
+          averageValue: "5"
+
+---
+# ---- Celery Embedding Workers ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-embedding
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: celery-embedding
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: celery-embedding
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: celery-embedding
+    spec:
+      containers:
+        - name: worker
+          image: mukthiguru/backend:latest
+          command: ["celery", "-A", "celery_config", "worker", "-Q", "embedding", "-c", "4", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: mukthiguru-config
+            - secretRef:
+                name: mukthiguru-secrets
+          resources:
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: celery-embedding-hpa
+  namespace: mukthiguru
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: celery-embedding
+  minReplicas: 5
+  maxReplicas: 20
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: celery_queue_depth
+          selector:
+            matchLabels:
+              queue: embedding
+        target:
+          type: AverageValue
+          averageValue: "20"
+
+---
+# ---- Celery Indexing Workers ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-indexing
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: celery-indexing
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: celery-indexing
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: celery-indexing
+    spec:
+      containers:
+        - name: worker
+          image: mukthiguru/backend:latest
+          command: ["celery", "-A", "celery_config", "worker", "-Q", "indexing", "-c", "2", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: mukthiguru-config
+            - secretRef:
+                name: mukthiguru-secrets
+          resources:
+            requests:
+              cpu: "1"
+              memory: "4Gi"
+            limits:
+              cpu: "2"
+              memory: "8Gi"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: celery-indexing-hpa
+  namespace: mukthiguru
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: celery-indexing
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: celery_queue_depth
+          selector:
+            matchLabels:
+              queue: indexing
+        target:
+          type: AverageValue
+          averageValue: "50"
+
+---
+# ---- Qdrant ----
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qdrant
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: qdrant
+spec:
+  serviceName: qdrant
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: qdrant
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: qdrant
+    spec:
+      containers:
+        - name: qdrant
+          image: qdrant/qdrant:latest
+          ports:
+            - containerPort: 6333
+            - containerPort: 6334
+          resources:
+            requests:
+              cpu: "4"
+              memory: "16Gi"
+            limits:
+              cpu: "8"
+              memory: "32Gi"
+          volumeMounts:
+            - name: qdrant-data
+              mountPath: /qdrant/storage
+  volumeClaimTemplates:
+    - metadata:
+        name: qdrant-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant
+  namespace: mukthiguru
+spec:
+  selector:
+    app: mukthiguru
+    component: qdrant
+  ports:
+    - name: grpc
+      port: 6334
+      targetPort: 6334
+    - name: http
+      port: 6333
+      targetPort: 6333
+  type: ClusterIP
+
+---
+# ---- Redis ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command: ["redis-server", "--appendonly", "yes", "--maxmemory", "4gb", "--maxmemory-policy", "allkeys-lru"]
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: "1"
+              memory: "4Gi"
+            limits:
+              cpu: "2"
+              memory: "8Gi"
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: mukthiguru
+spec:
+  selector:
+    app: mukthiguru
+    component: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP
+
+---
+# ---- PostgreSQL ----
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_DB
+              value: mukthiguru
+            - name: POSTGRES_USER
+              value: mukthiguru
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mukthiguru-secrets
+                  key: POSTGRES_PASSWORD
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: mukthiguru
+spec:
+  selector:
+    app: mukthiguru
+    component: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+---
+# ---- Neo4j ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neo4j
+  namespace: mukthiguru
+  labels:
+    app: mukthiguru
+    component: neo4j
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: neo4j
+  template:
+    metadata:
+      labels:
+        app: mukthiguru
+        component: neo4j
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5-community
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: mukthiguru-secrets
+                  key: NEO4J_USER
+          ports:
+            - containerPort: 7474
+            - containerPort: 7687
+          resources:
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+          volumeMounts:
+            - name: neo4j-data
+              mountPath: /data
+      volumes:
+        - name: neo4j-data
+          persistentVolumeClaim:
+            claimName: neo4j-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j
+  namespace: mukthiguru
+spec:
+  selector:
+    app: mukthiguru
+    component: neo4j
+  ports:
+    - name: http
+      port: 7474
+      targetPort: 7474
+    - name: bolt
+      port: 7687
+      targetPort: 7687
+  type: ClusterIP
+
+---
+# ---- PVCs ----
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: mukthiguru
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-pvc
+  namespace: mukthiguru
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: whisper-models-pvc
+  namespace: mukthiguru
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# ---- PodDisruptionBudgets ----
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: mukthiguru
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: api
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: qdrant-pdb
+  namespace: mukthiguru
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: mukthiguru
+      component: qdrant
