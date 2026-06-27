@@ -14,13 +14,24 @@ qdrant_data/
 neo4j_data/
 redis_data/
 telemetry_data/
+rag_storage/
+knowledge/
+.data/
+data/
+transcripts/
+
+# Ignore agent artifacts
 .code-review-graph/
 .gemini/
 .claude/
 .agent/
 .agents/
+.understand-anything/
+.codegraph/
+.graphify/
+mcp-servers/
 
-# Ignore Python virtual environments (including custom whisper & host environments)
+# Ignore Python virtual environments
 .venv/
 backend/.venv/
 venv/
@@ -30,11 +41,19 @@ venv/
 # Ignore cloned repos and PDF generators
 book-to-skill/
 backend/repos/
+external_repos/
 
-# Ignore Kubernetes configuration directories
+# Ignore Kubernetes/docker config — not needed in image
 k8s/
+infrastructure/
+docker-compose*.yml
 
-# Ignore large log files (especially in scripts/ folder)
+# Ignore development/ops scripts — not needed at runtime
+scripts/
+benchmarks/
+Makefile
+
+# Ignore large log files
 **/*.log
 nohup.out
 
@@ -46,7 +65,6 @@ Thumbs.db
 
 # Exclude test/benchmark directories (not needed in production image)
 tests/
-benchmarks/
 **/test_*.py
 **/*_test.py
 
@@ -65,3 +83,11 @@ __pycache__/
 # Exclude environment files (secrets must not leak into image)
 .env*
 !.env.example
+
+# Exclude planning and task artifacts
+.planning/
+.clinerules/
+.cursor/
+.opencode/
+.windsurf/
+.worktrees/

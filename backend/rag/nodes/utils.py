@@ -479,6 +479,9 @@ def select_llm_model(query: str, context_len: int) -> str:
     elif provider == "ollama":
         return getattr(settings, "ollama_model", "qwen2.5:32b")
     
+    elif provider == "nim":
+        return getattr(settings, "nim_generation_model", "minimaxai/minimax-m2.7")
+    
     # Default fallback
     return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
 

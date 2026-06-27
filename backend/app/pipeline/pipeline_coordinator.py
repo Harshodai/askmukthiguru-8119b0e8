@@ -288,7 +288,7 @@ class PipelineCoordinator:
         )
         await self._stage("langgraph", trace_id, start_ns=_s)
 
-        final_answer = graph_result.get("final_answer", "I apologize, something went wrong.")
+        final_answer = graph_result.get("final_answer") or "I apologize, something went wrong."
         intent = graph_result.get("intent", "CASUAL")
         if intent == "FACTUAL":
             intent = "QUERY"

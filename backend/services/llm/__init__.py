@@ -7,11 +7,13 @@ from .factory import LLMProviderFactory
 from .ollama_provider import OllamaProvider
 from .sarvam_provider import SarvamProvider
 from .openrouter_provider import OpenRouterProvider
+from .nim_provider import NimProvider
 
 __all__ = [
     "LLMProvider",
     "OllamaProvider",
     "SarvamProvider",
     "OpenRouterProvider",
+    "NimProvider",
     "LLMProviderFactory",
 ]

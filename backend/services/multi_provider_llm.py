@@ -113,6 +113,15 @@ class MultiProviderLLMService:
                 rpm=200,
                 timeout=30.0,
             ),
+            "nim": ProviderConfig(
+                name="Nvidia NIM",
+                api_key_env="NIM_API_KEY",
+                base_url="https://integrate.api.nvidia.com/v1",
+                models=["minimaxai/minimax-m2.7", "meta/llama-3.1-8b-instruct", "nvidia/nemotron-3-super-120b-a12b"],
+                default_model="minimaxai/minimax-m2.7",
+                rpm=30,
+                timeout=60.0,
+            ),
         }
 
         self.circuit_breakers = {
@@ -124,7 +133,7 @@ class MultiProviderLLMService:
             for name, cfg in self.providers.items()
         }
 
-        self._provider_priority = ["sarvam", "openrouter"]
+        self._provider_priority = ["nim", "sarvam", "openrouter"]
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if not self._init_session:

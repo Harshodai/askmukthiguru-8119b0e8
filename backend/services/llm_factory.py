@@ -96,5 +96,11 @@ def _register_default_providers() -> None:
     except ImportError as exc:
         logger.warning(f"Could not register OpenRouter provider: {exc}")
 
+    try:
+        from services.nim_service import NimService
+        _registry.register("nim", NimService)
+    except ImportError as exc:
+        logger.warning(f"Could not register NIM provider: {exc}")
+
 
 _register_default_providers()

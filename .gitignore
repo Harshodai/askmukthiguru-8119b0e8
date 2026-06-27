@@ -23,7 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Python backend
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -31,7 +31,10 @@ __pycache__/
 *.egg
 venv/
 .venv/
+.venv_whisper/
+.venv_host
 .env
+.env.*
 
 # Qdrant data
 qdrant_data/
@@ -40,113 +43,91 @@ qdrant_data/
 *.mp3
 *.wav
 
-# Model files (directory-scoped, not global)
+# Model files
 *.gguf
 models/**/*.bin
 data/**/*.bin
 data/ingest_checkpoint.json
+hf_model_cache/
+data/gptcache/
+data/lightrag/kv_store_*.json
 
 # OS
 Thumbs.db
 
-# Planning artifacts (GSD/Ralph)
+# Agent and tool artifacts
 .planning/
-progress.txt
-prd.json
-
-video_frames_v2/
-video_frames/
 .gemini/
 .claude/
-__pyrefly_virtual__/
-hf_model_cache/
-rag_storage/
-knowledge/
 .agent/
+.worktrees/
+.code-review-graph/
+.codegraph/
+.graphify/
+.understand-anything/
+!.understand-anything/.understandignore
+mcp-servers/
+graphify-out/
+__pyrefly_virtual__/
 
 # Scratch and temporary files
-.docker_clean/cli-plugins
-.docker_clean/contexts
-.docker_clean/buildx
+ecc/
 *scratch_test.py
 scratch-llmfit/
+temp_plan.md
+TODO-fix-plan.md
+nohup.out
+config.json
 supabase_status.json
-# Added by code-review-graph
-.code-review-graph/
-.venv_whisper/
-.venv_host
+progress.txt
+prd.json
 
 # Local cookies and ingestion states
 cookies.txt
 scripts/ingestion_state.json
-data/lightrag/kv_store_*.json
-.worktrees/
-
-# Large raw transcript outputs
-transcripts/
+scripts/ingestion_summary.json
 
 # Transient report outputs and caches
 reports/
-data/gptcache/
-
-# Temporary and Clean Local files
-.docker_clean/
-ecc/
+video_frames/
+video_frames_v2/
 *askmukthiguru_corrected_report*.json
 *sarvam_debug*.json
-config.json
-nohup.out
-temp_plan.md
-TODO-fix-plan.md
-scripts/ingestion_summary.json
+
+# Docker
+.docker_clean/
+.docker_clean/cli-plugins
+.docker_clean/contexts
+.docker_clean/buildx
 
 # Cloned Reference Repos
-backend/repos/HippoRAG/
-backend/repos/RAG_Techniques/
-backend/repos/adaptive-chunking/
-backend/repos/raptor/
-backend/repos/dspy/
-backend/repos/ragas/
-backend/repos/phoenix/
-backend/repos/langfuse/
-backend/repos/opik/
-backend/repos/deepeval/
-backend/repos/docling/
+backend/repos/*
 external_repos/
 
 # Playwright Test Outputs
 playwright-report/
 test-results/
 
-# MCP Server Builds, Databases, and Outputs
-mcp-servers/
-graphify-out/
-.codegraph/
-
-
-
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
-
 # Local DBs and IDE directories
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
 .clinerules/
 .cursor/
 .opencode/
 .windsurf/
 
-# Unused/Reference backend files
-backend/scripts/precompute_retrieval.py
-backend/services/doctrine_cache.py
-backend/services/model_failover.py
+# Test and coverage outputs
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
 
-# Understand Anything outputs and caches
-.understand-anything/
-!.understand-anything/.understandignore
-supabase/functions/.env
+backend/.model_cache/
+
+transcripts/
