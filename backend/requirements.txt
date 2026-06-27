@@ -51,6 +51,9 @@ Pillow>=10.0.0,<11.0
 # --- RAPTOR Clustering ---
 # umap-learn>=0.5.7  # Removed: incompatible with Python 3.12 (llvmlite build failure)
 scikit-learn>=1.6.0,<2.0
+numba>=0.57.0  # Used by GPTCache ANN index; was pip-installed without syncing
+pynndescent>=0.5.0  # Approximate nearest-neighbour for RAPTOR/GPTCache; was pip-installed without syncing
+xlsxwriter>=3.0.0  # Excel export for admin/audit reports; was pip-installed without syncing
 
 # --- GraphRAG ---
 lightrag-hku>=1.0.0
