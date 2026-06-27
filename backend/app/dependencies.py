@@ -29,6 +29,7 @@ from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
 from services.model_registry import ModelRegistry  # Unit 25
+from services.sarvam_failover import SarvamFailoverService
 from services.ocr_service import OCRService
 from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
@@ -144,12 +145,12 @@ class ServiceContainer:
         except Exception as e:
             logger.warning(f"MultiProviderLLMService init skipped: {e}")
 
-        # Model registry only for Ollama
+        # Model registry with cross-provider failover
         if isinstance(self.ollama, OllamaProvider):
             self.model_registry = ModelRegistry(self.ollama._service, self.krutrim)
         else:
-            self.model_registry = None
-            logger.info("ModelRegistry not created: non-Ollama provider active")
+            self.model_registry = SarvamFailoverService(self.ollama._service, self.krutrim)
+            logger.info("SarvamFailoverService active: cross-provider failover enabled")
 
         # Circuit Breaker Registry (provider-agnostic)
         self.circuit_breaker_registry = initialize_circuit_breakers()
@@ -197,6 +198,16 @@ class ServiceContainer:
             )
         else:
             self.job_queue = None
+
+        # LLM Queue (concurrency gating)
+        if settings.llm_queue_enabled:
+            from app.services.llm_queue import LLMQueueService
+            self.llm_queue = LLMQueueService(
+                max_concurrent=settings.llm_queue_max_concurrent,
+                queue_maxsize=settings.llm_queue_maxsize,
+            )
+        else:
+            self.llm_queue = None
 
         # Web Search (real-time temporal queries, config-gated)
         if settings.web_search_enabled:

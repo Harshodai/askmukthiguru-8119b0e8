@@ -187,6 +187,7 @@ export const sendMessage = async (
         blocked: data.blocked || false,
         blockReason: data.block_reason,
         proactiveSereneMind: data.proactive_serene_mind ?? null,
+        followUpSuggestions: data.follow_up_suggestions ?? [],
       };
     } catch (err: any) {
       let code: AIErrorCode = 'network';

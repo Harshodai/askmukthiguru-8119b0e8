@@ -18,7 +18,15 @@ else:
 
 SQLITE_URL = f"sqlite+aiosqlite:///{db_path}"
 
-engine = create_async_engine(SQLITE_URL, echo=False)
+engine = create_async_engine(
+    SQLITE_URL,
+    echo=False,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_timeout=settings.db_pool_timeout,
+    pool_pre_ping=settings.db_pool_pre_ping,
+    pool_recycle=settings.db_pool_recycle,
+)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 Base = declarative_base()

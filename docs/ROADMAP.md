@@ -124,6 +124,7 @@ graph LR
 - [x] Integrate OpenRouter as primary cloud LLM provider option using Llama free models (June 2026)
 - [x] Production Readiness Fixes: lower semantic cache threshold to 0.78, add L1 Redis cache configuration, fix lightweight guardrail LLM bypass, implement real SSE streaming, resolve prompt contradictions, and implement semantic parent/sentence-boundary child splitting with content hash deduplication in ingestion (June 2026)
 - [x] Anthropic Gateway Integration: Wire direct `AnthropicGateway` with prompt caching + Citations API, add `--use-batch` to `eval_runner.py` for judge evaluations, and migrate 12 hardcoded P1 thresholds to Settings (June 2026)
+- [x] **Production Audit Fixes (2026 Audit Report)**: Cache LettuceDetect results in state, scale context budget dynamically by query tier, implement query rewrite validation fallback to original question, add `confidence_gating_floor` setting, and provide dev docker-compose password fallbacks. (June 2026)
 
 
 ---

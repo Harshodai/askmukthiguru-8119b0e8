@@ -801,6 +801,8 @@ class PipelineCoordinator:
             "please try asking another question",
             "don't have any specific teaching",
             "do not have that specific teaching",
+            "i apologize, something went wrong",
+            "sorry, something went wrong",
         ]
         ans_lower = final_answer.lower()
         if not final_answer.strip() or any(indicator in ans_lower for indicator in refusal_indicators):

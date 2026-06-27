@@ -31,6 +31,7 @@ export interface AIResponse {
   blocked?: boolean;
   blockReason?: string;
   proactiveSereneMind?: ProactiveSereneMindTrigger | null;
+  followUpSuggestions?: string[];
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
@@ -56,6 +57,7 @@ export type StreamChunk =
       blocked?: boolean;
       blockReason?: string | null;
       proactiveSereneMind?: ProactiveSereneMindTrigger | null;
+      followUpSuggestions?: string[];
     }
   | { type: 'error'; text: string };
 

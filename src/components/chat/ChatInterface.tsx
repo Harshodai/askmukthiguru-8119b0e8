@@ -792,6 +792,7 @@ export const ChatInterface = () => {
         let streamedBlocked = false;
         let streamedBlockReason: string | null = null;
         let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
+        let streamedFollowUpSuggestions: string[] = [];
         for await (const chunk of stream) {
           if (chunk.type === 'status') {
             // First status event from backend → hide instant pill
@@ -828,6 +829,7 @@ export const ChatInterface = () => {
             streamedBlocked = chunk.blocked ?? false;
             streamedBlockReason = chunk.blockReason ?? null;
             streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
+            streamedFollowUpSuggestions = chunk.followUpSuggestions ?? [];
             continue;
           }
 
@@ -859,7 +861,7 @@ export const ChatInterface = () => {
           streamingWorked = true;
           // Commit the final streamed content to the message list
           setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined } : m))
+            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined, followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined } : m))
           );
 
           setStreamingMessageId(undefined);
@@ -1060,6 +1062,7 @@ export const ChatInterface = () => {
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
           error: responseError,
+          followUpSuggestions: response.followUpSuggestions && response.followUpSuggestions.length > 0 ? response.followUpSuggestions : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {
@@ -1143,6 +1146,14 @@ setIsAwaitingSereneMind(true);
 
 const handleSuggestionClick = (text: string) => {
   setInputValue(text);
+};
+
+const handleInlineAction = (query: string) => {
+  setInputValue(query);
+  requestAnimationFrame(() => {
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, query, { bypassCache: true });
+  });
 };
 
 // ── Regenerate last guru response ─────────────────────────────────
@@ -1374,6 +1385,7 @@ return (
             onRegenerate={handleRegenerate}
             onEditUserMessage={undefined}
             onSubmitEdit={handleSubmitEdit}
+            onAction={handleInlineAction}
             scrollContainerRef={scrollContainerRef}
           />
 

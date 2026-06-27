@@ -9,6 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { getInitials } from '@/lib/profileStorage';
 import { submitFeedbackToBackend } from '@/lib/aiService';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
+import { InlineActions } from './InlineActions';
 import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +23,7 @@ interface ChatMessageProps {
   onRegenerate?: () => void;
   onEditUserMessage?: (message: Message) => void;
   onSubmitEdit?: (messageId: string, newContent: string) => void;
+  onAction?: (query: string) => void;
 }
 
 const getDomain = (url: string): string => {
@@ -130,7 +132,7 @@ const getSourceDisplayName = (url: string, index: number): string => {
 const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
-  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit }, ref) => {
+  ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction }, ref) => {
     const isGuru = message.role === 'guru';
     const navigate = useNavigate();
     const { profile } = useProfile();
@@ -414,6 +416,11 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 )}
               </div>
 
+              {/* Inline action buttons for guru messages */}
+              {isGuru && message.content && !isStreaming && onAction && !message.error && (
+                <InlineActions messageContent={message.content} onAction={onAction} />
+              )}
+
               {/* Lazy YouTube Thumbnails — show max 2 inline, rest in references */}
               {isGuru && citations.length > 0 && (() => {
                 const ytUrls = citations
@@ -630,6 +637,24 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   ))}
                 </ul>
               </details>
+            )}
+
+            {/* Follow-up suggestions as clickable chips */}
+            {isGuru && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isStreaming && onAction && (
+              <div className="w-full mt-1">
+                <p className="text-[10px] text-muted-foreground/60 mb-2 pl-0.5">Suggested follow-ups</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {message.followUpSuggestions.map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => onAction(suggestion)}
+                      className="text-[11px] px-2.5 py-1 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/80 hover:text-foreground transition-all"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}

@@ -2290,3 +2290,16 @@ The frontend memories popover showed empty list items for users due to utilizing
 1. Updated `ChatHeader.tsx` to render `{m.content || m.claim}` in the memory list, ensuring memories display correctly.
 2. Added `compact_memories` to `MemoryService` in `memory_service.py` to auto-consolidate episodic memories using LLM once total exceeds 15, returning a maximum of 8 high-quality summaries. Used pre-generation of dense embeddings to ensure atomic DB replacement.
 
+---
+
+### Problem: Production Readiness & Accuracy Gating Gaps
+The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDetect checks across nodes), accuracy issues (unwired confidence scores, lack of rewrite validations), and dev onboarding friction (mandatory Redis/Neo4j passwords without defaults).
+
+### Fix
+1. **LettuceDetect Result Caching**: Modified `reflect_on_answer` to return `lettuce_detect_result` inside the GraphState dict and configured `verify_answer` to reuse this cached value instead of running duplicate lexical/embedding checks.
+2. **De-hardcoded Gating Floors**: Added `confidence_gating_floor` (default 4.0) settings and wired it into `format_final_answer` to dynamically reject answers below the threshold, falling back to graceful "I don't know" answers.
+3. **Query Rewrite Fallbacks**: Configured `rewrite_query` to fall back to the original question if the rewrite is empty, too short, or invalid, and updated `retrieve_documents` to fall back to the original question for broader retrieval if document yields on the rewritten query are low (<3).
+4. **Dev Password Defaults**: Changed strictly required environment variables for `REDIS_PASSWORD` and `NEO4J_PASSWORD` in `backend/docker-compose.yml` to fallback defaults, enabling seamless development onboarding.
+5. **Ignore Rules**: Expanded `backend/.dockerignore` to ignore test suites, benchmarks, Git metadata, and large folders, significantly reducing context-building footprint.
+
+

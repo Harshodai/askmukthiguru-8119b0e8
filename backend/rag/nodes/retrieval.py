@@ -37,6 +37,7 @@ async def query_neo4j_subgraph(query: str) -> str:
     Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
     """
     from ingest.pipeline import extract_doctrine_tags
+    from services.tenant_context import TenantContext
     matched_concepts = extract_doctrine_tags(query)
     if not matched_concepts:
         return ""
@@ -47,6 +48,8 @@ async def query_neo4j_subgraph(query: str) -> str:
     try:
         from neo4j import GraphDatabase
         
+        tenant_id = TenantContext.get()
+
         def _run():
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
@@ -56,11 +59,12 @@ async def query_neo4j_subgraph(query: str) -> str:
             with driver.session() as session:
                 cypher = """
                 MATCH (n1 {entity_name: $concept})-[r]->(n2)
+                WHERE n1.tenant_id = $tenant_id AND n2.tenant_id = $tenant_id
                 RETURN n1.entity_name AS source, type(r) AS rel, r.description AS desc, n2.entity_name AS target
                 LIMIT 15
                 """
                 for concept in matched_concepts:
-                    result = session.run(cypher, concept=concept)
+                    result = session.run(cypher, concept=concept, tenant_id=tenant_id)
                     for record in result:
                         desc_str = f" - {record['desc']}" if record.get("desc") else ""
                         subgraph_context.append(
@@ -81,6 +85,7 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
     Query Neo4j for guided tour/pathway steps.
     Returns list of dicts representing the steps, or a mock sequence if no graph database is configured/empty.
     """
+    from services.tenant_context import TenantContext
     tour_name = "meditation journey"
     if not settings.neo4j_uri:
         return [
@@ -104,6 +109,7 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
 
     try:
         from neo4j import GraphDatabase
+        tenant_id = TenantContext.get()
         def _run():
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
@@ -113,11 +119,12 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
             with driver.session() as session:
                 cypher = """
                 MATCH (t:Tour)-[:HAS_STEP]->(s:Step)
-                WHERE t.name CONTAINS $tour_name OR s.tour_name CONTAINS $tour_name
+                WHERE (t.name CONTAINS $tour_name OR s.tour_name CONTAINS $tour_name)
+                  AND t.tenant_id = $tenant_id AND s.tenant_id = $tenant_id
                 RETURN s.step_number AS step_number, s.title AS title, s.description AS description
                 ORDER BY s.step_number ASC
                 """
-                result = session.run(cypher, tour_name=tour_name)
+                result = session.run(cypher, tour_name=tour_name, tenant_id=tenant_id)
                 for record in result:
                     steps.append({
                         "content": f"Step {record['step_number']}: {record['title']}. {record['description']}",
@@ -752,7 +759,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     if len(all_docs) < 3:
         logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
-        fallback_query = sub_queries[0]
+        fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
         query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
 
         fallback_results = await asyncio.to_thread(

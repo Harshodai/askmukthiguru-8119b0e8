@@ -79,6 +79,15 @@ class ContainerBuilder:
     def _add_guardrails_and_caching(self) -> None:
         """Layer 5: Guardrails, exact/semantic caches, job queue, and web search."""
         self._container._build_guardrails_and_cache()
+
+        if getattr(settings, "llm_queue_enabled", True) and self._container.llm_queue is not None:
+            from app.services.llm_queue import QueuedLLMProvider
+            self._container.ollama = QueuedLLMProvider(self._container.ollama, self._container.llm_queue)
+            logger.info(
+                "LLM provider wrapped with QueuedLLMProvider (max_concurrent=%d)",
+                settings.llm_queue_max_concurrent,
+            )
+
         logger.info("ContainerBuilder: guardrails, caching, and web search added")
 
     def _add_language_and_profiles(self) -> None:

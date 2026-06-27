@@ -16,6 +16,9 @@ from qdrant_client.http.models import (
     PointStruct,
 )
 
+from app.config import settings
+from services.tenant_context import TenantContext, get_tenant_collection
+
 from services.phonetic import IndicPhoneticMatcher
 from services.qdrant.utils import QdrantUtils
 
@@ -54,9 +57,15 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
 class QdrantIndexer:
     """Handles chunk upsert, source-level deletion, backup, and counts."""
 
-    def __init__(self, client: QdrantClient, collection: str) -> None:
+    def __init__(self, client: QdrantClient, collection: Optional[str] = None) -> None:
+        from services.tenant_context import TenantContext, get_tenant_collection
+        
         self._client = client
-        self._collection = collection
+        if collection:
+            self._collection = collection
+        else:
+            # Use tenant context for collection name to support multi-tenancy
+            self._collection = get_tenant_collection(settings.qdrant_collection)
         self._utils = QdrantUtils()
 
     @retry_with_backoff(max_retries=3)

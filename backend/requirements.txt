@@ -15,6 +15,7 @@ langchain>=0.3.15,<1.0
 langchain-core>=0.3.31,<1.0
 langchain-community>=0.3.15,<1.0
 langchain-ollama>=0.3.0,<1.0
+langchain-text-splitters>=0.3.0,<1.0
 langgraph>=0.2.60,<1.0
 
 # --- Sarvam Cloud API (BE-1) ---
@@ -26,6 +27,12 @@ qdrant-client>=1.13.0,<2.0
 
 # --- Supabase ---
 supabase>=2.0.0
+
+# --- JSON Repair (robust parsing for LLM output) ---
+json-repair
+
+# --- Chinese Pinyin support (LightRAG sorting) ---
+pypinyin>=0.55.0
 
 # --- Embeddings & Reranking ---
 sentence-transformers>=3.4.0,<4.0
@@ -69,7 +76,7 @@ aiosqlite>=0.20.0
 passlib[bcrypt]>=1.7.4
 
 # --- Infrastructure ---
-redis>=5.2.0
+redis>=4.5.0,<5.0  # Pinned <5 to avoid MemoryError from redis/commands/core.py on low-memory Docker VM
 celery>=5.4.0
 apscheduler>=3.10.0
 gunicorn>=23.0.0

@@ -190,6 +190,11 @@ class Settings(BaseSettings):
     queue_job_ttl: int = 1800
     queue_default_timeout: int = 300
 
+    # --- LLM Queue (Concurrency Gating) ---
+    llm_queue_enabled: bool = True
+    llm_queue_max_concurrent: int = 5
+    llm_queue_maxsize: int = 50
+
     # --- Server ---
     host: str = "0.0.0.0"
     port: int = 8000
@@ -412,6 +417,7 @@ class Settings(BaseSettings):
     cove_supported_threshold: float = 0.8
     cove_partial_threshold: float = 0.5
     faithfulness_floor: float = 0.8
+    confidence_gating_floor: float = 4.0
     verifier_pass_ratio: float = 0.5
     rerank_threshold_complex: float = 0.01
     rerank_threshold_simple: float = 0.05
@@ -444,6 +450,13 @@ class Settings(BaseSettings):
     http_max_connections: int = 100  # Maximum number of HTTP connections in the pool
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections
     http_keepalive_expiry: float = 30.0  # Keepalive expiry time in seconds
+
+    # --- Database Connection Pooling ---
+    db_pool_size: int = 10  # Number of connections to maintain in pool
+    db_max_overflow: int = 20  # Max overflow connections beyond pool_size
+    db_pool_timeout: int = 30  # Seconds to wait for a connection from pool
+    db_pool_pre_ping: bool = True  # Verify connections before using
+    db_pool_recycle: int = 3600  # Recycle connections after this many seconds
 
     @property
     def cors_origins_list(self) -> list[str]:

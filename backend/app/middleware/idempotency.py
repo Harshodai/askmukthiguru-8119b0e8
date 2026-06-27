@@ -28,6 +28,7 @@ from typing import Optional
 
 from app.config import settings
 from app.metrics import IDEMPOTENCY_CACHE_HIT_TOTAL, IDEMPOTENCY_CACHE_MISS_TOTAL
+from services.tenant_context import TenantContext
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -99,7 +100,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         if redis_conn is None:
             return await call_next(request)
 
-        redis_key = f"{_IDEMPOTENCY_PREFIX}{idempotency_key}"
+        tenant_id = TenantContext.get()
+        redis_key = f"{_IDEMPOTENCY_PREFIX}{tenant_id}:{idempotency_key}"
 
         try:
             cached = await redis_conn.get(redis_key)

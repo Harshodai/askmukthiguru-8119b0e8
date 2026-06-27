@@ -17,6 +17,7 @@ from domain.ports.cache_port import ICacheRepository
 from services.cache.constants import _CACHE_TTL
 from services.cache.exceptions import CacheInitializationError
 from services.embedding_service import EmbeddingService
+from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,8 @@ class SemanticCacheAdapter(ICacheRepository):
                 point_id = hit.id
 
                 # Fetch payload from Redis (using the point_id as key)
-                redis_key = f"mukthiguru:semcache:{point_id}"
+                tenant_id = TenantContext.get()
+                redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
                 payload_str = self._redis.get(redis_key)
 
                 if payload_str:
@@ -195,7 +197,8 @@ class SemanticCacheAdapter(ICacheRepository):
             )
 
             # Save actual response payload to Redis with TTL
-            redis_key = f"mukthiguru:semcache:{point_id}"
+            tenant_id = TenantContext.get()
+            redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
             self._redis.setex(redis_key, self._ttl, json.dumps(payload))
         except Exception as e:
             logger.error(f"Semantic cache put error: {e}")
@@ -207,9 +210,10 @@ class SemanticCacheAdapter(ICacheRepository):
             self._init_collection()
 
             # Clear Redis keys
+            tenant_id = TenantContext.get()
             pipe = self._redis.pipeline()
             count = 0
-            for key in self._redis.scan_iter(match="mukthiguru:semcache:*"):
+            for key in self._redis.scan_iter(match=f"mukthiguru:semcache:{tenant_id}:*"):
                 pipe.delete(key)
                 count += 1
             pipe.execute()

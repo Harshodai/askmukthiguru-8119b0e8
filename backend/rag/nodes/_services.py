@@ -66,7 +66,7 @@ def init_services(
     _serene_mind = serene_mind
     _web_search = web_search
     _sarvam_cloud = sarvam_cloud
-    _injected_semantic_cache = semantic_cache
+    _semantic_cache = semantic_cache
 
     _reranker = RerankerService()
     _lettuce_detect = LettuceDetectService(embedder)
@@ -96,6 +96,37 @@ def init_services(
             "SemanticRouter prime failed at init_services: %s. "
             "Intent routing will fall back to LLM classifier.", exc
         )
+
+
+def clear_services() -> None:
+    """Clear all injected service references. Called during container shutdown."""
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud
+    _ollama = None
+    _embedder = None
+    _qdrant = None
+    _lightrag = None
+    _serene_mind = None
+    _lettuce_detect = None
+    _reranker = None
+    _web_search = None
+    _semantic_cache = None
+    _sarvam_cloud = None
+
+
+def get_services_status() -> dict:
+    """Return dict of service status for diagnostics."""
+    return {
+        "ollama": _ollama is not None,
+        "embedder": _embedder is not None,
+        "qdrant": _qdrant is not None,
+        "lightrag": _lightrag is not None,
+        "serene_mind": _serene_mind is not None,
+        "lettuce_detect": _lettuce_detect is not None,
+        "reranker": _reranker is not None,
+        "web_search": _web_search is not None,
+        "semantic_cache": _semantic_cache is not None,
+        "sarvam_cloud": _sarvam_cloud is not None,
+    }
 
 
 def _resolve_router_encoder(embedder: Any):

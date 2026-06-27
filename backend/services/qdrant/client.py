@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class QdrantClientManager:
     """Owns the Qdrant client lifecycle, collection creation, and health checks."""
 
-    def __init__(self) -> None:
+    def __init__(self, collection: Optional[str] = None) -> None:
         # Use a generous timeout for complex hybrid queries with 4 prefetches + RRF fusion.
         # The default 5s is too short and causes cascading timeout/retry loops.
         _timeout = getattr(settings, "qdrant_timeout", 30.0)
@@ -42,7 +42,14 @@ class QdrantClientManager:
                 timeout=_timeout,
             )
 
-        self._collection = settings.qdrant_collection
+        # Use tenant context for collection name to support multi-tenancy
+        from services.tenant_context import TenantContext
+        if collection:
+            self._collection = collection
+        else:
+            from services.tenant_context import get_tenant_collection
+            self._collection = get_tenant_collection(settings.qdrant_collection)
+
         self._dimension = settings.embedding_dimension
 
     @property

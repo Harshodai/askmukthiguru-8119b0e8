@@ -39,6 +39,11 @@ FROM base AS final
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 
+# Fix Docker overlay2 mmap issue with cryptography's _rust.abi3.so:
+# COPY places .so files in a readonly overlay layer; mmap fails there.
+# Reinstall cryptography to ensure its .so files are in a writable overlay layer.
+RUN pip install --force-reinstall --no-cache-dir cryptography 2>&1 | tail -5
+
 # Copy application code
 COPY backend/ .
 

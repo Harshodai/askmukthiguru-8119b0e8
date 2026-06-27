@@ -1,14 +1,30 @@
-# Docker
+# Docker/Python
 venv/
 .env
+.env*
+!.env.example
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .pytest_cache/
 *.egg-info/
+.git/
+.github/
+.agent/
+.agents/
+.claude/
+.code-review-graph/
+tests/
+benchmarks/
+*.md
+*.ipynb
+node_modules/
+dist/
 
 # Models (downloaded at runtime)
 models/
+hf_model_cache/
 
 # IDE
 .idea/
@@ -16,6 +32,8 @@ models/
 
 # Qdrant local data
 qdrant_data/
+neo4j_data/
+redis_data/
 
 # OS
 Thumbs.db

@@ -19,6 +19,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+from services.tenant_context import TenantContext
+
 
 class _InMemoryCoalescer:
     """
@@ -72,8 +74,9 @@ class RedisCoalescer:
         self._max_wait = self._ttl  # Don't wait longer than TTL
 
     async def get_or_run(self, key: str, coro_func: typing.Callable[[], typing.Any]):
-        lock_key = f"coalesce:lock:{key}"
-        result_key = f"coalesce:result:{key}"
+        tenant_id = TenantContext.get()
+        lock_key = f"coalesce:{tenant_id}:lock:{key}"
+        result_key = f"coalesce:{tenant_id}:result:{key}"
 
         # Try to acquire lock (leader election)
         acquired = await self._redis.set(lock_key, "1", ex=self._ttl + 10, nx=True)
@@ -87,7 +90,8 @@ class RedisCoalescer:
     async def _run_as_leader(
         self, coro_func: typing.Callable[[], typing.Any], result_key: str, lock_key: str
     ) -> typing.Any:
-        list_key = f"coalesce:list:{result_key.split(':')[-1]}"
+        tenant_id = TenantContext.get()
+        list_key = f"coalesce:{tenant_id}:list:{result_key.split(':')[-1]}"
         try:
             result = await coro_func()
             try:
@@ -114,7 +118,8 @@ class RedisCoalescer:
         lock_key: str,
         coro_func: typing.Callable[[], typing.Any],
     ) -> typing.Any:
-        list_key = f"coalesce:list:{result_key.split(':')[-1]}"
+        tenant_id = TenantContext.get()
+        list_key = f"coalesce:{tenant_id}:list:{result_key.split(':')[-1]}"
         waited = 0.0
         block_timeout = 2
         while waited < self._max_wait:

@@ -21,6 +21,7 @@ from .generation import (
 from .intent import (
     handle_casual,
     handle_distress,
+    handle_distress_check,
     handle_meditation,
     intent_router,
     route_after_grading,
@@ -124,6 +125,7 @@ __all__ = [
     "intent_router",
     "handle_casual",
     "handle_distress",
+    "handle_distress_check",
     "handle_meditation",
     "route_by_intent",
     "route_after_grading",

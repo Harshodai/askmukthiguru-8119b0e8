@@ -469,23 +469,26 @@ async def get_concept_graph(
 
     try:
         from neo4j import GraphDatabase
+        from services.tenant_context import TenantContext
         
         def _query_graph():
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=(settings.neo4j_user, settings.neo4j_password)
             )
+            tenant_id = TenantContext.get()
             nodes = {}
             links = []
             with driver.session() as session:
                 cypher = """
                 MATCH (n)-[r]->(m)
+                WHERE n.tenant_id = $tenant_id AND m.tenant_id = $tenant_id
                 RETURN n.entity_name AS source_name, labels(n)[0] AS source_label,
                        type(r) AS rel_type,
                        m.entity_name AS target_name, labels(m)[0] AS target_label
                 LIMIT 100
                 """
-                result = session.run(cypher)
+                result = session.run(cypher, tenant_id=tenant_id)
                 for record in result:
                     src = record["source_name"]
                     tgt = record["target_name"]
