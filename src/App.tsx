@@ -40,6 +40,7 @@ const EvalsPage = lazy(() => import("./admin/pages/EvalsPage"));
 const IngestionPage = lazy(() => import("./admin/pages/IngestionPage"));
 const LogsPage = lazy(() => import("./admin/pages/LogsPage"));
 const TelemetryPage = lazy(() => import("./admin/pages/TelemetryPage"));
+const MonitoringPage = lazy(() => import("./admin/pages/MonitoringPage"));
 const AlertsPage = lazy(() => import("./admin/pages/AlertsPage"));
 const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
 const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
@@ -91,6 +92,7 @@ const App = () => {
               <Route path="ingestion" element={<IngestionPage />} />
               <Route path="logs" element={<LogsPage />} />
               <Route path="telemetry" element={<TelemetryPage />} />
+              <Route path="monitoring" element={<MonitoringPage />} />
               <Route path="alerts" element={<AlertsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="admins" element={<AdminsPage />} />

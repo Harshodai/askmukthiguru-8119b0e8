@@ -2302,4 +2302,20 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
 4. **Dev Password Defaults**: Changed strictly required environment variables for `REDIS_PASSWORD` and `NEO4J_PASSWORD` in `backend/docker-compose.yml` to fallback defaults, enabling seamless development onboarding.
 5. **Ignore Rules**: Expanded `backend/.dockerignore` to ignore test suites, benchmarks, Git metadata, and large folders, significantly reducing context-building footprint.
 
+---
+
+## Jun 27, 2026 — Docker Desktop gRPC-FUSE mmap Failures for cryptography .so & Model safetensors
+- **Problem 1 — overlay2 mmap fails for pyo3 .so files**: Docker overlay2 layers (from `COPY --from=deps`) are read-only and do not support `mmap()` with write access. The `cryptography` package's `_rust.abi3.so` triggered pyo3 Rust panics at import time because the dynamic linker attempted an mmap that the overlay filesystem rejected.
+- **Fix 1**: In `Dockerfile`, after the `COPY --from=deps` layer, find all `.so` files from `cryptography` and rewrite them by copying to a temp path and back, forcing the kernel to allocate new pages outside the overlay:
+  ```
+  RUN find /usr/local/lib/python3.12 -name "_rust.abi3.so" -o -name "*.so" | while read f; do cp "$f" /tmp/so_fix && cp /tmp/so_fix "$f" && rm /tmp/so_fix; done
+  ```
+- **Problem 2 — gRPC-FUSE volumes cannot mmap large files**: Docker Desktop for Mac uses gRPC-FUSE for bind mounts. Files larger than ~470MB (the `model.safetensors`) cannot be memory-mapped through this virtual filesystem, causing `safetensors` load failures.
+- **Fix 2**: Pre-download model files to a non-volume overlay path during Docker build (`COPY` or `ADD` into the image layer rather than mounting via volume). If a model download URL is available, use `RUN wget ...` in the Dockerfile to place the model into the writable container layer.
+- **Problem 3 — Monkey-patch tempfile approach causes Rust panics**: Attempting to work around the mmap failure by monkey-patching `safetensors.safe_open` to `deserialize` through a temp copy caused pyo3 Rust panics (`pyo3_runtime.PanicException`). The `safetensors` Rust internals bypass the Python override entirely.
+- **Fix 3**: Do NOT monkey-patch `safetensors.safe_open` or `deserialize`. Always resolve mmap issues at the filesystem/Docker layer, not in Python code.
+- **Problem 4 — Missing import in container_builder.py**: After applying the Docker mmap fixes, `backend/services/container_builder.py` crashed on startup with `NameError: name 'settings' is not defined` because it was missing `from app.config import settings`.
+- **Fix 4**: Added the missing import statement.
+- **Lesson**: Docker Desktop for Mac overlay + gRPC-FUSE layers have fundamental mmap limitations for both pyo3 native extensions (`.so` files in read-only overlay layers) and large model weight files (bind-mounted volumes). These must be addressed at the Docker image build level — rewrite `.so` through temp copies, and download model files into writable image layers during build. Never attempt Python-level monkey-patches for filesystem mmap failures; the underlying C/Rust code bypasses the Python layer.
+
 
