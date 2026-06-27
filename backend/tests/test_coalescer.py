@@ -55,10 +55,14 @@ async def test_redis_coalescer_concurrency():
         "RedisCoalescer should be built when Redis is available"
     )
 
-    # Clean any leftover keys
+    # Clean any leftover keys using tenant-aware namespace
+    from services.tenant_context import TenantContext
+    tenant_id = TenantContext.get()
     key = "test_redis_concurrency_key"
     await coalescer._redis.delete(
-        f"coalesce:lock:{key}", f"coalesce:result:{key}", f"coalesce:list:{key}"
+        f"coalesce:{tenant_id}:lock:{key}",
+        f"coalesce:{tenant_id}:result:{key}",
+        f"coalesce:{tenant_id}:list:{key}"
     )
 
     call_count = 0
@@ -97,9 +101,13 @@ async def test_redis_coalescer_leader_failure_takeover():
     coalescer = build_coalescer(REDIS_TEST_URL, ttl=5.0)
     assert isinstance(coalescer, RedisCoalescer)
 
+    from services.tenant_context import TenantContext
+    tenant_id = TenantContext.get()
     key = "test_redis_fail_key"
     await coalescer._redis.delete(
-        f"coalesce:lock:{key}", f"coalesce:result:{key}", f"coalesce:list:{key}"
+        f"coalesce:{tenant_id}:lock:{key}",
+        f"coalesce:{tenant_id}:result:{key}",
+        f"coalesce:{tenant_id}:list:{key}"
     )
 
     # Leader fails by raising an exception

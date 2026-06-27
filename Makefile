@@ -1,5 +1,10 @@
 .PHONY: help install dev lint format test eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs
 
+# Resolve virtual environment paths
+ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+PYTHON := $(shell if [ -d "$(ROOT_DIR)/.venv" ]; then echo "$(ROOT_DIR)/.venv/bin/python3"; else echo "python3"; fi)
+PYTEST := $(shell if [ -d "$(ROOT_DIR)/.venv" ]; then echo "$(ROOT_DIR)/.venv/bin/pytest"; else echo "pytest"; fi)
+
 # Colors for terminal output
 YELLOW=\033[1;33m
 GREEN=\033[1;32m
@@ -39,12 +44,12 @@ format: ## Run Ruff formatter on backend
 
 test: ## Run backend unit tests
 	@echo "${GREEN}Running tests...${NC}"
-	@cd backend && pytest
+	@cd backend && $(PYTEST)
 
 eval: ## Run tests plus the >95% benchmark release gate against a running backend
 	@echo "${GREEN}Running production eval gate...${NC}"
-	@cd backend && pytest
-	@cd backend && python3 benchmarks/ruthless_benchmark.py --endpoint "$${BENCHMARK_ENDPOINT:-http://localhost:8000}" --test-key "$${BENCHMARK_TEST_KEY:-$${JWT_SECRET:-}}" --min-score 0.95 --min-category-score 0.90 --stability-runs "$${BENCHMARK_STABILITY_RUNS:-3}"
+	@cd backend && $(PYTEST)
+	@cd backend && $(PYTHON) benchmarks/ruthless_benchmark.py --endpoint "$${BENCHMARK_ENDPOINT:-http://localhost:8000}" --test-key "$${BENCHMARK_TEST_KEY:-$${JWT_SECRET:-$$([ -f .env ] && grep -E '^JWT_SECRET=' .env | cut -d= -f2- || echo "")}}" --min-score 0.95 --min-category-score 0.90 --stability-runs "$${BENCHMARK_STABILITY_RUNS:-2}"
 
 # --- Docker Deployment ---
 
@@ -63,13 +68,13 @@ docker-up: ## Build and start the full Docker stack in detached mode
 
 docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs up and restores data!)
 	@echo "${YELLOW}Taking protective snapshot of all databases before rebuilding...${NC}"
-	@python3 scripts/backup/snapshot_manager.py backup || true
+	@$(PYTHON) scripts/backup/snapshot_manager.py backup || true
 	@echo "${GREEN}Rebuilding full Docker stack without cache...${NC}"
 	@cd backend && bash ../scripts/docker-safe.sh docker compose build --no-cache && bash ../scripts/docker-safe.sh docker compose up -d --force-recreate
 	@echo "${YELLOW}Waiting 15 seconds for database containers to boot...${NC}"
 	@sleep 15
 	@echo "${GREEN}Restoring database state from protective snapshot...${NC}"
-	@python3 scripts/backup/snapshot_manager.py restore || true
+	@$(PYTHON) scripts/backup/snapshot_manager.py restore || true
 
 docker-rebuild-web: ## Rebuild and restart only the stateless frontend and backend services (no data loss!)
 	@echo "${GREEN}Rebuilding and starting frontend and backend services...${NC}"
@@ -81,7 +86,7 @@ docker-down: ## Stop and remove all Docker containers
 
 clean: ## Stop Docker, remove volumes, and clean local caches (automatically backs up first!)
 	@echo "${YELLOW}Taking protective snapshot of all databases before clean...${NC}"
-	@python3 scripts/backup/snapshot_manager.py backup || true
+	@$(PYTHON) scripts/backup/snapshot_manager.py backup || true
 	@echo "${YELLOW}Cleaning up volumes and caches...${NC}"
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose down -v
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -91,16 +96,16 @@ clean: ## Stop Docker, remove volumes, and clean local caches (automatically bac
 	@echo "${GREEN}Clean complete.${NC}"
 
 backup: ## Take a comprehensive snapshot of Qdrant, Neo4j, and Supabase data
-	@python3 scripts/backup/snapshot_manager.py backup
+	@$(PYTHON) scripts/backup/snapshot_manager.py backup
 
 restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
-	@python3 scripts/backup/snapshot_manager.py restore
+	@$(PYTHON) scripts/backup/snapshot_manager.py restore
 
 flush-cache: ## Flush query-side caches (Qdrant semantic cache + Redis) safely without impacting ingestion
 	@echo "${GREEN}Flushing query-side caches (Qdrant semantic cache + Redis)...${NC}"
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 /app/../scripts/ops/flush_cache.py 2>/dev/null || \
 		 DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 scripts/ops/flush_cache.py 2>/dev/null || \
-		 (echo "⚠️  Could not exec into container, running host-side fallback (Redis only)..." && python3 scripts/ops/flush_cache.py)
+		 (echo "⚠️  Could not exec into container, running host-side fallback (Redis only)..." && $(PYTHON) scripts/ops/flush_cache.py)
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f

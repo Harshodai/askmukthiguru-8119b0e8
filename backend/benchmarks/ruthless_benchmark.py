@@ -98,6 +98,7 @@ class RPMRateLimiter:
 
 # Global rate limiter instance — initialized in main()
 _rate_limiter: RPMRateLimiter | None = None
+_semaphore: asyncio.Semaphore | None = None
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURATION & WEIGHTS
@@ -674,6 +675,7 @@ async def run_suite_category(
     dry_run: bool = False,
     complex_variants: bool = False,
     limit: Optional[int] = None,
+    concurrency: int = 1,
 ):
     items = QUERIES.get(category, [])
     if not items:
@@ -699,17 +701,16 @@ async def run_suite_category(
             variants = await generate_variants_for_query(item, category)
             execution_items.extend(variants)
 
-    for item in execution_items:
+    async def process_item(item):
         q = item.get("q", "")
         if not q:
-            continue
+            return
 
         variant_type = item.get("variant_type")
         original_q = item.get("original_q")
 
         suffix = f" [{variant_type}]" if variant_type else ""
         print(f"    - [{category}]{suffix} {q[:50]}...")
-        t0 = time.perf_counter()
 
         # Determine payload parameters based on item or default
         payload = {
@@ -720,10 +721,18 @@ async def run_suite_category(
         if "session_id" in item:
             payload["session_id"] = item["session_id"]
 
-        res = await chat(client, url, payload, test_key, timeout=360.0)
-        lat = (time.perf_counter() - t0) * 1000
+        global _semaphore
+        if _semaphore is not None:
+            async with _semaphore:
+                t0 = time.perf_counter()
+                res = await chat(client, url, payload, test_key, timeout=360.0)
+                lat = (time.perf_counter() - t0) * 1000
+        else:
+            t0 = time.perf_counter()
+            res = await chat(client, url, payload, test_key, timeout=360.0)
+            lat = (time.perf_counter() - t0) * 1000
 
-        # Respect RPM limit between sequential requests
+        # Respect RPM limit between requests
         if _rate_limiter:
             await _rate_limiter.acquire()
 
@@ -858,6 +867,13 @@ async def run_suite_category(
             )
         )
 
+    if concurrency > 1:
+        tasks = [process_item(item) for item in execution_items]
+        await asyncio.gather(*tasks)
+    else:
+        for item in execution_items:
+            await process_item(item)
+
 
 
 async def run_multi_turn_suite(
@@ -867,6 +883,7 @@ async def run_multi_turn_suite(
     test_key: str,
     dry_run: bool = False,
     limit: Optional[int] = None,
+    concurrency: int = 1,
 ):
     scenarios = QUERIES.get("multi_turn", [])
     if dry_run:
@@ -874,7 +891,7 @@ async def run_multi_turn_suite(
     elif limit is not None:
         scenarios = scenarios[:limit]
 
-    for scenario in scenarios:
+    async def process_scenario(scenario):
         session_id = str(uuid.uuid4())
         history: list[dict[str, str]] = []
         turns = scenario.get("turns", [])
@@ -894,9 +911,16 @@ async def run_multi_turn_suite(
                 "meditation_step": 0,
             }
 
-            t0 = time.perf_counter()
-            res = await chat(client, url, payload, test_key, timeout=360.0)
-            lat = (time.perf_counter() - t0) * 1000
+            global _semaphore
+            if _semaphore is not None:
+                async with _semaphore:
+                    t0 = time.perf_counter()
+                    res = await chat(client, url, payload, test_key, timeout=360.0)
+                    lat = (time.perf_counter() - t0) * 1000
+            else:
+                t0 = time.perf_counter()
+                res = await chat(client, url, payload, test_key, timeout=360.0)
+                lat = (time.perf_counter() - t0) * 1000
 
             # Respect RPM limit between sequential requests
             if _rate_limiter:
@@ -979,6 +1003,13 @@ async def run_multi_turn_suite(
                 ]
             )
 
+    if concurrency > 1:
+        tasks = [process_scenario(scenario) for scenario in scenarios]
+        await asyncio.gather(*tasks)
+    else:
+        for scenario in scenarios:
+            await process_scenario(scenario)
+
 
 def _stability_cases() -> list[tuple[str, dict]]:
     selected = []
@@ -1002,104 +1033,123 @@ async def run_stability_suite(
     url: str,
     test_key: str,
     runs: int,
+    concurrency: int = 1,
 ):
     if runs <= 1:
         return
 
-    for category, item in _stability_cases():
+    async def process_stability(category, item, run_index):
         q = item.get("q", "")
         if not q:
-            continue
+            return
         group = f"{category}:{q[:48]}"
-        for run_index in range(1, runs + 1):
-            print(f"    - [stability:{category}] run {run_index}/{runs}: {q[:50]}...")
-            payload = {
-                "messages": [{"role": "user", "content": q}],
-                "user_message": q,
-                "session_id": str(uuid.uuid4()),
-                "meditation_step": item.get("meditation_step", 0),
-            }
+        print(f"    - [stability:{category}] run {run_index}/{runs}: {q[:50]}...")
+        payload = {
+            "messages": [{"role": "user", "content": q}],
+            "user_message": q,
+            "session_id": str(uuid.uuid4()),
+            "meditation_step": item.get("meditation_step", 0),
+        }
+
+        global _semaphore
+        if _semaphore is not None:
+            async with _semaphore:
+                t0 = time.perf_counter()
+                res = await chat(client, url, payload, test_key, timeout=360.0)
+                lat = (time.perf_counter() - t0) * 1000
+        else:
             t0 = time.perf_counter()
             res = await chat(client, url, payload, test_key, timeout=360.0)
             lat = (time.perf_counter() - t0) * 1000
 
-            # Respect RPM limit between sequential requests
-            if _rate_limiter:
-                await _rate_limiter.acquire()
+        # Respect RPM limit between sequential requests
+        if _rate_limiter:
+            await _rate_limiter.acquire()
 
-            resp = res["data"].get("response", "") if res["ok"] else ""
-            cites = res["data"].get("citations", []) if res["ok"] else []
-            kw = keyword_score(resp, item.get("must_mention", []))
-            rejected, _ = reject_check(resp, item.get("reject_if", []))
-            safe, _ = safety_check(item.get("expected_intent", ""), resp)
-            expected_links = item.get("expected_links", [])
-            links_ok = not expected_links or _links_present(resp, cites, expected_links)
-            min_keyword = 0.4 if item.get("must_mention") else 0.0
-            trajectory_ok = trajectory_check(
-                category, item, res["data"] if res["ok"] else {}, resp, cites
-            )
-            passed = (
-                res["ok"]
-                and safe
-                and not rejected
-                and kw >= min_keyword
-                and links_ok
-                and trajectory_ok
-                and bool(resp.strip())
-            )
-            failure_type = classify_failure(
-                ok=res["ok"],
+        resp = res["data"].get("response", "") if res["ok"] else ""
+        cites = res["data"].get("citations", []) if res["ok"] else []
+        kw = keyword_score(resp, item.get("must_mention", []))
+        rejected, _ = reject_check(resp, item.get("reject_if", []))
+        safe, _ = safety_check(item.get("expected_intent", ""), resp)
+        expected_links = item.get("expected_links", [])
+        links_ok = not expected_links or _links_present(resp, cites, expected_links)
+        min_keyword = 0.4 if item.get("must_mention") else 0.0
+        trajectory_ok = trajectory_check(
+            category, item, res["data"] if res["ok"] else {}, resp, cites
+        )
+        passed = (
+            res["ok"]
+            and safe
+            and not rejected
+            and kw >= min_keyword
+            and links_ok
+            and trajectory_ok
+            and bool(resp.strip())
+        )
+        failure_type = classify_failure(
+            ok=res["ok"],
+            status=res["status"],
+            response=resp,
+            citations=cites,
+            safe=safe,
+            rejected=rejected,
+            keyword=kw,
+            min_keyword=min_keyword,
+            expected_links=expected_links,
+            trajectory_pass=trajectory_ok,
+            require_citation=bool(item.get("min_cites")),
+        )
+
+        results.append(
+            SingleResult(
+                category=f"stability:{category}",
+                query=q,
+                latency_ms=round(lat, 1),
                 status=res["status"],
-                response=resp,
+                intent=res.get("intent", "UNKNOWN"),
                 citations=cites,
-                safe=safe,
-                rejected=rejected,
-                keyword=kw,
-                min_keyword=min_keyword,
-                expected_links=expected_links,
-                trajectory_pass=trajectory_ok,
-                require_citation=bool(item.get("min_cites")),
-            )
-
-            results.append(
-                SingleResult(
-                    category=f"stability:{category}",
-                    query=q,
-                    latency_ms=round(lat, 1),
-                    status=res["status"],
-                    intent=res.get("intent", "UNKNOWN"),
-                    citations=cites,
-                    response=resp,
-                    error=res["error"],
-                    keyword_score=kw,
-                    safety_pass=safe,
-                    reject_hit=rejected,
-                    severity=item.get("severity", "medium"),
-                    verified=item.get("verified", False),
-                    passed=passed,
-                    confidence_score=res["data"].get("confidence_score") if res["ok"] else None,
-                    faithfulness=float(res["data"].get("faithfulness_score") or kw)
-                    if res["ok"]
-                    else 0.0,
-                    answer_relevancy=float(
-                        res["data"].get("relevancy_score") or (1.0 if passed else 0.0)
-                    )
-                    if res["ok"]
-                    else 0.0,
-                    context_precision=1.0 if cites else 0.0,
-                    context_recall=1.0 if cites else 0.0,
-                    hallucination_risk=bool(res["data"].get("hallucination_flag"))
-                    if res["ok"]
-                    else False,
-                    failure_type=failure_type,
-                    trace_id=res["data"].get("trace_id", "") if res["ok"] else "",
-                    evaluation_trace=res["data"].get("evaluation_trace", {}) if res["ok"] else {},
-                    node_timings=res["data"].get("node_timings", {}) if res["ok"] else {},
-                    trajectory_pass=trajectory_ok,
-                    stability_group=group,
-                    run_index=run_index,
+                response=resp,
+                error=res["error"],
+                keyword_score=kw,
+                safety_pass=safe,
+                reject_hit=rejected,
+                severity=item.get("severity", "medium"),
+                verified=item.get("verified", False),
+                passed=passed,
+                confidence_score=res["data"].get("confidence_score") if res["ok"] else None,
+                faithfulness=float(res["data"].get("faithfulness_score") or kw)
+                if res["ok"]
+                else 0.0,
+                answer_relevancy=float(
+                    res["data"].get("relevancy_score") or (1.0 if passed else 0.0)
                 )
+                if res["ok"]
+                else 0.0,
+                context_precision=1.0 if cites else 0.0,
+                context_recall=1.0 if cites else 0.0,
+                hallucination_risk=bool(res["data"].get("hallucination_flag"))
+                if res["ok"]
+                else False,
+                failure_type=failure_type,
+                trace_id=res["data"].get("trace_id", "") if res["ok"] else "",
+                evaluation_trace=res["data"].get("evaluation_trace", {}) if res["ok"] else {},
+                node_timings=res["data"].get("node_timings", {}) if res["ok"] else {},
+                trajectory_pass=trajectory_ok,
+                stability_group=group,
+                run_index=run_index,
             )
+        )
+
+    if concurrency > 1:
+        tasks = []
+        for category, item in _stability_cases():
+            for run_index in range(1, runs + 1):
+                tasks.append(process_stability(category, item, run_index))
+        await asyncio.gather(*tasks)
+    else:
+        for category, item in _stability_cases():
+            for run_index in range(1, runs + 1):
+                await process_stability(category, item, run_index)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1558,6 +1608,26 @@ async def main():
         default=None,
         help="Maximum total number of queries to run across all categories (for focused testing).",
     )
+    nim_keys = os.getenv("NIM_API_KEY", "")
+    num_keys = len([k for k in nim_keys.split(",") if k.strip()])
+    num_keys = max(1, num_keys)
+    
+    env_concurrency = os.getenv("BENCHMARK_CONCURRENCY", "")
+    if env_concurrency.lower() == "parallel":
+        default_concurrency = num_keys
+    elif env_concurrency.lower() == "sequential":
+        default_concurrency = 1
+    elif env_concurrency.isdigit():
+        default_concurrency = int(env_concurrency)
+    else:
+        default_concurrency = 1
+
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=default_concurrency,
+        help="Number of concurrent requests to execute (defaults to 1, or set by BENCHMARK_CONCURRENCY).",
+    )
     parser.add_argument(
         "--graph-variant",
         type=str,
@@ -1570,11 +1640,14 @@ async def main():
     print(f"Checking infrastructure on {args.endpoint}...")
     infra = await check_infra(args.endpoint)
 
-    # Initialize RPM-aware rate limiter
-    global _rate_limiter
-    rpm_limit = int(os.getenv("SARVAM_RPM_LIMIT", "60"))
+    # Initialize RPM-aware rate limiter and concurrency semaphore
+    global _rate_limiter, _semaphore
+    # Scale RPM limit by concurrency since we have multiple rotating API keys
+    rpm_limit = int(os.getenv("SARVAM_RPM_LIMIT", "60")) * args.concurrency
     _rate_limiter = RPMRateLimiter(rpm=rpm_limit)
-    print(f"  📊 RPM rate limiter initialized: {rpm_limit} requests/min")
+    _semaphore = asyncio.Semaphore(args.concurrency)
+    print(f"  📊 Concurrency set to: {args.concurrency}")
+    print(f"  📊 RPM rate limiter scaled and initialized: {rpm_limit} requests/min")
 
     results = []
 
@@ -1607,15 +1680,15 @@ async def main():
             print(f"🚀 Running category: {category} (limit: {cat_limit})...")
             if category == "multi_turn":
                 await run_multi_turn_suite(
-                    results, client, args.endpoint, args.test_key, args.dry_run, limit=cat_limit
+                    results, client, args.endpoint, args.test_key, args.dry_run, limit=cat_limit, concurrency=args.concurrency
                 )
             else:
                 await run_suite_category(
-                    category, results, client, args.endpoint, args.test_key, args.dry_run, args.complex_variants, limit=cat_limit
+                    category, results, client, args.endpoint, args.test_key, args.dry_run, args.complex_variants, limit=cat_limit, concurrency=args.concurrency
                 )
         if not args.dry_run:
             await run_stability_suite(
-                results, client, args.endpoint, args.test_key, args.stability_runs
+                results, client, args.endpoint, args.test_key, args.stability_runs, concurrency=args.concurrency
             )
 
     # Post-process: enforce --limit after all suites (including stability)
