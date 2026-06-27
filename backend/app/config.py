@@ -113,13 +113,20 @@ class Settings(BaseSettings):
     sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
 
     # --- OpenRouter (free tier for simple queries) ---
-    openrouter_api_key: str = ""  # Optional: free tier works without key for some models
+    openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
     use_openrouter_for_simple: bool = True
     openrouter_rpm_limit: int = 20
+
+    # --- Nvidia NIM (hosted API Catalog) ---
+    nim_api_key: str = ""
+    nim_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nim_generation_model: str = "minimaxai/minimax-m2.7"
+    nim_classify_model: str = "meta/llama-3.1-8b-instruct"
+    nim_rpm_limit: int = 30
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
@@ -417,7 +424,7 @@ class Settings(BaseSettings):
     cove_supported_threshold: float = 0.8
     cove_partial_threshold: float = 0.5
     faithfulness_floor: float = 0.8
-    confidence_gating_floor: float = 4.0
+    confidence_gating_floor: float = 6.5
     verifier_pass_ratio: float = 0.5
     rerank_threshold_complex: float = 0.01
     rerank_threshold_simple: float = 0.05
@@ -511,7 +518,9 @@ class Settings(BaseSettings):
             return self.sarvam_cloud_model
         if self.llm_provider.lower() == "openrouter":
             return self.openrouter_generation_model
-        if self.ollama_model:  # Explicit override
+        if self.llm_provider.lower() == "nim":
+            return self.nim_generation_model
+        if self.ollama_model:
             return self.ollama_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})
         return preset.get("generation", "sarvam-30b:latest")
@@ -523,7 +532,9 @@ class Settings(BaseSettings):
             return self.sarvam_cloud_classify_model
         if self.llm_provider.lower() == "openrouter":
             return self.openrouter_classify_model
-        if self.ollama_classify_model:  # Explicit override
+        if self.llm_provider.lower() == "nim":
+            return self.nim_classify_model
+        if self.ollama_classify_model:
             return self.ollama_classify_model
         preset = self._PRESETS.get(self.model_preset.lower(), {})
         return preset.get("classification", "llama3.2:3b")
@@ -542,6 +553,7 @@ class Settings(BaseSettings):
         required_keys = {
             "sarvam_cloud": "sarvam_api_key",
             "openrouter": "openrouter_api_key",
+            "nim": "nim_api_key",
             "anthropic": "anthropic_api_key",
             "krutrim": "krutrim_api_key",
             "emergent": "emergent_llm_key",

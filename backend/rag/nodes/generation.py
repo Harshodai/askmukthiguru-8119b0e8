@@ -1116,6 +1116,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             "final_answer": FALLBACK_RESPONSE,
             "citations": citations,
             "intent": intent,
+            "_needs_retry": False,
             "evaluation_trace": _trace_update(
                 state,
                 final_answer_chars=len(FALLBACK_RESPONSE),
@@ -1174,6 +1175,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         "citations": citations,
         "intent": intent,
         "follow_up_suggestions": follow_up_suggestions,
+        "_needs_retry": False,
         "evaluation_trace": _trace_update(
             state,
             final_answer_chars=len(answer),
