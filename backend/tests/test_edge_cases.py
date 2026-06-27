@@ -8,7 +8,7 @@ multi-tenant isolation) and verifies graceful degradation.
 from __future__ import annotations
 
 import asyncio
-from exceptiongroup import ExceptionGroup
+# ExceptionGroup is built-in in Python 3.11+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt

@@ -103,7 +103,7 @@ class EmbeddingService:
             self._encoder = BGEM3FlagModel(
                 model_name,
                 use_fp16=(device == "cuda"),
-                devices=device,
+                device=device,
             )
 
             # Monkeypatch to catch and diagnose PyTorch model forward pass crashes
