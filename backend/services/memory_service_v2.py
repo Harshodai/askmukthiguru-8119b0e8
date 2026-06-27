@@ -22,6 +22,7 @@ from typing import Any, Optional
 from redis import asyncio as aioredis
 
 from services.memory_service import MemoryService
+from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,8 @@ class MemoryServiceV2(MemoryService):
 
     async def set_ephemeral(self, user_id: str, key: str, value: Any, ttl: int = EPHEMERAL_TTL) -> bool:
         redis = await self._get_redis()
-        cache_key = f"ephemeral:{user_id}:{key}"
+        tenant_id = TenantContext.get()
+        cache_key = f"ephemeral:{tenant_id}:{user_id}:{key}"
         serialized = json.dumps(value)
         if redis:
             try:
@@ -81,7 +83,8 @@ class MemoryServiceV2(MemoryService):
 
     async def get_ephemeral(self, user_id: str, key: str) -> Optional[Any]:
         redis = await self._get_redis()
-        cache_key = f"ephemeral:{user_id}:{key}"
+        tenant_id = TenantContext.get()
+        cache_key = f"ephemeral:{tenant_id}:{user_id}:{key}"
         if redis and self._redis_available is not False:
             try:
                 data = await redis.get(cache_key)
@@ -100,8 +103,9 @@ class MemoryServiceV2(MemoryService):
         redis = await self._get_redis()
         if not redis:
             return {}
+        tenant_id = TenantContext.get()
         try:
-            keys = await redis.keys(f"ephemeral:{user_id}:session:{session_id}:*")
+            keys = await redis.keys(f"ephemeral:{tenant_id}:{user_id}:session:{session_id}:*")
             result = {}
             for key in keys:
                 short_key = key.split(":")[-1]
@@ -117,8 +121,9 @@ class MemoryServiceV2(MemoryService):
         redis = await self._get_redis()
         if not redis:
             return False
+        tenant_id = TenantContext.get()
         try:
-            pattern = f"ephemeral:{user_id}:{session_id + ':' if session_id else ''}*"
+            pattern = f"ephemeral:{tenant_id}:{user_id}:{session_id + ':' if session_id else ''}*"
             keys = await redis.keys(pattern)
             if keys:
                 await redis.delete(*keys)
@@ -188,17 +193,21 @@ class MemoryServiceV2(MemoryService):
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
             if driver:
+                from services.tenant_context import TenantContext
+                tenant_id = TenantContext.get()
                 async with driver.session() as session:
                     await session.run(
                         """
                         MERGE (u:User {id: $user_id})
+                        SET u.tenant_id = $tenant_id
                         MERGE (m:GlobalMemory {id: $memory_id})
-                        SET m.content = $content, m.created_at = timestamp()
+                        SET m.content = $content, m.created_at = timestamp(), m.tenant_id = $tenant_id
                         MERGE (u)-[:HAS_MEMORY]->(m)
                         """,
                         user_id=user_id,
                         memory_id=f"global:{user_id}:{hash(content) % 10**15}",
                         content=content,
+                        tenant_id=tenant_id,
                     )
                     success = True
         except Exception as e:
@@ -258,14 +267,19 @@ class MemoryServiceV2(MemoryService):
                 return []
 
             async with driver.session() as session:
+                from services.tenant_context import TenantContext
+                tenant_id = TenantContext.get()
                 result = await session.run(
                     """
                     MATCH (u:User {id: $user_id})-[:HAS_MEMORY]->(m:GlobalMemory)
+                    WHERE m.tenant_id = $tenant_id
                     OPTIONAL MATCH (m)-[:RELATED_TO]->(related:GlobalMemory)
+                    WHERE related.tenant_id = $tenant_id
                     RETURN m.content AS memory, collect(DISTINCT related.content) AS related_memories
                     LIMIT 20
                     """,
                     user_id=user_id,
+                    tenant_id=tenant_id,
                 )
                 records = await result.data()
                 return [

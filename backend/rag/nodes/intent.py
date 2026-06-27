@@ -572,6 +572,28 @@ Based on the above teachings, compose a deeply compassionate response that:
     }
 
 
+async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
+    """Lightweight keyword-based distress check running in parallel with intent_router."""
+    question = state.get("question", "")
+    serene_mind = _services._serene_mind
+    if serene_mind is None:
+        return {"parallel_distress_found": False}
+    try:
+        assessment = serene_mind.assess_distress(question, state.get("chat_history", []))
+        if assessment.level >= DistressLevel.MODERATE:
+            return {
+                "parallel_distress_found": True,
+                "parallel_distress_level": assessment.level.name,
+                "intent": "DISTRESS",
+                "query_tier": "tier2_simple",
+                "confidence_tier": "high",
+            }
+        return {"parallel_distress_found": False}
+    except Exception:
+        logger.warning("handle_distress_check failed", exc_info=True)
+        return {"parallel_distress_found": False}
+
+
 async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     """Continue an active meditation session, start a new one, or gracefully bail.
 

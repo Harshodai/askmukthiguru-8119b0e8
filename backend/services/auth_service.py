@@ -101,6 +101,7 @@ class LocalAuthStrategy(AuthStrategy):
                     "email": user.email,
                     "is_superuser": user.is_superuser,
                     "provider": "local",
+                    "tenant_id": str(user.id),
                 }
         except Exception as e:
             logger.debug(f"Local auth attempt failed: {e}")
@@ -121,6 +122,7 @@ class TestAuthStrategy(AuthStrategy):
                 "email": "benchmark-admin@mukthi.guru",
                 "is_superuser": True,
                 "provider": "test",
+                "tenant_id": "00000000-0000-0000-0000-000000000000",
             }
         return None
 
@@ -231,6 +233,7 @@ class SupabaseAuthStrategy(AuthStrategy):
             user_id = payload.get("sub")
             user_email = payload.get("email")
             jwt_role = payload.get("role", "authenticated")
+            tenant_id = payload.get("tenant_id", user_id)
 
             # service_role tokens are always superuser
             if jwt_role == "service_role":
@@ -240,6 +243,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                     "role": jwt_role,
                     "is_superuser": True,
                     "provider": "supabase",
+                    "tenant_id": tenant_id,
                 }
 
             # For authenticated users, check user_roles table for admin role
@@ -251,6 +255,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                 "role": jwt_role,
                 "is_superuser": is_admin,
                 "provider": "supabase",
+                "tenant_id": tenant_id,
             }
 
         except jwt.ExpiredSignatureError:

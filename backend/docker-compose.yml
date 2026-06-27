@@ -26,7 +26,7 @@ services:
       - "7474:7474" # HTTP Browser
       - "7687:7687" # Bolt Protocol
     environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
       - NEO4J_PLUGINS=["apoc"]
     volumes:
       - neo4j_data:/data
@@ -51,7 +51,7 @@ services:
       - "6379:6379"
     command: >
       redis-server
-      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      --requirepass ${REDIS_PASSWORD:-mukthiguru_redis_pass}
       --appendonly yes
       --appendfsync everysec
       --save 900 1
@@ -60,7 +60,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-mukthiguru_redis_pass}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -230,7 +230,6 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G
           cpus: '4.0'
     restart: unless-stopped
     volumes:

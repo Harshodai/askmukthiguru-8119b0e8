@@ -201,6 +201,7 @@ export async function* sendMessageStreaming(
               blocked: meta.blocked ?? false,
               blockReason: meta.block_reason ?? null,
               proactiveSereneMind: meta.proactive_serene_mind ?? null,
+              followUpSuggestions: meta.follow_up_suggestions ?? [],
             };
           } catch {
             // Ignore malformed done payload
