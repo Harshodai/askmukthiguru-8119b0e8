@@ -26,8 +26,10 @@ class BaseGuardrailHandler:
             return await self._next_handler.check_input(text, **kwargs)
         return result
 
-    async def check_output(self, text: str, **kwargs: Any) -> dict[str, Any]:
+    async def check_output(self, text: str | None, **kwargs: Any) -> dict[str, Any]:
         """Validate output. If blocked, returns result; else forwards to next handler."""
+        if text is None:
+            return {"blocked": False, "reason": None, "moderated_response": None}
         result = await self._handle_output(text, **kwargs)
         if result.get("blocked"):
             return result

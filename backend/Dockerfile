@@ -45,10 +45,18 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 RUN find /usr/local/lib/python3.12/site-packages -name '_rust.abi3.so' -exec sh -c 'cp "$1" /tmp/sofix && cp /tmp/sofix "$1" && rm /tmp/sofix' _ {} \;
 RUN python3 -c "from cryptography.hazmat.bindings._rust import exceptions; print('crypto .so fixed, imports OK')"
 
-# Pre-download embedding model to overlay filesystem (avoids Docker Desktop
+# Pre-download embedding models to overlay filesystem (avoids Docker Desktop
 # gRPC-FUSE mmap failures on named volumes for large .safetensors files).
 # Downloaded to /app/model_cache which is NOT shadowed by hf_model_cache volume.
-RUN mkdir -p /app/model_cache && python3 -c "import os; os.environ['SENTENCE_TRANSFORMERS_HOME']='/app/model_cache/sentence_transformers'; os.environ['HF_HOME']='/app/model_cache/huggingface'; os.environ['TRANSFORMERS_CACHE']='/app/model_cache/huggingface'; from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-small'); print('model pre-downloaded')"
+# Pre-download embedding models to BOTH caches:
+# 1. sentence_transformers cache (for SentenceTransformer API)
+# 2. huggingface hub cache (for BGEM3FlagModel / FlagEmbedding API)
+#
+# Docker Desktop gRPC-FUSE causes SSL malloc failures in httpx (used by huggingface_hub v0.36+).
+# Workaround: configure huggingface_hub to use an httpx client with verify=False.
+COPY backend/scripts/download_models.py /app/scripts/download_models.py
+RUN mkdir -p /app/model_cache && python3 /app/scripts/download_models.py
+
 
 # Copy application code
 COPY backend/ .

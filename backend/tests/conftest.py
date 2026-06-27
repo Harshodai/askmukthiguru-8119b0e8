@@ -4,8 +4,7 @@ import sys
 # Add backend/ to sys.path first so that 'app' and 'services' imports resolve
 # regardless of whether pytest is invoked from the repo root or backend/.
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _BACKEND_DIR not in sys.path:
-    sys.path.insert(0, _BACKEND_DIR)
+sys.path.insert(0, _BACKEND_DIR)
 
 # Configure threading limits before heavy numerical libraries are imported.
 from app.core.threading_config import configure_threading

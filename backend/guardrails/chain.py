@@ -61,9 +61,9 @@ class GuardrailsChain:
             )
         return result
 
-    async def check_output(self, answer: str, **kwargs: Any) -> dict[str, Any]:
+    async def check_output(self, answer: str | None, **kwargs: Any) -> dict[str, Any]:
         """Check output against the chain of guardrails."""
-        if self._provider_name == "disabled":
+        if self._provider_name == "disabled" or answer is None:
             return {"blocked": False, "reason": None, "moderated_response": None}
 
         result = await self._head.check_output(answer, **kwargs)

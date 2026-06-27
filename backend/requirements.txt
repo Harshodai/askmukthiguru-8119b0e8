@@ -36,6 +36,7 @@ pypinyin>=0.55.0
 
 # --- Embeddings & Reranking ---
 sentence-transformers>=3.4.0,<4.0
+peft>=0.14.0
 FlagEmbedding>=1.2.10
 ragatouille>=0.0.8
 
