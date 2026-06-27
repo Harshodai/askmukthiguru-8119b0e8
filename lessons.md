@@ -2339,3 +2339,5 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
 
 - **docker-entrypoint.sh worker auto-detection**: Replaced hardcoded `WEB_CONCURRENCY=1` with `min(CPU_CORES, 2)` auto-detection + `UVICORN_WORKERS_OVERRIDE` env variable. On dev machines (1-2 CPU) = 1 worker (safe). On 4-CPU prod VMs = 2 workers (doubles throughput). ML models at ~1.4GB/process, 3.5GB available on 3GB memory limit = 2 safe workers.
 
+- **NIM/Ollama Support in MemoryService**: Added support for `nim` and `ollama` as active LLM providers in `MemoryService` for both extraction and compaction. This prevents crashes or empty returns when non-OpenRouter/Sarvam providers are selected as the active `LLM_PROVIDER` in development or testing.
+
