@@ -14,3 +14,12 @@ def test_health_check():
     assert data["status"] in ("healthy", "degraded")
     assert "services" in data
     assert "total_chunks" in data
+
+
+def test_metrics_unauthenticated():
+    """Verify that the /metrics endpoint is public and accessible without authentication."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers.get("content-type", "")
+    assert "process_cpu_seconds_total" in response.text or "guru_" in response.text
+

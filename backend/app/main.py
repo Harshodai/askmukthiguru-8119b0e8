@@ -38,7 +38,7 @@ configure_threading()
 # Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
 try:
     import resource as _resource
-    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "2048"))
+    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "8192"))
     _limit_bytes = _mb * 1024 * 1024
     if hasattr(_resource, "RLIMIT_AS"):  # Linux only
         _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
@@ -48,6 +48,8 @@ try:
         _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
 except Exception:
     pass  # Non-fatal: Docker itself provides hard memory limits
+
+
 
 from app.config import settings
 from app.context import correlation_id_var

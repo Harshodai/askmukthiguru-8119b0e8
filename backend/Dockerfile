@@ -41,8 +41,14 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 
 # Fix Docker overlay2 mmap issue with cryptography's _rust.abi3.so:
 # COPY places .so files in a readonly overlay layer; mmap fails there.
-# Reinstall cryptography to ensure its .so files are in a writable overlay layer.
-RUN pip install --force-reinstall --no-cache-dir cryptography 2>&1 | tail -5
+# Rewrite every .so file through a temp copy to force into writable layer.
+RUN find /usr/local/lib/python3.12/site-packages -name '_rust.abi3.so' -exec sh -c 'cp "$1" /tmp/sofix && cp /tmp/sofix "$1" && rm /tmp/sofix' _ {} \;
+RUN python3 -c "from cryptography.hazmat.bindings._rust import exceptions; print('crypto .so fixed, imports OK')"
+
+# Pre-download embedding model to overlay filesystem (avoids Docker Desktop
+# gRPC-FUSE mmap failures on named volumes for large .safetensors files).
+# Downloaded to /app/model_cache which is NOT shadowed by hf_model_cache volume.
+RUN mkdir -p /app/model_cache && python3 -c "import os; os.environ['SENTENCE_TRANSFORMERS_HOME']='/app/model_cache/sentence_transformers'; os.environ['HF_HOME']='/app/model_cache/huggingface'; os.environ['TRANSFORMERS_CACHE']='/app/model_cache/huggingface'; from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-small'); print('model pre-downloaded')"
 
 # Copy application code
 COPY backend/ .
