@@ -1287,9 +1287,27 @@ const runSlashCommand = useCallback(
       case 'lang':
         toast({ title: 'Language picker', description: 'Use the globe icon below the input.' });
         break;
+      case 'teach':
+        // Prefill the composer so the user can type the concept they want explained.
+        setInputValue('Please explain step-by-step: ');
+        requestAnimationFrame(() => {
+          const ta = inputRef.current;
+          if (ta) {
+            ta.focus();
+            ta.setSelectionRange(ta.value.length, ta.value.length);
+          }
+        });
+        break;
+      case 'reflect':
+        // Inject a reflection-question request as a user message immediately.
+        handleSubmit(
+          { preventDefault: () => {} } as React.FormEvent,
+          'Give me a reflection question based on our conversation so far.',
+        );
+        break;
     }
   },
-  [handleRegenerate, messages, openSereneMind, toast],
+  [handleRegenerate, handleNewConversation, handleSubmit, messages, openSereneMind, toast],
 );
 
 
