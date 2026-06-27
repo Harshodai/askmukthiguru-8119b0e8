@@ -82,10 +82,10 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 
     if is_valid or "doesn't know" in answer.lower():
         logger.info(f"Self-Reflection: Answer is VALID. {feedback}")
-        return {"needs_correction": False, "reflection_feedback": feedback}
+        return {"needs_correction": False, "reflection_feedback": feedback, "lettuce_detect_result": ld_result}
 
     logger.warning(f"Self-Reflection: Issues detected - {feedback}")
-    return {"needs_correction": True, "reflection_feedback": feedback}
+    return {"needs_correction": True, "reflection_feedback": feedback, "lettuce_detect_result": ld_result}
 
 
 @log_metrics
@@ -134,7 +134,11 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "relevancy_score": 0.0,
         }
 
-    ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
+    ld_result = state.get("lettuce_detect_result")
+    if ld_result is None:
+        ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
+    else:
+        logger.info("Combined verify: reusing cached lettuce_detect_result from self-reflection")
     faithfulness_score = ld_result["score"]
     is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
 

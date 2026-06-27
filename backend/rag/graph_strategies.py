@@ -19,7 +19,8 @@ import abc
 import logging
 from typing import TYPE_CHECKING
 
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Send
 
 from app.config import settings
 from rag.nodes import (
@@ -34,6 +35,7 @@ from rag.nodes import (
     grade_documents,
     handle_casual,
     handle_distress,
+    handle_distress_check,
     handle_fallback,
     handle_meditation,
     init_services,
@@ -146,6 +148,22 @@ def _route_after_reflection(state: GraphState) -> str:
     return "verify"
 
 
+def parallel_start(state: GraphState):
+    return [Send("intent_router", state), Send("handle_distress_check", state)]
+
+
+async def resolve_parallel(state: GraphState, config: dict = None) -> dict:
+    if state.get("parallel_distress_found", False):
+        return {"intent": "DISTRESS", "query_tier": "tier2_simple", "confidence_tier": "high"}
+    return {}
+
+
+def route_after_formatting(state: GraphState) -> str:
+    if state.get("_needs_retry", False) and state.get("retry_count", 0) < 2:
+        return "retry_generate"
+    return "end"
+
+
 def _map_docs_to_relevant(state: GraphState) -> dict:
     """Bridge node: maps retrieved documents → relevant_docs for fast path."""
     return {"relevant_docs": state.get("documents", [])[:5]}
@@ -203,6 +221,8 @@ class StandardGraphStrategy(GraphStrategy):
 
         # --- Add all nodes ---
         graph.add_node("intent_router", intent_router)
+        graph.add_node("handle_distress_check", handle_distress_check)
+        graph.add_node("resolve_parallel", resolve_parallel)
         graph.add_node("resolve_followup", resolve_followup)
         graph.add_node("decompose_query", decompose_query)
         graph.add_node("navigate_and_hyde", navigate_and_hyde)
@@ -224,12 +244,14 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("handle_fallback", handle_fallback)
         graph.add_node("web_search", web_search_node)
 
-        # --- Entry point ---
-        graph.set_entry_point("intent_router")
+        # --- Parallel entry: intent_router + handle_distress_check ---
+        graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
+        graph.add_edge("intent_router", "resolve_parallel")
+        graph.add_edge("handle_distress_check", "resolve_parallel")
 
-        # --- Conditional edges ---
+        # --- Conditional edges from merge point ---
         graph.add_conditional_edges(
-            "intent_router",
+            "resolve_parallel",
             route_after_intent,
             {
                 "distress": "handle_distress",
@@ -278,8 +300,14 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("verify_answer", "format_final_answer")
         graph.add_edge("explain_retrieval", "format_final_answer")
 
+        # --- Reject-and-retry loop ---
+        graph.add_conditional_edges(
+            "format_final_answer",
+            route_after_formatting,
+            {"retry_generate": "generate_answer", "end": END},
+        )
+
         # --- Terminal edges ---
-        graph.add_edge("format_final_answer", END)
         graph.add_edge("handle_casual", END)
         graph.add_edge("handle_distress", END)
         graph.add_edge("handle_meditation", END)
@@ -319,6 +347,8 @@ class FastGraphStrategy(GraphStrategy):
 
         # Core fast-path nodes  (resolve_followup removed for speed)
         graph.add_node("intent_router", intent_router)
+        graph.add_node("handle_distress_check", handle_distress_check)
+        graph.add_node("resolve_parallel", resolve_parallel)
         graph.add_node("retrieve_documents", retrieve_documents)
         graph.add_node("_map_docs_to_relevant", _map_docs_to_relevant)
         graph.add_node("generate_answer", generate_answer)
@@ -331,10 +361,13 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_node("handle_fallback", handle_fallback)
         graph.add_node("web_search", web_search_node)
 
-        graph.set_entry_point("intent_router")
+        # --- Parallel entry: intent_router + handle_distress_check ---
+        graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
+        graph.add_edge("intent_router", "resolve_parallel")
+        graph.add_edge("handle_distress_check", "resolve_parallel")
 
         graph.add_conditional_edges(
-            "intent_router",
+            "resolve_parallel",
             route_after_intent,
             {
                 "distress": "handle_distress",
@@ -350,7 +383,13 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_edge("retrieve_documents", "_map_docs_to_relevant")
         graph.add_edge("_map_docs_to_relevant", "generate_answer")
         graph.add_edge("generate_answer", "format_final_answer")
-        graph.add_edge("format_final_answer", END)
+
+        # --- Reject-and-retry loop ---
+        graph.add_conditional_edges(
+            "format_final_answer",
+            route_after_formatting,
+            {"retry_generate": "generate_answer", "end": END},
+        )
 
         graph.add_edge("handle_casual", END)
         graph.add_edge("handle_distress", END)
@@ -391,6 +430,8 @@ class DeepGraphStrategy(GraphStrategy):
 
         # --- Add all nodes (full chain including verification) ---
         graph.add_node("intent_router", intent_router)
+        graph.add_node("handle_distress_check", handle_distress_check)
+        graph.add_node("resolve_parallel", resolve_parallel)
         graph.add_node("resolve_followup", resolve_followup)
         graph.add_node("decompose_query", decompose_query)
         graph.add_node("navigate_and_hyde", navigate_and_hyde)
@@ -413,12 +454,14 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("handle_fallback", handle_fallback)
         graph.add_node("web_search", web_search_node)
 
-        # --- Entry point ---
-        graph.set_entry_point("intent_router")
+        # --- Parallel entry: intent_router + handle_distress_check ---
+        graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
+        graph.add_edge("intent_router", "resolve_parallel")
+        graph.add_edge("handle_distress_check", "resolve_parallel")
 
-        # --- Conditional edges ---
+        # --- Conditional edges from merge point ---
         graph.add_conditional_edges(
-            "intent_router",
+            "resolve_parallel",
             route_after_intent,
             {
                 "distress": "handle_distress",
@@ -487,8 +530,14 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_edge("check_contradiction", "format_final_answer")
         graph.add_edge("explain_retrieval", "format_final_answer")
 
+        # --- Reject-and-retry loop ---
+        graph.add_conditional_edges(
+            "format_final_answer",
+            route_after_formatting,
+            {"retry_generate": "generate_answer", "end": END},
+        )
+
         # --- Terminal edges ---
-        graph.add_edge("format_final_answer", END)
         graph.add_edge("handle_casual", END)
         graph.add_edge("handle_distress", END)
         graph.add_edge("handle_meditation", END)

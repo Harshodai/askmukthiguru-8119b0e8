@@ -59,6 +59,9 @@ from app.telemetry_db import init_telemetry_db
 from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
 from services.auth_service import get_current_user_from_supabase
 
+# Initialize tenant context from request
+from services.tenant_context import TenantContext, get_tenant_collection, set_tenant_from_request
+
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
 from app.coalescer import build_coalescer as _build_coalescer
 
@@ -142,6 +145,26 @@ def _register_node_observers() -> None:
         logger.info(f"Registered {len(_node_observers)} NodeObserver(s) for pipeline telemetry")
     except Exception as exc:
         logger.warning(f"NodeObserver wiring skipped: {exc}")
+
+
+# Initialize tenant context from request
+from services.tenant_context import TenantContext, get_tenant_collection
+def _init_tenant_context_from_request(request: Request) -> None:
+    """
+    Initialize TenantContext from the FastAPI request.
+
+    Must be called before any tenant-aware operations like Qdrant indexing or search.
+    """
+    try:
+        from services.auth_service import get_current_user_from_supabase
+        user = get_current_user_from_supabase(request)
+        tenant_id = user.get("tenant_id", user.get("id", "default"))
+        email = user.get("email", "")
+        TenantContext.set(tenant_id, email)
+        logger.debug(f"Initialized TenantContext: tenant_id={tenant_id}, email={email}")
+    except Exception as e:
+        logger.warning(f"Failed to initialize TenantContext: {e}")
+        TenantContext.set("default", "")
 
 
 def _wire_graph_observers() -> None:
@@ -246,6 +269,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Failed to start JobQueue workers: {e}")
 
+    # 11. Start LLM Queue (if enabled)
+    if getattr(container, "llm_queue", None):
+        try:
+            await container.llm_queue.start()
+            logger.info("LLMQueue started")
+        except Exception as e:
+            logger.warning(f"Failed to start LLMQueue: {e}")
+
     logger.info("=== Mukthi Guru Backend Ready ===")
     yield
 
@@ -283,6 +314,14 @@ async def lifespan(app: FastAPI):
             logger.info("JobQueue workers stopped")
         except Exception as e:
             logger.warning(f"JobQueue shutdown error: {e}")
+
+    # Stop LLM Queue
+    if getattr(container, "llm_queue", None):
+        try:
+            await container.llm_queue.stop()
+            logger.info("LLMQueue stopped")
+        except Exception as e:
+            logger.warning(f"LLMQueue shutdown error: {e}")
 
     shutdown()
 

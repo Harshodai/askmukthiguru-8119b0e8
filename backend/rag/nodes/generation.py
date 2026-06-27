@@ -32,14 +32,24 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+# LRU cache for system prompts per session
+from collections import OrderedDict as _OrderedDict
+import time as _time
+_system_prompt_cache: _OrderedDict = _OrderedDict()
+_SYSTEM_PROMPT_CACHE_MAX = 500
+_SYSTEM_PROMPT_CACHE_TTL = 3600
+
 
 def _compute_context_budget(
     max_budget: int,
     baseline_tokens: int,
     history_str: str,
     memory_context: str,
+    tier: str = "standard",
     min_context_tokens: int = 200,
 ) -> tuple[int, int]:
+    if tier in ("deep", "tier3_complex"):
+        min_context_tokens = max(min_context_tokens, 500)
     """Compute baseline and retrieved-context token budgets without overflow.
 
     The context budget is floored at ``min_context_tokens`` when the overall
@@ -142,8 +152,14 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
 
     persona = cap_to_token_budget(persona, 512)
 
-    # Layer 2: Knowledge (Retrieved Chunks)
-    knowledge_budget = 3072
+    # Layer 2: Knowledge (Retrieved Chunks) — tier-aware budget
+    query_tier = state.get("query_tier", "standard")
+    if query_tier in ("tier3_complex", "deep"):
+        knowledge_budget = 6144
+    elif query_tier in ("tier2_simple", "fast"):
+        knowledge_budget = 1536
+    else:
+        knowledge_budget = 3072  # standard
     knowledge = "\n\n".join(
         [
             f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
@@ -263,11 +279,19 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     # Dynamic token budget safety enforcement (finding #17: cap baseline, lower floor)
     max_budget = getattr(settings, "max_tokens_per_request", 2000)
+    query_tier = state.get("query_tier", "standard")
+    if query_tier in ("deep", "tier3_complex"):
+        max_budget = max(max_budget, 16000)
+        baseline_tokens_limit = 3000
+    else:
+        baseline_tokens_limit = 1500
+
     baseline_tokens, max_context_tokens = _compute_context_budget(
         max_budget=max_budget,
-        baseline_tokens=1500,
+        baseline_tokens=baseline_tokens_limit,
         history_str=history_str,
         memory_context=state.get("memory_context") or "",
+        tier=query_tier,
     )
 
     logger.info(f"BUDGET DEBUG: max_budget={max_budget}, baseline_tokens={baseline_tokens}, max_context_tokens={max_context_tokens}, original_docs_count={len(relevant_docs)}")
@@ -473,6 +497,26 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         user_prompt = f"Question: {question}"
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
+
+    session_id = config.get("configurable", {}).get("session_id", "") if config else ""
+    cache_key = f"{session_id}:{state.get('assistant_slug', 'default')}:{state.get('detected_language', 'en')}"
+    if cache_key in _system_prompt_cache:
+        cached_entry = _system_prompt_cache[cache_key]
+        if _time.time() - cached_entry["ts"] < _SYSTEM_PROMPT_CACHE_TTL:
+            system_prompt = cached_entry["prompt"]
+            _system_prompt_cache.move_to_end(cache_key)
+    else:
+        _system_prompt_cache[cache_key] = {"prompt": system_prompt, "ts": _time.time()}
+        if len(_system_prompt_cache) > _SYSTEM_PROMPT_CACHE_MAX:
+            _system_prompt_cache.popitem(last=False)
+
+    retry_count = state.get("retry_count", 0)
+    if retry_count > 0:
+        system_prompt += (
+            "\n\nIMPORTANT: Your previous answer was rejected for insufficient faithfulness. "
+            "You MUST base your answer STRICTLY on the provided context. "
+            "If the context doesn't fully answer the question, say so clearly rather than making things up."
+        )
 
     configurable = {}
     if config:
@@ -738,6 +782,14 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 if history_str:
                     user_prompt = f"{history_str}\n\n{user_prompt}"
 
+            retry_count = state.get("retry_count", 0)
+            if retry_count > 0:
+                system_prompt += (
+                    "\n\nIMPORTANT: Your previous answer was rejected for insufficient faithfulness. "
+                    "You MUST base your answer STRICTLY on the provided context. "
+                    "If the context doesn't fully answer the question, say so clearly rather than making things up."
+                )
+
             logger.info("headroom CCR: Re-generating answer with uncompressed context...")
             if gateway and gateway.enabled:
                 try:
@@ -972,7 +1024,7 @@ def _clean_inline_citations(text: str) -> str:
     return text.strip()
 
 
-async def _generate_follow_up_suggestions(question: str, answer: str, intent: str) -> list[str]:
+async def _generate_follow_up_suggestions(question: str, answer: str, intent: str, memory_context: str = "") -> list[str]:
     """Generate 3 Claude-style follow-up question suggestions via lightweight LLM call."""
     try:
         ollama = _services._ollama
@@ -987,9 +1039,12 @@ async def _generate_follow_up_suggestions(question: str, answer: str, intent: st
         user_prompt = (
             f"User question: {question[:300]}\n"
             f"Guru answer: {answer[:600]}\n"
-            f"Intent: {intent}\n\n"
-            "Generate 3 follow-up questions:"
+            f"Intent: {intent}\n"
         )
+        memory = memory_context
+        if memory:
+            user_prompt += f"User context: {memory[:300]}\n"
+        user_prompt += "Generate 3 personalized follow-up questions a spiritual seeker with this context might ask next:"
         raw = await ollama.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -1022,15 +1077,15 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)
 
-    if is_faithful and verified:
+    if is_faithful and verified and confidence >= settings.confidence_gating_floor:
         pass
-    elif is_faithful and citations and confidence >= 5 and answer:
+    elif is_faithful and citations and confidence >= max(5.0, settings.confidence_gating_floor) and answer:
         logger.info(
             f"Final: Verification soft-pass (faithful={is_faithful}, "
             f"verified={verified}, confidence={confidence}, "
             f"citations={len(citations)})"
         )
-    elif is_faithful and answer and len(answer.strip()) > 50 and confidence >= 4:
+    elif is_faithful and answer and len(answer.strip()) > 50 and confidence >= settings.confidence_gating_floor:
         logger.info(
             f"Final: Allowing substantive answer through (len={len(answer)}, "
             f"confidence={confidence}, citations={len(citations)})"
@@ -1044,6 +1099,18 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             f"Final: Answer rejected (faithful={is_faithful}, "
             f"verified={verified}, confidence={confidence}, "
             f"citations={len(citations)}, answer_len={len(answer) if answer else 0})"
+        )
+        retry_count = state.get("retry_count", 0)
+        if retry_count < 2:
+            logger.info(
+                f"Final: Answer rejected, retrying (retry_count={retry_count})"
+            )
+            return {
+                "retry_count": retry_count + 1,
+                "_needs_retry": True,
+            }
+        logger.warning(
+            f"Final: Answer rejected, max retries exhausted (retry_count={retry_count}), using fallback"
         )
         return {
             "final_answer": FALLBACK_RESPONSE,
@@ -1094,7 +1161,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     if answer and question and intent not in ("DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"):
         try:
             follow_up_suggestions = await asyncio.wait_for(
-                _generate_follow_up_suggestions(question, answer, intent),
+                _generate_follow_up_suggestions(question, answer, intent, state.get("memory_context", "")),
                 timeout=8.0,
             )
         except asyncio.TimeoutError:
