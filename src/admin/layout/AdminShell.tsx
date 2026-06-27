@@ -18,6 +18,7 @@ import {
   Image,
   ListOrdered,
   Network,
+  LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ const NAV = [
   { to: "/admin/ingestion", label: "Ingestion", icon: Boxes },
   { to: "/admin/logs", label: "Logs", icon: ScrollText },
   { to: "/admin/telemetry", label: "Telemetry", icon: Activity },
+  { to: "/admin/monitoring", label: "Monitoring", icon: LineChart },
   { to: "/admin/alerts", label: "Alerts", icon: Bell },
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/admins", label: "Admins", icon: Users },

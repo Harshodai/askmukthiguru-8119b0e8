@@ -218,7 +218,7 @@ async def debug_headers(request: Request) -> dict:
 
 
 @router.get("/metrics")
-async def get_metrics(user: dict = Depends(get_current_user_from_supabase)) -> Response:
+async def get_metrics() -> Response:
     """Prometheus metrics endpoint."""
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)

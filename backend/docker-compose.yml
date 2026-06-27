@@ -177,10 +177,11 @@ services:
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
       - EMBEDDING_DIMENSION=${EMBEDDING_DIMENSION:-384}
       - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
-      # HuggingFace cache (so models survive container rebuilds)
-      - HF_HOME=/app/.cache/huggingface
-      - TRANSFORMERS_CACHE=/app/.cache/huggingface
-      - SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
+      # Model cache on overlay filesystem (NOT on hf_model_cache volume)
+      # to avoid Docker Desktop gRPC-FUSE mmap failures on large .safetensors files.
+      - HF_HOME=/app/model_cache/huggingface
+      - TRANSFORMERS_CACHE=/app/model_cache/huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/app/model_cache/sentence_transformers
       # Whisper / Transcription
       - WHISPER_MODEL=large-v3
       - WHISPER_BACKEND=faster-whisper
@@ -303,6 +304,54 @@ services:
           memory: 512M
           cpus: '0.5'
 
+  # --- Prometheus Monitoring Scraper ---
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: mukthiguru-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # --- Grafana Analytics Dashboard ---
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: mukthiguru-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+    volumes:
+      - ../infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
 volumes:
   gptcache_data:
     driver: local
@@ -316,3 +365,8 @@ volumes:
     driver: local
   telemetry_data:
     driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+

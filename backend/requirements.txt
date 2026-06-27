@@ -117,3 +117,10 @@ instructor>=1.0.0
 
 # --- MarkItDown Document Parser ---
 markitdown>=0.0.1a2
+
+# Pin pyarrow for datasets compat (avoid AttributeError: module 'pyarrow' has no attribute 'PyExtensionType')
+pyarrow>=12.0.0,<15.0.0
+# Pin numpy to <2.0.0 for compatibility with pyarrow <15.0.0
+numpy<2.0.0
+
+

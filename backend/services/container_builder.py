@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.dependencies import ServiceContainer
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 
