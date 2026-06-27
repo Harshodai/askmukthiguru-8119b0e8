@@ -38,14 +38,15 @@ configure_threading()
 # Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
 try:
     import resource as _resource
-    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "8192"))
-    _limit_bytes = _mb * 1024 * 1024
-    if hasattr(_resource, "RLIMIT_AS"):  # Linux only
-        _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
-        logger_tmp = logging.getLogger(__name__)
-        logger_tmp.info(f"Python memory limit set to {_mb}MB via RLIMIT_AS")
-    elif hasattr(_resource, "RLIMIT_DATA"):  # fallback
-        _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
+    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "0"))
+    if _mb > 0:
+        _limit_bytes = _mb * 1024 * 1024
+        if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
+            _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
+            logger_tmp = logging.getLogger(__name__)
+            logger_tmp.info(f"Python memory limit set to {_mb}MB via RLIMIT_DATA")
+        elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
+            _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
 except Exception:
     pass  # Non-fatal: Docker itself provides hard memory limits
 
