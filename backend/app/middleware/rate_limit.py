@@ -1,4 +1,5 @@
-"""Token-bucket rate limit middleware for /api/chat."""
+"""Token-bucket rate limit middleware for /api/chat.
+Per-tenant + per-user token buckets with Redis-backed Lua script."""
 from __future__ import annotations
 import time
 from typing import Awaitable, Callable
@@ -33,8 +34,18 @@ logger = logging.getLogger(__name__)
 
 
 class TokenBucketMiddleware(BaseHTTPMiddleware):
-    """Per-user (falls back to per-IP) token bucket on /api/chat.
-    Defaults: 20 tokens, refill 20/min (~1 every 3s)."""
+    """Per-tenant + per-user token bucket on /api/chat.
+
+    Redis key pattern::
+
+        rl:chat:{tenant_id}:{user_id}
+
+    Defaults: 20 tokens per tenant-user pair, refill 20/min (~1 every 3s).
+
+    Tenant context is read from ``TenantContext.get()`` which is populated
+    by ``set_tenant_from_request`` (FastAPI dependency) earlier in the
+    middleware chain.
+    """
 
     def __init__(self, app, redis_url: str, capacity: int = 20, refill_per_sec: float = 20 / 60):
         super().__init__(app)
@@ -47,7 +58,7 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]):
         if not request.url.path.startswith("/api/chat"):
             return await call_next(request)
-        
+
         # Bypass rate limits when IS_PRODUCTION is false
         import os
         if os.getenv("IS_PRODUCTION", "true").lower() == "false":
@@ -56,9 +67,12 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
         try:
             if self.script is None:
                 self.script = self.r.register_script(LUA_TOKEN_BUCKET)
-            # Identify subject: prefer authenticated user_id, fallback to first XFF IP
+
+            from services.tenant_context import TenantContext
+            tenant_id = TenantContext.get()
+
             subject = request.headers.get("x-user-id") or (request.client.host if request.client else "unknown")
-            key = f"rl:chat:{subject}"
+            key = f"rl:chat:{tenant_id}:{subject}"
             allowed, remaining = await self.script(keys=[key], args=[self.capacity, self.refill, time.time(), 1])
             if not int(allowed):
                 from fastapi.responses import JSONResponse

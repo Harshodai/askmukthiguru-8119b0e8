@@ -12,6 +12,7 @@ class LLMProvider(str, Enum):
     SARVAM_CLOUD = "sarvam_cloud"
     OLLAMA = "ollama"
     OPENROUTER = "openrouter"
+    NIM = "nim"
 
 
 class CircuitBreakerProvider(str, Enum):
@@ -20,6 +21,7 @@ class CircuitBreakerProvider(str, Enum):
     SARVAM_CLOUD = LLMProvider.SARVAM_CLOUD.value
     OLLAMA = LLMProvider.OLLAMA.value
     OPENROUTER = LLMProvider.OPENROUTER.value
+    NIM = LLMProvider.NIM.value
 
 
 class CachePrefix(str, Enum):
@@ -77,6 +79,11 @@ CIRCUIT_BREAKER_CONFIGS = {
         "recovery_timeout": 60.0,
         "half_open_max_calls": 3,
     },
+    CircuitBreakerProvider.NIM: {
+        "failure_threshold": 5,
+        "recovery_timeout": 60.0,
+        "half_open_max_calls": 3,
+    },
 }
 
 
@@ -85,6 +92,7 @@ DEFAULT_TIMEOUTS = {
     LLMProvider.SARVAM_CLOUD: 60.0,
     LLMProvider.OLLAMA: 30.0,
     LLMProvider.OPENROUTER: 30.0,
+    LLMProvider.NIM: 60.0,
 }
 
 # Reasoning effort defaults per provider
@@ -95,6 +103,11 @@ REASONING_EFFORT_DEFAULTS = {
         "complex": "high",
     },
     LLMProvider.OLLAMA: {
+        "fast": "low",
+        "standard": "medium",
+        "complex": "high",
+    },
+    LLMProvider.NIM: {
         "fast": "low",
         "standard": "medium",
         "complex": "high",
@@ -116,6 +129,11 @@ PROVIDER_MODELS = {
         "default": "meta-llama/llama-3.3-70b-instruct:free",
         "classify": "meta-llama/llama-3.1-8b-instruct",
         "fast": "meta-llama/llama-3.1-8b-instruct",
+    },
+    LLMProvider.NIM: {
+        "default": "minimaxai/minimax-m2.7",
+        "classify": "meta/llama-3.1-8b-instruct",
+        "fast": "meta/llama-3.1-8b-instruct",
     },
 }
 

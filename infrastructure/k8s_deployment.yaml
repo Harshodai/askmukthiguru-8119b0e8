@@ -1,6 +1,7 @@
 # MukthiGuru — Kubernetes Production Deployment
 # Full specs for all services with HPA, resource limits, and scaling triggers.
-# Deploy: kubectl apply -f infrastructure/k8s_deployment.yaml
+# Deploy: ./infrastructure/k8s_deploy.sh
+# (uses envsubst to resolve ${VAR} placeholders from environment)
 
 ---
 apiVersion: v1
@@ -27,6 +28,9 @@ data:
 
 ---
 # ---- Secrets ----
+# WARNING: ${VAR} placeholders are resolved by envsubst via k8s_deploy.sh.
+# Direct `kubectl apply -f` will set literal "${VAR}" strings which WILL fail.
+# Use: ./infrastructure/k8s_deploy.sh
 apiVersion: v1
 kind: Secret
 metadata:

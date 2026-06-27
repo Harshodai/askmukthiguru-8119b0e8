@@ -148,6 +148,12 @@ services:
       - OPENROUTER_GENERATION_MODEL=${OPENROUTER_GENERATION_MODEL:-}
       - OPENROUTER_CLASSIFY_MODEL=${OPENROUTER_CLASSIFY_MODEL:-}
       - OPENROUTER_RPM_LIMIT=${OPENROUTER_RPM_LIMIT:-20}
+      # --- Nvidia NIM (hosted API Catalog) ---
+      - NIM_API_KEY=${NIM_API_KEY:-}
+      - NIM_BASE_URL=${NIM_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      - NIM_GENERATION_MODEL=${NIM_GENERATION_MODEL:-minimaxai/minimax-m2.7}
+      - NIM_CLASSIFY_MODEL=${NIM_CLASSIFY_MODEL:-meta/llama-3.1-8b-instruct}
+      - NIM_RPM_LIMIT=${NIM_RPM_LIMIT:-30}
       # --- Guardrails ---
       - GUARDRAILS_PROVIDER=${GUARDRAILS_PROVIDER:-nemo}
       # --- Retrieval Quality ---
@@ -237,6 +243,7 @@ services:
     volumes:
       # Cache HuggingFace models across rebuilds (prevents re-download on every docker build)
       - hf_model_cache:/app/.cache
+      - ./.model_cache:/app/model_cache
       # Persist SQLite telemetry database
       - telemetry_data:/app/data
       # Mount backend code and scripts for live-reloading/direct execution
