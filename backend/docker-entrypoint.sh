@@ -14,13 +14,20 @@ mkdir -p /app/data
 chown -R appuser:appuser /app/data || echo "Warning: Could not chown /app/data"
 
 # Detect available CPU cores and set worker count
-if [ -z "${WEB_CONCURRENCY}" ]; then
-    # Default: 1 worker (ML-heavy: embedding model ~1.4GB per process; don't OOM)
-    # Scale horizontally with multiple container replicas instead.
-    WEB_CONCURRENCY="1"
+if [ -n "${UVICORN_WORKERS_OVERRIDE}" ] && [ "${UVICORN_WORKERS_OVERRIDE}" -gt 0 ] 2>/dev/null; then
+    # Explicit override — use as-is (prod tuning without OOM on dev machines)
+    WEB_CONCURRENCY="${UVICORN_WORKERS_OVERRIDE}"
     export WEB_CONCURRENCY
-    echo "Auto-setting WEB_CONCURRENCY to ${WEB_CONCURRENCY}"
+    echo "Using UVICORN_WORKERS_OVERRIDE=${WEB_CONCURRENCY} workers"
+elif [ -z "${WEB_CONCURRENCY}" ]; then
+    # Auto: ML models are large (~1.4 GB each). Cap at min(CPU cores, 2) to avoid OOM.
+    # Scale horizontally with multiple container replicas for higher throughput.
+    CPU_CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)
+    WEB_CONCURRENCY=$(( CPU_CORES < 2 ? CPU_CORES : 2 ))
+    export WEB_CONCURRENCY
+    echo "Auto-setting WEB_CONCURRENCY to ${WEB_CONCURRENCY} (detected ${CPU_CORES} CPU cores)"
 fi
+
 
 # If the command starts with python/uvicorn, inject --workers from WEB_CONCURRENCY
 if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then

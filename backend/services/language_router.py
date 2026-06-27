@@ -60,10 +60,10 @@ class LanguageRouter:
         "Tamil": ("\u0b80", "\u0bff"),
         "Telugu": ("\u0c00", "\u0c7f"),
         "Kannada": ("\u0c80", "\u0cff"),
-        "Malayalam": ("\u0d00", "\u0d7f"),
         "Bengali": ("\u0980", "\u09ff"),
         "Gujarati": ("\u0a80", "\u0aff"),
         "Gurmukhi": ("\u0a00", "\u0a7f"),  # Punjabi
+        "Malayalam": ("\u0d00", "\u0d7f"),
     }
 
     # Code-mixed indicators

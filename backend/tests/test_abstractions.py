@@ -127,6 +127,11 @@ class TestIsAvailable(unittest.TestCase):
         svc = SarvamCloudService()
         self.assertTrue(svc.is_available)
 
+    def test_nim_is_available(self) -> None:
+        from services.nim_service import NimService
+        svc = NimService()
+        self.assertTrue(svc.is_available)
+
 
 class TestNodeRegistry(unittest.TestCase):
     """Verify NodeRegistry for graph node discovery."""

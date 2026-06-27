@@ -55,11 +55,20 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     reranked_db = []
     if db_docs:
         is_complex = state.get("is_complex", False)
+        query_tier = state.get("query_tier", "")
         base_threshold = getattr(settings, "rerank_min_score", 0.2)
         threshold = settings.rerank_threshold_complex if is_complex else max(settings.rerank_threshold_simple, base_threshold - 0.1)
         rerank_top_k = getattr(settings, "rag_top_k_rerank", 10)
 
-        if settings.use_flashrank and reranker is not None:
+        # For complex queries: prefer cross-encoder (higher precision) over FlashRank
+        # when reranker_enabled_for_complex is True. FlashRank is ~5× faster but
+        # sacrifices recall for multi-hop / nuanced doctrinal queries.
+        force_cross_encoder = (
+            getattr(settings, "reranker_enabled_for_complex", True)
+            and query_tier == "tier3_complex"
+        )
+
+        if settings.use_flashrank and reranker is not None and not force_cross_encoder:
             reranked_db = await reranker.rerank(
                 question,
                 db_docs,
@@ -75,6 +84,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
                 cross_top_k=rerank_top_k,
                 min_score=threshold,
             )
+
 
         # Apply score-delta cutoff to keep fewer but better chunks
         reranked_db = _apply_rerank_score_cutoff(reranked_db)

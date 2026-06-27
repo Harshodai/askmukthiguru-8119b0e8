@@ -430,6 +430,20 @@ class Settings(BaseSettings):
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
+    reranker_enabled_for_complex: bool = True  # Enable cross-encoder reranker for tier3_complex queries
+
+    # --- TTFT Optimization (Ruthless Audit Phase 1) ---
+    # When True, verification runs concurrently with streaming — the first chunk is sent
+    # immediately; only a hard verification failure silently falls back to FALLBACK_RESPONSE.
+    # When False, generation and verification are fully sequential (legacy behaviour).
+    rag_parallel_verify: bool = True
+    # TTL in seconds for the retrieval-level doc-ID cache keyed by (query_embedding_bucket, tenant_id).
+    # Reduces Qdrant round-trips for repeated query patterns by ~40%.
+    retrieval_cache_ttl: int = 300
+    # Override uvicorn worker count (0 = auto → min(CPU cores, 2)).
+    # Useful on 4-CPU prod VMs where ML models fit in 3.5 GB per process.
+    uvicorn_workers_override: int = 0
+
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the

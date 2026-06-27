@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Flame, RefreshCw, Sparkles, Share2, Trash2, Languages } from 'lucide-react';
+import { Flame, RefreshCw, Sparkles, Share2, Trash2, Languages, GraduationCap, MessageSquare } from 'lucide-react';
 
 export type SlashCommandId =
   | 'serene'
@@ -7,7 +7,9 @@ export type SlashCommandId =
   | 'retry'
   | 'share'
   | 'clear'
-  | 'lang';
+  | 'lang'
+  | 'teach'
+  | 'reflect';
 
 export interface SlashCommand {
   id: SlashCommandId;
@@ -59,6 +61,20 @@ const ALL_COMMANDS: SlashCommand[] = [
     hint: 'Open the language picker',
     icon: Languages,
     keywords: ['lang', 'language', 'hindi', 'telugu', 'malayalam'],
+  },
+  {
+    id: 'teach',
+    label: '/teach',
+    hint: 'Ask the Guru to explain a concept step-by-step',
+    icon: GraduationCap,
+    keywords: ['teach', 'explain', 'step', 'breakdown', 'learn'],
+  },
+  {
+    id: 'reflect',
+    label: '/reflect',
+    hint: 'Get a reflection question based on this conversation',
+    icon: MessageSquare,
+    keywords: ['reflect', 'question', 'introspect', 'ponder'],
   },
 ];
 
