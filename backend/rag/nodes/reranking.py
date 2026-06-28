@@ -58,7 +58,16 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         query_tier = state.get("query_tier", "")
         base_threshold = getattr(settings, "rerank_min_score", 0.2)
         threshold = settings.rerank_threshold_complex if is_complex else max(settings.rerank_threshold_simple, base_threshold - 0.1)
-        rerank_top_k = getattr(settings, "rag_top_k_rerank", 10)
+
+        # Dynamic top-k by query tier — fewer chunks for simpler queries reduces
+        # LLM context window usage and lowers TTFT without hurting answer quality.
+        _TIER_TOP_K = {
+            "fast":          3,
+            "tier2_simple":  4,
+            "standard":      5,
+            "tier3_complex": 8,
+        }
+        rerank_top_k = _TIER_TOP_K.get(query_tier, getattr(settings, "rag_top_k_rerank", 10))
 
         # For complex queries: prefer cross-encoder (higher precision) over FlashRank
         # when reranker_enabled_for_complex is True. FlashRank is ~5× faster but

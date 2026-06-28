@@ -190,6 +190,7 @@ class ChatStreamRequestOrchestrator:
                 "faithfulness_score": result.faithfulness_score,
                 "hallucination_flag": result.hallucination_flag,
                 "follow_up_suggestions": result.follow_up_suggestions,
+                "confidence_score": result.confidence_score,
             })
             yield f"event: done\ndata: {meta}\n\n"
 

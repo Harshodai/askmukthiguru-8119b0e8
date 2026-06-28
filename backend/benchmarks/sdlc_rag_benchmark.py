@@ -51,7 +51,19 @@ except ImportError as exc:
 
 
 DEFAULT_TIMEOUT = 120.0
-DEFAULT_CONCURRENCY = 3
+# Concurrency configuration resolved dynamically from environment
+_nim_keys = os.getenv("NIM_API_KEY", "")
+_num_keys = len([k for k in _nim_keys.split(",") if k.strip()])
+_num_keys = max(1, _num_keys)
+_env_concurrency = os.getenv("BENCHMARK_CONCURRENCY", "")
+if _env_concurrency.lower() == "parallel":
+    DEFAULT_CONCURRENCY = _num_keys
+elif _env_concurrency.lower() == "sequential":
+    DEFAULT_CONCURRENCY = 1
+elif _env_concurrency.isdigit():
+    DEFAULT_CONCURRENCY = int(_env_concurrency)
+else:
+    DEFAULT_CONCURRENCY = 3
 DEFAULT_BASE_URL = "http://localhost:8000"
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "reports"
 GARBAGE_KEYWORDS = ("guru is meditating",)

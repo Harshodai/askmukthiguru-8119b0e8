@@ -615,15 +615,27 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               )}
             </AnimatePresence>
 
-            {/* Confidence score */}
-            {isGuru && message.confidenceScore != null && message.confidenceScore > 0 && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-prana/10 border border-prana/20">
-                <Shield className="w-3 h-3 text-prana" />
-                <span className="text-[10px] font-medium text-prana">
-                  Confidence: {message.confidenceScore}/10
-                </span>
-              </div>
-            )}
+            {/* Confidence score — color-coded badge */}
+            {isGuru && message.confidenceScore != null && message.confidenceScore > 0 && (() => {
+              const score = message.confidenceScore;
+              // score is 1-10 from backend
+              const pct = Math.round((score / 10) * 100);
+              const isHigh = score >= 7;
+              const isMed  = score >= 4 && score < 7;
+              const colorDot  = isHigh ? 'bg-emerald-400' : isMed ? 'bg-amber-400' : 'bg-rose-400';
+              const colorText = isHigh ? 'text-emerald-400' : isMed ? 'text-amber-400' : 'text-rose-400';
+              const colorBorder = isHigh ? 'border-emerald-400/25' : isMed ? 'border-amber-400/25' : 'border-rose-400/25';
+              const colorBg = isHigh ? 'bg-emerald-400/8' : isMed ? 'bg-amber-400/8' : 'bg-rose-400/8';
+              const label = isHigh ? 'High confidence' : isMed ? 'Moderate confidence' : 'Low confidence';
+              return (
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${colorBorder} ${colorBg}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${colorDot} shrink-0`} />
+                  <span className={`text-[10px] font-medium ${colorText}`}>
+                    {label} · {pct}%
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Memory provenance — surfaces facts the Guru recalled from your reflections */}
             {isGuru && message.memoriesUsed && message.memoriesUsed.length > 0 && (

@@ -208,10 +208,10 @@ services:
       # Server
       - HOST=0.0.0.0
       - PORT=8000
-      # Workers: Force 1 worker to prevent OOM from multi-process ML model loading.
-      # The embedding model (multilingual-e5-large-instruct) uses ~1.4GB RAM per process.
-      # Use 1 worker + async concurrency (FastAPI/uvicorn handles concurrent requests).
-      - WEB_CONCURRENCY=1
+      # Workers: 2 workers for production concurrency. Each process loads the embedding model
+      # (~1.4GB RAM). Ensure the host has ≥4GB available (2×1.4GB model + 1.2GB overhead).
+      # The entrypoint caps at min(CPU_CORES, 2) automatically — safe on 1-vCPU hosts.
+      - WEB_CONCURRENCY=2
       # Disable Sarvam debug log (prevents unbounded sarvam_debug.json growth)
       - SARVAM_DEBUG=false
       # Reranker: FlashRank not installed in image, use CrossEncoder fallback
