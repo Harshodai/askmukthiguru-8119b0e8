@@ -1,0 +1,69 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Mukthi Guru — vLLM GPU Inference Service (FUTURE-READY — NOT ACTIVE)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# ACTIVATE WHEN: GPU hardware is available (≥16GB VRAM recommended for 7B models)
+#
+# To enable:
+#   1. Uncomment the vllm service below
+#   2. Set LLM_PROVIDER=vllm_openai in backend env
+#   3. Set VLLM_BASE_URL=http://vllm:8080/v1 in backend env
+#   4. Ensure GPU runtime is configured on the host (NVIDIA Container Toolkit)
+#
+# Why vLLM:
+#   - PagedAttention: KV-cache paging removes OOM from long contexts
+#   - Continuous batching: serves multiple requests simultaneously (not request-by-request)
+#   - Prefix caching: shared system prompts cached across requests (~50% TTFT reduction)
+#   - OpenAI-compatible API: drop-in for all providers that speak /v1/chat/completions
+#
+# ───────────────────────────────────────────────────────────────────────────────
+
+version: '3.8'
+
+services:
+
+  # vllm:
+  #   image: vllm/vllm-openai:latest
+  #   container_name: mukthiguru-vllm
+  #   runtime: nvidia                            # Requires nvidia-container-toolkit
+  #   environment:
+  #     - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}     # For gated models (e.g. Llama-3)
+  #   command: >
+  #     --model ${VLLM_MODEL:-sarvamai/sarvam-2b-v0.5}
+  #     --host 0.0.0.0
+  #     --port 8080
+  #     --max-model-len 4096
+  #     --enable-prefix-caching              # Reuse KV for shared system prompt
+  #     --enable-chunked-prefill             # Reduce prefill latency for long prompts
+  #     --gpu-memory-utilization 0.90        # Leave 10% headroom for CUDA ops
+  #     --tensor-parallel-size 1            # Increase to 2+ for multi-GPU
+  #     --served-model-name mukthiguru-llm
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - vllm_model_cache:/root/.cache/huggingface
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #       limits:
+  #         memory: 24G
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 120s       # vLLM takes ~2 min to load a 7B model
+  #   restart: always
+
+# volumes:
+#   vllm_model_cache:
+
+# ─── Backend env additions when vLLM is active ─────────────────────────────────
+# Add to backend service environment:
+#   - LLM_PROVIDER=vllm_openai
+#   - VLLM_BASE_URL=http://vllm:8080/v1
+#   - VLLM_MODEL=mukthiguru-llm

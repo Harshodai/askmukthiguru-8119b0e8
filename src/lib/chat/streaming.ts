@@ -202,6 +202,7 @@ export async function* sendMessageStreaming(
               blockReason: meta.block_reason ?? null,
               proactiveSereneMind: meta.proactive_serene_mind ?? null,
               followUpSuggestions: meta.follow_up_suggestions ?? [],
+              confidenceScore: meta.confidence_score ?? null,
             };
           } catch {
             // Ignore malformed done payload

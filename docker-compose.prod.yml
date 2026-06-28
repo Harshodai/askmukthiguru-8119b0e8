@@ -66,9 +66,14 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       # Memory limit for Python process (set in main.py via resource.setrlimit)
       - PYTHON_MEMORY_LIMIT_MB=${PYTHON_MEMORY_LIMIT_MB:-2048}
+      # Workers: 2 for production. Each loads the embedding model (~1.4GB each).
+      # Ensure the host has ≥4GB RAM available.
+      - WEB_CONCURRENCY=2
     depends_on:
-      - qdrant
-      - redis
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - mukthiguru
     healthcheck:
@@ -78,6 +83,11 @@ services:
       retries: 3
     restart: always
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
       resources:
         limits:
           cpus: "2.0"
@@ -100,6 +110,11 @@ services:
       retries: 3
     restart: always
     deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
       resources:
         limits:
           cpus: "2.0"

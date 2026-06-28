@@ -633,10 +633,10 @@ def _init_api_key_rotator():
 
     async def patched_send(self, request, *args, **kwargs):
         response = await original_send(self, request, *args, **kwargs)
-        if response.status_code == 429:
-            # Detect active key from headers
-            auth_hdr = request.headers.get("authorization")
-            sub_hdr = request.headers.get("api-subscription-key")
+        if response.status_code in (429, 403):
+            # Detect active key from request or client headers
+            auth_hdr = request.headers.get("authorization") or self.headers.get("authorization")
+            sub_hdr = request.headers.get("api-subscription-key") or self.headers.get("api-subscription-key")
 
             used_key = None
             hdr_name = None
@@ -664,15 +664,17 @@ def _init_api_key_rotator():
                             new_key = lst[next_idx]
 
                             logger.warning(
-                                f"KeyRotator: 429 Rate Limit for provider '{matched_provider}' (key ...{used_key[-6:]}). "
+                                f"KeyRotator: {response.status_code} error for provider '{matched_provider}' (key ...{used_key[-6:]}). "
                                 f"Rotating to key index {next_idx} (...{new_key[-6:]}) and retrying request."
                             )
 
-                            # Update request headers
+                            # Update request headers and client headers
                             if hdr_name == "authorization":
                                 request.headers["authorization"] = f"Bearer {new_key}"
+                                self.headers["authorization"] = f"Bearer {new_key}"
                             elif hdr_name == "api-subscription-key":
                                 request.headers["api-subscription-key"] = new_key
+                                self.headers["api-subscription-key"] = new_key
 
                             # Update global settings
                             if matched_provider == "nim":

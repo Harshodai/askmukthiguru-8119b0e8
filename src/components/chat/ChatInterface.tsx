@@ -793,6 +793,7 @@ export const ChatInterface = () => {
         let streamedBlockReason: string | null = null;
         let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
         let streamedFollowUpSuggestions: string[] = [];
+        let streamedConfidenceScore: number | null = null;
         for await (const chunk of stream) {
           if (chunk.type === 'status') {
             // First status event from backend → hide instant pill
@@ -822,7 +823,7 @@ export const ChatInterface = () => {
           }
 
           if (chunk.type === 'done') {
-            // Final metadata from backend — citations, intent, meditationStep, proactiveSereneMind
+            // Final metadata from backend — citations, intent, meditationStep, proactiveSereneMind, confidenceScore
             streamedCitations = chunk.citations;
             finalIntent = chunk.intent;
             streamedMedStep = chunk.meditationStep;
@@ -830,6 +831,7 @@ export const ChatInterface = () => {
             streamedBlockReason = chunk.blockReason ?? null;
             streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
             streamedFollowUpSuggestions = chunk.followUpSuggestions ?? [];
+            streamedConfidenceScore = chunk.confidenceScore ?? null;
             continue;
           }
 
@@ -861,7 +863,18 @@ export const ChatInterface = () => {
           streamingWorked = true;
           // Commit the final streamed content to the message list
           setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: fullContent, intent: finalIntent, citations: streamedCitations.length > 0 ? streamedCitations : undefined, followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined } : m))
+            prev.map((m) =>
+              m.id === streamingGuruId
+                ? {
+                    ...m,
+                    content: fullContent,
+                    intent: finalIntent,
+                    citations: streamedCitations.length > 0 ? streamedCitations : undefined,
+                    followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
+                    confidenceScore: streamedConfidenceScore ?? undefined,
+                  }
+                : m
+            )
           );
 
           setStreamingMessageId(undefined);

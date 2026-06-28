@@ -1,0 +1,34 @@
+# ── Mukthi Guru — Railway Production Dockerfile ─────────────────────────────
+# Optimised for Railway.app:
+#   - Python 3.12 slim to minimise image size
+#   - No dev dependencies (no FlashRank, no ipykernel, etc.)
+#   - Health check via /api/health
+#   - 2 uvicorn workers for concurrency under production load
+
+FROM python:3.12-slim
+
+# System deps: curl for healthcheck, gcc for any compiled extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gcc g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python deps before copying app code (cache layer)
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app code
+COPY backend/ .
+
+# Production environment flags
+ENV ENV=production \
+    IS_PRODUCTION=true \
+    WEB_CONCURRENCY=2 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+EXPOSE 8000
+
+# Railway sets $PORT; uvicorn reads it
+CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2}

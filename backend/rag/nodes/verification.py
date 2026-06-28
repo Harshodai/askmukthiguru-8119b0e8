@@ -17,11 +17,13 @@ from rag.prompts import (
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
+from services.confidence_scorer import calculate_confidence
 
 from . import _services
 from .utils import _trace_update, emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
+
 
 
 @log_metrics
@@ -186,7 +188,18 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     claim_verification_factor = 1.0 if claim_verification_passed else 0.7
     consistency_factor = 1.0 if consistency_check_passed else 0.8
 
-    confidence_score = max(1.0, min(10.0, base_confidence * claim_verification_factor * consistency_factor))
+    # ── Multi-signal confidence ensemble ──────────────────────────────────
+    # Build an intermediate state snapshot with the signals that are already
+    # computed so calculate_confidence can do weighted aggregation.
+    _conf_state = {
+        **state,
+        "faithfulness_score": faithfulness_score,
+        "verification": {
+            "passed": is_valid,
+            "cove_pass_ratio": (1.0 if claim_verification_passed else 0.0),
+        },
+    }
+    confidence_score = calculate_confidence(_conf_state)
 
     try:
         VERIFICATION_RESULTS.labels(result="faithful" if is_faithful_ld else "hallucinated").inc()
