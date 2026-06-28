@@ -17,6 +17,11 @@ try:
 except ImportError:
     Redis = None
 
+from prometheus_client import Counter, Histogram
+
+COLLAPSED_REQUESTS = Counter('request_collapsed_total', 'In-flight requests collapsed')
+COALESCER_LATENCY = Histogram('coalescer_wait_seconds', 'Time spent waiting for shared result')
+
 logger = logging.getLogger(__name__)
 
 from services.tenant_context import TenantContext
@@ -43,10 +48,15 @@ class _InMemoryCoalescer:
     async def get_or_run(self, key: str, coro_func: typing.Callable[[], typing.Any]):
         self._cleanup()
         if key in self._results:
+            COLLAPSED_REQUESTS.inc()
             return self._results[key][0]
 
         if key not in self._locks:
             self._locks[key] = asyncio.Lock()
+
+        is_collapsed = self._locks[key].locked()
+        if is_collapsed:
+            COLLAPSED_REQUESTS.inc()
 
         async with self._locks[key]:
             if key in self._results:
@@ -84,7 +94,10 @@ class RedisCoalescer:
             return await self._run_as_leader(coro_func, result_key, lock_key)
 
         # Wait for result from leader
-        result = await self._wait_for_result(result_key, lock_key, coro_func)
+        COLLAPSED_REQUESTS.inc()
+        logger.info(f"Collapsing request for key: {key}, waiting for leader to complete")
+        with COALESCER_LATENCY.time():
+            result = await self._wait_for_result(result_key, lock_key, coro_func)
         return result
 
     async def _run_as_leader(
