@@ -1024,12 +1024,28 @@ def _clean_inline_citations(text: str) -> str:
     return text.strip()
 
 
-async def _generate_follow_up_suggestions(question: str, answer: str, intent: str, memory_context: str = "") -> list[str]:
-    """Generate 3 Claude-style follow-up question suggestions via lightweight LLM call."""
+async def _generate_follow_up_suggestions(
+    question: str, answer: str, intent: str, memory_context: str = "", chat_history: list[dict] = None
+) -> list[str]:
+    """Generate 3 Claude-style follow-up question suggestions via lightweight LLM call, avoiding repetition."""
     try:
         ollama = _services._ollama
         if not ollama:
             return []
+        
+        # Build a set of normalized questions the user has already asked in this session
+        already_asked = set()
+        if chat_history:
+            for msg in chat_history[-6:]:
+                if msg.get("role") == "user":
+                    content = msg.get("content", "").lower().strip("?!. ")
+                    if content:
+                        already_asked.add(content)
+                        # Also strip common prefixes to avoid near-duplicate match
+                        for prefix in ["what is ", "how to ", "explain ", "tell me about ", "what are ", "who is ", "who are "]:
+                            if content.startswith(prefix):
+                                already_asked.add(content[len(prefix):])
+
         system_prompt = (
             "You are a helpful assistant generating short follow-up questions. "
             "Given a user's question and a guru's answer, produce exactly 3 natural, "
@@ -1051,8 +1067,42 @@ async def _generate_follow_up_suggestions(question: str, answer: str, intent: st
             timeout=get_node_timeout("format_final_answer", 10.0),
             max_retries=1,
         )
-        suggestions = [q.strip() for q in raw.splitlines() if q.strip() and len(q.strip()) > 10][:3]
-        return suggestions
+        suggestions = [q.strip() for q in raw.splitlines() if q.strip() and len(q.strip()) > 10]
+        
+        # Filter out suggestions the user has already asked
+        filtered = []
+        for s in suggestions:
+            s_normalized = s.lower().strip("?!. ")
+            is_duplicate = False
+            
+            if s_normalized in already_asked:
+                is_duplicate = True
+            else:
+                for prefix in ["what is ", "how to ", "explain ", "tell me about ", "what are ", "who is ", "who are "]:
+                    if s_normalized.startswith(prefix) and s_normalized[len(prefix):] in already_asked:
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
+                filtered.append(s)
+
+        # Fallback to general but relevant suggestions if too many were filtered out
+        if len(filtered) < 2:
+            topic = "the teachings"
+            words = [w for w in question.lower().split() if len(w) > 4 and w not in ["about", "would", "could", "should", "there"]]
+            if words:
+                topic = words[-1].strip("?!.,")
+            
+            fallbacks = [
+                f"Go deeper into the practice of {topic}.",
+                f"How can I apply this wisdom to my daily life?",
+                f"What is the next step to experience this state?",
+            ]
+            for f in fallbacks:
+                if f.lower().strip("?!. ") not in already_asked and f not in filtered:
+                    filtered.append(f)
+                    
+        return filtered[:3]
     except Exception as exc:
         logger.debug(f"Follow-up suggestion generation failed (non-fatal): {exc}")
         return []
@@ -1162,7 +1212,13 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     if answer and question and intent not in ("DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"):
         try:
             follow_up_suggestions = await asyncio.wait_for(
-                _generate_follow_up_suggestions(question, answer, intent, state.get("memory_context", "")),
+                _generate_follow_up_suggestions(
+                    question, 
+                    answer, 
+                    intent, 
+                    memory_context=state.get("memory_context", ""),
+                    chat_history=state.get("chat_history", [])
+                ),
                 timeout=8.0,
             )
         except asyncio.TimeoutError:

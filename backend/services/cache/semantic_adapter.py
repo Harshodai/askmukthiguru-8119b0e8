@@ -113,7 +113,7 @@ class SemanticCacheAdapter(ICacheRepository):
         namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
         return str(uuid.uuid5(namespace, normalized))
 
-    def get(self, query: str) -> Optional[dict]:
+    def get(self, query: str, threshold: Optional[float] = None) -> Optional[dict]:
         """Look up a cached response semantically."""
         # Split language prefix if present, and embed using encode_single_full
         parts = query.split(":", 1)
@@ -125,13 +125,14 @@ class SemanticCacheAdapter(ICacheRepository):
         emb_dict = self._embedder.encode_single_full(raw_query)
         emb = emb_dict["dense"]
 
+        target_threshold = threshold if threshold is not None else self._threshold
         try:
             # Search Qdrant
             results = self._qdrant.query_points(
                 collection_name=self._collection,
                 query=emb,
                 limit=1,
-                score_threshold=self._threshold,
+                score_threshold=target_threshold,
             ).points
 
             if results:

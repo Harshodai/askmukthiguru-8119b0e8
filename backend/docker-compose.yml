@@ -285,8 +285,9 @@ services:
         limits:
           memory: 256M
           cpus: '0.25'
-
   # --- GPTCache Server (Distributed Semantic Cache) ---
+  # Overrides command to uninstall broken 'faiss' package and install 'faiss-cpu'
+  # to fix the 'AttributeError: module faiss has no attribute index_factory' crash.
   gptcache-server:
     image: zilliz/gptcache:latest
     container_name: mukthiguru-gptcache-server
@@ -294,6 +295,8 @@ services:
       - "8001:8000"
     environment:
       - GPTCACHE_CONFIG=/config/gptcache_config.yml
+    command: >
+      sh -c "pip uninstall -y faiss faiss-cpu && pip install --no-cache-dir faiss-cpu && exec gptcache_server -s 0.0.0.0 -p 8000 -d /data"
     volumes:
       - ../gptcache_config.yml:/config/gptcache_config.yml:ro
       - gptcache_data:/data
@@ -303,16 +306,17 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
           cpus: '0.5'
+
 
   # --- Prometheus Monitoring Scraper ---
   prometheus:
@@ -379,4 +383,5 @@ volumes:
     driver: local
   grafana_data:
     driver: local
+
 

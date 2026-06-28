@@ -31,6 +31,9 @@ fi
 
 # If the command starts with python/uvicorn, inject --workers from WEB_CONCURRENCY
 if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
+    echo "Warming cache in the background..."
+    gosu appuser python -m scripts.warm_cache > /app/data/warm_cache.log 2>&1 &
+
     echo "Starting uvicorn with WEB_CONCURRENCY=${WEB_CONCURRENCY} workers..."
     echo "Dropping privileges to appuser..."
     exec gosu appuser python -m uvicorn app.main:app \
