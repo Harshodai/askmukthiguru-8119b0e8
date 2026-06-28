@@ -58,6 +58,7 @@ export type StreamChunk =
       blockReason?: string | null;
       proactiveSereneMind?: ProactiveSereneMindTrigger | null;
       followUpSuggestions?: string[];
+      confidenceScore?: number | null;
     }
   | { type: 'error'; text: string };
 
