@@ -101,7 +101,12 @@ def calculate_confidence(state: dict) -> float:
             cove_sig = faithfulness_sig * 0.9
 
         # Signal 4: contradiction (1.0 = clean, 0.3 = contradiction found)
-        contradiction_sig = 0.3 if state.get("contradiction_found") else 1.0
+        contradiction_found = (
+            state.get("contradiction_found") or 
+            state.get("contradiction_detected") or
+            (isinstance(state.get("evaluation_trace"), dict) and state.get("evaluation_trace").get("contradiction_detected"))
+        )
+        contradiction_sig = 0.3 if contradiction_found else 1.0
 
         # Signal 5: source authority (0–1)
         authority_sig = _source_authority(state.get("citations") or [])

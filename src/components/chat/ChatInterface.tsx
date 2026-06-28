@@ -244,6 +244,8 @@ export const ChatInterface = () => {
   const titleGenerationRef = useRef<Set<string>>(new Set());
   /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
   const streamControllerRef = useRef<AbortController | null>(null);
+  const tokenBufferRef = useRef('');
+  const rafScheduledRef = useRef(false);
   const { toast } = useToast();
 
   // ── Scroll tracking ──────────────────────────────────────────────
@@ -852,10 +854,18 @@ export const ChatInterface = () => {
 
           // Update the streaming message state locally without mapping entire array
           fullContent += chunk.text;
-          setStreamingContent(fullContent);
-          // Keep scrolling during streaming if near bottom
-          if (isNearBottomRef.current && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+          tokenBufferRef.current = fullContent;
+          if (!rafScheduledRef.current) {
+            rafScheduledRef.current = true;
+            requestAnimationFrame(() => {
+              if (rafScheduledRef.current) {
+                setStreamingContent(tokenBufferRef.current);
+                // Keep scrolling during streaming if near bottom
+                if (isNearBottomRef.current && scrollContainerRef.current) {
+                  scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+                }
+              }
+            });
           }
         }
 
@@ -993,6 +1003,8 @@ export const ChatInterface = () => {
         }
       } finally {
         clearInterval(checkpointInterval);
+        rafScheduledRef.current = false;
+        tokenBufferRef.current = '';
         setIsStreaming(false);
         setStreamingMessageId(undefined);
         setStreamingContent('');

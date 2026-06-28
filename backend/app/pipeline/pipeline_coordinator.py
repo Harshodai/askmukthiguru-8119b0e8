@@ -154,15 +154,14 @@ class PipelineCoordinator:
             Immutable result object with all pipeline outputs.
         """
         start_time = time.time()
-        cache_key = cache_language_key(user_msg, preferred_lang)
+        # Extract messages list for downstream use
+        chat_body_messages = [m.model_dump() for m in chat_body.messages] if hasattr(chat_body, "messages") else []
+        cache_key = self._build_context_aware_cache_key(user_msg, preferred_lang, chat_body_messages)
         # Pass original query text for vector cache embedding lookup
         query_for_embedding = user_msg
         is_indic = preferred_lang and not preferred_lang.startswith("en")
         user_id = user.get("id", "anonymous") if user else "anonymous"
         stable_session_id = normalize_session_id(session_id, user_id)
-
-        # Extract messages list for downstream use
-        chat_body_messages = [m.model_dump() for m in chat_body.messages] if hasattr(chat_body, "messages") else []
 
         trace_id = str(uuid.uuid4())
 
@@ -396,6 +395,24 @@ class PipelineCoordinator:
           3. Exact cache (Redis, ~1-5ms lookup)
           4. Semantic cache (Qdrant vector, ~20-50ms lookup)
         """
+        # Determine query tier and dynamic cache threshold
+        query_tier = "standard"
+        if self.container:
+            try:
+                from app.orchestrator_utils import select_graph_for_query
+                query_tier = await select_graph_for_query(query_text, container=self.container)
+            except Exception as e:
+                logger.warning(f"Failed to determine query tier for cache check: {e}")
+
+        _CACHE_THRESHOLDS = {
+            "fast": 0.82,
+            "tier2_simple": 0.85,
+            "standard": 0.87,
+            "tier3_complex": 0.92,
+            "deep": 0.92,
+        }
+        threshold = _CACHE_THRESHOLDS.get(query_tier, settings.semantic_cache_similarity)
+
         # --- 1. Hot cache (sub-millisecond) ---
         hot_hit = hot_cache.get(cache_key)
         if hot_hit is not None:
@@ -418,7 +435,7 @@ class PipelineCoordinator:
 
         # --- 2. Vector cache (P90 fast path, sub-ms lookup via TurboVec) ---
         if settings.hybrid_search_enabled:
-            cache_hit = await self._check_vector_cache(cache_key, query_text)
+            cache_hit = await self._check_vector_cache(cache_key, query_text, threshold=threshold)
             if cache_hit is not None:
                 SEARCH_PATH_TOTAL.labels(path="p90").inc()
                 response, citations, cached_intent = cache_hit
@@ -448,7 +465,7 @@ class PipelineCoordinator:
         # --- 3. Exact + Semantic cache ---
         cached = self.container.exact_cache.get(cache_key)
         if cached is None and self.container.semantic_cache and self.container.semantic_cache.is_available:
-            cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key)
+            cached = await asyncio.to_thread(self.container.semantic_cache.get, cache_key, threshold=threshold)
 
         if cached is not None:
             REQUEST_COUNT.labels(status="cache_hit").inc()
@@ -484,7 +501,7 @@ class PipelineCoordinator:
             )
         return self._vector_cache
 
-    async def _check_vector_cache(self, cache_key: str, query_text: str) -> tuple[str, list, str] | None:
+    async def _check_vector_cache(self, cache_key: str, query_text: str, threshold: float = None) -> tuple[str, list, str] | None:
         """Check vector cache. Returns (response, citations, intent) or None."""
         vcache = self._ensure_vector_cache()
         if vcache.size == 0:
@@ -494,10 +511,11 @@ class PipelineCoordinator:
         if embedding is None:
             return None
 
+        target_threshold = threshold if threshold is not None else settings.semantic_cache_similarity
         results = vcache.search(
             query_embedding=embedding,
             top_k=1,
-            threshold=settings.semantic_cache_similarity,
+            threshold=target_threshold,
         )
         if not results:
             return None
@@ -511,6 +529,54 @@ class PipelineCoordinator:
             meta.get("citations", []),
             meta.get("intent", "QUERY"),
         )
+
+    def _build_context_aware_cache_key(
+        self, 
+        user_msg: str, 
+        preferred_lang: str,
+        chat_history: list[dict] = None
+    ) -> str:
+        """Build cache key that handles follow-up questions."""
+        base_key = cache_language_key(user_msg, preferred_lang)
+        
+        # For standalone questions, use simple key
+        is_standalone = self._is_standalone_question(user_msg)
+        if is_standalone:
+            return base_key
+        
+        # For follow-ups, include previous question hash in key
+        if chat_history:
+            last_user_msg = None
+            for msg in reversed(chat_history):
+                # Ignore the current user message if it is already in the list
+                if msg.get("role") == "user" and msg.get("content") != user_msg:
+                    last_user_msg = msg.get("content", "")
+                    break
+            if last_user_msg:
+                prev_hash = hashlib.md5(last_user_msg.encode()).hexdigest()[:8]
+                return f"{base_key}:ctx:{prev_hash}"
+        
+        return base_key
+
+    def _is_standalone_question(self, question: str) -> bool:
+        """Detect if a question can be answered without context."""
+        # Follow-up patterns that need context
+        follow_up_patterns = [
+            r"^(tell me )?more( about it)?",
+            r"^(can you )?(elaborate|explain)( more| further)?",
+            r"^(what )?(about|do you mean)",
+            r"^(why|how) (is that|so)\?",
+            r"^(go on|continue|and then|what else)",
+            r"^(can you )?(give|provide) (an )?example",
+            r"^(that )?(sounds|seems) (good|interesting|helpful)",
+            r"^(yes|yeah|sure|ok|okay)(,? (please|go ahead))?",
+            r"^(what|how) (about|does) (that|it) (work|mean)",
+        ]
+        question_lower = question.lower().strip()
+        for pattern in follow_up_patterns:
+            if re.match(pattern, question_lower):
+                return False
+        return True
 
     async def _embed_query(self, query_text: str) -> list[float] | None:
         """Compute embedding for a query text."""
@@ -902,6 +968,24 @@ class PipelineCoordinator:
     @staticmethod
     def _build_response_data(result: dict, intent: str) -> dict:
         is_rag = intent == "QUERY"
+        
+        # Calculate confidence using the ensemble if it is missing or is the placeholder 7.0 parallel-verify score
+        confidence = result.get("confidence_score")
+        if confidence is None or (is_rag and confidence == 7.0):
+            from services.confidence_scorer import calculate_confidence
+            # Inject standard default values for signals if missing from result
+            conf_state = {
+                "faithfulness_score": result.get("faithfulness_score", 1.0 if not is_rag else 0.0),
+                "verification": result.get("verification") or {
+                    "passed": result.get("is_faithful", True),
+                    "cove_pass_ratio": 1.0 if result.get("is_faithful", True) else 0.0,
+                },
+                "reranked_docs": result.get("reranked_docs") or result.get("documents") or [],
+                "citations": result.get("citations") or [],
+                "evaluation_trace": result.get("evaluation_trace") or {},
+            }
+            confidence = calculate_confidence(conf_state)
+
         return {
             "faithfulness": result.get("faithfulness_score", 0.0) if is_rag else 1.0,
             "answer_relevancy": 1.0,
@@ -909,4 +993,5 @@ class PipelineCoordinator:
             "context_recall": 1.0,
             "hallucination_flag": not result.get("is_faithful") if (is_rag and result.get("is_faithful") is not None) else False,
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
+            "confidence_score": confidence,
         }
