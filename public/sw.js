@@ -109,8 +109,20 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           // If offline and request is for page, return index.html (SPA routing)
-          if (event.request.headers.get('accept').includes('text/html')) {
+          const acceptHeader = event.request.headers.get('accept') || '';
+          if (acceptHeader.includes('text/html')) {
             return caches.match('/index.html');
+          }
+          // Offline fallback for API calls
+          if (event.request.url.includes('/api/chat')) {
+            return new Response(
+              JSON.stringify({
+                content: "Namaste. I am currently offline, but you can still access guided meditations. Tap the Serene Mind button below.",
+                intent: "CASUAL",
+                offline: true,
+              }),
+              { headers: { 'Content-Type': 'application/json' } }
+            );
           }
         });
       })
