@@ -418,7 +418,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               </div>
 
               {/* Inline action buttons for guru messages */}
-              {isGuru && message.content && !isStreaming && onAction && !message.error && (
+              {isGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && (
                 <InlineActions messageContent={message.content} onAction={onAction} />
               )}
 
@@ -653,7 +653,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             )}
 
             {/* Follow-up suggestions as clickable chips */}
-            {isGuru && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isStreaming && onAction && (
+            {isGuru && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isStreaming && onAction && !message.content.includes('_Stopped by you._') && (
               <div className="w-full mt-1">
                 <p className="text-[10px] text-muted-foreground/60 mb-2 pl-0.5">Suggested follow-ups</p>
                 <div className="flex flex-wrap gap-1.5">

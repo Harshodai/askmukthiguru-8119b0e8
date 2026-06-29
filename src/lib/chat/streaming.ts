@@ -98,6 +98,7 @@ export async function* sendMessageStreaming(
       text: pos && pos > 1
         ? `Queued at position ${pos}…`
         : 'Request queued…',
+      jobId,
     };
     const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
     const streamUrl = jobData.stream_url || `${baseUrl}/api/chat/stream/${jobId}`;
