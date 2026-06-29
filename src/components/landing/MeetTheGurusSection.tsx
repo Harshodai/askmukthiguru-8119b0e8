@@ -4,7 +4,7 @@ import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 export const MeetTheGurusSection = () => {
   return (
-    <section id="gurus" className="py-24 relative overflow-hidden">
+    <section id="gurus" className="scroll-mt-28 py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-celestial-gradient" />
 
