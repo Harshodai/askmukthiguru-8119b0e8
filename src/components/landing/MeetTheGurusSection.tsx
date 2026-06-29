@@ -13,7 +13,7 @@ export const MeetTheGurusSection = () => {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
+          viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.7 }}
           className="text-center mb-16"
         >
@@ -31,7 +31,7 @@ export const MeetTheGurusSection = () => {
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
+          viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.7, delay: 0.2 }}
           className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto"
         >

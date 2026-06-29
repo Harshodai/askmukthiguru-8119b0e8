@@ -36,7 +36,7 @@ export const HowItWorksSection = () => {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
+          viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.7 }}
           className="text-center mb-16"
         >
@@ -56,7 +56,7 @@ export const HowItWorksSection = () => {
               key={step.title}
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
+              viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.5, delay: index * 0.15 }}
             >
               <div className="glass-card-hover p-6 h-full text-center group shadow-md">
