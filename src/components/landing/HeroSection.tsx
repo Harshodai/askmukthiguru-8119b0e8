@@ -92,7 +92,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 0.5 }}
-            className="mt-8 text-sm text-muted-foreground"
+            className="mt-8 inline-block text-sm text-foreground/80 bg-background/60 backdrop-blur-sm px-4 py-2 rounded-full"
           >
             This is an AI companion trained on spiritual teachings. Not a replacement for professional guidance.
           </motion.p>
