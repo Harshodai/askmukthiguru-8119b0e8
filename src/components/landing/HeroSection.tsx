@@ -74,7 +74,7 @@ export const HeroSection = () => {
               to="/chat"
               className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-105 shadow-lg glow-gold"
             >
-              <span>Begin Your Journey</span>
+              <span>Start Chat</span>
               <motion.span
                 animate={{ x: [0, 5, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}

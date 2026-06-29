@@ -24,7 +24,7 @@ export const AboutMeditationSection = React.forwardRef<HTMLElement>(
               <motion.div
                 initial={{ opacity: 0, x: -30 }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '-100px' }}
+                viewport={{ once: true, amount: 0.1 }}
                 transition={{ duration: 0.7 }}
               >
                 <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -78,7 +78,7 @@ export const AboutMeditationSection = React.forwardRef<HTMLElement>(
               <motion.div
                 initial={{ opacity: 0, x: 30 }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '-100px' }}
+                viewport={{ once: true, amount: 0.1 }}
                 transition={{ duration: 0.7, delay: 0.2 }}
                 className="relative"
               >
