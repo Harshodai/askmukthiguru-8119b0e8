@@ -48,25 +48,26 @@ export const CookieConsentBanner = () => {
           transition={{ duration: 0.25 }}
           role="dialog"
           aria-label="Cookie consent"
-          className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-4"
+          className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-sm z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4"
         >
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-ojas/12 border border-ojas/25 flex items-center justify-center flex-shrink-0">
+          <div className="flex items-start gap-2.5">
+            <div className="hidden sm:flex w-9 h-9 rounded-full bg-ojas/12 border border-ojas/25 items-center justify-center flex-shrink-0">
               <Cookie className="w-4 h-4 text-ojas" />
             </div>
-            <div className="flex-1 space-y-2">
-              <p className="text-sm font-medium text-foreground">We respect your privacy</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                We use essential storage to keep you signed in and remember your preferences (no
-                third-party trackers). See our{' '}
-                <Link to="/privacy" className="text-ojas hover:underline">Privacy Policy</Link>.
+            <div className="flex-1 space-y-1.5">
+              <p className="text-xs sm:text-sm font-medium text-foreground">
+                Essential cookies only
               </p>
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => decide('rejected')}>
-                  Reject non-essential
+              <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
+                No third-party trackers.{' '}
+                <Link to="/privacy" className="text-ojas hover:underline">Privacy</Link>.
+              </p>
+              <div className="flex gap-2 pt-0.5">
+                <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5" onClick={() => decide('rejected')}>
+                  Reject
                 </Button>
-                <Button size="sm" className="h-8 text-xs bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={() => decide('accepted')}>
-                  Accept all
+                <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={() => decide('accepted')}>
+                  Accept
                 </Button>
               </div>
             </div>
@@ -78,6 +79,7 @@ export const CookieConsentBanner = () => {
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
+
         </motion.div>
       )}
     </AnimatePresence>
