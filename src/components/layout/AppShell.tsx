@@ -252,7 +252,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-dvh flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 text-ojas animate-spin" />
       </div>
     );
@@ -260,7 +260,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background relative">
+      <div className="min-h-dvh flex w-full bg-background relative">
         <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
         <FloatingParticles />
 

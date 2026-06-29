@@ -99,7 +99,8 @@ describe('ChatMessage (regression)', () => {
 
   it('shows confidence score badge when present', () => {
     render(<ChatMessage message={makeGuruMessage({ confidenceScore: 8 })} />, { wrapper });
-    expect(screen.getByText('Confidence: 8/10')).toBeInTheDocument();
+    expect(screen.getByText(/High confidence/)).toBeInTheDocument();
+    expect(screen.getByText(/80%/)).toBeInTheDocument();
   });
 
   it('shows retry button when guru message has a network error', () => {

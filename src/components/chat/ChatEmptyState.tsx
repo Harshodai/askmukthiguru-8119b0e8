@@ -82,7 +82,7 @@ export const ChatEmptyState = ({
               {formatRelative(lastConvo.updatedAt)}
             </span>
           </div>
-          <p className="text-[15px] text-foreground/90 font-serif leading-relaxed line-clamp-2 mb-3">
+          <p className="text-[15px] text-foreground/90 font-sans leading-relaxed line-clamp-2 mb-3">
             {lastConvo.preview || 'Resume your last conversation with the Guru'}
           </p>
           <div className="flex items-center justify-between">

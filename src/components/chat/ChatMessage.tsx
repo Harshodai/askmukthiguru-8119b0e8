@@ -261,7 +261,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             </div>
           )}
 
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'w-full max-w-[90%] sm:max-w-[85%] md:max-w-[80%]' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
               className={`message-bubble relative w-full transition-all duration-300 ${
@@ -340,6 +340,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     prose-li:mb-1 prose-strong:text-ojas prose-strong:font-semibold
                     prose-headings:text-foreground prose-headings:font-bold prose-headings:text-base prose-headings:mb-2
                     prose-a:text-ojas prose-a:no-underline hover:prose-a:underline
+                    prose-pre:overflow-x-auto prose-pre:max-w-full
                     selection:bg-ojas/20">
                     {/* While streaming with no content, render nothing — the single
                         ThinkingPills indicator in ChatInterface is the source of truth.
@@ -351,7 +352,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   )
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2 w-full">
-                    <p className="text-[11px] text-muted-foreground font-serif italic">
+                    <p className="text-[11px] text-muted-foreground font-sans italic">
                       Edit your question — earlier replies below will be regenerated.
                     </p>
                     <textarea

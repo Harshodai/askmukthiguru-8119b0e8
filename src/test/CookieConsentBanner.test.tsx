@@ -14,7 +14,7 @@ describe('CookieConsentBanner', () => {
         <CookieConsentBanner />
       </MemoryRouter>,
     );
-    const accept = await screen.findByText('Accept all', {}, { timeout: 2000 });
+    const accept = await screen.findByText('Accept', {}, { timeout: 2000 });
     fireEvent.click(accept);
     expect(getConsent()).toBe('accepted');
   });
@@ -26,6 +26,6 @@ describe('CookieConsentBanner', () => {
         <CookieConsentBanner />
       </MemoryRouter>,
     );
-    expect(screen.queryByText('Accept all')).toBeNull();
+    expect(screen.queryByText('Accept')).toBeNull();
   });
 });

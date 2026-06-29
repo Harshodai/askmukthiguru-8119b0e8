@@ -19,7 +19,7 @@ export const PracticesSection = () => {
   const ordered = [...favoritePractices, ...otherPractices];
 
   return (
-    <section id="practices" className="scroll-mt-28 py-24 relative overflow-hidden">
+    <section id="practices" className="scroll-mt-28 py-12 sm:py-20 md:py-24 relative overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

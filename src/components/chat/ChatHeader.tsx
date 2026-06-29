@@ -58,7 +58,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
   return (
     <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/85 border-b border-border/40">
       <div className="flex items-center justify-between px-3 sm:px-5 h-16">
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
           {onToggleSidebar && (
             <Button
               size="icon"
@@ -96,7 +96,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
             </Button>
           )}
 
-          <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-ojas/30 flex-shrink-0 shadow-sm">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-ojas/30 flex-shrink-0 shadow-sm">
             <img
               src={gurusPhoto}
               alt="Sri Preethaji & Sri Krishnaji"
@@ -105,7 +105,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
           </div>
 
           <div className="flex flex-col min-w-0 leading-tight">
-            <h1 className="font-serif font-semibold text-foreground text-[15px] sm:text-base truncate">
+            <h1 className="font-serif font-semibold text-foreground text-[13.5px] sm:text-base truncate max-w-[90px] xs:max-w-[130px] sm:max-w-none">
               Sri Preethaji &amp; Sri Krishnaji
             </h1>
             <p className="text-[11px] text-muted-foreground/80 hidden sm:block">

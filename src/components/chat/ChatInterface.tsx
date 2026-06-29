@@ -315,7 +315,7 @@ export const ChatInterface = () => {
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
     const ta = e.target;
-    ta.style.height = 'auto';
+    ta.style.height = '36px';
     ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
   }, []);
 
@@ -657,7 +657,7 @@ export const ChatInterface = () => {
 
     // Reset textarea height
     if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = '36px';
     }
 
     // Force scroll to bottom after sending
@@ -1348,7 +1348,7 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       requestAnimationFrame(() => {
         const ta = inputRef.current;
         if (ta) {
-          ta.style.height = 'auto';
+          ta.style.height = '36px';
           ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
           ta.setSelectionRange(ta.value.length, ta.value.length);
         }
@@ -1453,7 +1453,7 @@ return (
                   </span>
                   <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ojas/25 to-transparent" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-stretch">
                   {STARTER_SUGGESTIONS.map((suggestion, idx) => (
                     <motion.button
                       key={suggestion}
@@ -1462,13 +1462,13 @@ return (
                       transition={{ delay: 0.35 + idx * 0.05 }}
                       onClick={() => handleSuggestionClick(suggestion)}
                       whileHover={{ y: -1 }}
-                      className="group relative px-4 py-3 rounded-xl text-[13.5px] font-serif border border-ojas/20 bg-card/40 hover:bg-ojas/[0.06] hover:border-ojas/50 text-foreground/85 hover:text-foreground transition-all text-left leading-relaxed overflow-hidden"
+                      className="group relative px-4 py-3 rounded-2xl text-sm font-serif border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/85 hover:text-foreground transition-all text-left leading-relaxed overflow-hidden h-full flex items-center"
                     >
                       <span
                         aria-hidden
                         className="absolute inset-y-2 left-0 w-[2px] bg-ojas/0 group-hover:bg-ojas/60 rounded-r transition-all"
                       />
-                      <span className="block pl-1.5">{suggestion}</span>
+                      <span className="block pl-1.5 line-clamp-2">{suggestion}</span>
                     </motion.button>
                   ))}
                 </div>

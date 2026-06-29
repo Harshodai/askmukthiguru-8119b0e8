@@ -70,7 +70,7 @@ const App = () => {
         Previously missing from this tree — Serene Mind modal never rendered.
       */}
       <SereneMindProvider>
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             {/* Admin */}
             <Route path="/admin/login" element={

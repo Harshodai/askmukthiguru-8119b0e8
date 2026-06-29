@@ -7,12 +7,12 @@ import { ContinuePracticeCard } from './ContinuePracticeCard';
 
 export const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-dvh flex items-center justify-center overflow-hidden">
       {/* Background Image with Light Overlay */}
       <div className="absolute inset-0">
         <img
           src={heroImage}
-          alt="Spiritual lotus flowers with golden light"
+          alt=""
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
@@ -28,7 +28,7 @@ export const HeroSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="max-w-4xl mx-auto"
+          className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto"
         >
           {/* Badge */}
           <motion.div
