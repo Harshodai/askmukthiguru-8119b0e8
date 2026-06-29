@@ -289,6 +289,7 @@ services:
   # Overrides command to uninstall broken 'faiss' package and install 'faiss-cpu'
   # to fix the 'AttributeError: module faiss has no attribute index_factory' crash.
   gptcache-server:
+    platform: linux/amd64
     image: zilliz/gptcache:latest
     container_name: mukthiguru-gptcache-server
     ports:
