@@ -26,7 +26,7 @@ const steps = [
 
 export const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="py-24 relative overflow-hidden bg-muted/30">
+    <section id="how-it-works" className="scroll-mt-28 py-24 relative overflow-hidden bg-muted/30">
       {/* Decorative elements */}
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-ojas/30 to-transparent" />
       <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-prana/30 to-transparent" />
