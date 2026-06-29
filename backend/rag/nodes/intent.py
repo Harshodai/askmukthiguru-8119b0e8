@@ -452,11 +452,11 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
-            "evaluation_trace": state.get("evaluation_trace", []) + [{
-                "node": "handle_casual",
-                "result": "redirected_to_factual",
-                "reason": "spiritual_practice_signals_detected",
-            }],
+            "evaluation_trace": _trace_update(
+                state,
+                handle_casual="redirected_to_factual",
+                casual_redirect_reason="spiritual_practice_signals_detected"
+            ),
         }
 
     from rag.nodes.utils import emit_status

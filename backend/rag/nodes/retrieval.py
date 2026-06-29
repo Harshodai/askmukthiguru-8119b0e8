@@ -576,11 +576,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             "relevant_docs": tour_docs,
             "sub_queries": [base_question],
             "retrieval_queries": [base_question],
-            "evaluation_trace": state.get("evaluation_trace", []) + [{
-                "node": "retrieve_documents",
-                "result": "guided_tour_retrieved",
-                "count": len(tour_docs),
-            }],
+            "evaluation_trace": _trace_update(
+                state,
+                retrieve_documents="guided_tour_retrieved",
+                guided_tour_count=len(tour_docs),
+            ),
         }
 
     configurable = {}

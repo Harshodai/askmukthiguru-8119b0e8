@@ -205,7 +205,11 @@ class NimService:
             if not data or "choices" not in data or not data["choices"]:
                 raise ValueError("Empty or invalid response from NIM API")
 
-            content = data["choices"][0]["message"]["content"]
+            try:
+                content = data["choices"][0]["message"]["content"]
+            except KeyError as e:
+                logger.error(f"NIM parsing failed. KeyError: {e}. Response data: {data}")
+                raise e
 
             usage = data.get("usage", {})
             tokens_in = usage.get("prompt_tokens") or self._estimate_tokens(str(messages))
