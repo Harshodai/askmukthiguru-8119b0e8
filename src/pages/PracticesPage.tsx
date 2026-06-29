@@ -10,6 +10,7 @@ import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { cn } from '@/lib/utils';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useToast } from '@/hooks/use-toast';
 
 const accentMap: Record<Practice['accent'], { icon: typeof Flame; ring: string; bg: string; text: string }> = {
   ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas' },
@@ -27,6 +28,7 @@ interface PracticeCardProps {
 
 const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: PracticeCardProps) => {
   const A = accentMap[p.accent];
+  const { toast } = useToast();
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -38,10 +40,15 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
         type="button"
         aria-label={isFavorited ? `Unstar ${p.title}` : `Star ${p.title}`}
         aria-pressed={isFavorited}
+        title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onToggle(p.slug);
+          toast({
+            title: isFavorited ? 'Removed from favorites' : 'Added to favorites',
+            description: `${p.title} has been ${isFavorited ? 'removed from' : 'added to'} your list.`,
+          });
         }}
         className="absolute top-3 right-3 z-10 p-2 rounded-full bg-background/70 backdrop-blur-sm hover:bg-background transition-colors"
       >

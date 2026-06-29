@@ -159,7 +159,13 @@ const PracticeDetailPage = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => toggle(practice.slug)}
+                onClick={() => {
+                  toggle(practice.slug);
+                  toast({
+                    title: fav ? 'Removed from favorites' : 'Added to favorites',
+                    description: `${practice.title} has been ${fav ? 'removed from' : 'added to'} your list.`,
+                  });
+                }}
                 aria-pressed={fav}
                 className="gap-1.5"
               >
