@@ -1,5 +1,16 @@
 # Agentic Lessons & Memory
 
+## Jun 29, 2026 — UI/UX Audit & Quality Gates (P2, P3, P4)
+- **Problem**: The UI/UX audit identified several issues across layout typography, composer auto-resize jitter, suggested starters alignment, header responsiveness on mobile, and a11y focus/alt constraints.
+- **Fix**:
+  - Replaced height reset `'auto'` with `'36px'` in `ChatInterface.tsx` to prevent textarea auto-resize jitter.
+  - Refactored starter question button cards to a responsive grid layout with `items-stretch` and `h-full` to avoid uneven row heights and misalignments.
+  - Sized guru responses (`isGuru`) to wider responsive widths (`max-w-[80-90%]`) on tablet/desktop viewports, preventing wasted whitespace.
+  - Compacted header height, made Guru avatar size smaller (`w-8 h-8`), and set responsive gaps in `ChatHeader.tsx` to prevent mobile viewports from wrapping awkwardly.
+  - Declared `alt=""` for decorative lotus hero image and added `focus-visible` ring/outline classes on custom mobile hamburger menu button.
+  - Corrected obsolete Vitest test expectations in `ChatMessage.test.tsx` and `CookieConsentBanner.test.tsx` to match current layout/text.
+- **Lesson**: Textarea auto-resizing should never reset to `'auto'` before measuring `scrollHeight`, as it causes parent layout flickering and scrollbar jumpiness. Instead, reset to its minimum styling bounds (e.g. `'36px'`). Ensure that frontend design adjustments are accompanied by updating corresponding Vitest/React Testing Library specs to prevent broken build pipelines.
+
 ## Jun 26, 2026 — Claude Code Dynamic Model Discovery & Thinking/Effort support
 - **Problem**: In Claude Code proxy client, selecting Claude 3.5 Sonnet showed "Effort not supported for Claude 3.5 Sonnet" and other custom models from OpenRouter/Nvidia NIM configured in Admin UI did not appear in the model selection picker.
 - **Fix**: Added `claude-3-7-sonnet-20250219` to `SUPPORTED_CLAUDE_MODELS` list in `api/model_catalog.py` of `free-claude-code`. Modified `~/.claude/settings.json` to change the active model to `claude-3-7-sonnet-20250219` and removed the `"availableModels"` array allowlist entirely.

@@ -13,7 +13,7 @@ const benefits = [
 export const AboutMeditationSection = React.forwardRef<HTMLElement>(
   function AboutMeditationSection(_props, ref) {
     return (
-      <section ref={ref} id="meditation" className="scroll-mt-28 py-24 relative overflow-hidden">
+      <section ref={ref} id="meditation" className="scroll-mt-28 py-12 sm:py-20 md:py-24 relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-celestial-gradient" />
 

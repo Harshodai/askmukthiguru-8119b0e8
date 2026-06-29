@@ -4,7 +4,7 @@ import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 export const MeetTheGurusSection = () => {
   return (
-    <section id="gurus" className="scroll-mt-28 py-24 relative overflow-hidden">
+    <section id="gurus" className="scroll-mt-28 py-12 sm:py-20 md:py-24 relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-celestial-gradient" />
 
@@ -33,7 +33,7 @@ export const MeetTheGurusSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="max-w-4xl mx-auto"
+          className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto"
         >
           <div className="glass-card-hover p-8 md:p-12 shadow-lg">
             <div className="flex flex-col md:flex-row gap-8 items-center">
