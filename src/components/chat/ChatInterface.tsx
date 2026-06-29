@@ -134,7 +134,7 @@ const buildMessageError = (
   }
 };
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, getAIConfig } from '@/lib/aiService';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp } from '@/lib/meditationStorage';
@@ -244,6 +244,8 @@ export const ChatInterface = () => {
   const titleGenerationRef = useRef<Set<string>>(new Set());
   /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
   const streamControllerRef = useRef<AbortController | null>(null);
+  /** The current background job ID running on the backend. */
+  const currentJobIdRef = useRef<string | null>(null);
   const tokenBufferRef = useRef('');
   const rafScheduledRef = useRef(false);
   const { toast } = useToast();
@@ -300,6 +302,28 @@ export const ChatInterface = () => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && streamControllerRef.current) {
         streamControllerRef.current.abort();
+        if (currentJobIdRef.current) {
+          const { endpoint } = getAIConfig();
+          const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
+          const jobId = currentJobIdRef.current;
+          currentJobIdRef.current = null;
+          import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
+            try {
+              const token = await getAccessToken();
+              await fetch(`${baseUrl}/api/jobs/${jobId}`, {
+                method: 'DELETE',
+                headers: {
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+            } catch (err) {
+              console.error('Failed to cancel job:', err);
+            }
+          });
+        }
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -655,9 +679,10 @@ export const ChatInterface = () => {
     }
     if (!overrideText) setInputValue('');
 
-    // Reset textarea height
+    // Reset textarea height and refocus
     if (inputRef.current) {
       inputRef.current.style.height = '36px';
+      inputRef.current.focus();
     }
 
     // Force scroll to bottom after sending
@@ -798,6 +823,9 @@ export const ChatInterface = () => {
         let streamedConfidenceScore: number | null = null;
         for await (const chunk of stream) {
           if (chunk.type === 'status') {
+            if (chunk.jobId) {
+              currentJobIdRef.current = chunk.jobId;
+            }
             // First status event from backend → hide instant pill
             setShowInstantPill(false);
             // Pipeline status update → add or advance pills
@@ -1013,6 +1041,10 @@ export const ChatInterface = () => {
         setShowInstantPill(false);
         setPipelineHeartbeat(false);
         streamControllerRef.current = null;
+        currentJobIdRef.current = null;
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
         try {
           sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
         } catch {
@@ -1171,10 +1203,16 @@ setIsAwaitingSereneMind(true);
 
 const handleSuggestionClick = (text: string) => {
   setInputValue(text);
+  if (inputRef.current) {
+    inputRef.current.focus();
+  }
 };
 
 const handleInlineAction = (query: string) => {
   setInputValue(query);
+  if (inputRef.current) {
+    inputRef.current.focus();
+  }
   requestAnimationFrame(() => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     handleSubmit(fakeEvent, query, { bypassCache: true });
@@ -1506,6 +1544,28 @@ return (
                 type="button"
                 onClick={() => {
                   streamControllerRef.current?.abort();
+                  if (currentJobIdRef.current) {
+                    const { endpoint } = getAIConfig();
+                    const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
+                    const jobId = currentJobIdRef.current;
+                    currentJobIdRef.current = null;
+                    import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
+                      try {
+                        const token = await getAccessToken();
+                        await fetch(`${baseUrl}/api/jobs/${jobId}`, {
+                          method: 'DELETE',
+                          headers: {
+                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                          },
+                        });
+                      } catch (err) {
+                        console.error('Failed to cancel job:', err);
+                      }
+                    });
+                  }
+                  if (inputRef.current) {
+                    inputRef.current.focus();
+                  }
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
                 aria-label="Stop generating"
