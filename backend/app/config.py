@@ -622,6 +622,17 @@ def _init_api_key_rotator():
     sarvam_keys = _parse_keys(os.environ.get(SARVAM_API_KEY_ENV) or getattr(settings, "sarvam_api_key", ""))
     krutrim_keys = _parse_keys(os.environ.get(KRUTRIM_API_KEY_ENV) or getattr(settings, "krutrim_api_key", ""))
 
+    # Initialize settings with the first key of the list to avoid raw comma-separated lists being sent
+    if nim_keys:
+        settings.nim_api_key = nim_keys[0]
+    if openrouter_keys:
+        settings.openrouter_api_key = openrouter_keys[0]
+    if sarvam_keys:
+        settings.sarvam_api_key = sarvam_keys[0]
+        os.environ[SARVAM_API_KEY_ENV] = sarvam_keys[0]
+    if krutrim_keys:
+        settings.krutrim_api_key = krutrim_keys[0]
+
     key_lists = {
         "nim": nim_keys,
         "openrouter": openrouter_keys,

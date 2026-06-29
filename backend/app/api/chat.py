@@ -325,7 +325,7 @@ async def chat_stream_poll(
                 await asyncio.sleep(0.1)
             yield "event: error\ndata: Stream timeout\n\n"
         finally:
-            await r.aclose()
+            await r.close()
 
     return StreamingResponse(_sse(), media_type="text/event-stream")
 

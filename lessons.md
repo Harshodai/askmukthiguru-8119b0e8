@@ -1,5 +1,16 @@
 # Agentic Lessons & Memory
 
+## Jun 29, 2026 — Key Rotator API Key Splitting & State / Redis Close Fixes
+- **Problem**: 
+  1. The API key rotator for NIM loaded the entire comma-separated list of keys (`nvapi-oQZ...,nvapi-XUQ...`) as a single invalid key during startup, leading to `403 Forbidden` API errors and forcing invalid key rotations.
+  2. Adding elements to the `evaluation_trace` state property via direct list concatenation (`+`) crashed the LangGraph pipeline with a `TypeError`.
+  3. Redis client teardowns called `.aclose()` which raised `AttributeError` because the local Redis client library only supports `.close()`.
+- **Fix**:
+  1. Modified `backend/app/config.py` to parse/split comma-separated API keys at startup, selecting the first valid key in the list (`keys[0]`).
+  2. Replaced direct list concatenation on the graph state in `intent.py` and `retrieval.py` with the thread-safe `_trace_update()` state reducer helper.
+  3. Changed `.aclose()` to `.close()` in `chat.py`, `orchestrator.py`, and `job_queue.py`.
+- **Lesson**: Comma-separated environment configuration variables must always be explicitly parsed/split before being passed to external API wrappers. LangGraph state properties that use custom reducers should only be mutated using their designated reducer functions rather than raw python operators to prevent `TypeError`. Ensure client lifecycle methods (such as Redis `.close()`) match the specific library version API to prevent runtime teardown crashes.
+
 ## Jun 29, 2026 — UI/UX Audit & Quality Gates (P2, P3, P4)
 - **Problem**: The UI/UX audit identified several issues across layout typography, composer auto-resize jitter, suggested starters alignment, header responsiveness on mobile, and a11y focus/alt constraints.
 - **Fix**:

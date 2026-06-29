@@ -92,7 +92,7 @@ class JobQueueService:
             await asyncio.gather(*self._workers, return_exceptions=True)
         self._workers.clear()
         if self._redis:
-            await self._redis.aclose()
+            await self._redis.close()
             self._redis = None
         logger.info("JobQueue: stopped")
 
