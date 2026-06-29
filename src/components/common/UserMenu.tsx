@@ -62,9 +62,10 @@ export const UserMenu = () => {
             {profile.avatarDataUrl ? (
               <AvatarImage src={profile.avatarDataUrl} alt={profile.displayName} />
             ) : null}
-            <AvatarFallback className="bg-ojas/20 text-ojas text-sm font-semibold">
+            <AvatarFallback className="bg-ojas text-primary-foreground text-sm font-semibold">
               {getInitials(profile.displayName)}
             </AvatarFallback>
+
           </Avatar>
         </button>
       </DropdownMenuTrigger>
