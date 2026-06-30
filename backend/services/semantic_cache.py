@@ -254,6 +254,75 @@ class SemanticCacheService:
         except Exception as e:
             logger.warning(f"Semantic cache invalidation failed: {e}")
 
+    def invalidate_by_embedding(
+        self,
+        new_embedding: list[float],
+        similarity_threshold: float = 0.85,
+        user_id: str = "",
+        tenant_id: str = "default",
+    ) -> int:
+        """
+        Invalidate cache entries whose embeddings are similar to the new content.
+        Used after ingestion to prevent serving stale answers.
+
+        Args:
+            new_embedding: Embedding vector of newly ingested content
+            similarity_threshold: Cosine similarity above which to invalidate
+            user_id: Optional user ID for per-user cache
+            tenant_id: Optional tenant ID for multi-tenancy
+
+        Returns:
+            Number of entries invalidated
+        """
+        if not self._available or not self._redis:
+            return 0
+
+        try:
+            index_data = self._redis.get(self._index_key(user_id=user_id, tenant_id=tenant_id))
+            if not index_data:
+                return 0
+
+            entry_ids = json.loads(index_data)
+            cache_keys = [self._cache_key(eid, user_id=user_id, tenant_id=tenant_id) for eid in entry_ids]
+            entry_blobs = self._redis.mget(cache_keys)
+
+            invalidated = 0
+            for i, entry_data in enumerate(entry_blobs):
+                if not entry_data:
+                    continue
+                try:
+                    entry = json.loads(entry_data)
+                except (ValueError, TypeError):
+                    continue
+                cached_embedding = entry.get("embedding")
+                if not cached_embedding:
+                    continue
+
+                score = _cosine_similarity(new_embedding, cached_embedding)
+                if score >= similarity_threshold:
+                    self._redis.delete(cache_keys[i])
+                    invalidated += 1
+                    logger.debug(f"Semantic cache: invalidated entry {entry_ids[i]} (similarity={score:.4f})")
+
+            if invalidated > 0:
+                # Rebuild index without invalidated entries
+                remaining_ids = [
+                    eid for i, eid in enumerate(entry_ids)
+                    if self._redis.exists(self._cache_key(eid, user_id=user_id, tenant_id=tenant_id))
+                ]
+                self._redis.setex(
+                    self._index_key(user_id=user_id, tenant_id=tenant_id),
+                    self._ttl * 2,
+                    json.dumps(remaining_ids)
+                )
+                logger.info(f"Semantic cache: invalidated {invalidated} entries by embedding similarity")
+
+            return invalidated
+
+        except Exception as e:
+            logger.warning(f"Semantic cache invalidation by embedding failed: {e}")
+            return 0
+
     @property
     def stats(self) -> dict:
         """Return cache statistics."""

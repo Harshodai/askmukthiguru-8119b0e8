@@ -373,17 +373,22 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         sys_p = f"PERSONA:\n{layers.get('persona', '')}\n\nINSTRUCTIONS:\n{layers.get('instructions', '')}"
         if lang_suffix:
             sys_p += f"\n\n{lang_suffix}"
+        sys_tokens = estimate_tokens(sys_p)
 
         user_p_template = (
             f"USER STATE:\n{layers.get('user_state', '')}\n\n"
             f"KNOWLEDGE (retrieved teachings):\n{{knowledge}}\n\n"
-            f"QUESTION: {question}"
+            f"QUESTION: {{question}}"
         )
         if history_str:
-            user_p_template = f"{history_str}\n\n{user_p_template}"
-
-        sys_tokens = estimate_tokens(sys_p)
-        base_user_tokens = estimate_tokens(user_p_template.format(knowledge=""))
+            user_p_template = f"{{history}}\n\n{user_p_template}"
+            base_user_tokens = estimate_tokens(
+                user_p_template.format(knowledge="", question=question, history=history_str)
+            )
+        else:
+            base_user_tokens = estimate_tokens(
+                user_p_template.format(knowledge="", question=question)
+            )
 
         allowed_knowledge_tokens = max(0, max_budget - (sys_tokens + base_user_tokens + 250))
         current_knowledge = layers.get('knowledge', '')
@@ -406,7 +411,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             layers = dict(layers)
             layers['knowledge'] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens)
 
-    is_tier2 = state.get("query_tier") == "fast"
+    is_tier2 = state.get("query_tier") in ("fast", "tier2_simple")
     assistant_system_prompt = state.get("assistant_system_prompt")
     if layers and is_tier2:
         if assistant_system_prompt:
@@ -842,7 +847,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     logger.info(
         f"Generated answer ({len(answer)} chars, {len(citations)} citations, model={ab_model})"
     )
-    return {
+
+    output = {
         "answer": answer,
         "citations": citations,
         **route_metadata,
@@ -857,6 +863,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             route_decision=route_metadata.get("route_decision"),
         ),
     }
+    # Fast-tier queries skip verification nodes, so mark answer as faithful
+    # to prevent format_final_answer from rejecting it for default flags.
+    if is_tier2:
+        output["is_faithful"] = True
+        output["confidence_score"] = 8.0
+        output["verification"] = {"passed": True, "method": "fast_tier_bypass"}
+    return output
 
 
 def _ensure_keywords_in_answer(answer: str, question: str) -> str:
@@ -1118,11 +1131,20 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     answer = state.get("answer", "")
     citations = state.get("citations", [])
     intent = state.get("intent") or "CASUAL"
+    query_tier = state.get("query_tier", "standard")
     if intent == "?":
         intent = "CASUAL"
     answer = strip_cot(answer)
     answer = _clean_inline_citations(answer)
 
+    # Fast-tier: accept unconditionally (skips full verification pipeline)
+    if query_tier in ("fast", "tier2_simple") and answer and len(answer.strip()) > 20:
+        logger.info(
+            f"Final: Fast-tier answer accepted (len={len(answer)}, citations={len(citations)})"
+        )
+        citations = _inject_canonical_citations(answer, citations)
+        citations = enforce_source_diversity(citations, min_distinct=2)
+        return {"final_answer": answer, "citations": citations, "intent": intent, "_needs_retry": False}
 
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)

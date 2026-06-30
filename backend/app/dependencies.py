@@ -53,6 +53,16 @@ def _create_llm_service():
     return LLMProviderFactory.create_provider(provider)
 
 
+class _NoopTranslationProvider:
+    """Pass-through translation provider used when no external translation service is configured."""
+
+    async def translate_text(self, *, text: str, source_lang: str, target_lang: str, **kwargs):
+        return text
+
+    async def health_check(self) -> bool:
+        return True
+
+
 # Required singletons that must be non-None after container construction.
 _REQUIRED_SINGLETONS = frozenset({
     "ingestion_tracker",
@@ -91,15 +101,10 @@ class ServiceContainer:
 
     def _build_infrastructure(self) -> None:
         """Layer 1: Core infrastructure services with no external dependencies."""
-        from services.cache import init_llm_cache
-
         # State: Active ingestion progress — shared across pods via Redis
         self.ingestion_tracker: IngestionTracker = build_ingestion_tracker(
             redis_url=getattr(settings, "redis_url", None)
         )
-
-        # Initialize LLM caching (GPTCache)
-        init_llm_cache()
 
         # Vector / graph infrastructure
         self.qdrant = QdrantService()
@@ -118,6 +123,11 @@ class ServiceContainer:
         self.embedding = EmbeddingService()
         self.semantic_router = SemanticModelRouter(self.embedding)
 
+        # Initialize GPTCache with the shared embedding service to avoid
+        # loading BGE-M3 a second time in a separate SBERT instance.
+        from services.cache import init_llm_cache
+        init_llm_cache(embedding_func=self.embedding.encode_single)
+
     def _build_llm_services(self) -> None:
         """Layer 3: LLM, translation, failover, and circuit-breaker services."""
         from services.llm import LLMProviderFactory, OllamaProvider
@@ -128,10 +138,20 @@ class ServiceContainer:
         self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
 
         # Wire TranslationProvider using TranslationProviderFactory
-        self.sarvam_cloud = LLMServiceFactory.create("sarvam_cloud")
-        self.translation = TranslationProviderFactory.create_provider(
-            sarvam_service=self.sarvam_cloud,
-        )
+        if settings.is_sarvam_cloud:
+            self.sarvam_cloud = LLMServiceFactory.create("sarvam_cloud")
+            self.translation = TranslationProviderFactory.create_provider(
+                sarvam_service=self.sarvam_cloud,
+            )
+        else:
+            logger.info("Sarvam Cloud not active; skipping Sarvam service initialization")
+            self.sarvam_cloud = None
+            if isinstance(self.ollama, OllamaProvider):
+                from services.translation import OllamaTranslationProvider
+                self.translation = OllamaTranslationProvider(self.ollama._service)
+            else:
+                # Non-Ollama provider without Sarvam: keep a placeholder that passes text through
+                self.translation = _NoopTranslationProvider()
 
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
@@ -259,6 +279,7 @@ class ServiceContainer:
             ollama_service=self.ollama,
             lightrag_service=self.lightrag,
             ocr_service=self.ocr,
+            semantic_cache_service=self.semantic_cache,
         )
 
     def _build_graphs(self) -> None:
@@ -428,7 +449,7 @@ def startup() -> None:
 
 
 def shutdown() -> None:
-    """Cleanup on application shutdown — releases service resources."""
+    """Cleanup on application shutdown - releases service resources."""
     global _container
     with _container_lock:
         if _container is not None:
