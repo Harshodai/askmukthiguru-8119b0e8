@@ -369,6 +369,7 @@ async def retrieve_for_single_query(
     qdrant: QdrantService,
     lightrag: Optional[LightRAGService],
     knowledge_tags: Optional[list[str]] = None,
+    query_tier: str = "standard",
 ) -> list[dict]:
     """Retrieve documents for a single sub-query, decoupled from state."""
     augmented_query = query
@@ -379,6 +380,14 @@ async def retrieve_for_single_query(
 
     query_for_embedding = hyde_text or augmented_query
     query_embedding = await asyncio.to_thread(embedder.encode_single_full, query_for_embedding)
+
+    # 1.8: Adaptive retrieval depth by tier
+    if query_tier in ("fast", "tier2_simple"):
+        chunk_limit = 5
+    elif query_tier in ("deep", "tier3_complex"):
+        chunk_limit = 20
+    else:
+        chunk_limit = 10
 
     summary_task = asyncio.to_thread(
         qdrant.search,
@@ -393,7 +402,7 @@ async def retrieve_for_single_query(
     chunk_task = asyncio.to_thread(
         qdrant.search,
         query_vector=query_embedding["dense"],
-        limit=settings.rag_top_k_retrieval,
+        limit=chunk_limit,
         sparse_vector=query_embedding["sparse"],
         raptor_level=0,
         cluster_ids=selected_clusters if selected_clusters else None,
@@ -651,6 +660,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     qdrant,
                     lightrag if query_tier == "tier3_complex" else None,
                     knowledge_tags=knowledge_tags,
+                    query_tier=query_tier,
                 ),
                 timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )

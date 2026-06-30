@@ -24,52 +24,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Simple query patterns (synced with intent.py — MUST be kept in lock-step)
-# Using re.search so phrases like "Explain the first sacred secret" still match.
-_SIMPLE_QUERY_PATTERNS: list[str] = [
-    r"^who\bs+",
-    r"^what\bs+(is|are)\b",
-    r"^when\b",
-    r"^where\b",
-    r"^how\s+(to|do|does|many|much)\b",
-    r"^can\s+you\b",
-    r"^explain\b",
-    r"^what\s+did\b",
-    r"^tell\s+me\s+about\b",
-    r"^describe\b",
-    r"^define\b",
-    r"^meaning\s+of\b",
-]
-
-# Deep query patterns — comparative, analytical, multi-hop
-_DEEP_QUERY_PATTERNS: list[str] = [
-    r"\bcompare\b", r"\bcontrast\b", r"\bdifference between\b",
-    r"\bsimilarities between\b", r"\bversus\b", r"\bvs\b",
-    r"\brelationship between\b", r"\bhow are .* connected\b",
-    r"\bpros and cons\b", r"\badvantages? and disadvantages?\b",
-    r"\bevolution of\b", r"\bover time\b", r"\bacross different\b",
-    r"\btrick question\b", r"\btrap\b", r"\bfooled\b",
-    r"\btest the bot\b", r"\btry to confuse\b",
-]
-
-# Doctrine keyword fast-path triggers (aggressive: common spiritual terms + founder names)
-_DOCTRINE_FAST_PATH_KEYWORDS: list[str] = [
-    # Core teachings
-    "four sacred secrets", "four secrets", "sacred secret",
-    "deeksha", "oneness blessing",
-    "soul sync", "soul-sync",
-    "ekam", "varadaiahpalem",
-    "manifest 2026", "manifest 2025", "12 powers",
-    "beautiful state", "beautiful state teachings",
-    "preethaji", "krishnaji", "founder",
-    "loka seva", "ekam world",
-    # Expanded for broader fast-path coverage
-    "meditation", "serene mind", "breath", "breathing",
-    "consciousness", "oneness", "surrender", "bliss",
-    "suffering", "soul", "spiritual", "divine", "enlightenment",
-    "karma", "dharma", "moksha", "atma", "guru",
-    "peace", "love", "gratitude", "compassion", "wisdom",
-]
+# Query patterns live in rag.query_patterns so intent routing and graph
+# selection pull from a single source. Aliased here with the original
+# leading-underscore names so existing call sites are unchanged.
+from rag.query_patterns import (
+    DOCTRINE_FAST_PATH_KEYWORDS as _DOCTRINE_FAST_PATH_KEYWORDS,
+    HEURISTIC_BROAD_SIMPLE_PATTERNS,
+    HEURISTIC_DEEP_PATTERNS as _DEEP_QUERY_PATTERNS,
+    HEURISTIC_MULTI_PART_INDICATORS as _MULTI_PART_INDICATORS,
+    HEURISTIC_SIMPLE_PATTERNS as _SIMPLE_QUERY_PATTERNS,
+)
 
 
 def cache_language_key(message: str, language: str) -> str:
@@ -117,6 +81,23 @@ async def select_graph_for_query(
     threshold = getattr(settings, "semantic_router_confidence_threshold", 0.65)
     shadow_mode = getattr(settings, "semantic_router_shadow_mode", False)
     q = query.lower().strip()
+
+    # 0. Respect on-device intent router's tier classification
+    # Runs BEFORE semantic router to ensure simple FAQ queries route to the
+    # fast graph instead of being overridden by the embedding router.
+    if query_tier in ("tier2_simple", "fast"):
+        try:
+            asyncio.create_task(
+                log_router_decision(
+                    query=query,
+                    tier="fast",
+                    confidence=1.0,
+                    method="tier_respect",
+                )
+            )
+        except Exception:
+            pass
+        return "fast"
 
     # 1. Semantic router (embedding-based, sub-100 ms, zero LLM call)
     semantic_tier: str | None = None
@@ -181,32 +162,10 @@ async def select_graph_for_query(
 
     # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
     # even with doctrine keywords (avoids "What is deeksha and how do I practice it?")
-    _MULTI_PART_INDICATORS = [
-        r"\band\b", r"\balso\b", r"\bplus\b", r"\bbesides\b",
-        r"\bin addition\b", r"\bfurthermore\b", r"\bmoreover\b",
-    ]
     is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
 
     # Determine heuristic tier
     heuristic_tier = "standard"
-
-    # Respect intent router's tier classification
-    # All tier2_simple queries route to fast graph regardless of other heuristics
-    if query_tier in ("tier2_simple", "fast"):
-        heuristic_tier = "fast"
-        try:
-            asyncio.create_task(
-                log_router_decision(
-                    query=query,
-                    tier=heuristic_tier,
-                    confidence=1.0,
-                    method="tier_respect",
-                    shadow_tier=semantic_tier if shadow_mode else None,
-                )
-            )
-        except Exception:
-            pass
-        return heuristic_tier
 
     # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
     if detected_intent in ("FACTUAL", "QUERY"):
@@ -216,18 +175,14 @@ async def select_graph_for_query(
         elif len(tokens) <= 20:
             heuristic_tier = "fast"
 
-    # Regex-based simple query detection (synced with intent.py _SIMPLE_QUERY_PATTERNS)
+    # Regex-based simple query detection (heuristic set — distinct from
+    # intent.py's doctrine-bound set; both live in rag.query_patterns).
     for pattern in _SIMPLE_QUERY_PATTERNS:
         if re.search(pattern, q) and len(tokens) <= 15:
             heuristic_tier = "fast"
 
     # Broader regex-based simple query detection (expanded thresholds)
-    simple_patterns = [
-        r"^(what|who|where|when|how|why|is|are|can|do|does|did)\s",
-        r"^(tell me|explain|describe|define)\s+(about|the|what|how)",
-        r"^(what is|what are|who is|who are|where is|where are)\s+",
-    ]
-    for pattern in simple_patterns:
+    for pattern in HEURISTIC_BROAD_SIMPLE_PATTERNS:
         if re.search(pattern, q) and len(tokens) <= 15:
             heuristic_tier = "fast"
 

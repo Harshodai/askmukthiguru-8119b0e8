@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 
 from anyio import Lock as AsyncLock
@@ -97,7 +98,7 @@ class OllamaService:
             model=cls_model,
             temperature=0.0,  # Zero temp for deterministic classification
             num_predict=256,  # Classification outputs are short
-            timeout=30,  # Fast model: 30s timeout per call
+            timeout=settings.llm_timeout,  # Fast model timeout (default 60s; needs headroom for local model loading)
         )
         logger.info(f"Ollama fast model ready: {cls_model} (timeout=30s)")
 
@@ -110,6 +111,21 @@ class OllamaService:
         from app.constants import CircuitBreakerProvider
         ollama_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.OLLAMA.value)
         self._circuit_breaker = DefaultCircuitBreaker(ollama_config)
+
+        # Queue metrics tracking (Phase 1.1)
+        self._queue_semaphore = asyncio.Semaphore(1)  # Single thread per model (Ollama limitation)
+        self._pending_requests = 0
+        self._queue_depth_hist = []
+        self._queue_time_hist = []
+
+    @property
+    def queue_metrics(self) -> dict:
+        """Return current Ollama queue metrics."""
+        return {
+            "pending_requests": self._pending_requests,
+            "avg_queue_depth": sum(self._queue_depth_hist) / len(self._queue_depth_hist) if self._queue_depth_hist else 0,
+            "avg_queue_time_ms": sum(self._queue_time_hist) / len(self._queue_time_hist) if self._queue_time_hist else 0,
+        }
 
     @staticmethod
     def _estimate_tokens(text: str) -> int:
@@ -178,7 +194,7 @@ class OllamaService:
         if not self._circuit_breaker.can_execute():
             raise ModelUnavailableError(
                 f"Ollama circuit breaker is OPEN — failing fast. "
-                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout.",
+                f"Will retry after {self._circuit_breaker.config.recovery_timeout}s recovery timeout.",
                 is_transient=True,
             )
 
@@ -192,7 +208,15 @@ class OllamaService:
         try:
             async for attempt in retryer:
                 with attempt:
-                    chain = self._llm.bind(**kwargs) if kwargs else self._llm
+                    # Strip ChatOllama pydantic fields from kwargs before bind().
+                    # _chat_params puts model params (temperature, num_predict, etc.)
+                    # in the options dict, but leftover **kwargs leak as top-level
+                    # Ollama client params. These fields are already on the instance.
+                    clean_kwargs = {
+                        k: v for k, v in kwargs.items()
+                        if k not in ChatOllama.model_fields
+                    } if kwargs else {}
+                    chain = self._llm.bind(**clean_kwargs) if clean_kwargs else self._llm
                     response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
                     content = response.content.strip()
                     import re
@@ -257,7 +281,7 @@ class OllamaService:
             HumanMessage(content=user_prompt),
         ]
 
-        _FAST_TIMEOUT = 25
+        _FAST_TIMEOUT = settings.llm_timeout  # Must accommodate local model loading time (~34s for llama3.2:3b)
         _FAST_RETRIES = 2
         timeout = kwargs.pop("timeout", _FAST_TIMEOUT)
         max_retries = kwargs.pop("max_retries", _FAST_RETRIES)
@@ -266,7 +290,7 @@ class OllamaService:
         if not self._circuit_breaker.can_execute():
             raise ModelUnavailableError(
                 f"Ollama circuit breaker is OPEN — failing fast. "
-                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout.",
+                f"Will retry after {self._circuit_breaker.config.recovery_timeout}s recovery timeout.",
                 is_transient=True,
             )
 
@@ -280,7 +304,11 @@ class OllamaService:
         try:
             async for attempt in retryer:
                 with attempt:
-                    chain = self._llm_fast.bind(**kwargs) if kwargs else self._llm_fast
+                    clean_kwargs = {
+                        k: v for k, v in kwargs.items()
+                        if k not in ChatOllama.model_fields
+                    } if kwargs else {}
+                    chain = self._llm_fast.bind(**clean_kwargs) if clean_kwargs else self._llm_fast
                     response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
                     content = response.content.strip()
                     import re
@@ -335,7 +363,7 @@ class OllamaService:
         if not self._circuit_breaker.can_execute():
             raise ModelUnavailableError(
                 f"Ollama circuit breaker is OPEN — failing fast. "
-                f"Will retry after {self._circuit_breaker.recovery_timeout}s recovery timeout.",
+                f"Will retry after {self._circuit_breaker.config.recovery_timeout}s recovery timeout.",
                 is_transient=True,
             )
 
@@ -357,7 +385,11 @@ class OllamaService:
             """Inner generator — yields filtered tokens from the chain."""
             async for attempt in retryer:
                 with attempt:
-                    chain = self._llm.bind(**kwargs) if kwargs else self._llm
+                    clean_kwargs = {
+                        k: v for k, v in kwargs.items()
+                        if k not in ChatOllama.model_fields
+                    } if kwargs else {}
+                    chain = self._llm.bind(**clean_kwargs) if clean_kwargs else self._llm
                     in_think_block = False
                     async for chunk in await asyncio.wait_for(
                         chain.astream(messages), timeout=timeout

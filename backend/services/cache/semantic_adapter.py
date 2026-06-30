@@ -10,7 +10,7 @@ import uuid
 from typing import Optional
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, PointStruct, VectorParams
+from qdrant_client.http.models import Distance, PointIdsList, PointStruct, VectorParams
 
 from app.config import settings
 from domain.ports.cache_port import ICacheRepository
@@ -225,6 +225,64 @@ class SemanticCacheAdapter(ICacheRepository):
     @property
     def is_available(self) -> bool:
         return self._available
+
+    def invalidate_by_embedding(
+        self,
+        new_embedding: list[float],
+        similarity_threshold: float = 0.85,
+        user_id: str = "",
+        tenant_id: str = "default",
+    ) -> int:
+        """
+        Invalidate cache entries whose embeddings are similar to the new content.
+        Used after ingestion to prevent serving stale answers.
+
+        Args:
+            new_embedding: Embedding vector of newly ingested content
+            similarity_threshold: Cosine similarity above which to invalidate
+            user_id: Optional user ID for per-user cache
+            tenant_id: Optional tenant ID for multi-tenancy
+
+        Returns:
+            Number of entries invalidated
+        """
+        if not self._available or self._qdrant is None:
+            return 0
+
+        try:
+            # Search Qdrant for vectors similar to the new embedding
+            results = self._qdrant.query_points(
+                collection_name=self._collection,
+                query=new_embedding,
+                limit=100,  # Check up to 100 similar entries
+                score_threshold=similarity_threshold,
+            ).points
+
+            if not results:
+                return 0
+
+            invalidated = 0
+            for hit in results:
+                point_id = hit.id
+                # Delete from Qdrant
+                self._qdrant.delete(
+                    collection_name=self._collection,
+                    points_selector=PointIdsList(points=[point_id]),
+                )
+                # Delete from Redis
+                redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+                self._redis.delete(redis_key)
+                invalidated += 1
+                logger.debug(f"Semantic cache: invalidated entry {point_id} (similarity={hit.score:.4f})")
+
+            if invalidated > 0:
+                logger.info(f"Semantic cache: invalidated {invalidated} entries by embedding similarity")
+
+            return invalidated
+
+        except Exception as e:
+            logger.warning(f"Semantic cache invalidation by embedding failed: {e}")
+            return 0
 
     @property
     def stats(self) -> dict:

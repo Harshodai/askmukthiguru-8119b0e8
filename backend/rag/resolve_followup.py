@@ -115,6 +115,15 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
 
         resolved = resolved.strip()
 
+        # Guard against models that emit code/markup instead of the rewritten question.
+        # Treat the LLM output as unusable and fall back to the original question.
+        if resolved.startswith("def ") or resolved.startswith("class ") or "```" in resolved or "import " in resolved:
+            logger.warning(
+                f"Follow-up resolution returned code/markup instead of text; using original question. "
+                f"Output preview: {resolved[:80]!r}"
+            )
+            return {}
+
         # Only update if the LLM actually changed the question
         if resolved and resolved != question and len(resolved) > 3:
             logger.info(f"Follow-up resolved: '{question[:60]}' → '{resolved[:60]}'")
