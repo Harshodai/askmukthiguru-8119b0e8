@@ -134,7 +134,7 @@ services:
       - SARVAM_CLOUD_CLASSIFY_MODEL=${SARVAM_CLOUD_CLASSIFY_MODEL:-sarvam-30b}
       - SARVAM_BASE_URL=${SARVAM_BASE_URL:-https://api.sarvam.ai/v1}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
-      - PIPELINE_TIMEOUT=${PIPELINE_TIMEOUT:-180}
+      - PIPELINE_TIMEOUT=${PIPELINE_TIMEOUT:-300}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-2}
       - SARVAM_REASONING_EFFORT=${SARVAM_REASONING_EFFORT:-medium}
       - SARVAM_REASONING_EFFORT_FAST=${SARVAM_REASONING_EFFORT_FAST:-low}
@@ -165,8 +165,9 @@ services:
       # --- Ollama (only used when LLM_PROVIDER=ollama) ---
       # Model Preset: "qwen" (default) or "sarvam" (requires custom GGUF import)
       - MODEL_PRESET=${MODEL_PRESET:-qwen}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
-      - OLLAMA_CLASSIFY_MODEL=${OLLAMA_CLASSIFY_MODEL:-llama3.2:3b}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-deepseek-v4-flash:cloud}
+      - OLLAMA_CLASSIFY_MODEL=${OLLAMA_CLASSIFY_MODEL:-deepseek-v4-flash:cloud}
+      - OLLAMA_FAST_MODEL=${OLLAMA_FAST_MODEL:-deepseek-v4-flash:cloud}
       # Ollama runs on the HOST, not in Docker
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Qdrant runs as a sibling container
@@ -214,8 +215,8 @@ services:
       - WEB_CONCURRENCY=2
       # Disable Sarvam debug log (prevents unbounded sarvam_debug.json growth)
       - SARVAM_DEBUG=false
-      # Reranker: FlashRank not installed in image, use CrossEncoder fallback
-      - USE_FLASHRANK=false
+      # Reranker: prefer FlashRank API path; image falls back to CrossEncoder automatically
+      - USE_FLASHRANK=${USE_FLASHRANK:-true}
       # Auth
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       # Development only. In production, set this to allowed origins (e.g. https://myapp.com)

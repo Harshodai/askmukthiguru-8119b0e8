@@ -557,9 +557,15 @@ class EmbeddingService:
         Cascaded Pipeline:
         1. ColBERTv2 rapidly narrows down the pool (e.g. 100 -> 15).
         2. CrossEncoder performs ultra-precise scoring (15 -> 5).
+        Skips CrossEncoder when candidate count < 10 to save latency.
         """
         if not documents:
             return []
+
+        # Skip full cascade for small candidate sets - CrossEncoder adds ~200-500ms
+        if len(documents) < 10:
+            logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder, using ColBERT only")
+            return self._colbert_only_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
 
         with self._inference_lock:
             self._ensure_reranker()
@@ -595,3 +601,27 @@ class EmbeddingService:
 
             # Step 2: CrossEncoder Polish
             return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
+
+    def _colbert_only_rerank(self, query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
+        """ColBERT-only reranking for small candidate sets."""
+        if not documents or not self._colbert:
+            return documents[:top_k]
+
+        with self._inference_lock:
+            self._ensure_colbert()
+            texts = [doc["text"] for doc in documents]
+            try:
+                colbert_results = self._colbert.rerank(query=query, documents=texts, k=top_k)
+                mapped_docs = []
+                for res in colbert_results:
+                    for doc in documents:
+                        if doc["text"] == res["content"]:
+                            doc_copy = doc.copy()
+                            doc_copy["colbert_score"] = res["score"]
+                            mapped_docs.append(doc_copy)
+                            break
+                logger.info(f"ColBERT-only reranked {len(documents)} -> {len(mapped_docs)} docs")
+                return mapped_docs
+            except Exception as e:
+                logger.error(f"ColBERT-only reranking failed: {e}")
+                return documents[:top_k]

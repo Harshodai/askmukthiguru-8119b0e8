@@ -758,7 +758,8 @@ class PipelineCoordinator:
             if detected_intent:
                 initial_state["intent"] = detected_intent
                 # Pre-fill query_tier from on-device classifier
-                if "query_tier" not in initial_state:
+                # Uses is None check because create_initial_state always sets query_tier=None.
+                if initial_state.get("query_tier") is None:
                     initial_state["query_tier"] = "tier2_simple" if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION") else "tier3_complex"
 
             # Kill #7: select_graph_for_query uses pure heuristics now (sub-1ms).
@@ -801,7 +802,12 @@ class PipelineCoordinator:
                 timeout=settings.pipeline_timeout,
             )
         except asyncio.TimeoutError:
-            raise
+            logger.warning(f"Pipeline outer timeout ({settings.pipeline_timeout}s) exceeded. Returning graceful fallback.")
+            return {
+                "final_answer": "I apologize, something went wrong — the pipeline took too long to respond.",
+                "intent": "QUERY",
+                "citations": [],
+            }, int((time.time() - start_lat) * 1000)
         graph_latency = int((time.time() - start_lat) * 1000)
         return result, graph_latency
 
@@ -847,17 +853,36 @@ class PipelineCoordinator:
             logger.warning(f"Memory save failed (non-fatal): {e}")
 
         if settings.feature_memory_write and getattr(self.container, "memory_service", None):
-            try:
-                full_msgs = chat_body_messages + [
-                    {"role": "user", "content": user_msg},
-                    {"role": "assistant", "content": final_answer},
-                ]
-                # Run memory extraction in the background so it doesn't block/timeout the HTTP response
-                asyncio.create_task(
-                    self.container.memory_service.extract_and_write(user_id, stable_session_id, full_msgs)
-                )
-            except Exception as e:
-                logger.warning(f"Memory extraction failed (non-fatal): {e}")
+            full_msgs = chat_body_messages + [
+                {"role": "user", "content": user_msg},
+                {"role": "assistant", "content": final_answer},
+            ]
+
+            async def _extract_with_retry():
+                max_attempts = 3
+                base_delay = 1.0
+                for attempt in range(1, max_attempts + 1):
+                    try:
+                        await self.container.memory_service.extract_and_write(
+                            user_id, stable_session_id, full_msgs
+                        )
+                        logger.debug(f"Memory extraction succeeded on attempt {attempt}")
+                        return
+                    except Exception as e:
+                        if attempt == max_attempts:
+                            logger.error(
+                                f"Memory extraction failed after {max_attempts} attempts "
+                                f"for user {user_id} session {stable_session_id}: {e}"
+                            )
+                            return
+                        delay = base_delay * (2 ** (attempt - 1))
+                        logger.warning(
+                            f"Memory extraction attempt {attempt}/{max_attempts} failed: {e}. "
+                            f"Retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+
+            asyncio.create_task(_extract_with_retry())
 
     async def _update_cache(self, cache_key: str, final_answer: str, intent: str, med_step: int, citations: list) -> None:
         """Update all cache tiers: hot (in-memory), exact (Redis), semantic (Qdrant)."""

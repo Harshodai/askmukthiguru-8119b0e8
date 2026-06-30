@@ -150,6 +150,7 @@ class IngestionPipeline:
         ollama_service: OllamaService,
         lightrag_service: Optional[Any] = None,
         ocr_service: Optional[OCRService] = None,
+        semantic_cache_service: Optional[Any] = None,
     ) -> None:
         """
         Dependency Injection: All services are injected, not created internally.
@@ -162,6 +163,7 @@ class IngestionPipeline:
         self._auditor = DataAuditor(ollama_service)
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
+        self._semantic_cache = semantic_cache_service
 
         self._adaptive_chunker = AdaptiveChunkingAdapter(self._embedder)
         self._proposition_service = PropositionService(self._llm)
@@ -1077,12 +1079,23 @@ class IngestionPipeline:
         self._record_kb_source(source_url, title, content_type, tags)
 
         # Upsert to Qdrant with both dense and sparse vectors
-        return self._qdrant.upsert_chunks(
+        upserted = self._qdrant.upsert_chunks(
             clean_chunks,
             embeddings["dense"],
             metadatas,
             sparse_vectors=embeddings["sparse"],
         )
+
+        # Invalidate semantic cache entries similar to newly ingested content
+        if self._semantic_cache and self._semantic_cache.is_available:
+            try:
+                for emb in embeddings["dense"]:
+                    self._semantic_cache.invalidate_by_embedding(emb)
+                logger.debug("Semantic cache invalidated for new ingestion")
+            except Exception as e:
+                logger.warning(f"Semantic cache invalidation failed (non-fatal): {e}")
+
+        return upserted
 
     def _record_kb_source(
         self,

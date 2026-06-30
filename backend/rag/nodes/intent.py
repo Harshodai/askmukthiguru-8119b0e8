@@ -30,36 +30,14 @@ _intent_classification_cache: _OrderedDict[str, tuple[str, str, float]] = _Order
 _INTENT_CACHE_MAX = 1000
 _INTENT_CACHE_TTL = 3600  # 1 hour
 
-_CAPABILITY_PATTERNS = [
-    "what can you", "what do you know", "what topics", "what kind of things",
-    "what can you answer", "what teachings do you have", "what is in your repository",
-    "what do you store", "what information do you have", "how can you help",
-    "what questions can you", "what are you able to", "tell me about yourself",
-    "what do you do", "who are you", "what do you offer", "how do you work",
-]
-
-_SIMPLE_QUERY_PATTERNS = [
-    r"^who is (sri )?preethaji",
-    r"^who is (sri )?krishnaji",
-    r"^what is (the )?beautiful state",
-    r"^what is (the )?ekam",
-    r"^what is deeksha",
-    r"^what is soul sync",
-    r"^what are (the )?four sacred secrets",
-    r"^what is oneness",
-    r"^what is moksha",
-    r"^define ",
-    r"^explain ",
-]
-
-# Temporal query patterns: trigger web search for real-time info
-_TEMPORAL_PATTERNS = [
-    "this month", "next festival", "upcoming", "when is", "schedule",
-    "calendar", "latest", "current events", "this year", "next year",
-    "next month", "last month", "this week", "next week", "today",
-    "recent", "announcement", "program", "scope of manifest",
-    "manifest scope", "ekam events", "oneness events",
-]
+# Query patterns live in rag.query_patterns so intent routing and graph
+# selection pull from a single source. Aliased here with the original
+# leading-underscore names so existing call sites are unchanged.
+from rag.query_patterns import (
+    DOCTRINE_CAPABILITY_PATTERNS as _CAPABILITY_PATTERNS,
+    DOCTRINE_SIMPLE_PATTERNS as _SIMPLE_QUERY_PATTERNS,
+    DOCTRINE_TEMPORAL_PATTERNS as _TEMPORAL_PATTERNS,
+)
 
 
 def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None:

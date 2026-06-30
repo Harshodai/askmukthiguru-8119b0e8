@@ -77,8 +77,9 @@ class QdrantSearcher:
         Hybrid search using Reciprocal Rank Fusion (RRF) over dense + sparse vectors.
         Falls back to dense-only if sparse vector not provided.
         """
-        # Increase limit internally to account for filtered poisoned nodes
-        internal_limit = limit + 20
+        # Keep internal over-fetch small — fewer prefetches means lower Qdrant latency
+        # and less chance of cascading timeout/retry loops on simple FAQ queries.
+        internal_limit = limit + 5
 
         # Build filter conditions
         filter_conditions = []
@@ -150,60 +151,25 @@ class QdrantSearcher:
                 logger.warning("Sparse vector is empty, skipping sparse lexical match prefetch")
                 sparse_vector = None  # Disable sparse prefetch
 
-        if sparse_vector or query_phonetic_tokens:
+        # Hybrid search: only dense + sparse on the requested level.
+        # Dropping the extra summary/phonetic prefetches cuts Qdrant CPU and network
+        # time roughly in half, eliminating the hybrid-timeout path on simple queries.
+        if sparse_vector:
             try:
-                leaf_filter = self._merge_filter(
-                    search_filter,
-                    [FieldCondition(key="raptor_level", match=MatchValue(value=0))],
-                )
-                summary_filter = self._merge_filter(
-                    search_filter,
-                    [FieldCondition(key="raptor_level", match=MatchValue(value=1))],
-                )
-
                 prefetch_queries = [
-                    # Prefetch 1: Leaf Chunks (Level 0)
                     Prefetch(
                         query=query_vector,
                         using="dense",
                         limit=internal_limit,
-                        filter=leaf_filter,
+                        filter=search_filter,
                     ),
-                    # Prefetch 2: Summaries (Level 1)
                     Prefetch(
-                        query=query_vector,
-                        using="dense",
-                        limit=internal_limit // 2,
-                        filter=summary_filter,
+                        query=sparse_qvec,
+                        using="sparse",
+                        limit=internal_limit,
+                        filter=search_filter,
                     ),
                 ]
-
-                # Prefetch 3: Sparse Lexical Match
-                if sparse_vector:
-                    prefetch_queries.append(
-                        Prefetch(
-                            query=sparse_qvec,
-                            using="sparse",
-                            limit=internal_limit,
-                            filter=search_filter,
-                        )
-                    )
-
-                # Prefetch 4: Indic Phonetic Matching (Phonetically-filtered dense search)
-                if query_phonetic_tokens:
-                    phonetic_should = [
-                        FieldCondition(key="phonetic_tokens", match=MatchValue(value=tok))
-                        for tok in query_phonetic_tokens
-                    ]
-                    phonetic_filter = self._merge_filter(search_filter, [], extra_should=phonetic_should)
-                    prefetch_queries.append(
-                        Prefetch(
-                            query=query_vector,
-                            using="dense",
-                            filter=phonetic_filter,
-                            limit=internal_limit,
-                        )
-                    )
 
                 results = self._client.query_points(
                     collection_name=self._collection,

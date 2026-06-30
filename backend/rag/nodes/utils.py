@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import re
 import time
+import uuid
 from typing import Any, Optional
 
 
@@ -14,7 +16,10 @@ class SettingsProxy:
     def __getattr__(self, name: str) -> Any:
         import sys
         nodes = sys.modules.get("rag.nodes")
-        if nodes is not None and hasattr(nodes, "settings") and nodes.settings is not None:
+        if nodes is not None or None:
+            from app.config import settings as app_settings
+            return getattr(app_settings, name)
+        if hasattr(nodes, "settings") and nodes.settings is not None:
             return getattr(nodes.settings, name)
         from app.config import settings as app_settings
         return getattr(app_settings, name)
@@ -426,13 +431,15 @@ def _generation_kwargs(state: GraphState) -> dict:
     if intent == "DISTRESS":
         base["num_predict"] = 2048
     elif query_tier in ("fast", "tier2_simple"):
-        base["num_predict"] = 512
+        base["num_predict"] = 150   # 1.7: aggressive cap for fast path
+    elif query_tier in ("deep", "tier3_complex"):
+        base["num_predict"] = 800   # 1.7: cap for deep path
     elif intent in {"FACTUAL", "QUERY"}:
-        base["num_predict"] = 1024
+        base["num_predict"] = 400   # 1.7: standard path cap
     elif intent in {"RELATIONAL", "ADVERSARIAL"}:
-        base["num_predict"] = 768
+        base["num_predict"] = 600
     else:
-        base["num_predict"] = 768
+        base["num_predict"] = 400
 
     # Temperature per graph mode (Phase 2.1)
     if query_tier in ("fast", "tier2_simple"):
@@ -601,6 +608,47 @@ def enforce_source_diversity(citations: list[dict | str], min_distinct: int = 2)
     return result
 
 
+def _persist_trace_span(request_id: str, node_name: str, start_time: float, duration_ms: float, status: str = "ok", metadata: dict = None) -> None:
+    """Persist a trace span to the telemetry DB asynchronously (fire-and-forget)."""
+    if not request_id:
+        return
+    try:
+        from app.telemetry_db import get_node_latencies  # reuse client init
+        from app.telemetry_db import _get_client
+        from datetime import datetime, timezone
+
+        client = _get_client()
+        if not client:
+            return
+
+        span_id = str(uuid.uuid4())
+        end_time = start_time + (duration_ms / 1000.0)
+
+        span_payload = {
+            "id": span_id,
+            "query_id": request_id,
+            "name": node_name,
+            "start_ms": round(start_time * 1000),
+            "end_ms": round(end_time * 1000),
+            "duration_ms": round(duration_ms, 1),
+            "status": status,
+            "metadata": metadata or {},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        # Fire and forget - don't await
+        import asyncio
+        async def _insert():
+            try:
+                client.table("trace_spans").insert(span_payload).execute()
+            except Exception:
+                pass  # Never break pipeline for telemetry
+
+        asyncio.create_task(_insert())
+    except Exception:
+        pass  # Never break pipeline for telemetry
+
+
 def log_metrics(func):
     """Decorator to log execution time of nodes and record into GraphState.node_timings.
 
@@ -650,6 +698,9 @@ def log_metrics(func):
             result.setdefault("citations", [])
             result.setdefault("final_answer", None)
             result.update(fallback)
+
+            # Persist failed span
+            _persist_trace_span(request_id, node_name, start, duration_ms, "error", {"error": str(e)})
             return result
 
         duration = time.time() - start
@@ -676,6 +727,9 @@ def log_metrics(func):
             existing_timings = result.get("node_timings", {})
             existing_timings.update(node_timings_update)
             result["node_timings"] = existing_timings
+
+        # Persist successful span
+        _persist_trace_span(request_id, node_name, start, duration_ms, "ok", {"query_tier": state.get("query_tier")})
 
         return result
 
