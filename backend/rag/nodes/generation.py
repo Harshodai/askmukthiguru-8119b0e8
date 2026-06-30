@@ -107,7 +107,12 @@ def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
 
 @log_metrics
 async def context_engineer(state: GraphState, config: dict = None) -> dict:
-    """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State."""
+    """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State.
+
+    1.9 Structured Prompt Assembly: context_layers now includes labeled sections for
+    entities, relationships, and per-chunk metadata so the generation prompt can be
+    assembled with clear provenance boundaries rather than a flat context blob.
+    """
     await emit_status(config, "Composing the response...")
     intent = state.get("intent", "FACTUAL")
     relevant_docs = state.get("relevant_docs", [])
@@ -229,20 +234,162 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
 
     instructions = cap_to_token_budget(instructions, 900)
 
+    # -------------------------------------------------------------------------
+    # 1.9 Structured Prompt Assembly — labeled sections built from relevant_docs
+    # (pure Python, zero LLM calls, max 400 tokens each section)
+    # -------------------------------------------------------------------------
+
+    # entities: unique named sources / titles seen across retrieved chunks
+    seen_titles: set[str] = set()
+    entity_lines: list[str] = []
+    for doc in relevant_docs:
+        title = doc.get("title") or doc.get("source_url") or "Unknown"
+        if title not in seen_titles:
+            seen_titles.add(title)
+            source_id = doc.get("source_id") or doc.get("video_id") or ""
+            entity_lines.append(
+                f"- {title}" + (f" [id:{source_id}]" if source_id else "")
+            )
+    entities_block = "ENTITIES (source names referenced in Knowledge):\n" + (
+        "\n".join(entity_lines) if entity_lines else "None"
+    )
+    entities_block = cap_to_token_budget(entities_block, 400)
+
+    # relationships: cross-doc sibling links (chunks from the same source)
+    source_to_chunks: dict[str, list[int]] = {}
+    for doc in relevant_docs:
+        key = doc.get("source_url") or doc.get("title") or "unknown"
+        idx = int(doc.get("chunk_index") or 0)
+        source_to_chunks.setdefault(key, []).append(idx)
+    rel_lines: list[str] = []
+    for src, idxs in source_to_chunks.items():
+        if len(idxs) > 1:
+            rel_lines.append(f"- {src}: chunks {sorted(idxs)}")
+    relationships_block = "RELATIONSHIPS (multi-chunk sources):\n" + (
+        "\n".join(rel_lines) if rel_lines else "None"
+    )
+    relationships_block = cap_to_token_budget(relationships_block, 400)
+
+    # chunks_meta: compact per-chunk index used by tier3 structured prompt
+    chunks_meta_lines: list[str] = []
+    for i, doc in enumerate(relevant_docs):
+        title = doc.get("title") or doc.get("source_url") or f"Doc {i + 1}"
+        url = doc.get("source_url") or ""
+        cidx = doc.get("chunk_index", i)
+        score = doc.get("score") or doc.get("rerank_score")
+        score_str = f" score={score:.3f}" if isinstance(score, float) else ""
+        chunks_meta_lines.append(
+            f"[{i + 1}] {title} | chunk={cidx}{score_str}" + (f" | {url}" if url else "")
+        )
+    chunks_meta = "CHUNKS (retrieval index):\n" + (
+        "\n".join(chunks_meta_lines) if chunks_meta_lines else "None"
+    )
+    chunks_meta = cap_to_token_budget(chunks_meta, 400)
+
     context_layers = {
         "persona": persona,
         "knowledge": knowledge,
+        "entities": entities_block,
+        "relationships": relationships_block,
+        "chunks": chunks_meta,
         "user_state": user_state,
         "instructions": instructions,
     }
 
-    logger.info("Context Engineering: Layers assembled and capped to strict token budgets")
-    
+    logger.info(
+        "Context Engineering: %d sections assembled — "
+        "%d docs, entities=%d, multi-chunk-sources=%d",
+        len(context_layers), len(relevant_docs), len(entity_lines), len(rel_lines),
+    )
+
     ret_dict = {"context_layers": context_layers}
     if cost_steered_brevity:
         ret_dict["query_tier"] = "tier2_simple"
-        
+
     return ret_dict
+
+
+
+# ---------------------------------------------------------------------------
+# 1.10 Citation-by-Sentence — sentence-level attribution via token overlap
+# ---------------------------------------------------------------------------
+
+def _make_ngrams(text: str, n: int = 3) -> set[str]:
+    """Build a set of character n-grams from lowercased text for overlap scoring."""
+    t = text.lower()
+    return {t[i:i + n] for i in range(max(0, len(t) - n + 1))}
+
+
+def _cite_sentences(answer: str, docs: list[dict], threshold: float = 0.08) -> str:
+    """Append inline [Source: title] markers to sentences with sufficient doc overlap.
+
+    Uses 3-gram Jaccard similarity — fast, no embeddings, no LLM calls.
+    Only adds a citation when the best matching doc exceeds `threshold` to avoid
+    hallucinated citations on sentences with no clear grounding.
+
+    Args:
+        answer:    Raw answer text after COT stripping.
+        docs:      Retrieved documents (list of dicts with 'text' and 'title' keys).
+        threshold: Min Jaccard score to attach a citation (default 0.08).
+
+    Returns:
+        Answer with inline citations appended sentence-by-sentence.
+    """
+    if not answer or not docs:
+        return answer
+
+    import re as _re
+
+    # Pre-build ngram sets for every doc (deduped by title)
+    seen: set[str] = set()
+    doc_data: list[tuple[str, set[str]]] = []
+    for doc in docs:
+        title = (doc.get("title") or doc.get("source_url") or "").strip()
+        if not title or title in seen:
+            continue
+        seen.add(title)
+        doc_data.append((title, _make_ngrams(doc.get("text", ""))))
+
+    if not doc_data:
+        return answer
+
+    # Split answer into sentences; preserve trailing punctuation
+    sentences = _re.split(r"(?<=[.!?])\s+", answer.strip())
+
+    result_parts: list[str] = []
+    for sentence in sentences:
+        stripped = sentence.strip()
+        if not stripped:
+            continue
+
+        # Skip lines that already contain a [Source: …] marker
+        if "[Source:" in stripped:
+            result_parts.append(stripped)
+            continue
+
+        sent_ngrams = _make_ngrams(stripped)
+        if not sent_ngrams:
+            result_parts.append(stripped)
+            continue
+
+        best_score = 0.0
+        best_title = ""
+        for title, doc_ngrams in doc_data:
+            if not doc_ngrams:
+                continue
+            intersection = len(sent_ngrams & doc_ngrams)
+            union = len(sent_ngrams | doc_ngrams)
+            score = intersection / union if union else 0.0
+            if score > best_score:
+                best_score = score
+                best_title = title
+
+        if best_score >= threshold and best_title:
+            result_parts.append(f"{stripped} [Source: {best_title}]")
+        else:
+            result_parts.append(stripped)
+
+    return " ".join(result_parts)
 
 
 @log_metrics
@@ -837,6 +984,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             answer = strip_cot(answer)
 
     answer = _ensure_keywords_in_answer(answer, question)
+
+    # 1.10 Citation-by-Sentence — attach per-sentence inline citations
+    if getattr(settings, "citation_by_sentence", True) and relevant_docs:
+        try:
+            answer = _cite_sentences(answer, relevant_docs)
+        except Exception as _cbs_err:
+            logger.warning("Citation-by-sentence failed (non-fatal): %s", _cbs_err)
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")

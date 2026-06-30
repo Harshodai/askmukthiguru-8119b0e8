@@ -205,19 +205,28 @@ class OllamaService:
             reraise=True,
         )
 
+        # Phase 1.1: Queue metrics — track depth before entering try so finally always decrements
+        self._pending_requests += 1
+        self._queue_depth_hist.append(self._pending_requests)
+        queue_start = time.monotonic()
+
         try:
-            async for attempt in retryer:
-                with attempt:
-                    # Strip ChatOllama pydantic fields from kwargs before bind().
-                    # _chat_params puts model params (temperature, num_predict, etc.)
-                    # in the options dict, but leftover **kwargs leak as top-level
-                    # Ollama client params. These fields are already on the instance.
-                    clean_kwargs = {
-                        k: v for k, v in kwargs.items()
-                        if k not in ChatOllama.model_fields
-                    } if kwargs else {}
-                    chain = self._llm.bind(**clean_kwargs) if clean_kwargs else self._llm
-                    response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
+            async with self._queue_semaphore:
+                queue_wait = time.monotonic() - queue_start
+                self._queue_time_hist.append(queue_wait * 1000)  # ms
+
+                async for attempt in retryer:
+                    with attempt:
+                        # Strip ChatOllama pydantic fields from kwargs before bind().
+                        # _chat_params puts model params (temperature, num_predict, etc.)
+                        # in the options dict, but leftover **kwargs leak as top-level
+                        # Ollama client params. These fields are already on the instance.
+                        clean_kwargs = {
+                            k: v for k, v in kwargs.items()
+                            if k not in ChatOllama.model_fields
+                        } if kwargs else {}
+                        chain = self._llm.bind(**clean_kwargs) if clean_kwargs else self._llm
+                        response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
                     content = response.content.strip()
                     import re
 
@@ -263,6 +272,9 @@ class OllamaService:
             self._circuit_breaker.record_failure()
             logger.error(f"Ollama generation failed: {e}")
             raise
+        finally:
+            # Always decrement — prevents counter leaking on timeout/exception
+            self._pending_requests -= 1
 
     async def _generate_fast(
         self,
@@ -300,6 +312,10 @@ class OllamaService:
             retry=retry_if_exception_type((asyncio.TimeoutError, httpx.HTTPError)),
             reraise=True,
         )
+
+        # Phase 1.1: Queue metrics — track depth for fast model too; finally always decrements
+        self._pending_requests += 1
+        self._queue_depth_hist.append(self._pending_requests)
 
         try:
             async for attempt in retryer:
@@ -343,7 +359,13 @@ class OllamaService:
         except Exception as e:
             self._circuit_breaker.record_failure()
             logger.warning(f"Fast model failed: {e}, falling back to main model")
+            # Decrement before delegating so the main model's increment is clean
+            self._pending_requests -= 1
             return await self.generate(system_prompt, user_prompt, **kwargs)
+        finally:
+            # Always decrement — prevents counter leaking on timeout/exception
+            # The except branch above decrements early on fallback, so guard against going negative
+            self._pending_requests = max(0, self._pending_requests - 1)
 
     async def generate_stream(
         self,
