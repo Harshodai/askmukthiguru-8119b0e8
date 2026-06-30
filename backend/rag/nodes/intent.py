@@ -101,6 +101,82 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
         }
 
 
+def _early_filter(
+    question: str,
+    lower_q: str,
+    state: GraphState,
+    serene_mind,
+    meditation_step: int,
+) -> dict | None:
+    """1.14: Merge Serene Mind distress check, temporal check, and regex prerouter
+    into a single early-exit helper so _intent_router_impl stays flat.
+
+    Returns a routing dict if any fast-path fires, else None to continue.
+    """
+    # ---- Serene Mind Distress Check (Stage 1 keyword-only) ----
+    if serene_mind is not None:
+        chat_history = state.get("chat_history", [])
+        try:
+            keyword_assessment = serene_mind.assess_distress(question, chat_history)
+            if keyword_assessment.level >= DistressLevel.MODERATE:
+                logger.info(
+                    "Intent Router: Serene Mind keyword detected %s distress "
+                    "(confidence=%.2f), routing to DISTRESS",
+                    keyword_assessment.level.name, keyword_assessment.confidence,
+                )
+                return {
+                    "intent": "DISTRESS",
+                    "query_tier": "tier2_simple",
+                    "confidence_tier": "high",
+                    "evaluation_trace": _trace_update(
+                        state, intent="DISTRESS", query_tier="tier2_simple",
+                        routing_reason="serene_mind_keyword_distress",
+                        distress_level=keyword_assessment.level.name,
+                        distress_confidence=keyword_assessment.confidence,
+                        distress_signals=keyword_assessment.detected_signals,
+                    ),
+                }
+        except Exception as e:
+            logger.warning("Serene Mind keyword distress check failed: %s", e)
+
+    # ---- Temporal / Real-Time Query Check ----
+    if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
+        logger.info(
+            "Intent Router: temporal query detected, flagging for web search: %s...",
+            question[:60],
+        )
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier3_complex",
+            "confidence_tier": "low",
+            "needs_web_search": True,
+            "evaluation_trace": _trace_update(
+                state, intent="FACTUAL", query_tier="tier3_complex",
+                routing_reason="temporal_query_heuristic",
+                needs_web_search=True,
+            ),
+        }
+
+    # ---- Regex Pre-Router Check ----
+    from rag.intent_prerouter import preroute_intent
+    pre_intent = preroute_intent(question)
+    if pre_intent:
+        logger.info("Intent Router: Regex Pre-Router matched intent: %s", pre_intent)
+        mapped_intent = "FACTUAL" if pre_intent == "QUERY" else pre_intent
+        query_tier = "tier2_simple"
+        return {
+            "intent": mapped_intent,
+            "query_tier": query_tier,
+            "confidence_tier": "high" if mapped_intent != "CASUAL" else "medium",
+            "evaluation_trace": _trace_update(
+                state, intent=mapped_intent, query_tier=query_tier,
+                routing_reason="regex_prerouter",
+            ),
+        }
+
+    return None
+
+
 async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     """Internal implementation of the intent router."""
     from rag.nodes.utils import emit_status
@@ -137,71 +213,12 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
         return {"intent": "CASUAL", "meditation_step": 0}
 
-    # ---- Serene Mind Distress Check (BEFORE pre-router) ----
-    # Only route to DISTRESS if keyword-based detection (Stage 1) finds MODERATE+ distress.
-    # This avoids false positives from semantic/LLM stages on short queries like "Hello".
     serene_mind = _services._serene_mind
-    if serene_mind is not None:
-        chat_history = state.get("chat_history", [])
-        try:
-            # Use keyword-only assessment (Stage 1 only) for routing decision
-            keyword_assessment = serene_mind.assess_distress(question, chat_history)
-            if keyword_assessment.level >= DistressLevel.MODERATE:
-                logger.info(
-                    f"Intent Router: Serene Mind keyword detected {keyword_assessment.level.name} distress "
-                    f"(confidence={keyword_assessment.confidence:.2f}), routing to DISTRESS"
-                )
-                return {
-                    "intent": "DISTRESS",
-                    "query_tier": "tier2_simple",
-                    "confidence_tier": "high",
-                    "evaluation_trace": _trace_update(
-                        state, intent="DISTRESS", query_tier="tier2_simple",
-                        routing_reason="serene_mind_keyword_distress",
-                        distress_level=keyword_assessment.level.name,
-                        distress_confidence=keyword_assessment.confidence,
-                        distress_signals=keyword_assessment.detected_signals,
-                    ),
-                }
-        except Exception as e:
-            logger.warning(f"Serene Mind keyword distress check failed: {e}")
 
-    # ---- Temporal / Real-Time Query Check ----
-    # Detects queries about current/future events (festivals, schedules, etc.)
-    # and flags them for web search. Runs before prerouter and cache.
-    if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
-        logger.info(f"Intent Router: temporal query detected, flagging for web search: {question[:60]}...")
-        return {
-            "intent": "FACTUAL",
-            "query_tier": "tier3_complex",
-            "confidence_tier": "low",
-            "needs_web_search": True,
-            "evaluation_trace": _trace_update(
-                state, intent="FACTUAL", query_tier="tier3_complex",
-                routing_reason="temporal_query_heuristic",
-                needs_web_search=True
-            ),
-        }
-
-    # ---- Regex Pre-Router Check ----
-    from rag.intent_prerouter import preroute_intent
-    pre_intent = preroute_intent(question)
-    if pre_intent:
-        logger.info(f"Intent Router: Regex Pre-Router matched intent: {pre_intent}")
-        mapped_intent = "FACTUAL" if pre_intent == "QUERY" else pre_intent
-        query_tier = "tier2_simple"
-        return {
-            "intent": mapped_intent,
-            "query_tier": query_tier,
-            "confidence_tier": (
-                "high" if mapped_intent != "CASUAL"
-                else "medium"
-            ),
-            "evaluation_trace": _trace_update(
-                state, intent=mapped_intent, query_tier=query_tier,
-                routing_reason="regex_prerouter"
-            ),
-        }
+    # ---- 1.14 Simplified Early Filter (merges Serene Mind + Temporal + Regex) ----
+    early = _early_filter(question, lower_q, state, serene_mind, meditation_step)
+    if early:
+        return early
 
     # ---- YAML-driven Semantic Router (Phase A — replaces hardcoded keyword lists) ----
     # The SemanticRouter consults backend/config/router_routes.yaml: utterance
