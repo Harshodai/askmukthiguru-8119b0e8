@@ -665,3 +665,75 @@ async def compile_okf_index(user: dict = Depends(get_current_user_from_supabase)
     from services.memory.compiler import compile_okf
     path = compile_okf()
     return {"status": "ok", "path": str(path)}
+
+
+class AppSettingsUpdate(BaseModel):
+    web_search_allowed_domains: list[str]
+
+
+@admin_router.get("/settings")
+async def get_admin_settings(
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Fetch global application settings (Admin only)."""
+    _require_admin(user)
+    
+    from app.telemetry_db import _get_client
+    client = _get_client()
+    if not client:
+        # Fallback to current settings if Supabase is offline/not set
+        return {
+            "web_search_allowed_domains": settings.web_search_allowed_domains_list
+        }
+        
+    try:
+        res = client.table("app_settings").select("*").eq("key", "global").execute()
+        if res.data and len(res.data) > 0:
+            val = res.data[0]["value"]
+            return {
+                "web_search_allowed_domains": val.get("web_search_allowed_domains", settings.web_search_allowed_domains_list)
+            }
+    except Exception as e:
+        logger.error(f"Failed to fetch app settings from DB: {e}")
+        
+    return {
+        "web_search_allowed_domains": settings.web_search_allowed_domains_list
+    }
+
+
+@admin_router.post("/settings")
+async def update_admin_settings(
+    payload: AppSettingsUpdate,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Update global application settings (Admin only)."""
+    _require_admin(user)
+        
+    from app.telemetry_db import _get_client
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Supabase service unavailable")
+        
+    try:
+        data = {
+            "key": "global",
+            "value": {
+                "web_search_allowed_domains": [d.strip().lower() for d in payload.web_search_allowed_domains if d.strip()]
+            },
+            "updated_at": "now()"
+        }
+        client.table("app_settings").upsert(data).execute()
+        
+        # Dynamic hot-reload in memory
+        container = get_container()
+        new_domains = [d.strip().lower() for d in payload.web_search_allowed_domains if d.strip()]
+        settings.web_search_allowed_domains = ",".join(new_domains)
+        if getattr(container, "web_search", None):
+            container.web_search.allowed_domains = new_domains
+            logger.info(f"WebSearchService allowed domains dynamically updated in memory: {new_domains}")
+            
+        return {"status": "success", "web_search_allowed_domains": new_domains}
+    except Exception as e:
+        logger.error(f"Failed to update app settings in DB: {e}")
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+

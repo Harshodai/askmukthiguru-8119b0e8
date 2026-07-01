@@ -404,6 +404,9 @@ class IngestionPipeline:
         # Implicit Teachings Concept Connector & Conflict/Synergy Detector
         await self._implicit_teachings_connector(chunks)
 
+        # Consolidate duplicate entities in Neo4j to keep graph clean and high quality
+        await self._consolidate_graph_entities()
+
         checkpoint.save(content_hash)
         self._notify(on_progress, "Complete!", 1.0)
         return {
@@ -1003,6 +1006,104 @@ class IngestionPipeline:
         except Exception as e:
             logger.warning(f"Hyper-Extract enrichment failed (non-fatal): {e}")
             return None
+
+    async def _consolidate_graph_entities(self) -> None:
+        """
+        Consolidate duplicate entities in Neo4j (e.g. Krishnaji vs Sri Krishnaji).
+        Runs as a post-ingestion cleanup to maintain high graph data quality.
+        """
+        from neo4j import GraphDatabase
+        from collections import defaultdict
+
+        neo4j_uri = getattr(settings, "neo4j_uri", "bolt://localhost:7687")
+        neo4j_user = getattr(settings, "neo4j_user", "neo4j")
+        neo4j_password = getattr(settings, "neo4j_password", "mukthiguru_neo4j_pass")
+
+        def clean_name(name):
+            cleaned = name.strip()
+            cleaned = re.sub(r'^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\s+(ji|deva|dev|maharaj|swami|swamiji)$', '', cleaned, flags=re.IGNORECASE)
+            return cleaned.strip().lower()
+
+        try:
+            logger.info("Consolidating duplicate graph entities in Neo4j...")
+            def run_consolidation():
+                try:
+                    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+                    with driver.session() as session:
+                        # 1. Fetch nodes
+                        res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN elementId(n) as id, n.entity_id as name, n.description as desc")
+                        nodes = [{"id": r["id"], "name": r["name"], "desc": r["desc"] or ""} for r in res]
+                        
+                        # 2. Group duplicates
+                        groups = defaultdict(list)
+                        for node in nodes:
+                            cleaned = clean_name(node["name"])
+                            if len(cleaned) < 3:
+                                continue
+                            groups[cleaned].append(node)
+                            
+                        # 3. Merge groups with > 1 node
+                        merged_total = 0
+                        for cleaned_root, group in groups.items():
+                            if len(group) <= 1:
+                                continue
+                                
+                            # Select master based on relationship count
+                            node_metrics = []
+                            for node in group:
+                                deg_res = session.run("MATCH (n:base) WHERE elementId(n) = $node_id RETURN COUNT { (n)-[]-() } as degree", node_id=node["id"]).single()
+                                deg = deg_res["degree"] if deg_res else 0
+                                node_metrics.append((deg, len(node["desc"]), len(node["name"]), node))
+                                
+                            node_metrics.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
+                            master = node_metrics[0][3]
+                            duplicates = [x[3] for x in node_metrics[1:]]
+                            
+                            # Merge each duplicate node into master
+                            for dup in duplicates:
+                                with session.begin_transaction() as tx:
+                                    # Outgoing relationships
+                                    tx.run("""
+                                    MATCH (dup:base)-[r]->(target)
+                                    WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
+                                    MERGE (master:base)-[new_r:DIRECTED]->(target)
+                                    ON CREATE SET new_r = properties(r)
+                                    WITH r
+                                    DELETE r
+                                    """, dup_id=dup["id"], master_id=master["id"])
+                                    
+                                    # Incoming relationships
+                                    tx.run("""
+                                    MATCH (source)-[r]->(dup:base)
+                                    WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
+                                    MERGE (source)-[new_r:DIRECTED]->(master:base)
+                                    ON CREATE SET new_r = properties(r)
+                                    WITH r
+                                    DELETE r
+                                    """, dup_id=dup["id"], master_id=master["id"])
+                                    
+                                    # Descriptions
+                                    if dup["desc"] and dup["desc"] != master["desc"]:
+                                        combined = master["desc"] + " | " + dup["desc"]
+                                        if len(combined) > 2000:
+                                            combined = combined[:1997] + "..."
+                                        tx.run("MATCH (m:base) WHERE elementId(m) = $master_id SET m.description = $desc", master_id=master["id"], desc=combined)
+                                        master["desc"] = combined
+                                        
+                                    # Delete duplicate node
+                                    tx.run("MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup", dup_id=dup["id"])
+                                    merged_total += 1
+                                    
+                        logger.info(f"Ingestion entity consolidation complete: merged {merged_total} duplicate nodes.")
+                    driver.close()
+                except Exception as ex:
+                    logger.error(f"Error inside entity consolidation run: {ex}")
+
+            # Run in executor to keep it async friendly
+            await asyncio.get_event_loop().run_in_executor(None, run_consolidation)
+        except Exception as e:
+            logger.error(f"Failed to consolidate entities in Neo4j during ingestion: {e}")
 
     def _embed_and_index(
         self,
