@@ -431,6 +431,13 @@ class Settings(BaseSettings):
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
     reranker_enabled_for_complex: bool = True  # Enable cross-encoder reranker for tier3_complex queries
+    # --- RAGFlow integration gaps ---
+    rag_deep_research_enabled: bool = False  # ponytail: master switch; auto-fires for tier3_complex + standard
+    rag_deep_research_max_depth: int = 2
+    important_kwd_boost_enabled: bool = True
+    important_kwd_boost_per_term: float = 0.2
+    rag_citation_cosine_enabled: bool = False
+    raptor_clustering_method: str = "kmeans"  # "kmeans" | "gmm"
 
     # --- TTFT Optimization (Ruthless Audit Phase 1) ---
     # When True, verification runs concurrently with streaming — the first chunk is sent

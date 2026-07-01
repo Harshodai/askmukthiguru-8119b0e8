@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import abc
 import logging
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from langgraph.graph import END, START, StateGraph
@@ -30,6 +31,7 @@ from rag.nodes import (
     decompose_query,
     enrich_context,
     explain_retrieval,
+    extract_citations,
     format_final_answer,
     generate_answer,
     grade_documents,
@@ -206,16 +208,22 @@ class StandardGraphStrategy(GraphStrategy):
         lightrag_service = kwargs.get("lightrag_service")
         serene_mind_engine = kwargs.get("serene_mind_engine")
 
-        init_services(
-            ollama_service,
-            embedding_service,
-            qdrant_service,
-            lightrag_service,
-            serene_mind_engine,
-            web_search=kwargs.get("web_search"),
-            semantic_cache=kwargs.get("semantic_cache"),
-            sarvam_cloud=kwargs.get("sarvam_cloud"),
-        )
+        # ponytail: skip init_services when no services passed — the cached
+        # compile path (build_cached) relies on the facade having already
+        # called init_services to set module globals. Ceiling: if a caller
+        # invokes build() directly with no services AND globals are unset,
+        # nodes will fail at invoke; upgrade by requiring services at compile.
+        if ollama_service is not None:
+            init_services(
+                ollama_service,
+                embedding_service,
+                qdrant_service,
+                lightrag_service,
+                serene_mind_engine,
+                web_search=kwargs.get("web_search"),
+                semantic_cache=kwargs.get("semantic_cache"),
+                sarvam_cloud=kwargs.get("sarvam_cloud"),
+            )
 
         graph = StateGraph(GraphState)
 
@@ -236,6 +244,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("reflect_on_answer", reflect_on_answer)
         graph.add_node("verify_answer", verify_answer)
         graph.add_node("explain_retrieval", explain_retrieval)
+        graph.add_node("extract_citations", extract_citations)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
         graph.add_node("handle_casual", handle_casual)
@@ -297,7 +306,8 @@ class StandardGraphStrategy(GraphStrategy):
                 "verify": "verify_answer",
             },
         )
-        graph.add_edge("verify_answer", "format_final_answer")
+        graph.add_edge("verify_answer", "extract_citations")
+        graph.add_edge("extract_citations", "format_final_answer")
         graph.add_edge("explain_retrieval", "format_final_answer")
 
         # --- Reject-and-retry loop ---
@@ -332,16 +342,22 @@ class FastGraphStrategy(GraphStrategy):
         lightrag_service = kwargs.get("lightrag_service")
         serene_mind_engine = kwargs.get("serene_mind_engine")
 
-        init_services(
-            ollama_service,
-            embedding_service,
-            qdrant_service,
-            lightrag_service,
-            serene_mind_engine,
-            web_search=kwargs.get("web_search"),
-            semantic_cache=kwargs.get("semantic_cache"),
-            sarvam_cloud=kwargs.get("sarvam_cloud"),
-        )
+        # ponytail: skip init_services when no services passed — the cached
+        # compile path (build_cached) relies on the facade having already
+        # called init_services to set module globals. Ceiling: if a caller
+        # invokes build() directly with no services AND globals are unset,
+        # nodes will fail at invoke; upgrade by requiring services at compile.
+        if ollama_service is not None:
+            init_services(
+                ollama_service,
+                embedding_service,
+                qdrant_service,
+                lightrag_service,
+                serene_mind_engine,
+                web_search=kwargs.get("web_search"),
+                semantic_cache=kwargs.get("semantic_cache"),
+                sarvam_cloud=kwargs.get("sarvam_cloud"),
+            )
 
         graph = StateGraph(GraphState)
 
@@ -415,16 +431,22 @@ class DeepGraphStrategy(GraphStrategy):
         lightrag_service = kwargs.get("lightrag_service")
         serene_mind_engine = kwargs.get("serene_mind_engine")
 
-        init_services(
-            ollama_service,
-            embedding_service,
-            qdrant_service,
-            lightrag_service,
-            serene_mind_engine,
-            web_search=kwargs.get("web_search"),
-            semantic_cache=kwargs.get("semantic_cache"),
-            sarvam_cloud=kwargs.get("sarvam_cloud"),
-        )
+        # ponytail: skip init_services when no services passed — the cached
+        # compile path (build_cached) relies on the facade having already
+        # called init_services to set module globals. Ceiling: if a caller
+        # invokes build() directly with no services AND globals are unset,
+        # nodes will fail at invoke; upgrade by requiring services at compile.
+        if ollama_service is not None:
+            init_services(
+                ollama_service,
+                embedding_service,
+                qdrant_service,
+                lightrag_service,
+                serene_mind_engine,
+                web_search=kwargs.get("web_search"),
+                semantic_cache=kwargs.get("semantic_cache"),
+                sarvam_cloud=kwargs.get("sarvam_cloud"),
+            )
 
         graph = StateGraph(GraphState)
 
@@ -445,6 +467,7 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("reflect_on_answer", reflect_on_answer)
         graph.add_node("verify_answer", verify_answer)
         graph.add_node("explain_retrieval", explain_retrieval)
+        graph.add_node("extract_citations", extract_citations)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
         graph.add_node("check_contradiction", check_contradiction)
@@ -526,7 +549,8 @@ class DeepGraphStrategy(GraphStrategy):
         # Net saving vs. sequential verify→contradiction: ~5-10s/query on tier3_complex.
         # -----------------------------------------------------------------------
         graph.add_edge("generate_answer", "check_contradiction")  # parallel branch
-        graph.add_edge("verify_answer", "format_final_answer")
+        graph.add_edge("verify_answer", "extract_citations")
+        graph.add_edge("extract_citations", "format_final_answer")
         graph.add_edge("check_contradiction", "format_final_answer")
         graph.add_edge("explain_retrieval", "format_final_answer")
 
@@ -546,3 +570,44 @@ class DeepGraphStrategy(GraphStrategy):
         compiled = graph.compile()
         logger.info("LangGraph DEEP pipeline compiled successfully")
         return compiled
+
+
+# ---------------------------------------------------------------------------
+# Compile cache
+# ---------------------------------------------------------------------------
+# ponytail: one lru_cache, no new class. Graph wiring is static (node
+# function references + edges); services are NOT baked into the compiled
+# graph — nodes read module globals set by init_services at invoke time.
+# So caching the compiled graph by strategy name alone is safe. The facade
+# (graph.py) calls init_services with the caller's services BEFORE
+# build_cached, so the globals are set before any invoke. Ceiling: maxsize=4
+# covers the 3 strategies + headroom; if a strategy variant is added beyond
+# that, raise maxsize. LangGraph compiled graphs are thread-safe for invoke.
+
+_STRATEGY_FACTORIES = {
+    "standard": StandardGraphStrategy,
+    "fast": FastGraphStrategy,
+    "deep": DeepGraphStrategy,
+}
+
+
+@lru_cache(maxsize=4)
+def build_cached(strategy_name: str) -> "CompiledStateGraph":
+    """Compile a strategy ONCE and return the cached CompiledStateGraph.
+
+    Caller must have called ``init_services`` with valid services beforehand
+    (the facade in ``rag.graph`` does this). Repeated calls return the same
+    compiled graph instance, avoiding the 50-200ms per-call compile cost.
+    """
+    try:
+        factory = _STRATEGY_FACTORIES[strategy_name]
+    except KeyError as exc:
+        raise ValueError(f"build_cached: unknown strategy {strategy_name!r}") from exc
+    # No service kwargs: build() skips init_services (globals already set by
+    # the facade) and only assembles the static graph wiring.
+    return factory().build()
+
+
+def clear_graph_cache() -> None:
+    """Reset the compile cache (tests / container rebuild)."""
+    build_cached.cache_clear()

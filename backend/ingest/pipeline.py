@@ -1073,6 +1073,9 @@ class IngestionPipeline:
             }
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
+            # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.
+            if getattr(settings, "important_kwd_boost_enabled", True):
+                base_meta["important_kwd"] = extract_doctrine_tags(clean_chunks[i])
             metadatas.append(base_meta)
 
         # Persist source-level metadata to telemetry (best-effort)

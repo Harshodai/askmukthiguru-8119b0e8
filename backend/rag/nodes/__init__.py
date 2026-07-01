@@ -49,6 +49,7 @@ from .short_circuit import (
 from .utils import (
     select_llm_model,
 )
+from .citation_extractor import extract_citations
 from .verification import (
     check_contradiction,
     explain_retrieval,
@@ -147,6 +148,7 @@ __all__ = [
     "verify_answer",
     "check_contradiction",
     "explain_retrieval",
+    "extract_citations",
     "rewrite_query",
     "handle_fallback",
     "settings",

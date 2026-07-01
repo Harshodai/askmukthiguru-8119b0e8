@@ -27,6 +27,7 @@ import logging
 
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
 
 from app.config import settings
 from services.embedding_service import EmbeddingService
@@ -156,10 +157,14 @@ class RaptorIndexer:
 
     def _cluster_texts(self, embeddings: np.ndarray, n_clusters: int) -> dict:
         """
-        Cluster reduced embeddings using K-Means.
+        Cluster reduced embeddings.
 
         Returns: Dict mapping cluster_id → list of text indices
         """
+        # ponytail: GMM opt-in via config; BIC selects k. Default stays kmeans.
+        if getattr(settings, "raptor_clustering_method", "kmeans") == "gmm":
+            return self._cluster_gmm(embeddings, n_clusters)
+
         n_clusters = min(n_clusters, embeddings.shape[0])
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
         labels = kmeans.fit_predict(embeddings)
@@ -169,6 +174,55 @@ class RaptorIndexer:
             clusters.setdefault(int(label), []).append(idx)
 
         logger.info(f"RAPTOR: {n_clusters} clusters, sizes: {[len(v) for v in clusters.values()]}")
+        return clusters
+
+    def _cluster_gmm(self, embeddings: np.ndarray, n_clusters: int) -> dict:
+        """
+        Cluster via GaussianMixture, picking k by BIC.
+
+        ponytail: BIC over k = O(k·fit); fine for chunk batches < few hundred.
+        Subsample or switch to ANN-blocking if larger.
+        """
+        n = embeddings.shape[0]
+        if n < 2:
+            return {0: list(range(n))}
+
+        max_k = min(n_clusters * 3, n)
+        bics: list[tuple[int, float]] = []
+        for k in range(2, max_k + 1):
+            try:
+                gm = GaussianMixture(
+                    n_components=k,
+                    covariance_type="diag",
+                    random_state=42,
+                    max_iter=100,
+                )
+                gm.fit(embeddings)
+                bics.append((k, gm.bic(embeddings)))
+            except Exception as e:
+                logger.debug(f"RAPTOR GMM: fit failed for k={k}: {e}")
+
+        if not bics:
+            # Fallback to KMeans if every GMM fit failed
+            logger.warning("RAPTOR GMM: all fits failed, falling back to KMeans")
+            n_clusters = min(n_clusters, n)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(embeddings)
+        else:
+            optimal_k = min(bics, key=lambda x: x[1])[0]
+            logger.info(f"RAPTOR: GMM optimal k={optimal_k} (BIC over k=2..{max_k})")
+            gm = GaussianMixture(
+                n_components=optimal_k,
+                covariance_type="diag",
+                random_state=42,
+                max_iter=100,
+            )
+            labels = gm.fit_predict(embeddings)
+
+        clusters = {}
+        for idx, label in enumerate(labels):
+            clusters.setdefault(int(label), []).append(idx)
+        logger.info(f"RAPTOR GMM: {len(clusters)} clusters, sizes: {[len(v) for v in clusters.values()]}")
         return clusters
 
     async def _summarize_clusters(self, chunks: list[dict], clusters: dict) -> list[dict]:

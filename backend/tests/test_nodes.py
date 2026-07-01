@@ -23,9 +23,10 @@ Beloved, the Four Sacred Secrets are spiritual vision, inner truth, universal in
 
 
 def test_generation_kwargs_bound_by_intent():
+    # 1.7 caps: distress=2048, fast/tier2_simple=150, deep/tier3_complex=800, adversarial=600
     assert nodes._generation_kwargs({"intent": "DISTRESS"})["num_predict"] == 2048
-    assert nodes._generation_kwargs({"query_tier": "tier2_simple"})["num_predict"] == 512
-    assert nodes._generation_kwargs({"intent": "ADVERSARIAL"})["num_predict"] == 768
+    assert nodes._generation_kwargs({"query_tier": "tier2_simple"})["num_predict"] == 150
+    assert nodes._generation_kwargs({"intent": "ADVERSARIAL"})["num_predict"] == 600
 
 
 class MockEmbeddingService:

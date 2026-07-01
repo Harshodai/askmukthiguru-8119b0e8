@@ -18,6 +18,7 @@ import {
   Image,
   ListOrdered,
   Network,
+  BookOpen,
   LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ const NAV = [
   { to: "/admin/alerts", label: "Alerts", icon: Bell },
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/admins", label: "Admins", icon: Users },
+  { to: "/admin/okf", label: "OKF", icon: BookOpen },
 ];
 
 export function AdminShell() {

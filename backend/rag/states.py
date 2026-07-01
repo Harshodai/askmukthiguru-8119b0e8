@@ -221,3 +221,7 @@ class GraphState(TypedDict):
 
     # Cache for LettuceDetect execution
     lettuce_detect_result: Optional[dict]
+
+    # RAGFlow Gap 1 — Deep Research (recursive sufficiency retrieval)
+    deep_research_done: bool
+    deep_research_queries: list[str]

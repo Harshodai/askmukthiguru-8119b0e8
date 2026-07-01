@@ -1,0 +1,27 @@
+# ============================================================
+# Mukthi Guru — Dev Docker Compose (qdrant + redis ONLY)
+#
+# Fast dev loop: skips neo4j/jaeger/backend/frontend/grafana/prometheus.
+# Reuses service definitions from docker-compose.yml via `extends`.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down
+# ============================================================
+
+services:
+  qdrant:
+    extends:
+      file: docker-compose.yml
+      service: qdrant
+
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+
+volumes:
+  qdrant_data:
+    driver: local
+  redis_data:
+    driver: local

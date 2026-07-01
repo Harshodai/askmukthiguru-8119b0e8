@@ -625,3 +625,43 @@ async def list_queue_jobs(
         return {"jobs": [], "queue_enabled": False}
     jobs = await container.job_queue.list_jobs(limit=limit)
     return {"jobs": jobs, "queue_enabled": True, "total": len(jobs)}
+
+
+# ---- OKF management (Phase 5) ----
+def _require_admin(user: dict) -> None:
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@admin_router.get("/okf")
+async def list_okf_entries(
+    type_filter: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user_from_supabase),
+):
+    """List OKF knowledge entries (optionally filtered by type). Admin only."""
+    _require_admin(user)
+    from services.memory.okf_store import OKFStore
+    store = OKFStore()
+    entries = store.by_type(type_filter) if type_filter else store.list_entries()
+    return {
+        "entries": [
+            {
+                "title": e.title,
+                "type": e.type,
+                "source": e.source,
+                "tags": e.tags,
+                "body_preview": e.body[:200],
+            }
+            for e in entries
+        ],
+        "total": len(entries),
+    }
+
+
+@admin_router.post("/okf/compile")
+async def compile_okf_index(user: dict = Depends(get_current_user_from_supabase)):
+    """Rebuild the OKF compiled index. Admin only."""
+    _require_admin(user)
+    from services.memory.compiler import compile_okf
+    path = compile_okf()
+    return {"status": "ok", "path": str(path)}

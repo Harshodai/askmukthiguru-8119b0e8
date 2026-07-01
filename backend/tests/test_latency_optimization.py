@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_greeting_regex():
     """Kill #3: Greeting regex should match pure greetings, NOT spiritual queries."""
-    from app.pipeline.pipeline_coordinator import _GREETING_RE
+    from app.pipeline.stages.glue_stages import _GREETING_RE
 
     # Should match
     assert _GREETING_RE.match("Hello")
@@ -41,7 +41,7 @@ def test_greeting_regex():
 
 def test_distress_keyword_regex():
     """Kill #4: Distress regex should catch critical distress language."""
-    from app.pipeline.pipeline_coordinator import _DISTRESS_KEYWORD_RE
+    from app.pipeline.stages.distress_stage import _DISTRESS_KEYWORD_RE
 
     # Should match
     assert _DISTRESS_KEYWORD_RE.search("I feel hopeless")
@@ -110,7 +110,7 @@ def test_select_graph_heuristics_standard():
 
 def test_warm_greetings_pool():
     """Kill #3: Greeting pool should have enough variety."""
-    from app.pipeline.pipeline_coordinator import _WARM_GREETINGS
+    from app.pipeline.stages.glue_stages import _WARM_GREETINGS
 
     assert len(_WARM_GREETINGS) >= 8, f"Need at least 8 greetings for variety, got {len(_WARM_GREETINGS)}"
     # All greetings should mention relevant spiritual context

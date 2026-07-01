@@ -22,11 +22,8 @@ Entry points:
 import logging
 from typing import Optional
 
-from rag.graph_strategies import (
-    DeepGraphStrategy,
-    FastGraphStrategy,
-    StandardGraphStrategy,
-)
+from rag.graph_strategies import build_cached
+from rag.nodes import init_services
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
@@ -44,6 +41,33 @@ from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
 
 
+def _init_then_compile(
+    strategy_name: str,
+    ollama_service,
+    embedding_service,
+    qdrant_service,
+    lightrag_service,
+    serene_mind_engine=None,
+    web_search=None,
+) -> CompiledStateGraph:
+    """Inject services into module globals, then return the cached compile.
+
+    init_services is idempotent (sets the same singletons); the compiled graph
+    is cached by strategy name and reused across calls. The service args are
+    retained for backward compatibility and so the first call establishes the
+    module-level service globals the nodes read at invoke time.
+    """
+    init_services(
+        ollama=ollama_service,
+        embedder=embedding_service,
+        qdrant=qdrant_service,
+        lightrag=lightrag_service,
+        serene_mind=serene_mind_engine,
+        web_search=web_search,
+    )
+    return build_cached(strategy_name)
+
+
 def build_rag_graph(
     ollama_service: OllamaService,
     embedding_service: EmbeddingService,
@@ -56,16 +80,16 @@ def build_rag_graph(
     Build and compile the complete RAG pipeline as a LangGraph.
 
     Delegates to ``StandardGraphStrategy`` so the actual wiring is isolated
-    from this public API.
+    from this public API. The compiled graph is cached by strategy name.
     """
-    strategy = StandardGraphStrategy()
-    return strategy.build(
-        ollama_service=ollama_service,
-        embedding_service=embedding_service,
-        qdrant_service=qdrant_service,
-        lightrag_service=lightrag_service,
-        serene_mind_engine=serene_mind_engine,
-        web_search=web_search,
+    return _init_then_compile(
+        "standard",
+        ollama_service,
+        embedding_service,
+        qdrant_service,
+        lightrag_service,
+        serene_mind_engine,
+        web_search,
     )
 
 
@@ -78,14 +102,14 @@ def build_fast_graph(
     web_search=None,
 ) -> CompiledStateGraph:
     """Fast path (Path A): 5-node pipeline for simple factual queries."""
-    strategy = FastGraphStrategy()
-    return strategy.build(
-        ollama_service=ollama_service,
-        embedding_service=embedding_service,
-        qdrant_service=qdrant_service,
-        lightrag_service=lightrag_service,
-        serene_mind_engine=serene_mind_engine,
-        web_search=web_search,
+    return _init_then_compile(
+        "fast",
+        ollama_service,
+        embedding_service,
+        qdrant_service,
+        lightrag_service,
+        serene_mind_engine,
+        web_search,
     )
 
 
@@ -98,14 +122,14 @@ def build_deep_graph(
     web_search=None,
 ) -> CompiledStateGraph:
     """Deep path: full standard graph with additional verification + CoT nodes."""
-    strategy = DeepGraphStrategy()
-    return strategy.build(
-        ollama_service=ollama_service,
-        embedding_service=embedding_service,
-        qdrant_service=qdrant_service,
-        lightrag_service=lightrag_service,
-        serene_mind_engine=serene_mind_engine,
-        web_search=web_search,
+    return _init_then_compile(
+        "deep",
+        ollama_service,
+        embedding_service,
+        qdrant_service,
+        lightrag_service,
+        serene_mind_engine,
+        web_search,
     )
 
 
