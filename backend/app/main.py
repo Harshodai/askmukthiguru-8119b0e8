@@ -85,6 +85,7 @@ from app.api.ingest import router as ingest_router
 from app.api.memory import router as memory_router
 from app.api.profile import router as profile_router
 from app.api.speech import router as speech_router
+from routers.notebooks import router as notebooks_router
 
 # Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
@@ -548,6 +549,7 @@ app.include_router(ingest_router, prefix="/api")
 app.include_router(speech_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
+app.include_router(notebooks_router, prefix="/api")
 
 from app.api.job_routes import router as job_router
 

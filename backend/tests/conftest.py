@@ -33,3 +33,16 @@ from app.core.limiter import limiter
 
 limiter.enabled = False
 
+import asyncio
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_event_loop():
+    # ponytail: asyncio.run() closes and unsets the thread's current event loop;
+    # downstream tests using get_event_loop() then raise RuntimeError. Keep a
+    # current loop alive before and after each test so cross-file ordering works.
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    yield
+    asyncio.set_event_loop(asyncio.new_event_loop())
+

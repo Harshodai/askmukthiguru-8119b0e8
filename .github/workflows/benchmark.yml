@@ -1,0 +1,78 @@
+name: Benchmark Gate (Golden Eval)
+
+# Runs the 5-dimension golden eval over the full disciple set on PRs
+# touching backend or evaluation code. Fails the PR when composite < 0.90.
+# Reuses the same backend-setup pattern as eval-gate.yml.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'evaluation/**'
+      - '.github/workflows/benchmark.yml'
+  workflow_dispatch:
+
+env:
+  COMPOSITE_THRESHOLD: '0.90'
+
+jobs:
+  golden-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install eval deps
+        run: |
+          pip install httpx pydantic
+          # RAGAS optional; golden_eval falls back to LettuceDetect/lexical when absent
+
+      - name: Run golden eval (full)
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          BACKEND_TOKEN: ${{ secrets.BACKEND_TOKEN }}
+        run: |
+          python backend/benchmarks/golden_eval.py \
+            --full \
+            --out golden_eval_report.json \
+            --threshold "$COMPOSITE_THRESHOLD"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-eval-report
+          path: golden_eval_report.json
+
+      - name: Comment summary on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('golden_eval_report.json')) return;
+            const r = JSON.parse(fs.readFileSync('golden_eval_report.json', 'utf8'));
+            const dims = r.dimensions || {};
+            const rows = Object.entries(dims).map(([k, v]) =>
+              `| ${k} | ${v.toFixed(3)} | 0.90 |`).join('\n');
+            const body = [
+              '### Golden Eval Gate',
+              '',
+              `| dim | value | threshold |`,
+              `|---|---|---|`,
+              rows,
+              '',
+              `**composite: ${r.composite?.toFixed(3)}** (threshold ${r.threshold}) — ${r.passed ? 'PASS' : 'FAIL'}`,
+              `Questions: ${r.questions_total}, failed backend calls: ${r.questions_failed}`,
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

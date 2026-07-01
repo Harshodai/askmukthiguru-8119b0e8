@@ -320,17 +320,41 @@ def _make_ngrams(text: str, n: int = 3) -> set[str]:
     return {t[i:i + n] for i in range(max(0, len(t) - n + 1))}
 
 
-def _cite_sentences(answer: str, docs: list[dict], threshold: float = 0.08) -> str:
+def _cosine(a: list[float], b: list[float]) -> float:
+    """Cosine similarity between two dense vectors (plain python, no deps)."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / ((na ** 0.5) * (nb ** 0.5))
+
+
+def _cite_sentences(
+    answer: str,
+    docs: list[dict],
+    threshold: float = 0.08,
+    cosine_threshold: float = 0.5,
+) -> str:
     """Append inline [Source: title] markers to sentences with sufficient doc overlap.
 
-    Uses 3-gram Jaccard similarity — fast, no embeddings, no LLM calls.
-    Only adds a citation when the best matching doc exceeds `threshold` to avoid
-    hallucinated citations on sentences with no clear grounding.
+    Similarity is 3-gram Jaccard by default. When
+    `settings.rag_citation_cosine_enabled` is True, cosine similarity over dense
+    embeddings is used instead (slower but semantic). Only adds a citation when
+    the best matching doc exceeds the relevant threshold to avoid hallucinated
+    citations on sentences with no clear grounding.
 
     Args:
-        answer:    Raw answer text after COT stripping.
-        docs:      Retrieved documents (list of dicts with 'text' and 'title' keys).
-        threshold: Min Jaccard score to attach a citation (default 0.08).
+        answer:           Raw answer text after COT stripping.
+        docs:             Retrieved documents (list of dicts with 'text' and 'title' keys).
+        threshold:         Min Jaccard score to attach a citation (default 0.08).
+        cosine_threshold:  Min cosine similarity to attach a citation (default 0.5).
 
     Returns:
         Answer with inline citations appended sentence-by-sentence.
@@ -367,6 +391,13 @@ def _cite_sentences(answer: str, docs: list[dict], threshold: float = 0.08) -> s
             result_parts.append(stripped)
             continue
 
+        # ponytail: skip metadata footers (e.g. "*(Teachings referenced: …)*") —
+        # these are injected by _ensure_keywords_in_answer as answer annotations, not
+        # content sentences; citing them with [Source: title] is a format bug.
+        if stripped.startswith("*(") or "Teachings referenced:" in stripped:
+            result_parts.append(stripped)
+            continue
+
         sent_ngrams = _make_ngrams(stripped)
         if not sent_ngrams:
             result_parts.append(stripped)
@@ -374,17 +405,53 @@ def _cite_sentences(answer: str, docs: list[dict], threshold: float = 0.08) -> s
 
         best_score = 0.0
         best_title = ""
-        for title, doc_ngrams in doc_data:
-            if not doc_ngrams:
-                continue
-            intersection = len(sent_ngrams & doc_ngrams)
-            union = len(sent_ngrams | doc_ngrams)
-            score = intersection / union if union else 0.0
-            if score > best_score:
-                best_score = score
-                best_title = title
 
-        if best_score >= threshold and best_title:
+        if getattr(settings, "rag_citation_cosine_enabled", False):
+            # ponytail: encode_single per sentence+doc is fine for short answers;
+            # batch-encode if latency matters for long multi-citation responses.
+            try:
+                embedder = _services._embedder or get_container().embedding_service
+                sent_vec = embedder.encode_single(stripped)
+                for title, _doc_ngrams in doc_data:
+                    doc_idx = next(
+                        (d for d in docs
+                         if (d.get("title") or d.get("source_url") or "").strip() == title),
+                        None,
+                    )
+                    if doc_idx is None:
+                        continue
+                    doc_vec = embedder.encode_single(doc_idx.get("text", ""))
+                    score = _cosine(sent_vec, doc_vec)
+                    if score > best_score:
+                        best_score = score
+                        best_title = title
+            except Exception:
+                # ponytail: embedder unavailable → fall back to Jaccard path.
+                best_score = 0.0
+                best_title = ""
+                for title, doc_ngrams in doc_data:
+                    if not doc_ngrams:
+                        continue
+                    intersection = len(sent_ngrams & doc_ngrams)
+                    union = len(sent_ngrams | doc_ngrams)
+                    score = intersection / union if union else 0.0
+                    if score > best_score:
+                        best_score = score
+                        best_title = title
+            effective_threshold = cosine_threshold
+        else:
+            for title, doc_ngrams in doc_data:
+                if not doc_ngrams:
+                    continue
+                intersection = len(sent_ngrams & doc_ngrams)
+                union = len(sent_ngrams | doc_ngrams)
+                score = intersection / union if union else 0.0
+                if score > best_score:
+                    best_score = score
+                    best_title = title
+            effective_threshold = threshold
+
+        if best_score >= effective_threshold and best_title:
             result_parts.append(f"{stripped} [Source: {best_title}]")
         else:
             result_parts.append(stripped)

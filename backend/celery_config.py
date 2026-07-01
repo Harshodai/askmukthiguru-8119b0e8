@@ -48,6 +48,7 @@ task_queues = (
     Queue("embedding", Exchange("ingestion"), routing_key="embedding"),
     Queue("indexing", Exchange("ingestion"), routing_key="indexing"),
     Queue("ingestion", Exchange("ingestion"), routing_key="ingestion"),
+    Queue("okf", Exchange("ingestion"), routing_key="okf"),
 )
 
 celery_app.conf.task_queues = task_queues
@@ -57,6 +58,7 @@ celery_app.conf.task_routes = {
     "tasks.ingest_tasks.embed_chunks": {"queue": "embedding"},
     "tasks.ingest_tasks.index_vectors": {"queue": "indexing"},
     "tasks.ingest_tasks.orchestrate_ingestion": {"queue": "ingestion"},
+    "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},
 }
 
 

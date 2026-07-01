@@ -754,3 +754,18 @@ A catalogue of ~30 additional servers is available in `ecc/mcp-configs/mcp-serve
 
 1. **Prefer MCP tools first** over Grep/Glob/Read when you need to find symbols, trace flows, review changes, or get architecture overviews.
 2. **Fall back to raw Read/Edit** only when editing a specific file or doing a quick string replacement.
+3. **Update CLAUDE.md and AGENTS.md** whenever any directory structure, backend service additions, environment configuration, or core execution pipeline patterns change.
+
+## Ponytail & Headroom Guidelines
+
+### Ponytail Principle
+- **Thin wrappers**: Prefer small, focused helper scripts or inline functions over heavy abstractions or new classes.
+- **Self-Checks**: Python files should contain a runnable `if __name__ == "__main__":` block at the bottom for quick verification.
+- **Optional/Stubbed Features**: Gracefully degrade or skip components if dependencies are not available on the runtime host.
+- **LRU Cache Usage**: Use simple caching patterns (e.g. `lru_cache`) instead of custom state tracking classes where possible.
+
+### Headroom Principle
+- **Cost Steering**: Automatically steer LLM prompting towards brevity (`COST_STEERED_BREVITY_LIMIT` words) when context/history length is high to optimize token usage.
+- **Reversible Context Compression (CCR)**: Allow the LLM to request full text for compressed text using `[RETRIEVE: <source_url>]` pattern; generation stage will intercept and swap the original text.
+- **Timeout and Resource Headroom**: Always configure timeouts with safety margins (e.g. 120s timeouts for sequence calls, or 10% GPU/CUDA headroom) to avoid transient service lockups.
+

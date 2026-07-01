@@ -14,17 +14,21 @@ def test_cache_config_settings():
 
 @pytest.mark.asyncio
 async def test_proactive_serene_mind_dict_return(monkeypatch):
+    from app.pipeline.stages.distress_stage import DistressStage
+    from types import SimpleNamespace
+
     container = MagicMock()
     container.serene_mind = None
     container.user_profile = MagicMock()
-    
-    coordinator = PipelineCoordinator(container)
+    ctx = SimpleNamespace(container=container)
+
+    stage = DistressStage()
     assessment = MagicMock()
     chat_body = MagicMock()
     state = {}
-    
-    result = await coordinator._maybe_trigger_proactive_serene_mind(
-        assessment, "test-user", chat_body, state
+
+    result = await stage._maybe_trigger_proactive_serene_mind(
+        ctx, assessment, "test-user", chat_body, state
     )
     assert isinstance(result, dict)
     assert result == {"triggered": False}

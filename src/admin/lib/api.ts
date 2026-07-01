@@ -544,3 +544,21 @@ export async function getRagFlowGraph(strategy: string): Promise<any> {
     }),
   );
 }
+
+/* ── OKF management (Phase 5) ─────────────────────────────────────────────── */
+export interface OkfEntry {
+  title: string;
+  type: string;
+  source: string;
+  tags: string[];
+  body_preview: string;
+}
+
+export async function listOkfEntries(typeFilter?: string): Promise<{ entries: OkfEntry[]; total: number }> {
+  const q = typeFilter ? `?type_filter=${encodeURIComponent(typeFilter)}` : '';
+  return fetchWithAuth(`/api/admin/okf${q}`);
+}
+
+export async function compileOkfIndex(): Promise<{ status: string; path: string }> {
+  return fetchWithAuth('/api/admin/okf/compile', { method: 'POST' });
+}

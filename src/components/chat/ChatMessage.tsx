@@ -2,6 +2,7 @@ import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
+import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
@@ -13,6 +14,7 @@ import { InlineActions } from './InlineActions';
 import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
+import { CitationPanel, type Citation } from './CitationPanel';
 
 interface ChatMessageProps {
   message: Message;
@@ -159,11 +161,33 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(message.content);
     const [noteSaved, setNoteSaved] = useState(false);
+    const [sourcesOpen, setSourcesOpen] = useState(false);
     const { toast } = useToast();
     const { createNote } = useNotes();
+    const { notebooks, createNotebook, addItem } = useStudyNotebooks();
 
     const handleSaveAsNote = useCallback(async () => {
       const snippet = (queryText ? `**Question:** ${queryText}\n\n**Teaching:**\n` : '') + message.content;
+      // Prefer study notebooks; fall back to legacy notes table
+      try {
+        let target = notebooks[0];
+        if (!target) {
+          target = (await createNotebook('Saved from Chat')) ?? undefined;
+        }
+        if (target) {
+          await addItem(target.id, {
+            query: queryText || 'Teaching',
+            answer: message.content,
+            source_episode_id: null,
+          });
+          setNoteSaved(true);
+          setTimeout(() => setNoteSaved(false), 2000);
+          toast({ title: 'Saved to Study Notebook', description: `Added to "${target.title}"` });
+          return;
+        }
+      } catch {
+        // fall through to legacy notes
+      }
       const note = await createNote({
         title: queryText ? queryText.slice(0, 80) : 'Teaching',
         body: snippet,
@@ -177,7 +201,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       } else {
         toast({ title: 'Sign in to save notes', variant: 'destructive' });
       }
-    }, [createNote, message.content, message.id, queryText, toast]);
+    }, [createNote, createNotebook, addItem, notebooks, message.content, message.id, queryText, toast]);
 
     const handleCopy = useCallback(async () => {
       try {
@@ -678,9 +702,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-ojas/80">
                     References
                   </p>
-                  <span className="text-[10px] text-muted-foreground/75 ml-auto bg-muted/30 px-2 py-0.5 rounded-full">
-                    {citations.length} {citations.length === 1 ? 'source' : 'sources'}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setSourcesOpen(true); }}
+                    className="text-[10px] text-muted-foreground/75 ml-auto bg-muted/30 hover:bg-ojas/15 hover:text-ojas px-2 py-0.5 rounded-full transition-colors"
+                    aria-label="View all sources in panel"
+                  >
+                    {citations.length} {citations.length === 1 ? 'source' : 'sources'} →
+                  </button>
                 </summary>
 
                 {/* Citation Cards — show first 3 inline */}
@@ -779,6 +808,15 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   )}
                 </div>
               </details>
+            )}
+
+            {/* ponytail: CitationPanel = richer source view (YouTube embeds + quotes) triggered from References badge */}
+            {isGuru && citations.length > 0 && (
+              <CitationPanel
+                isOpen={sourcesOpen}
+                onClose={() => setSourcesOpen(false)}
+                citations={citations.map((url): Citation => ({ url }))}
+              />
             )}
           </div>
 
