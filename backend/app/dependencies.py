@@ -284,8 +284,8 @@ class ServiceContainer:
             from services.notebook_service import NotebookService
 
             # ponytail: reuse the same supabase_client built above — no new connection.
-            self.episodic_memory_service = EpisodicMemoryService(supabase_client=supabase_client)
-            self.notebook_service = NotebookService(supabase_client=supabase_client)
+            self.episodic_memory_service = EpisodicMemoryService(supabase_client=self.supabase_client)
+            self.notebook_service = NotebookService(supabase_client=self.supabase_client)
         else:
             self.user_profile = None
             self.memory_service = None
