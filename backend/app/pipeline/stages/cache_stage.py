@@ -158,7 +158,15 @@ class CacheUpdateStage(Stage):
         citations = ctx.citations
         container = ctx.container
 
-        # Audit cache updates: never cache fallback/refusal responses or empty results
+        # Audit cache updates: never cache fallback/refusal responses, empty results, blocked responses, or errors
+        if ctx.is_blocked or ctx.last_stage_status == "error":
+            logger.info("Skipping cache update: response was blocked by guardrails or has a stage error status.")
+            return None
+
+        if intent in ["ERROR", "SAFETY_VIOLATION", "ADVERSARIAL", "DISTRESS"]:
+            logger.info(f"Skipping cache update: intent '{intent}' is not cacheable.")
+            return None
+
         refusal_indicators = [
             "i don't have that specific teaching",
             "please try asking another question",
