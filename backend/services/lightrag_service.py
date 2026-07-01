@@ -51,7 +51,72 @@ class LightRAGService:
         os.environ["QDRANT_URL"] = settings.qdrant_url
         os.environ["QDRANT_COLLECTION"] = f"{settings.qdrant_collection}_lightrag"
 
+        def sanitize_extraction_output(text: str) -> str:
+            """Sanitize extraction to remove thinking blocks, clean up quotes, backslashes, and malformed types."""
+            import re
+            
+            # Remove thinking blocks if any
+            text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+            # Remove ```json wrapper if present
+            text = re.sub(r"```json\s*", "", text)
+            text = re.sub(r"\s*```", "", text)
+            
+            cleaned_lines = []
+            for line in text.splitlines():
+                line_str = line.strip()
+                if not line_str:
+                    cleaned_lines.append("")
+                    continue
+                
+                # Match parenthesized tuples: ("field1", "field2", "field3", ...)
+                if line_str.startswith("(") and line_str.endswith(")"):
+                    # Find quoted values inside the tuple
+                    fields = re.findall(r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\'', line_str)
+                    field_values = [f[0] or f[1] for f in fields]
+                    
+                    if len(field_values) >= 3:
+                        # Clean each field of literal double quotes and backslashes
+                        for i in range(min(len(field_values), 3)):
+                            val = field_values[i]
+                            val = val.replace('"', '').replace('\\', '')
+                            
+                            # Normalize entity_type (2nd field of a 3-field entity tuple)
+                            if len(field_values) == 3 and i == 1:
+                                val_clean = val.strip().upper()
+                                if not val_clean or len(val_clean) > 50 or "INCORRECT" in val_clean or "DELIMITER" in val_clean:
+                                    val_clean = "CONCEPT"
+                                val = val_clean
+                            field_values[i] = val
+                        
+                        # Rebuild quoted fields
+                        quoted_fields = [f'"{f}"' for f in field_values]
+                        
+                        # If relationship tuple (4+ fields), preserve weight as number
+                        if len(field_values) >= 4:
+                            weight_part = line_str.split(",")[-1].strip(" )\"'")
+                            try:
+                                weight = float(weight_part)
+                                quoted_fields[-1] = str(weight)
+                            except ValueError:
+                                pass
+                        
+                        cleaned_lines.append(f"({', '.join(quoted_fields)})")
+                    else:
+                        if len(line_str) > 100:
+                            cleaned_lines.append(line_str.strip("()"))
+                        else:
+                            cleaned_lines.append(line_str)
+                else:
+                    if "incorrect" in line_str.lower() or "delimiter" in line_str.lower():
+                        continue
+                    cleaned_lines.append(line_str)
+                    
+            return "\n".join(cleaned_lines).strip()
+
         # Dynamically bridge our main generative LLM to LightRAG
+        # We use a fast, non-reasoning classifier model for LightRAG's internal operations.
+        # This keeps graph extraction, summaries, and keyword search fast and clean.
+        
         async def llm_func(prompt, system_prompt=None, history_messages=None, **kwargs) -> str:
             from app.dependencies import get_container
 
@@ -72,26 +137,28 @@ class LightRAGService:
                 else:
                     context += f"\n{str(msg)}"
 
+            sys_prompt_str = system_prompt or ""
+            prompt_str = prompt or ""
+            is_extraction = (
+                "Knowledge Graph" in sys_prompt_str
+                or "entity" in sys_prompt_str
+                or "relation" in sys_prompt_str
+                or "Extract entities" in prompt_str
+                or "Data to be Processed" in prompt_str
+                or kwargs.get("keyword_extraction", False)
+                or "keyword" in prompt_str.lower()
+                or "keyword" in sys_prompt_str.lower()
+            )
+
             # Route ALL LightRAG internal LLM tasks to a fast non-reasoning model.
             # Prevents reasoning model runaway (15+ KB thinking traces, 15-30s latency)
             # from blocking LightRAG keyword extraction and defeating the anti-hallucination pipeline.
             openrouter = getattr(container, "openrouter", None)
+            
+            response = ""
             if openrouter and getattr(settings, "openrouter_api_key", None):
-                sys_prompt_str = system_prompt or ""
-                prompt_str = prompt or ""
                 kwargs["model"] = settings.openrouter_classify_model
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
-
-                is_extraction = (
-                    "Knowledge Graph" in sys_prompt_str
-                    or "entity" in sys_prompt_str
-                    or "relation" in sys_prompt_str
-                    or "Extract entities" in prompt_str
-                    or "Data to be Processed" in prompt_str
-                    or kwargs.get("keyword_extraction", False)
-                    or "keyword" in prompt_str.lower()
-                    or "keyword" in sys_prompt_str.lower()
-                )
 
                 if is_extraction:
                     kwargs["is_structured"] = True
@@ -116,7 +183,7 @@ class LightRAGService:
                     )
 
                 try:
-                    return await openrouter.generate(
+                    response = await openrouter.generate(
                         system_prompt=system_prompt or "You are a helpful assistant.",
                         user_prompt=prompt,
                         context=context,
@@ -124,81 +191,73 @@ class LightRAGService:
                     )
                 except Exception as e:
                     logger.warning(f"LightRAG: OpenRouter task failed ({e}), falling back to default LLM")
+                    response = ""
 
-            provider = settings.llm_provider.lower()
-            
-            # For Sarvam Cloud, use classification model to prevent reasoning runaway
-            if provider == "sarvam_cloud":
-                sys_prompt_str = system_prompt or ""
-                prompt_str = prompt or ""
+            if not response:
+                provider = settings.llm_provider.lower()
+                
+                # For Sarvam Cloud, use classification model to prevent reasoning runaway
+                if provider == "sarvam_cloud":
+                    kwargs["model"] = settings.model_for_classification
+                    kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
 
-                # All LightRAG operations run on classification model for high throughput and zero reasoning overhead
-                kwargs["model"] = settings.model_for_classification
-                kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)
+                    if is_extraction:
+                        kwargs["is_structured"] = True
+                        kwargs["operation"] = "extraction"
+                        logger.info(
+                            f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
+                        )
+                    elif (
+                        "summary" in sys_prompt_str.lower()
+                        or "merge" in sys_prompt_str.lower()
+                        or "summary" in prompt_str.lower()
+                        or "merge" in prompt_str.lower()
+                    ):
+                        kwargs["is_structured"] = True
+                        kwargs["operation"] = "summarize"
+                        logger.info(
+                            f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
+                        )
+                    else:
+                        logger.info(
+                            f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
+                        )
 
-                is_extraction = (
-                    "Knowledge Graph" in sys_prompt_str
-                    or "entity" in sys_prompt_str
-                    or "relation" in sys_prompt_str
-                    or "Extract entities" in prompt_str
-                    or "Data to be Processed" in prompt_str
-                    or kwargs.get("keyword_extraction", False)
-                    or "keyword" in prompt_str.lower()
-                    or "keyword" in sys_prompt_str.lower()
-                )
-
-                if is_extraction:
-                    kwargs["is_structured"] = True
-                    kwargs["operation"] = "extraction"
-                    logger.info(
-f"LightRAG: Routing extraction/keyword task to {settings.model_for_classification} to prevent reasoning runaway"
-)
-                elif (
-                    "summary" in sys_prompt_str.lower()
-                    or "merge" in sys_prompt_str.lower()
-                    or "summary" in prompt_str.lower()
-                    or "merge" in prompt_str.lower()
-                ):
-                    kwargs["is_structured"] = True
-                    kwargs["operation"] = "summarize"
-                    logger.info(
-f"LightRAG: Routing summarization task to {settings.model_for_classification} to prevent reasoning runaway"
-)
+                    response = await container.ollama.generate(
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        user_prompt=prompt,
+                        context=context,
+                        **kwargs,
+                    )
+                
+                # For OpenRouter, use _generate_fast (which uses classify model internally)
+                elif provider == "openrouter":
+                    response = await container.openrouter._generate_fast(
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        user_prompt=prompt,
+                        context=context,
+                        timeout=25,
+                        max_retries=2,
+                        **kwargs,
+                    )
+                
+                # For Ollama and other providers, use _generate_fast
                 else:
-                    logger.info(
-f"LightRAG: Routing generic query task to {settings.model_for_classification} to prevent reasoning runaway"
-)
+                    # Force the fast classification model for ALL LightRAG internals.
+                    # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
+                    response = await container.ollama._generate_fast(
+                        system_prompt=system_prompt or "You are a helpful assistant.",
+                        user_prompt=prompt,
+                        context=context,
+                        timeout=25,
+                        max_retries=2,
+                        **kwargs,
+                    )
 
-                return await container.ollama.generate(
-                    system_prompt=system_prompt or "You are a helpful assistant.",
-                    user_prompt=prompt,
-                    context=context,
-                    **kwargs,
-                )
-            
-            # For OpenRouter, use _generate_fast (which uses classify model internally)
-            elif provider == "openrouter":
-                return await container.openrouter._generate_fast(
-                    system_prompt=system_prompt or "You are a helpful assistant.",
-                    user_prompt=prompt,
-                    context=context,
-                    timeout=25,
-                    max_retries=2,
-                    **kwargs,
-                )
-            
-            # For Ollama and other providers, use _generate_fast
-            else:
-                # Force the fast classification model for ALL LightRAG internals.
-                # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
-                return await container.ollama._generate_fast(
-                    system_prompt=system_prompt or "You are a helpful assistant.",
-                    user_prompt=prompt,
-                    context=context,
-                    timeout=25,
-                    max_retries=2,
-                    **kwargs,
-                )
+            if is_extraction and isinstance(response, str):
+                response = sanitize_extraction_output(response)
+                
+            return response
 
         # Use our local BGE-M3 model already loaded in memory instead of calling Ollama API
         import asyncio
