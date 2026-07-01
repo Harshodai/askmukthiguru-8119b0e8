@@ -170,7 +170,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       const snippet = (queryText ? `**Question:** ${queryText}\n\n**Teaching:**\n` : '') + message.content;
       // Prefer study notebooks; fall back to legacy notes table
       try {
-        let target = notebooks[0];
+        let target: typeof notebooks[number] | undefined = notebooks[0];
         if (!target) {
           target = (await createNotebook('Saved from Chat')) ?? undefined;
         }
