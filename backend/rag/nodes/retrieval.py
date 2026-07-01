@@ -481,16 +481,6 @@ async def retrieve_for_single_query(
         )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    # Emit per-doc retrieval scores to Prometheus histogram
-    for _doc in all_docs:
-        _score = _doc.get("score", 0.0)
-        _src = _doc.get("content_type", "qdrant")
-        try:
-            RETRIEVAL_SCORE_HISTOGRAM.labels(source=_src).observe(_score)
-        except Exception:
-            pass
-
     summary_results = results[0] if not isinstance(results[0], Exception) else []
     chunk_results = results[1] if not isinstance(results[1], Exception) else []
 
@@ -571,10 +561,15 @@ async def retrieve_for_single_query(
             seen.add(th)
             deduped.append(doc)
 
-    logger.debug(
-        f"RRF merge: summaries={len(summary_results)} chunks={len(chunk_results)} "
-        f"graph={len(lightrag_results)} -> {len(deduped)} unique docs"
-    )
+    # Emit per-doc retrieval scores to Prometheus histogram
+    for _doc in deduped:
+        _score = _doc.get("score", 0.0)
+        _src = _doc.get("content_type", "qdrant")
+        try:
+            RETRIEVAL_SCORE_HISTOGRAM.labels(source=_src).observe(_score)
+        except Exception:
+            pass
+
     return deduped
 
 

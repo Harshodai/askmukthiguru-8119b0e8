@@ -73,6 +73,8 @@ async def run(  # noqa: C901 — CLI glue, acceptable
             break
 
         for point in results:
+            if limit and scanned >= limit:
+                break
             payload: dict[str, Any] = point.payload or {}
 
             if not _needs_tags(payload):
@@ -98,12 +100,12 @@ async def run(  # noqa: C901 — CLI glue, acceptable
 
             scanned += 1
 
+        if limit and scanned >= limit:
+            break
+
         if next_offset is None or len(results) == 0:
             break
         offset = str(next_offset)
-
-        if limit and scanned >= limit:
-            break
 
     return scanned, needs_fill, filled
 
