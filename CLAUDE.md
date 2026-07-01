@@ -381,6 +381,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Run infrastructure (Docker, from backend/ directory)
 docker compose up -d qdrant redis neo4j jaeger
+
+# Run backend tests
+.venv/bin/pytest                     # Run all tests (from backend/ directory)
+.venv/bin/pytest tests/test_name.py  # Run specific test file (from backend/ directory)
+python3 -m pytest backend/tests/     # Run all tests (from workspace root)
 ```
 
 ### Docker (Recommended)
