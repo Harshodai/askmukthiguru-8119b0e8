@@ -58,7 +58,7 @@ export function AdminShell() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+      <div className="min-h-dvh flex items-center justify-center bg-background text-muted-foreground">
         Loading admin…
       </div>
     );
@@ -66,7 +66,7 @@ export function AdminShell() {
 
   return (
     <AdminFiltersProvider>
-      <div className="min-h-screen bg-background text-foreground flex">
+      <div className="min-h-dvh bg-background text-foreground flex">
         {/* Sidebar */}
         <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
           <div className="px-5 py-5 border-b border-border">
