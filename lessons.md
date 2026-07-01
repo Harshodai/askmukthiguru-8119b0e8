@@ -1,5 +1,55 @@
 # Agentic Lessons & Memory
 
+## Jul 1, 2026 — Ingestion Quality Audit: Pipeline Cascade Failures & Coverage-Gap Web Search
+
+### Problem 1: OpenRouter `:free` Suffix → Full Pipeline Cascade
+- `meta-llama/llama-3.1-8b-instruct:free` in env caused 404 on every OpenRouter call
+- Circuit breaker opened → killed `decompose_query`, `hyde`, `navigate_tree` (all 0ms, skipped)
+- LightRAG's `llm_func` also routes through OpenRouter → entity/keyword extraction silent-failed → **Neo4j completely empty**
+- **Fix**: Remove `:free` suffix from all `OPENROUTER_*_MODEL` env vars. The correct slug is `meta-llama/llama-3.1-8b-instruct`.
+- **Lesson**: A single wrong model slug cascades into: LLM dead → circuit open → graph skipped → knowledge base empty. Always validate OpenRouter slugs against their API before ingestion.
+
+### Problem 2: Web Search Wired But Never Fires
+- `WEB_SEARCH_ENABLED=false` prevented service injection; even with it true, web search only triggered on `len(all_docs) == 0`
+- Qdrant returned 20 docs at cosine score 0.003 → `len > 0` → web search never activated
+- **Fix**: Added coverage-gap check: if ALL docs score below `WEB_SEARCH_COVERAGE_THRESHOLD=0.08`, treat as zero-coverage and fire web search. Added `RETRIEVAL_SCORE_DELTA_ENABLED=true` to drop junk docs.
+- **Fix location**: `backend/rag/nodes/retrieval.py` before the `if not all_docs:` block.
+- **Lesson**: "Has docs" ≠ "Has useful docs". Always gate web search on score quality, not count.
+
+### Problem 3: Supabase Memory RPC Signature Drift (PGRST202)
+- Code called `match_user_memories(p_k, p_min_sim, p_query_embedding, p_user_id)` (4 params)
+- DB function only accepts `(p_k, p_min_sim, p_query_embedding)` (3 params) — `p_user_id` was removed from schema but not from code
+- Every memory lookup silently returned `[]` — users had zero personalized context
+- **Fix**: Remove `p_user_id` from `backend/services/memory_service.py` RPC call. Add `# NOTE: DB signature has 3 params — do NOT add it back` comment.
+- **Lesson**: When DB functions are altered, always grep the call sites for old param signatures. PGRST202 = schema cache doesn't match call signature.
+
+### Problem 4: LightRAG 145s Spike (No Hard Timeout)
+- `get_node_timeout("default_fast", 30.0)` used for LightRAG, but when graph is empty it still blocks on Neo4j queries
+- Observed: 145,572ms (2 min 25s) on one call
+- **Fix**: Wire `settings.lightrag_retrieval_timeout` (default 30s) from env → `asyncio.wait_for(lightrag.aquery(...), timeout=float(t_out))`
+- **Lesson**: Hardcoded fallback timeouts are invisible in config. Always use `getattr(settings, "timeout_key", default)` so timeout is adjustable without code changes.
+
+### Problem 5: Token Budget Soft-Exceed Pattern
+- `RAG_TOP_K_RETRIEVAL=20` → prompts estimating 17,706–18,049 tokens vs budget 12,000 (48% over soft limit)
+- **Fix**: Lowered `RAG_TOP_K_RETRIEVAL=12` in `backend/.env` → fewer chunks → smaller prompt context
+- **Lesson**: Soft token budget exceeds are silent — they don't error, they just degrade answer quality and increase cost. Tune top-k to keep prompts under 75% of soft budget.
+
+### Problem 6: Ingestion State Never Updated
+- `scripts/ingestion/ingestion_state.json` showed `{"processed_videos": [], "processed_docs": [], "metrics": {}}` despite ingestion runs
+- Root cause: the write happens inside `checkpoint.save(content_hash)` which only writes the hash, not the full state manifest
+- **Fix**: Use `verify_ingestion_quality.py` post-run to assert state non-empty; plan to wire state manifest writes after each successful ingest.
+- **Lesson**: Always run `verify_ingestion_quality.py --strict` after ingestion to catch empty-state regressions before the service restarts.
+
+### Prometheus Metrics Added (Phase 4 Monitoring)
+| Metric | Purpose |
+|--------|---------|
+| `guru_retrieval_score{source}` | Score histogram per retrieval source (qdrant/lightrag/web) |
+| `guru_coverage_gap_total{intent}` | Coverage-gap triggers by intent type |
+| `guru_web_search_hit_total{trigger}` | Web search successes (coverage_gap / zero_docs) |
+| `guru_web_search_miss_total{reason}` | Web search failures (empty / error) |
+| `guru_lightrag_timeout_total` | LightRAG aquery timeouts |
+| `guru_token_budget_exceed_total{budget_type}` | Token budget soft/hard exceeds |
+
 ## Jun 29, 2026 — Key Rotator API Key Splitting & State / Redis Close Fixes
 - **Problem**: 
   1. The API key rotator for NIM loaded the entire comma-separated list of keys (`nvapi-oQZ...,nvapi-XUQ...`) as a single invalid key during startup, leading to `403 Forbidden` API errors and forcing invalid key rotations.

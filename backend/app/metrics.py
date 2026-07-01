@@ -382,6 +382,48 @@ RELEVANCY_SCORE = Histogram(
 )
 
 
+# ===================================================================
+# Retrieval Quality & Coverage Metrics (Ingestion Audit Plan)
+# ===================================================================
+
+RETRIEVAL_SCORE_HISTOGRAM = Histogram(
+    "guru_retrieval_score",
+    "Distribution of raw retrieval cosine scores (pre-rerank) — used to detect coverage gaps",
+    ["source"],  # qdrant, lightrag, okf, web
+    buckets=[0.0, 0.02, 0.05, 0.08, 0.10, 0.15, 0.20, 0.30, 0.50, 0.70, 1.0],
+)
+
+COVERAGE_GAP_TOTAL = Counter(
+    "guru_coverage_gap_total",
+    "Times ALL retrieved docs scored below coverage_gap threshold → web search triggered",
+    ["intent"],
+)
+
+WEB_SEARCH_HIT_TOTAL = Counter(
+    "guru_web_search_hit_total",
+    "Web search calls that returned at least 1 result",
+    ["trigger"],  # coverage_gap, zero_docs
+)
+
+WEB_SEARCH_MISS_TOTAL = Counter(
+    "guru_web_search_miss_total",
+    "Web search calls that returned zero results or failed",
+    ["reason"],  # empty, error
+)
+
+TOKEN_BUDGET_EXCEED_TOTAL = Counter(
+    "guru_token_budget_exceed_total",
+    "Times token budget soft limit was exceeded during generation",
+    ["budget_type"],  # soft, hard
+)
+
+LIGHTRAG_TIMEOUT_TOTAL = Counter(
+    "guru_lightrag_timeout_total",
+    "LightRAG aquery calls that timed out (triggers web search fallback)",
+)
+
+
 def metrics_endpoint():
     """Expose Prometheus metrics in text format."""
     return generate_latest(), CONTENT_TYPE_LATEST
+

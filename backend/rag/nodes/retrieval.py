@@ -6,6 +6,13 @@ import asyncio
 import logging
 from typing import Any, Optional
 
+from app.metrics import (
+    COVERAGE_GAP_TOTAL,
+    LIGHTRAG_TIMEOUT_TOTAL,
+    RETRIEVAL_SCORE_HISTOGRAM,
+    WEB_SEARCH_HIT_TOTAL,
+    WEB_SEARCH_MISS_TOTAL,
+)
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
@@ -464,15 +471,25 @@ async def retrieve_for_single_query(
     lightrag_index = -1
     if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
         lightrag_index = len(tasks)
-        t_out = get_node_timeout("default_fast", 30.0)
+        # Use config-driven timeout (prevents 145s spike — see logs/backend.log line 264)
+        t_out = getattr(settings, "lightrag_retrieval_timeout", 30)
         tasks.append(
             asyncio.wait_for(
                 lightrag.aquery(query, mode="hybrid", only_need_context=True),
-                timeout=t_out,
+                timeout=float(t_out),
             )
         )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Emit per-doc retrieval scores to Prometheus histogram
+    for _doc in all_docs:
+        _score = _doc.get("score", 0.0)
+        _src = _doc.get("content_type", "qdrant")
+        try:
+            RETRIEVAL_SCORE_HISTOGRAM.labels(source=_src).observe(_score)
+        except Exception:
+            pass
 
     summary_results = results[0] if not isinstance(results[0], Exception) else []
     chunk_results = results[1] if not isinstance(results[1], Exception) else []
@@ -496,6 +513,13 @@ async def retrieve_for_single_query(
             resolved_chunks.append(doc)
 
     chunk_results = resolved_chunks
+
+    # Track LightRAG timeouts
+    if lightrag_index != -1 and isinstance(results[lightrag_index], Exception):
+        try:
+            LIGHTRAG_TIMEOUT_TOTAL.inc()
+        except Exception:
+            pass
 
     lightrag_results = []
     if lightrag_index != -1 and results[lightrag_index]:
@@ -871,6 +895,45 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             lambda_param=0.7,
         )
 
+    # Coverage-gap check: docs exist but all score below quality threshold → treat as no coverage
+    _coverage_threshold = getattr(settings, "web_search_coverage_threshold", 0.08)
+    if all_docs and all(doc.get("score", 0.0) < _coverage_threshold for doc in all_docs):
+        max_score = max(doc.get("score", 0.0) for doc in all_docs)
+        _gap_intent = state.get("intent", "unknown")
+        logger.warning(
+            f"Coverage gap detected: {len(all_docs)} docs retrieved but all scored below "
+            f"threshold {_coverage_threshold} (max_score={max_score:.4f}). "
+            "Triggering web-search fallback."
+        )
+        try:
+            COVERAGE_GAP_TOTAL.labels(intent=_gap_intent).inc()
+        except Exception:
+            pass
+        web_search_service = getattr(_services, "_web_search", None)
+        if web_search_service is not None:
+            try:
+                question = state.get("rewritten_query") or state["question"]
+                user_id = state.get("user_id")
+                web_results = await web_search_service.search(question, user_id=user_id)
+                if web_results:
+                    logger.info(f"Coverage-gap web search found {len(web_results)} results.")
+                    all_docs = web_results
+                    try:
+                        WEB_SEARCH_HIT_TOTAL.labels(trigger="coverage_gap").inc()
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        WEB_SEARCH_MISS_TOTAL.labels(reason="empty").inc()
+                    except Exception:
+                        pass
+            except Exception as exc:
+                logger.warning(f"Coverage-gap web search failed: {exc}")
+                try:
+                    WEB_SEARCH_MISS_TOTAL.labels(reason="error").inc()
+                except Exception:
+                    pass
+
     if not all_docs:
         logger.info("RAG retrieval yielded zero chunks. Triggering web-search fallback.")
         web_search_service = getattr(_services, "_web_search", None)
@@ -882,8 +945,16 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 if web_results:
                     logger.info(f"Web-search fallback found {len(web_results)} results.")
                     all_docs = web_results
+                    try:
+                        WEB_SEARCH_HIT_TOTAL.labels(trigger="zero_docs").inc()
+                    except Exception:
+                        pass
             except Exception as exc:
                 logger.warning(f"Web-search fallback failed: {exc}")
+                try:
+                    WEB_SEARCH_MISS_TOTAL.labels(reason="error").inc()
+                except Exception:
+                    pass
 
     raw_docs_copy = [dict(d) for d in all_docs]
 
