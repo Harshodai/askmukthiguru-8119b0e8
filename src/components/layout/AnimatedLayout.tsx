@@ -38,7 +38,7 @@ export const AnimatedLayout = ({ children }: AnimatedLayoutProps) => {
         exit="exit"
         variants={pageVariants}
         transition={pageTransition}
-        className="min-h-screen"
+        className="min-h-dvh"
       >
         {children}
       </motion.div>

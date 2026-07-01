@@ -201,7 +201,7 @@ export default function TTSVerificationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0915] text-foreground font-sans relative overflow-hidden pb-12">
+    <div className="min-h-dvh bg-[#0A0915] text-foreground font-sans relative overflow-hidden pb-12">
       {/* Premium background accents */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#E5A93B]/5 rounded-full filter blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#3BE5C2]/5 rounded-full filter blur-[120px] pointer-events-none" />

@@ -57,7 +57,7 @@ const AuthLatencyDashboard = () => {
   const errorRuns = runs.filter((r) => r.status === 'error');
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6 max-w-5xl mx-auto space-y-6">
+    <div className="min-h-dvh bg-background text-foreground p-6 max-w-5xl mx-auto space-y-6">
       <header className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">

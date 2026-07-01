@@ -48,7 +48,7 @@ export const CookieConsentBanner = () => {
           transition={{ duration: 0.25 }}
           role="dialog"
           aria-label="Cookie consent"
-          className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-sm z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4"
+          className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 sm:left-auto sm:right-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))] sm:max-w-sm md:max-w-md z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4"
         >
           <div className="flex items-start gap-2.5">
             <div className="hidden sm:flex w-9 h-9 rounded-full bg-ojas/12 border border-ojas/25 items-center justify-center flex-shrink-0">

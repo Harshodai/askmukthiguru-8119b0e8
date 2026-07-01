@@ -36,7 +36,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="min-h-dvh bg-background text-foreground flex items-center justify-center p-6">
           <Card className="w-full max-w-lg">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-3">
