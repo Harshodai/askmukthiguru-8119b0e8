@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from rag.compressor import compress_documents
 from rag.states import GraphState
@@ -29,11 +30,11 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         return {"reranked_docs": []}
 
     await emit_status(config, "Ranking the most relevant teachings...")
-    
+
     # Separate web search docs from database docs
     web_docs = [doc for doc in documents if doc.get("content_type") == "web_search"]
     db_docs = [doc for doc in documents if doc.get("content_type") != "web_search"]
-    
+
     # Finding #29: web docs no longer get unconditional 0.95 score
     # They receive a moderate default (0.7) since grading will validate relevance
     for doc in web_docs:
@@ -62,9 +63,9 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         # Dynamic top-k by query tier — fewer chunks for simpler queries reduces
         # LLM context window usage and lowers TTFT without hurting answer quality.
         _TIER_TOP_K = {
-            "fast":          3,
-            "tier2_simple":  4,
-            "standard":      5,
+            "fast": 3,
+            "tier2_simple": 4,
+            "standard": 5,
             "tier3_complex": 8,
         }
         rerank_top_k = _TIER_TOP_K.get(query_tier, getattr(settings, "rag_top_k_rerank", 10))
@@ -94,30 +95,44 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
                 min_score=threshold,
             )
 
+    # ponytail: Gap 2 — important_kwd post-rerank additive boost.
+    if getattr(settings, "important_kwd_boost_enabled", True) and reranked_db:
+        boost_per_term = getattr(settings, "important_kwd_boost_per_term", 0.2)
+        query_terms = {t.lower() for t in re.findall(r"\b\w{3,}\b", question)}
+        for doc in reranked_db:
+            kwd_meta = doc.get("metadata", {}).get("important_kwd", [])
+            if not kwd_meta:
+                continue
+            overlap = len({k.lower() for k in kwd_meta} & query_terms)
+            if overlap > 0:
+                doc["rerank_score"] = min(
+                    doc.get("rerank_score", 0.0) + boost_per_term * overlap, 1.0
+                )
+        reranked_db.sort(key=lambda d: d.get("rerank_score", 0.0), reverse=True)
 
-        # Apply score-delta cutoff to keep fewer but better chunks
-        reranked_db = _apply_rerank_score_cutoff(reranked_db)
+    # Apply score-delta cutoff to keep fewer but better chunks
+    reranked_db = _apply_rerank_score_cutoff(reranked_db)
 
-        # Apply MMR selection to database documents if they exceed the budget
-        web_docs_count = len(web_docs)
-        db_budget = max(0, settings.rag_top_k_retrieval - web_docs_count)
-        if len(reranked_db) > db_budget and db_budget > 0:
-            doc_texts = [doc["text"] for doc in reranked_db]
-            batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
-            doc_embeddings = batch_enc["dense"]
+    # Apply MMR selection to database documents if they exceed the budget
+    web_docs_count = len(web_docs)
+    db_budget = max(0, settings.rag_top_k_retrieval - web_docs_count)
+    if len(reranked_db) > db_budget and db_budget > 0:
+        doc_texts = [doc["text"] for doc in reranked_db]
+        batch_enc = await asyncio.to_thread(embedder.encode_batch, doc_texts)
+        doc_embeddings = batch_enc["dense"]
 
-            query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
-            query_emb = query_enc["dense"]
+        query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
+        query_emb = query_enc["dense"]
 
-            reranked_db = qdrant.mmr_select(
-                query_embedding=query_emb,
-                documents=reranked_db,
-                doc_embeddings=doc_embeddings,
-                top_k=db_budget,
-                lambda_param=0.7,
-            )
-        elif db_budget == 0:
-            reranked_db = []
+        reranked_db = qdrant.mmr_select(
+            query_embedding=query_emb,
+            documents=reranked_db,
+            doc_embeddings=doc_embeddings,
+            top_k=db_budget,
+            lambda_param=0.7,
+        )
+    elif db_budget == 0:
+        reranked_db = []
 
     # Combined list starts with web search results, followed by best database docs
     reranked = web_docs + reranked_db
@@ -181,19 +196,19 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                 ),
             }
 
-        # CRAG relevance floor: drop docs that fall below a fraction of the top score
-        crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
-        crag_floor = max(crag_floor, min_score)
-        before_count = len(reranked_docs)
-        reranked_docs = [
-            doc for doc in reranked_docs
-            if doc.get("rerank_score", 0.0) >= crag_floor
-        ]
-        if before_count != len(reranked_docs):
-            logger.info(
-                f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
-                f"{before_count} -> {len(reranked_docs)} docs"
-            )
+    # CRAG relevance floor: drop docs that fall below a fraction of the top score
+    crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
+    crag_floor = max(crag_floor, min_score)
+    before_count = len(reranked_docs)
+    reranked_docs = [
+        doc for doc in reranked_docs
+        if doc.get("rerank_score", 0.0) >= crag_floor
+    ]
+    if before_count != len(reranked_docs):
+        logger.info(
+            f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
+            f"{before_count} -> {len(reranked_docs)} docs"
+        )
 
     await emit_status(config, "Filtering for relevance...")
     question = state.get("rewritten_query") or state["question"]

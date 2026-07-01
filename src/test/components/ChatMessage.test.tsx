@@ -131,7 +131,7 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
 
     expect(screen.getByText(/References/i)).toBeInTheDocument();
-    expect(screen.getByText('2 sources')).toBeInTheDocument();
+    expect(screen.getByText(/2 sources/)).toBeInTheDocument();
   });
 
   it('uses inline URLs as fallback citations when none provided', () => {

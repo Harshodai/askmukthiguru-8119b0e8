@@ -82,6 +82,8 @@ Agents MUST update the following documentation after completing a fix, feature, 
 - [ ] **README.md**: If a new service, route, or environment variable is added, update the README to reflect these changes.
 - [ ] **docs/ROADMAP.md**: Mark items as complete or add new technical debt discovered during the change.
 - [ ] **docs/DEVELOPER_GUIDE.md**: Update if the onboarding or development workflow has changed.
+- [ ] **CLAUDE.md**: Update structural directory map, commands, or URL matrix.
+- [ ] **AGENTS.md**: Update agent context, checklist, or guidelines if necessary.
 
 ## Session Completion
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
@@ -167,6 +169,21 @@ In addition to `code-review-graph`, this workspace is integrated with four dedic
 ### Utilizing Local MCP Tools
 - **Explore first, grep last**: Use CodeGraph, Graphify, and Understand Anything rather than running heavy recursive glob/grep commands across thousands of files. It saves token costs, prevents host memory thrashing, and respects structural linkages.
 - **Memory Recalls**: Leverage `claude-mem` to recall key patterns or historical insights across conversation checkpoints.
+
+## Ponytail & Headroom Guidelines
+
+### Ponytail Principle
+Keep implementations lightweight, minimal-diff, and simple:
+- **Thin wrappers**: Prefer small, focused helper scripts or inline functions over heavy abstractions or new classes.
+- **Self-Checks**: Python files should contain a runnable `if __name__ == "__main__":` block at the bottom for quick verification.
+- **Optional/Stubbed Features**: Gracefully degrade or skip components if dependencies are not available on the runtime host.
+- **LRU Cache Usage**: Use simple caching patterns (e.g. `lru_cache`) instead of custom state tracking classes where possible.
+
+### Headroom Principle
+Implement system configurations and runtime operations with safety margins (headroom):
+- **Cost Steering**: Automatically steer LLM prompting towards brevity (`COST_STEERED_BREVITY_LIMIT` words) when context/history length is high to optimize token usage.
+- **Reversible Context Compression (CCR)**: Allow the LLM to request full text for compressed text using `[RETRIEVE: <source_url>]` pattern; generation stage will intercept and swap the original text.
+- **Timeout and Resource Headroom**: Always configure timeouts with safety margins (e.g. 120s timeouts for sequence calls, or 10% GPU/CUDA headroom) to avoid transient service lockups.
 
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
 

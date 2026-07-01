@@ -7,11 +7,14 @@ Run with:
 
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from app.config import settings
 
 
 class TestLLMProtocol(unittest.TestCase):
@@ -124,11 +127,15 @@ class TestIsAvailable(unittest.TestCase):
 
     def test_sarvam_is_available(self) -> None:
         from services.sarvam_service import SarvamCloudService
+        if not settings.sarvam_api_key:
+            self.skipTest("SARVAM_API_KEY not set")
         svc = SarvamCloudService()
         self.assertTrue(svc.is_available)
 
     def test_nim_is_available(self) -> None:
         from services.nim_service import NimService
+        if not settings.nim_api_key:
+            self.skipTest("NIM_API_KEY not set")
         svc = NimService()
         self.assertTrue(svc.is_available)
 

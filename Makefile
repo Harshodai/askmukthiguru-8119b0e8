@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format test eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs
+.PHONY: help install dev lint format test eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs dev-up dev-down dev-reset test-backend test-frontend benchmark
 
 # Resolve virtual environment paths
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
@@ -148,3 +148,23 @@ minikube-test: ## Run a simple load test against the Minikube deployment
 
 minikube-logs: ## Stream backend logs in Minikube
 	@kubectl logs -f deployment/mukthiguru-backend -n mukthiguru
+
+# --- Dev Loop (qdrant + redis only) ---
+
+dev-up: ## Start minimal dev stack (qdrant + redis) via docker compose
+	@bash scripts/dev-up.sh
+
+dev-down: ## Stop minimal dev stack
+	@bash scripts/dev-down.sh
+
+dev-reset: ## Wipe dev volumes and recreate stack
+	@bash scripts/dev-reset.sh
+
+test-backend: ## Run backend pytest suite
+	@cd backend && $(PYTEST)
+
+test-frontend: ## Run frontend Vitest suite
+	@npm test
+
+benchmark: ## Run smoke doctrine benchmark (golden_eval pending Phase 1.5b)
+	@cd backend && $(PYTHON) benchmarks/smoke_doctrine.py

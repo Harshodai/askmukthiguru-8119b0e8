@@ -32,6 +32,55 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
+# ponytail: lightweight OKF compiled-index loader (Phase 2b).
+# Avoids heavy startup — reads disk lazily, cached per-process via module-level cache.
+_OKF_COMPILED_PATH = __import__("pathlib").Path(__file__).resolve().parents[3] / "memory" / "okf" / "compiled.json"
+_OKF_CACHE: list[dict] | None = None
+
+
+def _load_okf_entries() -> list[dict]:
+    global _OKF_CACHE
+    if _OKF_CACHE is not None:
+        return _OKF_CACHE
+    if not _OKF_COMPILED_PATH.exists():
+        _OKF_CACHE = []
+        return []
+    try:
+        data = __import__("json").loads(_OKF_COMPILED_PATH.read_text(encoding="utf-8"))
+        _OKF_CACHE = data.get("entries", [])
+    except Exception:
+        _OKF_CACHE = []
+    return _OKF_CACHE
+
+
+def _okf_match(query: str, limit: int = 3) -> list[dict]:
+    """Return OKF entries whose title/body overlaps with query keywords."""
+    import re as _re
+    entries = _load_okf_entries()
+    if not entries:
+        return []
+    words = set(w.lower() for w in _re.findall(r"\w+", query) if len(w) > 2)
+    scored: list[tuple[float, dict]] = []
+    for e in entries:
+        text = f"{e.get('title', '')} {e.get('body', '')}".lower()
+        matches = sum(1 for w in words if w in text)
+        if matches:
+            scored.append((matches, e))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    docs = []
+    for score, e in scored[:limit]:
+        docs.append({
+            "text": f"{e['title']}\n\n{e.get('body', '')}",
+            "score": 0.9 + score * 0.01,
+            "metadata": {
+                "source": e.get("source", "OKF"),
+                "title": e["title"],
+                "type": e.get("type", "okf"),
+            },
+        })
+    return docs
+
+
 async def query_neo4j_subgraph(query: str) -> str:
     """
     Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
@@ -837,6 +886,35 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 logger.warning(f"Web-search fallback failed: {exc}")
 
     raw_docs_copy = [dict(d) for d in all_docs]
+
+    # Phase 2b: inject OKF compiled entries as a third retrieval channel
+    # (only when primary retrieval has results, so it acts as augmentation, not fallback).
+    if all_docs and intent not in ("CASUAL", "GREETING", "DISTRESS", "MEDITATION"):
+        try:
+            okf_docs = _okf_match(base_question, limit=3)
+            if okf_docs:
+                logger.info("OKF injection: adding %d curated entries", len(okf_docs))
+                all_docs = okf_docs + all_docs
+                raw_docs_copy = okf_docs + raw_docs_copy
+        except Exception:
+            pass  # non-fatal; OKF must never break retrieval
+
+    # RAGFlow Gap 1: adaptive deep-research sufficiency loop.
+    # Auto-fires for tier3_complex + standard; opt-in via rag_deep_research_enabled.
+    # ponytail: inline call — shortest diff, no new graph node. Non-fatal on failure.
+    if (
+        getattr(settings, "rag_deep_research_enabled", False)
+        or state.get("query_tier") == "tier3_complex"
+        or state.get("intent") == "standard"
+    ):
+        try:
+            from rag.nodes.deep_research import conduct_deep_research
+
+            all_docs = await conduct_deep_research(
+                base_question, all_docs, state, depth=getattr(settings, "rag_deep_research_max_depth", 2)
+            )
+        except Exception as e:
+            logger.warning("Deep research failed (non-fatal): %s", e)
 
     if getattr(settings, "rag_context_compression_enabled", True):
         question = state.get("rewritten_query") or state["question"]

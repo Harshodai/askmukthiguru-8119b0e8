@@ -15,6 +15,79 @@ from services.user_profile_service import SpiritualLevel
 router = APIRouter(tags=["Memory"])
 
 
+class EpisodeResponse(BaseModel):
+    id: str
+    query: str
+    answer: str
+    citations: list = []
+    intent: Optional[str] = None
+    created_at: str
+
+
+class EpisodeListResponse(BaseModel):
+    episodes: list[EpisodeResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+def _episode_from_row(r: dict) -> EpisodeResponse:
+    created = r.get("created_at")
+    if not isinstance(created, str):
+        created = created.isoformat() if created else ""
+    citations = r.get("citations") or []
+    if isinstance(citations, str):
+        import json as _json
+
+        try:
+            citations = _json.loads(citations)
+        except Exception:
+            citations = []
+    return EpisodeResponse(
+        id=str(r.get("id", "")),
+        query=r.get("query", ""),
+        answer=r.get("answer", ""),
+        citations=list(citations),
+        intent=r.get("intent"),
+        created_at=created,
+    )
+
+
+@router.get("/memory/episodes", response_model=EpisodeListResponse)
+async def list_episodes_endpoint(
+    page: int = 1,
+    page_size: int = 20,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> EpisodeListResponse:
+    """List the authenticated user's recent conversation episodes, paginated."""
+    svc = getattr(container, "episodic_memory_service", None)
+    if svc is None or not svc.available:
+        raise HTTPException(status_code=501, detail="Episodic memory service not enabled")
+    page = max(1, page)
+    page_size = max(1, min(page_size, 100))
+    rows = await svc.retrieve_recent(user["id"], limit=page_size)
+    episodes = [_episode_from_row(r) for r in rows]
+    return EpisodeListResponse(episodes=episodes, total=len(episodes), page=page, page_size=page_size)
+
+
+@router.get("/memory/episodes/search", response_model=list[EpisodeResponse])
+async def search_episodes_endpoint(
+    q: str,
+    limit: int = 20,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> list[EpisodeResponse]:
+    """Substring search over the authenticated user's episodes (query + answer)."""
+    svc = getattr(container, "episodic_memory_service", None)
+    if svc is None or not svc.available:
+        raise HTTPException(status_code=501, detail="Episodic memory service not enabled")
+    if not q or not q.strip():
+        return []
+    rows = await svc.search(user["id"], q, limit=limit)
+    return [_episode_from_row(r) for r in rows]
+
+
 class GuruMemoryResponse(BaseModel):
     id: str
     claim: str

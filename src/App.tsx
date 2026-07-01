@@ -24,6 +24,7 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const TTSVerificationPage = lazy(() => import("./pages/TTSVerificationPage"));
 const SpiritGuidesPage = lazy(() => import("./pages/guides/SpiritGuidesPage"));
+const StudyNotebookPage = lazy(() => import("./pages/StudyNotebookPage"));
 
 // Admin
 const AdminLoginPage = lazy(() => import("./admin/pages/AdminLoginPage"));
@@ -45,6 +46,7 @@ const AlertsPage = lazy(() => import("./admin/pages/AlertsPage"));
 const SettingsPage = lazy(() => import("./admin/pages/SettingsPage"));
 const AdminsPage = lazy(() => import("./admin/pages/AdminsPage"));
 const FeedbackPage = lazy(() => import("./admin/pages/FeedbackPage"));
+const OkfManagerPage = lazy(() => import("./admin/pages/OkfManager"));
 const JobsPage = lazy(() => import("./admin/pages/JobsPage"));
 const RAGFlowPage = lazy(() => import("./admin/pages/RAGFlowPage"));
 
@@ -97,6 +99,7 @@ const App = () => {
               <Route path="settings" element={<SettingsPage />} />
               <Route path="admins" element={<AdminsPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
+              <Route path="okf" element={<OkfManagerPage />} />
               <Route path="rag-flow" element={
                 <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
               } />
@@ -117,6 +120,7 @@ const App = () => {
               <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
               <Route path="/guides/spirit-guides" element={<Suspense fallback={<BrandedSpinner />}><SpiritGuidesPage /></Suspense>} />
+              <Route path="/notebooks" element={<Suspense fallback={<BrandedSpinner />}><StudyNotebookPage /></Suspense>} />
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
             </Route>
           </Routes>
