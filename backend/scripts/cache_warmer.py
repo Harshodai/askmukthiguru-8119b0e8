@@ -157,33 +157,22 @@ class CacheWarmer:
         This is the preferred mode — responses are identical to production queries
         and the pipeline_coordinator automatically writes to semantic cache on success.
         """
-        print("Pipeline warm: hitting /api/chat with doctrine questions...")
+        print("Pipeline warm: executing ChatRequestOrchestrator directly with doctrine questions...")
 
-        from fastapi.testclient import TestClient
-        from app.main import app
-        from services.auth_service import get_current_user_from_supabase
-        from app.config import settings
+        from app.orchestrator import ChatRequestOrchestrator
+        from app.schemas import ChatRequest
+        from fastapi import BackgroundTasks
         from app.dependencies import get_container
-
-        # Override auth dependency to allow local warming without credentials
-        app.dependency_overrides[get_current_user_from_supabase] = lambda: {
-            "id": "00000000-0000-0000-0000-000000000000",
-            "email": "benchmark-admin@mukthi.guru",
-            "is_superuser": True,
-            "provider": "test",
-            "tenant_id": "00000000-0000-0000-0000-000000000000",
-        }
-
-        # Select a valid host from allowed_hosts to prevent TrustedHostMiddleware blocks
-        allowed = [h.strip() for h in settings.allowed_hosts.split(",") if h.strip() and "*" not in h]
-        host = allowed[0] if allowed else "localhost"
-        client = TestClient(app, base_url=f"http://{host}")
 
         # Inject Mock LLM Strategy to bypass restricted sandbox network constraints
         container = get_container()
         original_ollama = container.ollama
         original_openrouter = getattr(container, "openrouter", None)
         original_sarvam = getattr(container, "sarvam_cloud", None)
+
+        class MockRequest:
+            def __init__(self):
+                self.headers = {}
 
         class MockLLMService:
             async def generate(self, system_prompt, user_prompt, **kwargs):
@@ -237,37 +226,44 @@ class CacheWarmer:
         if hasattr(container, "sarvam_cloud"):
             container.sarvam_cloud = mock_instance
 
+        orchestrator = ChatRequestOrchestrator(container)
+
         try:
             for category, questions in CACHE_WARMER_QUESTIONS.items():
                 print(f"\n{category}")
                 for question in questions:
                     self.stats["total"] += 1
                     try:
-                        response = client.post(
-                            "/api/chat",
-                            json={
-                                "messages": [],
-                                "user_message": question
-                            },
-                            timeout=120,
+                        bg_tasks = BackgroundTasks()
+                        chat_body = ChatRequest(
+                            messages=[],
+                            user_message=question
                         )
-                        if response.status_code == 200:
-                            self.stats["warmed"] += 1
-                            print(f"  WARMED: {question[:60]}")
-                        else:
-                            self.stats["errors"] += 1
-                            print(f"  ERROR ({response.status_code}): {question[:60]}")
+                        # Call orchestrator directly (bypassing rate limiters, SSE, and queues)
+                        await orchestrator.orchestrate(
+                            request=MockRequest(),
+                            chat_body=chat_body,
+                            background_tasks=bg_tasks,
+                            user={
+                                "id": "00000000-0000-0000-0000-000000000000",
+                                "email": "benchmark-admin@mukthi.guru",
+                                "is_superuser": True,
+                                "provider": "test",
+                                "tenant_id": "00000000-0000-0000-0000-000000000000",
+                            }
+                        )
+                        self.stats["warmed"] += 1
+                        print(f"  WARMED: {question[:60]}")
                     except Exception as e:
                         self.stats["errors"] += 1
                         print(f"  EXCEPTION: {question[:60]} — {e}")
         finally:
-            # Always clean up overrides and restore original LLM singletons
+            # Always clean up and restore original LLM singletons
             container.ollama = original_ollama
             if hasattr(container, "openrouter"):
                 container.openrouter = original_openrouter
             if hasattr(container, "sarvam_cloud"):
                 container.sarvam_cloud = original_sarvam
-            app.dependency_overrides.clear()
 
         return self.stats
 
