@@ -9,7 +9,7 @@ const TermsPage = () => {
     canonical: 'https://askmukthiguru.lovable.app/terms',
   });
   return (
-  <main className="min-h-screen bg-background text-foreground px-4 py-10">
+  <main className="min-h-dvh bg-background text-foreground px-4 py-10">
     <div className="max-w-2xl mx-auto space-y-6">
       <Link to="/" className="inline-flex items-center gap-2 text-ojas hover:underline">
         <Sparkles className="w-4 h-4" /> AskMukthiGuru

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 export const Footer = forwardRef<HTMLElement>((_, ref) => {
   return (
-    <footer ref={ref} className="py-12 relative overflow-hidden border-t border-border bg-muted/30">
+    <footer ref={ref} className="py-12 pb-[calc(3rem+env(safe-area-inset-bottom))] relative overflow-hidden border-t border-border bg-muted/30">
       <div className="relative z-10 container mx-auto px-6">
         <div className="flex flex-col items-center text-center">
           {/* Logo */}
