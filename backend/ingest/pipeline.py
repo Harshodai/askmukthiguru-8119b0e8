@@ -1009,7 +1009,8 @@ class IngestionPipeline:
 
     async def _consolidate_graph_entities(self) -> None:
         """
-        Consolidate duplicate entities in Neo4j (e.g. Krishnaji vs Sri Krishnaji).
+        Consolidate duplicate entities in Neo4j (e.g. Krishnaji vs Sri Krishnaji)
+        and runs the self-healing sequence to prune orphans and synchronize Qdrant.
         Runs as a post-ingestion cleanup to maintain high graph data quality.
         """
         from neo4j import GraphDatabase
@@ -1026,16 +1027,16 @@ class IngestionPipeline:
             return cleaned.strip().lower()
 
         try:
-            logger.info("Consolidating duplicate graph entities in Neo4j...")
+            logger.info("Running post-ingestion self-healing and entity consolidation...")
             def run_consolidation():
                 try:
                     driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+                    neo4j_entities = set()
                     with driver.session() as session:
-                        # 1. Fetch nodes
+                        # 1. Entity consolidation
                         res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN elementId(n) as id, n.entity_id as name, n.description as desc")
                         nodes = [{"id": r["id"], "name": r["name"], "desc": r["desc"] or ""} for r in res]
                         
-                        # 2. Group duplicates
                         groups = defaultdict(list)
                         for node in nodes:
                             cleaned = clean_name(node["name"])
@@ -1043,13 +1044,11 @@ class IngestionPipeline:
                                 continue
                             groups[cleaned].append(node)
                             
-                        # 3. Merge groups with > 1 node
                         merged_total = 0
                         for cleaned_root, group in groups.items():
                             if len(group) <= 1:
                                 continue
                                 
-                            # Select master based on relationship count
                             node_metrics = []
                             for node in group:
                                 deg_res = session.run("MATCH (n:base) WHERE elementId(n) = $node_id RETURN COUNT { (n)-[]-() } as degree", node_id=node["id"]).single()
@@ -1060,10 +1059,8 @@ class IngestionPipeline:
                             master = node_metrics[0][3]
                             duplicates = [x[3] for x in node_metrics[1:]]
                             
-                            # Merge each duplicate node into master
                             for dup in duplicates:
                                 with session.begin_transaction() as tx:
-                                    # Outgoing relationships
                                     tx.run("""
                                     MATCH (dup:base)-[r]->(target)
                                     WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
@@ -1073,7 +1070,6 @@ class IngestionPipeline:
                                     DELETE r
                                     """, dup_id=dup["id"], master_id=master["id"])
                                     
-                                    # Incoming relationships
                                     tx.run("""
                                     MATCH (source)-[r]->(dup:base)
                                     WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
@@ -1083,7 +1079,6 @@ class IngestionPipeline:
                                     DELETE r
                                     """, dup_id=dup["id"], master_id=master["id"])
                                     
-                                    # Descriptions
                                     if dup["desc"] and dup["desc"] != master["desc"]:
                                         combined = master["desc"] + " | " + dup["desc"]
                                         if len(combined) > 2000:
@@ -1091,19 +1086,78 @@ class IngestionPipeline:
                                         tx.run("MATCH (m:base) WHERE elementId(m) = $master_id SET m.description = $desc", master_id=master["id"], desc=combined)
                                         master["desc"] = combined
                                         
-                                    # Delete duplicate node
                                     tx.run("MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup", dup_id=dup["id"])
                                     merged_total += 1
-                                    
-                        logger.info(f"Ingestion entity consolidation complete: merged {merged_total} duplicate nodes.")
+                        
+                        if merged_total > 0:
+                            logger.info(f"Ingestion entity consolidation complete: merged {merged_total} duplicate nodes.")
+
+                        # 2. Prune orphaned nodes (0 relationships)
+                        orphans_res = session.run("MATCH (n:base) WHERE NOT (n)-[]-() RETURN count(n) as c").single()
+                        orphans = orphans_res["c"] if orphans_res else 0
+                        if orphans > 0:
+                            session.run("MATCH (n:base) WHERE NOT (n)-[]-() DETACH DELETE n")
+                            logger.info(f"Ingestion data cleanup: pruned {orphans} orphaned Neo4j nodes.")
+
+                        # 3. Clean corrupted types
+                        corrupted_res = session.run("""
+                            MATCH (n:base) 
+                            WHERE n.entity_type IS NOT NULL AND (
+                                n.entity_type CONTAINS '"' OR 
+                                n.entity_type CONTAINS '\\\\' OR 
+                                size(n.entity_type) > 50
+                            )
+                            RETURN count(n) as c
+                        """).single()
+                        corrupted = corrupted_res["c"] if corrupted_res else 0
+                        if corrupted > 0:
+                            session.run("""
+                                MATCH (n:base) 
+                                WHERE n.entity_type IS NOT NULL AND (
+                                    n.entity_type CONTAINS '"' OR 
+                                    n.entity_type CONTAINS '\\\\' OR 
+                                    size(n.entity_type) > 50
+                                )
+                                DETACH DELETE n
+                            """)
+                            logger.info(f"Ingestion data cleanup: deleted {corrupted} corrupted entity type nodes.")
+
+                        # Fetch remaining entities for cross check
+                        active_res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name")
+                        neo4j_entities = {r["name"].strip().lower() for r in active_res if r["name"]}
                     driver.close()
+
+                    # 4. Synchronize Qdrant Vector Mismatches
+                    from qdrant_client import QdrantClient
+                    qdrant_url = getattr(settings, "qdrant_url", "http://localhost:6333")
+                    qdrant = QdrantClient(url=qdrant_url, timeout=15)
+                    all_cols = {c.name for c in qdrant.get_collections().collections}
+                    entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
+                    
+                    total_deleted_points = 0
+                    for col in entity_cols:
+                        cnt = qdrant.count(col, exact=True).count
+                        if cnt > 0:
+                            res_pts, _ = qdrant.scroll(collection_name=col, limit=min(cnt, 10000), with_payload=True)
+                            points_to_delete = []
+                            for p in res_pts:
+                                pay = p.payload or {}
+                                ent_name = pay.get("entity_name") or pay.get("entity_id") or pay.get("id")
+                                if ent_name:
+                                    if str(ent_name).strip().lower() not in neo4j_entities:
+                                        points_to_delete.append(p.id)
+                            if points_to_delete:
+                                qdrant.delete(collection_name=col, points_selector=points_to_delete)
+                                total_deleted_points += len(points_to_delete)
+                    if total_deleted_points > 0:
+                        logger.info(f"Ingestion Qdrant synchronization: pruned {total_deleted_points} orphaned vector points.")
                 except Exception as ex:
-                    logger.error(f"Error inside entity consolidation run: {ex}")
+                    logger.error(f"Error inside post-ingestion self-healing: {ex}")
 
             # Run in executor to keep it async friendly
             await asyncio.get_event_loop().run_in_executor(None, run_consolidation)
         except Exception as e:
-            logger.error(f"Failed to consolidate entities in Neo4j during ingestion: {e}")
+            logger.error(f"Failed to trigger post-ingestion self-healing: {e}")
 
     def _embed_and_index(
         self,
