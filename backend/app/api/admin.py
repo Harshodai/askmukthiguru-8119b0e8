@@ -8,7 +8,7 @@ import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.dependencies import ServiceContainer, get_container
 from app.telemetry_db import (
@@ -665,6 +665,50 @@ async def compile_okf_index(user: dict = Depends(get_current_user_from_supabase)
     from services.memory.compiler import compile_okf
     path = compile_okf()
     return {"status": "ok", "path": str(path)}
+
+
+class OkfExtractRequest(BaseModel):
+    topic: Optional[str] = None
+    video_id: Optional[str] = None
+    limit: int = Field(default=20, ge=1, le=100)
+    auto_approve: bool = False
+    mode: str = Field(default="direct", description="'direct' (run inline) or 'celery' (queue async)")
+
+
+@admin_router.post("/okf/extract")
+async def extract_okf_entries(
+    body: OkfExtractRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+):
+    """Extract OKF entries from Qdrant/Neo4j/LightRAG via LLM synthesis. Admin only."""
+    _require_admin(user)
+
+    if body.mode == "celery":
+        from tasks.okf_extract_tasks import extract_okf_entries as celery_extract
+
+        task = celery_extract.delay(
+            target_topic=body.topic,
+            target_video_id=body.video_id,
+            limit=body.limit,
+            auto_approve=body.auto_approve,
+        )
+        return {"status": "queued", "task_id": task.id, "mode": "celery"}
+
+    # Direct mode — run inline (may take 30-120s for LLM calls)
+    from scripts.extract_okf_from_stores import extract_okf
+
+    paths = await extract_okf(
+        target_topic=body.topic,
+        target_video_id=body.video_id,
+        limit=body.limit,
+        auto_approve=body.auto_approve,
+    )
+    return {
+        "status": "ok",
+        "entries_written": len(paths),
+        "paths": [str(p) for p in paths],
+        "mode": "approved" if body.auto_approve else "staging",
+    }
 
 
 class AppSettingsUpdate(BaseModel):

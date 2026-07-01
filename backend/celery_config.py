@@ -22,7 +22,7 @@ celery_app = Celery(
     "mukthi_guru",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["tasks.ingest_tasks"],
+    include=["tasks.ingest_tasks", "tasks.okf_extract_tasks"],
 )
 
 celery_app.conf.update(
@@ -59,6 +59,7 @@ celery_app.conf.task_routes = {
     "tasks.ingest_tasks.index_vectors": {"queue": "indexing"},
     "tasks.ingest_tasks.orchestrate_ingestion": {"queue": "ingestion"},
     "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},
+    "tasks.okf_extract_tasks.extract_okf_entries": {"queue": "okf"},
 }
 
 
