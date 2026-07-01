@@ -973,13 +973,14 @@ export const ChatInterface = () => {
                 timestamp: new Date(),
               },
             ]);
+            const customMed = streamedProactiveSereneMind?.custom_meditation;
             setTimeout(() => {
               setIsAwaitingSereneMind(true);
               setSereneMindOnComplete(() => {
                 setIsAwaitingSereneMind(false);
                 setSereneMindOnComplete(null);
               });
-              openSereneMind('breathing', true);
+              openSereneMind('breathing', true, customMed?.steps, customMed?.source_teaching);
             }, 7000);
           }
 
@@ -1155,7 +1156,8 @@ setIsAwaitingSereneMind(true);
                 setIsAwaitingSereneMind(false);
                 setSereneMindOnComplete(null);
               });
-              openSereneMind('breathing', true);
+              const customMed = response.proactiveSereneMind?.custom_meditation;
+              openSereneMind('breathing', true, customMed?.steps, customMed?.source_teaching);
             }, 7000);
         }
 

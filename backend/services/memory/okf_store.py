@@ -22,7 +22,10 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
-_OKF_DIR = Path(__file__).resolve().parents[3] / "memory" / "okf"
+_base_path = Path(__file__).resolve().parent
+while _base_path.name and _base_path.name != "backend":
+    _base_path = _base_path.parent
+_OKF_DIR = (_base_path.parent / "memory" / "okf") if _base_path.name else Path("/app/memory/okf")
 
 
 @dataclass(frozen=True)

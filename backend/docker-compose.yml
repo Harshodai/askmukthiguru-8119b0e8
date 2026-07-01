@@ -235,7 +235,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 60s
+      start_period: 180s
     deploy:
       resources:
         limits:
@@ -257,6 +257,7 @@ services:
       - ./benchmarks:/app/benchmarks
       - ../scripts:/app/scripts
       - ../results:/app/results
+      - ../memory:/app/memory
       - ./repos/LightRAG/lightrag:/usr/local/lib/python3.12/site-packages/lightrag
     # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:

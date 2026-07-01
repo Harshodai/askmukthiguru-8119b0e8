@@ -35,6 +35,8 @@ export interface AIResponse {
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
+import type { MeditationStep } from '@/components/meditation/meditationSteps';
+
 export interface ProactiveSereneMindTrigger {
   triggered: boolean;
   level?: string;
@@ -43,6 +45,11 @@ export interface ProactiveSereneMindTrigger {
   suggested_response?: string;
   /** Krishnaji/Preethaji teaching streamed as a guru message before the modal opens */
   teachings_prelude?: string;
+  /** Teachings-infused custom meditation steps (alternative to default Serene Mind) */
+  custom_meditation?: {
+    source_teaching?: string;
+    steps: MeditationStep[];
+  };
 }
 
 /** Streaming chunk: either a content token, a pipeline status update, or final metadata */

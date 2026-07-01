@@ -131,6 +131,15 @@ def extract_doctrine_tags(text: str) -> list[str]:
     return list(matched)
 
 
+async def _okf_extract_for_video(video_id: str) -> None:
+    """Fire-and-forget OKF extraction for a single video. Non-fatal."""
+    try:
+        from scripts.extract_okf_from_stores import extract_okf
+        await extract_okf(target_video_id=video_id, limit=5, auto_approve=False)
+    except Exception:
+        pass  # ponytail: OKF extraction is optional augmentation
+
+
 class IngestionPipeline:
     """
     Orchestrates the full content ingestion workflow.
@@ -571,6 +580,19 @@ class IngestionPipeline:
             await self._lightrag.ainsert(clean_text)
 
         checkpoint.save(content_hash)
+
+        # OKF auto-extraction: fire-and-forget for newly ingested content.
+        # ponytail: gated by rag_okf_auto_extract_enabled (default off).
+        # Non-fatal — OKF extraction must never break ingestion.
+        if getattr(settings, "rag_okf_auto_extract_enabled", False):
+            try:
+                video_id = extract_video_id(url)
+                if video_id:
+                    asyncio.create_task(_okf_extract_for_video(video_id))
+                    logger.debug("OKF extraction queued for video: %s", video_id)
+            except Exception:
+                pass
+
         self._notify(on_progress, "Complete!", 1.0)
         return {
             "status": "success",
@@ -736,6 +758,23 @@ class IngestionPipeline:
             await self._lightrag.ainsert(clean_text)
 
         checkpoint.save(content_hash)
+
+        # OKF auto-extraction hook (same gate as _ingest_video)
+        if getattr(settings, "rag_okf_auto_extract_enabled", False):
+            try:
+                video_id = extract_video_id(url)
+                if video_id:
+                    asyncio.create_task(
+                        asyncio.to_thread(
+                            lambda: asyncio.run(
+                                _okf_extract_for_video(video_id)
+                            )
+                        )
+                    )
+                    logger.debug("OKF extraction queued for enhanced video: %s", video_id)
+            except Exception:
+                pass
+
         self._notify(on_progress, "Enhanced ingestion complete!", 1.0)
         return {
             "status": "success",

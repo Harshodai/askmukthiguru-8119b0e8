@@ -16,7 +16,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_OKF_DIR = Path(__file__).resolve().parents[2] / "memory" / "okf"
+_OKF_DIR = Path(__file__).resolve().parents[3] / "memory" / "okf"
 _COMPILED_PATH = _OKF_DIR / "compiled.json"
 
 
@@ -56,6 +56,17 @@ def compile_okf() -> Path:
     titles = [e["title"] for e in entries]
     embeddings = _embed_texts(titles)
 
+    # ponytail: guard against silent EmbeddingService failure —
+    # compiled.json had empty embeddings despite this code looking correct.
+    embed_ok = bool(embeddings) and any(
+        isinstance(e, (list, tuple)) and len(e) > 0 and any(e) for e in embeddings
+    )
+    if not embed_ok:
+        logger.warning(
+            "OKF embeddings are empty or all-zero — EmbeddingService may be "
+            "unavailable. Compiled index will lack semantic search capability."
+        )
+
     compiled: list[dict[str, Any]] = []
     for idx, emb in enumerate(embeddings):
         e = entries[idx]
@@ -66,7 +77,7 @@ def compile_okf() -> Path:
             "tags": e["tags"],
             "source": e["source"],
             "body": e["body"][:2000],  # truncate for size
-            "embedding": emb,
+            "embedding": emb if embed_ok else [],
         })
 
     output = {"version": 1, "entries": compiled}
