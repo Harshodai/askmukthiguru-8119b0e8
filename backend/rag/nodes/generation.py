@@ -1365,10 +1365,20 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         )
         citations = _inject_canonical_citations(answer, citations)
         citations = enforce_source_diversity(citations, min_distinct=2)
+        citations = [
+            str(c.get("url") or c.get("doc_id") or c.get("source") or "Retrieved document")
+            if isinstance(c, dict) else str(c)
+            for c in citations
+        ]
         return {"final_answer": answer, "citations": citations, "intent": intent, "_needs_retry": False}
 
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)
+    citations = [
+        str(c.get("url") or c.get("doc_id") or c.get("source") or "Retrieved document")
+        if isinstance(c, dict) else str(c)
+        for c in citations
+    ]
 
     if is_faithful and verified and confidence >= settings.confidence_gating_floor:
         pass
