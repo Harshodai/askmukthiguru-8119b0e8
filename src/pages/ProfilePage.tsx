@@ -254,7 +254,7 @@ const ProfilePage = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-dvh flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 text-ojas animate-spin" />
       </div>
     );
