@@ -297,14 +297,22 @@ def _grounded_citation_urls(docs: list[dict]) -> list[str]:
     return urls
 
 
-def _inject_canonical_citations(answer: str, existing_citations: list[str]) -> list[str]:
+def _inject_canonical_citations(answer: str, existing_citations: list[dict | str]) -> list[dict | str]:
     """Scan the LLM answer for known canonical URLs and topic keywords and inject citations."""
     if not answer:
         return existing_citations
 
     answer_lower = answer.lower()
     enriched = list(existing_citations)
-    existing_set = {u.lower() for u in existing_citations}
+    
+    existing_set = set()
+    for c in existing_citations:
+        if isinstance(c, dict):
+            val = c.get("source") or c.get("doc_id") or c.get("url") or ""
+            if val:
+                existing_set.add(str(val).lower())
+        elif isinstance(c, str):
+            existing_set.add(c.lower())
 
     for keywords, canonical_url in _CANONICAL_URL_MAP:
         if canonical_url.lower() in existing_set:

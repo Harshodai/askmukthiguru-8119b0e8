@@ -579,9 +579,6 @@ async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
             return {
                 "parallel_distress_found": True,
                 "parallel_distress_level": assessment.level.name,
-                "intent": "DISTRESS",
-                "query_tier": "tier2_simple",
-                "confidence_tier": "high",
             }
         return {"parallel_distress_found": False}
     except Exception:
