@@ -16,11 +16,10 @@ class SettingsProxy:
     def __getattr__(self, name: str) -> Any:
         import sys
         nodes = sys.modules.get("rag.nodes")
-        if nodes is not None or None:
+        if nodes is not None and hasattr(nodes, "settings") and nodes.settings is not None:
             from app.config import settings as app_settings
-            return getattr(app_settings, name)
-        if hasattr(nodes, "settings") and nodes.settings is not None:
-            return getattr(nodes.settings, name)
+            if nodes.settings is not app_settings:
+                return getattr(nodes.settings, name)
         from app.config import settings as app_settings
         return getattr(app_settings, name)
 

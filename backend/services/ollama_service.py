@@ -75,6 +75,8 @@ class OllamaService:
 
     def __init__(self) -> None:
         """Initialize the Ollama LLM clients (main + fast classifier)."""
+        raise RuntimeError("Ollama local models are strictly disabled by user request.")
+        # Legacy initialization below is dead code
         gen_model = settings.model_for_generation
         cls_model = settings.model_for_classification
 
