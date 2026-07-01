@@ -1,48 +1,221 @@
+#!/usr/bin/env python3
+"""
+Post-Ingestion Quality Auditor
+================================
+Run after every ingestion batch to assert minimum data quality thresholds
+before the backend goes live.
+
+Usage:
+    python scripts/ingestion/verify_ingestion_quality.py [--strict]
+
+Exit codes:
+    0  All checks passed (or non-strict mode)
+    1  One or more checks failed in --strict mode
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import sys
 import time
+from datetime import datetime
+from pathlib import Path
 
-import requests
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+log = logging.getLogger("audit")
+
+# ── thresholds (override via env) ────────────────────────────────────────────
+MIN_QDRANT_CHUNKS      = int(os.getenv("AUDIT_MIN_CHUNKS", "100"))
+MIN_MEDIAN_SCORE       = float(os.getenv("AUDIT_MIN_MEDIAN_SCORE", "0.05"))
+COVERAGE_THRESHOLD     = float(os.getenv("AUDIT_COVERAGE_THRESHOLD", "0.08"))
+MIN_LIGHTRAG_ENTITIES  = int(os.getenv("AUDIT_MIN_ENTITIES", "1"))
+MIN_LIGHTRAG_RELATIONS = int(os.getenv("AUDIT_MIN_RELATIONS", "1"))
+
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+COLLECTION = os.getenv("QDRANT_COLLECTION", "spiritual_wisdom")
+NEO4J_URI  = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASS = os.getenv("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+
+_results: list[dict] = []
 
 
-def test_rag_quality():
-    url = "http://localhost:8000/api/chat"
-    # Assuming we have an admin token or can bypass auth for testing locally
-    # For now, let's just try to hit the health check and see if we can trigger a trace
+def check(name: str, passed: bool, detail: str = "") -> bool:
+    icon = "✅" if passed else "❌"
+    log.info("%s %s: %s", icon, name, detail)
+    _results.append({"check": name, "passed": passed, "detail": detail})
+    return passed
 
-    print("Testing Chat Endpoint...")
-    payload = {"message": "What are the four sacred secrets?", "stream": False}
 
+# ── Qdrant checks ────────────────────────────────────────────────────────────
+def audit_qdrant() -> bool:
     try:
-        # Note: This might fail if auth is strictly enforced.
-        # I'll check if I need a token.
-        response = requests.post(url, json=payload, timeout=30)
-        print(f"Status: {response.status_code}")
-        if response.status_code == 200:
-            data = response.json()
-            print("Response received.")
-            print("Confidence/Rerank scores would be in traces.")
-        else:
-            print(f"Error: {response.text}")
+        from qdrant_client import QdrantClient  # type: ignore
+        client = QdrantClient(url=QDRANT_URL, timeout=10)
+
+        count = client.count(COLLECTION, exact=True).count
+        ok_count = check("qdrant_chunk_count", count >= MIN_QDRANT_CHUNKS,
+                         f"{count} chunks (min={MIN_QDRANT_CHUNKS})")
+
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+            model = SentenceTransformer("BAAI/bge-m3")
+            vec = model.encode("beautiful state consciousness awakening").tolist()
+            hits = client.search(COLLECTION, query_vector=("dense", vec),
+                                 limit=20, with_payload=False)
+            scores = [h.score for h in hits]
+            if scores:
+                median = sorted(scores)[len(scores) // 2]
+                ok_scores = check("qdrant_median_score", median >= MIN_MEDIAN_SCORE,
+                                  f"median={median:.4f} (min={MIN_MEDIAN_SCORE})")
+                all_below = all(s < COVERAGE_THRESHOLD for s in scores)
+                check("qdrant_coverage_gap", not all_below,
+                      f"max_score={max(scores):.4f} thresh={COVERAGE_THRESHOLD}" +
+                      (" ⚠️ ALL BELOW" if all_below else " ok"))
+            else:
+                ok_scores = check("qdrant_median_score", False, "No search hits")
+        except Exception as e:
+            ok_scores = check("qdrant_median_score", False, f"Embedding unavailable: {e}")
+
+        all_cols = {c.name for c in client.get_collections().collections}
+        for vdb_suffix, vdb in [
+            ("entities", "lightrag_vdb_entities_baai_bge_m3_1024d"),
+            ("relations", "lightrag_vdb_relationships_baai_bge_m3_1024d"),
+            ("chunks", "lightrag_vdb_chunks_baai_bge_m3_1024d"),
+        ]:
+            if vdb in all_cols:
+                n = client.count(vdb, exact=True).count
+                check(f"lightrag_vdb_{vdb_suffix}", n > 0, f"{n} records")
+            else:
+                check(f"lightrag_vdb_{vdb_suffix}", False, "Collection missing")
+
+        return ok_count and ok_scores
+
     except Exception as e:
-        print(f"Request failed: {e}")
+        check("qdrant_connection", False, str(e))
+        return False
 
 
-def check_jaeger():
-    print("\nChecking Jaeger Traces...")
-    jaeger_url = "http://localhost:16686/api/traces?service=mukthiguru-backend&limit=5"
+# ── Neo4j / LightRAG checks ──────────────────────────────────────────────────
+def audit_neo4j() -> bool:
     try:
-        response = requests.get(jaeger_url)
-        if response.status_code == 200:
-            traces = response.json().get("data", [])
-            print(f"Found {len(traces)} traces in Jaeger.")
-            for t in traces:
-                print(f"Trace ID: {t['traceID']}")
-        else:
-            print("Jaeger not reachable or no traces yet.")
+        from neo4j import GraphDatabase  # type: ignore
+        driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
+        with driver.session() as s:
+            entity_count = s.run("MATCH (n:Entity) RETURN count(n) AS c").single()["c"]
+            rel_count    = s.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
+            doc_count    = s.run("MATCH (n:Document) RETURN count(n) AS c").single()["c"]
+        driver.close()
+        ok_ent = check("neo4j_entity_count", entity_count >= MIN_LIGHTRAG_ENTITIES,
+                       f"{entity_count} entities")
+        ok_rel = check("neo4j_relation_count", rel_count >= MIN_LIGHTRAG_RELATIONS,
+                       f"{rel_count} relations")
+        check("neo4j_document_count", doc_count > 0, f"{doc_count} doc nodes")
+        return ok_ent and ok_rel
     except Exception as e:
-        print(f"Jaeger check failed: {e}")
+        check("neo4j_connection", False, str(e))
+        return False
+
+
+# ── Memory RPC health check ──────────────────────────────────────────────────
+async def audit_memory_rpc() -> bool:
+    supabase_url = os.getenv("SUPABASE_URL", "http://localhost:54321")
+    supabase_key = os.getenv("SUPABASE_KEY", "")
+    if not supabase_key:
+        check("memory_rpc_signature", False, "SUPABASE_KEY not set")
+        return False
+    try:
+        from supabase import create_client  # type: ignore
+        client = create_client(supabase_url, supabase_key)
+        dummy_vec = [0.0] * 1024
+        result = client.rpc("match_user_memories", {
+            "p_query_embedding": dummy_vec,
+            "p_k": 1,
+            "p_min_sim": 0.99,
+        }).execute()
+        check("memory_rpc_signature", True, f"callable, {len(result.data)} rows")
+        return True
+    except Exception as e:
+        msg = str(e)
+        if "PGRST202" in msg:
+            check("memory_rpc_signature", False, f"SCHEMA MISMATCH: {msg[:100]}")
+        else:
+            check("memory_rpc_signature", False, msg[:100])
+        return False
+
+
+# ── Web search smoke test ────────────────────────────────────────────────────
+async def audit_web_search() -> bool:
+    try:
+        from duckduckgo_search import DDGS  # type: ignore
+        with DDGS() as ddgs:
+            r = list(ddgs.text("Preethaji beautiful state ekam", max_results=3))
+        ok = len(r) > 0
+        check("web_search_live", ok, f"{len(r)} results from DuckDuckGo")
+        return ok
+    except Exception as e:
+        check("web_search_live", False, f"DuckDuckGo unavailable: {e}")
+        return False
+
+
+# ── Ingestion state ──────────────────────────────────────────────────────────
+def audit_ingestion_state() -> bool:
+    state_file = Path(__file__).parent / "ingestion_state.json"
+    if not state_file.exists():
+        check("ingestion_state_exists", False, str(state_file))
+        return False
+    try:
+        state = json.loads(state_file.read_text())
+        videos = state.get("processed_videos", [])
+        docs   = state.get("processed_docs", [])
+        ok = (len(videos) + len(docs)) > 0
+        check("ingestion_state_nonempty", ok,
+              f"{len(videos)} videos, {len(docs)} docs" if ok else "Empty — ingestion may not have run")
+        return ok
+    except Exception as e:
+        check("ingestion_state_parseable", False, str(e))
+        return False
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+async def main() -> int:
+    strict = "--strict" in sys.argv
+    log.info("=" * 60)
+    log.info("Post-Ingestion Quality Audit — %s", datetime.utcnow().isoformat())
+    log.info("=" * 60)
+
+    t0 = time.monotonic()
+    audit_qdrant()
+    audit_neo4j()
+    await audit_memory_rpc()
+    await audit_web_search()
+    audit_ingestion_state()
+    elapsed = time.monotonic() - t0
+
+    passed = sum(1 for r in _results if r["passed"])
+    total  = len(_results)
+    failed = total - passed
+
+    log.info("=" * 60)
+    log.info("RESULT: %d/%d checks passed in %.1fs", passed, total, elapsed)
+    for r in _results:
+        if not r["passed"]:
+            log.warning("  ❌ %s — %s", r["check"], r["detail"])
+
+    report_path = Path("logs") / f"ingestion_quality_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    report_path.parent.mkdir(exist_ok=True)
+    report_path.write_text(json.dumps(
+        {"timestamp": datetime.utcnow().isoformat(),
+         "checks": _results,
+         "summary": {"passed": passed, "failed": failed, "total": total}},
+        indent=2
+    ))
+    log.info("Report → %s", report_path)
+
+    return 1 if (strict and failed > 0) else 0
 
 
 if __name__ == "__main__":
-    test_rag_quality()
-    time.sleep(2)
-    check_jaeger()
+    sys.exit(asyncio.run(main()))

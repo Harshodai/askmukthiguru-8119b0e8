@@ -348,6 +348,10 @@ class Settings(BaseSettings):
     web_search_timeout: int = 10  # Web search timeout in seconds
     web_search_parallel: bool = True  # Run web search in parallel with RAG retrieval
     searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
+    # Coverage-gap: if ALL retrieved docs score below this, treat as zero-coverage → fire web search
+    web_search_coverage_threshold: float = 0.08
+    # LightRAG per-call timeout headroom (prevents 145s spike seen in logs)
+    lightrag_retrieval_timeout: int = 30
 
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces

@@ -62,6 +62,7 @@ class MemoryService:
             query_embedding = emb_dict["dense"]
 
             # Call the match_user_memories RPC function
+            # NOTE: DB signature has 3 params (no p_user_id) — do NOT add it back
             result = await asyncio.to_thread(
                 self._supabase.rpc(
                     "match_user_memories",
