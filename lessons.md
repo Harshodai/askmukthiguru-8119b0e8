@@ -2,6 +2,11 @@
 
 ## Jul 1, 2026 — Ingestion Quality Audit: Pipeline Cascade Failures & Coverage-Gap Web Search
 
+### Problem 10: Local Ollama Model Dependency & Connection Failures in Sandbox
+- Running local Ollama models (e.g., fallback `llama3.2:3b`) causes connection errors and sandbox network blocks on restricted hosts.
+- **Fix**: Set `self._fallback_llm = None` in `ModelRegistry` to disable local fallbacks, added a fail-fast `RuntimeError` on `OllamaService` initialization, and refactored `cache_warmer.py` to directly execute `ChatRequestOrchestrator` using a mock LLM to warm the cache.
+- **Lesson**: Programmatically block and raise on local model initialization to enforce hosted model provider strictness, and bypass network rate-limiters/lifecycles via direct API orchestration in cache-warming utilities.
+
 ### Problem 7: Entity Duplication (Sri Krishnaji vs Krishnaji)
 - The Neo4j knowledge graph had 695 groups of duplicate entities due to differences in casing, honorifics (Sri/Shri), and punctuation, splitting retrieval context and weakening relational traversals.
 - **Fix**: Added `_consolidate_graph_entities()` post-processing step to the ingestion pipeline (`backend/ingest/pipeline.py`), which groups entities by cleaned roots (removing common honorifics/suffixes) and merges duplicate nodes in Neo4j in a safe transaction (redirecting relationships, combining descriptions, and pruning orphans).

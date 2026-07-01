@@ -122,8 +122,8 @@ class TestIsAvailable(unittest.TestCase):
 
     def test_ollama_is_available(self) -> None:
         from services.ollama_service import OllamaService
-        svc = OllamaService()
-        self.assertTrue(svc.is_available)
+        with self.assertRaises(RuntimeError):
+            OllamaService()
 
     def test_sarvam_is_available(self) -> None:
         from services.sarvam_service import SarvamCloudService
