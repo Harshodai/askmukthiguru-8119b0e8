@@ -1,6 +1,67 @@
-# Ruthless Finish Sprint — P2 → P4
+# Ruthless Finish Sprint — Status
 
-Continuing from P1 (already shipped: hero padding, avatar contrast, scroll-margin, cookie banner compact). Confidence today: **7.5/10**. Target after this sprint: **9.5/10**.
+**Confidence: 8.5 / 10** (up from 7.5). Landing + auth surfaces WCAG-AA clean, layout jump-free, tablet-safe. Chat surface is functionally complete but not yet on AI Elements — flagged as a separate destructive sprint (see bottom).
+
+## ✅ Shipped this pass
+
+### Layout & dvh (Sprint A)
+- `min-h-screen` → `min-h-dvh` swept across 14 pages/components (PracticeDetail, Terms, NotFound, TTS, ResetPassword, Profile, Privacy, Practices, Auth, AuthLatency, AdminShell, AnimatedLayout, AdminLogin, AdminErrorBoundary). No more Safari URL-bar jump.
+- Footer: `pb-[calc(3rem+env(safe-area-inset-bottom))]` — respects iOS home-indicator.
+- Cookie banner: same safe-area padding at top and bottom, plus `md:max-w-md` cap so it stops spanning full width on tablets.
+
+### Tablet (Sprint B)
+- Cookie banner width capped at tablet.
+- Hero already `md:max-w-3xl lg:max-w-5xl` (P1 pass).
+- Chat header: already responsive (avatar+title truncate ladder, memory pill hidden <sm, export hidden <sm) — verified, no fix needed.
+
+### Typography (Sprint C, partial)
+- Verified: body copy uses Inter (index.css:140), monospace is confined to error codes and code blocks — no landing body text is mono.
+- `.prose` already uses `prose-p:leading-relaxed`. No global sweep needed.
+
+### Accessibility (Sprint D)
+- Navbar hamburger: `aria-label` + `aria-expanded` + `aria-controls="mobile-nav"` ✅
+- Cookie dismiss: `aria-label="Dismiss"` ✅
+- ChatHeader icon-only buttons all have `aria-label` ✅
+- Practice fav star: `aria-pressed={fav}` ✅
+- Hero image: `alt=""` (decorative) ✅
+- `<html lang="en">` ✅
+- React Router v7 future flags (`v7_startTransition`, `v7_relativeSplatPath`) ✅
+- Avatar contrast (P1): solid gold disc + `text-primary-foreground` ✅
+- CTA disclaimer (P1): `bg-background/60 backdrop-blur-sm` for AA ✅
+
+### Build health
+- `tsgo` clean (fixed `StudyNotebook | undefined` in ChatMessage).
+- Console: only harmless `RESET_BLANK_CHECK` from lovable.js sandbox — not app code.
+
+## 🟡 Deferred — chat AI Elements migration (Sprint E)
+
+**Not shipped this pass.** Reason: the current `ChatMessage`/`ChatInterface`/`MessageList`/`SlashCommandMenu`/`ThinkingPills`/`WisdomCardGenerator`/`ChatErrorBanner` stack carries ~15 domain features (streaming, regenerate, edit-in-place with resubmit, virtualized rendering, TTS, wisdom-card export, meditation gate, sample pills, quick actions, error-code panel, feedback capture). A faithful AI Elements composition preserving all of these is a 45–60 min focused sprint of its own with real regression risk. Rushing it in the same pass would trade a working chat for a partially working AI-Elements shell.
+
+**Proposal:** approve a dedicated next turn for it. Scope:
+1. `bun x ai-elements@latest add conversation message prompt-input shimmer tool`
+2. Wrap existing `MessageList` inside `<Conversation><ConversationContent>` with `<ConversationScrollButton>`.
+3. Migrate assistant text rendering to `MessageResponse` (keep custom actions row as siblings).
+4. Composer → `PromptInput` + footer with mic/language/submit (preserve `sendMessageStreaming`).
+5. Thinking pills → `Shimmer` ("Reflecting…"). Empty state uses guru portrait, not Sparkles.
+6. Playwright verify 384/820/1440.
+
+## Confidence per surface (post this pass)
+
+| Surface | Score | Notes |
+|---|---|---|
+| Landing `/` | 9 / 10 | Distinctive, accessible, tablet-safe. |
+| Auth `/auth` | 9 / 10 | Cookie banner no longer blocks. |
+| Chat `/chat` | 7.5 / 10 | Feature-rich and accessible, custom (not AI Elements). |
+| Practices | 8 / 10 | Fav a11y done. |
+| Profile / Admin | 8 / 10 | dvh fixed. |
+| **Overall** | **8.5 / 10** | Ceiling to 9.5 gated on AI Elements migration. |
+
+---
+
+**Original audit history preserved below.**
+
+---
+
 
 ## Scope (what you asked for)
 
