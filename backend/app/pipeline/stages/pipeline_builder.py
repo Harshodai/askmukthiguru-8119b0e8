@@ -23,6 +23,7 @@ from app.pipeline.stages.guardrail_stage import (
     InputGuardrailStage,
     OutputGuardrailStage,
 )
+from app.pipeline.stages.meditation_gen_stage import MeditationGenStage
 from app.pipeline.stages.memory_stage import MemoryStage
 
 
@@ -36,6 +37,7 @@ def build_default_pipeline() -> list[Stage]:
         CasualShortCircuitStage(),
         DistressStage(),
         GraphStage(),
+        MeditationGenStage(),
         TranslationStage(),
         MemoryStage(),
         OutputGuardrailStage(),

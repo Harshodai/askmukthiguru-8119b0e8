@@ -41,7 +41,10 @@ logger = logging.getLogger(__name__)
 
 # ponytail: lightweight OKF compiled-index loader (Phase 2b).
 # Avoids heavy startup — reads disk lazily, cached per-process via module-level cache.
-_OKF_COMPILED_PATH = __import__("pathlib").Path(__file__).resolve().parents[3] / "memory" / "okf" / "compiled.json"
+_base_path = __import__("pathlib").Path(__file__).resolve().parent
+while _base_path.name and _base_path.name != "backend":
+    _base_path = _base_path.parent
+_OKF_COMPILED_PATH = (_base_path.parent / "memory" / "okf" / "compiled.json") if _base_path.name else __import__("pathlib").Path("/app/memory/okf/compiled.json")
 _OKF_CACHE: list[dict] | None = None
 
 
@@ -60,12 +63,51 @@ def _load_okf_entries() -> list[dict]:
     return _OKF_CACHE
 
 
+def _cosine(a: list[float], b: list[float]) -> float:
+    """Cosine similarity between two equal-length float vectors."""
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = (sum(x * x for x in a)) ** 0.5
+    norm_b = (sum(x * x for x in b)) ** 0.5
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 def _okf_match(query: str, limit: int = 3) -> list[dict]:
-    """Return OKF entries whose title/body overlaps with query keywords."""
-    import re as _re
+    """Semantic match via cosine similarity on title embeddings; keyword fallback."""
     entries = _load_okf_entries()
     if not entries:
         return []
+
+    # Try semantic matching first
+    try:
+        from services.embedding_service import EmbeddingService
+        embedder = EmbeddingService()
+        q_vec = embedder.encode([query])[0]
+        scored: list[tuple[float, dict]] = []
+        for e in entries:
+            emb = e.get("embedding", [])
+            if emb and len(emb) > 0:
+                scored.append((_cosine(q_vec, emb), e))
+        if scored:
+            scored.sort(key=lambda x: x[0], reverse=True)
+            docs = []
+            for sim, e in scored[:limit]:
+                docs.append({
+                    "text": f"{e['title']}\n\n{e.get('body', '')}",
+                    "score": 0.9 + sim * 0.1,
+                    "metadata": {
+                        "source": e.get("source", "OKF"),
+                        "title": e["title"],
+                        "type": e.get("type", "okf"),
+                    },
+                })
+            return docs
+    except Exception:
+        pass  # ponytail: non-fatal; fall back to keyword
+
+    # Keyword fallback — naive word overlap when EmbeddingService unavailable
+    import re as _re
     words = set(w.lower() for w in _re.findall(r"\w+", query) if len(w) > 2)
     scored: list[tuple[float, dict]] = []
     for e in entries:
@@ -954,8 +996,14 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     raw_docs_copy = [dict(d) for d in all_docs]
 
     # Phase 2b: inject OKF compiled entries as a third retrieval channel
-    # (only when primary retrieval has results, so it acts as augmentation, not fallback).
-    if all_docs and intent not in ("CASUAL", "GREETING", "DISTRESS", "MEDITATION"):
+    # Gate controlled by rag_okf_injection_enabled (default: off).
+    # ponytail: OKF is a curated precision channel — keep infrastructure
+    # but disable until curated entries scale to justify the maintenance cost.
+    if (
+        getattr(settings, "rag_okf_injection_enabled", False)
+        and all_docs
+        and intent not in ("CASUAL", "GREETING")
+    ):
         try:
             okf_docs = _okf_match(base_question, limit=3)
             if okf_docs:

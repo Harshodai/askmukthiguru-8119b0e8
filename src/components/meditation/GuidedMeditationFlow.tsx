@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Pause, SkipForward, RotateCcw } from 'lucide-react';
-import { GUIDED_STEPS, TOTAL_DURATION_SECONDS } from './meditationSteps';
+import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import {
   generateSessionId,
@@ -11,6 +11,10 @@ import {
 interface GuidedMeditationFlowProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Teachings-infused custom steps (alternative to GUIDED_STEPS fallback) */
+  customSteps?: MeditationStep[];
+  /** Source teaching citation shown when customSteps are active */
+  sourceTeaching?: string;
 }
 
 type BreathPhase = 'inhale' | 'hold' | 'exhale';
@@ -50,7 +54,7 @@ const clearResume = () => {
   try { localStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
 };
 
-export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowProps) => {
+export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching }: GuidedMeditationFlowProps) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,8 +71,11 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
   const sessionIdRef = useRef(generateSessionId());
   const startTimeRef = useRef<number>(0);
 
-  const step = GUIDED_STEPS[currentStepIndex];
-  const isComplete = currentStepIndex >= GUIDED_STEPS.length;
+  // ponytail: prefer customSteps when provided, GUIDED_STEPS as fallback
+  const steps = customSteps ?? GUIDED_STEPS;
+
+  const step = steps[currentStepIndex];
+  const isComplete = currentStepIndex >= steps.length;
   const stepProgress = step ? Math.min(elapsed / step.durationSeconds, 1) : 1;
 
   // On open: detect unfinished prior session and offer resume.
@@ -386,9 +393,16 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
             {/* Progress indicator */}
             <MeditationProgressIndicator
               currentStep={currentStepIndex}
-              totalSteps={GUIDED_STEPS.length}
+              totalSteps={steps.length}
               stepProgress={stepProgress}
             />
+
+            {/* Source teaching attribution — only when custom */}
+            {sourceTeaching && (
+              <p className="text-xs text-muted-foreground/70 italic">
+                Infused from {sourceTeaching}
+              </p>
+            )}
 
             {/* Step content */}
             <AnimatePresence mode="wait">
@@ -463,7 +477,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose }: GuidedMeditationFlowPr
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold text-foreground">Resume your practice?</h3>
                 <p className="text-sm text-muted-foreground">
-                  You paused at <span className="text-foreground/90 font-medium">{GUIDED_STEPS[resumeOffer.stepIndex]?.title ?? 'an earlier step'}</span>.
+                  You paused at <span className="text-foreground/90 font-medium">{steps[resumeOffer.stepIndex]?.title ?? 'an earlier step'}</span>.
                   Continue right where you left off.
                 </p>
               </div>

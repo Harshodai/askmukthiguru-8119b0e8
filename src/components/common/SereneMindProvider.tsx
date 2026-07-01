@@ -1,10 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react';
 import { SereneMindModal, SereneMindTab } from '@/components/chat/SereneMindModal';
+import { GuidedMeditationFlow } from '@/components/meditation/GuidedMeditationFlow';
+import type { MeditationStep } from '@/components/meditation/meditationSteps';
 
 interface SereneMindContextValue {
   isOpen: boolean;
   isGated: boolean;
-  open: (initialTab?: SereneMindTab, gated?: boolean) => void;
+  open: (initialTab?: SereneMindTab, gated?: boolean, customSteps?: MeditationStep[], sourceTeaching?: string) => void;
   close: () => void;
   toggle: () => void;
   onComplete: (() => void) | null;
@@ -18,16 +20,25 @@ export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
   const [initialTab, setInitialTab] = useState<SereneMindTab>('breathing');
   const [isGated, setIsGated] = useState(false);
   const [onComplete, setOnCompleteState] = useState<(() => void) | null>(null);
+  const [customSteps, setCustomSteps] = useState<MeditationStep[] | undefined>();
+  const [sourceTeaching, setSourceTeaching] = useState<string | undefined>();
 
-  const open = useCallback((tab: SereneMindTab = 'breathing', gated = false) => {
-    setInitialTab(tab);
-    setIsGated(gated);
-    setIsOpen(true);
-  }, []);
+  const open = useCallback(
+    (tab: SereneMindTab = 'breathing', gated = false, steps?: MeditationStep[], teaching?: string) => {
+      setInitialTab(tab);
+      setIsGated(gated);
+      setCustomSteps(steps);
+      setSourceTeaching(teaching);
+      setIsOpen(true);
+    },
+    [],
+  );
 
   const close = useCallback(() => {
     setIsOpen(false);
     setIsGated(false);
+    setCustomSteps(undefined);
+    setSourceTeaching(undefined);
   }, []);
 
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
@@ -42,19 +53,28 @@ export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
 
   const value = useMemo(
     () => ({ isOpen, isGated, open, close, toggle, onComplete, setOnComplete }),
-    [isOpen, isGated, open, close, toggle, onComplete, setOnComplete]
+    [isOpen, isGated, open, close, toggle, onComplete, setOnComplete],
   );
 
   return (
     <SereneMindContext.Provider value={value}>
       {children}
-      <SereneMindModal
-        isOpen={isOpen}
-        onClose={close}
-        initialTab={initialTab}
-        isGated={isGated}
-        onComplete={handleComplete}
-      />
+      {customSteps && customSteps.length > 0 ? (
+        <GuidedMeditationFlow
+          isOpen={isOpen}
+          onClose={close}
+          customSteps={customSteps}
+          sourceTeaching={sourceTeaching}
+        />
+      ) : (
+        <SereneMindModal
+          isOpen={isOpen}
+          onClose={close}
+          initialTab={initialTab}
+          isGated={isGated}
+          onComplete={handleComplete}
+        />
+      )}
     </SereneMindContext.Provider>
   );
 };
@@ -78,7 +98,7 @@ export const useSereneMind = (): SereneMindContextValue => {
       toggle: () => {},
       onComplete: null,
       setOnComplete: () => {},
-    };
+    } as SereneMindContextValue;
   }
   return ctx;
 };
