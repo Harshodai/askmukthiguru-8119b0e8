@@ -63,8 +63,12 @@ def audit_qdrant() -> bool:
             from sentence_transformers import SentenceTransformer  # type: ignore
             model = SentenceTransformer("BAAI/bge-m3")
             vec = model.encode("beautiful state consciousness awakening").tolist()
-            hits = client.search(COLLECTION, query_vector=("dense", vec),
-                                 limit=20, with_payload=False)
+            hits = client.query_points(
+                collection_name=COLLECTION,
+                query=vec,
+                using="dense",
+                limit=20
+            ).points
             scores = [h.score for h in hits]
             if scores:
                 median = sorted(scores)[len(scores) // 2]
@@ -80,14 +84,13 @@ def audit_qdrant() -> bool:
             ok_scores = check("qdrant_median_score", False, f"Embedding unavailable: {e}")
 
         all_cols = {c.name for c in client.get_collections().collections}
-        for vdb_suffix, vdb in [
-            ("entities", "lightrag_vdb_entities_baai_bge_m3_1024d"),
-            ("relations", "lightrag_vdb_relationships_baai_bge_m3_1024d"),
-            ("chunks", "lightrag_vdb_chunks_baai_bge_m3_1024d"),
-        ]:
-            if vdb in all_cols:
-                n = client.count(vdb, exact=True).count
-                check(f"lightrag_vdb_{vdb_suffix}", n > 0, f"{n} records")
+        for vdb_suffix in ["entities", "relationships", "chunks"]:
+            matching_cols = [c for c in all_cols if c.startswith(f"lightrag_vdb_{vdb_suffix}_")]
+            if matching_cols:
+                total_pts = 0
+                for col in matching_cols:
+                    total_pts += client.count(col, exact=True).count
+                check(f"lightrag_vdb_{vdb_suffix}", total_pts > 0, f"{total_pts} records in {matching_cols}")
             else:
                 check(f"lightrag_vdb_{vdb_suffix}", False, "Collection missing")
 
@@ -105,8 +108,14 @@ def audit_neo4j() -> bool:
         driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASS))
         with driver.session() as s:
             entity_count = s.run("MATCH (n:Entity) RETURN count(n) AS c").single()["c"]
+            if entity_count == 0:
+                entity_count = s.run("MATCH (n:base) WHERE n.entity_type = 'entity' OR n.entity_id IS NOT NULL RETURN count(n) AS c").single()["c"]
+            
             rel_count    = s.run("MATCH ()-[r]->() RETURN count(r) AS c").single()["c"]
+            
             doc_count    = s.run("MATCH (n:Document) RETURN count(n) AS c").single()["c"]
+            if doc_count == 0:
+                doc_count = s.run("MATCH (n:base) WHERE n.entity_type = 'document' OR n.file_path IS NOT NULL RETURN count(n) AS c").single()["c"]
         driver.close()
         ok_ent = check("neo4j_entity_count", entity_count >= MIN_LIGHTRAG_ENTITIES,
                        f"{entity_count} entities")

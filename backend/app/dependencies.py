@@ -116,6 +116,15 @@ class ServiceContainer:
         self.krutrim = KrutrimService()
         self.language_router = LanguageRouter()
 
+        # Initialize Supabase client early for dynamic settings loading
+        from supabase import create_client
+        self.supabase_client = None
+        if settings.supabase_url and settings.supabase_key:
+            try:
+                self.supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            except Exception as e:
+                logger.error(f"Failed to initialize Supabase client early: {e}")
+
     def _build_vector_services(self) -> None:
         """Layer 2: Embedding and semantic-router services."""
         from services.semantic_model_router import SemanticModelRouter
@@ -231,8 +240,21 @@ class ServiceContainer:
 
         # Web Search (real-time temporal queries, config-gated)
         if settings.web_search_enabled:
+            # Load dynamic allowed domains from Supabase settings table, fallback to env config list
+            allowed_domains = settings.web_search_allowed_domains_list
+            if self.supabase_client:
+                try:
+                    res = self.supabase_client.table("app_settings").select("value").eq("key", "global").execute()
+                    if res.data and len(res.data) > 0:
+                        db_val = res.data[0]["value"]
+                        if "web_search_allowed_domains" in db_val:
+                            allowed_domains = db_val["web_search_allowed_domains"]
+                            logger.info(f"Loaded allowed web search domains from DB: {allowed_domains}")
+                except Exception as e:
+                    logger.error(f"Failed to load allowed web search domains from database at startup: {e}")
+
             self.web_search = WebSearchService(
-                allowed_domains=settings.web_search_allowed_domains_list,
+                allowed_domains=allowed_domains,
                 provider=settings.web_search_provider,
                 max_results=settings.web_search_max_results,
                 searxng_url=settings.searxng_url if settings.web_search_provider == "searxng" else None,
@@ -252,18 +274,9 @@ class ServiceContainer:
             logger.info("Serene Mind Engine disabled via config (SERENE_MIND_ENABLED=false)")
 
         if settings.user_profile_enabled:
-            from supabase import create_client
-
-            supabase_client = None
-            if settings.supabase_url and settings.supabase_key:
-                try:
-                    supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-                except Exception as e:
-                    logger.error(f"Failed to initialize Supabase client: {e}")
-
-            self.user_profile = UserProfileService(supabase_client=supabase_client)
+            self.user_profile = UserProfileService(supabase_client=self.supabase_client)
             self.memory_service = MemoryServiceV2(
-                supabase_client=supabase_client,
+                supabase_client=self.supabase_client,
                 embedding_service=self.embedding,
                 llm_service=self.ollama,
             )

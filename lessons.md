@@ -2,6 +2,22 @@
 
 ## Jul 1, 2026 — Ingestion Quality Audit: Pipeline Cascade Failures & Coverage-Gap Web Search
 
+### Problem 7: Entity Duplication (Sri Krishnaji vs Krishnaji)
+- The Neo4j knowledge graph had 695 groups of duplicate entities due to differences in casing, honorifics (Sri/Shri), and punctuation, splitting retrieval context and weakening relational traversals.
+- **Fix**: Added `_consolidate_graph_entities()` post-processing step to the ingestion pipeline (`backend/ingest/pipeline.py`), which groups entities by cleaned roots (removing common honorifics/suffixes) and merges duplicate nodes in Neo4j in a safe transaction (redirecting relationships, combining descriptions, and pruning orphans).
+- **Lesson**: Standardize and consolidate entities after each knowledge graph insertion. Honorifics and casing differences must be normalized before matching nodes to prevent context fragmentation in graph-augmented generation.
+
+### Problem 8: Model-Agnostic Qdrant Check in Ingestion Quality Auditor
+- The quality verification script assumed BGE-M3 model collection suffix (`baai_bge_m3_1024d`), but the active model was `intfloat/multilingual-e5-large-instruct` (`intfloat_multilingual_e5_large_instruct_1024d`), leading to false quality check failures.
+- **Fix**: Modified `verify_ingestion_quality.py` to dynamically match collection names using prefixes (e.g. `lightrag_vdb_entities_*`) to sum counts, ensuring model-agnostic validation.
+- **Lesson**: Never hardcode exact collection names when they contain model identifiers. Use wildcard/prefix matching or read from active settings to maintain robust quality audit coverage.
+
+### Problem 9: Hardcoded Web Search Allowed Domains in Codebase
+- Web search allowed domains were hardcoded in settings and `.env` config, requiring code updates or restarts to expand domains to new approved sources (like YouTube transcripts).
+- **Fix**: Created `app_settings` Supabase table and added endpoints `GET /settings` and `POST /settings` in `admin.py` for global settings management. Wired frontend Admin `SettingsPage.tsx` to edit allowed domains. Updated `dependencies.py` to load allowed domains from DB at startup and hot-reload them in memory on save.
+- **Lesson**: Load operational RAG configurations dynamically from the database and provide memory hot-reload hooks to support real-time adjustments without container rebuilds or service interruptions.
+
+
 ### Problem 1: OpenRouter `:free` Suffix → Full Pipeline Cascade
 - `meta-llama/llama-3.1-8b-instruct:free` in env caused 404 on every OpenRouter call
 - Circuit breaker opened → killed `decompose_query`, `hyde`, `navigate_tree` (all 0ms, skipped)

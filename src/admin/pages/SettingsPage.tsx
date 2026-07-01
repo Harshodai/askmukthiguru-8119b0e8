@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getGlobalSettings, updateGlobalSettings } from "@/admin/lib/api";
 import {
   Table,
   TableBody,
@@ -103,10 +104,50 @@ function downloadCsv(filename: string, rowsIn: Array<Record<string, unknown>> | 
 export default function SettingsPage() {
   const [retention, setRetention] = useState([90]);
   const [redactPii, setRedactPii] = useState(true);
+  const [allowedDomains, setAllowedDomains] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
   const { data: queries } = useQueries({ limit: 1000 });
   const { data: runs } = useEvalRuns();
   const { data: rules } = useAlertRules();
   const pricingRows = SARVAM_PRICING;
+
+  useEffect(() => {
+    getGlobalSettings()
+      .then((data) => {
+        if (data && data.web_search_allowed_domains) {
+          setAllowedDomains(data.web_search_allowed_domains.join(", "));
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load settings:", err);
+      });
+  }, []);
+
+  const handleSaveDomains = async () => {
+    setIsSaving(true);
+    try {
+      const domainsArray = allowedDomains
+        .split(",")
+        .map((d) => d.trim().toLowerCase())
+        .filter((d) => d.length > 0);
+      
+      const res = await updateGlobalSettings({
+        web_search_allowed_domains: domainsArray
+      });
+      
+      if (res.status === "success") {
+        setAllowedDomains(res.web_search_allowed_domains.join(", "));
+        toast.success("Web search allowed domains saved successfully!");
+      } else {
+        toast.error("Failed to save allowed domains");
+      }
+    } catch (err) {
+      console.error("Failed to save domains:", err);
+      toast.error("Failed to save settings: " + (err as Error).message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -130,6 +171,28 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <span>PII redaction before persistence</span>
             <Switch checked={redactPii} onCheckedChange={setRedactPii} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Web Search allowed domains</CardTitle></CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <p className="text-xs text-muted-foreground">
+            Configure comma-separated domains allowed for DuckDuckGo/SearXNG web search fallbacks.
+          </p>
+          <div className="flex flex-col gap-2">
+            <textarea
+              className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="ekam.org, theonenessmovement.org"
+              value={allowedDomains}
+              onChange={(e) => setAllowedDomains(e.target.value)}
+            />
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleSaveDomains} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save domains"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

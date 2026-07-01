@@ -562,3 +562,23 @@ export async function listOkfEntries(typeFilter?: string): Promise<{ entries: Ok
 export async function compileOkfIndex(): Promise<{ status: string; path: string }> {
   return fetchWithAuth('/api/admin/okf/compile', { method: 'POST' });
 }
+
+/* ── Global Settings management ─────────────────────────────────────────────── */
+export interface GlobalSettings {
+  web_search_allowed_domains: string[];
+}
+
+export async function getGlobalSettings(): Promise<GlobalSettings> {
+  return fetchWithAuth('/api/admin/settings');
+}
+
+export async function updateGlobalSettings(settings: GlobalSettings): Promise<{ status: string; web_search_allowed_domains: string[] }> {
+  return fetchWithAuth('/api/admin/settings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(settings),
+  });
+}
+
