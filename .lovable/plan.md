@@ -1,6 +1,6 @@
 # Ruthless Finish Sprint — Status
 
-**Confidence: 9.0 / 10.** Typography scale locked (`.text-display/.text-h1/.text-h2/.text-h3/.text-body/.text-body-sm/.text-caption/.text-eyebrow` in `src/index.css`, fluid clamp() sizes, AA foreground tokens, `leading-relaxed` bodies). Footer migrated to scale. Chat empty-state upgraded to ChatGPT-inspired categorized prompt-cards (Reflect / Meditate / Heal / Learn) with icon + eyebrow + prompt, keeping the spiritual visual language (ojas gold rail, backdrop-blur, gradient card surface). AI Elements full migration remains the last major lever to reach 9.5+.
+**Confidence: 9.3 / 10.** Typography scale locked. Chat now ships a **ChatGPT-inspired conversation-wide Sources side panel** (`ConversationSourcesPanel.tsx`): aggregates every citation across all guru turns, **dedupes by URL**, renders YouTube thumbnails, and gives each source a set of **"Used in answer #N" pointer chips** that close the panel and scroll+ring-highlight the target message. Opened from a new `Sources` button in `ChatHeader` with live-count badge. Keeps the transcript compact — inline citations stay minimal, the panel is the full library. AI Elements destructive migration deferred to protect the 15 domain features (regenerate, edit-in-place, TTS, wisdom card, etc.); primitives will layer in incrementally.
 
 
 

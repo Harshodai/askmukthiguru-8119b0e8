@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Brain, LogIn, Download } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Brain, LogIn, Download, Library } from 'lucide-react';
 import { checkConnection } from '@/lib/aiService';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,12 @@ interface ChatHeaderProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   onExport?: () => void;
+  onOpenSources?: () => void;
+  sourcesCount?: number;
 }
 
-export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport }: ChatHeaderProps) => {
+export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0 }: ChatHeaderProps) => {
+
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
@@ -191,6 +194,24 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               </Link>
             )
           )}
+          {onOpenSources && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onOpenSources}
+              className="h-9 px-2.5 gap-1.5 text-foreground/80 hover:text-foreground"
+              aria-label={`Open sources panel (${sourcesCount} ${sourcesCount === 1 ? 'source' : 'sources'})`}
+              title="View all sources cited in this conversation"
+            >
+              <Library className="w-4 h-4 text-ojas" />
+              <span className="hidden sm:inline text-[12px] font-medium">Sources</span>
+              {sourcesCount > 0 && (
+                <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-ojas/15 text-ojas text-[10px] font-semibold tabular-nums">
+                  {sourcesCount}
+                </span>
+              )}
+            </Button>
+          )}
           {onExport && (
             <Button
               size="icon"
@@ -204,6 +225,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
             </Button>
           )}
           <UserMenu />
+
         </div>
       </div>
     </header>

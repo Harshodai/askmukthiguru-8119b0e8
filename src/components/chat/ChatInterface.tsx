@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square } from 'lucide-react';
 
@@ -149,6 +149,7 @@ import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
 import { ChatEmptyState } from './ChatEmptyState';
+import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -207,6 +208,24 @@ const buildPersonalisedWelcome = (log: PrePracticeLog | undefined): string => {
 export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
+  const uniqueSourcesCount = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of messages) {
+      if (m.role !== 'guru') continue;
+      for (const c of m.citations ?? []) if (c) set.add(c);
+    }
+    return set.size;
+  }, [messages]);
+  const jumpToMessage = useCallback((id: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-ojas/60', 'ring-offset-2', 'ring-offset-background', 'transition');
+    window.setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-ojas/60', 'ring-offset-2', 'ring-offset-background');
+    }, 1800);
+  }, []);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -1454,7 +1473,10 @@ return (
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={toggleSidebar}
         onExport={handleExportConversation}
+        onOpenSources={() => setSourcesPanelOpen(true)}
+        sourcesCount={uniqueSourcesCount}
       />
+
 
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} />
@@ -1850,6 +1872,15 @@ return (
 
     {/* Daily Teaching Modal */}
     <DailyTeaching />
+
+    {/* Conversation-wide Sources panel (ChatGPT-style side sheet) */}
+    <ConversationSourcesPanel
+      isOpen={sourcesPanelOpen}
+      onClose={() => setSourcesPanelOpen(false)}
+      messages={messages.map((m) => ({ id: m.id, role: m.role, citations: m.citations }))}
+      onJumpToMessage={jumpToMessage}
+    />
   </div>
 );
 };
+
