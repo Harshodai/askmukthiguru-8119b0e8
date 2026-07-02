@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 class InjectionScanner:
     INJECTION_PATTERNS = [
+        # — adversarial injection (user-submitted attacks) —
         (r"\bignore\s+(all\s+)?(previous|above|prior)\s+(instructions|commands|directions|prompts)\b", "instruction_override"),
         (r"\b(feign|pretend|act\s+as|you\s+are\s+now)\s+", "role_play"),
         (r"\bSYSTEM\s*:", "system_override"),
@@ -13,6 +14,15 @@ class InjectionScanner:
         (r"\boverride\s+(mode|system|safety|guardrails)\b", "override_attempt"),
         (r"\\u200b|\\u200c|\\u200d|\\ufeff|\\u00a0", "unicode_hidden"),
         (r"\[REDACTED_", "pii_redacted"),
+        # — LLM prompt self-leakage (LLM echoes its own system prompt on empty input) —
+        (r"You are a Text Correction Expert", "prompt_leak_corrector"),
+        (r"Your task is to fix transcription errors", "prompt_leak_corrector"),
+        (r"DO NOT retain the original meaning", "prompt_leak_corrector"),
+        (r"Important Terms to Correct", "prompt_leak_corrector"),
+        (r"You are a Data Quality Auditor", "prompt_leak_auditor"),
+        (r"The instruction is to not retain", "prompt_leak_raptor"),
+        (r"I need to summarize the given text passages", "prompt_leak_raptor"),
+        (r"However, I notice that the text passages", "prompt_leak_raptor"),
     ]
 
     @classmethod
