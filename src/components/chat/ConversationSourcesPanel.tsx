@@ -55,7 +55,7 @@ export function ConversationSourcesPanel({ isOpen, onClose, messages, onJumpToMe
     const map = new Map<string, AggregatedSource>();
     let answerNumber = 0;
     for (const m of messages) {
-      if (m.role !== 'assistant') continue;
+      if (m.role !== 'assistant' && m.role !== 'guru') continue;
       answerNumber += 1;
       const cites = m.citations ?? [];
       for (const url of cites) {
