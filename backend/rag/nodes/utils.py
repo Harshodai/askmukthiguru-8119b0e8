@@ -220,11 +220,19 @@ def _enforce_token_budget(node_name: str, text: str, budget: int) -> None:
         raise TokenBudgetExceeded(node_name, estimated, budget)
 
 
-def expand_query_with_synonyms(query: str) -> str:
+async def expand_query_with_synonyms(query: str, assistant_slug: str = "default") -> str:
     """Expand user query with doctrinal synonyms for better retrieval coverage."""
+    synonyms_map = DOCTRINE_SYNONYMS
+    if _services._doctrine_service:
+        try:
+            doc = await _services._doctrine_service.get_doctrine(assistant_slug)
+            synonyms_map = doc.get("synonyms_json") or DOCTRINE_SYNONYMS
+        except Exception as e:
+            logger.warning(f"Failed to get synonyms from DoctrineService for '{assistant_slug}': {e}. Falling back to default.")
+            
     query_lower = query.lower()
     expansions: list[str] = []
-    for canonical, alternates in DOCTRINE_SYNONYMS.items():
+    for canonical, alternates in synonyms_map.items():
         if canonical in query_lower:
             # Add alternate forms not already in the query
             for alt in alternates:
@@ -237,13 +245,20 @@ def expand_query_with_synonyms(query: str) -> str:
     return query
 
 
-def inject_doctrine_keywords(query: str) -> str:
+async def inject_doctrine_keywords(query: str, assistant_slug: str = "default") -> str:
     """Inject known doctrine keywords into a query to improve retrieval coverage.
     
-    Delegates to the comprehensive keyword_injection module with 9 doctrine categories.
+    First runs database dynamic doctrine synonyms, then delegates to static keyword_injection.
     """
+    enhanced = query
+    if _services._doctrine_service:
+        try:
+            enhanced = await _services._doctrine_service.inject_doctrine_keywords(query, assistant_slug)
+        except Exception as e:
+            logger.warning(f"Dynamic doctrine injection failed for '{assistant_slug}': {e}")
+
     from rag.nodes.keyword_injection import inject_doctrine_keywords as _ki
-    return _ki(query, top_k=3)
+    return _ki(enhanced, top_k=3)
 
 
 def _remove_repetition_loops(text: str) -> str:

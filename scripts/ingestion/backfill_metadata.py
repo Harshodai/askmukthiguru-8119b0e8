@@ -140,20 +140,24 @@ def main() -> int:
     errors = 0
 
     for vid, vid_points in video_points.items():
-        missing = {}
+        # Check each point individually for missing fields
+        points_needing_update = []
         for p in vid_points:
             n = needs_backfill(p)
             if n:
-                missing.update(n)
+                points_needing_update.append((p.id, n))
 
-        if not missing:
+        if not points_needing_update:
             skipped += 1
             continue
 
         if args.dry_run:
+            missing_fields = set()
+            for _, n in points_needing_update:
+                missing_fields.update(n.keys())
             logger.info(
                 "[DRY-RUN] Would backfill %s: missing fields=%s (%d points)",
-                vid, list(missing.keys()), len(vid_points),
+                vid, list(missing_fields), len(points_needing_update),
             )
             skipped += 1
             continue
@@ -183,31 +187,35 @@ def main() -> int:
                 errors += 1
                 continue
 
-        point_ids = [p.id for p in vid_points]
-        update_payload = {}
-        for field in ("title", "speaker", "language"):
-            if field in missing and meta.get(field):
-                update_payload[field] = meta[field]
+        # Update only points that need each field; don't overwrite good data
+        for point_id, missing_fields in points_needing_update:
+            update_payload = {}
+            for field in ("title", "speaker", "language"):
+                if field in missing_fields and meta.get(field):
+                    # Don't write "Unknown" speaker - only write real speaker names
+                    if field == "speaker" and meta[field] == "Unknown":
+                        continue
+                    update_payload[field] = meta[field]
 
-        if not update_payload:
-            logger.info("No new metadata for %s (extraction returned empty)", vid)
-            skipped += 1
-            continue
+            if not update_payload:
+                logger.info("No new metadata for point %s of %s", point_id, vid)
+                skipped += 1
+                continue
 
-        try:
-            client.set_payload(
-                collection_name=COLLECTION,
-                payload=update_payload,
-                points=point_ids,
-            )
-            backfilled += 1
-            logger.info(
-                "Backfilled %s: %s -> %d points",
-                vid, update_payload, len(point_ids),
-            )
-        except Exception as e:
-            logger.error("Failed to update Qdrant for %s: %s", vid, e)
-            errors += 1
+            try:
+                client.set_payload(
+                    collection_name=COLLECTION,
+                    payload=update_payload,
+                    points=[point_id],
+                )
+                backfilled += 1
+                logger.info(
+                    "Backfilled point %s of %s: %s",
+                    point_id, vid, update_payload,
+                )
+            except Exception as e:
+                logger.error("Failed to update Qdrant for point %s of %s: %s", point_id, vid, e)
+                errors += 1
 
     logger.info("=" * 50)
     logger.info("Done: %d backfilled, %d skipped, %d errors", backfilled, skipped, errors)

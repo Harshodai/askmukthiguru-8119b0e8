@@ -49,6 +49,7 @@ def _init_then_compile(
     lightrag_service,
     serene_mind_engine=None,
     web_search=None,
+    doctrine_service=None,
 ) -> CompiledStateGraph:
     """Inject services into module globals, then return the cached compile.
 
@@ -64,6 +65,7 @@ def _init_then_compile(
         lightrag=lightrag_service,
         serene_mind=serene_mind_engine,
         web_search=web_search,
+        doctrine_service=doctrine_service,
     )
     return build_cached(strategy_name)
 
@@ -75,6 +77,7 @@ def build_rag_graph(
     lightrag_service: LightRAGService,
     serene_mind_engine: SereneMindEngine = None,
     web_search=None,
+    doctrine_service=None,
 ) -> CompiledStateGraph:
     """
     Build and compile the complete RAG pipeline as a LangGraph.
@@ -90,6 +93,7 @@ def build_rag_graph(
         lightrag_service,
         serene_mind_engine,
         web_search,
+        doctrine_service,
     )
 
 
@@ -100,6 +104,7 @@ def build_fast_graph(
     lightrag_service: LightRAGService,
     serene_mind_engine: SereneMindEngine = None,
     web_search=None,
+    doctrine_service=None,
 ) -> CompiledStateGraph:
     """Fast path (Path A): 5-node pipeline for simple factual queries."""
     return _init_then_compile(
@@ -110,6 +115,7 @@ def build_fast_graph(
         lightrag_service,
         serene_mind_engine,
         web_search,
+        doctrine_service,
     )
 
 
@@ -120,6 +126,7 @@ def build_deep_graph(
     lightrag_service: LightRAGService,
     serene_mind_engine: SereneMindEngine = None,
     web_search=None,
+    doctrine_service=None,
 ) -> CompiledStateGraph:
     """Deep path: full standard graph with additional verification + CoT nodes."""
     return _init_then_compile(
@@ -130,6 +137,7 @@ def build_deep_graph(
         lightrag_service,
         serene_mind_engine,
         web_search,
+        doctrine_service,
     )
 
 
