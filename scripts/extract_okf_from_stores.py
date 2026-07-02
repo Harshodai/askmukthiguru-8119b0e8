@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_BACKEND = Path(__file__).resolve().parents[1] / "backend"
+_BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND))
 
 logging.basicConfig(
@@ -525,13 +525,12 @@ async def extract_okf(
     auto_approve: bool = False,
     dry_run: bool = False,
     chunk_limit: int | None = None,
-    quality_threshold: int = 65,
 ) -> list[Path]:
     """Main extraction pipeline: scan stores → cluster → LLM synthesize → write."""
     logger.info(
-        "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s, quality_threshold=%d",
+        "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
         target_topic or "any", target_video_id or "any",
-        limit, auto_approve, dry_run, quality_threshold,
+        limit, auto_approve, dry_run,
     )
 
     # 1. Gather data from all stores
@@ -539,31 +538,6 @@ async def extract_okf(
     if not chunks:
         logger.warning("No Qdrant chunks available — cannot extract OKF entries")
         return []
-
-    # Filter chunks based on quality threshold
-    from ingest.quality_gate import DeterministicChecker
-    checker = DeterministicChecker()
-    filtered_chunks = []
-    skipped_count = 0
-
-    for c in chunks:
-        # Check if point already has stored quality score
-        score = c.get("quality_score")
-        if score is not None:
-            if int(score) < quality_threshold:
-                skipped_count += 1
-                continue
-        else:
-            # Fallback to deterministic check for older chunks
-            ok, penalty, _ = checker.check(c.get("text", ""))
-            if not ok or (100 - penalty) < quality_threshold:
-                skipped_count += 1
-                continue
-        filtered_chunks.append(c)
-
-    if skipped_count > 0:
-        logger.info("Filtered out %d low-quality chunks (threshold=%d)", skipped_count, quality_threshold)
-    chunks = filtered_chunks
 
     # 2. Cluster by topic (skip Neo4j/LightRAG in dry-run — avoid OOM)
     clusters = await _get_topic_clusters(
@@ -574,7 +548,7 @@ async def extract_okf(
         skip_heavy=dry_run,
     )
     if not clusters:
-        logger.warning("No topic clusters found after quality filtering")
+        logger.warning("No topic clusters found")
         return []
 
     # 3. LLM synthesis for each cluster
@@ -602,14 +576,6 @@ async def extract_okf(
             if not parsed:
                 logger.warning("Failed to parse LLM output for %s — skipping",
                                cluster["topic_key"])
-                continue
-
-            # Validate entry format and quality post-generation
-            from services.okf_quality_filter import OKFQualityFilter
-            is_valid, err_reason = OKFQualityFilter.validate_entry(parsed)
-            if not is_valid:
-                logger.warning("Synthesized OKF entry for %s failed post-generation filter: %s",
-                               cluster["topic_key"], err_reason)
                 continue
 
             source_url = cluster.get("sources", [""])[0] if cluster.get("sources") else None
@@ -671,8 +637,6 @@ def main() -> int:
                    help="Show what would be generated without writing files")
     p.add_argument("--chunk-limit", type=int, default=None,
                    help="Max Qdrant chunks to scan (default: unlimited)")
-    p.add_argument("--quality-threshold", type=int, default=65,
-                   help="Minimum quality score for source chunks (default: 65)")
     args = p.parse_args()
 
     if not args.all and not args.topic and not args.video_id:
@@ -686,7 +650,6 @@ def main() -> int:
             auto_approve=args.auto_approve,
             dry_run=args.dry_run,
             chunk_limit=args.chunk_limit,
-            quality_threshold=args.quality_threshold,
         )
     )
 

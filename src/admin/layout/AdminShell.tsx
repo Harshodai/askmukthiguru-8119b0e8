@@ -49,7 +49,6 @@ const NAV = [
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/admins", label: "Admins", icon: Users },
   { to: "/admin/okf", label: "OKF", icon: BookOpen },
-  { to: "/admin/staging", label: "Staging Queue", icon: ClipboardCheck },
 ];
 
 export function AdminShell() {
