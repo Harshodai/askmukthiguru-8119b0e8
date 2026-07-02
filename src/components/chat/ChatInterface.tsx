@@ -208,6 +208,24 @@ const buildPersonalisedWelcome = (log: PrePracticeLog | undefined): string => {
 export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
+  const uniqueSourcesCount = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of messages) {
+      if (m.role !== 'guru') continue;
+      for (const c of m.citations ?? []) if (c) set.add(c);
+    }
+    return set.size;
+  }, [messages]);
+  const jumpToMessage = useCallback((id: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-message-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-ojas/60', 'ring-offset-2', 'ring-offset-background', 'transition');
+    window.setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-ojas/60', 'ring-offset-2', 'ring-offset-background');
+    }, 1800);
+  }, []);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
