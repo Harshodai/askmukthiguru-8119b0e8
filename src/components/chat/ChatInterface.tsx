@@ -166,12 +166,18 @@ import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
-// ── Suggested starter chips ─────────────────────────────────────────
-const STARTER_SUGGESTIONS = [
-  'What is the Beautiful State?',
-  'Guide me through a meditation',
-  "I'm feeling overwhelmed",
-];
+// ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
+import { Flower2, Heart, Compass, BookOpen } from 'lucide-react';
+
+const STARTER_CARDS = [
+  { id: 'reflect', icon: Compass, eyebrow: 'Reflect', prompt: 'What is the Beautiful State, and how do I begin?' },
+  { id: 'meditate', icon: Flower2, eyebrow: 'Meditate', prompt: 'Guide me through a short breathing meditation' },
+  { id: 'heal', icon: Heart, eyebrow: 'Heal', prompt: "I'm feeling overwhelmed — help me find calm" },
+  { id: 'learn', icon: BookOpen, eyebrow: 'Learn', prompt: 'Share a teaching from Sri Preethaji on suffering' },
+] as const;
+
+const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
+
 
 
 const WELCOME_MESSAGE =
