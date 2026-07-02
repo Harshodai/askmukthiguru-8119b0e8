@@ -166,12 +166,18 @@ import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
-// ── Suggested starter chips ─────────────────────────────────────────
-const STARTER_SUGGESTIONS = [
-  'What is the Beautiful State?',
-  'Guide me through a meditation',
-  "I'm feeling overwhelmed",
-];
+// ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
+import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
+
+const STARTER_CARDS = [
+  { id: 'reflect', icon: Compass, eyebrow: 'Reflect', prompt: 'What is the Beautiful State, and how do I begin?' },
+  { id: 'meditate', icon: Flower2, eyebrow: 'Meditate', prompt: 'Guide me through a short breathing meditation' },
+  { id: 'heal', icon: HeartIcon, eyebrow: 'Heal', prompt: "I'm feeling overwhelmed — help me find calm" },
+  { id: 'learn', icon: BookOpen, eyebrow: 'Learn', prompt: 'Share a teaching from Sri Preethaji on suffering' },
+] as const;
+
+const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
+
 
 
 const WELCOME_MESSAGE =
@@ -1493,28 +1499,39 @@ return (
                   </span>
                   <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ojas/25 to-transparent" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-stretch">
-                  {STARTER_SUGGESTIONS.map((suggestion, idx) => (
-                    <motion.button
-                      key={suggestion}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35 + idx * 0.05 }}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      whileHover={{ y: -1 }}
-                      className="group relative px-4 py-3 rounded-2xl text-sm font-serif border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/85 hover:text-foreground transition-all text-left leading-relaxed overflow-hidden h-full flex items-center"
-                    >
-                      <span
-                        aria-hidden
-                        className="absolute inset-y-2 left-0 w-[2px] bg-ojas/0 group-hover:bg-ojas/60 rounded-r transition-all"
-                      />
-                      <span className="block pl-1.5 line-clamp-2">{suggestion}</span>
-                    </motion.button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full items-stretch">
+                  {STARTER_CARDS.map((card, idx) => {
+                    const Icon = card.icon;
+                    return (
+                      <motion.button
+                        key={card.id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35 + idx * 0.05 }}
+                        onClick={() => handleSuggestionClick(card.prompt)}
+                        whileHover={{ y: -2 }}
+                        className="group relative px-4 py-3.5 rounded-2xl border border-ojas/20 bg-gradient-to-br from-card/60 to-ojas/[0.03] hover:border-ojas/50 hover:shadow-md hover:shadow-ojas/10 transition-all text-left overflow-hidden backdrop-blur-sm"
+                        aria-label={`Start: ${card.prompt}`}
+                      >
+                        <span
+                          aria-hidden
+                          className="absolute inset-y-2 left-0 w-[2px] bg-ojas/0 group-hover:bg-ojas/60 rounded-r transition-all"
+                        />
+                        <div className="flex items-center gap-2 mb-1.5 pl-1.5">
+                          <Icon className="w-3.5 h-3.5 text-ojas" strokeWidth={2} />
+                          <span className="text-eyebrow">{card.eyebrow}</span>
+                        </div>
+                        <span className="block pl-1.5 text-[14px] leading-snug text-foreground/85 group-hover:text-foreground line-clamp-2">
+                          {card.prompt}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>
           )}
+
 
 
           {/* Unified thinking indicator + Stop generating button. */}
