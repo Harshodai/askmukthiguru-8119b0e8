@@ -172,7 +172,7 @@ import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
 const STARTER_CARDS = [
   { id: 'reflect', icon: Compass, eyebrow: 'Reflect', prompt: 'What is the Beautiful State, and how do I begin?' },
   { id: 'meditate', icon: Flower2, eyebrow: 'Meditate', prompt: 'Guide me through a short breathing meditation' },
-  { id: 'heal', icon: Heart, eyebrow: 'Heal', prompt: "I'm feeling overwhelmed — help me find calm" },
+  { id: 'heal', icon: HeartIcon, eyebrow: 'Heal', prompt: "I'm feeling overwhelmed — help me find calm" },
   { id: 'learn', icon: BookOpen, eyebrow: 'Learn', prompt: 'Share a teaching from Sri Preethaji on suffering' },
 ] as const;
 
