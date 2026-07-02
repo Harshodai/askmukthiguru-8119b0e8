@@ -2616,3 +2616,14 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
   5. `pipeline.py` passes language from result → `_embed_and_index()` in all 3 video paths.
 - **Never Again Rule**: **ALWAYS** resolve YouTube metadata (title/speaker/language) from yt-dlp inside `fetch_transcript_hybrid()` rather than trusting caller-provided defaults. Add `_resolve_video_metadata()` once at the top so every return path automatically benefits.
 - **Backfill Script**: `scripts/ingestion/backfill_metadata.py` scrolls Qdrant points with empty title/speaker/language, fetches metadata via yt-dlp, updates payload in-place.
+
+### 157. Root Cause Fix: Staged Quality Gate, Multipart File Upload, and Asynchronous Celery Integration (July 2026)
+- **Problem**: Ingestion suffered from: (1) no quality protection on ingested transcripts resulting in low-quality data polluting the vector/graph stores, (2) lack of file upload support (requiring URLs only), and (3) sync background loops for Celery and endpoints causing timeouts.
+- **Root Cause**: Ingestion directly committed text to Qdrant, Neo4j, and LightRAG. No pre-commit verification or quality tier existed. API endpoints and Celery tasks only supported YouTube url parsing.
+- **Fix**:
+  1. Built `DataQualityGate` in `backend/ingest/quality_gate.py` implementing a 3-tier validation logic: Deterministic Pre-filter -> LLM Quality Scorer -> Supabase Staging Queue.
+  2. Integrated `DataQualityGate` across all backend pipeline routes: raw text, standard video, enhanced video, and Celery `orchestrate_ingestion` task.
+  3. Added `quality_score` payload metadata key to all point indexes created in Qdrant.
+  4. Appended multipart file upload API `/api/ingest/upload` to parse files and route them through the staged quality gate in the background.
+  5. Built `OKFQualityFilter` inside `backend/services/okf_quality_filter.py` and filtered out source Qdrant chunks under 65 score during OKF compilation.
+- **Lesson**: Data quality must be enforced at the gate before stores commit. Storing the `quality_score` directly in Qdrant's payload metadata allows cheap filtering on subsequent downstream workflows like OKF extraction, preventing LLM re-scoring overhead. Always ensure Celery orchestrators run the same quality gates as direct HTTP endpoints.
