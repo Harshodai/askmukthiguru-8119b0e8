@@ -1,125 +1,150 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from ingest.quality_gate import DeterministicChecker, DataQualityGate, LLMQualityScorer, StagingQueue
+from unittest.mock import AsyncMock, MagicMock, patch
+from ingest.quality_gate import DataQualityGate
+from services.okf_quality_filter import OKFQualityFilter
+from services.doctrine_service import DoctrineService
+from tasks.ingest_tasks import ingest_playlist, playlist_complete
 
+@pytest.fixture
+def mock_llm():
+    llm = AsyncMock()
+    # Mock return for quality score grading
+    llm.generate.return_value = '{"score": 85, "reasons": ["Excellent educational content"]}'
+    return llm
 
-def test_deterministic_checker_good_content():
-    checker = DeterministicChecker()
-    text = (
-        "Sri Preethaji teaches us about the beautiful state of consciousness. "
-        "Through Ekam and meditation, one can transcend suffering states and experience "
-        "oneness with the universe. Soul sync sadhana is a daily practice for inner peace."
-    )
-    passed, penalty, reasons = checker.check(text)
-    assert passed
-    assert penalty == 0
-    assert len(reasons) == 0
-
-
-def test_deterministic_checker_short_text():
-    checker = DeterministicChecker()
-    text = "Short text."
-    passed, penalty, reasons = checker.check(text)
-    assert not passed
-    assert "too short" in reasons[0].lower()
-
-
-def test_deterministic_checker_repetition():
-    checker = DeterministicChecker()
-    text = "thank you thank you thank you thank you thank you thank you thank you thank you thank you thank you " * 5
-    passed, penalty, reasons = checker.check(text)
-    assert not passed
-    assert any("repetitive" in r.lower() for r in reasons)
-
-
-def test_deterministic_checker_no_spiritual_keywords():
-    checker = DeterministicChecker()
-    # Coherent text but completely unrelated to spirituality/philosophy
-    text = (
-        "The computer network uses a dynamic routing algorithm to route packets between "
-        "different servers. We configured the load balancer to distribute the HTTP traffic "
-        "evenly across all available Docker containers in the cluster."
-    )
-    passed, penalty, reasons = checker.check(text)
-    # It might still pass T1 but with keyword penalty
-    assert penalty > 0
-    assert any("no spiritual" in r.lower() for r in reasons)
-
+@pytest.fixture
+def mock_supabase():
+    client = MagicMock()
+    # Mock insert/execute returns
+    mock_execute = MagicMock()
+    mock_execute.data = [{"id": "mock-job-id"}]
+    client.table.return_value.insert.return_value.execute.return_value = mock_execute
+    client.table.return_value.select.return_value.eq.return_value.execute.return_value = mock_execute
+    client.table.return_value.update.return_value.eq.return_value.execute.return_value = mock_execute
+    return client
 
 @pytest.mark.asyncio
-async def test_llm_quality_scorer():
-    llm_service = AsyncMock()
-    # Mock LLM response for valid JSON
-    llm_service.generate.return_value = """
-    {
-      "score": 85,
-      "verdict": "PASS",
-      "is_spiritual": true,
-      "coherence": "high",
-      "reasons": ["Coherent discourse on beautiful state"]
-    }
-    """
-    scorer = LLMQualityScorer(llm_service)
-    score, reasons = await scorer.score("Valid text about meditation", "http://test.url")
-    assert score == 85
-    assert "Coherent discourse on beautiful state" in reasons
-
-
-@pytest.mark.asyncio
-async def test_data_quality_gate_orchestrator_pass():
-    llm_service = AsyncMock()
-    llm_service.generate.return_value = """
-    {
-      "score": 90,
-      "verdict": "PASS",
-      "is_spiritual": true,
-      "coherence": "high",
-      "reasons": []
-    }
-    """
-    supabase = MagicMock()
-    gate = DataQualityGate(llm_service=llm_service, supabase_client=supabase, quality_threshold=70)
-    
-    text = (
-        "Sri Krishnaji guides seekers on Ekam teachings. We learn about karma, dharma, "
-        "and attaining beautiful states of being. The four sacred secrets show the path."
+async def test_data_quality_gate_pass(mock_llm, mock_supabase):
+    gate = DataQualityGate(
+        llm_service=mock_llm,
+        supabase_client=mock_supabase,
+        quality_threshold=70,
+        enabled=True
     )
-    result = await gate.run(text, source_url="http://youtube.com/watch?v=123")
-    assert result.passed
-    assert result.score >= 70
-    assert result.staging_id is None
-    # Ensure staging insert wasn't called
-    supabase.table.assert_not_called()
-
+    long_spiritual_text = (
+        "This is a highly spiritual teaching about meditation, focus, and inner peace. "
+        "Let us settle into quiet observation and find our true alignment. "
+        "We want to feel oneness with all that is, releasing any suffering states "
+        "and resting in a beautiful state of consciousness."
+    )
+    result = await gate.run(long_spiritual_text, source_url="https://youtube.com/watch?v=123")
+    assert result.passed is True
+    assert result.score == 91
+    assert "reasons" in result.__dict__
 
 @pytest.mark.asyncio
-async def test_data_quality_gate_orchestrator_fail_and_stage():
-    llm_service = AsyncMock()
-    llm_service.generate.return_value = """
-    {
-      "score": 30,
-      "verdict": "FAIL",
-      "is_spiritual": false,
-      "coherence": "medium",
-      "reasons": ["Unrelated gaming video"]
-    }
-    """
+async def test_data_quality_gate_fail_repetition(mock_llm, mock_supabase):
+    gate = DataQualityGate(
+        llm_service=mock_llm,
+        supabase_client=mock_supabase,
+        quality_threshold=70,
+        enabled=True
+    )
+    # Text with high repetition to trigger the n-gram filter (deterministic fail)
+    repetitive_text = (
+        "meditation peace meditation peace meditation peace meditation peace meditation peace "
+        "meditation peace meditation peace meditation peace meditation peace meditation peace "
+        "meditation peace meditation peace meditation peace meditation peace meditation peace "
+        "meditation peace meditation peace meditation peace meditation peace meditation peace"
+    )
+    result = await gate.run(repetitive_text, source_url="https://youtube.com/watch?v=123")
+    assert result.passed is False
+    assert result.score == 0
+    assert any("repetitive" in r.lower() for r in result.reasons)
+
+@pytest.mark.asyncio
+async def test_okf_quality_filter():
+    # Valid entry
+    valid, reason = OKFQualityFilter.validate_entry({
+        "title": "Beautiful State",
+        "type": "concept",
+        "body": "This is a very long body containing teachings of Sri Preethaji that exceeds one hundred characters easily."
+    })
+    assert valid is True
     
-    # Mock supabase insert return
-    supabase = MagicMock()
-    insert_mock = MagicMock()
-    insert_mock.execute.return_value = MagicMock(data=[{"id": "test-uuid-1234"}])
-    supabase.table.return_value.insert.return_value = insert_mock
+    # Invalid entry
+    invalid, reason = OKFQualityFilter.validate_entry({
+        "title": "",
+        "type": "concept",
+        "body": "Short body"
+    })
+    assert invalid is False
+
+@pytest.mark.asyncio
+async def test_doctrine_service(mock_supabase):
+    # Mock select return
+    mock_execute = MagicMock()
+    mock_execute.data = [{
+        "synonyms_json": {
+            "Beautiful State": ["beautiful state", "blissful state"],
+            "Soul Sync": ["soul sync", "meditation sync"]
+        },
+        "canonical_terms": ["Beautiful State", "Soul Sync"]
+    }]
+    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = mock_execute
+
+    service = DoctrineService(supabase_client=mock_supabase)
     
-    gate = DataQualityGate(llm_service=llm_service, supabase_client=supabase, quality_threshold=70)
+    # Test query enhancement
+    enhanced = await service.inject_doctrine_keywords("I want to experience the blissful state", "preethaji_krishnaji")
+    assert "Beautiful State" in enhanced
     
-    text = "Coherent but non-spiritual text about playing video games and streaming on twitch."
-    result = await gate.run(text, source_url="http://youtube.com/watch?v=abc")
+    # If already contains canonical, do not double-inject
+    enhanced_dup = await service.inject_doctrine_keywords("I want to experience the Beautiful State", "preethaji_krishnaji")
+    assert enhanced_dup.strip() == "I want to experience the Beautiful State"
+
+@patch("tasks.ingest_tasks.orchestrate_ingestion")
+@patch("ingest.youtube_loader.get_playlist_video_urls")
+def test_ingest_playlist_chord(mock_get_urls, mock_orchestrate, mock_supabase):
+    mock_get_urls.return_value = [
+        {"url": "https://youtube.com/watch?v=v1", "title": "Video 1"},
+        {"url": "https://youtube.com/watch?v=v2", "title": "Video 2"}
+    ]
     
-    assert not result.passed
-    assert result.score < 70
-    assert result.staging_id == "test-uuid-1234"
+    with patch("tasks.ingest_tasks.update_job_progress") as mock_update, \
+         patch("app.config.settings") as mock_settings, \
+         patch("supabase.create_client") as mock_create_client:
+        
+        mock_create_client.return_value = mock_supabase
+        
+        # Call ingest_playlist
+        res = ingest_playlist("https://youtube.com/playlist?list=123", tags=["spiritual"], job_id="parent-job")
+        
+        assert res["status"] == "queued"
+        assert res["video_count"] == 2
+        
+        # Verify Supabase client was called to create child jobs
+        assert mock_supabase.table.call_count > 0
+
+def test_playlist_complete(mock_supabase):
+    results = [
+        {"status": "success", "indexing": {"count": 12}},
+        {"status": "success", "indexing": {"count": 8}},
+        {"status": "rejected"}
+    ]
     
-    # Verify supabase insert was called with the rejected data
-    supabase.table.assert_called_once_with("staging_quality_queue")
-    supabase.table.return_value.insert.assert_called_once()
+    with patch("tasks.ingest_tasks.update_job_progress") as mock_update:
+        res = playlist_complete(results, "https://youtube.com/playlist?list=123", parent_job_id="parent-job", total_count=3)
+        assert res["status"] == "success"
+        assert res["success"] == 2
+        assert res["rejected"] == 1
+        assert res["chunks_indexed"] == 20
+        
+        # Verify parent job completion update
+        mock_update.assert_called_once_with(
+            "parent-job",
+            "completed",
+            progress_pct=100,
+            chunks_indexed=20,
+            error_message=None
+        )

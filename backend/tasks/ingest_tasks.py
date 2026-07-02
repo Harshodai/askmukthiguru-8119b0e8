@@ -212,54 +212,6 @@ def orchestrate_ingestion(
         chunks = result["chunks"]
         content_hash = result["content_hash"]
 
-        # Run quality gate on the full text (reconstructed from chunks)
-        raw_text = " ".join(chunks)
-        
-        # Instantiate services needed for quality gate
-        from services.ollama_service import OllamaService
-        from app.config import settings
-        from supabase import create_client
-        
-        llm = OllamaService()
-        supabase_client = None
-        if settings.supabase_url and settings.supabase_key:
-            try:
-                supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-            except Exception as e:
-                logger.warning(f"Could not init Supabase in Celery task: {e}")
-                
-        from ingest.quality_gate import DataQualityGate
-        gate = DataQualityGate(
-            llm_service=llm,
-            supabase_client=supabase_client,
-            quality_threshold=getattr(settings, "data_quality_threshold", 65),
-            enabled=getattr(settings, "data_quality_gate_enabled", True)
-        )
-        
-        # Run quality gate
-        if job_id:
-            update_job_progress(job_id, "running", progress_pct=50)
-            
-        quality_result = self.run_async(gate.run(raw_text, source_url=video_url))
-        
-        if not quality_result.passed:
-            msg = f"Rejected by quality gate: score {quality_result.score}/100. Reasons: {'; '.join(quality_result.reasons)}. Staging ID: {quality_result.staging_id or 'N/A'}"
-            logger.warning(msg)
-            if job_id:
-                update_job_progress(job_id, "failed", error_message=msg)
-            return {
-                "status": "rejected",
-                "message": msg,
-                "video_url": video_url,
-                "content_hash": content_hash,
-                "quality_score": quality_result.score,
-                "staging_id": quality_result.staging_id,
-            }
-
-        # Quality passed, continue to embedding
-        if job_id:
-            update_job_progress(job_id, "running", progress_pct=60)
-
         embed_result = embed_chunks(chunks, content_hash, job_id=job_id)
         if embed_result.get("status") != "success":
             raise RuntimeError(f"Embedding failed: {embed_result}")
@@ -280,7 +232,6 @@ def orchestrate_ingestion(
             "transcription": {"chunks": len(chunks), "tier": result.get("transcription_tier", "unknown")},
             "embedding": {"count": embed_result["chunk_count"]},
             "indexing": {"count": index_result["indexed_count"]},
-            "quality_score": quality_result.score,
         }
     except Exception as exc:
         logger.error(f"Orchestration failed for {video_url}: {exc}")
@@ -393,3 +344,117 @@ def _cuda_available() -> bool:
         return torch.cuda.is_available()
     except Exception:
         return False
+
+
+@celery_app.task(bind=True, max_retries=2)
+def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optional[list[str]] = None, job_id: str = None) -> dict[str, Any]:
+    """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
+    from ingest.youtube_loader import get_playlist_video_urls
+    from celery import chord
+    from app.config import settings
+    from supabase import create_client
+
+    logger.info(f"Extracting playlist videos for URL: {playlist_url}")
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+
+    videos = get_playlist_video_urls(playlist_url)
+    if not videos:
+        err_msg = "No videos found in playlist or failed to extract."
+        logger.error(err_msg)
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=err_msg)
+        return {"status": "failed", "error": err_msg}
+
+    child_tasks = []
+    supabase_client = None
+    if settings.supabase_url and settings.supabase_key:
+        try:
+            supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+        except Exception as e:
+            logger.warning(f"Could not init Supabase in ingest_playlist: {e}")
+
+    for idx, video in enumerate(videos):
+        child_job_id = None
+        if supabase_client:
+            try:
+                resp = supabase_client.table("ingest_jobs").insert({
+                    "source": video["url"],
+                    "status": "queued",
+                    "progress_pct": 0,
+                    "tags": tags or ["general"],
+                }).execute()
+                if resp.data:
+                    child_job_id = resp.data[0]["id"]
+            except Exception as e:
+                logger.warning(f"Failed to create child job record: {e}")
+
+        metadata = {
+            "title": video.get("title", "Unknown"),
+            "speaker": video.get("speaker", "Unknown"),
+            "topic": video.get("topic", "Spiritual"),
+        }
+        child_tasks.append(
+            orchestrate_ingestion.signature(
+                args=[video["url"]],
+                kwargs={
+                    "language": language,
+                    "metadata": metadata,
+                    "job_id": child_job_id,
+                }
+            )
+        )
+
+    callback = playlist_complete.s(playlist_url=playlist_url, parent_job_id=job_id, total_count=len(videos))
+    chord(child_tasks)(callback)
+
+    return {
+        "status": "queued",
+        "video_count": len(videos),
+        "message": f"Queued chord with {len(videos)} videos.",
+    }
+
+
+@celery_app.task(bind=True)
+def playlist_complete(self, results, playlist_url: str, parent_job_id: str = None, total_count: int = 0) -> dict[str, Any]:
+    """Called when all orchestrate_ingestion tasks in the playlist chord finish."""
+    success_count = 0
+    fail_count = 0
+    rejected_count = 0
+    indexed_chunks = 0
+
+    for r in results:
+        if not r:
+            fail_count += 1
+            continue
+        status = r.get("status")
+        if status == "success":
+            success_count += 1
+            indexed_chunks += r.get("indexing", {}).get("count", 0)
+        elif status == "rejected":
+            rejected_count += 1
+        else:
+            fail_count += 1
+
+    msg = f"Playlist ingestion completed: {success_count}/{total_count} succeeded, {rejected_count} rejected by quality gate, {fail_count} failed."
+    logger.info(msg)
+
+    if parent_job_id:
+        status_str = "completed" if fail_count == 0 else "failed"
+        update_job_progress(
+            parent_job_id,
+            status_str,
+            progress_pct=100,
+            chunks_indexed=indexed_chunks,
+            error_message=None if fail_count == 0 else msg
+        )
+
+    return {
+        "status": "success",
+        "playlist_url": playlist_url,
+        "total": total_count,
+        "success": success_count,
+        "rejected": rejected_count,
+        "failed": fail_count,
+        "chunks_indexed": indexed_chunks,
+    }

@@ -58,6 +58,8 @@ celery_app.conf.task_routes = {
     "tasks.ingest_tasks.embed_chunks": {"queue": "embedding"},
     "tasks.ingest_tasks.index_vectors": {"queue": "indexing"},
     "tasks.ingest_tasks.orchestrate_ingestion": {"queue": "ingestion"},
+    "tasks.ingest_tasks.ingest_playlist": {"queue": "ingestion"},
+    "tasks.ingest_tasks.playlist_complete": {"queue": "ingestion"},
     "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},
     "tasks.okf_extract_tasks.extract_okf_entries": {"queue": "okf"},
 }

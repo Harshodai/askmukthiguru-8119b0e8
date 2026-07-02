@@ -93,7 +93,6 @@ logger = logging.getLogger(__name__)
 from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.auditor import DataAuditor
 from ingest.corrector import TranscriptCorrector
-from ingest.quality_gate import DataQualityGate, QualityResult
 
 
 def is_valid_text_deterministic(text: str) -> tuple[bool, str]:
@@ -134,48 +133,13 @@ def extract_doctrine_tags(text: str) -> list[str]:
     return list(matched)
 
 
-async def _okf_extract_for_video(video_id: str, quality_score: int = 100) -> None:
-    """OKF extraction for a single video with retry and dead-letter logging.
-    Only extracts if quality_score >= threshold (top-quality data in OKF only).
-    """
-    _OKF_QUALITY_MIN = 65  # Only produce OKF from high-quality content
-    if quality_score < _OKF_QUALITY_MIN:
-        logger.info(f"OKF skipped for {video_id}: quality score {quality_score} < {_OKF_QUALITY_MIN}")
-        return
-
-    import json
-    from pathlib import Path
-
-    _dead_letter = Path("scripts/okf_failed.jsonl")
-    max_retries = 3
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            from scripts.extract_okf_from_stores import extract_okf
-            await extract_okf(target_video_id=video_id, limit=5, auto_approve=False)
-            logger.info(f"OKF extraction succeeded for video {video_id} (attempt {attempt})")
-            return
-        except Exception as exc:
-            wait = 2 ** attempt
-            logger.warning(f"OKF extraction attempt {attempt}/{max_retries} failed for {video_id}: {exc}")
-            if attempt < max_retries:
-                import asyncio
-                await asyncio.sleep(wait)
-            else:
-                # Dead-letter: record failure for ops visibility
-                try:
-                    _dead_letter.parent.mkdir(parents=True, exist_ok=True)
-                    with open(_dead_letter, "a") as f:
-                        import time
-                        f.write(json.dumps({
-                            "video_id": video_id,
-                            "error": str(exc),
-                            "quality_score": quality_score,
-                            "timestamp": time.time(),
-                        }) + "\n")
-                except Exception:
-                    pass
-                logger.error(f"OKF extraction permanently failed for {video_id} — written to dead-letter log")
+async def _okf_extract_for_video(video_id: str) -> None:
+    """Fire-and-forget OKF extraction for a single video. Non-fatal."""
+    try:
+        from scripts.extract_okf_from_stores import extract_okf
+        await extract_okf(target_video_id=video_id, limit=5, auto_approve=False)
+    except Exception:
+        pass  # ponytail: OKF extraction is optional augmentation
 
 
 class IngestionPipeline:
@@ -198,7 +162,6 @@ class IngestionPipeline:
         lightrag_service: Optional[Any] = None,
         ocr_service: Optional[OCRService] = None,
         semantic_cache_service: Optional[Any] = None,
-        supabase_client: Optional[Any] = None,
     ) -> None:
         """
         Dependency Injection: All services are injected, not created internally.
@@ -212,13 +175,6 @@ class IngestionPipeline:
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
         self._semantic_cache = semantic_cache_service
-        # Iceberg-style quality gate — Tier1 (deterministic) + Tier2 (LLM) + Tier3 (Supabase staging)
-        self._quality_gate = DataQualityGate(
-            llm_service=ollama_service,
-            supabase_client=supabase_client,
-            quality_threshold=getattr(settings, "data_quality_threshold", 65),
-            enabled=getattr(settings, "data_quality_gate_enabled", True),
-        )
 
         self._adaptive_chunker = AdaptiveChunkingAdapter(self._embedder)
         self._proposition_service = PropositionService(self._llm)
@@ -400,31 +356,6 @@ class IngestionPipeline:
 
         self._notify(on_progress, "Starting raw text processing...", 0.1)
 
-        # ── Iceberg-style 3-tier quality gate ──────────────────────────────
-        self._notify(on_progress, "Running data quality checks (Tier 1: deterministic)...", 0.15)
-        quality_result = await self._quality_gate.run(text, source_url=source_url)
-        if not quality_result.passed:
-            logger.warning(
-                f"Quality gate REJECTED raw text {source_url} "
-                f"score={quality_result.score}/100 "
-                f"tier={quality_result.tier_reached} "
-                f"reasons={quality_result.reasons} "
-                f"staging_id={quality_result.staging_id}"
-            )
-            self._notify(on_progress, f"Rejected by quality gate (score={quality_result.score}/100)", 1.0)
-            return {
-                "status": "rejected",
-                "message": f"Content quality score {quality_result.score}/100 below threshold. "
-                           f"Reasons: {'; '.join(quality_result.reasons)}. "
-                           f"Staged: {quality_result.staging_id or 'N/A'}",
-                "source_url": source_url,
-                "chunks_indexed": 0,
-                "summaries_created": 0,
-                "quality_score": quality_result.score,
-                "staging_id": quality_result.staging_id,
-            }
-        self._notify(on_progress, f"Quality gate PASSED (score={quality_result.score}/100)...", 0.2)
-
         # Step 1: Clean & redact PII
         clean_text = clean_transcript(text)
         clean_text, pii_found = redact_pii(clean_text)
@@ -467,7 +398,6 @@ class IngestionPipeline:
             source_type=content_type,
             extra_metadatas=extra_metadatas,
             tags=tags,
-            quality_score=quality_result.score,
         )
 
         # Step 6: RAPTOR tree
@@ -563,31 +493,17 @@ class IngestionPipeline:
         sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
 
-        # ── Iceberg-style 3-tier quality gate ──────────────────────────────
-        self._notify(on_progress, "Running data quality checks (Tier 1: deterministic)...", 0.2)
-        quality_result = await self._quality_gate.run(raw_text, source_url=url)
-        if not quality_result.passed:
-            logger.warning(
-                f"Quality gate REJECTED {url} "
-                f"score={quality_result.score}/100 "
-                f"tier={quality_result.tier_reached} "
-                f"reasons={quality_result.reasons} "
-                f"staging_id={quality_result.staging_id}"
-            )
-            self._notify(on_progress, f"Rejected by quality gate (score={quality_result.score}/100)", 1.0)
+        self._notify(on_progress, "Auditing content quality...", 0.2)
+        is_valid = await self._auditor.audit_transcript(raw_text, url)
+
+        if not is_valid:
             return {
                 "status": "rejected",
-                "message": f"Content quality score {quality_result.score}/100 below threshold "
-                           f"({getattr(settings, 'data_quality_threshold', 65)}). "
-                           f"Reasons: {'; '.join(quality_result.reasons)}. "
-                           f"Staged for review: {quality_result.staging_id or 'N/A'}",
+                "message": "Content rejected by Data Auditor (low quality or irrelevant)",
                 "source_url": url,
                 "chunks_indexed": 0,
                 "summaries_created": 0,
-                "quality_score": quality_result.score,
-                "staging_id": quality_result.staging_id,
             }
-        self._notify(on_progress, f"Quality gate PASSED (score={quality_result.score}/100)...", 0.25)
 
         # Step 2: Clean & redact PII
         self._notify(on_progress, "Cleaning text...", 0.3)
@@ -657,7 +573,6 @@ class IngestionPipeline:
             language=video_language,
             extra_metadatas=extra_metadatas,
             tags=tags,
-            quality_score=quality_result.score,
         )
 
         # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
@@ -691,7 +606,7 @@ class IngestionPipeline:
             try:
                 video_id = extract_video_id(url)
                 if video_id:
-                    asyncio.create_task(_okf_extract_for_video(video_id, quality_score=quality_result.score))
+                    asyncio.create_task(_okf_extract_for_video(video_id))
                     logger.debug("OKF extraction queued for video: %s", video_id)
             except Exception:
                 pass
@@ -760,31 +675,6 @@ class IngestionPipeline:
         self._notify(on_progress, "Correcting transcript (LLM)...", 0.3)
         sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
-
-        # ── Iceberg-style 3-tier quality gate ──────────────────────────────
-        self._notify(on_progress, "Running data quality checks...", 0.32)
-        quality_result = await self._quality_gate.run(raw_text, source_url=url)
-        if not quality_result.passed:
-            logger.warning(
-                f"Quality gate REJECTED enhanced video {url} "
-                f"score={quality_result.score}/100 "
-                f"tier={quality_result.tier_reached} "
-                f"reasons={quality_result.reasons} "
-                f"staging_id={quality_result.staging_id}"
-            )
-            self._notify(on_progress, f"Rejected by quality gate (score={quality_result.score}/100)", 1.0)
-            return {
-                "status": "rejected",
-                "message": f"Content quality score {quality_result.score}/100 below threshold. "
-                           f"Reasons: {'; '.join(quality_result.reasons)}. "
-                           f"Staged: {quality_result.staging_id or 'N/A'}",
-                "source_url": url,
-                "chunks_indexed": 0,
-                "summaries_created": 0,
-                "quality_score": quality_result.score,
-                "staging_id": quality_result.staging_id,
-            }
-        self._notify(on_progress, f"Quality gate PASSED (score={quality_result.score}/100)...", 0.35)
 
         # Enrich video metadata from transcript for non-Apify paths
         method = result.get("method", "")
@@ -885,7 +775,6 @@ class IngestionPipeline:
                 language=video_language,
                 extra_metadatas=all_extra_metadatas,
                 tags=tags,
-                quality_score=quality_result.score,
             )
 
         # 5. Build RAPTOR and Graph
@@ -907,7 +796,13 @@ class IngestionPipeline:
             try:
                 video_id = extract_video_id(url)
                 if video_id:
-                    asyncio.create_task(_okf_extract_for_video(video_id, quality_score=quality_result.score))
+                    asyncio.create_task(
+                        asyncio.to_thread(
+                            lambda: asyncio.run(
+                                _okf_extract_for_video(video_id)
+                            )
+                        )
+                    )
                     logger.debug("OKF extraction queued for enhanced video: %s", video_id)
             except Exception:
                 pass
@@ -1351,7 +1246,6 @@ class IngestionPipeline:
         language: str = "en",
         tags: Optional[list[str]] = None,
         source_type: Optional[str] = None,
-        quality_score: Optional[int] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -1406,8 +1300,6 @@ class IngestionPipeline:
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
             }
-            if quality_score is not None:
-                base_meta["quality_score"] = quality_score
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
             # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.

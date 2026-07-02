@@ -781,3 +781,119 @@ async def update_admin_settings(
         logger.error(f"Failed to update app settings in DB: {e}")
         raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
 
+
+class OkfReviewItem(BaseModel):
+    entry_json: dict[str, Any]
+    source_video_id: Optional[str] = None
+    source_video_title: Optional[str] = None
+    guru_slug: Optional[str] = "default"
+    reviewer_notes: Optional[str] = None
+
+
+@admin_router.get("/okf/review")
+async def list_okf_review_queue(
+    status: str = "pending",
+    user: dict = Depends(get_current_user_from_supabase),
+) -> list[dict[str, Any]]:
+    """List items in the OKF review queue (Admin only)."""
+    _require_admin(user)
+    from app.telemetry_db import _get_client
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Supabase client not available")
+
+    try:
+        res = client.table("okf_review_queue").select("*").eq("status", status).execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Failed to fetch OKF review queue: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@admin_router.post("/okf/review/{review_id}/approve")
+async def approve_okf_entry(
+    review_id: str,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Approve a draft OKF entry, save it as a markdown file, and recompile index (Admin only)."""
+    _require_admin(user)
+    from app.telemetry_db import _get_client
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Supabase client not available")
+
+    try:
+        res = client.table("okf_review_queue").select("*").eq("id", review_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Review entry not found")
+
+        row = res.data[0]
+        entry = row["entry_json"]
+        guru_slug = row.get("guru_slug") or "default"
+
+        title = entry.get("title", "untitled")
+        import string
+        valid_chars = "-_%s%s" % (string.ascii_letters, string.digits)
+        slug = "".join(c if c in valid_chars else "-" for c in title.lower().replace(" ", "_"))
+        slug = re.sub(r"-+", "-", slug).strip("-")
+
+        from services.memory.compiler import _OKF_DIR
+        target_dir = _OKF_DIR / guru_slug
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_file = target_dir / f"{slug}.md"
+
+        meta = {
+            "type": entry.get("type", "teaching"),
+            "title": title,
+            "tags": entry.get("tags", []),
+            "source": entry.get("source", ""),
+            "confidence": "high",
+        }
+        import yaml
+        yaml_str = yaml.safe_dump(meta, default_flow_style=False)
+        body = entry.get("body", "")
+
+        content = f"---\n{yaml_str}---\n\n{body}\n"
+        target_file.write_text(content, encoding="utf-8")
+
+        from services.memory.compiler import compile_okf
+        compile_okf()
+
+        client.table("okf_review_queue").update({
+            "status": "approved",
+            "reviewed_at": "now()",
+            "reviewed_by": user.get("id"),
+        }).eq("id", review_id).execute()
+
+        return {"status": "success", "file": str(target_file)}
+    except Exception as e:
+        logger.error(f"Failed to approve OKF entry: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@admin_router.post("/okf/review/{review_id}/reject")
+async def reject_okf_entry(
+    review_id: str,
+    reviewer_notes: Optional[str] = None,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Reject a draft OKF entry (Admin only)."""
+    _require_admin(user)
+    from app.telemetry_db import _get_client
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Supabase client not available")
+
+    try:
+        client.table("okf_review_queue").update({
+            "status": "rejected",
+            "reviewer_notes": reviewer_notes,
+            "reviewed_at": "now()",
+            "reviewed_by": user.get("id"),
+        }).eq("id", review_id).execute()
+
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Failed to reject OKF entry: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+

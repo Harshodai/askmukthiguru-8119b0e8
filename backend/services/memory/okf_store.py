@@ -80,7 +80,7 @@ class OKFStore:
         if not self.dir.exists():
             logger.warning("OKF directory not found: %s", self.dir)
             return entries
-        for p in sorted(self.dir.glob("*.md")):
+        for p in sorted(self.dir.rglob("*.md")):
             try:
                 text = p.read_text(encoding="utf-8")
                 meta, body = _parse_frontmatter(text)
@@ -89,7 +89,7 @@ class OKFStore:
                     continue
                 entries.append(OKFEntry(path=p, meta=meta, body=body))
             except Exception as e:
-                logger.warning("Failed to read OKF entry %s: %e", p, e)
+                logger.warning("Failed to read OKF entry %s: %s", p, e)
         return entries
 
     def by_type(self, type_name: str) -> list[OKFEntry]:
