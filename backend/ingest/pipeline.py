@@ -171,7 +171,23 @@ class IngestionPipeline:
         self._embedder = embedding_service
         self._llm = ollama_service
         self._ocr = ocr_service or OCRService()
-        self._auditor = DataAuditor(ollama_service)
+        
+        from ingest.quality_gate import DataQualityGate
+        from app.config import settings
+        supabase_client = None
+        if settings.supabase_url and settings.supabase_key:
+            try:
+                from supabase import create_client
+                supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            except Exception as e:
+                logger.warning(f"Could not init Supabase in IngestionPipeline: {e}")
+                
+        self._auditor = DataQualityGate(
+            llm_service=ollama_service,
+            supabase_client=supabase_client,
+            quality_threshold=getattr(settings, "data_quality_threshold", 65),
+            enabled=getattr(settings, "data_quality_gate_enabled", True)
+        )
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
         self._semantic_cache = semantic_cache_service
@@ -494,12 +510,12 @@ class IngestionPipeline:
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
 
         self._notify(on_progress, "Auditing content quality...", 0.2)
-        is_valid = await self._auditor.audit_transcript(raw_text, url)
+        quality_res = await self._auditor.run(raw_text, url)
 
-        if not is_valid:
+        if not quality_res.passed:
             return {
                 "status": "rejected",
-                "message": "Content rejected by Data Auditor (low quality or irrelevant)",
+                "message": f"Content rejected by Data Quality Gate: score {quality_res.score}/100. Reasons: {'; '.join(quality_res.reasons)}",
                 "source_url": url,
                 "chunks_indexed": 0,
                 "summaries_created": 0,

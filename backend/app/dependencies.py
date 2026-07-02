@@ -220,6 +220,8 @@ class ServiceContainer:
         # Built once at startup — DoctrineCache._load_from_supabase() is a
         # blocking call and must never run per-request inside the event loop.
         self.doctrine_cache = DoctrineCache(supabase_client=self.supabase_client)
+        from services.doctrine_service import DoctrineService
+        self.doctrine_service = DoctrineService(supabase_client=self.supabase_client)
 
         # Job Queue (Redis-backed)
         if settings.queue_enabled:
@@ -320,6 +322,7 @@ class ServiceContainer:
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
             web_search=self.web_search,
+            doctrine_service=self.doctrine_service,
         )
         self.standard_graph = build_rag_graph(
             ollama_service=self.ollama,
@@ -328,6 +331,7 @@ class ServiceContainer:
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
             web_search=self.web_search,
+            doctrine_service=self.doctrine_service,
         )
         self.deep_graph = build_deep_graph(
             ollama_service=self.ollama,
@@ -336,6 +340,7 @@ class ServiceContainer:
             lightrag_service=self.lightrag,
             serene_mind_engine=self.serene_mind,
             web_search=self.web_search,
+            doctrine_service=self.doctrine_service,
         )
         # Backward-compatible alias — defaults to standard graph
         self.rag_graph = self.standard_graph

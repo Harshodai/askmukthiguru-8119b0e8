@@ -212,6 +212,54 @@ def orchestrate_ingestion(
         chunks = result["chunks"]
         content_hash = result["content_hash"]
 
+        # Run quality gate on the full text (reconstructed from chunks)
+        raw_text = " ".join(chunks)
+        
+        # Instantiate services needed for quality gate
+        from services.ollama_service import OllamaService
+        from app.config import settings
+        from supabase import create_client
+        
+        llm = OllamaService()
+        supabase_client = None
+        if settings.supabase_url and settings.supabase_key:
+            try:
+                supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            except Exception as e:
+                logger.warning(f"Could not init Supabase in Celery task: {e}")
+                
+        from ingest.quality_gate import DataQualityGate
+        gate = DataQualityGate(
+            llm_service=llm,
+            supabase_client=supabase_client,
+            quality_threshold=getattr(settings, "data_quality_threshold", 65),
+            enabled=getattr(settings, "data_quality_gate_enabled", True)
+        )
+        
+        # Run quality gate
+        if job_id:
+            update_job_progress(job_id, "running", progress_pct=50)
+            
+        quality_result = self.run_async(gate.run(raw_text, source_url=video_url))
+        
+        if not quality_result.passed:
+            msg = f"Rejected by quality gate: score {quality_result.score}/100. Reasons: {'; '.join(quality_result.reasons)}. Staging ID: {quality_result.staging_id or 'N/A'}"
+            logger.warning(msg)
+            if job_id:
+                update_job_progress(job_id, "failed", error_message=msg)
+            return {
+                "status": "rejected",
+                "message": msg,
+                "video_url": video_url,
+                "content_hash": content_hash,
+                "quality_score": quality_result.score,
+                "staging_id": quality_result.staging_id,
+            }
+
+        # Quality passed, continue to embedding
+        if job_id:
+            update_job_progress(job_id, "running", progress_pct=60)
+
         embed_result = embed_chunks(chunks, content_hash, job_id=job_id)
         if embed_result.get("status") != "success":
             raise RuntimeError(f"Embedding failed: {embed_result}")
@@ -232,6 +280,7 @@ def orchestrate_ingestion(
             "transcription": {"chunks": len(chunks), "tier": result.get("transcription_tier", "unknown")},
             "embedding": {"count": embed_result["chunk_count"]},
             "indexing": {"count": index_result["indexed_count"]},
+            "quality_score": quality_result.score,
         }
     except Exception as exc:
         logger.error(f"Orchestration failed for {video_url}: {exc}")

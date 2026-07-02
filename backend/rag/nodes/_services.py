@@ -20,6 +20,7 @@ _lettuce_detect: Any = None
 _reranker: Any = None
 _web_search: Any = None
 _sarvam_cloud: Any = None
+_doctrine_service: Any = None
 
 
 # InMemoryCacheAdapter fallback removed (Unit 8) — missing service is now a hard error
@@ -35,6 +36,7 @@ def init_services(
     web_search=None,
     semantic_cache: Any = None,
     sarvam_cloud: Any = None,
+    doctrine_service: Any = None,
 ) -> None:
     """Inject service dependencies into the nodes module.
 
@@ -57,7 +59,7 @@ def init_services(
     from services.lettuce_detect_service import LettuceDetectService
     from services.reranker_service import RerankerService
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service
 
     _ollama = ollama
     _embedder = embedder
@@ -67,6 +69,7 @@ def init_services(
     _web_search = web_search
     _sarvam_cloud = sarvam_cloud
     _semantic_cache = semantic_cache
+    _doctrine_service = doctrine_service
 
     _reranker = RerankerService()
     _lettuce_detect = LettuceDetectService(embedder)
@@ -100,7 +103,7 @@ def init_services(
 
 def clear_services() -> None:
     """Clear all injected service references. Called during container shutdown."""
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service
     _ollama = None
     _embedder = None
     _qdrant = None
@@ -111,6 +114,7 @@ def clear_services() -> None:
     _web_search = None
     _semantic_cache = None
     _sarvam_cloud = None
+    _doctrine_service = None
 
 
 def get_services_status() -> dict:
@@ -126,6 +130,7 @@ def get_services_status() -> dict:
         "web_search": _web_search is not None,
         "semantic_cache": _semantic_cache is not None,
         "sarvam_cloud": _sarvam_cloud is not None,
+        "doctrine_service": _doctrine_service is not None,
     }
 
 

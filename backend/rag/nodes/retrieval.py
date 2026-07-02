@@ -401,9 +401,12 @@ async def decompose_query(state: GraphState, config: dict = None) -> dict:
     t_out = get_node_timeout("decompose_query", 15)
     sub_queries = await ollama.decompose_query(question=question, timeout=t_out)
     is_complex = len(sub_queries) > 1
-    expanded = [expand_query_with_synonyms(q) for q in sub_queries]
+    assistant_slug = state.get("assistant_slug") or "default"
+    expanded = [await expand_query_with_synonyms(q, assistant_slug) for q in sub_queries]
     logger.info(f"Decomposed into {len(sub_queries)} sub-queries (complex={is_complex})")
     return {"sub_queries": expanded, "is_complex": is_complex}
+
+
 
 
 @log_metrics
@@ -726,8 +729,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         await stream_queue.put({"event": "status", "data": "Searching knowledge base..."})
 
     base_question = state.get("rewritten_query") or state["question"]
+    assistant_slug = state.get("assistant_slug") or "default"
     # Doctrine keyword injection & synonym expansion for better retrieval
-    base_question = inject_doctrine_keywords(expand_query_with_synonyms(base_question))
+    base_question = await inject_doctrine_keywords(
+        await expand_query_with_synonyms(base_question, assistant_slug),
+        assistant_slug
+    )
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
 
     # OPTIMIZATION (Phase-3 / Truth-3): Fire LLM expansion CONCURRENTLY with
