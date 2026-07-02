@@ -17,9 +17,12 @@ interface ChatHeaderProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   onExport?: () => void;
+  onOpenSources?: () => void;
+  sourcesCount?: number;
 }
 
-export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport }: ChatHeaderProps) => {
+export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0 }: ChatHeaderProps) => {
+
   const [connectionStatus, setConnectionStatus] = useState<{ connected: boolean; mode: string }>({
     connected: true,
     mode: 'Offline Mode',
