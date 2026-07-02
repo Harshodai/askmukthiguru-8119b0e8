@@ -1,5 +1,7032 @@
 {
-  "processed_videos": [],
-  "processed_docs": [],
-  "metrics": {}
+  "processed_videos": [
+    "7Pfat_DztMI",
+    "yDTGeNo-w0c",
+    "2z5qxSr4EaI",
+    "odXq5g-Y7gM",
+    "aDQhPZUnDqA",
+    "gQiIwfA3mlk",
+    "UrVvSqKYU8c",
+    "PLVPL1dXKc0",
+    "oUCZWSi8zY4",
+    "B8wapoLAu84",
+    "h9S9Hh4aBN8",
+    "H_uhawaiO3E",
+    "0k5f8G9uXqY",
+    "Q4QyNologtw",
+    "JwMlR98BgrI",
+    "UZHSssZflFQ",
+    "_XDcXdBDZ0c",
+    "vy09aBxslx0",
+    "zp2w7DTmOwc",
+    "kYVY4_zxLVQ",
+    "81fCD_f4exU",
+    "JYqlxlBZHc4",
+    "y4ZR5U8VuQY",
+    "kPuvsIyt6UI",
+    "-u6ZDfHdB54",
+    "hwNlLB1sze0",
+    "2DLb6hDIhmg",
+    "hh61tFdyX8c",
+    "KTe11DlB4QI",
+    "fdPQxZsPAwI",
+    "46g5U6v3SGc",
+    "bCzjP2UaKRI",
+    "ehkqJ54DIC0",
+    "oalnb5-fHjY",
+    "_X5jRvqxEEo",
+    "F_yRNKupugs",
+    "k5RDNv-CH9M",
+    "kzRqQOvjRhA",
+    "8mmungGgDNw",
+    "gMrOMT4mfno",
+    "jW3JDLY0cDA",
+    "w1U9nHF3H5o",
+    "Oc5ar2g2rnI",
+    "OWMBvMlGWTA",
+    "MKOAMUmZ-RA",
+    "V5fBJwo_KQk",
+    "7NVPsHdyw_Y",
+    "AB-t5CoxMHM",
+    "UbCEX5KBbPw",
+    "zCnqQBfyXa4",
+    "hcNDrMy6gCE",
+    "fj2_d2lNGVk",
+    "O1VkNuEChD4",
+    "IGryscyFmV8",
+    "0ypG1mlekNY",
+    "owXqW04b08o",
+    "M8XASiz30oE",
+    "JRlaAip4kmk",
+    "qtG8c2zhn7A",
+    "Gt3o8lcbcII",
+    "cI7D2aO34yw",
+    "ZGvKY4mPfIc",
+    "w1gF90_cBl4",
+    "GfAMCHC6_ek",
+    "CZ_r5sYeTyY",
+    "obK5uqYXOJU",
+    "bSyewSnu2Ak",
+    "mNM-x9RFMcE",
+    "207izZBbqVg",
+    "1w-IStuMl3M",
+    "M7ItOHTrvz8",
+    "O-6f5wQXSu8",
+    "j7EZJwH8uCM",
+    "PFNP4c1cOSI",
+    "UNdwPjyLGn0",
+    "oXRZhJTHuOA",
+    "4_Fqfew1PRk",
+    "Js7ongWaW64",
+    "Vr3PS2DdbDU",
+    "zGOKGrTNlk4",
+    "KTlY-lHs_Ew",
+    "pTnZt0SqDFM",
+    "l6svaRx35TI",
+    "idoWVpnJz-Y",
+    "vjEsXpEtpH4",
+    "AyUE-2Uh5Vg",
+    "WwgBOejW_pI",
+    "TXAKaPwrBy0",
+    "q15gR1aGjVs",
+    "8p3zqYg5wuo",
+    "aJIunwxx3NI",
+    "qJxGtSDiayM",
+    "ZD1nQPtpojM",
+    "stUPu1-W4bE",
+    "6rLvPzNyLRw",
+    "qQmrTz6i2x4",
+    "5hNCT4duOgc",
+    "r_l2RNcSPPA",
+    "I6yC-aUQUvw",
+    "9-NMv5E-18s",
+    "7lggUuJtZXY",
+    "QAnRefsK-3Y",
+    "smrj15-QOAI",
+    "o6X1TVEFHAY",
+    "tOi1Ho5Kwhk",
+    "owC8E_G2fY4",
+    "y2ZgKdt4Cj0",
+    "2JL1ZgMS7nY",
+    "LrMyaDh_MSo",
+    "LYm7oczfWEk",
+    "OnAAtrwsfOc",
+    "HtmLQkxj8ec",
+    "38-NgBAet1c",
+    "odNtpKqbCQo",
+    "nen-DB_tz4M",
+    "pmSPHJfg3AU",
+    "uNkgwv4dqEs",
+    "4LIZkNHlNaM",
+    "RGFI6v2Biq0",
+    "leypd9opVSc",
+    "uSAO5p0GIU8",
+    "4Fjf6IQsjQs",
+    "E-LCT0YEpWQ",
+    "0poMFCoAhkM",
+    "HZIuHUGmnGY",
+    "R0bGNxoJ4sM",
+    "ds6FM6QEDWM",
+    "fiABnex9O6Y",
+    "fYLwmDCmJ0A",
+    "Qu5IQo0ghbs",
+    "WOKBogNTmPI",
+    "YguId6pF5KI",
+    "c2oUDKf6ndo",
+    "w2qbJB6ie9Y",
+    "nQpRoOOu5Yc",
+    "WfkCDNu4SuE",
+    "d0v8RE6i0GM",
+    "XFFgRTgP8Rs",
+    "LapJqYf9hzI",
+    "qDSfb0DZ0PE",
+    "3WnNyhhB_4w",
+    "aqSM9LwqWgA",
+    "F-hNATzOz2I",
+    "6j6EGVpQkI8",
+    "Ao8Rhhl9E8k",
+    "EhY6npcnSs8",
+    "5YJ6vynFWFc",
+    "s6B81c2uTGg",
+    "MJYpyUlwxg0",
+    "Xk1KsO3efP4",
+    "Fn62UQTIMEk",
+    "PnvNqgTyIFI",
+    "LFTx6ZYMZ1g",
+    "tegTDWT3SDc",
+    "3ITFXvYIPqg",
+    "oSqD_BvF7vA",
+    "TQ0TGyaByhs",
+    "x1Neqc9ytqE",
+    "p2HecXyM3tE",
+    "cu-Tx7ehQvM",
+    "yJoWk10CSjg",
+    "uvhEf3ToMHI",
+    "2seBB2oByZc",
+    "igSp4H0OWLE",
+    "k0GsZxWhjSE",
+    "M_BYTcsLQuY",
+    "co9vrSiN8ak",
+    "utRatnFr-S8",
+    "b6nQnYzo_bY",
+    "zFOxZ2oo8-U",
+    "CrZuPkgwA6Q",
+    "U23yKxWbIcI",
+    "nCkbv_lvFfg",
+    "ajMAwlKh3YM",
+    "DmzZPgTh7_M",
+    "mmpmX3-qfc4",
+    "BZDXIQwOPdU",
+    "YkIBYppBtro",
+    "Lst4MvxPCx4",
+    "1_-cZz8YRFw",
+    "UJM00IqGKtc",
+    "K-AFDVOkIoE",
+    "1nhXsnx5--Y",
+    "RBb_3sgOgFY",
+    "NJQ573JDmAg",
+    "ffhDTzE4nDU",
+    "uZg9XnRub7w",
+    "_GEMrEWCiXw",
+    "RFx74Q6Oq2c",
+    "9Mv4Thnx9SU",
+    "Gdd-5uWUW5w",
+    "dqUq_a0DyLs",
+    "1PlGMOAypCI",
+    "QzJ_Ft1de1o",
+    "Mr1cjAz2y9I",
+    "HELtP96Dd4w",
+    "cHAJiF2byzg",
+    "vch9C_hNjGs",
+    "k8iO5daXllM",
+    "ftFDBaH7RFg",
+    "pPHQMD3w9-s",
+    "Fbd7ln2i9dw",
+    "PslFhdZaBFA",
+    "oaKWpxmu0YI",
+    "AviNwtN1luo",
+    "nUrc8O7Avvk",
+    "6-GWHR9_iSU",
+    "Qr_pw4E-REk",
+    "V2WQ20Ocw_o",
+    "BkM7IcqUaj0",
+    "1kS_mQaBLdg",
+    "VTx4G0KEuUE",
+    "Tc8f9ZasRRM",
+    "W2ZzApmqJmo",
+    "-yGLiryVQoQ",
+    "Ji-hdW1t30g",
+    "U1qRvz3hnMA",
+    "Z7w7soyXmHs",
+    "jy4hcpUSBms",
+    "hqre34QIMZg",
+    "XMzZe5aEmTo",
+    "RvgN5Mfbd5A",
+    "xUO_WoOlWmI",
+    "E8N04l1Lptk",
+    "oZRQoiRe7s4",
+    "CQEGJ0OaIPo",
+    "bMGaQ2nUE5Y",
+    "07NOYJmkkFo",
+    "zGhlBQ8iWl4",
+    "cxgHFX04RtQ",
+    "77dJnbTCwsA",
+    "D-RK1E9uoP8",
+    "b-MkLkpTeVY",
+    "-pBQ6Sy444o",
+    "FP5O9F9JiOk",
+    "vNj7OSHos1I",
+    "7b6tnI7VmB4",
+    "vIUY446FVPw",
+    "bh_kjn-1CAY",
+    "69IrsSXeBTg",
+    "ZaZOJ6gazYM",
+    "iikr2xzAK6Y",
+    "mbhdVEKEbLg",
+    "uGosHULQQk0",
+    "h8DQ0GlvD8I",
+    "X3LKG0Ycl3A",
+    "5Tdb7hBwX88",
+    "o_eg6YTifRE",
+    "4ytgjpow498",
+    "8fKvjHOD_kQ",
+    "0u9oe-5HPmk",
+    "6EHw_0gYD5w",
+    "1sMxPhQcvEA",
+    "OzgA9wYM6Oc",
+    "tDcy09esbe8",
+    "Vt_CjAdzebM",
+    "iIduE7RwihM",
+    "tl2Ek-QakME",
+    "g1tezETHrfY",
+    "aSNQUkuyB18",
+    "1J0HpmGWsZs",
+    "nCK4-w8xu9Y",
+    "3weAVHuSCxg",
+    "3RyCldrCxL8",
+    "x-mTRlE0TC4",
+    "kMc_kat7YLE",
+    "sMgbjxyrgqw",
+    "beh0v5Odn6g",
+    "V45jIC4RthQ",
+    "m-m2wMW4020",
+    "EFJZ2l5Rc10",
+    "YxglvjuoMZI",
+    "T3I8r_NU2Wk",
+    "3HytZ8tSiYE",
+    "ApX7lGnn-2U",
+    "LOsAzhRwUIk",
+    "05wF2qqUVnI",
+    "FoTH9BWP2gg",
+    "Yf4Pld6UEdg",
+    "h5Cvb_ZXnJc",
+    "hPALIQJXMFg",
+    "mgfhxq9bn8Q",
+    "93evJf7Il-c",
+    "8CgS_ANm26Y",
+    "VbT9vgs06Gc",
+    "cy7L7ru37HE",
+    "0va0izWG0Hc",
+    "sO6_webPTdg",
+    "zPsun8EkA2s",
+    "E9BYLwkGel8",
+    "HpoWKtIcTcw",
+    "YEPXAy-jyVo",
+    "c_w5JbP_N90",
+    "dd1OcfbBTh4",
+    "fuTnlIafdLY",
+    "i4DQFbs_RKU",
+    "sOv9ISMIRQ0",
+    "sQkhrJ3C49w",
+    "s4cOjzTWGh8",
+    "8RbRpbaCh1I",
+    "Q_CMuXKuvoU",
+    "bF6kr28QHJc",
+    "inL9r7ffQ7c",
+    "36rdT1bFOk0",
+    "4HRL8IxADhg",
+    "BLvi5n274XY",
+    "YZaEmcxvYvc",
+    "bHd9dYS6UiU",
+    "cqvwOx5baxM",
+    "dQw77H27GMY",
+    "hfOFmTBWTSQ",
+    "1e0yk20hF7Y",
+    "5TbaZA522Fs",
+    "5ia1FNUN6fk",
+    "AQUZcU5L9xE",
+    "HLTISkkGbUI",
+    "MuxETIn04F8",
+    "1cs5nliQUSQ",
+    "NMjYsvaOOQM",
+    "NdmpvgZI4II",
+    "WWIURef-J3s",
+    "WhYY6IKaiVI",
+    "WkkKW_mbWQI",
+    "Yfi6-_lYa58",
+    "_-P-9fe5U_4",
+    "bVcY8fIlDa4",
+    "mAG-Q4DZ5Zs",
+    "nHDXMZLLQyY",
+    "nxfjPX2qD_U",
+    "tMaJzikpfeY",
+    "16UXpd5BstM",
+    "453IrXoe_Ug",
+    "5hOsWGYAHFg",
+    "8KaPqYLRWjc",
+    "9id3ygnEhh8",
+    "FYQHXDtlYX4",
+    "LKM-M3C8Tv4",
+    "SyT0Jx-ZT2g",
+    "U6pcGCyOYwo",
+    "UpeaTtqs7Oc",
+    "3qEON3iXjNM",
+    "cvREfQLxC6k",
+    "nsWiuQDzAw4",
+    "pomBCVpfFNw",
+    "rnp4upHkaqQ",
+    "vmm8-Vqr8GQ",
+    "wZ9FcYgjbPM",
+    "J81diFHJqWw",
+    "hF3NZH-UX0Y",
+    "aqpjV4cSJBI",
+    "xTVHvMHakow",
+    "EyIJaL1sfpc",
+    "zO8tQkjCpyc",
+    "d3pf-MPqRKY",
+    "FSxiSEV1iPY",
+    "kyEL8OTZwBk",
+    "N0EoDEdWKA4",
+    "EBBd2MOeOIU",
+    "txmjnRTgB4Y",
+    "09d8aVgYOqQ",
+    "gRaAmM9ehzI",
+    "dYCLRvvEnVA",
+    "dj9ymEytgS0",
+    "uPm6kDwrjSY",
+    "yc-Qs4eiZ2U",
+    "Ip7C7KJBxBk",
+    "53Jzhrf-IWk",
+    "ALXWHiS-ing",
+    "GWiiejeyAR8",
+    "QpmmGqGoo-8",
+    "UuPdfdrvpdQ",
+    "cD6Wi47E0hk",
+    "xFQSF6GzQXQ",
+    "kf-IuHxVN7g",
+    "eumRL5DfFzM",
+    "mvSrmuOyRYQ",
+    "zyUzxY37YVA",
+    "xsJwbk_N-RE",
+    "8IScMLY_yLY",
+    "H9A7Olg_QCo",
+    "fYhbxU61wuI",
+    "gPkOSEdG0OA",
+    "0Fa4Wyv0GOk",
+    "zpuRES7Fnm8",
+    "PNH5hdUnXks",
+    "LpqjenfvWzQ",
+    "5qA5ibrq9NU",
+    "GQZ7A4fvts4",
+    "tAFtaCF5a30",
+    "19EEFd2ueiI",
+    "GICjcQQ0aM0",
+    "IjZkoyk7T14",
+    "co3N4y-RQKQ",
+    "k1qCouxaNjQ",
+    "VrPi2RUUXq4",
+    "1WgqAO8AmsY",
+    "F9Vo4fezmcE",
+    "Gw4Ng9FKJyY",
+    "PxTeZh0w1Go",
+    "Q6VqxNlagpQ",
+    "XsbGYVBY92c",
+    "glXpHbwhQA4",
+    "mJOReEqkgMM",
+    "0Spa0u4IyLE",
+    "1jLbPyOnpjo",
+    "IaOyZ0KPlUU",
+    "na0fqtqARVs",
+    "-4qvpm4Rd6Q",
+    "XmkNwgkMC3U",
+    "ACvOem_B-Ek",
+    "8xJampnp9qc",
+    "MmiI3xo5Ju4",
+    "jGG6-a4IrNw",
+    "kNMpaK6SIbc",
+    "umD1vXG7WIA",
+    "3InKt2QjqQ8",
+    "8Xy8xsLIgAU",
+    "OaTrIaFLG6M",
+    "TIZ3yFQCFfA",
+    "XS9EXhxRbi8",
+    "fzfhimnVghE",
+    "y-C_8_p_F5w",
+    "F0kz4L2wB2A",
+    "R7N_Bf14f0o",
+    "pQ7yAREnJaw",
+    "uAPvGyjkrB8",
+    "FSwSt1omSD8",
+    "y9iL10DPhzI",
+    "zs_JKa0cVsY",
+    "rux7GLCqLWQ",
+    "OWXe9v7PHDs",
+    "5xxp7L-Ktp8",
+    "NWrTrDIQ9XE",
+    "_xRxSiooRnE",
+    "Nq8BntIZb40",
+    "UKYZ4NtUMTw",
+    "JRX5W9AhWoA",
+    "n3UBbCXJaJ0",
+    "jK7-PPBXwr4",
+    "D9obnqNB4aI",
+    "tCWfCISvo5k",
+    "XK2Wna2YG6Y",
+    "LGkdzRl08vo",
+    "3EqnSkAzfIg",
+    "j66VV2XKBJk",
+    "oSAPs1YDkq0",
+    "rKoXeKg0y1Q",
+    "-4wCvcPrX-E",
+    "h5XzWxcWrtU",
+    "uA7E_SUdtM8",
+    "WtRGXnnGiVE",
+    "Vl55gfNrZmM",
+    "pTnEtB8mcVA",
+    "tLNsDEp-JcA",
+    "OZiElH5pKmo",
+    "-YQLpNmH0MQ",
+    "-0O6WmxU3pw",
+    "N8aw4NAR62c",
+    "vGWM3R_ihxI",
+    "X1mtpheWDhs",
+    "OuDAdSnFtbw",
+    "UgQV_5FjPNk",
+    "z3fSeC_oG-s",
+    "RkLY_uJL0xc",
+    "21SEb5M9IRs",
+    "u5JpxwG34bE",
+    "qajcmg64VNI",
+    "mpLJPUifTNA",
+    "Ba-hG3SGdfw",
+    "VP9mfCJBX_Y",
+    "AHbh4mzrwUQ",
+    "ULID4U_e3TU",
+    "G1fWNIazj5U",
+    "vhLVeSDWB5M",
+    "XhV7FuKtZnY",
+    "ELiB_UwCVTY",
+    "5daxvIoDLVU",
+    "0YfmJqftSLE",
+    "pTw6RbHzm-U",
+    "K2yXX6uhGFE",
+    "_fi53IYfitg",
+    "xFyfHBkyQgA",
+    "HTcbWPN1xxY",
+    "rPfK6DcC1Vw",
+    "JLN3i1y6_Dk",
+    "Ejcq9mNGJk0",
+    "XFZOr_5-0F0",
+    "o_J7uas-9U0",
+    "qj6ZFtvViic",
+    "0m64VFmniGI",
+    "ve_KEcn9Ues",
+    "M6MJzzFKoPg",
+    "HfS2relUTFg",
+    "Maa5lwwHNrU",
+    "x1KyU5MVHu4",
+    "Vz_fn9o_Meo",
+    "8Lp2qPXYix4",
+    "Eznp9NU0Y4I",
+    "V1IuTlEU1ic",
+    "VOOf2kQpeMw",
+    "WfiHrS5Kjj8",
+    "a3sAeqXrCYI",
+    "cz_i2AsxGv0",
+    "md0y8j1SxBk",
+    "nD0_yE8Yy64",
+    "oqacXWT14ic",
+    "sCCLfLa0gyw",
+    "40tIgtC8yec",
+    "9XbV4ubs3Fw",
+    "BtXOk3KUBd0",
+    "ClbKAXVvzzo",
+    "E5FJYDruwjs",
+    "SAt-D1YFM1Q",
+    "U4lCthMt9oY",
+    "gLXqxcsF1dw",
+    "r3iE2gDwIEk",
+    "rxz4w8fxXZ8",
+    "xNzBwpLBtSs",
+    "zDOS3wCWea8",
+    "4QL5Djtikmw",
+    "5RcKCxfLEHM",
+    "7L2scLHOEC4",
+    "Hdr5IXNmRUE",
+    "Nq2VYAIQyCs",
+    "XcE2G9J8U_4",
+    "qiba4m7wUXQ",
+    "R3ZRYoTxhUE",
+    "XEFWnanCtk8",
+    "lZTaw-5V_mc",
+    "ECFRWVY8SGY",
+    "Lm-5gKTKD7Y",
+    "UDr00laBiYo",
+    "T_SFXvO7ymc",
+    "CKBwY7odu1E",
+    "Wua3xtO-oys",
+    "nlimcAFzAQE",
+    "LZQ4PvoArC8",
+    "DBUJH5f6rjU",
+    "l0bQZ9tnwvk",
+    "BJfhRGjPznA",
+    "beadZEtxtcs",
+    "esrYgY--owE",
+    "WO_jh3zPTr0",
+    "hLg4WPG4ehE",
+    "xnfQDhWWMkU",
+    "M6NGzhww27o",
+    "jHsA3IlRCm4",
+    "nj4mPBJsauQ",
+    "avCLyAi9DeY",
+    "_KtWOkUsy1w",
+    "PoNEyybToU4",
+    "v58RteTeBlE",
+    "susUKIwVD34",
+    "MAwd31cafVg",
+    "Y7p7jHP0Ii0",
+    "GsEMHzvDq5M",
+    "omDPxlDqDs0",
+    "DjybU3_lUnc",
+    "zPrI0q34qw8",
+    "tix59qHbyrI",
+    "vLCsNfcbWqs",
+    "d_IIBZd-xAQ",
+    "Ul_7NL6j2ZI",
+    "qPKICCU7Wec",
+    "z0iCoqwZE_U",
+    "VO3fi1c9ids",
+    "R_bZWZvU-r4",
+    "AxlmYK0B9Yw",
+    "EpReLy7g6WM",
+    "nsUkTKmx2dI",
+    "9RkGiNC-jJA",
+    "WQWVnrG-wX4",
+    "wDaE92bNRNw",
+    "RgE2ryZsE3s",
+    "zXjwi5tTcno",
+    "SDWivCDevfE",
+    "ct7R4Em77NY",
+    "v55cSB0foxM",
+    "sboLTO_FUY4",
+    "MIF1XIgr-IQ",
+    "CvDkoctU5a4",
+    "tl31QISheOc",
+    "Ji7Zy_tDFQ4",
+    "aIEw-1E9ays",
+    "HCs6I_BNtxo",
+    "Y7bp-LlC3CM",
+    "CNn_cuQsBh0",
+    "-i-QFyNg8Io",
+    "HKjzpPlfvc8",
+    "BsiePkp9bAc",
+    "wKYEvQZ03Po",
+    "bSfYcWPgkpI",
+    "1KnFnmU6NWw",
+    "uz81-q_o5LI",
+    "6SGdA1xnd4A",
+    "We6ENmiSSwI",
+    "2X0BCy1bRcU",
+    "H4paK9NPSoc",
+    "6yHWS32aNOs",
+    "OLPF727ETSg",
+    "6YexvWyPC6k",
+    "vZGe4g66rw4",
+    "mz8Mb0MvBz4",
+    "G_soqEsZRU8",
+    "roc7MPff-C8",
+    "KN0XZBa7K4Y",
+    "QlHMnyKYYoI",
+    "f-IpkGOOzYU",
+    "OoH2peWBDEY",
+    "a_qokyTjobo",
+    "mS3cZvd1AvQ",
+    "X-m1fDzX5Rc",
+    "O4c1bnnwSzU",
+    "UodtrfOmNh4",
+    "gqN5tl1Kwpg",
+    "jEg3pQmKBIw",
+    "3OjpANs8PDw",
+    "XzS56RqIxeE",
+    "Gae2J6ExMsY",
+    "R5jh4Ss4fKA",
+    "7UuDjBiHrMA",
+    "wzb6s4oJX1Y",
+    "JsTTRgk_8Hc",
+    "DnllMgFybyQ",
+    "c32xomNzUIs",
+    "lmNVJBc1Zoo",
+    "phMVQUn1Sns",
+    "pk4MA5aOSOY",
+    "zlxVrlARMEI",
+    "gQv87W3mAu8",
+    "H7N4PSoJZMU",
+    "EThkIHrfXWo",
+    "IbOoMlXlzjY",
+    "a78n3v1aDMg",
+    "u3xrPJu51SM",
+    "tGvaofifDzI",
+    "pJXS28Odaqs",
+    "Mrngwfko5kk",
+    "Hfj0c6-vUiY",
+    "-wAUE5rcxis",
+    "vrXmfCUvigs",
+    "rY83MZu--ck",
+    "Gv3w2uNCo2o",
+    "s-In3a1CAoI",
+    "EwwciE_mxo8",
+    "rRs__D_3mKY",
+    "sZXuNv0L8YA",
+    "88NOQTz5_yI",
+    "dEZ1P72hmLg",
+    "MX7tos4L1jQ",
+    "dwOK83_n6_4",
+    "Ln-4oxqStJI",
+    "4rZDc-SaOB8",
+    "dR7olu353VY",
+    "mQ_qPqsc-i0",
+    "QeRsbucrii4",
+    "Oy-j2w6haoA",
+    "mB83CObqvhU",
+    "jRI007mQ2Wo",
+    "RMpAflHYP2g",
+    "GBlHpCkYYgc",
+    "DqUafRyXy_0",
+    "GaSK6rscIgA",
+    "W_KHgnxTHaY",
+    "4eV8OvVEm6A",
+    "AwDC-VZWfzU",
+    "wjgYeizZwN8",
+    "Pd42WwNAr8g",
+    "aVqDALcqpII",
+    "f8iC_C6rop0",
+    "uIknA-azXKQ",
+    "-vboUHsZ2KM",
+    "YtkxNkrfJWg",
+    "9kSjk8uqNbI",
+    "COmWEGiu9Hg",
+    "A0edLNr-mks",
+    "vcvE5YpOjL4",
+    "Ud5UpU0bvjw",
+    "1imcyoNUO-A",
+    "2RES9QrbVMA",
+    "7BLsD_meNzw",
+    "9wm4ey4OX8g",
+    "9yaEGbPIxPk",
+    "B9LZcfD-blU",
+    "GTLqZPVojgI",
+    "szJ7uDYHJ1Y",
+    "2U2GS7IkE8c",
+    "LLhU1ptXDp0",
+    "OrydPLvNKmI",
+    "TN9W-Jc7qZc",
+    "rXkyO0fOOLE",
+    "Rdm6ZwxZ3m4",
+    "KB_rdqB-sVw",
+    "izjxTA_-mNs",
+    "liMBvMgSPC8",
+    "L4876a9aakw",
+    "P6gff20GmPQ",
+    "COC9vdjMTlc",
+    "TqxxCYnAxo8",
+    "UlOt31lBhLY",
+    "-LK01oo7MAw",
+    "AR0r8B6Ga8E",
+    "vARTudIEq30",
+    "nwQaU-agzFE",
+    "hUmlujE6SN0",
+    "RAOQ3ZubQGM",
+    "VAMJEgwaPEc",
+    "0z-IZ2ar4eA",
+    "sCiK7ABPcrw",
+    "VxJWAmiYu_0",
+    "rGcNJ_Nsuy8",
+    "STlEq16n8kI",
+    "NFlAszNFZdQ",
+    "btbKcsb9Dzw",
+    "zQjrjEYPsB8",
+    "eozUm89Kk9k",
+    "f0mxoBD9Fno"
+  ],
+  "processed_docs": [
+    "The_Four_Sacred_Secrets.pdf"
+  ],
+  "metrics": {
+    "The_Four_Sacred_Secrets.pdf": {
+      "latency": 10537.481761932373,
+      "status": "success"
+    },
+    "7Pfat_DztMI": {
+      "latency": 1356.5429120063782,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "yDTGeNo-w0c": {
+      "latency": 692.7280497550964,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "2z5qxSr4EaI": {
+      "latency": 654.5384030342102,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "odXq5g-Y7gM": {
+      "latency": 258.52397298812866,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "aDQhPZUnDqA": {
+      "latency": 534.00151014328,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "gQiIwfA3mlk": {
+      "latency": 545.7104308605194,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "UrVvSqKYU8c": {
+      "latency": 1282.737932920456,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "PLVPL1dXKc0": {
+      "latency": 420.885733127594,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "oUCZWSi8zY4": {
+      "latency": 1183.166757106781,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "_XDcXdBDZ0c": {
+      "latency": 2049.3376240730286,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "vy09aBxslx0": {
+      "latency": 2150.8355560302734,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "B8wapoLAu84": {
+      "latency": 856.6293060779572,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "h9S9Hh4aBN8": {
+      "latency": 919.6373658180237,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "H_uhawaiO3E": {
+      "latency": 410.89573216438293,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "zp2w7DTmOwc": {
+      "latency": 1548.3599951267242,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "0k5f8G9uXqY": {
+      "latency": 863.943274974823,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "Q4QyNologtw": {
+      "latency": 578.8023338317871,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "kYVY4_zxLVQ": {
+      "latency": 2765.6546959877014,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "JwMlR98BgrI": {
+      "latency": 324.2725808620453,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "hwNlLB1sze0": {
+      "latency": 1370.8049960136414,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "2DLb6hDIhmg": {
+      "latency": 1098.3745982646942,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "UZHSssZflFQ": {
+      "latency": 907.9106891155243,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "hh61tFdyX8c": {
+      "latency": 2126.836646795273,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "KTe11DlB4QI": {
+      "latency": 1337.0372579097748,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "fdPQxZsPAwI": {
+      "latency": 1105.2198033332825,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "46g5U6v3SGc": {
+      "latency": 968.0987679958344,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "bCzjP2UaKRI": {
+      "latency": 889.5598192214966,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "ehkqJ54DIC0": {
+      "latency": 1081.5870649814606,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "oalnb5-fHjY": {
+      "latency": 665.125410079956,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "_X5jRvqxEEo": {
+      "latency": 595.4585819244385,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "F_yRNKupugs": {
+      "latency": 290.77387976646423,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "k5RDNv-CH9M": {
+      "latency": 810.5467221736908,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "kzRqQOvjRhA": {
+      "latency": 784.1261782646179,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "8mmungGgDNw": {
+      "latency": 2403.6211411952972,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "gMrOMT4mfno": {
+      "latency": 479.55804419517517,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "jW3JDLY0cDA": {
+      "latency": 1403.2912151813507,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "w1U9nHF3H5o": {
+      "latency": 269.90017890930176,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "Oc5ar2g2rnI": {
+      "latency": 1158.045756816864,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "OWMBvMlGWTA": {
+      "latency": 816.731330871582,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "MKOAMUmZ-RA": {
+      "latency": 339.90961718559265,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "V5fBJwo_KQk": {
+      "latency": 1015.2419562339783,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "7NVPsHdyw_Y": {
+      "latency": 346.62671303749084,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "AB-t5CoxMHM": {
+      "latency": 299.4666738510132,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "UbCEX5KBbPw": {
+      "latency": 712.595694065094,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "zCnqQBfyXa4": {
+      "latency": 1461.2697007656097,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "hcNDrMy6gCE": {
+      "latency": 989.3939170837402,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "fj2_d2lNGVk": {
+      "latency": 1891.3518860340118,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "O1VkNuEChD4": {
+      "latency": 846.180410861969,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "IGryscyFmV8": {
+      "latency": 1543.890174150467,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "0ypG1mlekNY": {
+      "latency": 738.0390830039978,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "owXqW04b08o": {
+      "latency": 1312.9147131443024,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "M8XASiz30oE": {
+      "latency": 902.3063719272614,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "JRlaAip4kmk": {
+      "latency": 736.5429899692535,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "qtG8c2zhn7A": {
+      "latency": 715.3509299755096,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "Gt3o8lcbcII": {
+      "latency": 321.90739822387695,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "cI7D2aO34yw": {
+      "latency": 1164.087084054947,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "ZGvKY4mPfIc": {
+      "latency": 815.6755042076111,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "w1gF90_cBl4": {
+      "latency": 372.1673939228058,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "GfAMCHC6_ek": {
+      "latency": 1751.922511100769,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "CZ_r5sYeTyY": {
+      "latency": 323.2043180465698,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "obK5uqYXOJU": {
+      "latency": 3415.3475670814514,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "bSyewSnu2Ak": {
+      "latency": 3554.0100049972534,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "81fCD_f4exU": {
+      "latency": 2060.558944940567,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "mNM-x9RFMcE": {
+      "latency": 2146.920096874237,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "207izZBbqVg": {
+      "latency": 2208.7891597747803,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "1w-IStuMl3M": {
+      "latency": 2284.245745897293,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "M7ItOHTrvz8": {
+      "latency": 2366.166496038437,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "JYqlxlBZHc4": {
+      "latency": 3079.361883878708,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "y4ZR5U8VuQY": {
+      "latency": 1909.0989089012146,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "kPuvsIyt6UI": {
+      "latency": 3631.4442789554596,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "-u6ZDfHdB54": {
+      "latency": 2296.145981311798,
+      "status": "success",
+      "title": "Unknown"
+    },
+    "O-6f5wQXSu8": {
+      "latency": 434.35142707824707,
+      "status": "success",
+      "title": "Unknown",
+      "chunks": 80,
+      "lightrag_status": "skipped"
+    },
+    "j7EZJwH8uCM": {
+      "latency": 582.4753251075745,
+      "status": "success",
+      "title": "j7EZJwH8uCM",
+      "chunks": 22,
+      "lightrag_status": "success"
+    },
+    "PFNP4c1cOSI": {
+      "latency": 607.4687201976776,
+      "status": "success",
+      "title": "PFNP4c1cOSI",
+      "chunks": 24,
+      "lightrag_status": "success"
+    },
+    "UNdwPjyLGn0": {
+      "latency": 620.4966909885406,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "UNdwPjyLGn0",
+      "chunks": 127,
+      "lightrag_status": "success"
+    },
+    "oXRZhJTHuOA": {
+      "latency": 1846.853525876999,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "oXRZhJTHuOA",
+      "chunks": 407,
+      "lightrag_status": "success"
+    },
+    "4_Fqfew1PRk": {
+      "latency": 728.1955010890961,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4_Fqfew1PRk",
+      "chunks": 173,
+      "lightrag_status": "success"
+    },
+    "Js7ongWaW64": {
+      "latency": 960.6280019283295,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Js7ongWaW64",
+      "chunks": 510,
+      "lightrag_status": "success"
+    },
+    "Vr3PS2DdbDU": {
+      "latency": 1604.890048980713,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Vr3PS2DdbDU",
+      "chunks": 345,
+      "lightrag_status": "success"
+    },
+    "zGOKGrTNlk4": {
+      "latency": 168.87389016151428,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zGOKGrTNlk4",
+      "chunks": 48,
+      "lightrag_status": "success"
+    },
+    "KTlY-lHs_Ew": {
+      "latency": 1797.2359418869019,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "KTlY-lHs_Ew",
+      "chunks": 826,
+      "lightrag_status": "success"
+    },
+    "pTnZt0SqDFM": {
+      "latency": 1484.1353590488434,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "pTnZt0SqDFM",
+      "chunks": 639,
+      "lightrag_status": "success"
+    },
+    "l6svaRx35TI": {
+      "latency": 1128.5764808654785,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "l6svaRx35TI",
+      "chunks": 741,
+      "lightrag_status": "success"
+    },
+    "idoWVpnJz-Y": {
+      "latency": 1108.8413598537445,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "idoWVpnJz-Y",
+      "chunks": 760,
+      "lightrag_status": "success"
+    },
+    "vjEsXpEtpH4": {
+      "latency": 966.7142572402954,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vjEsXpEtpH4",
+      "chunks": 166,
+      "lightrag_status": "success"
+    },
+    "AyUE-2Uh5Vg": {
+      "latency": 1530.5306870937347,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "AyUE-2Uh5Vg",
+      "chunks": 727,
+      "lightrag_status": "success"
+    },
+    "WwgBOejW_pI": {
+      "latency": 150.11012601852417,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WwgBOejW_pI",
+      "chunks": 20,
+      "lightrag_status": "success"
+    },
+    "TXAKaPwrBy0": {
+      "latency": 173.071768283844,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "TXAKaPwrBy0",
+      "chunks": 66,
+      "lightrag_status": "success"
+    },
+    "q15gR1aGjVs": {
+      "latency": 857.8934211730957,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "q15gR1aGjVs",
+      "chunks": 349,
+      "lightrag_status": "success"
+    },
+    "8p3zqYg5wuo": {
+      "latency": 687.2608609199524,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "8p3zqYg5wuo",
+      "chunks": 310,
+      "lightrag_status": "success"
+    },
+    "aJIunwxx3NI": {
+      "latency": 678.293262720108,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "aJIunwxx3NI",
+      "chunks": 423,
+      "lightrag_status": "success"
+    },
+    "qJxGtSDiayM": {
+      "latency": 1163.6801130771637,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "qJxGtSDiayM",
+      "chunks": 488,
+      "lightrag_status": "success"
+    },
+    "ZD1nQPtpojM": {
+      "latency": 811.7628178596497,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ZD1nQPtpojM",
+      "chunks": 160,
+      "lightrag_status": "success"
+    },
+    "stUPu1-W4bE": {
+      "latency": 800.7111611366272,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "stUPu1-W4bE",
+      "chunks": 63,
+      "lightrag_status": "success"
+    },
+    "6rLvPzNyLRw": {
+      "latency": 923.1065640449524,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "6rLvPzNyLRw",
+      "chunks": 359,
+      "lightrag_status": "success"
+    },
+    "qQmrTz6i2x4": {
+      "latency": 865.1444239616394,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "qQmrTz6i2x4",
+      "chunks": 611,
+      "lightrag_status": "success"
+    },
+    "5hNCT4duOgc": {
+      "latency": 912.213543176651,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5hNCT4duOgc",
+      "chunks": 473,
+      "lightrag_status": "success"
+    },
+    "r_l2RNcSPPA": {
+      "latency": 1745.0170760154724,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "r_l2RNcSPPA",
+      "chunks": 1121,
+      "lightrag_status": "success"
+    },
+    "I6yC-aUQUvw": {
+      "latency": 1163.145220041275,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "I6yC-aUQUvw",
+      "chunks": 407,
+      "lightrag_status": "success"
+    },
+    "9-NMv5E-18s": {
+      "latency": 1354.9669680595398,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "9-NMv5E-18s",
+      "chunks": 730,
+      "lightrag_status": "success"
+    },
+    "7lggUuJtZXY": {
+      "latency": 1602.8046131134033,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "7lggUuJtZXY",
+      "chunks": 424,
+      "lightrag_status": "success"
+    },
+    "QAnRefsK-3Y": {
+      "latency": 2577.630614757538,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "QAnRefsK-3Y",
+      "chunks": 721,
+      "lightrag_status": "success"
+    },
+    "smrj15-QOAI": {
+      "latency": 2539.524006843567,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "smrj15-QOAI",
+      "chunks": 732,
+      "lightrag_status": "success"
+    },
+    "o6X1TVEFHAY": {
+      "latency": 1956.1785697937012,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "o6X1TVEFHAY",
+      "chunks": 751,
+      "lightrag_status": "success"
+    },
+    "tOi1Ho5Kwhk": {
+      "latency": 4441.031927108765,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "tOi1Ho5Kwhk",
+      "chunks": 528,
+      "lightrag_status": "success"
+    },
+    "owC8E_G2fY4": {
+      "latency": 3979.7098569869995,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "owC8E_G2fY4",
+      "chunks": 1517,
+      "lightrag_status": "success"
+    },
+    "y2ZgKdt4Cj0": {
+      "latency": 1249.7004511356354,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "y2ZgKdt4Cj0",
+      "chunks": 449,
+      "lightrag_status": "success"
+    },
+    "2JL1ZgMS7nY": {
+      "latency": 1223.1993250846863,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "2JL1ZgMS7nY",
+      "chunks": 343,
+      "lightrag_status": "success"
+    },
+    "LrMyaDh_MSo": {
+      "latency": 2407.016488313675,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LrMyaDh_MSo",
+      "chunks": 764,
+      "lightrag_status": "success"
+    },
+    "LYm7oczfWEk": {
+      "latency": 905.9847002029419,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LYm7oczfWEk",
+      "chunks": 17,
+      "lightrag_status": "success"
+    },
+    "OnAAtrwsfOc": {
+      "latency": 1973.9805839061737,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "OnAAtrwsfOc",
+      "chunks": 377,
+      "lightrag_status": "success"
+    },
+    "HtmLQkxj8ec": {
+      "latency": 2885.5363309383392,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "HtmLQkxj8ec",
+      "chunks": 503,
+      "lightrag_status": "success"
+    },
+    "38-NgBAet1c": {
+      "latency": 941.7807810306549,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "38-NgBAet1c",
+      "chunks": 337,
+      "lightrag_status": "success"
+    },
+    "odNtpKqbCQo": {
+      "latency": 2804.0326738357544,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "odNtpKqbCQo",
+      "chunks": 664,
+      "lightrag_status": "success"
+    },
+    "nen-DB_tz4M": {
+      "latency": 1503.9468109607697,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nen-DB_tz4M",
+      "chunks": 499,
+      "lightrag_status": "success"
+    },
+    "pmSPHJfg3AU": {
+      "latency": 2229.6813156604767,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "pmSPHJfg3AU",
+      "chunks": 952,
+      "lightrag_status": "success"
+    },
+    "uNkgwv4dqEs": {
+      "latency": 2002.6398820877075,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uNkgwv4dqEs",
+      "chunks": 79,
+      "lightrag_status": "success"
+    },
+    "4LIZkNHlNaM": {
+      "latency": 2049.3671691417694,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4LIZkNHlNaM",
+      "chunks": 501,
+      "lightrag_status": "success"
+    },
+    "RGFI6v2Biq0": {
+      "latency": 9.089372873306274,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RGFI6v2Biq0",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "leypd9opVSc": {
+      "latency": 9.955946922302246,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "leypd9opVSc",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "uSAO5p0GIU8": {
+      "latency": 6.192914009094238,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uSAO5p0GIU8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "4Fjf6IQsjQs": {
+      "latency": 7.090143918991089,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4Fjf6IQsjQs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "E-LCT0YEpWQ": {
+      "latency": 7.345233201980591,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "E-LCT0YEpWQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "0poMFCoAhkM": {
+      "latency": 7.719855070114136,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "0poMFCoAhkM",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "HZIuHUGmnGY": {
+      "latency": 8.645349740982056,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "HZIuHUGmnGY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "R0bGNxoJ4sM": {
+      "latency": 9.762226819992065,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "R0bGNxoJ4sM",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "ds6FM6QEDWM": {
+      "latency": 10.396480083465576,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ds6FM6QEDWM",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "fiABnex9O6Y": {
+      "latency": 11.313768148422241,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "fiABnex9O6Y",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "fYLwmDCmJ0A": {
+      "latency": 13.78840684890747,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "fYLwmDCmJ0A",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Qu5IQo0ghbs": {
+      "latency": 13.785794019699097,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Qu5IQo0ghbs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "WOKBogNTmPI": {
+      "latency": 59.29194903373718,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WOKBogNTmPI",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "YguId6pF5KI": {
+      "latency": 70.51768612861633,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "YguId6pF5KI",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "c2oUDKf6ndo": {
+      "latency": 23.075910091400146,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "c2oUDKf6ndo",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "w2qbJB6ie9Y": {
+      "latency": 56.801424980163574,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "w2qbJB6ie9Y",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "nQpRoOOu5Yc": {
+      "latency": 43.95686984062195,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nQpRoOOu5Yc",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "WfkCDNu4SuE": {
+      "latency": 46.57529807090759,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WfkCDNu4SuE",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "d0v8RE6i0GM": {
+      "latency": 69.17603397369385,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "d0v8RE6i0GM",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "XFFgRTgP8Rs": {
+      "latency": 74.42333912849426,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "XFFgRTgP8Rs",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "LapJqYf9hzI": {
+      "latency": 43.545056104660034,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LapJqYf9hzI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "qDSfb0DZ0PE": {
+      "latency": 38.94337511062622,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "qDSfb0DZ0PE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "3WnNyhhB_4w": {
+      "latency": 40.12064290046692,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "3WnNyhhB_4w",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "aqSM9LwqWgA": {
+      "latency": 89.77027487754822,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "aqSM9LwqWgA",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "F-hNATzOz2I": {
+      "latency": 45.82060694694519,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "F-hNATzOz2I",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "6j6EGVpQkI8": {
+      "latency": 47.72501015663147,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "6j6EGVpQkI8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Ao8Rhhl9E8k": {
+      "latency": 103.92613291740417,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Ao8Rhhl9E8k",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "EhY6npcnSs8": {
+      "latency": 111.85751008987427,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "EhY6npcnSs8",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "5YJ6vynFWFc": {
+      "latency": 87.39693212509155,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5YJ6vynFWFc",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "s6B81c2uTGg": {
+      "latency": 156.99675607681274,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "s6B81c2uTGg",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "MJYpyUlwxg0": {
+      "latency": 62.62205696105957,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "MJYpyUlwxg0",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Xk1KsO3efP4": {
+      "latency": 63.660616874694824,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Xk1KsO3efP4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Fn62UQTIMEk": {
+      "latency": 63.84698438644409,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Fn62UQTIMEk",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "PnvNqgTyIFI": {
+      "latency": 100.55340790748596,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "PnvNqgTyIFI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "LFTx6ZYMZ1g": {
+      "latency": 104.13492703437805,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LFTx6ZYMZ1g",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "tegTDWT3SDc": {
+      "latency": 144.98951768875122,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "tegTDWT3SDc",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "3ITFXvYIPqg": {
+      "latency": 111.20886588096619,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "3ITFXvYIPqg",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "oSqD_BvF7vA": {
+      "latency": 115.32633113861084,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "oSqD_BvF7vA",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "TQ0TGyaByhs": {
+      "latency": 76.59168100357056,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "TQ0TGyaByhs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "x1Neqc9ytqE": {
+      "latency": 77.62961888313293,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "x1Neqc9ytqE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "p2HecXyM3tE": {
+      "latency": 79.09477496147156,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "p2HecXyM3tE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "cu-Tx7ehQvM": {
+      "latency": 163.41028308868408,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "cu-Tx7ehQvM",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "yJoWk10CSjg": {
+      "latency": 170.92674088478088,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "yJoWk10CSjg",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "uvhEf3ToMHI": {
+      "latency": 91.678386926651,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uvhEf3ToMHI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "2seBB2oByZc": {
+      "latency": 132.00166606903076,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "2seBB2oByZc",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "igSp4H0OWLE": {
+      "latency": 88.86538982391357,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "igSp4H0OWLE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "k0GsZxWhjSE": {
+      "latency": 137.53987526893616,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "k0GsZxWhjSE",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "M_BYTcsLQuY": {
+      "latency": 142.4384741783142,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "M_BYTcsLQuY",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "co9vrSiN8ak": {
+      "latency": 145.91785311698914,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "co9vrSiN8ak",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "utRatnFr-S8": {
+      "latency": 199.74275398254395,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "utRatnFr-S8",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "b6nQnYzo_bY": {
+      "latency": 98.55369210243225,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "b6nQnYzo_bY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "zFOxZ2oo8-U": {
+      "latency": 98.52905488014221,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zFOxZ2oo8-U",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "CrZuPkgwA6Q": {
+      "latency": 669.6383929252625,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "CrZuPkgwA6Q",
+      "chunks": 10,
+      "lightrag_status": "success"
+    },
+    "U23yKxWbIcI": {
+      "latency": 984.7437677383423,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "U23yKxWbIcI",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "nCkbv_lvFfg": {
+      "latency": 1177.7689230442047,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nCkbv_lvFfg",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "ajMAwlKh3YM": {
+      "latency": 1068.8302841186523,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ajMAwlKh3YM",
+      "chunks": 12,
+      "lightrag_status": "success"
+    },
+    "DmzZPgTh7_M": {
+      "latency": 1390.7368531227112,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "DmzZPgTh7_M",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "mmpmX3-qfc4": {
+      "latency": 1510.4433619976044,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mmpmX3-qfc4",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "BZDXIQwOPdU": {
+      "latency": 1236.7473893165588,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "BZDXIQwOPdU",
+      "chunks": 11,
+      "lightrag_status": "success"
+    },
+    "YkIBYppBtro": {
+      "latency": 1825.6828718185425,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "YkIBYppBtro",
+      "chunks": 16,
+      "lightrag_status": "success"
+    },
+    "Lst4MvxPCx4": {
+      "latency": 1820.2238130569458,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Lst4MvxPCx4",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "1_-cZz8YRFw": {
+      "latency": 1794.6984360218048,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "1_-cZz8YRFw",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "_GEMrEWCiXw": {
+      "latency": 10842.336458921432,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "_GEMrEWCiXw",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "UJM00IqGKtc": {
+      "latency": 3586.2123939990997,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 588,
+      "lightrag_status": "success"
+    },
+    "K-AFDVOkIoE": {
+      "latency": 1852.212074995041,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "K-AFDVOkIoE",
+      "chunks": 278,
+      "lightrag_status": "success"
+    },
+    "1nhXsnx5--Y": {
+      "latency": 2937.659661769867,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "1nhXsnx5--Y",
+      "chunks": 601,
+      "lightrag_status": "success"
+    },
+    "RBb_3sgOgFY": {
+      "latency": 218.00556898117065,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RBb_3sgOgFY",
+      "chunks": 54,
+      "lightrag_status": "success"
+    },
+    "NJQ573JDmAg": {
+      "latency": 708.9082238674164,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "NJQ573JDmAg",
+      "chunks": 181,
+      "lightrag_status": "success"
+    },
+    "ffhDTzE4nDU": {
+      "latency": 1052.8735628128052,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ffhDTzE4nDU",
+      "chunks": 404,
+      "lightrag_status": "success"
+    },
+    "uZg9XnRub7w": {
+      "latency": 3219.906899213791,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uZg9XnRub7w",
+      "chunks": 180,
+      "lightrag_status": "success"
+    },
+    "RFx74Q6Oq2c": {
+      "latency": 1441.235089302063,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RFx74Q6Oq2c",
+      "chunks": 511,
+      "lightrag_status": "success"
+    },
+    "9Mv4Thnx9SU": {
+      "latency": 238.18341994285583,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 39,
+      "lightrag_status": "success"
+    },
+    "Gdd-5uWUW5w": {
+      "latency": 2720.4884939193726,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Gdd-5uWUW5w",
+      "chunks": 477,
+      "lightrag_status": "success"
+    },
+    "dqUq_a0DyLs": {
+      "latency": 4802.95094871521,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 534,
+      "lightrag_status": "success"
+    },
+    "1PlGMOAypCI": {
+      "latency": 1033.8440170288086,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "1PlGMOAypCI",
+      "chunks": 291,
+      "lightrag_status": "success"
+    },
+    "QzJ_Ft1de1o": {
+      "latency": 1072.7966859340668,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "QzJ_Ft1de1o",
+      "chunks": 185,
+      "lightrag_status": "success"
+    },
+    "Mr1cjAz2y9I": {
+      "latency": 3580.724420070648,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Mr1cjAz2y9I",
+      "chunks": 209,
+      "lightrag_status": "success"
+    },
+    "HELtP96Dd4w": {
+      "latency": 3327.53378200531,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "HELtP96Dd4w",
+      "chunks": 484,
+      "lightrag_status": "success"
+    },
+    "cHAJiF2byzg": {
+      "latency": 1055.6378710269928,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "cHAJiF2byzg",
+      "chunks": 130,
+      "lightrag_status": "success"
+    },
+    "vch9C_hNjGs": {
+      "latency": 652.5341250896454,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vch9C_hNjGs",
+      "chunks": 22,
+      "lightrag_status": "success"
+    },
+    "k8iO5daXllM": {
+      "latency": 3759.4548931121826,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "k8iO5daXllM",
+      "chunks": 112,
+      "lightrag_status": "success"
+    },
+    "ftFDBaH7RFg": {
+      "latency": 758.924088716507,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ftFDBaH7RFg",
+      "chunks": 121,
+      "lightrag_status": "success"
+    },
+    "pPHQMD3w9-s": {
+      "latency": 20033.986899852753,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "pPHQMD3w9-s",
+      "chunks": 718,
+      "lightrag_status": "success"
+    },
+    "Fbd7ln2i9dw": {
+      "latency": 16595.99771118164,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Fbd7ln2i9dw",
+      "chunks": 976,
+      "lightrag_status": "success"
+    },
+    "PslFhdZaBFA": {
+      "latency": 1520.6391651630402,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 423,
+      "lightrag_status": "success"
+    },
+    "oaKWpxmu0YI": {
+      "latency": 554.4044070243835,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "oaKWpxmu0YI",
+      "chunks": 175,
+      "lightrag_status": "success"
+    },
+    "AviNwtN1luo": {
+      "latency": 2245.7735509872437,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 616,
+      "lightrag_status": "success"
+    },
+    "nUrc8O7Avvk": {
+      "latency": 3966.7710371017456,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nUrc8O7Avvk",
+      "chunks": 914,
+      "lightrag_status": "success"
+    },
+    "6-GWHR9_iSU": {
+      "latency": 883.6291060447693,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "6-GWHR9_iSU",
+      "chunks": 372,
+      "lightrag_status": "success"
+    },
+    "Qr_pw4E-REk": {
+      "latency": 1064.3168859481812,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 624,
+      "lightrag_status": "success"
+    },
+    "V2WQ20Ocw_o": {
+      "latency": 2054.7193808555603,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "V2WQ20Ocw_o",
+      "chunks": 627,
+      "lightrag_status": "success"
+    },
+    "BkM7IcqUaj0": {
+      "latency": 976.8378190994263,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 313,
+      "lightrag_status": "success"
+    },
+    "1kS_mQaBLdg": {
+      "latency": 1669.698390007019,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 635,
+      "lightrag_status": "success"
+    },
+    "VTx4G0KEuUE": {
+      "latency": 1861.9483239650726,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 759,
+      "lightrag_status": "success"
+    },
+    "Tc8f9ZasRRM": {
+      "latency": 4413.210078001022,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 67,
+      "lightrag_status": "success"
+    },
+    "W2ZzApmqJmo": {
+      "latency": 385.33420586586,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 54,
+      "lightrag_status": "success"
+    },
+    "-yGLiryVQoQ": {
+      "latency": 126.20894384384155,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 57,
+      "lightrag_status": "success"
+    },
+    "Ji-hdW1t30g": {
+      "latency": 1073.4345200061798,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 419,
+      "lightrag_status": "success"
+    },
+    "U1qRvz3hnMA": {
+      "latency": 665.3594288825989,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 291,
+      "lightrag_status": "success"
+    },
+    "Z7w7soyXmHs": {
+      "latency": 1104.9686288833618,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 372,
+      "lightrag_status": "success"
+    },
+    "jy4hcpUSBms": {
+      "latency": 1182.927822113037,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 569,
+      "lightrag_status": "success"
+    },
+    "hqre34QIMZg": {
+      "latency": 195.96031308174133,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 607,
+      "lightrag_status": "success"
+    },
+    "XMzZe5aEmTo": {
+      "latency": 156.90210580825806,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 36,
+      "lightrag_status": "success"
+    },
+    "RvgN5Mfbd5A": {
+      "latency": 106.20403981208801,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 19,
+      "lightrag_status": "success"
+    },
+    "xUO_WoOlWmI": {
+      "latency": 1460.727458000183,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 23,
+      "lightrag_status": "success"
+    },
+    "E8N04l1Lptk": {
+      "latency": 1338.99977517128,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 381,
+      "lightrag_status": "success"
+    },
+    "oZRQoiRe7s4": {
+      "latency": 353.785521030426,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 24,
+      "lightrag_status": "success"
+    },
+    "CQEGJ0OaIPo": {
+      "latency": 112.99984288215637,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "bMGaQ2nUE5Y": {
+      "latency": 438.07865691185,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 13,
+      "lightrag_status": "success"
+    },
+    "07NOYJmkkFo": {
+      "latency": 4638.755569934845,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 275,
+      "lightrag_status": "success"
+    },
+    "zGhlBQ8iWl4": {
+      "latency": 2674.8643939495087,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 721,
+      "lightrag_status": "success"
+    },
+    "cxgHFX04RtQ": {
+      "latency": 160.21403217315674,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 16,
+      "lightrag_status": "success"
+    },
+    "77dJnbTCwsA": {
+      "latency": 773.5035998821259,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 68,
+      "lightrag_status": "success"
+    },
+    "D-RK1E9uoP8": {
+      "latency": 109.78359293937683,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 26,
+      "lightrag_status": "success"
+    },
+    "b-MkLkpTeVY": {
+      "latency": 2659.107564687729,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1307,
+      "lightrag_status": "success"
+    },
+    "-pBQ6Sy444o": {
+      "latency": 491.0564968585968,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 22,
+      "lightrag_status": "success"
+    },
+    "FP5O9F9JiOk": {
+      "latency": 4849.17210483551,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 859,
+      "lightrag_status": "success"
+    },
+    "vNj7OSHos1I": {
+      "latency": 1312.0616838932037,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 240,
+      "lightrag_status": "success"
+    },
+    "7b6tnI7VmB4": {
+      "latency": 477.26157307624817,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 22,
+      "lightrag_status": "success"
+    },
+    "vIUY446FVPw": {
+      "latency": 2884.4106271266937,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1669,
+      "lightrag_status": "success"
+    },
+    "L09zAtTcwes": {
+      "latency": 63.251035928726196,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "bh_kjn-1CAY": {
+      "latency": 941.5178401470184,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 78,
+      "lightrag_status": "success"
+    },
+    "zvRiparLGl8": {
+      "latency": 63.97056221961975,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "69IrsSXeBTg": {
+      "latency": 1503.176106929779,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 627,
+      "lightrag_status": "success"
+    },
+    "ZaZOJ6gazYM": {
+      "latency": 267.8161280155182,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 33,
+      "lightrag_status": "success"
+    },
+    "iikr2xzAK6Y": {
+      "latency": 7102.945348024368,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 256,
+      "lightrag_status": "success"
+    },
+    "mbhdVEKEbLg": {
+      "latency": 1595.3401062488556,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 390,
+      "lightrag_status": "success"
+    },
+    "uGosHULQQk0": {
+      "latency": 91.7607171535492,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 20,
+      "lightrag_status": "success"
+    },
+    "QWKFjbNhiNw": {
+      "latency": 63.25944805145264,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "h8DQ0GlvD8I": {
+      "latency": 101.96641492843628,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "X3LKG0Ycl3A": {
+      "latency": 376.1294779777527,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 12,
+      "lightrag_status": "success"
+    },
+    "5Tdb7hBwX88": {
+      "latency": 1750.3124358654022,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 35,
+      "lightrag_status": "success"
+    },
+    "o_eg6YTifRE": {
+      "latency": 3597.371141910553,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2220,
+      "lightrag_status": "success"
+    },
+    "4ytgjpow498": {
+      "latency": 178.14443802833557,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 24,
+      "lightrag_status": "success"
+    },
+    "8fKvjHOD_kQ": {
+      "latency": 124.97010707855225,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 13,
+      "lightrag_status": "success"
+    },
+    "0u9oe-5HPmk": {
+      "latency": 1602.5348160266876,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 655,
+      "lightrag_status": "success"
+    },
+    "6EHw_0gYD5w": {
+      "latency": 72.92951488494873,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 12,
+      "lightrag_status": "success"
+    },
+    "1sMxPhQcvEA": {
+      "latency": 340.94975423812866,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 33,
+      "lightrag_status": "success"
+    },
+    "OzgA9wYM6Oc": {
+      "latency": 460.243047952652,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 17,
+      "lightrag_status": "success"
+    },
+    "tDcy09esbe8": {
+      "latency": 3517.287185192108,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 515,
+      "lightrag_status": "success"
+    },
+    "Vt_CjAdzebM": {
+      "latency": 3873.2685556411743,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1391,
+      "lightrag_status": "success"
+    },
+    "iIduE7RwihM": {
+      "latency": 140.08531022071838,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 16,
+      "lightrag_status": "success"
+    },
+    "tl2Ek-QakME": {
+      "latency": 2252.9517302513123,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 469,
+      "lightrag_status": "success"
+    },
+    "g1tezETHrfY": {
+      "latency": 213.54994893074036,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 11,
+      "lightrag_status": "success"
+    },
+    "aSNQUkuyB18": {
+      "latency": 5748.831684112549,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1336,
+      "lightrag_status": "success"
+    },
+    "1J0HpmGWsZs": {
+      "latency": 652.9092841148376,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 232,
+      "lightrag_status": "success"
+    },
+    "nCK4-w8xu9Y": {
+      "latency": 298.43520522117615,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 11,
+      "lightrag_status": "success"
+    },
+    "3weAVHuSCxg": {
+      "latency": 145.5563509464264,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "3RyCldrCxL8": {
+      "latency": 8083.408275127411,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "3RyCldrCxL8",
+      "chunks": 1437,
+      "lightrag_status": "success"
+    },
+    "x-mTRlE0TC4": {
+      "latency": 22947.611602783203,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1759,
+      "lightrag_status": "success"
+    },
+    "kMc_kat7YLE": {
+      "latency": 20223.47288417816,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "kMc_kat7YLE",
+      "chunks": 1865,
+      "lightrag_status": "success"
+    },
+    "sMgbjxyrgqw": {
+      "latency": 11063.019067287445,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "sMgbjxyrgqw",
+      "chunks": 863,
+      "lightrag_status": "success"
+    },
+    "beh0v5Odn6g": {
+      "latency": 3900.0126070976257,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "beh0v5Odn6g",
+      "chunks": 199,
+      "lightrag_status": "success"
+    },
+    "V45jIC4RthQ": {
+      "latency": 43.94136595726013,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "V45jIC4RthQ",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "m-m2wMW4020": {
+      "latency": 43.151535987854004,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "m-m2wMW4020",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "EFJZ2l5Rc10": {
+      "latency": 21.5032057762146,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "EFJZ2l5Rc10",
+      "chunks": 7,
+      "lightrag_status": "success"
+    },
+    "YxglvjuoMZI": {
+      "latency": 5.774950981140137,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "YxglvjuoMZI",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "T3I8r_NU2Wk": {
+      "latency": 225.4580409526825,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "T3I8r_NU2Wk",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "3HytZ8tSiYE": {
+      "latency": 3.6302409172058105,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "3HytZ8tSiYE",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "ApX7lGnn-2U": {
+      "latency": 1.037809133529663,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ApX7lGnn-2U",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "LOsAzhRwUIk": {
+      "latency": 0.6621811389923096,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LOsAzhRwUIk",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "05wF2qqUVnI": {
+      "latency": 82.12821793556213,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "FoTH9BWP2gg": {
+      "latency": 3.411547899246216,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "FoTH9BWP2gg",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Yf4Pld6UEdg": {
+      "latency": 5.595852851867676,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Yf4Pld6UEdg",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "h5Cvb_ZXnJc": {
+      "latency": 1.4104809761047363,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "h5Cvb_ZXnJc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "hPALIQJXMFg": {
+      "latency": 29.87396788597107,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "mgfhxq9bn8Q": {
+      "latency": 0.9233090877532959,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mgfhxq9bn8Q",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "93evJf7Il-c": {
+      "latency": 68.85543823242188,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "8CgS_ANm26Y": {
+      "latency": 33.196643114089966,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "VbT9vgs06Gc": {
+      "latency": 39.67684197425842,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "cy7L7ru37HE": {
+      "latency": 68.02151989936829,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "0va0izWG0Hc": {
+      "latency": 402.113224029541,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "pR7zkayrXn8": {
+      "latency": 71.2248740196228,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "sO6_webPTdg": {
+      "latency": 47.05881714820862,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "zPsun8EkA2s": {
+      "latency": 139.22621321678162,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "E9BYLwkGel8": {
+      "latency": 27.77647089958191,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "HpoWKtIcTcw": {
+      "latency": 6.298191070556641,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "HpoWKtIcTcw",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "YEPXAy-jyVo": {
+      "latency": 3.9852771759033203,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "YEPXAy-jyVo",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "c_w5JbP_N90": {
+      "latency": 6.536263942718506,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "c_w5JbP_N90",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "dd1OcfbBTh4": {
+      "latency": 5.0984108448028564,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "dd1OcfbBTh4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "fuTnlIafdLY": {
+      "latency": 6.1785948276519775,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "fuTnlIafdLY",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "i4DQFbs_RKU": {
+      "latency": 22.724886894226074,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "sOv9ISMIRQ0": {
+      "latency": 3.5562009811401367,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "sOv9ISMIRQ0",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "sQkhrJ3C49w": {
+      "latency": 10.319735050201416,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "s4cOjzTWGh8": {
+      "latency": 20.477155923843384,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "8RbRpbaCh1I": {
+      "latency": 387.95380783081055,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Q_CMuXKuvoU": {
+      "latency": 1.0338630676269531,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Q_CMuXKuvoU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "bF6kr28QHJc": {
+      "latency": 5.3707239627838135,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "bF6kr28QHJc",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "inL9r7ffQ7c": {
+      "latency": 6.958066940307617,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "inL9r7ffQ7c",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "36rdT1bFOk0": {
+      "latency": 4.253545045852661,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "36rdT1bFOk0",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "4HRL8IxADhg": {
+      "latency": 1.371919870376587,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4HRL8IxADhg",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "BLvi5n274XY": {
+      "latency": 1.8240060806274414,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "BLvi5n274XY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "YZaEmcxvYvc": {
+      "latency": 0.998621940612793,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "YZaEmcxvYvc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "bHd9dYS6UiU": {
+      "latency": 1.3906629085540771,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "bHd9dYS6UiU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "cqvwOx5baxM": {
+      "latency": 0.6313390731811523,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "cqvwOx5baxM",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "dQw77H27GMY": {
+      "latency": 46.90269589424133,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "hfOFmTBWTSQ": {
+      "latency": 31.69133186340332,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1e0yk20hF7Y": {
+      "latency": 74.38798904418945,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "5TbaZA522Fs": {
+      "latency": 4.497140169143677,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5TbaZA522Fs",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "5ia1FNUN6fk": {
+      "latency": 3.7393641471862793,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5ia1FNUN6fk",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "AQUZcU5L9xE": {
+      "latency": 1.4359431266784668,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "AQUZcU5L9xE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "HLTISkkGbUI": {
+      "latency": 14.217500925064087,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "MuxETIn04F8": {
+      "latency": 1.284332036972046,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "MuxETIn04F8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1cs5nliQUSQ": {
+      "latency": 11.295961856842041,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "NMjYsvaOOQM": {
+      "latency": 5.807580947875977,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "NMjYsvaOOQM",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "NdmpvgZI4II": {
+      "latency": 1.0036559104919434,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "NdmpvgZI4II",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "WWIURef-J3s": {
+      "latency": 81.23023986816406,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "WhYY6IKaiVI": {
+      "latency": 1.399583101272583,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WhYY6IKaiVI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "WkkKW_mbWQI": {
+      "latency": 1.3726670742034912,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WkkKW_mbWQI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Yfi6-_lYa58": {
+      "latency": 0.662261962890625,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Yfi6-_lYa58",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "_-P-9fe5U_4": {
+      "latency": 0.9330720901489258,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "_-P-9fe5U_4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "bVcY8fIlDa4": {
+      "latency": 5.740125894546509,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "bVcY8fIlDa4",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "mAG-Q4DZ5Zs": {
+      "latency": 0.8204381465911865,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mAG-Q4DZ5Zs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "nHDXMZLLQyY": {
+      "latency": 0.8266360759735107,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nHDXMZLLQyY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "nxfjPX2qD_U": {
+      "latency": 4.2913830280303955,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nxfjPX2qD_U",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "tMaJzikpfeY": {
+      "latency": 14.049534797668457,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "16UXpd5BstM": {
+      "latency": 24.268450021743774,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "453IrXoe_Ug": {
+      "latency": 221.99706506729126,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "5hOsWGYAHFg": {
+      "latency": 39.303356885910034,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "8KaPqYLRWjc": {
+      "latency": 12.869199991226196,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "9id3ygnEhh8": {
+      "latency": 1.0781571865081787,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "9id3ygnEhh8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "FYQHXDtlYX4": {
+      "latency": 13.08898115158081,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "LKM-M3C8Tv4": {
+      "latency": 22.37967014312744,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "SyT0Jx-ZT2g": {
+      "latency": 32.43950009346008,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "U6pcGCyOYwo": {
+      "latency": 30.65863013267517,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "UpeaTtqs7Oc": {
+      "latency": 16.84555697441101,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "UpeaTtqs7Oc",
+      "chunks": 7,
+      "lightrag_status": "success"
+    },
+    "3qEON3iXjNM": {
+      "latency": 245.73959493637085,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "cvREfQLxC6k": {
+      "latency": 4.429190158843994,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "cvREfQLxC6k",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "nsWiuQDzAw4": {
+      "latency": 29.174288034439087,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "pomBCVpfFNw": {
+      "latency": 12.440402746200562,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "rnp4upHkaqQ": {
+      "latency": 25.639137983322144,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "vmm8-Vqr8GQ": {
+      "latency": 10.826880931854248,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "wZ9FcYgjbPM": {
+      "latency": 0.8958969116210938,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "wZ9FcYgjbPM",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "J81diFHJqWw": {
+      "latency": 0.6667847633361816,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "J81diFHJqWw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "hF3NZH-UX0Y": {
+      "latency": 0.8997070789337158,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "hF3NZH-UX0Y",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "QexlGYK0DI4": {
+      "latency": 68.01023936271667,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "aqpjV4cSJBI": {
+      "latency": 220.28640985488892,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "xTVHvMHakow": {
+      "latency": 1.4330737590789795,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "xTVHvMHakow",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "EyIJaL1sfpc": {
+      "latency": 10.755661010742188,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1GLc7XE0Yvw": {
+      "latency": 66.65613794326782,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "zO8tQkjCpyc": {
+      "latency": 177.53276586532593,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "d3pf-MPqRKY": {
+      "latency": 545.6696798801422,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "d3pf-MPqRKY",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "FSxiSEV1iPY": {
+      "latency": 117.69128704071045,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "kyEL8OTZwBk": {
+      "latency": 2.024350881576538,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "kyEL8OTZwBk",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "N0EoDEdWKA4": {
+      "latency": 1.144474983215332,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "N0EoDEdWKA4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "EBBd2MOeOIU": {
+      "latency": 0.7576460838317871,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "EBBd2MOeOIU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "txmjnRTgB4Y": {
+      "latency": 0.7847881317138672,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "txmjnRTgB4Y",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "09d8aVgYOqQ": {
+      "latency": 3.3807528018951416,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "09d8aVgYOqQ",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "8XUuSO6eV7s": {
+      "latency": 63.10006594657898,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "SJcLsbR7ccQ": {
+      "latency": 70.70868992805481,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "_laoTHp0JWw": {
+      "latency": 71.50818610191345,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "gRaAmM9ehzI": {
+      "latency": 69.14606595039368,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "dYCLRvvEnVA": {
+      "latency": 338.1251289844513,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "kB9lSN4nORo": {
+      "latency": 69.41458916664124,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "dj9ymEytgS0": {
+      "latency": 3.83575701713562,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "dj9ymEytgS0",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "uPm6kDwrjSY": {
+      "latency": 1.112551212310791,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uPm6kDwrjSY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "yc-Qs4eiZ2U": {
+      "latency": 47.972124338150024,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "Ip7C7KJBxBk": {
+      "latency": 1.8714561462402344,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Ip7C7KJBxBk",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "LpX01AXN5iM": {
+      "latency": 70.95673871040344,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "53Jzhrf-IWk": {
+      "latency": 19.553383827209473,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "ALXWHiS-ing": {
+      "latency": 1.1137712001800537,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ALXWHiS-ing",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "GWiiejeyAR8": {
+      "latency": 20.368266820907593,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "QpmmGqGoo-8": {
+      "latency": 6.190783977508545,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "QpmmGqGoo-8",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "UuPdfdrvpdQ": {
+      "latency": 1.0205001831054688,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "UuPdfdrvpdQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "cD6Wi47E0hk": {
+      "latency": 3.3774259090423584,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "cD6Wi47E0hk",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "xFQSF6GzQXQ": {
+      "latency": 2.3167290687561035,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "xFQSF6GzQXQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "kf-IuHxVN7g": {
+      "latency": 499.076229095459,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 13,
+      "lightrag_status": "success"
+    },
+    "eumRL5DfFzM": {
+      "latency": 189.9475200176239,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "eumRL5DfFzM",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "mvSrmuOyRYQ": {
+      "latency": 4.1944849491119385,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mvSrmuOyRYQ",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "zyUzxY37YVA": {
+      "latency": 3.487105131149292,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zyUzxY37YVA",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "lDqwgw-vYWc": {
+      "latency": 64.61038780212402,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "xsJwbk_N-RE": {
+      "latency": 0.958446741104126,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "xsJwbk_N-RE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "8IScMLY_yLY": {
+      "latency": 0.6091320514678955,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "8IScMLY_yLY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "H9A7Olg_QCo": {
+      "latency": 0.8381137847900391,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "H9A7Olg_QCo",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "WyRSqoqHWF0": {
+      "latency": 66.5885968208313,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "fYhbxU61wuI": {
+      "latency": 210.249520778656,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "fYhbxU61wuI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "gPkOSEdG0OA": {
+      "latency": 11.257980108261108,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "0Fa4Wyv0GOk": {
+      "latency": 3.7543251514434814,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "0Fa4Wyv0GOk",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "zpuRES7Fnm8": {
+      "latency": 6.773929834365845,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zpuRES7Fnm8",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "PNH5hdUnXks": {
+      "latency": 3.763826847076416,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "PNH5hdUnXks",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "LpqjenfvWzQ": {
+      "latency": 11.117501974105835,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LpqjenfvWzQ",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "5qA5ibrq9NU": {
+      "latency": 6.1854448318481445,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5qA5ibrq9NU",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "GQZ7A4fvts4": {
+      "latency": 23.593637228012085,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "tAFtaCF5a30": {
+      "latency": 13.421422004699707,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "19EEFd2ueiI": {
+      "latency": 4.500641822814941,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "19EEFd2ueiI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "GICjcQQ0aM0": {
+      "latency": 1.046949863433838,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "GICjcQQ0aM0",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "IjZkoyk7T14": {
+      "latency": 0.6319980621337891,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "IjZkoyk7T14",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "co3N4y-RQKQ": {
+      "latency": 1.2900140285491943,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "co3N4y-RQKQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "k1qCouxaNjQ": {
+      "latency": 0.7107820510864258,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "k1qCouxaNjQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "VrPi2RUUXq4": {
+      "latency": 3.832374095916748,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "VrPi2RUUXq4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "1WgqAO8AmsY": {
+      "latency": 0.6109817028045654,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "1WgqAO8AmsY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "F9Vo4fezmcE": {
+      "latency": 3.196282148361206,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "F9Vo4fezmcE",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Gw4Ng9FKJyY": {
+      "latency": 5.78456974029541,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Gw4Ng9FKJyY",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "PxTeZh0w1Go": {
+      "latency": 4.048734903335571,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "PxTeZh0w1Go",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Q6VqxNlagpQ": {
+      "latency": 0.9099760055541992,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Q6VqxNlagpQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "XsbGYVBY92c": {
+      "latency": 0.8571960926055908,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "XsbGYVBY92c",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "glXpHbwhQA4": {
+      "latency": 4.617984056472778,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "glXpHbwhQA4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "mJOReEqkgMM": {
+      "latency": 0.8530292510986328,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mJOReEqkgMM",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "0Spa0u4IyLE": {
+      "latency": 0.5820770263671875,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "0Spa0u4IyLE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1jLbPyOnpjo": {
+      "latency": 1.2959647178649902,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "1jLbPyOnpjo",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "IaOyZ0KPlUU": {
+      "latency": 10.840311765670776,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "IaOyZ0KPlUU",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "na0fqtqARVs": {
+      "latency": 13.67273211479187,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "na0fqtqARVs",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "-4qvpm4Rd6Q": {
+      "latency": 0.9438948631286621,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "-4qvpm4Rd6Q",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "XmkNwgkMC3U": {
+      "latency": 529.0742950439453,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "ACvOem_B-Ek": {
+      "latency": 45.245489835739136,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ACvOem_B-Ek",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "AK435vKMlo": {
+      "latency": 49.28314280509949,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Unsupported URL format: https://www.youtube.com/watch?v=AK435vKMlo",
+      "error_category": "transient"
+    },
+    "8xJampnp9qc": {
+      "latency": 1194.926332950592,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 10,
+      "lightrag_status": "success"
+    },
+    "MmiI3xo5Ju4": {
+      "latency": 958.0319192409515,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "OzKHRjr8nt8": {
+      "latency": 71.08309292793274,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "WlIW6LkFLp4": {
+      "latency": 65.90612077713013,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "jGG6-a4IrNw": {
+      "latency": 325.0446572303772,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 7,
+      "lightrag_status": "success"
+    },
+    "p3eCPcvhsjM": {
+      "latency": 71.0208728313446,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "kNMpaK6SIbc": {
+      "latency": 1588.1939570903778,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "qIsZ9oxvWeI": {
+      "latency": 69.42105913162231,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "tBKVwXEzl0c": {
+      "latency": 71.81237292289734,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "umD1vXG7WIA": {
+      "latency": 216.4438190460205,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "umD1vXG7WIA",
+      "chunks": 21,
+      "lightrag_status": "success"
+    },
+    "3InKt2QjqQ8": {
+      "latency": 144.630793094635,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 18,
+      "lightrag_status": "success"
+    },
+    "8Xy8xsLIgAU": {
+      "latency": 371.55077385902405,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "8Xy8xsLIgAU",
+      "chunks": 27,
+      "lightrag_status": "success"
+    },
+    "OaTrIaFLG6M": {
+      "latency": 108.3270890712738,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "OaTrIaFLG6M",
+      "chunks": 20,
+      "lightrag_status": "success"
+    },
+    "TIZ3yFQCFfA": {
+      "latency": 97.38075184822083,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 22,
+      "lightrag_status": "success"
+    },
+    "XS9EXhxRbi8": {
+      "latency": 521.5912981033325,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "XS9EXhxRbi8",
+      "chunks": 27,
+      "lightrag_status": "success"
+    },
+    "fzfhimnVghE": {
+      "latency": 2546.8928442001343,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 170,
+      "lightrag_status": "success"
+    },
+    "y-C_8_p_F5w": {
+      "latency": 2716.2178461551666,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "y-C_8_p_F5w",
+      "chunks": 297,
+      "lightrag_status": "success"
+    },
+    "F0kz4L2wB2A": {
+      "latency": 211.9866383075714,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "F0kz4L2wB2A",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "R7N_Bf14f0o": {
+      "latency": 1097.6146922111511,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "R7N_Bf14f0o",
+      "chunks": 16,
+      "lightrag_status": "success"
+    },
+    "pQ7yAREnJaw": {
+      "latency": 1570.006581068039,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "pQ7yAREnJaw",
+      "chunks": 243,
+      "lightrag_status": "success"
+    },
+    "uAPvGyjkrB8": {
+      "latency": 1470.5993812084198,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uAPvGyjkrB8",
+      "chunks": 34,
+      "lightrag_status": "success"
+    },
+    "FSwSt1omSD8": {
+      "latency": 414.19745779037476,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "FSwSt1omSD8",
+      "chunks": 18,
+      "lightrag_status": "success"
+    },
+    "y9iL10DPhzI": {
+      "latency": 1813.079440832138,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "y9iL10DPhzI",
+      "chunks": 243,
+      "lightrag_status": "success"
+    },
+    "zs_JKa0cVsY": {
+      "latency": 890.5373139381409,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zs_JKa0cVsY",
+      "chunks": 140,
+      "lightrag_status": "success"
+    },
+    "rux7GLCqLWQ": {
+      "latency": 2160.261237859726,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rux7GLCqLWQ",
+      "chunks": 23,
+      "lightrag_status": "success"
+    },
+    "OWXe9v7PHDs": {
+      "latency": 2539.9571561813354,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 574,
+      "lightrag_status": "success"
+    },
+    "5xxp7L-Ktp8": {
+      "latency": 735.404806137085,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5xxp7L-Ktp8",
+      "chunks": 98,
+      "lightrag_status": "success"
+    },
+    "NWrTrDIQ9XE": {
+      "latency": 79.69797801971436,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "NWrTrDIQ9XE",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "_xRxSiooRnE": {
+      "latency": 646.9193880558014,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "_xRxSiooRnE",
+      "chunks": 28,
+      "lightrag_status": "success"
+    },
+    "Nq8BntIZb40": {
+      "latency": 104.95983600616455,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Nq8BntIZb40",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "UKYZ4NtUMTw": {
+      "latency": 95.71014094352722,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "UKYZ4NtUMTw",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "JRX5W9AhWoA": {
+      "latency": 1877.2914271354675,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "JRX5W9AhWoA",
+      "chunks": 263,
+      "lightrag_status": "success"
+    },
+    "n3UBbCXJaJ0": {
+      "latency": 2748.430567741394,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "n3UBbCXJaJ0",
+      "chunks": 458,
+      "lightrag_status": "success"
+    },
+    "jK7-PPBXwr4": {
+      "latency": 4975.118615865707,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "jK7-PPBXwr4",
+      "chunks": 1819,
+      "lightrag_status": "success"
+    },
+    "D9obnqNB4aI": {
+      "latency": 872.481687784195,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "D9obnqNB4aI",
+      "chunks": 24,
+      "lightrag_status": "success"
+    },
+    "tCWfCISvo5k": {
+      "latency": 2982.909410238266,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "tCWfCISvo5k",
+      "chunks": 702,
+      "lightrag_status": "success"
+    },
+    "XK2Wna2YG6Y": {
+      "latency": 5234.51208281517,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 460,
+      "lightrag_status": "success"
+    },
+    "LGkdzRl08vo": {
+      "latency": 461.453085899353,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LGkdzRl08vo",
+      "chunks": 104,
+      "lightrag_status": "success"
+    },
+    "cESK2Fb3Aq0": {
+      "latency": 63.45687913894653,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "3EqnSkAzfIg": {
+      "latency": 2250.792881011963,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 907,
+      "lightrag_status": "success"
+    },
+    "j66VV2XKBJk": {
+      "latency": 2503.5101618766785,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "j66VV2XKBJk",
+      "chunks": 33,
+      "lightrag_status": "success"
+    },
+    "oSAPs1YDkq0": {
+      "latency": 832.7850580215454,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 206,
+      "lightrag_status": "success"
+    },
+    "rKoXeKg0y1Q": {
+      "latency": 151.30228996276855,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rKoXeKg0y1Q",
+      "chunks": 33,
+      "lightrag_status": "success"
+    },
+    "-4wCvcPrX-E": {
+      "latency": 2470.2991161346436,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1372,
+      "lightrag_status": "success"
+    },
+    "h5XzWxcWrtU": {
+      "latency": 2165.91827917099,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 27,
+      "lightrag_status": "success"
+    },
+    "uA7E_SUdtM8": {
+      "latency": 323.43576312065125,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uA7E_SUdtM8",
+      "chunks": 167,
+      "lightrag_status": "success"
+    },
+    "WtRGXnnGiVE": {
+      "latency": 145.45783925056458,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WtRGXnnGiVE",
+      "chunks": 18,
+      "lightrag_status": "success"
+    },
+    "Vl55gfNrZmM": {
+      "latency": 97.91335821151733,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Vl55gfNrZmM",
+      "chunks": 23,
+      "lightrag_status": "success"
+    },
+    "pTnEtB8mcVA": {
+      "latency": 119.12736296653748,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 29,
+      "lightrag_status": "success"
+    },
+    "tLNsDEp-JcA": {
+      "latency": 142.89537715911865,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 26,
+      "lightrag_status": "success"
+    },
+    "OZiElH5pKmo": {
+      "latency": 503.9985520839691,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "OZiElH5pKmo",
+      "chunks": 180,
+      "lightrag_status": "success"
+    },
+    "-YQLpNmH0MQ": {
+      "latency": 1175.7688868045807,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "-YQLpNmH0MQ",
+      "chunks": 20,
+      "lightrag_status": "success"
+    },
+    "-0O6WmxU3pw": {
+      "latency": 517.3552329540253,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 17,
+      "lightrag_status": "success"
+    },
+    "N8aw4NAR62c": {
+      "latency": 557.9673030376434,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "N8aw4NAR62c",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "vGWM3R_ihxI": {
+      "latency": 147.4850730895996,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vGWM3R_ihxI",
+      "chunks": 25,
+      "lightrag_status": "success"
+    },
+    "X1mtpheWDhs": {
+      "latency": 6143.384701967239,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "X1mtpheWDhs",
+      "chunks": 1107,
+      "lightrag_status": "success"
+    },
+    "OuDAdSnFtbw": {
+      "latency": 141.51398921012878,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "OuDAdSnFtbw",
+      "chunks": 20,
+      "lightrag_status": "success"
+    },
+    "UgQV_5FjPNk": {
+      "latency": 5466.159958124161,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "UgQV_5FjPNk",
+      "chunks": 1385,
+      "lightrag_status": "success"
+    },
+    "z3fSeC_oG-s": {
+      "latency": 134.49385404586792,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "z3fSeC_oG-s",
+      "chunks": 28,
+      "lightrag_status": "success"
+    },
+    "RkLY_uJL0xc": {
+      "latency": 211.61736011505127,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RkLY_uJL0xc",
+      "chunks": 48,
+      "lightrag_status": "success"
+    },
+    "21SEb5M9IRs": {
+      "latency": 26.32402491569519,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "u5JpxwG34bE": {
+      "latency": 53.90123891830444,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "qajcmg64VNI": {
+      "latency": 75.5284640789032,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "mpLJPUifTNA": {
+      "latency": 6.286160945892334,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mpLJPUifTNA",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "Ba-hG3SGdfw": {
+      "latency": 46.760388135910034,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "VP9mfCJBX_Y": {
+      "latency": 3.9807968139648438,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "VP9mfCJBX_Y",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "AHbh4mzrwUQ": {
+      "latency": 33.73792910575867,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "ULID4U_e3TU": {
+      "latency": 11.583844900131226,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ULID4U_e3TU",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "G1fWNIazj5U": {
+      "latency": 32.29414510726929,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "vhLVeSDWB5M": {
+      "latency": 19.234052896499634,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "XhV7FuKtZnY": {
+      "latency": 31.27147102355957,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "ELiB_UwCVTY": {
+      "latency": 1.4005119800567627,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ELiB_UwCVTY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "5daxvIoDLVU": {
+      "latency": 14.864559173583984,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "0YfmJqftSLE": {
+      "latency": 0.9041006565093994,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "0YfmJqftSLE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "pTw6RbHzm-U": {
+      "latency": 20.35453510284424,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "K2yXX6uhGFE": {
+      "latency": 12.30659794807434,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "_fi53IYfitg": {
+      "latency": 1.532437801361084,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "_fi53IYfitg",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "xFyfHBkyQgA": {
+      "latency": 0.5685129165649414,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "xFyfHBkyQgA",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "HTcbWPN1xxY": {
+      "latency": 34.668781042099,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "rPfK6DcC1Vw": {
+      "latency": 83.50105690956116,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "JLN3i1y6_Dk": {
+      "latency": 1.4228811264038086,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "JLN3i1y6_Dk",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Ejcq9mNGJk0": {
+      "latency": 16.288166046142578,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Ejcq9mNGJk0",
+      "chunks": 6,
+      "lightrag_status": "success"
+    },
+    "XFZOr_5-0F0": {
+      "latency": 26.007323741912842,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1oHlA7FtsGM": {
+      "latency": 66.37973213195801,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "dDyJNwNUbJs": {
+      "latency": 65.8395402431488,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "o_J7uas-9U0": {
+      "latency": 9.626997947692871,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "qj6ZFtvViic": {
+      "latency": 4.060832977294922,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "qj6ZFtvViic",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "0m64VFmniGI": {
+      "latency": 1.1244149208068848,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "0m64VFmniGI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "ve_KEcn9Ues": {
+      "latency": 0.5231549739837646,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ve_KEcn9Ues",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "M6MJzzFKoPg": {
+      "latency": 1.4622302055358887,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "M6MJzzFKoPg",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "HfS2relUTFg": {
+      "latency": 0.5742759704589844,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "HfS2relUTFg",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Maa5lwwHNrU": {
+      "latency": 1.3663232326507568,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Maa5lwwHNrU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "x1KyU5MVHu4": {
+      "latency": 0.703934907913208,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "x1KyU5MVHu4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Vz_fn9o_Meo": {
+      "latency": 38.67867088317871,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "8Lp2qPXYix4": {
+      "latency": 80.5174732208252,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "Eznp9NU0Y4I": {
+      "latency": 18.005928993225098,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "V1IuTlEU1ic": {
+      "latency": 1.6290991306304932,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "V1IuTlEU1ic",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "VOOf2kQpeMw": {
+      "latency": 1.130444049835205,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "VOOf2kQpeMw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "WfiHrS5Kjj8": {
+      "latency": 12.367487907409668,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WfiHrS5Kjj8",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "a3sAeqXrCYI": {
+      "latency": 6.693485975265503,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "a3sAeqXrCYI",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "cz_i2AsxGv0": {
+      "latency": 1.4021430015563965,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "cz_i2AsxGv0",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "md0y8j1SxBk": {
+      "latency": 106.68811893463135,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "nD0_yE8Yy64": {
+      "latency": 3.1872756481170654,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nD0_yE8Yy64",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "oqacXWT14ic": {
+      "latency": 2.6521761417388916,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "oqacXWT14ic",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "sCCLfLa0gyw": {
+      "latency": 8.138490915298462,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "sCCLfLa0gyw",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "40tIgtC8yec": {
+      "latency": 2.345412015914917,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "40tIgtC8yec",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "9XbV4ubs3Fw": {
+      "latency": 2.0677490234375,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "9XbV4ubs3Fw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "BtXOk3KUBd0": {
+      "latency": 29.497151136398315,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "ClbKAXVvzzo": {
+      "latency": 510.885427236557,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 8,
+      "lightrag_status": "success"
+    },
+    "E5FJYDruwjs": {
+      "latency": 4.046921968460083,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "E5FJYDruwjs",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "SAt-D1YFM1Q": {
+      "latency": 3.774045944213867,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "SAt-D1YFM1Q",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "U4lCthMt9oY": {
+      "latency": 1.266145944595337,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "U4lCthMt9oY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "gLXqxcsF1dw": {
+      "latency": 3.449199914932251,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "gLXqxcsF1dw",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "n_6eC35_wzA": {
+      "latency": 63.51017689704895,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "r3iE2gDwIEk": {
+      "latency": 49.67475724220276,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "rxz4w8fxXZ8": {
+      "latency": 3.6703901290893555,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rxz4w8fxXZ8",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "xNzBwpLBtSs": {
+      "latency": 0.9594559669494629,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "xNzBwpLBtSs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "zDOS3wCWea8": {
+      "latency": 0.6515960693359375,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zDOS3wCWea8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "4QL5Djtikmw": {
+      "latency": 0.6456270217895508,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4QL5Djtikmw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "5RcKCxfLEHM": {
+      "latency": 5.9993860721588135,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "5RcKCxfLEHM",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "7L2scLHOEC4": {
+      "latency": 1.1930570602416992,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "7L2scLHOEC4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Hdr5IXNmRUE": {
+      "latency": 0.6153228282928467,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Hdr5IXNmRUE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Nq2VYAIQyCs": {
+      "latency": 3.5597870349884033,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Nq2VYAIQyCs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "XcE2G9J8U_4": {
+      "latency": 1.3648808002471924,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "XcE2G9J8U_4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "qiba4m7wUXQ": {
+      "latency": 0.7223958969116211,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "qiba4m7wUXQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "R3ZRYoTxhUE": {
+      "latency": 27.28143811225891,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "XEFWnanCtk8": {
+      "latency": 22.214046955108643,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "lZTaw-5V_mc": {
+      "latency": 1.1227378845214844,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "lZTaw-5V_mc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "ECFRWVY8SGY": {
+      "latency": 13.64137887954712,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ECFRWVY8SGY",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "Lm-5gKTKD7Y": {
+      "latency": 8.648494005203247,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Lm-5gKTKD7Y",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "UDr00laBiYo": {
+      "latency": 29.951846837997437,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "T_SFXvO7ymc": {
+      "latency": 54.69899582862854,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "CKBwY7odu1E": {
+      "latency": 27.924994945526123,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Wua3xtO-oys": {
+      "latency": 1.5661911964416504,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Wua3xtO-oys",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "nlimcAFzAQE": {
+      "latency": 0.7653570175170898,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nlimcAFzAQE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "LZQ4PvoArC8": {
+      "latency": 229.7991259098053,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "DBUJH5f6rjU": {
+      "latency": 304.2097327709198,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "ZVraDQJ_I_Y": {
+      "latency": 66.64715313911438,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "l0bQZ9tnwvk": {
+      "latency": 4.098269939422607,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "l0bQZ9tnwvk",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "BJfhRGjPznA": {
+      "latency": 10.854573011398315,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "beadZEtxtcs": {
+      "latency": 2.1943700313568115,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "beadZEtxtcs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "esrYgY--owE": {
+      "latency": 1.3102490901947021,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "esrYgY--owE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "O8iewlvGRN0": {
+      "latency": 64.92272210121155,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "WO_jh3zPTr0": {
+      "latency": 48.83107399940491,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "hLg4WPG4ehE": {
+      "latency": 129.25207710266113,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "xnfQDhWWMkU": {
+      "latency": 648.4020700454712,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "M6NGzhww27o": {
+      "latency": 59.38774108886719,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "jHsA3IlRCm4": {
+      "latency": 1.2067539691925049,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "jHsA3IlRCm4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "nj4mPBJsauQ": {
+      "latency": 9.089558124542236,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "avCLyAi9DeY": {
+      "latency": 9.035551071166992,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "avCLyAi9DeY",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "_KtWOkUsy1w": {
+      "latency": 57.140705823898315,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "PoNEyybToU4": {
+      "latency": 26.009273052215576,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "v58RteTeBlE": {
+      "latency": 8.473867893218994,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "v58RteTeBlE",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "susUKIwVD34": {
+      "latency": 11.641835927963257,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "MAwd31cafVg": {
+      "latency": 9.025426864624023,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Y7p7jHP0Ii0": {
+      "latency": 50.54469680786133,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "GsEMHzvDq5M": {
+      "latency": 204.08448195457458,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "omDPxlDqDs0": {
+      "latency": 877.2737419605255,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "DjybU3_lUnc": {
+      "latency": 363.3961908817291,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "DjybU3_lUnc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "dkV4Dl3jfLs": {
+      "latency": 66.72995901107788,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "SKII-krCBcg": {
+      "latency": 63.580206871032715,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "-dzlXEIkqkI": {
+      "latency": 98.30141997337341,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "CfkyO8rGn2Y": {
+      "latency": 69.11284232139587,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "LzPKkAnAtjk": {
+      "latency": 65.44300484657288,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "zPrI0q34qw8": {
+      "latency": 457.57303500175476,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "h1YFNFOogEM": {
+      "latency": 67.45165085792542,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "tix59qHbyrI": {
+      "latency": 99.65917897224426,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "vLCsNfcbWqs": {
+      "latency": 253.72616815567017,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "d_IIBZd-xAQ": {
+      "latency": 18.483283042907715,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Ul_7NL6j2ZI": {
+      "latency": 36.16883683204651,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "qPKICCU7Wec": {
+      "latency": 1.436905860900879,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "qPKICCU7Wec",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "z0iCoqwZE_U": {
+      "latency": 5.846876859664917,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "z0iCoqwZE_U",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "VO3fi1c9ids": {
+      "latency": 5.971797704696655,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "VO3fi1c9ids",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "R_bZWZvU-r4": {
+      "latency": 4.079746246337891,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "R_bZWZvU-r4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "AxlmYK0B9Yw": {
+      "latency": 55.10837125778198,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "EpReLy7g6WM": {
+      "latency": 26.569507122039795,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "nsUkTKmx2dI": {
+      "latency": 6.203073024749756,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nsUkTKmx2dI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "9RkGiNC-jJA": {
+      "latency": 56.50223183631897,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "WQWVnrG-wX4": {
+      "latency": 4.640259742736816,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "WQWVnrG-wX4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "wDaE92bNRNw": {
+      "latency": 36.407593965530396,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "wDaE92bNRNw",
+      "chunks": 11,
+      "lightrag_status": "success"
+    },
+    "RgE2ryZsE3s": {
+      "latency": 4.400941610336304,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RgE2ryZsE3s",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "zXjwi5tTcno": {
+      "latency": 1.4713008403778076,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zXjwi5tTcno",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "SDWivCDevfE": {
+      "latency": 0.746527910232544,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "SDWivCDevfE",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "ct7R4Em77NY": {
+      "latency": 1.1248359680175781,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "ct7R4Em77NY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "v55cSB0foxM": {
+      "latency": 20.954827785491943,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "sboLTO_FUY4": {
+      "latency": 7.209604740142822,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "sboLTO_FUY4",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "MIF1XIgr-IQ": {
+      "latency": 1.1710562705993652,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "MIF1XIgr-IQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "CvDkoctU5a4": {
+      "latency": 0.7194910049438477,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "CvDkoctU5a4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "tl31QISheOc": {
+      "latency": 1.2471988201141357,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "tl31QISheOc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Ji7Zy_tDFQ4": {
+      "latency": 11.468573093414307,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Ji7Zy_tDFQ4",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "aIEw-1E9ays": {
+      "latency": 6.573095083236694,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "aIEw-1E9ays",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "HCs6I_BNtxo": {
+      "latency": 8.625957250595093,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "HCs6I_BNtxo",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "Y7bp-LlC3CM": {
+      "latency": 6.667159080505371,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Y7bp-LlC3CM",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "CNn_cuQsBh0": {
+      "latency": 1.180129051208496,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "CNn_cuQsBh0",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "-i-QFyNg8Io": {
+      "latency": 3.5939557552337646,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "-i-QFyNg8Io",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "HKjzpPlfvc8": {
+      "latency": 253.00829005241394,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "BsiePkp9bAc": {
+      "latency": 1.3111748695373535,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "BsiePkp9bAc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "wKYEvQZ03Po": {
+      "latency": 3.499776840209961,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "wKYEvQZ03Po",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "bSfYcWPgkpI": {
+      "latency": 1.609462022781372,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "bSfYcWPgkpI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1KnFnmU6NWw": {
+      "latency": 0.7487070560455322,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "1KnFnmU6NWw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "uz81-q_o5LI": {
+      "latency": 1.1645288467407227,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uz81-q_o5LI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "6SGdA1xnd4A": {
+      "latency": 8.01769495010376,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "6SGdA1xnd4A",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "We6ENmiSSwI": {
+      "latency": 8.69452428817749,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "We6ENmiSSwI",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "2X0BCy1bRcU": {
+      "latency": 3.9593420028686523,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "2X0BCy1bRcU",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "H4paK9NPSoc": {
+      "latency": 0.7930729389190674,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "H4paK9NPSoc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "6yHWS32aNOs": {
+      "latency": 0.7413902282714844,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "6yHWS32aNOs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "OLPF727ETSg": {
+      "latency": 1.0346219539642334,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "OLPF727ETSg",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "6YexvWyPC6k": {
+      "latency": 22.947184801101685,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "vZGe4g66rw4": {
+      "latency": 4.783271312713623,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vZGe4g66rw4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "mz8Mb0MvBz4": {
+      "latency": 1.6116092205047607,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mz8Mb0MvBz4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "G_soqEsZRU8": {
+      "latency": 0.9860579967498779,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "G_soqEsZRU8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "roc7MPff-C8": {
+      "latency": 8.935527801513672,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "roc7MPff-C8",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "KN0XZBa7K4Y": {
+      "latency": 3.606445789337158,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "KN0XZBa7K4Y",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "QlHMnyKYYoI": {
+      "latency": 4.946849822998047,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "QlHMnyKYYoI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "f-IpkGOOzYU": {
+      "latency": 4.936347007751465,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "f-IpkGOOzYU",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "OoH2peWBDEY": {
+      "latency": 22.98519492149353,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "a_qokyTjobo": {
+      "latency": 23.398929119110107,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "mS3cZvd1AvQ": {
+      "latency": 7.457809686660767,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mS3cZvd1AvQ",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "X-m1fDzX5Rc": {
+      "latency": 377.82225704193115,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "X-m1fDzX5Rc",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "O4c1bnnwSzU": {
+      "latency": 9.834565877914429,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "O4c1bnnwSzU",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "UodtrfOmNh4": {
+      "latency": 17.08702778816223,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "gqN5tl1Kwpg": {
+      "latency": 1.3210792541503906,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "gqN5tl1Kwpg",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "jEg3pQmKBIw": {
+      "latency": 6.579859256744385,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "jEg3pQmKBIw",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "3OjpANs8PDw": {
+      "latency": 6.414017915725708,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "3OjpANs8PDw",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "XzS56RqIxeE": {
+      "latency": 11.636474847793579,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "XzS56RqIxeE",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "qDQ1JxqWcT8": {
+      "latency": 65.41767406463623,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "Gae2J6ExMsY": {
+      "latency": 6.54633092880249,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Gae2J6ExMsY",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "R5jh4Ss4fKA": {
+      "latency": 3.9350321292877197,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "R5jh4Ss4fKA",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "7UuDjBiHrMA": {
+      "latency": 2.0917160511016846,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "7UuDjBiHrMA",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "wzb6s4oJX1Y": {
+      "latency": 12.671528100967407,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "JsTTRgk_8Hc": {
+      "latency": 1.624192714691162,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "JsTTRgk_8Hc",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "DnllMgFybyQ": {
+      "latency": 10.869315147399902,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "DnllMgFybyQ",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "_KQTdkGrw6A": {
+      "latency": 61.64319682121277,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "c32xomNzUIs": {
+      "latency": 5.98717999458313,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "c32xomNzUIs",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "lmNVJBc1Zoo": {
+      "latency": 8.373519659042358,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "phMVQUn1Sns": {
+      "latency": 15.668380737304688,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "pk4MA5aOSOY": {
+      "latency": 1.143291711807251,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "pk4MA5aOSOY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "zlxVrlARMEI": {
+      "latency": 1.1087381839752197,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zlxVrlARMEI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "gQv87W3mAu8": {
+      "latency": 0.8666739463806152,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "gQv87W3mAu8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "H7N4PSoJZMU": {
+      "latency": 1.0403048992156982,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "H7N4PSoJZMU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "EThkIHrfXWo": {
+      "latency": 0.7282910346984863,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "EThkIHrfXWo",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "CnCcYyJ8NTo": {
+      "latency": 62.97472882270813,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "IbOoMlXlzjY": {
+      "latency": 282.30907917022705,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "a78n3v1aDMg": {
+      "latency": 6.433302164077759,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "a78n3v1aDMg",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "u3xrPJu51SM": {
+      "latency": 4.213752031326294,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "u3xrPJu51SM",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "tGvaofifDzI": {
+      "latency": 1.257169246673584,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "tGvaofifDzI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "8n4-3zJSZyI": {
+      "latency": 66.62910199165344,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "pJXS28Odaqs": {
+      "latency": 10.462276935577393,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "pJXS28Odaqs",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "Mrngwfko5kk": {
+      "latency": 12.827141761779785,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Mrngwfko5kk",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "Hfj0c6-vUiY": {
+      "latency": 1.1396329402923584,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Hfj0c6-vUiY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "-wAUE5rcxis": {
+      "latency": 0.7664918899536133,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "-wAUE5rcxis",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "vrXmfCUvigs": {
+      "latency": 1.3646788597106934,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vrXmfCUvigs",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "rY83MZu--ck": {
+      "latency": 3.2665016651153564,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rY83MZu--ck",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Gv3w2uNCo2o": {
+      "latency": 3.9620821475982666,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Gv3w2uNCo2o",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "s-In3a1CAoI": {
+      "latency": 198.82367324829102,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "s-In3a1CAoI",
+      "chunks": 7,
+      "lightrag_status": "success"
+    },
+    "EwwciE_mxo8": {
+      "latency": 180.93465280532837,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "EwwciE_mxo8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "rRs__D_3mKY": {
+      "latency": 11.011778116226196,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rRs__D_3mKY",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "sZXuNv0L8YA": {
+      "latency": 8.719231128692627,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "sZXuNv0L8YA",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "88NOQTz5_yI": {
+      "latency": 10.576260089874268,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "88NOQTz5_yI",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "dEZ1P72hmLg": {
+      "latency": 11.55261492729187,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "MX7tos4L1jQ": {
+      "latency": 48.02405405044556,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "dwOK83_n6_4": {
+      "latency": 19.90368366241455,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Ln-4oxqStJI": {
+      "latency": 57.95249891281128,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "4rZDc-SaOB8": {
+      "latency": 3.2948660850524902,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4rZDc-SaOB8",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "dR7olu353VY": {
+      "latency": 17.15833306312561,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "dR7olu353VY",
+      "chunks": 6,
+      "lightrag_status": "success"
+    },
+    "mQ_qPqsc-i0": {
+      "latency": 0.9388689994812012,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mQ_qPqsc-i0",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1p0EnoA2u6o": {
+      "latency": 66.95170593261719,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "QeRsbucrii4": {
+      "latency": 1.2816131114959717,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "QeRsbucrii4",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "Oy-j2w6haoA": {
+      "latency": 0.7895710468292236,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Oy-j2w6haoA",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "mB83CObqvhU": {
+      "latency": 0.6993541717529297,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "mB83CObqvhU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "jRI007mQ2Wo": {
+      "latency": 6.032508134841919,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "jRI007mQ2Wo",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "RMpAflHYP2g": {
+      "latency": 1.0452959537506104,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RMpAflHYP2g",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "GBlHpCkYYgc": {
+      "latency": 32.93310618400574,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "DqUafRyXy_0": {
+      "latency": 70.06227469444275,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "GaSK6rscIgA": {
+      "latency": 382.00796914100647,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "W_KHgnxTHaY": {
+      "latency": 3.061704158782959,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "W_KHgnxTHaY",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "4eV8OvVEm6A": {
+      "latency": 7.763100862503052,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "4eV8OvVEm6A",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "AwDC-VZWfzU": {
+      "latency": 1.3870959281921387,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "AwDC-VZWfzU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "wjgYeizZwN8": {
+      "latency": 51.70017218589783,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "A6vBcCd_54I": {
+      "latency": 69.1764440536499,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "Pd42WwNAr8g": {
+      "latency": 3.8307268619537354,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Pd42WwNAr8g",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "aVqDALcqpII": {
+      "latency": 1.022237777709961,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "aVqDALcqpII",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "f8iC_C6rop0": {
+      "latency": 3.257067918777466,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "f8iC_C6rop0",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "uIknA-azXKQ": {
+      "latency": 3.382558822631836,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "uIknA-azXKQ",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "-vboUHsZ2KM": {
+      "latency": 22.548070907592773,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "YtkxNkrfJWg": {
+      "latency": 31.380805730819702,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "9kSjk8uqNbI": {
+      "latency": 1.1769521236419678,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "9kSjk8uqNbI",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "COmWEGiu9Hg": {
+      "latency": 3.2518348693847656,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "COmWEGiu9Hg",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Khxy7onLOnE": {
+      "latency": 65.18654489517212,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "s0p8jSaZOGc": {
+      "latency": 61.94834303855896,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "A0edLNr-mks": {
+      "latency": 546.8977978229523,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "A0edLNr-mks",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "WLN80D-u2us": {
+      "latency": 61.706058979034424,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "Ez7hzMHEs2I": {
+      "latency": 67.72273707389832,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "3_SHb2rvvvI": {
+      "latency": 63.31143403053284,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "r3VajKBFhbA": {
+      "latency": 65.78577399253845,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "fjekLTmR3ms": {
+      "latency": 62.93264293670654,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "7i_LOcXlznQ": {
+      "latency": 65.6401641368866,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "O4YQRVeyl6I": {
+      "latency": 66.94285321235657,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "Q6q7MaVu9Dk": {
+      "latency": 68.09285402297974,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "vcvE5YpOjL4": {
+      "latency": 6.65942120552063,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vcvE5YpOjL4",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "Ud5UpU0bvjw": {
+      "latency": 0.8770558834075928,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Ud5UpU0bvjw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "1imcyoNUO-A": {
+      "latency": 30.500032901763916,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "2RES9QrbVMA": {
+      "latency": 5.465406179428101,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "2RES9QrbVMA",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "7BLsD_meNzw": {
+      "latency": 8.254944086074829,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "7BLsD_meNzw",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "9wm4ey4OX8g": {
+      "latency": 3.374253034591675,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "9wm4ey4OX8g",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "9yaEGbPIxPk": {
+      "latency": 14.821259021759033,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "B9LZcfD-blU": {
+      "latency": 1.5118069648742676,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "B9LZcfD-blU",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "GTLqZPVojgI": {
+      "latency": 4.4099109172821045,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "GTLqZPVojgI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "szJ7uDYHJ1Y": {
+      "latency": 33.693410873413086,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "2U2GS7IkE8c": {
+      "latency": 3.7649590969085693,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "2U2GS7IkE8c",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "LLhU1ptXDp0": {
+      "latency": 3.1134262084960938,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "LLhU1ptXDp0",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "OrydPLvNKmI": {
+      "latency": 3.227952241897583,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "OrydPLvNKmI",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "TN9W-Jc7qZc": {
+      "latency": 4.497328281402588,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "TN9W-Jc7qZc",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "rXkyO0fOOLE": {
+      "latency": 4.079880952835083,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rXkyO0fOOLE",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "Rdm6ZwxZ3m4": {
+      "latency": 3.5761878490448,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Rdm6ZwxZ3m4",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "KB_rdqB-sVw": {
+      "latency": 1.2981560230255127,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "KB_rdqB-sVw",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "izjxTA_-mNs": {
+      "latency": 11.31215786933899,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "izjxTA_-mNs",
+      "chunks": 5,
+      "lightrag_status": "success"
+    },
+    "liMBvMgSPC8": {
+      "latency": 15.761831998825073,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "liMBvMgSPC8",
+      "chunks": 7,
+      "lightrag_status": "success"
+    },
+    "L4876a9aakw": {
+      "latency": 227.2483298778534,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 2,
+      "lightrag_status": "success"
+    },
+    "P6gff20GmPQ": {
+      "latency": 1.7718279361724854,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "P6gff20GmPQ",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "COC9vdjMTlc": {
+      "latency": 65.35693001747131,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "TqxxCYnAxo8": {
+      "latency": 25.489270210266113,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "TqxxCYnAxo8",
+      "chunks": 8,
+      "lightrag_status": "success"
+    },
+    "UlOt31lBhLY": {
+      "latency": 47.48719000816345,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "UlOt31lBhLY",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "-LK01oo7MAw": {
+      "latency": 437.98920917510986,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 1,
+      "lightrag_status": "success"
+    },
+    "AR0r8B6Ga8E": {
+      "latency": 42.57959294319153,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "AR0r8B6Ga8E",
+      "chunks": 14,
+      "lightrag_status": "success"
+    },
+    "vARTudIEq30": {
+      "latency": 48.16224408149719,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "vARTudIEq30",
+      "chunks": 16,
+      "lightrag_status": "success"
+    },
+    "nwQaU-agzFE": {
+      "latency": 48.204694986343384,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "nwQaU-agzFE",
+      "chunks": 15,
+      "lightrag_status": "success"
+    },
+    "hUmlujE6SN0": {
+      "latency": 29.333839893341064,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "hUmlujE6SN0",
+      "chunks": 8,
+      "lightrag_status": "success"
+    },
+    "RAOQ3ZubQGM": {
+      "latency": 383.7842710018158,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "RAOQ3ZubQGM",
+      "chunks": 8,
+      "lightrag_status": "success"
+    },
+    "VAMJEgwaPEc": {
+      "latency": 1009.3275609016418,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "Unknown",
+      "chunks": 45,
+      "lightrag_status": "success"
+    },
+    "0z-IZ2ar4eA": {
+      "latency": 37.729902029037476,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "0z-IZ2ar4eA",
+      "chunks": 10,
+      "lightrag_status": "success"
+    },
+    "WIUa93sXmPw": {
+      "latency": 64.40868210792542,
+      "status": "failed",
+      "qdrant_status": "failed",
+      "lightrag_status": "skipped",
+      "error": "Extraction failed",
+      "error_category": "permanent"
+    },
+    "sCiK7ABPcrw": {
+      "latency": 46.66100025177002,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "sCiK7ABPcrw",
+      "chunks": 16,
+      "lightrag_status": "success"
+    },
+    "VxJWAmiYu_0": {
+      "latency": 9.166455268859863,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "VxJWAmiYu_0",
+      "chunks": 4,
+      "lightrag_status": "success"
+    },
+    "rGcNJ_Nsuy8": {
+      "latency": 1651.1342961788177,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "rGcNJ_Nsuy8",
+      "chunks": 10,
+      "lightrag_status": "success"
+    },
+    "STlEq16n8kI": {
+      "latency": 13.769159078598022,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "STlEq16n8kI",
+      "chunks": 6,
+      "lightrag_status": "success"
+    },
+    "NFlAszNFZdQ": {
+      "latency": 22.33311700820923,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "NFlAszNFZdQ",
+      "chunks": 8,
+      "lightrag_status": "success"
+    },
+    "btbKcsb9Dzw": {
+      "latency": 32.161951780319214,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "btbKcsb9Dzw",
+      "chunks": 11,
+      "lightrag_status": "success"
+    },
+    "zQjrjEYPsB8": {
+      "latency": 14.2540922164917,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "zQjrjEYPsB8",
+      "chunks": 6,
+      "lightrag_status": "success"
+    },
+    "eozUm89Kk9k": {
+      "latency": 8.601405143737793,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "eozUm89Kk9k",
+      "chunks": 3,
+      "lightrag_status": "success"
+    },
+    "f0mxoBD9Fno": {
+      "latency": 8.740783929824829,
+      "status": "success",
+      "qdrant_status": "success",
+      "title": "f0mxoBD9Fno",
+      "chunks": 4,
+      "lightrag_status": "success"
+    }
+  },
+  "failed_lightrag_chunks": [
+    {
+      "source_name": "YouTube Video: Unknown (URL: https://www.youtube.com/watch?v=69IrsSXeBTg)",
+      "video_id": "69IrsSXeBTg",
+      "chunk_index": 1,
+      "total_chunks": 1,
+      "chunk_content": "Please be seated in a comfortable position. Allow your breath to relax. Take eight conscious breaths. Treat your breath with a touch of your thumbs and your fingers. Inhale and exhale slowly. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Take eight conscious breaths. Amen. Amen.\n\nFor the next eight cycles of breath, inhale and exhale bringing attention to the pause that happens between every inhalation and exhalation. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen. Amen.\n\nFor the next eight cycles of breath, inhale, as you exhale, chant within yourself, Aham, for I am, I am the limitless consciousness. I am the limitless consciousness. I am the limitless consciousness. I am the limitless consciousness. Thank you. Now bring a gentle touch between your thumb and your index finger on what you have. See yourself becoming light, becoming one with the unitary field of consciousness. Everything around you becoming light. Your index finger on what you have. Thank you. In this space of expansion, hold your desire. See it. Feel it. As so it is in the now. Thank you. Thank you. Thank you. Thank you. Immerse your heart in the space of gratitude for this gift. Take a few deep breaths. Whenever you are ready, may you open your eyes. Thank you.",
+      "error": "NamespaceLock already acquired in current coroutine context",
+      "timestamp": "2026-05-24T22:21:07Z",
+      "attempts": 3
+    }
+  ],
+  "dead_letter_queue": [
+    {
+      "video_id": "L09zAtTcwes",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-24T21:55:00Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "zvRiparLGl8",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-24T21:56:04Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "QWKFjbNhiNw",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-24T22:54:45Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "pR7zkayrXn8",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:19:12Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "QexlGYK0DI4",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:36:57Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "1GLc7XE0Yvw",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:38:38Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "8XUuSO6eV7s",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:44:45Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "SJcLsbR7ccQ",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:45:55Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "_laoTHp0JWw",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:47:07Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "kB9lSN4nORo",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:49:25Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "LpX01AXN5iM",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:53:47Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "lDqwgw-vYWc",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T12:59:03Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "WyRSqoqHWF0",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:00:12Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "AK435vKMlo",
+      "error_category": "transient",
+      "error_message": "Unsupported URL format: https://www.youtube.com/watch?v=AK435vKMlo",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:10:36Z",
+      "will_retry": true
+    },
+    {
+      "video_id": "OzKHRjr8nt8",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:24:41Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "WlIW6LkFLp4",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:25:47Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "p3eCPcvhsjM",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:32:23Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "qIsZ9oxvWeI",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:33:32Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "tBKVwXEzl0c",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T13:34:44Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "cESK2Fb3Aq0",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T18:50:58Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "1oHlA7FtsGM",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T22:49:09Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "dDyJNwNUbJs",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T22:50:15Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "n_6eC35_wzA",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:05:36Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "ZVraDQJ_I_Y",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:13:47Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "O8iewlvGRN0",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:15:44Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "dkV4Dl3jfLs",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:35:44Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "SKII-krCBcg",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:36:48Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "-dzlXEIkqkI",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:38:26Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "CfkyO8rGn2Y",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:39:35Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "LzPKkAnAtjk",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:40:41Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "h1YFNFOogEM",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:41:48Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "qDQ1JxqWcT8",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:55:45Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "_KQTdkGrw6A",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:58:13Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "CnCcYyJ8NTo",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-25T23:59:51Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "8n4-3zJSZyI",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:02:13Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "1p0EnoA2u6o",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:07:30Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "A6vBcCd_54I",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:11:36Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "Khxy7onLOnE",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:13:52Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "s0p8jSaZOGc",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:14:54Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "WLN80D-u2us",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:15:55Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "Ez7hzMHEs2I",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:17:03Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "3_SHb2rvvvI",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:18:06Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "r3VajKBFhbA",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:21:12Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "fjekLTmR3ms",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:22:15Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "7i_LOcXlznQ",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:22:48Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "O4YQRVeyl6I",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:23:22Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "Q6q7MaVu9Dk",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:23:56Z",
+      "will_retry": false
+    },
+    {
+      "video_id": "WIUa93sXmPw",
+      "error_category": "permanent",
+      "error_message": "Extraction failed",
+      "attempt_count": 3,
+      "last_attempt_ts": "2026-05-26T00:44:48Z",
+      "will_retry": false
+    }
+  ]
 }
