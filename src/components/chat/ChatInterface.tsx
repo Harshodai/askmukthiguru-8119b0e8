@@ -167,7 +167,7 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
-import { Flower2, Heart, Compass, BookOpen } from 'lucide-react';
+import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
 
 const STARTER_CARDS = [
   { id: 'reflect', icon: Compass, eyebrow: 'Reflect', prompt: 'What is the Beautiful State, and how do I begin?' },
