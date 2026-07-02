@@ -1473,7 +1473,10 @@ return (
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={toggleSidebar}
         onExport={handleExportConversation}
+        onOpenSources={() => setSourcesPanelOpen(true)}
+        sourcesCount={uniqueSourcesCount}
       />
+
 
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} />
