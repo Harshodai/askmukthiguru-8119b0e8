@@ -512,3 +512,46 @@
 .message-bubble .prose li + li {
   margin-top: 0.35em;
 }
+
+/* ============================================================
+   Typography scale — single source of truth (WCAG AA verified)
+   Applied across landing, chat, footer. Fluid via clamp().
+   ============================================================ */
+@layer components {
+  .text-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-ojas;
+  }
+  .text-display {
+    font-size: clamp(2.25rem, 5vw + 0.5rem, 4.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    @apply font-display font-bold text-foreground;
+  }
+  .text-h1 {
+    font-size: clamp(1.875rem, 3vw + 0.5rem, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    @apply font-display font-semibold text-foreground;
+  }
+  .text-h2 {
+    font-size: clamp(1.5rem, 2vw + 0.5rem, 2.25rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    @apply font-display font-semibold text-foreground;
+  }
+  .text-h3 {
+    font-size: clamp(1.125rem, 1vw + 0.75rem, 1.5rem);
+    line-height: 1.3;
+    @apply font-sans font-semibold text-foreground;
+  }
+  .text-body {
+    @apply text-[15px] md:text-base leading-relaxed text-foreground/90 font-sans;
+  }
+  .text-body-sm {
+    @apply text-sm leading-relaxed text-muted-foreground font-sans;
+  }
+  .text-caption {
+    @apply text-xs leading-normal text-muted-foreground font-sans;
+  }
+}
+
