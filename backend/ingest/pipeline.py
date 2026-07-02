@@ -10,6 +10,7 @@ Design Patterns:
 This is the single entry point for ALL content ingestion.
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -81,6 +82,7 @@ from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.injection_scanner import scan_chunks_for_injection
 from services.ocr_service import OCRService
+from services.metadata_extractor import extract_video_metadata
 from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
 from services.proposition_service import PropositionService
@@ -177,6 +179,7 @@ class IngestionPipeline:
         self._adaptive_chunker = AdaptiveChunkingAdapter(self._embedder)
         self._proposition_service = PropositionService(self._llm)
         self._contextual_chunker = ContextualChunkingService(self._llm)
+        self._neo4j_driver = None
 
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
@@ -190,6 +193,15 @@ class IngestionPipeline:
             ollama_service=self._llm,
             qdrant_service=self._qdrant,
         )
+
+    def _get_neo4j_driver(self):
+        if self._neo4j_driver is None:
+            from neo4j import GraphDatabase
+            self._neo4j_driver = GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password),
+            )
+        return self._neo4j_driver
 
     async def ingest_file(
         self,
@@ -454,7 +466,6 @@ class IngestionPipeline:
 
         raw_text = result["text"]
 
-        import hashlib
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(content_hash):
@@ -467,7 +478,6 @@ class IngestionPipeline:
                 "message": "Content already processed. Skipped.",
             }
 
-        # Step 1.15: Deterministic pre-filter to save LLM/API costs
         is_ok, reason = is_valid_text_deterministic(raw_text)
         if not is_ok:
             logger.warning(f"Deterministic pre-filter rejected {url}: {reason}")
@@ -480,15 +490,9 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        # Step 1.2: Correct Transcript (Council Recommendation)
-        # We correct BEFORE auditing to ensure the auditor sees high-quality text.
-        self._notify(on_progress, "Correcting transcript (LLM)...", 0.15)
-
-        # Security: Sanitize input to prevent injection
         sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
 
-        # Step 1.5: Audit Content Quality
         self._notify(on_progress, "Auditing content quality...", 0.2)
         is_valid = await self._auditor.audit_transcript(raw_text, url)
 
@@ -512,11 +516,24 @@ class IngestionPipeline:
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.35)
         hyper_extract_result = self._enrich_text(clean_text)
 
+        # Step 2c: Enrich video metadata from transcript for non-Apify paths
+        method = result.get("method", "")
+        if not method.startswith("pre_extracted_"):
+            self._notify(on_progress, "Extracting video metadata...", 0.4)
+            enriched = extract_video_metadata(raw_text, video_id)
+            if enriched.get("title"):
+                result["title"] = enriched["title"]
+            if enriched.get("speaker") and enriched["speaker"] != "Unknown":
+                result["speaker"] = enriched["speaker"]
+            if enriched.get("language"):
+                result["language"] = enriched["language"]
+
         # Step 3: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
         video_title = result.get("title", "") or ""
         video_speaker = result.get("speaker", "Unknown")
         video_topic = result.get("topic", "Spiritual")
+        video_language = result.get("language") or None
 
         extra_metadatas = None
         if max_accuracy:
@@ -553,6 +570,7 @@ class IngestionPipeline:
             topic=video_topic,
             content_type="video",
             source_type="video",
+            language=video_language,
             extra_metadatas=extra_metadatas,
             tags=tags,
         )
@@ -628,7 +646,6 @@ class IngestionPipeline:
 
         raw_text = result["text"]
 
-        import hashlib
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(content_hash):
@@ -659,7 +676,21 @@ class IngestionPipeline:
         sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
 
+        # Enrich video metadata from transcript for non-Apify paths
+        method = result.get("method", "")
+        if not method.startswith("pre_extracted_"):
+            self._notify(on_progress, "Extracting video metadata...", 0.35)
+            enriched = extract_video_metadata(raw_text, video_id)
+            if enriched.get("title"):
+                result["title"] = enriched["title"]
+            if enriched.get("speaker") and enriched["speaker"] != "Unknown":
+                result["speaker"] = enriched["speaker"]
+            if enriched.get("language"):
+                result["language"] = enriched["language"]
+
         video_title = result.get("title", "")
+        video_speaker = result.get("speaker", "Unknown")
+        video_language = result.get("language") or None
 
         # 2. Extract key spiritual topics (LLM)
         self._notify(on_progress, "Analyzing spiritual topics...", 0.4)
@@ -737,10 +768,11 @@ class IngestionPipeline:
                 all_chunks,
                 source_url=url,
                 title=video_title,
-                speaker=speaker,
-                topic="Multi-Topic",  # Override by individual chunk's topic in extra_metadatas
+                speaker=video_speaker,
+                topic="Multi-Topic",
                 content_type="video_enhanced",
                 source_type="video",
+                language=video_language,
                 extra_metadatas=all_extra_metadatas,
                 tags=tags,
             )
@@ -805,20 +837,27 @@ class IngestionPipeline:
             return ["Spiritual"]
 
     def _topic_partition(self, text: str, topics: list[str]) -> dict[str, str]:
-        """Simple partition of text based on topic keyword proximity."""
-        # For a production version, use LLM to boundary-detect.
-        # Here we do a simplified version for the architecture.
+        """Partition text into topic sections using sentence-boundary awareness."""
         if not topics:
             return {"General": text}
 
-        sections = {}
-        text_len = len(text)
-        chunk_size = text_len // len(topics)
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        if len(sentences) <= len(topics):
+            eq = len(text) // len(topics)
+            sections = {}
+            for i, topic in enumerate(topics):
+                start = i * eq
+                end = (i + 1) * eq if i < len(topics) - 1 else len(text)
+                sections[topic] = text[start:end]
+            return sections
 
+        sentences_per_topic = max(1, len(sentences) // len(topics))
+        sections = {}
         for i, topic in enumerate(topics):
-            start = i * chunk_size
-            end = (i + 1) * chunk_size if i < len(topics) - 1 else text_len
-            sections[topic] = text[start:end]
+            s = i * sentences_per_topic
+            e = (i + 1) * sentences_per_topic if i < len(topics) - 1 else len(sentences)
+            sections[topic] = " ".join(sentences[s:e])
         return sections
 
     async def _ingest_playlist(
@@ -907,6 +946,7 @@ class IngestionPipeline:
                 video_title = transcript.get("title", "")
                 video_speaker = transcript.get("speaker", "Unknown")
                 video_topic = transcript.get("topic", "Spiritual")
+                video_language = transcript.get("language") or None
 
                 chunks = self._split_text(
                     clean_text,
@@ -935,6 +975,7 @@ class IngestionPipeline:
                     title=video_title,
                     speaker=video_speaker,
                     topic=video_topic,
+                    language=video_language,
                     content_type="video",
                     source_type="video",
                     tags=tags,
@@ -960,7 +1001,8 @@ class IngestionPipeline:
                 # Step 6: Graph RAG
                 await self._lightrag.ainsert(clean_text)
 
-                checkpoint.save(video["url"])
+                content_hash_pl = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
+                checkpoint.save(content_hash_pl)
                 processed += 1
 
             except Exception as e:
@@ -1052,12 +1094,7 @@ class IngestionPipeline:
         and runs the self-healing sequence to prune orphans and synchronize Qdrant.
         Runs as a post-ingestion cleanup to maintain high graph data quality.
         """
-        from neo4j import GraphDatabase
         from collections import defaultdict
-
-        neo4j_uri = getattr(settings, "neo4j_uri", "bolt://localhost:7687")
-        neo4j_user = getattr(settings, "neo4j_user", "neo4j")
-        neo4j_password = getattr(settings, "neo4j_password", "mukthiguru_neo4j_pass")
 
         def clean_name(name):
             cleaned = name.strip()
@@ -1069,7 +1106,7 @@ class IngestionPipeline:
             logger.info("Running post-ingestion self-healing and entity consolidation...")
             def run_consolidation():
                 try:
-                    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+                    driver = self._get_neo4j_driver()
                     neo4j_entities = set()
                     with driver.session() as session:
                         # 1. Entity consolidation
@@ -1164,7 +1201,6 @@ class IngestionPipeline:
                         # Fetch remaining entities for cross check
                         active_res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name")
                         neo4j_entities = {r["name"].strip().lower() for r in active_res if r["name"]}
-                    driver.close()
 
                     # 4. Synchronize Qdrant Vector Mismatches
                     from qdrant_client import QdrantClient
@@ -1263,7 +1299,6 @@ class IngestionPipeline:
                 "tags": tags or [],
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
-                "tags": tags,
             }
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
@@ -1582,17 +1617,13 @@ class IngestionPipeline:
 
         try:
             import asyncio
-            from neo4j import GraphDatabase
             from app.constants import CONCEPT_SIMILARITY_THRESHOLD
             from datetime import datetime
             import numpy as np
 
             # 1. Fetch all concept/entity nodes from Neo4j
             def _get_entities():
-                driver = GraphDatabase.driver(
-                    settings.neo4j_uri,
-                    auth=(settings.neo4j_user, settings.neo4j_password)
-                )
+                driver = self._get_neo4j_driver()
                 entities = []
                 with driver.session() as session:
                     result = session.run("MATCH (n) WHERE n.entity_name IS NOT NULL RETURN n.entity_name AS name, n.description AS desc LIMIT 150")
@@ -1667,10 +1698,7 @@ class IngestionPipeline:
 
                         # Write to Neo4j
                         def _write_relation(target_name, relation, desc, sim_val):
-                            driver = GraphDatabase.driver(
-                                settings.neo4j_uri,
-                                auth=(settings.neo4j_user, settings.neo4j_password)
-                            )
+                            driver = self._get_neo4j_driver()
                             with driver.session() as session:
                                 cypher = f"""
                                 MATCH (target) WHERE target.entity_name = $target_name

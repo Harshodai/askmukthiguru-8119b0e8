@@ -439,7 +439,24 @@ async def _call_llm(system: str, user: str) -> str:
             logger.info("LLM: generated %d chars via OpenRouter", len(text))
             return text.strip()
     except Exception as exc:
-        logger.warning("OpenRouter LLM failed: %s", exc)
+        logger.warning("OpenRouter LLM failed: %s — trying Ollama", exc)
+
+    # Final fallback: Ollama (local — always available if ollama serve is running)
+    try:
+        from services.ollama_service import OllamaService
+
+        ollama = OllamaService()
+        text = await ollama.generate(
+            system_prompt=system,
+            user_prompt=user,
+            temperature=0.3,
+            operation="okf_extraction",
+        )
+        if text:
+            logger.info("LLM: generated %d chars via Ollama", len(text))
+            return text.strip()
+    except Exception as exc:
+        logger.warning("Ollama LLM failed: %s", exc)
 
     raise RuntimeError("No LLM provider available — ensure llm_provider is configured")
 

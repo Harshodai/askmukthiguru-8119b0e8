@@ -7,6 +7,7 @@ import logging
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     Distance,
+    HnswConfigDiff,
     ScalarQuantization,
     ScalarQuantizationConfig,
     ScalarType,
@@ -38,6 +39,7 @@ class QdrantClientManager:
             logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
             self._client = QdrantClient(
                 url=settings.qdrant_url,
+                prefer_grpc=True,
                 check_compatibility=False,
                 timeout=_timeout,
             )
@@ -90,6 +92,11 @@ class QdrantClientManager:
                             index=SparseIndexParams(),
                         ),
                     },
+                    hnsw_config=HnswConfigDiff(
+                        m=32,
+                        ef_construct=200,
+                        full_scan_threshold=10000,
+                    ),
                     quantization_config=ScalarQuantization(
                         scalar=ScalarQuantizationConfig(
                             type=ScalarType.INT8,
@@ -151,6 +158,11 @@ class QdrantClientManager:
                 self._client.create_payload_index(
                     collection_name=self._collection,
                     field_name="content_type",
+                    field_schema="keyword",
+                )
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="title",
                     field_schema="keyword",
                 )
                 logger.info(

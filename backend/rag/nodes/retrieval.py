@@ -577,9 +577,10 @@ async def retrieve_for_single_query(
                 subgraph_ctx = await query_neo4j_subgraph(query)
                 if subgraph_ctx:
                     graph_answer += "\n" + subgraph_ctx
-            # Normalise score by LightRAG content richness so it doesn't
-            # clobber downstream rankers with an arbitrary 1.0.
-            lg_score = min(0.9, 0.7 + 0.02 * len(lg_node_lines))
+            # Normalise LightRAG score to Qdrant-comparable range (0.3-0.7)
+            # so it doesn't clobber downstream rankers with an inflated default.
+            lg_richness = min(1.0, len(lg_node_lines) / 20)
+            lg_score = 0.3 + 0.4 * lg_richness
             lightrag_results.append(
                 {
                     "text": graph_answer,
@@ -598,7 +599,7 @@ async def retrieve_for_single_query(
     seen: set[int] = set()
     deduped: list[dict] = []
     for doc in merged:
-        th = hash(doc["text"][:120])
+        th = hash(doc["text"][:100])
         if th not in seen:
             seen.add(th)
             deduped.append(doc)
@@ -924,12 +925,13 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
         query_emb = query_enc["dense"]
 
+        mmr_lambda = getattr(settings, "rag_mmr_lambda", 0.5)
         all_docs = qdrant.mmr_select(
             query_embedding=query_emb,
             documents=all_docs,
             doc_embeddings=doc_embeddings,
             top_k=settings.rag_top_k_retrieval,
-            lambda_param=0.7,
+            lambda_param=mmr_lambda,
         )
 
     # Coverage-gap check: docs exist but all score below quality threshold → treat as no coverage
@@ -1018,8 +1020,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # ponytail: inline call — shortest diff, no new graph node. Non-fatal on failure.
     if (
         getattr(settings, "rag_deep_research_enabled", False)
-        or state.get("query_tier") == "tier3_complex"
-        or state.get("intent") == "standard"
+        and state.get("query_tier") == "tier3_complex"
     ):
         try:
             from rag.nodes.deep_research import conduct_deep_research

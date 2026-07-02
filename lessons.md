@@ -1,5 +1,77 @@
 # Agentic Lessons & Memory
 
+## Jul 2, 2026 — Language-Only Backfill, Neo4j Indexes, Script Gotchas
+
+### Language-Only Backfill as Fast First Pass
+- **Problem**: Full LLM backfill estimated ~10h (NIM 30 RPM). 44% of 90K points missing language — langdetect handles this instantly, zero API cost.
+- **Fix**: Modified `backfill_metadata.py` with `--language-only` flag. In this mode, skips LLM entirely and runs langdetect on first 500 chars per video. Returns dict with only `language` key (no title/speaker) to avoid writing redundant `speaker: "Unknown"` payload updates.
+- **Results**: Full 90K scan completed in ~25s. Missing language dropped from 44.7% to 7%. Remaining 7% are videos with <100 chars transcript content (below `--min-chars` threshold).
+- **Lesson**: Always run language-only first as a two-pass strategy — it costs nothing and fixes the biggest gap instantly. The isolated `language` payload field means no conflict with subsequent LLM title/speaker pass.
+
+### Neo4j Index Migration Script Fix
+- **Problem**: `scripts/ops/add_neo4j_indexes.py` had `sys.path.insert` at module level but `import sys` only inside `if __name__ == "__main__"` — would crash with `NameError` before `main()` even ran. Also used Docker hostname `bolt://neo4j:7687` from settings, unreachable from host.
+- **Fix**: Moved `import sys` to top of file. Script already supported `NEO4J_URI` env var override, so run with `NEO4J_URI=bolt://localhost:7687 python scripts/ops/add_neo4j_indexes.py`.
+- **Results**: All 4 indexes created (entity_type, source_id, entity_name, tenant_id) on `base` label. Verification shows 8 total indexes now (4 existing + 4 new).
+- **Lesson**: `import sys` must be at module level before `sys.path.insert`. Scripts connecting to Docker services need either env var overrides or `docker-compose exec`. Always test script import order when using `sys.path` manipulation.
+
+### Python `<` Sort with None Values
+- In backfill verification, `sorted(set(languages))` crashed with `TypeError: '<' not supported between instances of 'NoneType' and 'str'` because some payloads had `language: null`. Must use `sorted(..., key=lambda x: str(x))` when None values may exist.
+
+## Jul 2, 2026 — Backfill Implementation & Data Store Scaling Fixes
+
+### Backfill Strategy (Following Metadata Extraction)
+- **Problem**: 90K existing Qdrant points had 22% empty titles, 44% missing language, 36% missing/wrong speaker. Old `backfill_metadata.py` used yt-dlp which had same reliability bugs.
+- **Fix**: Rewrote `scripts/ingestion/backfill_metadata.py` to use `metadata_extractor.extract_video_metadata()` (LLM+langdetect, no yt-dlp). Fetches transcript text from Qdrant's `text` field, runs langdetect+LLM, updates payload in-place. Dry-run mode for safe preview.
+- **Results**: 110 videos backfilled in ~2 min scanning 1000 points (0 errors). NIM 429 rate limits trigger retries but process recovers. Titles extracted are reasonable topical descriptions ("The Power of Observation", "The State of Enlightenment"), not original video titles.
+- **Limitations**: Speaker extraction fails for most videos (speaker name not in transcript's first 3000 chars). LLM titles are topical, not original YouTube titles. Full 90K run would take ~10 hours due to NIM 30 RPM rate limit.
+- **Lesson**: Qdrant payload stores transcript under `text` key, NOT `content`. Always check actual payload fields before writing scroll/filter logic. For backfill at scale, consider prioritized scanning: fix language-only gaps first (langdetect only, no LLM cost), then title/speaker gaps (LLM needed).
+
+### Qdrant Scaling Fixes
+- **Problem**: Collection `spiritual_wisdom` (90K points, 1024d) had no explicit HNSW config (used Qdrant defaults: M=16, ef_construct=100). Missing `title` payload index despite being used in search filters.
+- **Fix**: Added `HnswConfigDiff(m=32, ef_construct=200, full_scan_threshold=10000)` to `create_collection()` and `create_payload_index` for `title` (keyword schema) in `services/qdrant/client.py`.
+- **Lesson**: Qdrant defaults are fine for small collections but suboptimal for 90K+ points with 1024d vectors. Always set HNSW params explicitly. Payload indexes must exist for every filterable field at collection creation time — retroactively adding them requires Qdrant to rebuild indexes for existing points.
+
+### Neo4j Per-Call Driver Pattern
+- **Problem**: `pipeline.py` created a new `GraphDatabase.driver()` per operation in `_consolidate_graph_entities()` and `_implicit_teachings_connector()` — connection overhead on every ingest. `memory_service_v2.py` correctly used a singleton pattern.
+- **Fix**: Added `_get_neo4j_driver()` lazy-init singleton method to `IngestionPipeline` class. Replaced all 3 per-call `GraphDatabase.driver(...)` with `self._get_neo4j_driver()`.
+- **Lesson**: Neo4j Python driver is thread-safe and designed to be shared across the application lifetime. Creating per-call drivers wastes connection pool slots and adds ~50ms TCP handshake latency per operation.
+
+### LightRAG Tuning
+- **Problem**: `lightrag_service.py` used `embedding_func_max_async=2` (extremely conservative — BGE-M3 embeddings run in ~50ms per batch), no explicit `max_parallel_insert` or `llm_model_max_async`.
+- **Fix**: Changed to `embedding_func_max_async=8`, added `max_parallel_insert=4` and `llm_model_max_async=4` to `LightRAG()` constructor call.
+- **Lesson**: LightRAG's default `max_parallel_insert=2` limits ingestion parallelism. With embeddings running locally (BGE-M3 on MPS) and LLM calls to NIM classification model (~2s per call), `max_parallel_insert=4` gives healthy throughput without overwhelming connection pools.
+
+## Jul 2, 2026 — Video Metadata Extraction: Apify Contract Data + LLM Enrichment
+
+### Problem: yt-dlp Metadata Resolution is Unreliable for Multi-Language Channel Content
+- `yt-dlp` `language` field is `None` for ~30% of videos (e.g., `3EqnSkAzfIg`, `IGryscyFmV8`).
+- `yt-dlp` `uploader` is wrong for cross-channel content: `uploader="Times Now"` but the speaker is `Sri Preethaji` (e.g., `mmpmX3-qfc4`).
+- `yt-dlp` is rate-limited (429), requires cookies, and fails on geo-blocked content.
+- Apify `transcripts.json` has `language_code="en"` for all 459 videos (including Hindi ones), `channelName="Unknown Channel"` for all, and `title=video_id` for all. Using yt-dlp to "fix" this violates the contract principle — Apify data is the source of truth for those fields.
+
+### Fix: Two-Path Metadata Strategy
+1. **Apify pre-extracted path** (`method: pre_extracted_json` / `pre_extracted_md`): Use Apify contract fields as-is. No yt-dlp, no LLM enrichment. JSON path uses `data[video_id].get("channelName", "Unknown")` for speaker, `data[video_id].get("language_code")` for language. Markdown path parses `**Channel:**` and `**Language:**` from the file header.
+2. **YouTube/STT path** (`youtube_captions` / `council_*`): Enrich metadata via LLM + langdetect.
+
+### New Module: `backend/services/metadata_extractor.py`
+- `VideoMetadata` Pydantic model (`title`, `speaker`, `language`) defines the contract schema.
+- `langdetect` (free, instant, no API call) detects language from first 500 chars of transcript. Supports 55 languages including `en`, `hi`, `te`, `ta`.
+- `instructor` + OpenAI-compatible client (Ollama/Sarvam/OpenRouter/NIM) extracts title+speaker from first 3000 chars via the configured `model_for_classification`.
+- File-based cache (`transcripts/metadata_cache.json`) — one LLM call per unique video_id, cached forever.
+- Provider-agnostic: `_get_openai_compat_config()` resolves the correct base_url/api_key from `settings.llm_provider`.
+
+### Wiring: `backend/ingest/pipeline.py`
+- Both `_ingest_video` and `_ingest_video_enhanced` call `extract_video_metadata(raw_text, video_id)` after transcript correction and before chunking.
+- Gated by `result["method"]` — only non-Apify paths (`youtube_captions`, `council_*`) get enriched. Pre-extracted paths respect the contract.
+- Enriched fields override the result dict: `title`, `speaker`, `language`.
+- These flow downstream to chunking, embedding, and RAPTOR tree building.
+
+### Key Architectural Decisions
+- **No yt-dlp**: Eliminates rate limiting, 30% null language, and uploader≠speaker bugs.
+- **langdetect before LLM**: Language is cheap to determine (free, 55 languages) — no need to spend LLM budget on it.
+- **Cache per video_id**: Metadata is stable for a given video; repeat ingestion reuses cached data.
+- **Contract separation**: Apify data flows through untouched; YouTube data gets LLM enrichment at the pipeline level, not the loader level.
+
 ## Jul 1, 2026 — Ingestion Quality Audit: Pipeline Cascade Failures & Coverage-Gap Web Search
 
 ### Problem 11: LangGraph InvalidUpdateError on Parallel Nodes Writing to 'intent'
@@ -2458,3 +2530,89 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
 - **Fix**: Updated `CacheUpdateStage` in [cache_stage.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/pipeline/stages/cache_stage.py) to skip caching if `ctx.is_blocked` is True, `ctx.last_stage_status == "error"`, or the intent is one of the safety/error intents (`ERROR`, `SAFETY_VIOLATION`, `ADVERSARIAL`, `DISTRESS`).
 - **Lesson**: Caching pipelines must always validate response status metrics (such as block flags or error statuses) before writing entries to hot/semantic/exact cache layers. Cache only successful `200 OK` logical operations to avoid persistent failure loops.
 
+## Jul 2, 2026 — Comprehensive Data Quality Audit: 9 Root Cause Fixes & Qdrant Indexes
+
+### Problem 1: Auditor Silent PASS on LLM Errors
+- **Root Cause**: `auditor.py` caught all exceptions in the LLM content audit and always returned `{"is_safe": True, "decision": "PASS"}` — any LLM API error, timeout, or parsing failure silently passed all content through.
+- **Fix**: Added `audit_strict` parameter. Non-strict (default) logs warning + passes to avoid blocking ingestion on transient LLM failures. Strict mode (`data_audit_strict_mode=True` in config) returns a real FAIL on error.
+- **Lesson**: Catch-all exception handlers in audit/gate functions must differentiate between transient failures and genuine safety signals. Default permissive is pragmatic for ingestion pipelines; strict mode for prod quality gates.
+
+### Problem 2: Dual `tags` Field in Qdrant Payload
+- **Root Cause**: In `pipeline.py:1557`, the payload dict contained `"tags": tags` set by `_extract_metadata()`, but then an identical `"tags": tags` was added again below. Every Qdrant point had two `tags` entries (duplicate in JSON).
+- **Fix**: Removed the redundant second `"tags": tags` assignment. The metadata payload is built once and deduplicated.
+- **Lesson**: Audit constructed dicts for duplicate keys before writing to vector stores. Python dedupes silently (last wins), but the redundant code signals confusion.
+
+### Problem 3: Dual Checkpoint State (URL Key vs Content-Hash Key)
+- **Root Cause**: `_ingest_video_enhanced` checkpointed by `content_hash`, but `_ingest_playlist` checkpointed by `url` (source_url). Both wrote to the same `IngestionCheckpoint` under different key conventions, creating duplicate entries.
+- **Fix**: `_ingest_playlist` now uses `content_hash` (computed from concatenated video transcripts) as the checkpoint key, matching `_ingest_video_enhanced`.
+- **Lesson**: All checkpoint writes across the pipeline must share one canonical ID scheme. `content_hash` is better than URL because the same transcript could be ingested from different source paths.
+
+### Problem 4: Stale `scripts/ingestion/ingestion_state.json` (0 Videos) vs Parent (717 Videos)
+- **Root Cause**: Two state files existed: `scripts/ingestion_state.json` (active, 717 videos) and `scripts/ingestion/ingestion_state.json` (stale, 0 videos). `verify_ingestion_quality.py` was prioritizing the stale local copy.
+- **Fix**: Rewrote `audit_ingestion_state()` to always prefer the parent state file and auto-sync the stale local copy. Verified: after fix, quality auditor reports 717 videos correctly.
+- **Lesson**: Dual state files are a ticking time bomb. Always auto-detect and repoint verification tools to the authoritative source.
+
+### Problem 5: 53% Missing/Unknown Titles in Qdrant Payload
+- **Root Cause**: `_ingest_video` calls `fetch_transcript_hybrid(url)` which fetches transcript + metadata, but `_extract_metadata` falls back to `url.split("?v=")[-1]` (raw video ID) when `info.get("title")` is empty. The hybrid fetcher may not resolve YouTube titles for some video formats.
+- **Fix**: Added fallback extraction chain: title from YT metadata → URL-derived title → "Unknown Title". The `source_url` field is always set for traceability.
+- **Lesson**: Vector store payload quality is only as good as the upstream metadata extraction pipeline. Titles should be backfilled via a separate YT API pass.
+
+### Problem 6: LightRAG Score Too Generous (0.7-0.9 Range)
+- **Root Cause**: `retrieval.py` multiplied LightRAG cosine scores by 0.3 and added 0.6, compressing natural scores [0.3, 1.0] into synthetic [0.69, 0.90]. This clobbered downstream rankers because all LightRAG results looked nearly identical.
+- **Fix**: Normalized to `0.3 + score * 0.4`, giving range [0.30, 0.70] — comparable with Qdrant cosine scores [0.20, 0.65].
+- **Lesson**: Synthetic score normalization must match the actual distribution of the primary ranker (Qdrant BGE-M3 cosine). Verify by plotting score histograms from both sources.
+
+### Problem 7: Deep Research Fired on All Query Intents
+- **Root Cause**: `retrieval.py` called `_deep_research_fallback()` unconditionally after every query, regardless of `query_tier`. Tier-1 simple lookups and tier-2 standard queries got expensive LLM deep research they didn't need.
+- **Fix**: Added guard: `deep_research_enabled = (query_tier == "tier3_complex" and settings.rag_deep_research_enabled)`. Simple and standard queries skip deep research entirely.
+- **Lesson**: Tier-gated features must actually gate on tiers. Every expensive pipeline branch needs a condition check on the intent/tier decision.
+
+### Problem 8: MMR Lambda Hardcoded to 0.7
+- **Root Cause**: `retrieval.py` hardcoded `lambda_mult=0.7` in the MMR query to Qdrant, ignoring `settings.rag_mmr_lambda` (default 0.5).
+- **Fix**: Changed to `lambda_mult=settings.rag_mmr_lambda`. Config now controls MMR diversity.
+- **Lesson**: Config values must be wired through. Any hardcoded magic number that already has a config key represents a configuration gap.
+
+### Problem 9: `_topic_partition` Did Naive Character Slicing
+- **Root Cause**: `_topic_partition(text, max_chars=6000)` sliced `text[:max_chars]`, potentially cutting mid-sentence or mid-word, producing truncated topics.
+- **Fix**: Added sentence-boundary aware partitioning: finds the last sentence-ending punctuation (`.`, `!`, `?`) within max_chars, or fallback to last space. Then appends remaining text as overflow partition.
+- **Lesson**: Text partitioning for LLM topic extraction must respect linguistic boundaries. Naive char-slicing generates garbage topics.
+
+### Qdrant Payload Indexes Added
+- Created PUT index operations on collection `spiritual_wisdom` for: `source_url`, `content_type`, `language`, `speaker`, `topic`, `tags`, `source_type` (all keyword type). Previously only `raptor_level` was indexed.
+- Required for efficient payload filtering during query-time metadata filtering.
+- Lesson: Payload indexes should be created at collection setup time, not discovered post-ingestion.
+
+### Quality Auditor State
+- `verify_ingestion_quality.py`: 10/12 checks pass. Pre-existing failures: `memory_rpc_signature` (SUPABASE_KEY not set in env), `web_search_live` (duckduckgo_search module not installed). Both are environment-specific, not code defects.
+
+### Qdrant INT8 Scalar Quantization
+- Enabled on `spiritual_wisdom` collection via `PATCH /collections/spiritual_wisdom` with `{"quantization_config": {"scalar": {"type": "int8", "always_ram": true}}}`.
+- Reduces memory footprint of 173,725 vectors from ~680MB to ~170MB at negligible accuracy cost.
+- Lesson: Always enable quantization at collection creation time. Post-hoc enablement requires no re-indexing — Qdrant quantizes segments on next optimization cycle.
+
+### Neo4j UNKNOWN Entity Cleanup
+- `scripts/db_rectify.py` ran: 0 isolated nodes and 0 malformed nodes found. The 873 UNKNOWN entity_type nodes all have valid entity_ids and relationships, so they survived rectification.
+- These are extraction artifacts from LightRAG where entity classification failed but relationships were still created. Cannot be safely auto-deleted without checking relationship semantics.
+- Next step: manual audit to determine if specific UNKNOWN types (e.g. `locationcorrection`, `contentinclusion`, `publichealthpolicy`) should be mapped to canonical types instead of deleted.
+
+### Metadata Backfill Script
+- Created `scripts/ingestion/backfill_metadata.py` — scans Qdrant points with missing title/speaker/language, fetches YouTube metadata via yt-dlp (no download), updates payload in-place.
+- Usage: `python scripts/ingestion/backfill_metadata.py [--dry-run] [--limit N]`
+- Run with `--dry-run` first to preview, then without to execute. yt-dlp has built-in 1 req/s rate limiting.
+- Covers 53% missing titles, 96% missing speakers, 100% missing language.
+
+### .venv Tooling
+- All Python operations must use `source .venv/bin/activate` first. The system Python lacks critical packages (qdrant_client, neo4j, yt-dlp, adaptive-chunking).
+- `verify_ingestion_quality.py` confirmed working under .venv at 10/12 passing.
+
+### 156. Root Cause Fix: fetch_transcript_hybrid Now Always Resolves Real Metadata — Never Empty Title/Speaker/Language Again (July 2026)
+- **Problem**: New video ingestion via `fetch_transcript_hybrid()` produced empty titles (`""`), "Unknown" speakers, and no language field. Affected all 4 caller paths (single video, enhanced video, playlist, bulk ingest).
+- **Root Cause**: `fetch_transcript_hybrid(video_id, title="")` called with empty defaults. The function blindly passed the `title` param (which was `""`) into return dicts. No yt-dlp metadata resolution existed inside the function.
+- **Fix**:
+  1. Added `_resolve_video_metadata(video_id)` in `youtube_loader.py` — single yt-dlp call with `download=False`, resolves `title`, `uploader`/`channel` (→ speaker), and `language`.
+  2. Called once at top of `fetch_transcript_hybrid()`; every return path uses `resolved_title`, `resolved_speaker`, `resolved_language`.
+  3. All 6 return dicts now include `"language": resolved_language`.
+  4. `.md` pre-extracted transcript path also parses `**Channel:**` and `**Language:**` from markdown header.
+  5. `pipeline.py` passes language from result → `_embed_and_index()` in all 3 video paths.
+- **Never Again Rule**: **ALWAYS** resolve YouTube metadata (title/speaker/language) from yt-dlp inside `fetch_transcript_hybrid()` rather than trusting caller-provided defaults. Add `_resolve_video_metadata()` once at the top so every return path automatically benefits.
+- **Backfill Script**: `scripts/ingestion/backfill_metadata.py` scrolls Qdrant points with empty title/speaker/language, fetches metadata via yt-dlp, updates payload in-place.

@@ -316,7 +316,9 @@ class LightRAGService:
                 graph_storage="Neo4JStorage",
                 vector_storage="QdrantVectorDBStorage",
                 chunk_token_size=settings.rag_chunk_size,
-                embedding_func_max_async=2,
+                embedding_func_max_async=8,
+                llm_model_max_async=4,
+                max_parallel_insert=4,
             )
 
         try:
