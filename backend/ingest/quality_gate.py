@@ -70,7 +70,7 @@ class DeterministicChecker:
 
     MIN_LENGTH = 100           # characters
     MAX_HTML_RATIO = 0.15      # >15% HTML tags = likely scraped junk
-    MAX_REPEAT_RATIO = 0.08    # top n-gram >8% of words = repetitive noise
+    MAX_REPEAT_RATIO = 0.15    # top n-gram >15% of words = repetitive noise
     MIN_WORD_COUNT = 20
     NGRAM_SIZE = 3
 
@@ -100,10 +100,16 @@ class DeterministicChecker:
             penalty += 30
 
         # Repetition check — detect "thank you thank you thank you" patterns
-        repeat_penalty = self._check_repetition(words)
-        if repeat_penalty > 0:
-            reasons.append(f"Repetitive content detected (n-gram density={repeat_penalty:.1%})")
-            penalty += 25
+        # Only run on length >= 40 words to avoid false positives on short greetings
+        if len(words) >= 40:
+            repeat_ratio = self._check_repetition(words)
+            if repeat_ratio > self.MAX_REPEAT_RATIO:
+                if repeat_ratio > 0.25:
+                    reasons.append(f"Severe repetitive noise detected (n-gram density={repeat_ratio:.1%})")
+                    penalty += 60
+                else:
+                    reasons.append(f"Repetitive content detected (n-gram density={repeat_ratio:.1%})")
+                    penalty += 25
 
         # Spiritual relevance keyword hit (bonus — reduces penalty)
         kw_hits = sum(1 for kw in _spiritual_keywords() if kw in stripped.lower())

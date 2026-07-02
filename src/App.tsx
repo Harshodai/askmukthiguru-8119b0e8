@@ -49,6 +49,7 @@ const FeedbackPage = lazy(() => import("./admin/pages/FeedbackPage"));
 const OkfManagerPage = lazy(() => import("./admin/pages/OkfManager"));
 const JobsPage = lazy(() => import("./admin/pages/JobsPage"));
 const RAGFlowPage = lazy(() => import("./admin/pages/RAGFlowPage"));
+const StagingQueuePage = lazy(() => import("./admin/pages/StagingQueuePage"));
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,7 @@ const App = () => {
               <Route path="admins" element={<AdminsPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
               <Route path="okf" element={<OkfManagerPage />} />
+              <Route path="staging" element={<StagingQueuePage />} />
               <Route path="rag-flow" element={
                 <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
               } />
