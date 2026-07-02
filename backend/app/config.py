@@ -266,7 +266,7 @@ class Settings(BaseSettings):
     rag_compression_similarity_threshold: float = 0.50
     rag_cache_alignment_enabled: bool = True
     rag_context_compression_enabled: bool = True
-    rag_okf_injection_enabled: bool = False  # ponytail: OKF retrieval channel; enable when curated entries scale
+    rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)
     rag_okf_auto_extract_enabled: bool = False  # post-ingestion OKF extraction; off until pipeline proven
 
     # --- FlashRank Reranking & Ingestion Service Config ---

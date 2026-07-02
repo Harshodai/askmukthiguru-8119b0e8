@@ -207,6 +207,7 @@ class ServiceContainer:
     def _build_guardrails_and_cache(self) -> None:
         """Layer 5: Guardrails, exact/semantic caches, job queue, and web search."""
         from services.cache import CacheFactory
+        from services.doctrine_cache import DoctrineCache
 
         self.guardrails = GuardrailsService()
 
@@ -215,6 +216,10 @@ class ServiceContainer:
         self.semantic_cache = CacheFactory.create_semantic_cache(
             embedding_service=self.embedding,
         )
+
+        # Built once at startup — DoctrineCache._load_from_supabase() is a
+        # blocking call and must never run per-request inside the event loop.
+        self.doctrine_cache = DoctrineCache(supabase_client=self.supabase_client)
 
         # Job Queue (Redis-backed)
         if settings.queue_enabled:
