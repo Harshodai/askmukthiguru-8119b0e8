@@ -1872,6 +1872,15 @@ return (
 
     {/* Daily Teaching Modal */}
     <DailyTeaching />
+
+    {/* Conversation-wide Sources panel (ChatGPT-style side sheet) */}
+    <ConversationSourcesPanel
+      isOpen={sourcesPanelOpen}
+      onClose={() => setSourcesPanelOpen(false)}
+      messages={messages.map((m) => ({ id: m.id, role: m.role, citations: m.citations }))}
+      onJumpToMessage={jumpToMessage}
+    />
   </div>
 );
 };
+
