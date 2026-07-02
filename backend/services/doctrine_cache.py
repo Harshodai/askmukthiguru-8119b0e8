@@ -134,21 +134,26 @@ class DoctrineCache:
     that a cache hit is indistinguishable from a generated answer.
     """
 
-    def __init__(self, doctrine_file: str | None = None) -> None:
+    def __init__(self, doctrine_file: str | None = None, supabase_client=None) -> None:
         self._map: dict[str, str] = {}
         self._raw: dict[str, str] = {}
+        self._supabase = supabase_client
 
         # 1. Try explicit file
         if doctrine_file and os.path.exists(doctrine_file):
             self._load_json(doctrine_file)
 
-        # 2. Try default path relative to backend root
+        # 2. Try dynamic loading from Supabase
+        if not self._raw and self._supabase is not None:
+            self._load_from_supabase()
+
+        # 3. Try default path relative to backend root
         if not self._raw:
             default_path = Path(__file__).resolve().parent.parent / "data" / "doctrine_faqs.json"
             if default_path.exists():
                 self._load_json(str(default_path))
 
-        # 3. Fall back to embedded defaults
+        # 4. Fall back to embedded defaults
         if not self._raw:
             self._raw = DEFAULT_DOCTRINE.copy()
             self._build_index()
@@ -169,6 +174,32 @@ class DoctrineCache:
         except Exception as e:
             logger.warning("Failed to load doctrine cache from %s: %s", path, e)
             self._raw = {}
+
+    def _load_from_supabase(self) -> None:
+        """Load doctrine FAQs from Supabase table ``doctrine_faqs``."""
+        try:
+            import asyncio
+            # supabase client is synchronous; wrap in to_thread if we ever need async,
+            # but init runs in sync context during service construction.
+            res = self._supabase.table("doctrine_faqs").select("question,answer").execute()
+            rows = getattr(res, "data", []) or []
+            if rows:
+                self._raw = {row["question"]: row["answer"] for row in rows if "question" in row and "answer" in row}
+                self._build_index()
+                logger.info("Loaded doctrine cache from Supabase (%d entries)", len(self._raw))
+        except Exception as e:
+            logger.warning("Failed to load doctrine cache from Supabase: %s", e)
+            self._raw = {}
+
+    def refresh(self) -> None:
+        """Refresh the cache — useful for hot-reloading after admin edits."""
+        self._raw = {}
+        self._map = {}
+        if self._supabase is not None:
+            self._load_from_supabase()
+        if not self._raw:
+            self._raw = DEFAULT_DOCTRINE.copy()
+            self._build_index()
 
     def _build_index(self) -> None:
         self._map = {_normalize(q): a for q, a in self._raw.items()}

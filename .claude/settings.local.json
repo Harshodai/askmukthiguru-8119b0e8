@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787"
+  },
   "permissions": {
     "allow": [
       "Bash(rm -f workflow_part2.py workflow_reconstructed.py workflow_reconstructed_v2.py && ls workflow_*.py 2>&1 || echo \"All workflow files removed\")",
@@ -151,7 +154,18 @@
       "Bash(docker info *)",
       "WebFetch(domain:qdrant)",
       "Bash(awk '/^  backend:/,/^  [a-z]/{print NR\": \"$0}' /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/docker-compose.yml)",
-      "Bash(docker port *)"
+      "Bash(docker port *)",
+      "Read(//Users/harshodaikolluru/.claude/projects/**)",
+      "Read(//Users/harshodaikolluru/.claude/**)",
+      "Read(//Users/harshodaikolluru/Downloads/Kimi_Agent_Repo Architecture & Scaling/**)",
+      "Read(//Users/harshodaikolluru/Downloads/Kimi_Agent_Repo Architecture & Issues/**)",
+      "Bash(rtk du *)",
+      "Bash(awk '{ print length, NR }' /Users/harshodaikolluru/.claude/projects/-Users-harshodaikolluru-Public-askmukthiguru-8119b0e8/13daeda7-593b-4d24-ace7-c6603d36ca24/tool-results/b6p5w08h2.txt)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(.venv/bin/pytest tests/test_coalescer.py tests/test_memory_context.py tests/test_memory_service.py -q)",
+      "Bash(rtk pip *)",
+      "Bash(.venv/bin/pip show *)",
+      "Bash(grep -E '\\\\.\\(ts|tsx|js|jsx|py|go|rs|java|rb|cpp|c|h|cs|swift|kt|php\\)$')"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -191,7 +205,7 @@
     "headroom@headroom-marketplace": true
   },
   "sandbox": {
-    "enabled": true,
+    "enabled": false,
     "autoAllowBashIfSandboxed": false
   }
 }

@@ -8,9 +8,11 @@ Design Patterns:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 import uuid
 import logging
+from typing import Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 
@@ -21,7 +23,12 @@ from app.schemas import ChatRequest, ChatResponse
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.memory import normalize_session_id
 
+from app.coalescer import build_coalescer
+
 logger = logging.getLogger(__name__)
+
+# Module-level coalescer for concurrent RAG pipeline deduplication
+_coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
 
 class ChatRequestOrchestrator:
@@ -59,8 +66,16 @@ class ChatRequestOrchestrator:
 
         is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
 
-        try:
-            result = await self.coordinator.execute(
+        # Coalesce identical concurrent RAG pipelines (e.g. double-submit) to avoid
+        # redundant LLM calls. Scoped to user+session so two different users never
+        # share a personalized result, and hashed with sha256 (not hash()) since
+        # hash() is randomized per-process and would break cross-pod dedup.
+        assistant_tag = assistant_slug or "default"
+        _msg_digest = hashlib.sha256(user_msg.encode("utf-8")).hexdigest()[:16]
+        _coalesce_key = f"rag:v3:{preferred_lang}:{assistant_tag}:{user_id}:{session_id}:{_msg_digest}"
+
+        async def _run_pipeline():
+            return await self.coordinator.execute(
                 user_msg=user_msg,
                 preferred_lang=preferred_lang,
                 chat_body=chat_body,
@@ -69,6 +84,9 @@ class ChatRequestOrchestrator:
                 user=user,
                 is_benchmark=is_benchmark,
             )
+
+        try:
+            result = await _coalescer.get_or_run(_coalesce_key, _run_pipeline)
         except asyncio.TimeoutError:
             logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
             raise HTTPException(

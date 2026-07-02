@@ -43,13 +43,34 @@ class MemoryTierResult:
 class MemoryServiceV2(MemoryService):
     """Three-tier memory service with isolated fallback per tier."""
 
-    def __init__(self, supabase_client=None, embedding_service=None, llm_service=None):
+    def __init__(self, supabase_client=None, embedding_service=None, llm_service=None,
+                 *, guru_slug: str = "default", use_global_memory: bool = False):
         super().__init__(supabase_client, embedding_service, llm_service)
+        self.guru_slug = guru_slug
+        self.use_global_memory = use_global_memory
         self._redis: Optional[aioredis.Redis] = None
         self._neo4j_driver = None
         # LRU fallback when Redis is down — bounded, thread-safe via asyncio
         self._lru_fallback: OrderedDict[str, str] = OrderedDict()
         self._redis_available: Optional[bool] = None  # None = unchecked
+
+    def _get_memory_collection(
+        self, guru_slug: Optional[str] = None, use_global_memory: Optional[bool] = None
+    ) -> str:
+        """Return the Qdrant collection for memory writes.
+
+        Per-guru (default): "{guru_slug}_memory"
+        Global (toggle)   : "global_memory"
+
+        guru_slug/use_global_memory are accepted per-call because this service
+        is a process-lifetime singleton (built once in ServiceContainer) shared
+        across every assistant — the active guru varies per request, not per
+        process, so it cannot live solely on constructor state.
+        """
+        is_global = self.use_global_memory if use_global_memory is None else use_global_memory
+        if is_global:
+            return GLOBAL_MEMORY_COLLECTION
+        return f"{guru_slug or self.guru_slug}_memory"
 
     # ---- Tier 1: Ephemeral (Redis) ----
 
@@ -163,6 +184,9 @@ class MemoryServiceV2(MemoryService):
         content: str,
         embedding: list[float],
         metadata: Optional[dict] = None,
+        *,
+        guru_slug: Optional[str] = None,
+        use_global_memory: Optional[bool] = None,
     ) -> bool:
         """Store in global Qdrant collection + Neo4j graph."""
         success = False
@@ -174,7 +198,7 @@ class MemoryServiceV2(MemoryService):
                 point_id = f"global:{user_id}:{hash(content) % 10**15}"
                 await asyncio.to_thread(
                     client.upsert,
-                    collection_name=GLOBAL_MEMORY_COLLECTION,
+                    collection_name=self._get_memory_collection(guru_slug, use_global_memory),
                     points=[models.PointStruct(
                         id=point_id,
                         vector=embedding,
@@ -195,21 +219,26 @@ class MemoryServiceV2(MemoryService):
             if driver:
                 from services.tenant_context import TenantContext
                 tenant_id = TenantContext.get()
-                async with driver.session() as session:
-                    await session.run(
-                        """
-                        MERGE (u:User {id: $user_id})
-                        SET u.tenant_id = $tenant_id
-                        MERGE (m:GlobalMemory {id: $memory_id})
-                        SET m.content = $content, m.created_at = timestamp(), m.tenant_id = $tenant_id
-                        MERGE (u)-[:HAS_MEMORY]->(m)
-                        """,
-                        user_id=user_id,
-                        memory_id=f"global:{user_id}:{hash(content) % 10**15}",
-                        content=content,
-                        tenant_id=tenant_id,
-                    )
-                    success = True
+
+                # ponytail: to_thread wraps sync neo4j driver; migrate to AsyncGraphDatabase past 100 concurrent users
+                def _write():
+                    with driver.session() as session:
+                        session.run(
+                            """
+                            MERGE (u:User {id: $user_id})
+                            SET u.tenant_id = $tenant_id
+                            MERGE (m:GlobalMemory {id: $memory_id})
+                            SET m.content = $content, m.created_at = timestamp(), m.tenant_id = $tenant_id
+                            MERGE (u)-[:HAS_MEMORY]->(m)
+                            """,
+                            user_id=user_id,
+                            memory_id=f"global:{user_id}:{hash(content) % 10**15}",
+                            content=content,
+                            tenant_id=tenant_id,
+                        )
+
+                await asyncio.to_thread(_write)
+                success = True
         except Exception as e:
             logger.warning(f"Neo4j write failed: {e}")
 
@@ -221,6 +250,9 @@ class MemoryServiceV2(MemoryService):
         limit: int = 5,
         min_similarity: float = 0.7,
         user_id: Optional[str] = None,
+        *,
+        guru_slug: Optional[str] = None,
+        use_global_memory: Optional[bool] = None,
     ) -> list[dict[str, Any]]:
         """Search global memory across all users (or filter by user_id)."""
         try:
@@ -235,7 +267,7 @@ class MemoryServiceV2(MemoryService):
 
             results = await asyncio.to_thread(
                 client.search,
-                collection_name=GLOBAL_MEMORY_COLLECTION,
+                collection_name=self._get_memory_collection(guru_slug, use_global_memory),
                 query_vector=query_embedding,
                 limit=limit,
                 score_threshold=min_similarity,
@@ -266,29 +298,33 @@ class MemoryServiceV2(MemoryService):
             if not driver:
                 return []
 
-            async with driver.session() as session:
-                from services.tenant_context import TenantContext
-                tenant_id = TenantContext.get()
-                result = await session.run(
-                    """
-                    MATCH (u:User {id: $user_id})-[:HAS_MEMORY]->(m:GlobalMemory)
-                    WHERE m.tenant_id = $tenant_id
-                    OPTIONAL MATCH (m)-[:RELATED_TO]->(related:GlobalMemory)
-                    WHERE related.tenant_id = $tenant_id
-                    RETURN m.content AS memory, collect(DISTINCT related.content) AS related_memories
-                    LIMIT 20
-                    """,
-                    user_id=user_id,
-                    tenant_id=tenant_id,
-                )
-                records = await result.data()
-                return [
-                    {
-                        "memory": r["memory"],
-                        "related_memories": r["related_memories"],
-                    }
-                    for r in records
-                ]
+            from services.tenant_context import TenantContext
+            tenant_id = TenantContext.get()
+
+            def _query():
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        MATCH (u:User {id: $user_id})-[:HAS_MEMORY]->(m:GlobalMemory)
+                        WHERE m.tenant_id = $tenant_id
+                        OPTIONAL MATCH (m)-[:RELATED_TO]->(related:GlobalMemory)
+                        WHERE related.tenant_id = $tenant_id
+                        RETURN m.content AS memory, collect(DISTINCT related.content) AS related_memories
+                        LIMIT 20
+                        """,
+                        user_id=user_id,
+                        tenant_id=tenant_id,
+                    )
+                    return result.data()
+
+            records = await asyncio.to_thread(_query)
+            return [
+                {
+                    "memory": r["memory"],
+                    "related_memories": r["related_memories"],
+                }
+                for r in records
+            ]
         except Exception as e:
             logger.warning(f"Neo4j graph query failed: {e}")
             return []
@@ -301,6 +337,9 @@ class MemoryServiceV2(MemoryService):
         query: str,
         session_id: Optional[str] = None,
         limit: int = 5,
+        *,
+        guru_slug: Optional[str] = None,
+        use_global_memory: Optional[bool] = None,
     ) -> dict[str, list[MemoryTierResult]]:
         """Search all three tiers in parallel, returning independent results."""
         embedding = None
@@ -344,7 +383,13 @@ class MemoryServiceV2(MemoryService):
             try:
                 results = []
                 if embedding:
-                    results = await self.search_global(embedding, limit=limit, user_id=user_id)
+                    results = await self.search_global(
+                        embedding,
+                        limit=limit,
+                        user_id=user_id,
+                        guru_slug=guru_slug,
+                        use_global_memory=use_global_memory,
+                    )
                 return MemoryTierResult(
                     source="global",
                     memories=results,
