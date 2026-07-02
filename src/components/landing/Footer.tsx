@@ -16,29 +16,29 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
             className="flex items-center gap-2 mb-4"
           >
             <Sparkles className="w-6 h-6 text-ojas" />
-            <span className="text-xl font-bold text-gradient-gold">AskMukthiGuru</span>
+            <span className="text-h3 text-gradient-gold">AskMukthiGuru</span>
           </motion.div>
 
           {/* Tagline */}
-          <p className="text-muted-foreground text-sm mb-6 max-w-md">
+          <p className="text-body-sm mb-6 max-w-md">
             Your spiritual AI companion for discovering inner peace and the beautiful state.
           </p>
 
           {/* Links */}
           <div className="flex gap-6 mb-8">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-ojas transition-colors">
+            <Link to="/" className="text-caption hover:text-ojas transition-colors">
               Home
             </Link>
-            <Link to="/chat" className="text-sm text-muted-foreground hover:text-ojas transition-colors">
+            <Link to="/chat" className="text-caption hover:text-ojas transition-colors">
               Chat
             </Link>
-            <a href="#gurus" className="text-sm text-muted-foreground hover:text-ojas transition-colors">
+            <a href="#gurus" className="text-caption hover:text-ojas transition-colors">
               About
             </a>
           </div>
 
           {/* Disclaimer */}
-          <div className="text-xs text-muted-foreground max-w-lg mb-6 bg-muted/50 rounded-lg p-3">
+          <div className="text-caption max-w-lg mb-6 bg-muted/50 rounded-lg p-3">
             <p>
               This is an AI companion trained on spiritual teachings. It is not a replacement
               for medical or clinical therapy. If you are experiencing a mental health crisis,
@@ -47,11 +47,12 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
           </div>
 
           {/* Copyright */}
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1 text-caption">
             <span>Made with</span>
             <Heart className="w-4 h-4 text-ojas fill-ojas" />
             <span>for seekers everywhere</span>
           </div>
+
         </div>
       </div>
     </footer>
