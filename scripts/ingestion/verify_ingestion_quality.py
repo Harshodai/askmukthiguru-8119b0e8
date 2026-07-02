@@ -185,21 +185,31 @@ async def audit_web_search() -> bool:
 
 # ── Ingestion state ──────────────────────────────────────────────────────────
 def audit_ingestion_state() -> bool:
-    state_file = Path(__file__).parent / "ingestion_state.json"
-    # Fallback to parent scripts/ directory if local is missing or empty
-    if not state_file.exists():
-        parent_state = Path(__file__).parent.parent / "ingestion_state.json"
-        if parent_state.exists():
-            state_file = parent_state
-    else:
+    parent_state = Path(__file__).parent.parent / "ingestion_state.json"
+    local_state = Path(__file__).parent / "ingestion_state.json"
+
+    # Always prefer parent (has 700+ videos); fix stale local if needed
+    if parent_state.exists():
         try:
-            temp_state = json.loads(state_file.read_text())
-            if not temp_state.get("processed_videos") and not temp_state.get("processed_docs"):
-                parent_state = Path(__file__).parent.parent / "ingestion_state.json"
-                if parent_state.exists():
-                    state_file = parent_state
+            parent_data = json.loads(parent_state.read_text())
+            if parent_data.get("processed_videos") or parent_data.get("processed_docs"):
+                state_file = parent_state
+                # Fix: sync stale local state with parent
+                local_data = {"processed_videos": [], "processed_docs": [], "dead_letter_queue": [], "metrics": {}}
+                if local_state.exists():
+                    try:
+                        local_data = json.loads(local_state.read_text())
+                    except Exception:
+                        pass
+                if not local_data.get("processed_videos") and parent_data.get("processed_videos"):
+                    local_state.write_text(json.dumps(parent_data, indent=2))
+                    log.info("Synced stale local ingestion_state.json from parent (%d videos)", len(parent_data.get("processed_videos", [])))
+            else:
+                state_file = local_state
         except Exception:
-            pass
+            state_file = local_state if local_state.exists() else parent_state
+    else:
+        state_file = local_state
 
     if not state_file.exists():
         check("ingestion_state_exists", False, str(state_file))

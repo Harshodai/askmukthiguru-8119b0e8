@@ -179,7 +179,8 @@ class Settings(BaseSettings):
     ocr_languages: str = "en,hi"
 
     # --- Data Quality ---
-    data_audit_enabled: bool = True  # Enable LLM-based quality checks
+    data_audit_enabled: bool = True
+    data_audit_strict_mode: bool = False  # Enable LLM-based quality checks
 
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
@@ -254,6 +255,7 @@ class Settings(BaseSettings):
 
     # --- Retrieval Quality Gates ---
     retrieval_score_delta_enabled: bool = True
+    rerank_score_delta_enabled: bool = True
     retrieval_deduplication_enabled: bool = True
     ingestion_deduplication_enabled: bool = True
     rag_top_k_retrieval_after_cutoff: int = 10

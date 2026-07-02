@@ -148,7 +148,10 @@
       "Bash(awk -F\"'\" '{print $2}')",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(sudo rtk docker ps --format '{{.Names}} {{.Status}}')",
-      "Bash(docker info *)"
+      "Bash(docker info *)",
+      "WebFetch(domain:qdrant)",
+      "Bash(awk '/^  backend:/,/^  [a-z]/{print NR\": \"$0}' /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/docker-compose.yml)",
+      "Bash(docker port *)"
     ]
   },
   "enableAllProjectMcpServers": true,

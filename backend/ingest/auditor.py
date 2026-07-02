@@ -39,6 +39,7 @@ class DataAuditor:
     def __init__(self, ollama_service: OllamaService):
         self._llm = ollama_service
         self._enabled = settings.data_audit_enabled
+        self._strict_mode = getattr(settings, "data_audit_strict_mode", False)
 
     async def audit_transcript(self, text: str, source_url: str) -> bool:
         """
@@ -78,8 +79,9 @@ class DataAuditor:
             return "PASS" in response.upper()
         except Exception as e:
             logger.error(f"Audit check failed: {e}")
-            # If audit fails due to error, we default to PASS to avoid blocking ingestion of good data
-            # unless we are in strict mode.
+            if self._strict_mode:
+                logger.warning("Strict mode enabled — failing on audit error")
+                return False
             return True
 
     def _sample_text(self, text: str, num_samples: int, sample_size: int) -> list[str]:

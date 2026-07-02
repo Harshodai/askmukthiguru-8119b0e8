@@ -407,8 +407,9 @@ def fetch_transcript_hybrid(
                         "title": data[video_id].get("title")
                         or data[video_id].get("videoId")
                         or title,
-                        "speaker": speaker,
+                        "speaker": data[video_id].get("channelName", "Unknown"),
                         "topic": topic,
+                        "language": data[video_id].get("language_code"),
                         "method": "pre_extracted_json",
                     }
         except Exception as e:
@@ -433,16 +434,22 @@ def fetch_transcript_hybrid(
                         )
                         # extract title if possible
                         parsed_title = title
+                        parsed_speaker = ""
+                        parsed_language = ""
                         for line in content.split("\n"):
                             if line.startswith("# "):
                                 parsed_title = line[2:].strip()
-                                break
+                            elif line.startswith("**Channel:**"):
+                                parsed_speaker = line.split("**Channel:**", 1)[1].strip().strip("`")
+                            elif line.startswith("**Language:**"):
+                                parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
                         return {
                             "text": transcript_text,
                             "source_url": source_url,
-                            "title": parsed_title,
-                            "speaker": speaker,
+                            "title": parsed_title or title,
+                            "speaker": parsed_speaker or speaker,
                             "topic": topic,
+                            "language": parsed_language or None,
                             "method": "pre_extracted_md",
                         }
         except Exception as e:
@@ -504,6 +511,7 @@ def fetch_transcript_hybrid(
                 "title": title,
                 "speaker": speaker,
                 "topic": topic,
+                "language": None,
                 "method": "failed",
                 "error": "All transcript extraction methods failed",
                 "council": council_info,
@@ -519,6 +527,7 @@ def fetch_transcript_hybrid(
             "title": title,
             "speaker": speaker,
             "topic": topic,
+            "language": None,
             "method": method,
             "council": council_info,
         }
@@ -531,6 +540,7 @@ def fetch_transcript_hybrid(
             "title": title,
             "speaker": speaker,
             "topic": topic,
+            "language": None,
             "method": "youtube_captions",
         }
 
@@ -541,6 +551,7 @@ def fetch_transcript_hybrid(
         "title": title,
         "speaker": speaker,
         "topic": topic,
+        "language": None,
         "method": "failed",
         "error": "All transcript extraction methods failed",
     }
