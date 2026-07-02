@@ -69,6 +69,48 @@ FAST_REPLACEMENTS = {
 # Max concurrent correction tasks
 _MAX_CONCURRENT = 3
 
+# Phrases from CORRECTION_SYSTEM_PROMPT that indicate LLM prompt leakage
+# — when the LLM echoes its own instructions instead of correcting text.
+_PROMPT_LEAK_PATTERNS: list[str] = [
+    r"You are a Text Correction Expert",
+    r"Your task is to fix transcription errors",
+    r"DO NOT retain the original meaning absolutely",
+    r"DO NOT summarize or rewrite the style",
+    r"ONLY fix errors",
+    r"Important Terms to Correct",
+    r"Output ONLY the corrected text",
+    r"Sri Preethaji.*often misheard",
+    r"Ekam.*often misheard",
+    r"often misheard as",
+    r"Correct this text",
+    r"TEXT TO CORRECT",
+    r"I need to summarize the given text passages",
+    r"The instruction is to not retain",
+    r"One must not summarize or rewrite",
+    r"However, I notice that the text passages",
+]
+
+_MIN_MEANINGFUL_CHARS = 80  # skip LLM correction below this (avoid empty-input hallucination)
+
+
+def _is_content_too_short(text: str) -> bool:
+    """Return True if text is too short/empty to benefit from LLM correction.
+    Short/empty inputs cause the LLM to echo its system prompt — prompt leakage."""
+    cleaned = text.strip()
+    if len(cleaned) < _MIN_MEANINGFUL_CHARS:
+        return True
+    # Count actual words (excluding punctuation-only strings)
+    words = [w for w in cleaned.split() if any(c.isalpha() for c in w)]
+    return len(words) < 8
+
+
+def _contains_prompt_leak(text: str) -> bool:
+    """Check if the LLM response contains phrases from its own system prompt."""
+    for pattern in _PROMPT_LEAK_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    return False
+
 
 def _sentence_aware_split(text: str, chunk_size: int = 4000, overlap: int = 100) -> list[str]:
     """
@@ -136,6 +178,13 @@ class TranscriptCorrector:
 
         async def _correct_chunk(i: int, chunk: str) -> str:
             async with semaphore:
+                # Guard 1: skip LLM for near-empty input — causes prompt leakage
+                if _is_content_too_short(chunk):
+                    logger.info(
+                        f"Chunk {i} too short/empty ({len(chunk)} chars) — skipping LLM correction"
+                    )
+                    return chunk
+
                 try:
                     response = await self._llm.generate(
                         system_prompt=CORRECTION_SYSTEM_PROMPT,
@@ -144,10 +193,18 @@ class TranscriptCorrector:
                         operation="correction",
                         is_structured=True,
                     )
-                    # Fallback if LLM returns empty or truncated response
+                    # Guard 2: length check (original)
                     if not response or len(response.strip()) < min(50, len(chunk.strip()) // 2):
                         logger.warning(
                             f"Chunk {i} correction returned empty/short string. Using original."
+                        )
+                        return chunk
+
+                    # Guard 3: prompt leakage detection (root-cause fix)
+                    if _contains_prompt_leak(response):
+                        logger.warning(
+                            f"Chunk {i} response contains LLM prompt leakage — "
+                            f"LLM echoed its own system prompt. Using original."
                         )
                         return chunk
 
