@@ -582,3 +582,59 @@ export async function updateGlobalSettings(settings: GlobalSettings): Promise<{ 
   });
 }
 
+/* ── Staging Quality Queue & Ingestion file upload (Iceberg Gate) ────────── */
+export async function listStagingQueue(status: string = 'pending'): Promise<any[]> {
+  return fetchWithAuth(`/api/ingest/staging?status=${encodeURIComponent(status)}`);
+}
+
+export async function reviewStagingItem(
+  id: string,
+  action: 'approve' | 'reject',
+  notes: string = '',
+): Promise<{ id: string; action: string; new_status: string; message: string }> {
+  return fetchWithAuth(`/api/ingest/staging/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ action, notes }),
+  });
+}
+
+export async function uploadIngestionFile(
+  file: File,
+  tags: string = 'general',
+  maxAccuracy: boolean = false,
+  guruSlug: string = 'default',
+): Promise<{ status: string; message: string; filename: string; size_mb: number }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('tags', tags);
+  formData.append('max_accuracy', String(maxAccuracy));
+  formData.append('guru_slug', guruSlug);
+
+  const response = await fetch(`${BACKEND_URL}/api/ingest/upload`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Note: do not set Content-Type header manually for FormData,
+      // browser will automatically set multipart/form-data with boundary
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Admin access required or session expired');
+    }
+    const errText = await response.text();
+    throw new Error(`Upload failed: ${response.status} ${errText || response.statusText}`);
+  }
+
+  return response.json();
+}
+
+

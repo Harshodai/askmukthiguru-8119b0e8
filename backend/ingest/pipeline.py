@@ -400,6 +400,31 @@ class IngestionPipeline:
 
         self._notify(on_progress, "Starting raw text processing...", 0.1)
 
+        # ── Iceberg-style 3-tier quality gate ──────────────────────────────
+        self._notify(on_progress, "Running data quality checks (Tier 1: deterministic)...", 0.15)
+        quality_result = await self._quality_gate.run(text, source_url=source_url)
+        if not quality_result.passed:
+            logger.warning(
+                f"Quality gate REJECTED raw text {source_url} "
+                f"score={quality_result.score}/100 "
+                f"tier={quality_result.tier_reached} "
+                f"reasons={quality_result.reasons} "
+                f"staging_id={quality_result.staging_id}"
+            )
+            self._notify(on_progress, f"Rejected by quality gate (score={quality_result.score}/100)", 1.0)
+            return {
+                "status": "rejected",
+                "message": f"Content quality score {quality_result.score}/100 below threshold. "
+                           f"Reasons: {'; '.join(quality_result.reasons)}. "
+                           f"Staged: {quality_result.staging_id or 'N/A'}",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "quality_score": quality_result.score,
+                "staging_id": quality_result.staging_id,
+            }
+        self._notify(on_progress, f"Quality gate PASSED (score={quality_result.score}/100)...", 0.2)
+
         # Step 1: Clean & redact PII
         clean_text = clean_transcript(text)
         clean_text, pii_found = redact_pii(clean_text)
@@ -442,6 +467,7 @@ class IngestionPipeline:
             source_type=content_type,
             extra_metadatas=extra_metadatas,
             tags=tags,
+            quality_score=quality_result.score,
         )
 
         # Step 6: RAPTOR tree
@@ -631,6 +657,7 @@ class IngestionPipeline:
             language=video_language,
             extra_metadatas=extra_metadatas,
             tags=tags,
+            quality_score=quality_result.score,
         )
 
         # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
@@ -664,7 +691,7 @@ class IngestionPipeline:
             try:
                 video_id = extract_video_id(url)
                 if video_id:
-                    asyncio.create_task(_okf_extract_for_video(video_id))
+                    asyncio.create_task(_okf_extract_for_video(video_id, quality_score=quality_result.score))
                     logger.debug("OKF extraction queued for video: %s", video_id)
             except Exception:
                 pass
@@ -733,6 +760,31 @@ class IngestionPipeline:
         self._notify(on_progress, "Correcting transcript (LLM)...", 0.3)
         sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
+
+        # ── Iceberg-style 3-tier quality gate ──────────────────────────────
+        self._notify(on_progress, "Running data quality checks...", 0.32)
+        quality_result = await self._quality_gate.run(raw_text, source_url=url)
+        if not quality_result.passed:
+            logger.warning(
+                f"Quality gate REJECTED enhanced video {url} "
+                f"score={quality_result.score}/100 "
+                f"tier={quality_result.tier_reached} "
+                f"reasons={quality_result.reasons} "
+                f"staging_id={quality_result.staging_id}"
+            )
+            self._notify(on_progress, f"Rejected by quality gate (score={quality_result.score}/100)", 1.0)
+            return {
+                "status": "rejected",
+                "message": f"Content quality score {quality_result.score}/100 below threshold. "
+                           f"Reasons: {'; '.join(quality_result.reasons)}. "
+                           f"Staged: {quality_result.staging_id or 'N/A'}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "quality_score": quality_result.score,
+                "staging_id": quality_result.staging_id,
+            }
+        self._notify(on_progress, f"Quality gate PASSED (score={quality_result.score}/100)...", 0.35)
 
         # Enrich video metadata from transcript for non-Apify paths
         method = result.get("method", "")
@@ -833,6 +885,7 @@ class IngestionPipeline:
                 language=video_language,
                 extra_metadatas=all_extra_metadatas,
                 tags=tags,
+                quality_score=quality_result.score,
             )
 
         # 5. Build RAPTOR and Graph
@@ -854,13 +907,7 @@ class IngestionPipeline:
             try:
                 video_id = extract_video_id(url)
                 if video_id:
-                    asyncio.create_task(
-                        asyncio.to_thread(
-                            lambda: asyncio.run(
-                                _okf_extract_for_video(video_id)
-                            )
-                        )
-                    )
+                    asyncio.create_task(_okf_extract_for_video(video_id, quality_score=quality_result.score))
                     logger.debug("OKF extraction queued for enhanced video: %s", video_id)
             except Exception:
                 pass
@@ -1304,6 +1351,7 @@ class IngestionPipeline:
         language: str = "en",
         tags: Optional[list[str]] = None,
         source_type: Optional[str] = None,
+        quality_score: Optional[int] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -1358,6 +1406,8 @@ class IngestionPipeline:
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
             }
+            if quality_score is not None:
+                base_meta["quality_score"] = quality_score
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
             # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.
