@@ -389,8 +389,39 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                         ThinkingPills indicator in ChatInterface is the source of truth.
                         This prevents two simultaneous "thinking" indicators. */}
                     {isStreaming && !message.content ? null : (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        components={{
+                          a: ({ href, children, ...rest }) => {
+                            const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
+                            if (match) {
+                              const n = parseInt(match[1], 10);
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    onCitationClick?.(message.id, n - 1);
+                                  }}
+                                  className="inline-flex items-center justify-center align-super mx-[1px] px-[5px] min-w-[18px] h-[18px] rounded-md text-[10px] font-semibold tabular-nums bg-ojas/10 text-ojas border border-ojas/30 hover:bg-ojas/20 hover:border-ojas/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas transition-colors"
+                                  aria-label={`Show source ${n} in the sources panel`}
+                                  title={`Source ${n} — click to open in Sources`}
+                                >
+                                  {n}
+                                </button>
+                              );
+                            }
+                            return (
+                              <a href={href} {...rest} target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
+                            );
+                          },
+                        }}
+                      >
+                        {injectCitationLinks(message.content, (message.citations ?? []).length)}
+                      </ReactMarkdown>
                     )}
+
                   </div>
                   )
                 ) : isEditing ? (
