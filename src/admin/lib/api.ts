@@ -582,3 +582,22 @@ export async function updateGlobalSettings(settings: GlobalSettings): Promise<{ 
   });
 }
 
+// ── Staging queue (iceberg-style quality review) ────────────────────
+export async function listStagingQueue(status = 'pending'): Promise<any[]> {
+  const params = new URLSearchParams({ status });
+  return fetchWithAuth(`/api/admin/staging?${params.toString()}`);
+}
+
+export async function reviewStagingItem(
+  id: string,
+  action: 'approve' | 'reject',
+  notes?: string,
+): Promise<{ status: string; message?: string }> {
+  return fetchWithAuth(`/api/admin/staging/${id}/review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, notes }),
+  });
+}
+
+
