@@ -128,3 +128,4 @@ pyarrow>=12.0.0,<15.0.0
 numpy<2.0.0
 
 
+langdetect

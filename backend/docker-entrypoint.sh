@@ -43,3 +43,10 @@ if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
         --timeout-keep-alive 300
 fi
 
+# Celery worker — drop privileges like uvicorn
+if [[ "$1" == 'celery' ]]; then
+    echo "Starting Celery worker..."
+    echo "Dropping privileges to appuser..."
+    exec gosu appuser "$@"
+fi
+

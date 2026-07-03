@@ -187,6 +187,44 @@ class QdrantIndexer:
             logger.error(f"Backup failed for {source_url}: {e}")
             return False
 
+    def restore_from_backup(self, source_url: str, backup_collection: str) -> bool:
+        """
+        Restore a single source from a backup collection into the main collection.
+
+        Iceberg-style rollback counterpart to backup_source(): deletes whatever is
+        currently indexed for source_url in the main collection, then re-upserts the
+        backed-up points. Used when a downstream step (RAPTOR, LightRAG, Neo4j
+        consolidation) fails after a source has already been re-ingested, so a
+        partially-processed source never gets left indexed.
+
+        ponytail: promoted from scripts/migrate_data.py's standalone free function —
+        single source of truth for restore logic instead of two copies.
+        """
+        try:
+            self.delete_by_source(source_url)
+
+            points, _ = self._client.scroll(
+                collection_name=backup_collection,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
+                ),
+                limit=1000,
+                with_payload=True,
+                with_vectors=True,
+            )
+
+            if not points:
+                logger.warning(f"No backup data found for {source_url} in {backup_collection}")
+                return False
+
+            restore_points = [PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points]
+            self._client.upsert(collection_name=self._collection, points=restore_points)
+            logger.info(f"Restored {len(restore_points)} points from backup for {source_url}")
+            return True
+        except Exception as e:
+            logger.error(f"Restore failed for {source_url}: {e}")
+            return False
+
     def prune_backups(self, prefix: str, max_backups: int = 5) -> None:
         """
         List all collections with the given prefix and keep only the last N.

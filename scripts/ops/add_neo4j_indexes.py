@@ -22,7 +22,7 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD") or settings.neo4j_password
 INDEXES = [
     ("entity_type_index", "CREATE INDEX entity_type_index IF NOT EXISTS FOR (n:base) ON (n.entity_type)"),
     ("source_id_index", "CREATE INDEX source_id_index IF NOT EXISTS FOR (n:base) ON (n.source_id)"),
-    ("entity_name_index", "CREATE INDEX entity_name_index IF NOT EXISTS FOR (n:base) ON (n.entity_name)"),
+    ("entity_id_index", "CREATE INDEX entity_id_index IF NOT EXISTS FOR (n:base) ON (n.entity_id)"),
     ("tenant_id_index", "CREATE INDEX tenant_id_index IF NOT EXISTS FOR (n:base) ON (n.tenant_id)"),
 ]
 

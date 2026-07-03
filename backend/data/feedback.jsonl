@@ -13,3 +13,4 @@
 {"timestamp": "2026-06-30T22:01:07.083106", "session_id": "user123", "query": "Who is PK?", "response_preview": "PK is a robot.", "feedback": "negative", "reason": null, "chunks_count": 0, "latency_ms": 0.0, "model_used": "sarvam-105b"}
 {"timestamp": "2026-06-30T22:19:36.127890", "session_id": "user123", "query": "Who is PK?", "response_preview": "PK is a robot.", "feedback": "negative", "reason": null, "chunks_count": 0, "latency_ms": 0.0, "model_used": "sarvam-105b"}
 {"timestamp": "2026-06-30T22:35:35.578783", "session_id": "user123", "query": "Who is PK?", "response_preview": "PK is a robot.", "feedback": "negative", "reason": null, "chunks_count": 0, "latency_ms": 0.0, "model_used": "sarvam-105b"}
+{"timestamp": "2026-07-02T19:34:20.300424", "session_id": "user123", "query": "Who is PK?", "response_preview": "PK is a robot.", "feedback": "negative", "reason": null, "chunks_count": 0, "latency_ms": 0.0, "model_used": "sarvam-105b"}
