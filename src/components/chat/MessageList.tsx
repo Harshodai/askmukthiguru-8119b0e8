@@ -93,6 +93,7 @@ export const MessageList = React.memo(({
   onEditUserMessage,
   onSubmitEdit,
   onAction,
+  onCitationClick,
 }: {
   messages: Message[];
   streamingId?: string;
@@ -102,7 +103,9 @@ export const MessageList = React.memo(({
   onSubmitEdit?: (messageId: string, newContent: string) => void;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
   onAction?: (query: string) => void;
+  onCitationClick?: (messageId: string, citationIndex: number) => void;
 }) => {
+
   // Find the ID of the last guru message for the regenerate button
   let lastGuruId: string | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -166,6 +169,8 @@ export const MessageList = React.memo(({
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
                   onSubmitEdit={message.role === 'user' ? onSubmitEdit : undefined}
                   onAction={message.role === 'guru' ? onAction : undefined}
+                  onCitationClick={message.role === 'guru' ? onCitationClick : undefined}
+
                 />
               </VirtualMessageWrapper>
             );
