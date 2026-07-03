@@ -469,26 +469,30 @@ async def get_concept_graph(
 
     try:
         from neo4j import GraphDatabase
-        from services.tenant_context import TenantContext
-        
+
         def _query_graph():
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=(settings.neo4j_user, settings.neo4j_password)
             )
-            tenant_id = TenantContext.get()
             nodes = {}
             links = []
             with driver.session() as session:
+                # Fix: LightRAG's Neo4JStorage writes entity_id (not entity_name),
+                # and the shared knowledge-graph nodes it authors are never tagged
+                # with tenant_id (tenant scoping only applies to per-user memory
+                # nodes written by memory_service_v2.py) — the old WHERE clause
+                # matched a nonexistent property twice over and always returned 0
+                # rows, so this admin visualization silently fell back to the
+                # hardcoded mock graph on every request.
                 cypher = """
                 MATCH (n)-[r]->(m)
-                WHERE n.tenant_id = $tenant_id AND m.tenant_id = $tenant_id
-                RETURN n.entity_name AS source_name, labels(n)[0] AS source_label,
+                RETURN n.entity_id AS source_name, labels(n)[0] AS source_label,
                        type(r) AS rel_type,
-                       m.entity_name AS target_name, labels(m)[0] AS target_label
+                       m.entity_id AS target_name, labels(m)[0] AS target_label
                 LIMIT 100
                 """
-                result = session.run(cypher, tenant_id=tenant_id)
+                result = session.run(cypher)
                 for record in result:
                     src = record["source_name"]
                     tgt = record["target_name"]

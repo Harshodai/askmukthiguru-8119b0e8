@@ -93,6 +93,9 @@ def _mock_container(*, cache_hit: dict | None = None, graph_result: dict | None 
     container.ollama._circuit = MagicMock()
     container.ollama._circuit.can_execute.return_value = True
 
+    # Doctrine cache — explicitly None so getattr skips DoctrineCacheStage
+    container.doctrine_cache = None
+
     return container
 
 
@@ -318,9 +321,11 @@ def test_build_default_pipeline_order():
         "circuit_breaker",
         "request_state",
         "input_guardrails",
+        "doctrine_cache",
         "casual_short_circuit",
         "distress_detection",
         "langgraph",
+        "meditation_gen",
         "translation",
         "memory_save",
         "output_guardrails",

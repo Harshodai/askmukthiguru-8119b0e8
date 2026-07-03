@@ -135,18 +135,15 @@ async def query_neo4j_subgraph(query: str) -> str:
     Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
     """
     from ingest.pipeline import extract_doctrine_tags
-    from services.tenant_context import TenantContext
     matched_concepts = extract_doctrine_tags(query)
     if not matched_concepts:
         return ""
-        
+
     if not settings.neo4j_uri:
         return ""
-        
+
     try:
         from neo4j import GraphDatabase
-        
-        tenant_id = TenantContext.get()
 
         def _run():
             driver = GraphDatabase.driver(
@@ -155,14 +152,20 @@ async def query_neo4j_subgraph(query: str) -> str:
             )
             subgraph_context = []
             with driver.session() as session:
+                # Fix: LightRAG's Neo4JStorage writes entity_id (not entity_name),
+                # and the shared knowledge-graph nodes it authors are never tagged
+                # with tenant_id (tenant scoping only applies to per-user memory
+                # nodes written by memory_service_v2.py) — the old WHERE clause
+                # matched a nonexistent property twice over and always returned 0
+                # rows, silently disabling relational subgraph context on every
+                # RELATIONAL-intent query.
                 cypher = """
-                MATCH (n1 {entity_name: $concept})-[r]->(n2)
-                WHERE n1.tenant_id = $tenant_id AND n2.tenant_id = $tenant_id
-                RETURN n1.entity_name AS source, type(r) AS rel, r.description AS desc, n2.entity_name AS target
+                MATCH (n1 {entity_id: $concept})-[r]->(n2)
+                RETURN n1.entity_id AS source, type(r) AS rel, r.description AS desc, n2.entity_id AS target
                 LIMIT 15
                 """
                 for concept in matched_concepts:
-                    result = session.run(cypher, concept=concept, tenant_id=tenant_id)
+                    result = session.run(cypher, concept=concept)
                     for record in result:
                         desc_str = f" - {record['desc']}" if record.get("desc") else ""
                         subgraph_context.append(
@@ -1004,10 +1007,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     raw_docs_copy = [dict(d) for d in all_docs]
 
-    # Phase 2b: inject OKF compiled entries as a third retrieval channel
-    # Gate controlled by rag_okf_injection_enabled (default: off).
-    # ponytail: OKF is a curated precision channel — keep infrastructure
-    # but disable until curated entries scale to justify the maintenance cost.
+    # Phase 2b: inject OKF compiled entries as a third retrieval channel.
+    # Gate controlled by rag_okf_injection_enabled — defaults to True as of
+    # Fix C's OKF hardening: OKF is now the canonical curated knowledge layer
+    # (see app/config.py:269), not an opt-in extra.
     if (
         getattr(settings, "rag_okf_injection_enabled", False)
         and all_docs

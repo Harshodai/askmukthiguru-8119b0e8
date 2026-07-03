@@ -121,7 +121,7 @@ services:
       - "8000:8000"
     env_file:
       - ../.env
-    environment:
+    environment: &backend-env
       - IS_PRODUCTION=false
       - ENABLE_TEST_AUTH=true
       - HF_HUB_OFFLINE=1  # Prevent huggingface_hub SSL failures on Docker Desktop gRPC-FUSE
@@ -241,7 +241,7 @@ services:
         limits:
           cpus: '4.0'
     restart: unless-stopped
-    volumes:
+    volumes: &backend-volumes
       # Cache HuggingFace models across rebuilds (prevents re-download on every docker build)
       - hf_model_cache:/app/.cache
       - ./.model_cache:/app/model_cache
@@ -260,6 +260,40 @@ services:
       - ../memory:/app/memory
       - ./repos/LightRAG/lightrag:/usr/local/lib/python3.12/site-packages/lightrag
     # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --- Celery Worker (playlist ingestion + OKF extraction/compile) ---
+  # Fix: ingest_tasks.ingest_playlist / okf_extract_tasks / okf_compile_tasks were
+  # enqueued to Redis but nothing consumed them — playlist ingestion from the admin
+  # UI silently hung forever. Reuses the backend image/env via the &backend-env anchor.
+  celery-worker:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: mukthiguru-celery-worker
+    env_file:
+      - ../.env
+    environment: *backend-env
+    command: >
+      celery -A celery_config worker
+      --loglevel=info
+      --queues=transcription,embedding,indexing,ingestion,okf
+      --concurrency=2
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+    restart: unless-stopped
+    volumes: *backend-volumes
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

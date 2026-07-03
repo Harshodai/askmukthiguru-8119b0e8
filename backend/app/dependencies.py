@@ -287,6 +287,9 @@ class ServiceContainer:
                 embedding_service=self.embedding,
                 llm_service=self.ollama,
             )
+            # Fix: global_memory collection was never created — every
+            # set_global_memory/search_global call silently failed. Idempotent.
+            self.memory_service.ensure_global_memory_collection()
             from services.memory import EpisodicMemoryService
             from services.notebook_service import NotebookService
 

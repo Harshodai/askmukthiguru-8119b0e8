@@ -134,12 +134,27 @@ def extract_doctrine_tags(text: str) -> list[str]:
 
 
 async def _okf_extract_for_video(video_id: str) -> None:
-    """Fire-and-forget OKF extraction for a single video. Non-fatal."""
+    """Queue OKF extraction for a single video. Non-fatal — never breaks ingestion.
+
+    Prefers the Celery `okf_extract_tasks.extract_okf_entries` task (has its own
+    retry/backoff, runs on the celery-worker service off the request path) and
+    falls back to running extract_okf() in-process if Celery/Redis is unreachable
+    — e.g. local dev without the worker container running.
+    """
+    try:
+        from tasks.okf_extract_tasks import extract_okf_entries
+        extract_okf_entries.delay(target_video_id=video_id, limit=5, auto_approve=False)
+        logger.debug(f"OKF extraction dispatched to Celery for video: {video_id}")
+        return
+    except Exception as e:
+        logger.warning(f"OKF Celery dispatch failed for video {video_id}, falling back to in-process: {e}")
+
     try:
         from scripts.extract_okf_from_stores import extract_okf
         await extract_okf(target_video_id=video_id, limit=5, auto_approve=False)
-    except Exception:
-        pass  # ponytail: OKF extraction is optional augmentation
+    except Exception as e:
+        # ponytail: OKF extraction is optional augmentation — must never break ingestion.
+        logger.warning(f"In-process OKF extraction failed for video {video_id}: {e}")
 
 
 class IngestionPipeline:
@@ -403,6 +418,15 @@ class IngestionPipeline:
         if not final_chunks:
             return {"status": "error", "message": "No meaningful chunks", "source_url": source_url}
 
+        # Iceberg-style safety net: snapshot any existing points for this source
+        # before overwriting. Fix: this is the live path behind ingest_document()
+        # (PDF/txt uploads) — previously had zero rollback protection against a
+        # downstream RAPTOR/LightRAG failure. migrate_data.py also calls this
+        # method but already takes its own outer backup/rollback around it; this
+        # inner safety net is harmless there (separate backup-collection prefix,
+        # pruned independently) and adds real protection for the document path.
+        backup_collection = self._backup_before_reindex(source_url)
+
         # Step 5: Embed and index
         chunks_count = self._embed_and_index(
             final_chunks,
@@ -416,27 +440,38 @@ class IngestionPipeline:
             tags=tags,
         )
 
-        # Step 6: RAPTOR tree
-        self._notify(on_progress, "Building RAPTOR tree...", 0.85)
-        chunk_dicts = [
-            {
-                "text": c,
-                "source_url": source_url,
-                "title": title,
-                "speaker": speaker,
-                "topic": topic,
-            }
-            for c in chunks
-        ]
-        if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
-            self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.87)
-            chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
-        summaries_count = await self._raptor.build_tree(chunk_dicts)
+        try:
+            # Step 6: RAPTOR tree
+            self._notify(on_progress, "Building RAPTOR tree...", 0.85)
+            chunk_dicts = [
+                {
+                    "text": c,
+                    "source_url": source_url,
+                    "title": title,
+                    "speaker": speaker,
+                    "topic": topic,
+                }
+                for c in chunks
+            ]
+            if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+                self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.87)
+                chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
+            summaries_count = await self._raptor.build_tree(chunk_dicts)
 
-        # Step 7: Graph RAG Extraction (Phase 4 Improvement)
-        if self._lightrag:
-            self._notify(on_progress, "Extracting knowledge graph...", 0.95)
-            await self._lightrag.ainsert(clean_text)
+            # Step 7: Graph RAG Extraction (Phase 4 Improvement)
+            if self._lightrag:
+                self._notify(on_progress, "Extracting knowledge graph...", 0.95)
+                await self._lightrag.ainsert(clean_text)
+        except Exception as e:
+            logger.error(f"Downstream ingestion step failed for {source_url}, rolling back: {e}")
+            self._rollback_reindex(source_url, backup_collection)
+            return {
+                "status": "error",
+                "message": f"Ingestion rolled back — downstream step failed: {e}",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # Implicit Teachings Concept Connector & Conflict/Synergy Detector
         await self._implicit_teachings_connector(chunks)
@@ -577,6 +612,10 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
+        # Iceberg-style safety net: snapshot any existing points for this source
+        # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
+        backup_collection = self._backup_before_reindex(url)
+
         # Step 5: Embed and index
         chunks_count = self._embed_and_index(
             final_chunks,
@@ -591,41 +630,53 @@ class IngestionPipeline:
             tags=tags,
         )
 
-        # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
-        self._notify(on_progress, "Building RAPTOR tree...", 0.8)
-        chunk_dicts = [
-            {
-                "text": c,
-                "source_url": url,
-                "title": video_title,
-                "speaker": video_speaker,
-                "topic": video_topic,
-            }
-            for c in chunks
-        ]
-        if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
-            self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.82)
-            chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
-        summaries_count = await self._raptor.build_tree(chunk_dicts)
+        try:
+            # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
+            self._notify(on_progress, "Building RAPTOR tree...", 0.8)
+            chunk_dicts = [
+                {
+                    "text": c,
+                    "source_url": url,
+                    "title": video_title,
+                    "speaker": video_speaker,
+                    "topic": video_topic,
+                }
+                for c in chunks
+            ]
+            if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+                self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.82)
+                chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
+            summaries_count = await self._raptor.build_tree(chunk_dicts)
 
-        # Step 6: Graph RAG Extraction (Phase 4 Improvement)
-        if self._lightrag:
-            self._notify(on_progress, "Extracting knowledge graph (LightRAG)...", 0.9)
-            await self._lightrag.ainsert(clean_text)
+            # Step 6: Graph RAG Extraction (Phase 4 Improvement)
+            if self._lightrag:
+                self._notify(on_progress, "Extracting knowledge graph (LightRAG)...", 0.9)
+                await self._lightrag.ainsert(clean_text)
+        except Exception as e:
+            logger.error(f"Downstream ingestion step failed for {url}, rolling back: {e}")
+            self._rollback_reindex(url, backup_collection)
+            return {
+                "status": "error",
+                "message": f"Ingestion rolled back — downstream step failed: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         checkpoint.save(content_hash)
 
         # OKF auto-extraction: fire-and-forget for newly ingested content.
-        # ponytail: gated by rag_okf_auto_extract_enabled (default off).
-        # Non-fatal — OKF extraction must never break ingestion.
+        # ponytail: gated by rag_okf_auto_extract_enabled (default on — hardened
+        # w/ Celery retry + logging in _okf_extract_for_video). Non-fatal — OKF
+        # extraction must never break ingestion.
         if getattr(settings, "rag_okf_auto_extract_enabled", False):
             try:
                 video_id = extract_video_id(url)
                 if video_id:
                     asyncio.create_task(_okf_extract_for_video(video_id))
                     logger.debug("OKF extraction queued for video: %s", video_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to queue OKF extraction for {url}: {e}")
 
         self._notify(on_progress, "Complete!", 1.0)
         return {
@@ -691,6 +742,21 @@ class IngestionPipeline:
         self._notify(on_progress, "Correcting transcript (LLM)...", 0.3)
         sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
         raw_text = await self._corrector.correct_transcript(sanitized_text, url)
+
+        # Step 1.3: Data Quality Gate (Iceberg-style stage-before-merge).
+        # Fix: enhanced path skipped this entirely — only the deterministic
+        # pre-filter ran. Same 3-tier gate as _ingest_video() for parity.
+        self._notify(on_progress, "Auditing content quality...", 0.32)
+        quality_res = await self._auditor.run(raw_text, url)
+        if not quality_res.passed:
+            return {
+                "status": "rejected",
+                "message": f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
+                           f"Reasons: {'; '.join(quality_res.reasons)}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # Enrich video metadata from transcript for non-Apify paths
         method = result.get("method", "")
@@ -776,6 +842,10 @@ class IngestionPipeline:
                     )
             topic_index += 1
 
+        # Iceberg-style safety net: snapshot any existing points for this source
+        # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
+        backup_collection = self._backup_before_reindex(url)
+
         # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
         self._notify(on_progress, "Indexing all extracted topic chunks...", 0.85)
         total_chunks = 0
@@ -793,35 +863,44 @@ class IngestionPipeline:
                 tags=tags,
             )
 
-        # 5. Build RAPTOR and Graph
-        self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
-        if all_chunks:
-            # Build RAPTOR summaries using the actual compiled leaf chunks
-            chunks_data = [{"text": c, "source_url": url, "title": video_title} for c in all_chunks]
-            if getattr(settings, "raptor_parent_summaries_enabled", False):
-                chunks_data = await self._raptor.summarize_parent_chunks(chunks_data)
-            await self._raptor.build_tree(chunks_data)
+        try:
+            # 5. Build RAPTOR and Graph
+            self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
+            if all_chunks:
+                # Build RAPTOR summaries using the actual compiled leaf chunks
+                chunks_data = [{"text": c, "source_url": url, "title": video_title} for c in all_chunks]
+                if getattr(settings, "raptor_parent_summaries_enabled", False):
+                    chunks_data = await self._raptor.summarize_parent_chunks(chunks_data)
+                await self._raptor.build_tree(chunks_data)
 
-        if self._lightrag:
-            await self._lightrag.ainsert(clean_text)
+            if self._lightrag:
+                await self._lightrag.ainsert(clean_text)
+        except Exception as e:
+            logger.error(f"Downstream ingestion step failed for {url}, rolling back: {e}")
+            self._rollback_reindex(url, backup_collection)
+            return {
+                "status": "error",
+                "message": f"Ingestion rolled back — downstream step failed: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         checkpoint.save(content_hash)
 
-        # OKF auto-extraction hook (same gate as _ingest_video)
+        # OKF auto-extraction hook (same gate as _ingest_video).
+        # ponytail: simplified from the previous to_thread(asyncio.run(...)) wrapper —
+        # we're already inside a running event loop here, so create_task() directly
+        # is correct and matches _ingest_video()'s pattern (no need for a new thread
+        # + a nested event loop).
         if getattr(settings, "rag_okf_auto_extract_enabled", False):
             try:
                 video_id = extract_video_id(url)
                 if video_id:
-                    asyncio.create_task(
-                        asyncio.to_thread(
-                            lambda: asyncio.run(
-                                _okf_extract_for_video(video_id)
-                            )
-                        )
-                    )
+                    asyncio.create_task(_okf_extract_for_video(video_id))
                     logger.debug("OKF extraction queued for enhanced video: %s", video_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to queue OKF extraction for {url}: {e}")
 
         self._notify(on_progress, "Enhanced ingestion complete!", 1.0)
         return {
@@ -949,9 +1028,16 @@ class IngestionPipeline:
                 # Correct + audit
                 sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
                 raw_text = await self._corrector.correct_transcript(sanitized_text, video["url"])
-                is_valid = await self._auditor.audit_transcript(raw_text, video["url"])
-                if not is_valid:
-                    errors.append({"url": video["url"], "error": "Rejected by auditor"})
+                # Fix: self._auditor is a DataQualityGate (no audit_transcript method) —
+                # this raised AttributeError on every playlist video, silently swallowed
+                # by the broad except below. Use the same .run() gate as _ingest_video().
+                quality_res = await self._auditor.run(raw_text, video["url"])
+                if not quality_res.passed:
+                    errors.append({
+                        "url": video["url"],
+                        "error": f"Rejected by Data Quality Gate: score {quality_res.score}/100. "
+                                 f"{'; '.join(quality_res.reasons)}",
+                    })
                     continue
 
                 # Clean & redact PII, then chunk, embed, index
@@ -985,6 +1071,11 @@ class IngestionPipeline:
                 else:
                     final_chunks = chunks
 
+                # Iceberg-style safety net: snapshot any existing points for this
+                # source before overwriting, so a downstream RAPTOR/LightRAG failure
+                # can roll back this one video without aborting the whole playlist.
+                backup_collection = self._backup_before_reindex(video["url"])
+
                 chunks_count = self._embed_and_index(
                     final_chunks,
                     source_url=video["url"],
@@ -996,30 +1087,51 @@ class IngestionPipeline:
                     source_type="video",
                     tags=tags,
                 )
+
+                try:
+                    # RAPTOR
+                    chunk_dicts = [
+                        {
+                            "text": c,
+                            "source_url": video["url"],
+                            "title": video_title,
+                            "speaker": video_speaker,
+                            "topic": video_topic,
+                        }
+                        for c in chunks
+                    ]
+                    if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+                        chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
+                    summaries_count = await self._raptor.build_tree(chunk_dicts)
+
+                    # Step 6: Graph RAG
+                    await self._lightrag.ainsert(clean_text)
+                except Exception as e:
+                    logger.error(f"Downstream ingestion step failed for {video['url']}, rolling back: {e}")
+                    self._rollback_reindex(video["url"], backup_collection)
+                    errors.append({
+                        "url": video["url"],
+                        "error": f"Rolled back — downstream step failed: {e}",
+                    })
+                    continue
+
                 total_chunks += chunks_count
-
-                # RAPTOR
-                chunk_dicts = [
-                    {
-                        "text": c,
-                        "source_url": video["url"],
-                        "title": video_title,
-                        "speaker": video_speaker,
-                        "topic": video_topic,
-                    }
-                    for c in chunks
-                ]
-                if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
-                    chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
-                summaries_count = await self._raptor.build_tree(chunk_dicts)
                 total_summaries += summaries_count
-
-                # Step 6: Graph RAG
-                await self._lightrag.ainsert(clean_text)
 
                 content_hash_pl = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
                 checkpoint.save(content_hash_pl)
                 processed += 1
+
+                # OKF auto-extraction: fire-and-forget per video. Fix: playlist path
+                # had no OKF hook at all, unlike _ingest_video()/_ingest_video_enhanced().
+                if getattr(settings, "rag_okf_auto_extract_enabled", False):
+                    try:
+                        pl_video_id = extract_video_id(video["url"])
+                        if pl_video_id:
+                            asyncio.create_task(_okf_extract_for_video(pl_video_id))
+                            logger.debug(f"OKF extraction queued for playlist video: {pl_video_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to queue OKF extraction for {video['url']}: {e}")
 
             except Exception as e:
                 errors.append({"url": video["url"], "error": str(e)})
@@ -1062,6 +1174,20 @@ class IngestionPipeline:
         clean_text, pii_found = redact_pii(clean_text)
         if pii_found:
             logger.warning(f"PII redacted from file url={url} — {pii_found} instances")
+
+        # Data Quality Gate (Iceberg-style stage-before-merge). Fix: image path had
+        # no quality gating whatsoever — OCR noise/garbage text was indexed unfiltered.
+        self._notify(on_progress, "Auditing content quality...", 0.65)
+        quality_res = await self._auditor.run(clean_text, url)
+        if not quality_res.passed:
+            return {
+                "status": "rejected",
+                "message": f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
+                           f"Reasons: {'; '.join(quality_res.reasons)}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         chunks_count = self._chunk_embed_index(
             clean_text,
@@ -1249,6 +1375,50 @@ class IngestionPipeline:
             await asyncio.get_event_loop().run_in_executor(None, run_consolidation)
         except Exception as e:
             logger.error(f"Failed to trigger post-ingestion self-healing: {e}")
+
+    # === Iceberg-style stage/commit/rollback for live ingestion ==============
+    # Fix: only the offline migrate_data.py script had backup/rollback around
+    # re-ingestion. A source passing the Data Quality Gate could still be left
+    # in an inconsistent state if a downstream step (RAPTOR, LightRAG, Neo4j
+    # consolidation) failed AFTER Qdrant was already overwritten. These two
+    # helpers extend the same backup_source()/restore_from_backup() primitives
+    # used by migrate_data.py into _ingest_video/_ingest_video_enhanced/
+    # _ingest_playlist, so a mid-pipeline failure rolls the source back instead
+    # of leaving it half-indexed.
+
+    _BACKUP_COLLECTION_PREFIX = "spiritual_wisdom_ingest_backup"
+
+    def _backup_before_reindex(self, source_url: str) -> Optional[str]:
+        """Snapshot a source's existing points before it gets overwritten.
+
+        Returns the backup collection name if a backup was taken (source already
+        existed), or None for first-time ingestion (nothing to roll back to —
+        on downstream failure the new source is simply deleted, not restored).
+        """
+        if not self._qdrant.check_source_exists(source_url):
+            return None
+        from datetime import datetime, timezone
+        backup_collection = f"{self._BACKUP_COLLECTION_PREFIX}_{datetime.now(timezone.utc):%Y%m%d}"
+        if self._qdrant.backup_source(source_url, backup_collection):
+            self._qdrant.prune_backups(self._BACKUP_COLLECTION_PREFIX, max_backups=5)
+            return backup_collection
+        logger.warning(f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net")
+        return None
+
+    def _rollback_reindex(self, source_url: str, backup_collection: Optional[str]) -> None:
+        """Iceberg-style rollback after a downstream ingestion step fails.
+
+        Restores the pre-ingestion snapshot if one was taken, otherwise removes
+        the partially-indexed new source so it isn't left half-processed.
+        """
+        if backup_collection:
+            if self._qdrant.restore_from_backup(source_url, backup_collection):
+                logger.warning(f"Rolled back {source_url} to its pre-ingestion state after a downstream failure")
+            else:
+                logger.error(f"Rollback FAILED for {source_url} — no backup data found in {backup_collection}")
+        else:
+            self._qdrant.delete_by_source(source_url)
+            logger.warning(f"Removed partially-indexed new source {source_url} after a downstream failure")
 
     def _embed_and_index(
         self,
@@ -1642,7 +1812,10 @@ class IngestionPipeline:
                 driver = self._get_neo4j_driver()
                 entities = []
                 with driver.session() as session:
-                    result = session.run("MATCH (n) WHERE n.entity_name IS NOT NULL RETURN n.entity_name AS name, n.description AS desc LIMIT 150")
+                    # Fix: LightRAG's Neo4JStorage writes the entity_id property,
+                    # not entity_name — this query always returned 0 rows, silently
+                    # disabling the Implicit Teachings Concept Connector entirely.
+                    result = session.run("MATCH (n) WHERE n.entity_id IS NOT NULL RETURN n.entity_id AS name, n.description AS desc LIMIT 150")
                     for r in result:
                         entities.append({
                             "name": r["name"],
@@ -1716,8 +1889,10 @@ class IngestionPipeline:
                         def _write_relation(target_name, relation, desc, sim_val):
                             driver = self._get_neo4j_driver()
                             with driver.session() as session:
+                                # Fix: match on entity_id (the property LightRAG's
+                                # Neo4JStorage actually writes), not entity_name.
                                 cypher = f"""
-                                MATCH (target) WHERE target.entity_name = $target_name
+                                MATCH (target) WHERE target.entity_id = $target_name
                                 MERGE (src:__Chunk__ {{text: $chunk_text}})
                                 MERGE (src)-[r:{relation} {{similarity: $similarity, description: $desc, created_at: $timestamp}}]->(target)
                                 """

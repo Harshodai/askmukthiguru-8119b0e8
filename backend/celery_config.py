@@ -22,7 +22,7 @@ celery_app = Celery(
     "mukthi_guru",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["tasks.ingest_tasks", "tasks.okf_extract_tasks"],
+    include=["tasks.ingest_tasks", "tasks.okf_extract_tasks", "tasks.okf_compile_tasks"],
 )
 
 celery_app.conf.update(

@@ -164,6 +164,42 @@ class MemoryServiceV2(MemoryService):
         except Exception:
             return None
 
+    def ensure_global_memory_collection(self) -> bool:
+        """Create the GLOBAL_MEMORY_COLLECTION in Qdrant if it doesn't exist yet.
+
+        `set_global_memory`/`search_global` upsert/search against this collection
+        via a raw QdrantClient but never created it — every write/search silently
+        failed inside their broad `except Exception` handlers. Call once at
+        startup (ServiceContainer._build_profiles) so global memory actually works.
+
+        Uses an unnamed default vector (matches the raw `vector=embedding` upsert
+        in `set_global_memory`), unlike the main collection's named dense+sparse
+        vectors — the two schemas are intentionally different.
+        """
+        client = self._get_qdrant_v2()
+        if client is None:
+            logger.warning("Cannot ensure global_memory collection — Qdrant client unavailable")
+            return False
+        try:
+            from qdrant_client.http.models import Distance, VectorParams
+            from app.config import settings
+
+            existing = {c.name for c in client.get_collections().collections}
+            if GLOBAL_MEMORY_COLLECTION in existing:
+                return True
+
+            client.create_collection(
+                collection_name=GLOBAL_MEMORY_COLLECTION,
+                vectors_config=VectorParams(
+                    size=settings.embedding_dimension, distance=Distance.COSINE
+                ),
+            )
+            logger.info(f"Created Qdrant collection: {GLOBAL_MEMORY_COLLECTION}")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to ensure global_memory collection: {e}")
+            return False
+
     def _get_neo4j(self):
         """Get Neo4j driver for graph memory."""
         if self._neo4j_driver is None:

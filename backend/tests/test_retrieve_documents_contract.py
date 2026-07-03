@@ -38,7 +38,14 @@ async def test_retrieve_documents_contract(monkeypatch):
     monkeypatch.setattr(nodes, "_embedder", mock_embedder)
     monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
     monkeypatch.setattr(nodes, "_lightrag", mock_lightrag)
-    
+
+    # OKF injection is an orthogonal curated-knowledge channel (on by default
+    # since Fix C's OKF hardening — see app/config.py:269) that would pull in
+    # real compiled.json entries here and break this test's exact-count
+    # assertions; disable it so this test stays scoped to the Qdrant/LightRAG
+    # contract it's actually verifying.
+    monkeypatch.setattr(settings, "rag_okf_injection_enabled", False)
+
     # Disable cache for simplicity
     monkeypatch.setattr(settings, "semantic_cache_enabled", False)
 

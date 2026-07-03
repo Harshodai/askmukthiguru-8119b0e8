@@ -144,6 +144,10 @@ class QdrantService:
         """Copy all points for a source to a backup collection."""
         return self._indexer.backup_source(source_url, backup_collection)
 
+    def restore_from_backup(self, source_url: str, backup_collection: str) -> bool:
+        """Restore a source's points from a backup collection (Iceberg-style rollback)."""
+        return self._indexer.restore_from_backup(source_url, backup_collection)
+
     def prune_backups(self, prefix: str, max_backups: int = 5) -> None:
         """Keep only the last N backup collections matching the prefix."""
         return self._indexer.prune_backups(prefix, max_backups)

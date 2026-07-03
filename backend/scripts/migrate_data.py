@@ -42,45 +42,13 @@ def strip_old_headers(text: str) -> str:
     return HEADER_PATTERN.sub("", text).strip()
 
 
-async def restore_from_backup(qdrant, source_url: str, backup_collection: str):
+# restore_from_backup was promoted to services.qdrant.indexer.QdrantIndexer
+# .restore_from_backup() (exposed via QdrantService) — ponytail: single source
+# of truth, reused below and by the live ingestion rollback path in
+# ingest/pipeline.py. Kept as a thin async wrapper so call sites here don't change.
+async def restore_from_backup(qdrant, source_url: str, backup_collection: str) -> bool:
     """Restore a single source from the backup collection to the main collection."""
-    try:
-        from qdrant_client.http.models import (
-            FieldCondition,
-            Filter,
-            MatchValue,
-            PointStruct,
-        )
-
-        # Delete whatever partial data exists in main
-        qdrant.delete_by_source(source_url)
-
-        # Scroll from backup
-        points, _ = qdrant._client.scroll(
-            collection_name=backup_collection,
-            scroll_filter=Filter(
-                must=[FieldCondition(key="source_url", match=MatchValue(value=source_url))]
-            ),
-            limit=1000,
-            with_payload=True,
-            with_vectors=True,
-        )
-
-        if not points:
-            logger.warning(f"  No backup data found for {source_url}")
-            return False
-
-        restore_points = [PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points]
-
-        qdrant._client.upsert(
-            collection_name=qdrant._collection,
-            points=restore_points,
-        )
-        logger.info(f"  🔄 Restored {len(restore_points)} points from backup for {source_url}")
-        return True
-    except Exception as e:
-        logger.error(f"  ❌ RESTORE FAILED for {source_url}: {e}")
-        return False
+    return qdrant.restore_from_backup(source_url, backup_collection)
 
 
 async def migrate():

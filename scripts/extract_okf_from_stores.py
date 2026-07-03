@@ -176,8 +176,8 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
             entities = []
             with driver.session() as session:
                 result = session.run(
-                    "MATCH (n) WHERE n.entity_name IS NOT NULL "
-                    "RETURN n.entity_name AS name, n.description AS desc, "
+                    "MATCH (n) WHERE n.entity_id IS NOT NULL "
+                    "RETURN n.entity_id AS name, n.description AS desc, "
                     "n.entity_type AS type LIMIT 200"
                 )
                 for r in result:

@@ -29,6 +29,24 @@ COLLECTION = os.getenv("QDRANT_COLLECTION", "spiritual_wisdom")
 YT_ID_PATTERN = re.compile(r"(?:v=|youtu\.be/|/shorts/)([\w-]{11})")
 
 
+SPEAKER_PATTERNS = [
+    (re.compile(r"Sri\s+Preethaji", re.I), "Sri Preethaji"),
+    (re.compile(r"Sri\s+Krishnaji", re.I), "Sri Krishnaji"),
+    (re.compile(r"Mukti\s+Guru\s+Sri\s+Preethaji", re.I), "Sri Preethaji"),
+    (re.compile(r"Mukti\s+Guru\s+Sri\s+Krishnaji", re.I), "Sri Krishnaji"),
+    (re.compile(r"Ekam\s+Co\.?Creator\s+Mukti\s+Guru\s+Sri\s+Krishnaji", re.I), "Sri Krishnaji"),
+    (re.compile(r"Ekam\s+Co\.?Creator\s+Mukti\s+Guru\s+Sri\s+Preethaji", re.I), "Sri Preethaji"),
+]
+
+
+def extract_speaker_from_title(title: str) -> str | None:
+    """Extract speaker name from video title using known patterns."""
+    for pattern, name in SPEAKER_PATTERNS:
+        if pattern.search(title):
+            return name
+    return None
+
+
 def extract_video_id(source_url: str) -> str | None:
     m = YT_ID_PATTERN.search(source_url)
     return m.group(1) if m else None
@@ -43,7 +61,7 @@ def needs_backfill(point) -> dict | None:
 
     if not title or title in {"unknown", "unknown title", "none", ""}:
         updates["title"] = ""
-    if not speaker or speaker in {"unknown", "unknown speaker", "none", ""}:
+    if not speaker or speaker in {"unknown", "unknown speaker", "none", "", "times now", "et now"}:
         updates["speaker"] = ""
     if not lang or lang.lower() in {"none", "unknown", ""}:
         updates["language"] = ""
@@ -186,6 +204,23 @@ def main() -> int:
                 logger.error("Failed to extract metadata for %s: %s", vid, e)
                 errors += 1
                 continue
+
+        # Fallback: extract speaker from title if LLM returned Unknown
+        if not args.language_only:
+            title = meta.get("title", "")
+            if meta.get("speaker") == "Unknown" and title:
+                speaker_from_title = extract_speaker_from_title(title)
+                if speaker_from_title:
+                    meta["speaker"] = speaker_from_title
+                    logger.info("Speaker extracted from title for %s: %s", vid, speaker_from_title)
+
+        # Fallback: extract speaker from title if LLM returned "Unknown"
+        if not args.language_only:
+            title_from_llm = meta.get("title", "")
+            speaker_from_title = extract_speaker_from_title(title_from_llm)
+            if meta.get("speaker") == "Unknown" and speaker_from_title:
+                meta["speaker"] = speaker_from_title
+                logger.info("Fallback: extracted speaker '%s' from title for %s", speaker_from_title, vid)
 
         # Update only points that need each field; don't overwrite good data
         for point_id, missing_fields in points_needing_update:

@@ -267,7 +267,7 @@ class Settings(BaseSettings):
     rag_cache_alignment_enabled: bool = True
     rag_context_compression_enabled: bool = True
     rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)
-    rag_okf_auto_extract_enabled: bool = False  # post-ingestion OKF extraction; off until pipeline proven
+    rag_okf_auto_extract_enabled: bool = True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
 
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True
