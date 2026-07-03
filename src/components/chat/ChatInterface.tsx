@@ -209,6 +209,7 @@ export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
+  const [sourcesFilterMessageId, setSourcesFilterMessageId] = useState<string | null>(null);
   const uniqueSourcesCount = useMemo(() => {
     const set = new Set<string>();
     for (const m of messages) {
@@ -226,6 +227,11 @@ export const ChatInterface = () => {
       el.classList.remove('ring-2', 'ring-ojas/60', 'ring-offset-2', 'ring-offset-background');
     }, 1800);
   }, []);
+  const handleCitationClick = useCallback((messageId: string, _citationIndex: number) => {
+    setSourcesFilterMessageId(messageId);
+    setSourcesPanelOpen(true);
+  }, []);
+
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
