@@ -169,6 +169,8 @@ export const MessageList = React.memo(({
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
                   onSubmitEdit={message.role === 'user' ? onSubmitEdit : undefined}
                   onAction={message.role === 'guru' ? onAction : undefined}
+                  onCitationClick={message.role === 'guru' ? onCitationClick : undefined}
+
                 />
               </VirtualMessageWrapper>
             );
