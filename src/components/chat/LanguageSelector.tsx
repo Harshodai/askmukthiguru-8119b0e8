@@ -50,6 +50,7 @@ interface LanguageSelectorProps {
   isSpeaking?: boolean;
   /** Currently selected language code (controlled). */
   value?: string;
+  compact?: boolean;
 }
 
 /** Detect which languages have at least one TTS voice available in this browser. */
@@ -79,6 +80,7 @@ export const LanguageSelector = ({
   onTtsToggle,
   isSpeaking,
   value,
+  compact,
 }: LanguageSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [internalLang, setInternalLang] = useState('en');
@@ -112,6 +114,114 @@ export const LanguageSelector = ({
   };
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1">
+        <div className="relative">
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(!isOpen);
+            }}
+            className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
+          >
+            <Globe className="w-4 h-4" />
+          </motion.button>
+          {isOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[90]"
+                onClick={() => setIsOpen(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
+                role="listbox"
+              >
+                <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search 23 languages…"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
+                  <div className="py-1">
+                    {LANGUAGES.filter((l) => {
+                      if (!search.trim()) return true;
+                      const q = search.toLowerCase();
+                      return (
+                        l.name.toLowerCase().includes(q) ||
+                        l.native.toLowerCase().includes(q) ||
+                        l.code.toLowerCase().includes(q)
+                      );
+                    }).map((lang) => {
+                      const isSelected = selectedLanguage === lang.code;
+                      const hasVoice = voiceCapable.has(lang.code);
+                      return (
+                        <button
+                          key={lang.code}
+                          onClick={() => handleLanguageChange(lang.code)}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
+                            isSelected ? 'bg-ojas/15' : ''
+                          }`}
+                          role="option"
+                          aria-selected={isSelected}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <span
+                                className={`font-medium truncate ${
+                                  isSelected ? 'text-ojas' : 'text-foreground'
+                                }`}
+                              >
+                                {lang.native}
+                              </span>
+                              <span className="text-muted-foreground text-xs truncate">
+                                {lang.name}
+                              </span>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <span className="w-2 h-2 rounded-full bg-ojas flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                    {LANGUAGES.filter((l) => {
+                      if (!search.trim()) return true;
+                      const q = search.toLowerCase();
+                      return (
+                        l.name.toLowerCase().includes(q) ||
+                        l.native.toLowerCase().includes(q) ||
+                        l.code.toLowerCase().includes(q)
+                      );
+                    }).length === 0 && (
+                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                        No language matches "{search}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2">

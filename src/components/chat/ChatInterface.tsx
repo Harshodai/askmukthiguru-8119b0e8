@@ -166,6 +166,8 @@ import { MessageList } from './MessageList';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
+import { ChatComposer } from './ChatComposer';
+import { SpiritualWelcomeBanner } from './SpiritualWelcomeBanner';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
@@ -1466,7 +1468,7 @@ useSwipeGesture({
   enabled: !showMobileSheet,
 });
 
-const showStarters = messages.length <= 1 && messages[0]?.role === 'guru';
+const isLandingMode = messages.length <= 1 && messages[0]?.role === 'guru';
 
 return (
   <div className="h-dvh flex bg-background relative overflow-hidden">
@@ -1506,144 +1508,233 @@ return (
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 scrollbar-spiritual"
+        className="flex-1 overflow-y-auto px-6 sm:px-8 py-4 scrollbar-spiritual"
       >
-        <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-4 sm:space-y-5 md:space-y-6">
-          <MessageList
-            messages={messages}
-            streamingId={streamingMessageId}
-            streamingContent={streamingContent}
-            onRegenerate={handleRegenerate}
-            onEditUserMessage={undefined}
-            onSubmitEdit={handleSubmitEdit}
-            onAction={handleInlineAction}
-            onCitationClick={handleCitationClick}
-            scrollContainerRef={scrollContainerRef}
-          />
-
-
-          {/* Suggested starters — refined hierarchy: empty-state cards first, then pills */}
-          {showStarters && (
+        <div ref={innerContentRef} className="max-w-3xl mx-auto">
+          {isLandingMode ? (
+            /* ── Landing State ── */
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="space-y-5 mt-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center min-h-full"
+              style={{ paddingTop: '15vh' }}
             >
-              <ChatEmptyState
-                currentConversationId={currentConversation?.id}
-                onResume={handleSelectConversation}
-              />
+              <SpiritualWelcomeBanner />
 
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ojas/25 to-transparent" />
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-foreground/45 font-medium">
-                    Or begin with
-                  </span>
-                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ojas/25 to-transparent" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full items-stretch">
-                  {STARTER_CARDS.map((card, idx) => {
-                    const Icon = card.icon;
-                    return (
-                      <motion.button
-                        key={card.id}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.35 + idx * 0.05 }}
-                        onClick={() => handleSuggestionClick(card.prompt)}
-                        whileHover={{ y: -2 }}
-                        className="group relative px-4 py-3.5 rounded-2xl border border-ojas/20 bg-gradient-to-br from-card/60 to-ojas/[0.03] hover:border-ojas/50 hover:shadow-md hover:shadow-ojas/10 transition-all text-left overflow-hidden backdrop-blur-sm"
-                        aria-label={`Start: ${card.prompt}`}
-                      >
-                        <span
-                          aria-hidden
-                          className="absolute inset-y-2 left-0 w-[2px] bg-ojas/0 group-hover:bg-ojas/60 rounded-r transition-all"
-                        />
-                        <div className="flex items-center gap-2 mb-1.5 pl-1.5">
-                          <Icon className="w-3.5 h-3.5 text-ojas" strokeWidth={2} />
-                          <span className="text-eyebrow">{card.eyebrow}</span>
-                        </div>
-                        <span className="block pl-1.5 text-[14px] leading-snug text-foreground/85 group-hover:text-foreground line-clamp-2">
-                          {card.prompt}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
-                </div>
+              <div className="mt-6 text-center">
+                <motion.h2
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-xl sm:text-2xl font-serif text-foreground/90"
+                >
+                  Namaste{profile.displayName ? `, ${profile.displayName}` : ''}
+                </motion.h2>
               </div>
-            </motion.div>
-          )}
 
+              <div className="w-full mt-5">
+                <ChatComposer
+                  inputValue={inputValue}
+                  inputRef={inputRef}
+                  onInputChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onSubmit={(e) => handleSubmit(e)}
+                  onStop={() => {
+                    streamControllerRef.current?.abort();
+                    if (inputRef.current) inputRef.current.focus();
+                  }}
+                  isTyping={isTyping}
+                  isStreaming={isStreaming}
+                  isAwaitingSereneMind={isAwaitingSereneMind}
+                  isListening={isListening}
+                  currentLanguage={currentLanguage}
+                  voiceEnabled={voiceEnabled}
+                  ttsEnabled={ttsEnabled}
+                  isSpeaking={isSpeaking}
+                  inputFocused={inputFocused}
+                  showPipeline={showPipeline}
+                  pipelineSteps={pipelineSteps}
+                  pipelineHeartbeat={pipelineHeartbeat}
+                  showInstantPill={showInstantPill}
+                  isLandingMode={true}
+                  onVoiceToggle={handleVoiceToggle}
+                  onTtsToggle={handleTtsToggle}
+                  onLanguageChange={handleLanguageChange}
+                  onSereneMind={() => openSereneMind()}
+                  onGuidedMeditation={() => setShowGuidedMeditation(true)}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  onSlashCommand={(cmd) => {
+                    setInputValue('');
+                    switch (cmd) {
+                      case 'serene': openSereneMind(); break;
+                      case 'meditate': setShowGuidedMeditation(true); break;
+                      case 'retry': if (messages.length > 0) handleRegenerate(); break;
+                      case 'clear': handleNewConversation(); break;
+                    }
+                  }}
+                />
+              </div>
 
-
-          {/* Unified thinking indicator + Stop generating button. */}
-          <div className="flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <ThinkingPills
-                steps={pipelineSteps}
-                visible={
-                  showInstantPill ||
-                  showPipeline ||
-                  isTyping ||
-                  (isStreaming && streamingContent === '')
-                }
-                heartbeat={pipelineHeartbeat}
-                fallbackLabel={
-                  isStreaming && streamingContent === ''
-                    ? 'The Guru is reflecting on the sacred teachings…'
-                    : 'Analyzing your question…'
-                }
-              />
-              {isStreaming && streamingContent === '' && (
-                <div className="pl-10 -mt-1">
-                  <SlowResponseHint visible />
-                </div>
-              )}
-            </div>
-            {(isStreaming || isTyping || showInstantPill) && (
-              <button
-                type="button"
-                onClick={() => {
-                  streamControllerRef.current?.abort();
-                  if (currentJobIdRef.current) {
-                    const { endpoint } = getAIConfig();
-                    const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
-                    const jobId = currentJobIdRef.current;
-                    currentJobIdRef.current = null;
-                    import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
-                      try {
-                        const token = await getAccessToken();
-                        await fetch(`${baseUrl}/api/jobs/${jobId}`, {
-                          method: 'DELETE',
-                          headers: {
-                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                          },
-                        });
-                      } catch (err) {
-                        console.error('Failed to cancel job:', err);
-                      }
-                    });
-                  }
-                  if (inputRef.current) {
-                    inputRef.current.focus();
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
-                aria-label="Stop generating"
-                title="Stop generating (Esc)"
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex flex-wrap gap-2 justify-center mt-4"
               >
-                <Square className="w-3 h-3 fill-current" />
-                Stop
-              </button>
-            )}
-          </div>
+                {STARTER_CARDS.map((card, idx) => {
+                  const Icon = card.icon;
+                  return (
+                    <motion.button
+                      key={card.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 + idx * 0.05 }}
+                      onClick={() => handleSuggestionClick(card.prompt)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-ojas/15 bg-ojas/[0.03] hover:border-ojas/40 hover:bg-ojas/[0.06] hover:shadow-sm transition-all text-[13px] text-foreground/70 hover:text-foreground"
+                    >
+                      <Icon className="w-3.5 h-3.5 text-ojas" strokeWidth={2} />
+                      <span>{card.prompt}</span>
+                    </motion.button>
+                  );
+                })}
+              </motion.div>
 
+              {messages.length === 1 && (
+                <ChatEmptyState
+                  currentConversationId={currentConversation?.id}
+                  onResume={handleSelectConversation}
+                />
+              )}
+            </motion.div>
+          ) : (
+            /* ── Active Chat State ── */
+            <>
+              <div className="space-y-7">
+                <MessageList
+                  messages={messages}
+                  streamingId={streamingMessageId}
+                  streamingContent={streamingContent}
+                  onRegenerate={handleRegenerate}
+                  onEditUserMessage={undefined}
+                  onSubmitEdit={handleSubmitEdit}
+                  onAction={handleInlineAction}
+                  onCitationClick={handleCitationClick}
+                  scrollContainerRef={scrollContainerRef}
+                />
 
+                {/* Unified thinking indicator */}
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <ThinkingPills
+                      steps={pipelineSteps}
+                      visible={
+                        showInstantPill ||
+                        showPipeline ||
+                        isTyping ||
+                        (isStreaming && streamingContent === '')
+                      }
+                      heartbeat={pipelineHeartbeat}
+                      fallbackLabel={
+                        isStreaming && streamingContent === ''
+                          ? 'The Guru is reflecting on the sacred teachings…'
+                          : 'Analyzing your question…'
+                      }
+                    />
+                    {isStreaming && streamingContent === '' && (
+                      <div className="pl-10 -mt-1">
+                        <SlowResponseHint visible />
+                      </div>
+                    )}
+                  </div>
+                  {(isStreaming || isTyping || showInstantPill) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        streamControllerRef.current?.abort();
+                        if (currentJobIdRef.current) {
+                          const { endpoint } = getAIConfig();
+                          const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
+                          const jobId = currentJobIdRef.current;
+                          currentJobIdRef.current = null;
+                          import('@/lib/chat/auth').then(async ({ getAccessToken }) => {
+                            try {
+                              const token = await getAccessToken();
+                              await fetch(`${baseUrl}/api/jobs/${jobId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                },
+                              });
+                            } catch (err) {
+                              console.error('Failed to cancel job:', err);
+                            }
+                          });
+                        }
+                        if (inputRef.current) {
+                          inputRef.current.focus();
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
+                      aria-label="Stop generating"
+                      title="Stop generating (Esc)"
+                    >
+                      <Square className="w-3 h-3 fill-current" />
+                      Stop
+                    </button>
+                  )}
+                </div>
 
-          {/* Scroll anchor */}
-          <div ref={messagesEndRef} className="h-1" />
+                {/* Scroll anchor */}
+                <div ref={messagesEndRef} className="h-1" />
+              </div>
+
+              {/* Active Chat Composer */}
+              <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background/95 to-transparent">
+                <ChatComposer
+                  inputValue={inputValue}
+                  inputRef={inputRef}
+                  onInputChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onSubmit={(e) => handleSubmit(e)}
+                  onStop={() => {
+                    streamControllerRef.current?.abort();
+                    if (inputRef.current) inputRef.current.focus();
+                  }}
+                  isTyping={isTyping}
+                  isStreaming={isStreaming}
+                  isAwaitingSereneMind={isAwaitingSereneMind}
+                  isListening={isListening}
+                  currentLanguage={currentLanguage}
+                  voiceEnabled={voiceEnabled}
+                  ttsEnabled={ttsEnabled}
+                  isSpeaking={isSpeaking}
+                  inputFocused={inputFocused}
+                  showPipeline={showPipeline}
+                  pipelineSteps={pipelineSteps}
+                  pipelineHeartbeat={pipelineHeartbeat}
+                  showInstantPill={showInstantPill}
+                  isLandingMode={false}
+                  onVoiceToggle={handleVoiceToggle}
+                  onTtsToggle={handleTtsToggle}
+                  onLanguageChange={handleLanguageChange}
+                  onSereneMind={() => openSereneMind()}
+                  onGuidedMeditation={() => setShowGuidedMeditation(true)}
+                  onFocus={() => setInputFocused(true)}
+                  onBlur={() => setInputFocused(false)}
+                  onSlashCommand={(cmd) => {
+                    setInputValue('');
+                    switch (cmd) {
+                      case 'serene': openSereneMind(); break;
+                      case 'meditate': setShowGuidedMeditation(true); break;
+                      case 'retry': if (messages.length > 0) handleRegenerate(); break;
+                      case 'clear': handleNewConversation(); break;
+                    }
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1654,212 +1745,72 @@ return (
         onClick={() => scrollToBottom('smooth')}
       />
 
-      {/* Input Area */}
-      <footer className="relative z-20 shrink-0 px-3 sm:px-4 pb-3 pt-2 pb-safe border-t border-border/30 bg-background/80 backdrop-blur-md">
-        <div className="max-w-3xl mx-auto">
-          {/* One-tap retry pill — appears when last guru bubble has an error */}
-          {(() => {
-            const last = messages[messages.length - 1];
-            const lastFailed = last?.role === 'guru' && !!last?.error && last.error.kind !== 'unauthorized';
-            if (!lastFailed || isStreaming || isTyping) return null;
-            return (
-              <div className="flex justify-center mb-2">
-                <button
-                  type="button"
-                  onClick={handleRegenerate}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium text-destructive border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Retry last message
-                </button>
-              </div>
-            );
-          })()}
-          {/* Subtle practice chips */}
-          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-2">
-            <button
-              onClick={() => openSereneMind()}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
-            >
-              <Flame className="w-3 h-3" />
-              <span>Serene Mind</span>
-            </button>
-            <button
-              onClick={() => setShowGuidedMeditation(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>Guided Meditation</span>
-            </button>
-            {/* Quick share last guru message */}
-            {messages.length > 1 && messages[messages.length - 1]?.role === 'guru' && (
-              <button
-                onClick={() => setShowQuickWisdomCard(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] text-muted-foreground hover:text-ojas hover:bg-ojas/5 border border-transparent hover:border-ojas/20 transition-colors"
-              >
-                <Share2 className="w-3 h-3" />
-                <span>Share Wisdom</span>
-              </button>
-            )}
-          </div>
-
-          {/* Voice Recording Indicator */}
-          <AnimatePresence>
-            {isListening && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex items-center justify-center gap-2 mb-3"
-              >
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30">
-                  <motion.div
-                    className="w-2 h-2 rounded-full bg-ojas"
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ duration: 0.8, repeat: Infinity }}
-                  />
-                  <span className="text-sm text-ojas font-medium">Listening...</span>
-                  {interimTranscript && (
-                    <span className="text-xs text-muted-foreground max-w-[200px] truncate">
-                      {interimTranscript}
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* TTS Speaking Indicator */}
-          <AnimatePresence>
-            {isSpeaking && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex items-center justify-center gap-2 mb-3"
-              >
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30">
-                  <motion.div className="flex gap-0.5">
-                    {[0, 1, 2, 3].map((i) => (
-                      <motion.div
-                        key={i}
-                        className="w-1 bg-prana rounded-full"
-                        animate={{ height: ['8px', '16px', '8px'] }}
-                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
-                      />
-                    ))}
-                  </motion.div>
-                  <span className="text-sm text-prana font-medium">Speaking...</span>
-                  <button
-                    onClick={stopSpeaking}
-                    className="text-xs text-prana/70 hover:text-prana underline ml-1"
-                  >
-                    Stop
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Voice Error Alert */}
-          <AnimatePresence>
-            {voiceError && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="flex items-center justify-center gap-2 mb-3"
-              >
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30">
-                  <AlertCircle className="w-4 h-4 text-destructive" />
-                  <span className="text-sm text-destructive">{voiceError}</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Slash-command palette */}
-          <SlashCommandMenu
-            input={inputValue}
-            open={inputValue.startsWith('/') && !isStreaming && !isTyping}
-            onSelect={runSlashCommand}
-            onClose={() => setInputValue('')}
-          />
-
-          {/* Input Form */}
-          <div
-            className={`rounded-2xl border bg-card/90 backdrop-blur-lg transition-all duration-300 shadow-sm ${inputFocused ? 'border-ojas/40 shadow-lg shadow-ojas/8 ring-1 ring-ojas/15' : 'border-border/50'
-              } ${isListening ? 'border-ojas/50 shadow-ojas/15 ring-1 ring-ojas/20' : ''}`}
+      {/* Floating indicators that appear above the scroll area */}
+      <AnimatePresence>
+        {isListening && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30"
           >
-            {isAwaitingSereneMind && (
-              <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-ojas/5 rounded-t-2xl">
-                <span className="text-xs text-ojas font-medium">
-                  Please do Serene Mind now to unlock the chat.
-                </span>
-                <button
-                  onClick={() => openSereneMind('breathing', true)}
-                  className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
-                >
-                  Open Serene Mind
-                </button>
-              </div>
+            <motion.div
+              className="w-2 h-2 rounded-full bg-ojas"
+              animate={{ scale: [1, 1.3, 1] }}
+              transition={{ duration: 0.8, repeat: Infinity }}
+            />
+            <span className="text-sm text-ojas font-medium">Listening...</span>
+            {interimTranscript && (
+              <span className="text-xs text-muted-foreground max-w-[200px] truncate">
+                {interimTranscript}
+              </span>
             )}
-            <form onSubmit={handleSubmit}>
-              <div className="flex items-end gap-2 px-3 pt-2.5 pb-1.5">
-                <textarea
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  placeholder={
-                    isAwaitingSereneMind
-                      ? 'Do Serene Mind now (say "open Serene Mind" to begin)…'
-                      : isListening
-                        ? 'Speak now…'
-                        : "Share what's on your heart…"
-                  }
-                  rows={1}
-                  aria-label="Your message"
-                  className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground py-1.5 px-1 max-h-32 scrollbar-spiritual text-[14px] leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ minHeight: '36px' }}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSpeaking && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30"
+          >
+            <motion.div className="flex gap-0.5">
+              {[0, 1, 2, 3].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-1 bg-prana rounded-full"
+                  animate={{ height: ['8px', '16px', '8px'] }}
+                  transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
                 />
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim() || isTyping || isStreaming}
-                  className="p-2.5 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
-                  aria-label="Send message"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
+              ))}
+            </motion.div>
+            <span className="text-sm text-prana font-medium">Speaking...</span>
+            <button
+              onClick={stopSpeaking}
+              className="text-xs text-prana/70 hover:text-prana underline ml-1"
+            >
+              Stop
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Secondary controls row */}
-            <div className="flex items-center justify-between px-3 pb-2 pt-1">
-              <LanguageSelector
-                value={currentLanguage}
-                voiceEnabled={voiceEnabled}
-                isListening={isListening}
-                onVoiceToggle={handleVoiceToggle}
-                onLanguageChange={handleLanguageChange}
-                ttsEnabled={ttsEnabled}
-                onTtsToggle={handleTtsToggle}
-                isSpeaking={isSpeaking}
-              />
-
-              <p className="text-[10px] text-muted-foreground hidden sm:block">
-                AI companion • Not a substitute for professional care
-              </p>
-            </div>
-          </div>
-
-          <p className="text-center text-[10px] text-muted-foreground mt-1.5 sm:hidden">
-            AI companion • Not a substitute for professional care
-          </p>
-        </div>
-      </footer>
+      <AnimatePresence>
+        {voiceError && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30"
+          >
+            <AlertCircle className="w-4 h-4 text-destructive" />
+            <span className="text-sm text-destructive">{voiceError}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
 
     {/* Mobile Conversation Sheet */}

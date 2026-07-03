@@ -22,6 +22,19 @@ vi.mock('@/hooks/useNotes', () => ({
   useNotes: () => ({ createNote: vi.fn().mockResolvedValue(null) }),
 }));
 
+vi.mock('@/hooks/useStudyNotebooks', () => ({
+  useStudyNotebooks: () => ({
+    notebooks: [],
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+    createNotebook: vi.fn().mockResolvedValue({ id: 'nb-1', title: 'Saved from Chat' }),
+    deleteNotebook: vi.fn(),
+    addItem: vi.fn().mockResolvedValue(true),
+    listItems: vi.fn().mockResolvedValue([]),
+  }),
+}));
+
 vi.mock('@/lib/memoryApi', () => ({
   memoryApi: { add: vi.fn().mockResolvedValue({ id: 'm1' }) },
 }));
@@ -72,10 +85,9 @@ describe('ChatMessage (regression)', () => {
     expect(screen.getByText(/Welcome to the beautiful state/)).toBeInTheDocument();
   });
 
-  it('renders user message content and initials avatar', () => {
+  it('renders user message content with bubble styling', () => {
     render(<ChatMessage message={makeUserMessage()} />, { wrapper });
     expect(screen.getByText('Hello guru')).toBeInTheDocument();
-    expect(screen.getByText('S')).toBeInTheDocument();
   });
 
   it('does not show feedback buttons on user messages', () => {

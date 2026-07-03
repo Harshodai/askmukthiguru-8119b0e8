@@ -19,7 +19,11 @@ const ICONS: Record<string, typeof Sparkles> = {
   sky: Lock,
 };
 
-export function AssistantSwitcher() {
+interface AssistantSwitcherProps {
+  variant?: 'default' | 'chip';
+}
+
+export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProps) {
   const { assistants, selected, setSelectedSlug } = useAssistants();
   const [open, setOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -34,9 +38,6 @@ export function AssistantSwitcher() {
     if (!code) return;
     setRedeeming(true);
     try {
-      // Look up assistant by invite_code, then grant via assistant_access.
-      // For MVP: client looks up by invite_code from public read; insert via service-role would normally be an edge function.
-      // Here we do a best-effort client-side grant; replace with edge function `redeem-assistant-invite` for production.
       const { data: a } = await supabase
         .from("assistants")
         .select("id, slug, name")
@@ -61,7 +62,6 @@ export function AssistantSwitcher() {
       }
       toast({ title: `Unlocked ${a.name}`, description: "Switch to it from the assistant menu." });
       setInviteCode("");
-      // refetch by closing/opening — for simplicity, force reload of selected list:
       setTimeout(() => window.location.reload(), 600);
     } finally {
       setRedeeming(false);
@@ -72,7 +72,11 @@ export function AssistantSwitcher() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 hover:bg-muted/60 transition-colors px-2.5 py-1 text-[11px] text-foreground/80 max-w-[180px]"
+          className={
+            variant === 'chip'
+              ? "inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 transition-colors px-2 py-0.5 text-[11px] text-foreground/80"
+              : "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 hover:bg-muted/60 transition-colors px-2.5 py-1 text-[11px] text-foreground/80 max-w-[180px]"
+          }
           title="Switch assistant"
         >
           <SelectedIcon className="w-3 h-3 text-primary shrink-0" />

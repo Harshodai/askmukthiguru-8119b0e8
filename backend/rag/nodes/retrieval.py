@@ -626,7 +626,7 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
     """Compress retrieved docs by keeping only sentences matching query threshold."""
     if not docs:
         return []
-    
+
     all_sentences_with_meta = []
     for doc_idx, doc in enumerate(docs):
         text = doc.get("text", "") or doc.get("content", "")
@@ -638,7 +638,7 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
                 "doc_idx": doc_idx,
                 "text": s,
             })
-            
+
     if not all_sentences_with_meta:
         return docs
         

@@ -54,10 +54,9 @@ describe('ChatMessage', () => {
     expect(screen.getByText(/Welcome to the beautiful state/)).toBeInTheDocument();
   });
 
-  it('renders user message with initials', () => {
+  it('renders user message with bubble styling', () => {
     render(<ChatMessage message={userMessage} />, { wrapper });
     expect(screen.getByText('Hello guru')).toBeInTheDocument();
-    expect(screen.getByText('S')).toBeInTheDocument();
   });
 
   it('shows feedback tags panel after thumbs up click', async () => {

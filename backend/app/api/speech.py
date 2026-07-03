@@ -1,4 +1,4 @@
-"""Speech-to-text and text-to-speech routes."""
+"""Speech-to-text, text-to-speech, and translation routes."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
+from services.sarvam_service import SarvamCloudService
 from services.whisper_local_service import transcribe_with_whisper
 
 logger = logging.getLogger(__name__)
@@ -185,3 +186,29 @@ async def text_to_speech_endpoint(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail="Speech synthesis failed. Please try again.")
+
+
+class TranslateRequest(BaseModel):
+    text: str = Field(..., max_length=10000)
+    source_language_code: str = Field(default="en-IN")
+    target_language_code: str = Field(..., min_length=2, max_length=10)
+
+
+@router.post("/translate")
+async def translate_endpoint(
+    req: TranslateRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+):
+    api_key = settings.sarvam_api_key
+    if not api_key or api_key.startswith("sk_dummy") or len(api_key) <= 10:
+        raise HTTPException(
+            status_code=500, detail="Translation not configured (missing or dummy API key)."
+        )
+
+    service = SarvamCloudService()
+    translated = await service.translate_text(
+        text=req.text,
+        source_language_code=req.source_language_code,
+        target_language_code=req.target_language_code,
+    )
+    return {"translated_text": translated, "source": req.source_language_code, "target": req.target_language_code}

@@ -129,13 +129,13 @@ export const MessageList = React.memo(({
     <>
       {groups.map((group) => (
         <React.Fragment key={group.label}>
-          {/* Date separator */}
-          <div className="flex items-center gap-4 py-3">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/75 select-none px-2">
+          {/* Date separator — Claude.ai style */}
+          <div className="flex items-center gap-3 my-8">
+            <hr className="flex-1 border-border/30" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 select-none">
               {group.label}
             </span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/40 to-transparent" />
+            <hr className="flex-1 border-border/30" />
           </div>
           {group.messages.map((message, index) => {
             let queryText = '';

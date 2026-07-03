@@ -9,7 +9,7 @@ export type {
 } from './types';
 
 export { setAIProvider, getAIConfig, setLanguage, DEFAULT_ENDPOINT } from './config';
-export { sendMessage } from './transport';
+export { sendMessage, translateText } from './transport';
 export { sendMessageStreaming } from './streaming';
 export { checkConnection, checkBackendHealth, getHealthStatus, resetHealthCache } from './health';
 export { generateSummary, generateConversationTitle, submitFeedbackToBackend, queueMemoryExtraction } from './transport';
