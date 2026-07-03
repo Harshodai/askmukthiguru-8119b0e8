@@ -26,7 +26,26 @@ interface ChatMessageProps {
   onEditUserMessage?: (message: Message) => void;
   onSubmitEdit?: (messageId: string, newContent: string) => void;
   onAction?: (query: string) => void;
+  /** Fired when the reader clicks an inline `[N]` citation marker in the answer. */
+  onCitationClick?: (messageId: string, citationIndex: number) => void;
 }
+
+/**
+ * Preprocess assistant content so that literal `[N]` (or `[1, 2]`) citation
+ * markers become clickable markdown links (`href="#cite-N"`) that our custom
+ * `a` renderer converts into accessible buttons.
+ * Only markers whose N maps to a real citation URL are transformed.
+ */
+const injectCitationLinks = (content: string, citationsLen: number): string => {
+  if (!content || citationsLen === 0) return content;
+  // Match [1], [ 2 ], [1,2], [1, 2, 3] — expand comma lists into adjacent markers.
+  return content.replace(/\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]/g, (match, group: string) => {
+    const nums = group.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n) && n >= 1 && n <= citationsLen);
+    if (nums.length === 0) return match;
+    return nums.map((n) => `[[${n}]](#cite-${n})`).join('');
+  });
+};
+
 
 const getDomain = (url: string): string => {
   try {
