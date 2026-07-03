@@ -1503,8 +1503,10 @@ return (
             onEditUserMessage={undefined}
             onSubmitEdit={handleSubmitEdit}
             onAction={handleInlineAction}
+            onCitationClick={handleCitationClick}
             scrollContainerRef={scrollContainerRef}
           />
+
 
           {/* Suggested starters — refined hierarchy: empty-state cards first, then pills */}
           {showStarters && (
