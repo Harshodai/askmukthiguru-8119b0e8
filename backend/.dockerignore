@@ -1,5 +1,6 @@
 # Docker/Python
 venv/
+.venv/
 .env
 .env*
 !.env.example

@@ -88,6 +88,16 @@ vi.mock('@/lib/aiService', () => ({
   setLanguage: vi.fn(),
 }));
 
+vi.mock('@/hooks/useAssistants', () => ({
+  useAssistants: () => ({
+    assistants: [],
+    selected: null,
+    selectedSlug: 'general',
+    setSelectedSlug: vi.fn(),
+    loading: false,
+  }),
+}));
+
 vi.mock('@/lib/responseCache', () => ({
   hashMessages: vi.fn().mockReturnValue('mockhash'),
   getCachedResponse: vi.fn().mockReturnValue(null),
@@ -129,7 +139,7 @@ describe('ChatInterface', () => {
     );
 
     expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('message-list')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-header')).toBeInTheDocument();
   });
 
   it('allows user to type and send a message', async () => {

@@ -354,6 +354,38 @@ Before claiming a feature is "production-ready," verify:
 - **Automatic Multi-Stage Self-Healing**: Instead of relying on manual runner commands or standalone scripts, the ingestion pipeline now automatically runs the complete self-healing and data quality suite at the end of every raw text ingestion batch in [pipeline.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/ingest/pipeline.py#L1010-L1099). This automatically deduplicates entities, deletes orphaned Neo4j nodes (0 relationships), prunes corrupted entity type names, and synchronizes Qdrant by scrolling through collections and pruning points that do not map to Neo4j, guaranteeing database integrity.
 - **Ingestion Quality Auditor Resiliency**: Resigned the `verify_ingestion_quality.py` script to fallback to the parent `scripts/` directory for `ingestion_state.json`, eliminating failures when run inside a clean checkout. Pruned non-existent label queries (`:Entity` and `:Document`) to eliminate compiler warning logs on the Neo4j server, and added a query-fallback loop + offline mock fallback to keep the smoke test passing in restricted sandbox environments.
 
+## Jul 3, 2026 — Score-Delta Cutoff Dropping LightRAG Docs, OKF Entity-Name vs Entity-ID, Docker Build Context Bloat
+
+### Score-Delta Cutoff in Retrieval Fusion
+- **Problem**: `test_retrieve_documents_contract` was failing because `retrieval_score_delta_enabled=True` (set via `.env`, not `config.py` defaults) caused `_apply_score_delta_cutoff` to drop the LightRAG document (score 0.32) when the cutoff floor was 0.45 (50% of Qdrant's 0.9 max score). The test assumed both Qdrant and LightRAG docs would survive.
+- **Fix**: Monkeypatched `monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)` in the test to disable the cutoff, ensuring both sources' docs are present in the fused list.
+- **Lesson**: Test env settings (from `.env`) can differ from `config.py` defaults, silently changing behavior. Always check what env vars are loaded in the test environment. The score-delta cutoff is a quality gate — it correctly identifies LightRAG's low-scoring docs as noise in production, but tests need it disabled to verify fusion behavior.
+
+### Entity-Name vs Entity-ID Uniformity
+- **Problem**: `scripts/extract_okf_from_stores.py` and `scripts/ops/add_neo4j_indexes.py` used `entity_name` in query filters while Neo4j stores the canonical field as `entity_id`. This caused zero-match queries and missing data.
+- **Fix**: Changed all queries to reference `entity_id` instead of `entity_name`.
+- **Lesson**: Always verify the actual Neo4j schema (using `MATCH (n) RETURN keys(n) LIMIT 1`) before writing query filters. Ingest scripts may have been updated without the extraction/ops scripts being kept in sync.
+
+### Celery Config `include` Must List Task Modules
+- **Problem**: `celery_config.py` defined tasks in `okf_compile_tasks` but the Celery `include` list did not reference it — worker couldn't find the task.
+- **Fix**: Added `okf_compile_tasks` to the `include` list.
+- **Lesson**: Celery auto-discovers tasks from modules in `include`. If a task function exists but the module isn't in `include`, the worker will report `Received unregistered task`.
+
+### Docker Build Context Bloat from `.venv/`
+- **Problem**: `backend/Dockerfile` has `COPY . /app/` which copies the entire directory including `.venv/` (~2GB). Frontend Docker builds show `building... 3.2s` then freeze on large context transfer.
+- **Fix**: Added `.venv/` to `backend/.dockerignore`.
+- **Lesson**: Always add `.venv/`, `node_modules/`, `__pycache__/`, and `.git/` to `.dockerignore`. The default Docker context includes everything, and 2GB transfers cause silent timeouts.
+
+### Sarvam Edge Function Model Consistency
+- **Problem**: Backend TTS/STT uses `bulbul:v3` and `saaras:v3`, but Supabase edge functions were pinned to older versions (`bulbul:v2`, `saarika:v2.5`) which may have different quality/output characteristics.
+- **Fix**: Updated edge function model strings to match backend version.
+- **Lesson**: Edge functions and backend service code can independently drift in model versions. Search for ALL usages of a model name across the codebase when bumping versions.
+
+### Standalone Translate Endpoint Pattern
+- **Problem**: Translation was only available as a pipeline-integrated step, not callable independently for on-demand per-answer translation.
+- **Fix**: Added `POST /api/translate` that creates a fresh `SarvamCloudService()` per request (stateless, reads settings) and returns `{translated_text, source, target}`.
+- **Lesson**: Use the `SarvamCloudService` statelessly when wrapping as an API endpoint — each request is independent. The service reads API key and settings from config, so no complex DI is needed.
+
 ## Lessons Learned
 
 ### Docker & Environment

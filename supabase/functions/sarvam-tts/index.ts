@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
         inputs: [text],
         target_language_code: lang,
         speaker,
-        model: "bulbul:v2",
+        model: "bulbul:v3",
         speech_sample_rate: 22050,
         enable_preprocessing: true,
       }),

@@ -1,14 +1,13 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
 import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
-import { getInitials } from '@/lib/profileStorage';
-import { submitFeedbackToBackend } from '@/lib/aiService';
+import { submitFeedbackToBackend, translateText } from '@/lib/aiService';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { InlineActions } from './InlineActions';
 import { createPortal } from 'react-dom';
@@ -295,30 +294,27 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.15) }}
-          className={`group flex items-start gap-2.5 ${isGuru ? 'justify-start' : 'justify-end'}`}
+          className={`group flex items-start gap-3 ${isGuru ? 'justify-start' : 'justify-end'}`}
+          data-message-id={message.id}
         >
-          {/* Guru avatar */}
-          {isGuru && (
-            <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Sparkles className="w-3 h-3 text-ojas" />
-            </div>
-          )}
-
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'w-full max-w-[90%] sm:max-w-[85%] md:max-w-[80%]' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'w-full max-w-full' : 'max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`message-bubble relative w-full transition-all duration-300 ${
+              className={`relative w-full transition-all duration-300 ${
                 isGuru
-                  ? 'border-l-[3px] border-ojas/30 pl-4 pr-1 py-1 hover:border-ojas/50'
+                  ? 'text-[15.5px] leading-[1.75] text-foreground/90 font-normal'
                   : isEditing
                   ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
-                  : 'bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm hover:shadow-md'
+                  : 'bg-ojas/[0.10] border border-ojas/20 rounded-2xl rounded-tr-md px-4 py-2.5 text-[15px] text-foreground leading-relaxed'
               }`}
             >
+              {isGuru && !message.error && (
+                <div className="w-5 h-5 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 float-left mr-2 mt-1">
+                  <Sparkles className="w-2.5 h-2.5 text-ojas/70" />
+                </div>
+              )}
               <div
-                className={`text-[14px] leading-relaxed break-words ${
-                  isGuru ? 'text-foreground/90' : 'whitespace-pre-wrap'
-                }`}
+                className={`break-words ${isGuru ? '' : 'whitespace-pre-wrap'}`}
               >
                 {isGuru ? (
                   message.error ? (
@@ -531,114 +527,116 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 ) : null;
               })()}
 
-              {/* Timestamp + action buttons */}
-              <div className="flex items-center justify-between mt-1 gap-2">
-                <p className={`text-[10px] ${isGuru ? 'text-muted-foreground/75' : 'text-primary-foreground/80'}`}>
-                  {formatTime(message.timestamp)}
-                </p>
-                {isGuru && message.content && !isStreaming && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    {/* Regenerate — only on last guru message */}
-                    {isLastGuru && onRegenerate && (
-                      <button
-                        onClick={onRegenerate}
-                        className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                        title="Regenerate response"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                      </button>
-                    )}
+              {/* Hover-only timestamp */}
+              <time className="opacity-0 group-hover:opacity-60 text-[11px] text-muted-foreground transition-opacity mt-1 block">
+                {formatTime(message.timestamp)}
+              </time>
+
+              {/* Guru hover actions */}
+              {isGuru && message.content && !isStreaming && !message.content.includes('_Stopped by you._') && (
+                <div className="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  {isLastGuru && onRegenerate && (
                     <button
-                      onClick={() => handleVote('up')}
-                      className={`p-1 rounded-full transition-colors ${
-                        feedback?.vote === 'up'
-                          ? 'bg-green-500/15 text-green-600 dark:text-green-400'
-                          : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                      title="Helpful"
-                      disabled={!!feedback}
-                    >
-                      <ThumbsUp className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => handleVote('down')}
-                      className={`p-1 rounded-full transition-colors ${
-                        feedback?.vote === 'down'
-                          ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-                          : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                      title="Not helpful"
-                      disabled={!!feedback}
-                    >
-                      <ThumbsDown className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={handleCopy}
+                      onClick={onRegenerate}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                      title={copied ? 'Copied!' : 'Copy response'}
+                      title="Regenerate response"
                     >
-                      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <RotateCcw className="w-3 h-3" />
                     </button>
+                  )}
+                  <button
+                    onClick={() => handleVote('up')}
+                    className={`p-1 rounded-full transition-colors ${
+                      feedback?.vote === 'up'
+                        ? 'bg-green-500/15 text-green-600 dark:text-green-400'
+                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Helpful"
+                    disabled={!!feedback}
+                  >
+                    <ThumbsUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => handleVote('down')}
+                    className={`p-1 rounded-full transition-colors ${
+                      feedback?.vote === 'down'
+                        ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                    title="Not helpful"
+                    disabled={!!feedback}
+                  >
+                    <ThumbsDown className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={handleCopy}
+                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                    title={copied ? 'Copied!' : 'Copy response'}
+                  >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                  <button
+                    onClick={handleSaveToMemory}
+                    disabled={saved || savingMemory}
+                    className={`p-1 rounded-full transition-colors ${
+                      saved
+                        ? 'bg-prana/15 text-prana'
+                        : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                    } ${savingMemory ? 'opacity-60' : ''}`}
+                    title={saved ? 'Saved to memory' : 'Save to memory'}
+                  >
+                    <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={handleSaveAsNote}
+                    className={`p-1 rounded-full transition-colors ${
+                      noteSaved
+                        ? 'bg-prana/15 text-prana'
+                        : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                    }`}
+                    title={noteSaved ? 'Saved to Notes' : 'Save as note'}
+                  >
+                    <StickyNote className={`w-3 h-3 ${noteSaved ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowWisdomCard(true)}
+                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                    title="Share as Wisdom Card"
+                  >
+                    <Share2 className="w-3 h-3" />
+                  </button>
+                  <LanguageTranslateButton message={message} />
+                </div>
+              )}
+
+              {/* User hover actions */}
+              {!isGuru && message.content && !isStreaming && !isEditing && (
+                <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
+                  <button
+                    onClick={handleCopy}
+                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                    title={copied ? 'Copied!' : 'Copy question'}
+                  >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                  {(onSubmitEdit || onEditUserMessage) && (
                     <button
-                      onClick={handleSaveToMemory}
-                      disabled={saved || savingMemory}
-                      className={`p-1 rounded-full transition-colors ${
-                        saved
-                          ? 'bg-prana/15 text-prana'
-                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                      } ${savingMemory ? 'opacity-60' : ''}`}
-                      title={saved ? 'Saved to memory' : 'Save to memory'}
-                    >
-                      <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
-                    </button>
-                    <button
-                      onClick={handleSaveAsNote}
-                      className={`p-1 rounded-full transition-colors ${
-                        noteSaved
-                          ? 'bg-prana/15 text-prana'
-                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                      }`}
-                      title={noteSaved ? 'Saved to Notes' : 'Save as note'}
-                    >
-                      <StickyNote className={`w-3 h-3 ${noteSaved ? 'fill-current' : ''}`} />
-                    </button>
-                    <button
-                      onClick={() => setShowWisdomCard(true)}
+                      onClick={() => {
+                        if (onSubmitEdit) {
+                          setEditValue(message.content);
+                          setIsEditing(true);
+                        } else if (onEditUserMessage) {
+                          onEditUserMessage(message);
+                        }
+                      }}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                      title="Share as Wisdom Card"
+                      title="Edit & resend"
                     >
-                      <Share2 className="w-3 h-3" />
+                      <Pencil className="w-3 h-3" />
                     </button>
-                  </div>
-                )}
-                {!isGuru && message.content && !isStreaming && !isEditing && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button
-                      onClick={handleCopy}
-                      className="p-1 rounded-full hover:bg-primary-foreground/15 text-primary-foreground/70 hover:text-primary-foreground transition-colors"
-                      title={copied ? 'Copied!' : 'Copy question'}
-                    >
-                      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    </button>
-                    {(onSubmitEdit || onEditUserMessage) && (
-                      <button
-                        onClick={() => {
-                          if (onSubmitEdit) {
-                            setEditValue(message.content);
-                            setIsEditing(true);
-                          } else if (onEditUserMessage) {
-                            onEditUserMessage(message);
-                          }
-                        }}
-                        className="p-1 rounded-full hover:bg-primary-foreground/15 text-primary-foreground/70 hover:text-primary-foreground transition-colors"
-                        title="Edit & resend"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Feedback panel */}
@@ -870,18 +868,6 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             )}
           </div>
 
-          {/* User avatar */}
-          {!isGuru && (
-            <div className="w-7 h-7 rounded-full bg-prana/12 border border-prana/20 flex items-center justify-center flex-shrink-0 overflow-hidden mt-0.5">
-              {profile.avatarDataUrl ? (
-                <img src={profile.avatarDataUrl} alt={profile.displayName} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-[10px] font-semibold text-prana-dark dark:text-prana">
-                  {getInitials(profile.displayName)}
-                </span>
-              )}
-            </div>
-          )}
         </motion.div>
 
         {/* Wisdom Card Modal */}
@@ -912,6 +898,56 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
   );
 }) as typeof ChatMessageInner;
 (ChatMessage as { displayName?: string }).displayName = 'ChatMessage';
+
+const LanguageTranslateButton = ({ message }: { message: Message }) => {
+  const { profile } = useProfile();
+  const [translated, setTranslated] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const lang = profile?.preferredLanguage;
+  const isEnglish = !lang || lang === 'en';
+  if (isEnglish) return null;
+
+  const handleTranslate = async () => {
+    if (translated) {
+      setTranslated(null);
+      return;
+    }
+    setLoading(true);
+    const result = await translateText(message.content, lang, 'en-IN');
+    setTranslated(result || 'Translation unavailable');
+    setLoading(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleTranslate}
+        disabled={loading}
+        className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+        title={translated ? 'Show original' : `Translate to ${lang}`}
+      >
+        {loading ? (
+          <span className="w-3 h-3 block rounded-full border border-ojas border-t-transparent animate-spin" />
+        ) : (
+          <Languages className="w-3 h-3" />
+        )}
+      </button>
+      <AnimatePresence>
+        {translated && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="absolute bottom-full right-0 mb-2 w-72 p-2 rounded-lg bg-popover border border-border shadow-lg text-xs text-popover-foreground z-50"
+          >
+            <p className="leading-relaxed">{translated}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const formatTime = (date: Date): string => {
   return new Intl.DateTimeFormat('en-US', {

@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
+import logging
 import pytest
 
+logging.basicConfig(level=logging.DEBUG)
 
 # Setup mocks to prevent external network calls
 @pytest.mark.asyncio
@@ -49,6 +51,10 @@ async def test_retrieve_documents_contract(monkeypatch):
     # Disable cache for simplicity
     monkeypatch.setattr(settings, "semantic_cache_enabled", False)
 
+    # Disable score-delta cutoff and dedup so LightRAG's low score (0.32 for
+    # single-line output) isn't silently dropped by _apply_score_delta_cutoff
+    monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)
+
     # 1. Test missing required key "question"
     invalid_state = {}
     res = await nodes.retrieve_documents(invalid_state)
@@ -85,5 +91,12 @@ async def test_retrieve_documents_contract(monkeypatch):
     assert "error" not in res_complex
     assert "documents" in res_complex
     assert any(doc["text"] == "Found document teaching" for doc in res_complex["documents"])
+    import sys as _sys
+    for _k, _v in res_complex.items():
+        print(f"  key={_k} type={type(_v).__name__}", file=_sys.stderr)
+        if _k == "documents" and isinstance(_v, list):
+            print(f"    len={len(_v)}", file=_sys.stderr)
+            for _i, _d in enumerate(_v):
+                print(f"    [{_i}] text={_d.get('text','')!r}", file=_sys.stderr)
     assert any(doc["text"] == "LightRAG wisdom" for doc in res_complex["documents"])
 

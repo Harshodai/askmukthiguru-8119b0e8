@@ -107,6 +107,16 @@ vi.mock('@/lib/memoryApi', () => ({
   memoryApi: { getRelevant: vi.fn().mockResolvedValue([]) },
 }));
 
+vi.mock('@/hooks/useAssistants', () => ({
+  useAssistants: () => ({
+    assistants: [],
+    selected: null,
+    selectedSlug: 'general',
+    setSelectedSlug: vi.fn(),
+    loading: false,
+  }),
+}));
+
 vi.mock('@/components/chat/DesktopSidebar', () => ({
   DesktopSidebar: () => <div data-testid="desktop-sidebar">Sidebar</div>,
   useSidebarCollapsed: () => ({ isCollapsed: false, toggle: vi.fn() }),
@@ -205,16 +215,16 @@ describe('ChatInterface (regression)', () => {
       </BrowserRouter>
     );
     expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('message-list')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-header')).toBeInTheDocument();
   });
 
-  it('shows the welcome message on a new conversation', () => {
+  it('shows landing state on a new conversation', () => {
     render(
       <BrowserRouter>
         <ChatInterface />
       </BrowserRouter>
     );
-    expect(screen.getByTestId('msg-guru')).toBeInTheDocument();
+    expect(screen.getByText(/Namaste/i)).toBeInTheDocument();
   });
 
   it('allows user to type and sends a message via streaming', async () => {

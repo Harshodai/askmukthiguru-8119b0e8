@@ -325,6 +325,40 @@ export const submitFeedbackToBackend = async (payload: {
   }
 };
 
+export const translateText = async (
+  text: string,
+  targetLanguage: string,
+  sourceLanguage: string = 'en-IN',
+): Promise<string | null> => {
+  const { endpoint } = getCurrentConfig();
+  if (!endpoint) return null;
+
+  try {
+    const token = await getAccessToken();
+    const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
+    const translateUrl = `${baseUrl}/api/translate`;
+
+    const response = await fetch(translateUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        text,
+        source_language_code: sourceLanguage,
+        target_language_code: targetLanguage,
+      }),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.translated_text || null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Fire-and-forget: insert a memory-extraction job into pending_extractions
  * for the Supabase Edge Function to drain.  Runs silently, never blocks
