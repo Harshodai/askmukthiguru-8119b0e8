@@ -1884,10 +1884,13 @@ return (
     {/* Conversation-wide Sources panel (ChatGPT-style side sheet) */}
     <ConversationSourcesPanel
       isOpen={sourcesPanelOpen}
-      onClose={() => setSourcesPanelOpen(false)}
+      onClose={() => { setSourcesPanelOpen(false); setSourcesFilterMessageId(null); }}
       messages={messages.map((m) => ({ id: m.id, role: m.role, citations: m.citations }))}
       onJumpToMessage={jumpToMessage}
+      filterMessageId={sourcesFilterMessageId}
+      onClearFilter={() => setSourcesFilterMessageId(null)}
     />
+
   </div>
 );
 };
