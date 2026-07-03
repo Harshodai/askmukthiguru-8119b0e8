@@ -209,6 +209,7 @@ export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
+  const [sourcesFilterMessageId, setSourcesFilterMessageId] = useState<string | null>(null);
   const uniqueSourcesCount = useMemo(() => {
     const set = new Set<string>();
     for (const m of messages) {
@@ -226,6 +227,25 @@ export const ChatInterface = () => {
       el.classList.remove('ring-2', 'ring-ojas/60', 'ring-offset-2', 'ring-offset-background');
     }, 1800);
   }, []);
+  const handleCitationClick = useCallback((messageId: string, _citationIndex: number) => {
+    setSourcesFilterMessageId(messageId);
+    setSourcesPanelOpen(true);
+  }, []);
+  // Keyboard shortcut: "s" opens/closes the Sources panel (skips when typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 's' && e.key !== 'S') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      e.preventDefault();
+      setSourcesPanelOpen((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -1497,8 +1517,10 @@ return (
             onEditUserMessage={undefined}
             onSubmitEdit={handleSubmitEdit}
             onAction={handleInlineAction}
+            onCitationClick={handleCitationClick}
             scrollContainerRef={scrollContainerRef}
           />
+
 
           {/* Suggested starters — refined hierarchy: empty-state cards first, then pills */}
           {showStarters && (
@@ -1876,10 +1898,13 @@ return (
     {/* Conversation-wide Sources panel (ChatGPT-style side sheet) */}
     <ConversationSourcesPanel
       isOpen={sourcesPanelOpen}
-      onClose={() => setSourcesPanelOpen(false)}
+      onClose={() => { setSourcesPanelOpen(false); setSourcesFilterMessageId(null); }}
       messages={messages.map((m) => ({ id: m.id, role: m.role, citations: m.citations }))}
       onJumpToMessage={jumpToMessage}
+      filterMessageId={sourcesFilterMessageId}
+      onClearFilter={() => setSourcesFilterMessageId(null)}
     />
+
   </div>
 );
 };
