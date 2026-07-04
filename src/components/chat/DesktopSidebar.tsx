@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Flame, MessageCircle, Trash2, Edit2, Search, X,
-  ChevronLeft, ChevronRight, BookOpen, Brain
+  ChevronLeft, ChevronRight, BookOpen, Brain, Compass
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
 import { UserMenu } from '@/components/common/UserMenu';
@@ -41,6 +41,7 @@ export const DesktopSidebar = ({
   onToggleCollapse,
   onDeleteConversation,
 }: DesktopSidebarProps) => {
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -140,6 +141,15 @@ export const DesktopSidebar = ({
             <Flame className="w-4 h-4" />
           </button>
 
+          {/* Practices */}
+          <button
+            onClick={() => navigate('/practices')}
+            title="Practices"
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
+          >
+            <Compass className="w-4 h-4" />
+          </button>
+
           {/* Recent chats indicator — stacked dots */}
           {conversations.length > 0 && (
             <div className="flex flex-col items-center gap-0.5 mt-1">
@@ -209,6 +219,13 @@ export const DesktopSidebar = ({
             >
               <Flame className="w-3.5 h-3.5 flex-shrink-0" />
               Serene Mind
+            </button>
+            <button
+              onClick={() => navigate('/practices')}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-muted-foreground hover:bg-ojas/10 hover:text-ojas border border-transparent hover:border-ojas/20 transition-all"
+            >
+              <Compass className="w-3.5 h-3.5 flex-shrink-0" />
+              Practices
             </button>
           </div>
 
@@ -322,14 +339,6 @@ export const DesktopSidebar = ({
               <Brain className="w-3 h-3" />
               <span>{memoryCount} memories</span>
             </button>
-            <div className="flex-1" />
-            <Link
-              to="/"
-              className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all"
-              title="Home"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-            </Link>
           </div>
 
           {/* Delete confirmation overlay modal */}
