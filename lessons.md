@@ -10,6 +10,7 @@
 
 ### Endpoint-Only API Key Guarding
 - Gateways running in endpoint-only mode (e.g. locally hosted models) might not have API keys. Ensure `os.environ` assignments and `Authorization` header setups are guarded to prevent writing `None` values.
+- Instantiate the HTTP transport gateway class (e.g. `SarvamHTTPGateway`) even when the API key is missing if the custom endpoint URL is configured, so API routing doesn't break due to a `None` gateway reference.
 
 ## Jul 4, 2026 — Ingestion Scaling & Teaching Graph Alignment (Audit V2 Phase 1)
 
