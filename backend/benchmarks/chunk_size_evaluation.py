@@ -9,19 +9,22 @@ using the complete set of five ekimetrics/adaptive-chunking metrics:
   - DCC (Discourse Continuity Coherence)
   - BI (Block Integrity)
   - RC (Redundancy-Coherence)
+
+Scored with the same weights `AdaptiveChunker` uses in production
+(0.20 SC + 0.30 ICC + 0.20 DCC + 0.15 BI + 0.15 RC), so this benchmark
+measures the literal objective the ingestion pipeline optimizes for.
 """
 
 import json
-import os
-import sys
 import time
 from pathlib import Path
 import numpy as np
+import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.adaptive_chunking_adapter import AdaptiveChunkingAdapter
+from ingest.adaptive_chunking import AdaptiveChunker
 
 SAMPLE_TEACHING = """
 The Beautiful State is not the absence of life's challenges, but the presence of connection and peace in the face of them.
@@ -58,6 +61,7 @@ This neurological shift is what makes it easier to dissolve long-standing emotio
 Through these practices, we transition from a state of separation to a state of connection, which is the true meaning of Mukthi or liberation.
 """
 
+
 # Mock Embedding Service to avoid loading heavy BGE-M3 models in memory during evaluations
 class MockEmbeddingService:
     def encode(self, texts: list[str]) -> np.ndarray:
@@ -74,52 +78,55 @@ class MockEmbeddingService:
             vectors.append(vec)
         return np.array(vectors)
 
+
+def _score_candidate(chunker: AdaptiveChunker, chunks: list[str]) -> dict:
+    """Score one candidate chunk set on all five metrics, weighted like production."""
+    if not chunks:
+        return {"num_chunks": 0, "sc": 0.0, "icc": 0.0, "dcc": 0.0, "bi": 0.0, "rc": 0.0, "combined": 0.0}
+
+    embeddings = chunker._encode(chunks)
+    sc = chunker._size_compliance(chunks)
+    icc = chunker._intrachunk_cohesion(chunks, embeddings)
+    dcc = chunker._discourse_coherence(chunks)
+    bi = chunker._block_integrity(chunks)
+    rc = chunker._redundancy_control(chunks, embeddings)
+    combined = 0.20 * sc + 0.30 * icc + 0.20 * dcc + 0.15 * bi + 0.15 * rc
+
+    return {
+        "num_chunks": len(chunks),
+        "sc": sc,
+        "icc": icc,
+        "dcc": dcc,
+        "bi": bi,
+        "rc": rc,
+        "combined": combined,
+    }
+
+
 def run_evaluation():
     print("🔬 Running Chunk Size Evaluation Harness (Wave 2)...")
     mock_embed = MockEmbeddingService()
-    adapter = AdaptiveChunkingAdapter(embedding_service=mock_embed)
 
     sizes = [300, 500, 800, 1200, 1500]
     results = {}
 
     for size in sizes:
         print(f"\nEvaluating target chunk size: {size} chars...")
-        
-        # 1. Recursive splitting
-        recursive_chunks = adapter._split_recursively(SAMPLE_TEACHING, chunk_size=size, chunk_overlap=int(size * 0.15))
-        r_sc = adapter._score_chunks(recursive_chunks)
-        r_dcc = adapter._score_dcc(recursive_chunks)
-        r_bi = adapter._score_bi(recursive_chunks)
-        r_rc = adapter._score_rc(recursive_chunks)
-        r_combined = (r_sc + r_dcc + r_bi + r_rc) / 4.0
 
-        # 2. Semantic splitting
-        # Use a similarity threshold that scales slightly with chunk size for test diversity
-        threshold = 0.72
-        semantic_chunks = adapter._split_semantically(SAMPLE_TEACHING, threshold=threshold)
-        s_sc = adapter._score_chunks(semantic_chunks)
-        s_dcc = adapter._score_dcc(semantic_chunks)
-        s_bi = adapter._score_bi(semantic_chunks)
-        s_rc = adapter._score_rc(semantic_chunks)
-        s_combined = (s_sc + s_dcc + s_bi + s_rc) / 4.0
+        # One AdaptiveChunker per candidate size, matching how production
+        # would build the recursive splitter at that target size.
+        chunker = AdaptiveChunker(
+            embedding_service=mock_embed,
+            chunk_size=size,
+            chunk_overlap=int(size * 0.15),
+        )
+
+        recursive_chunks = chunker._recursive.split_text(SAMPLE_TEACHING)
+        semantic_chunks = chunker._semantic_split(SAMPLE_TEACHING)
 
         results[size] = {
-            "recursive": {
-                "num_chunks": len(recursive_chunks),
-                "sc": r_sc,
-                "dcc": r_dcc,
-                "bi": r_bi,
-                "rc": r_rc,
-                "combined": r_combined
-            },
-            "semantic": {
-                "num_chunks": len(semantic_chunks),
-                "sc": s_sc,
-                "dcc": s_dcc,
-                "bi": s_bi,
-                "rc": s_rc,
-                "combined": s_combined
-            }
+            "recursive": _score_candidate(chunker, recursive_chunks),
+            "semantic": _score_candidate(chunker, semantic_chunks),
         }
 
     # Write report files
@@ -140,38 +147,46 @@ def run_evaluation():
     # Output a summary table to the console
     print_console_summary(results)
 
+
 def generate_markdown_report(results):
     lines = [
         "# Chunk Size Evaluation Report (Wave 2)\n",
         f"**Run Date:** {time.strftime('%Y-%m-%d %H:%M:%S')}\n",
         "## Metrics Legend\n",
-        "- **SC (Size Compliance)**: Keeps chunks within optimal length bounds (200-1200 characters).\n",
+        "- **SC (Size Compliance)**: Keeps chunks within optimal length bounds (200-1600 characters).\n",
+        "- **ICC (Intrachunk Cohesion)**: Mean similarity of each sentence to its chunk's centroid (topic focus).\n",
         "- **DCC (Discourse Continuity Coherence)**: Measures bigram overlap between consecutive chunks (context flow).\n",
         "- **BI (Block Integrity)**: Ratio of chunks ending at sentence boundaries.\n",
         "- **RC (Redundancy-Coherence)**: Penalizes duplicate chunks (similarity < 0.95).\n",
-        "- **Combined**: Balanced quality score across all four metrics.\n\n",
+        "- **Combined**: Production-weighted score (0.20 SC + 0.30 ICC + 0.20 DCC + 0.15 BI + 0.15 RC).\n\n",
         "## Evaluation Results\n",
-        "| Size (chars) | Strategy | Chunks | SC | DCC | BI | RC | Combined |\n",
-        "|---|---|---|---|---|---|---|---|\n"
+        "| Size (chars) | Strategy | Chunks | SC | ICC | DCC | BI | RC | Combined |\n",
+        "|---|---|---|---|---|---|---|---|---|\n",
     ]
     for size, data in results.items():
         r = data["recursive"]
         s = data["semantic"]
-        lines.append(f"| {size} | Recursive | {r['num_chunks']} | {r['sc']:.3f} | {r['dcc']:.3f} | {r['bi']:.3f} | {r['rc']:.3f} | {r['combined']:.3f} |\n")
-        lines.append(f"| {size} | Semantic | {s['num_chunks']} | {s['sc']:.3f} | {s['dcc']:.3f} | {s['bi']:.3f} | {s['rc']:.3f} | {s['combined']:.3f} |\n")
+        lines.append(
+            f"| {size} | Recursive | {r['num_chunks']} | {r['sc']:.3f} | {r['icc']:.3f} | {r['dcc']:.3f} | {r['bi']:.3f} | {r['rc']:.3f} | {r['combined']:.3f} |\n"
+        )
+        lines.append(
+            f"| {size} | Semantic | {s['num_chunks']} | {s['sc']:.3f} | {s['icc']:.3f} | {s['dcc']:.3f} | {s['bi']:.3f} | {s['rc']:.3f} | {s['combined']:.3f} |\n"
+        )
     return "".join(lines)
 
+
 def print_console_summary(results):
-    print("\n" + "=" * 80)
-    print(f"{'Chunk Size':<12} {'Strategy':<12} {'Chunks':<8} {'SC':<8} {'DCC':<8} {'BI':<8} {'RC':<8} {'Combined':<10}")
-    print("-" * 80)
+    print("\n" + "=" * 90)
+    print(f"{'Chunk Size':<12} {'Strategy':<12} {'Chunks':<8} {'SC':<8} {'ICC':<8} {'DCC':<8} {'BI':<8} {'RC':<8} {'Combined':<10}")
+    print("-" * 90)
     for size, data in results.items():
         r = data["recursive"]
         s = data["semantic"]
-        print(f"{size:<12} {'Recursive':<12} {r['num_chunks']:<8} {r['sc']:<8.3f} {r['dcc']:<8.3f} {r['bi']:<8.3f} {r['rc']:<8.3f} {r['combined']:<10.3f}")
-        print(f"{size:<12} {'Semantic':<12} {s['num_chunks']:<8} {s['sc']:<8.3f} {s['dcc']:<8.3f} {s['bi']:<8.3f} {s['rc']:<8.3f} {s['combined']:<10.3f}")
-        print("-" * 80)
-    print("=" * 80 + "\n")
+        print(f"{size:<12} {'Recursive':<12} {r['num_chunks']:<8} {r['sc']:<8.3f} {r['icc']:<8.3f} {r['dcc']:<8.3f} {r['bi']:<8.3f} {r['rc']:<8.3f} {r['combined']:<10.3f}")
+        print(f"{size:<12} {'Semantic':<12} {s['num_chunks']:<8} {s['sc']:<8.3f} {s['icc']:<8.3f} {s['dcc']:<8.3f} {s['bi']:<8.3f} {s['rc']:<8.3f} {s['combined']:<10.3f}")
+        print("-" * 90)
+    print("=" * 90 + "\n")
+
 
 if __name__ == "__main__":
     run_evaluation()

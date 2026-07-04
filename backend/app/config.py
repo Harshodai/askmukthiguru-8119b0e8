@@ -274,7 +274,6 @@ class Settings(BaseSettings):
     flashrank_model: str = "auto"
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 5000
-    use_ingest_adaptive_chunker: bool = True  # Use ingest.adaptive_chunking port for max_accuracy mode
     use_boundary_chunker: bool = False
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
