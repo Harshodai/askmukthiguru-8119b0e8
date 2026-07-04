@@ -1,5 +1,27 @@
 # Agentic Lessons & Memory
 
+## Jul 4, 2026 — Gold Particles Fix, Benchmark Fix, Worktree Cleanup
+
+### HSL Color Fragmentation on Refactor
+- When extracting CSS color strings into component props, ensure HSL functions are syntactically complete.
+- `hsl(43 96% 56%` (missing `)`) generates invalid CSS that the browser silently drops — no error, no warning, just invisible.
+- Always verify the generated CSS in dist/ output when refactoring style-related code.
+- Fix: use a `hsla(hsl, a)` helper that inserts `/ alpha` before the closing paren: `` `${hsl.replace(')', '')} / ${a})` ``
+
+### window.innerHeight in Framer Motion Animations
+- Using `window.innerHeight` directly in the `animate` prop captures the value once at render time.
+- On device rotation or window resize, the animation target becomes stale.
+- Fix: capture height in a `useRef`, update it via a `resize` listener in `useEffect`.
+
+### Benchmark Query Key Mismatch
+- `benchmarks/question_bank.py` uses key `"q"` for query text, not `"query"`.
+- When writing `lightrag_vs_qdrant_benchmark.py`, ensure the key check matches the source: use `item.get("query") or item.get("q")` for compatibility.
+
+### Stale Worktree Branches
+- A worktree branch that is fully contained in `main` (its tip is an ancestor) has no unique commits — safe to delete.
+- Verify with: `git merge-base --is-ancestor <branch> main`
+- Always run `git worktree prune` after deleting worktree branches.
+
 ## Jul 2, 2026 — Ingestion Queue, OKF Review Queue, Multi-Guru Models, Token Streaming
 
 ### Celery Chords for Playlist Ingestion
