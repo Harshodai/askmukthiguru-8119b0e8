@@ -300,12 +300,8 @@ class LightRAGService:
             await asyncio.to_thread(_check_neo4j)
             logger.info("Neo4j connectivity verified.")
         except Exception as e:
-            logger.warning(
-                f"⚠️ Neo4j unreachable ({e}). LightRAG will operate in DEGRADED mode — "
-                f"graph enrichment is disabled. Vector-only retrieval remains active."
-            )
-            self._initialized = False
-            return
+            logger.error(f"❌ Neo4j unreachable: {e}. GraphRAG requires Neo4j connectivity. Halting startup.")
+            raise RuntimeError(f"Neo4j connection failed: {e}") from e
 
         @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
         def _create_lightrag():
@@ -323,6 +319,35 @@ class LightRAGService:
 
         try:
             self.rag = _create_lightrag()
+
+            # Inject Custom Spiritual Guidance into LightRAG Prompts
+            try:
+                import lightrag.prompt
+                lightrag.prompt.PROMPTS["default_entity_types_guidance"] = (
+                    "- Teacher: Spiritual leaders, guides, or organizations teaching wisdom (e.g. Sadhguru, Sri Preethaji, Sri Krishnaji, Sri Amma Bhagavan, ISKCON)\n"
+                    "- Concept: Core spiritual ideas, beliefs, or states of mind (e.g. Karma, Dharma, Consciousness, Beautiful State, Suffering, Oneness)\n"
+                    "- Practice: Specific techniques, rituals, exercises, or yoga postures (e.g. Serene Mind, Soul Sync, Meditation, Yoga, Breathwork)\n"
+                    "- Event: Spiritual gatherings, retreats, discourses, or festivals\n"
+                    "- Organization: Spiritual institutions, foundations, or ashrams\n"
+                    "- Location: Sacred sites, temples, centers, or geographical areas\n"
+                    "- Other: Entities that do not fit the above categories"
+                )
+                spiritual_guidance = (
+                    "\n\n"
+                    "---Spiritual Domain Guidance---\n"
+                    "When extracting entities from spiritual transcripts, pay close attention to:\n"
+                    "- Teachers: Sadhguru, Sri Preethaji, Sri Krishnaji, Sri Amma Bhagavan, ISKCON.\n"
+                    "- Concepts: Karma, Dharma, Consciousness, Beautiful State, Suffering, Oneness, Ego.\n"
+                    "- Practices: Serene Mind, Soul Sync, Meditation, Yoga, Breathwork.\n"
+                    "Extract relationships showing how teachers expound concepts, teach practices, and how practices lead to beautiful states (e.g. EXPOUNDS, TEACHES, PRACTICE_FOR, CONTRASTS_WITH).\n"
+                )
+                if "entity_extraction_system_prompt" in lightrag.prompt.PROMPTS:
+                    lightrag.prompt.PROMPTS["entity_extraction_system_prompt"] += spiritual_guidance
+                if "entity_extraction_json_system_prompt" in lightrag.prompt.PROMPTS:
+                    lightrag.prompt.PROMPTS["entity_extraction_json_system_prompt"] += spiritual_guidance
+                logger.info("Spiritual domain guidance and custom entity types injected into LightRAG prompts.")
+            except Exception as pe:
+                logger.warning(f"Failed to inject custom spiritual prompts to LightRAG: {pe}")
 
             # Async initialize storages (checks DB connections)
             await self.rag.initialize_storages()

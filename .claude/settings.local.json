@@ -166,7 +166,8 @@
       "Bash(rtk pip *)",
       "Bash(.venv/bin/pip show *)",
       "Bash(grep -E '\\\\.\\(ts|tsx|js|jsx|py|go|rs|java|rb|cpp|c|h|cs|swift|kt|php\\)$')",
-      "Bash(grep -n \"^ [a-z-]*:$\" docker-compose.yml)"
+      "Bash(grep -n \"^ [a-z-]*:$\" docker-compose.yml)",
+      "Bash(/opt/homebrew/bin/rg *)"
     ]
   },
   "enableAllProjectMcpServers": true,

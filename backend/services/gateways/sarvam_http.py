@@ -52,14 +52,14 @@ class SarvamHTTPGateway:
     # ------------------------------------------------------------------
 
     def __init__(self) -> None:
-        self._api_key = settings.sarvam_api_key
-        if not self._api_key:
+        self._api_key = settings.sarvam_30b_api_key or settings.sarvam_api_key
+        if not self._api_key and not settings.sarvam_30b_endpoint:
             raise ValueError(
                 "SARVAM_API_KEY is required for Sarvam Cloud API mode. "
                 "Set it in your .env file or environment variables."
             )
 
-        self._base_url = getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
+        self._base_url = settings.sarvam_30b_endpoint or getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
 
@@ -80,7 +80,8 @@ class SarvamHTTPGateway:
         self._http_client_lock = AsyncLock()
 
         # Back-compat: set env for any code still using langchain-sarvam
-        os.environ["SARVAM_API_KEY"] = self._api_key
+        if self._api_key:
+            os.environ["SARVAM_API_KEY"] = self._api_key
 
         logger.info(f"SarvamHTTPGateway ready — base_url={self._base_url}")
 
@@ -136,8 +137,9 @@ class SarvamHTTPGateway:
         # 2. Build headers
         headers = {
             "Content-Type": "application/json",
-            "api-subscription-key": self._api_key,
         }
+        if self._api_key:
+            headers["api-subscription-key"] = self._api_key
 
         # 3. Validate/sanitize messages
         validated: list[dict] = []

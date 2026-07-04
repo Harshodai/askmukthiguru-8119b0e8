@@ -38,5 +38,345 @@
     "create_time": 1781542831,
     "update_time": 1781542831,
     "_id": "hybrid:keywords:efe80e1b19847b58726cc5271591159f"
+  },
+  "hybrid:keywords:aaa7ecf6e08b5d62a1e63a8b3096cea7": {
+    "return": "{\"high_level_keywords\": [\"Follow-up question\", \"Conversation history\", \"Standalone question\"], \"low_level_keywords\": [\"Sadhguru\", \"Karma\", \"Sri Preethaji\", \"Pronouns\", \"Continuations\", \"Context\", \"Perspectives\", \"Differences\", \"Similarities\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "To determine if the latest question is a follow-up, I'll analyze the conversation history and the latest question. \n\nThe conversation history is:\nUser: How does Sadhguru's view on Karma compare to Sri Preethaji's?\n\nThe latest question is:\nHow does Sadhguru's view on Karma compare to Sri Preethaji's?\n\nSince the latest question is identical to the previous question, it's likely a follow-up. However, to be more accurate, I'll check for pronouns or continuations that indicate a follow-up.\n\nUpon re-examining the conversation history and the latest question, I notice that the latest question doesn't contain any pronouns or continuations that would indicate a follow-up. However, the question is identical to the previous one, which suggests that it's a follow-up.\n\nTo rewrite the question as a standalone, I'll include the necessary context from the history. Here's the rewritten question:\n\nSadhguru's view on Karma and Sri Preethaji's view on Karma - what are the key differences and similarities between their perspectives?\n\nNote that this rewritten question includes the necessary context from the history, making it a standalone question. (also: preetha ji, sree preethaji, karmic, action and consequence, law of cause and effect)",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168139,
+    "update_time": 1783168139,
+    "_id": "hybrid:keywords:aaa7ecf6e08b5d62a1e63a8b3096cea7"
+  },
+  "hybrid:keywords:76b2f62828b35850e80417ccdd527a8f": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru vs Sri Preethaji\", \"Karma perspectives\", \"Spiritual comparison\"], \"low_level_keywords\": [\"Sadhguru\", \"Sri Preethaji\", \"Karma\", \"Spirituality\", \"Philosophy\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru vs Sri Preethaji Karma perspectives",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168142,
+    "update_time": 1783168142,
+    "_id": "hybrid:keywords:76b2f62828b35850e80417ccdd527a8f"
+  },
+  "hybrid:keywords:687fdf7cfa61a88bde83839be7dfc04d": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru\", \"Sri Preethaji\", \"Karma\", \"Philosophy\"], \"low_level_keywords\": [\"Spirituality\", \"Self-help\", \"Personal growth\", \"Eastern philosophy\", \"Indian philosophy\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru and Sri Preethaji views on Karma similarities and differences",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168142,
+    "update_time": 1783168142,
+    "_id": "hybrid:keywords:687fdf7cfa61a88bde83839be7dfc04d"
+  },
+  "hybrid:keywords:c56af3eb34629d4bede5aefee9d14281": {
+    "return": "{\"high_level_keywords\": [\"Sri Preethaji\", \"Sadhguru\", \"Karma teachings\", \"Spiritual comparison\"], \"low_level_keywords\": [\"Preethaji teachings\", \"Sadhguru teachings\", \"Karma yoga\", \"Spiritual philosophy\", \"Comparison of gurus\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sri Preethaji vs Sadhguru Karma teachings comparison",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168143,
+    "update_time": 1783168143,
+    "_id": "hybrid:keywords:c56af3eb34629d4bede5aefee9d14281"
+  },
+  "hybrid:keywords:82384563bbf9beaac23c3895be173900": {
+    "return": "{\"high_level_keywords\": [\"Bhagavad Gita\", \"Karma teachings\", \"Spiritual comparison\"], \"low_level_keywords\": [\"Goswami Tulsidas\", \"Tulsi Das\", \"Sadhguru\", \"Sri Preethaji\", \"Sri Krishnaji\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Bhagavad Gita Goswami Tulsidas Tulsi Das Karma teachings comparison Sadhguru Sri Preethaji Sri Krishnaji",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168179,
+    "update_time": 1783168179,
+    "_id": "hybrid:keywords:82384563bbf9beaac23c3895be173900"
+  },
+  "hybrid:keywords:6a1210e45665468d07f9d5441351af82": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru vs Sri Preethaji\", \"Karma teachings\", \"Spiritual comparison\"], \"low_level_keywords\": [\"Sadhguru\", \"Sri Preethaji\", \"Karma\", \"Spirituality\", \"Teachings\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru vs Sri Preethaji Karma teachings comparison",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168179,
+    "update_time": 1783168179,
+    "_id": "hybrid:keywords:6a1210e45665468d07f9d5441351af82"
+  },
+  "hybrid:keywords:9d15bc66832e7c80381c2ab575bb90ad": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru\", \"Karma perspectives\", \"Beautiful State\", \"Inner calm\", \"Serenity\", \"Interconnectedness\"], \"low_level_keywords\": [\"Sri Krishnaji\", \"Sri Preethaji\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru vs Sri Krishnaji vs Sri Preethaji Karma perspectives Beautiful State inner calm serenity interconnectedness",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168179,
+    "update_time": 1783168179,
+    "_id": "hybrid:keywords:9d15bc66832e7c80381c2ab575bb90ad"
+  },
+  "hybrid:keywords:823aca96b8fc3507b68e2a983c260b6e": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru Sri Preethaji\", \"Sri Krishnaji\", \"Karma\", \"Reality\"], \"low_level_keywords\": [\"Teachings\", \"Spirituality\", \"Philosophy\", \"Consciousness\", \"Self-awareness\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru Sri Preethaji and Sri Krishnaji teachings on Karma and the nature of reality",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168237,
+    "update_time": 1783168237,
+    "_id": "hybrid:keywords:823aca96b8fc3507b68e2a983c260b6e"
+  },
+  "hybrid:keywords:87ae26ac5db219de59cf1adae955e8b4": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru vs Sri Preethaji\", \"Karma\", \"Inner peace teachings\"], \"low_level_keywords\": [\"Spirituality\", \"Yoga\", \"Mindfulness\", \"Self-realization\", \"Jaggi Vasudev\", \"Preethaji\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru vs Sri Preethaji on Karma and inner peace teachings",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168237,
+    "update_time": 1783168237,
+    "_id": "hybrid:keywords:87ae26ac5db219de59cf1adae955e8b4"
+  },
+  "hybrid:keywords:a42737e0ed1005ba904f3c571df71f0d": {
+    "return": "{\"high_level_keywords\": [\"Karma perspectives\", \"Spiritual leaders\", \"Personal growth\"], \"low_level_keywords\": [\"Sadhguru Sri Krishnaji\", \"Sri Preethaji\", \"Yoga\", \"Mindfulness\", \"Self-awareness\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Karma perspectives of Sadhguru Sri Krishnaji and Sri Preethaji",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168237,
+    "update_time": 1783168237,
+    "_id": "hybrid:keywords:a42737e0ed1005ba904f3c571df71f0d"
+  },
+  "hybrid:keywords:63ca5694a132babaab3cb93a7bbdf3b6": {
+    "return": "{\"high_level_keywords\": [\"Conversation history\", \"Follow-up question\", \"Standalone question\"], \"low_level_keywords\": [\"Sadhguru\", \"Karma\", \"Sri Preethaji\", \"Perspectives\", \"Differences\", \"Similarities\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "To determine if the latest question is a follow-up, I'll analyze the conversation history and the latest question. \n\nSince the latest question is identical to the previous question, it's likely a follow-up. However, to be more accurate, I'll check for words like \"that\", \"it\", \"this\", \"more\", \"also\", \"what about\", pronouns, or continuations.\n\nIn this case, the latest question doesn't contain any of these words, but it's still a follow-up because it's asking the same question again. \n\nTo rewrite it as a standalone question, I'll include all necessary context from the history. Here's the rewritten question:\n\n\"Sadhguru's view on Karma and Sri Preethaji's view on Karma - can you explain the differences and similarities between their perspectives?\"\n\nNote that I've added more context to the question to make it a standalone question. (also: preetha ji, sree preethaji, karmic, action and consequence, law of cause and effect)",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168334,
+    "update_time": 1783168334,
+    "_id": "hybrid:keywords:63ca5694a132babaab3cb93a7bbdf3b6"
+  },
+  "hybrid:keywords:2f78af9c599b8693036c1176db4cd187": {
+    "return": "{\"high_level_keywords\": [\"Sri Preethaji Sadhguru\", \"Karma comparison\"], \"low_level_keywords\": [\"Spirituality\", \"Philosophy\", \"Personal growth\", \"Self-awareness\", \"Mindfulness\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sri Preethaji Sadhguru Karma comparison",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168336,
+    "update_time": 1783168336,
+    "_id": "hybrid:keywords:2f78af9c599b8693036c1176db4cd187"
+  },
+  "hybrid:keywords:6ce95d8b382b31896a0bfabb36d862f8": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru Karma teachings\", \"Sri Preethaji Karma teachings\", \"Spiritual teachings\"], \"low_level_keywords\": [\"Karma\", \"Spirituality\", \"Personal growth\", \"Self-awareness\", \"Mindfulness\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru Karma teachings vs Sri Preethaji Karma teachings",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168336,
+    "update_time": 1783168336,
+    "_id": "hybrid:keywords:6ce95d8b382b31896a0bfabb36d862f8"
+  },
+  "hybrid:keywords:67e993fe09b9a9213849d3f9665e20ee": {
+    "return": "{\"high_level_keywords\": [\"Karma perspectives\", \"Spirituality\", \"Indian philosophy\"], \"low_level_keywords\": [\"Sadhguru\", \"Sri Krishnaji\", \"Sri Preethaji Goswami\", \"Tulsidas\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Karma perspectives Sadhguru Sri Krishnaji Sri Preethaji Goswami Tulsidas",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168395,
+    "update_time": 1783168395,
+    "_id": "hybrid:keywords:67e993fe09b9a9213849d3f9665e20ee"
+  },
+  "hybrid:keywords:0e73f0a775553092b0c6ec5e6af4167f": {
+    "return": "{\"high_level_keywords\": [\"Sri Preethaji\", \"Preethaji Karma\", \"Spiritual views\"], \"low_level_keywords\": [\"Sri Preethaji\", \"Preethaji Karma\", \"Spirituality\", \"Philosophy\", \"Teachings\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sri Preethaji vs Preethaji Karma views similarities and differences",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168396,
+    "update_time": 1783168396,
+    "_id": "hybrid:keywords:0e73f0a775553092b0c6ec5e6af4167f"
+  },
+  "hybrid:keywords:869887823e7adb8bd33c42d493951f0f": {
+    "return": "{\"high_level_keywords\": [\"Sri Preethaji\", \"Preethaji Karma\", \"Spiritual views\"], \"low_level_keywords\": [\"Sri Preethaji vs Preethaji\", \"Karma views\", \"Similarity\", \"Difference\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sri Preethaji vs Preethaji Karma views similarity difference",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168433,
+    "update_time": 1783168433,
+    "_id": "hybrid:keywords:869887823e7adb8bd33c42d493951f0f"
+  },
+  "hybrid:keywords:e938b173d0ec335dfc340770a700fada": {
+    "return": "{\"high_level_keywords\": [\"Sadhguru vs Sri Krishnaji vs Sri Preethaji\", \"Karma concept\", \"Beautiful State\", \"Inner peace\"], \"low_level_keywords\": [\"Sadhguru\", \"Sri Krishnaji\", \"Sri Preethaji\", \"Yoga\", \"Spirituality\", \"Mindfulness\"]}",
+    "cache_type": "keywords",
+    "chunk_id": null,
+    "original_prompt": "Sadhguru vs Sri Krishnaji vs Sri Preethaji Karma concept Beautiful State inner peace",
+    "queryparam": {
+      "mode": "hybrid",
+      "response_type": "Multiple Paragraphs",
+      "top_k": 40,
+      "chunk_top_k": 20,
+      "max_entity_tokens": 6000,
+      "max_relation_tokens": 8000,
+      "max_total_tokens": 30000,
+      "user_prompt": "",
+      "enable_rerank": true
+    },
+    "create_time": 1783168433,
+    "update_time": 1783168433,
+    "_id": "hybrid:keywords:e938b173d0ec335dfc340770a700fada"
   }
 }

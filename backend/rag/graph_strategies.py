@@ -50,6 +50,7 @@ from rag.nodes import (
     route_after_grading,
     verify_answer,
     web_search_node,
+    cross_teacher_reasoning,
 )
 from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
@@ -252,6 +253,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("handle_meditation", handle_meditation)
         graph.add_node("handle_fallback", handle_fallback)
         graph.add_node("web_search", web_search_node)
+        graph.add_node("cross_teacher_reasoning", cross_teacher_reasoning)
 
         # --- Parallel entry: intent_router + handle_distress_check ---
         graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
@@ -285,7 +287,8 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
-        graph.add_edge("grade_documents", "check_context_sufficiency")
+        graph.add_edge("grade_documents", "cross_teacher_reasoning")
+        graph.add_edge("cross_teacher_reasoning", "check_context_sufficiency")
 
         graph.add_conditional_edges(
             "check_context_sufficiency",
@@ -484,6 +487,7 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("handle_meditation", handle_meditation)
         graph.add_node("handle_fallback", handle_fallback)
         graph.add_node("web_search", web_search_node)
+        graph.add_node("cross_teacher_reasoning", cross_teacher_reasoning)
 
         # --- Parallel entry: intent_router + handle_distress_check ---
         graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
@@ -517,7 +521,8 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
-        graph.add_edge("grade_documents", "check_context_sufficiency")
+        graph.add_edge("grade_documents", "cross_teacher_reasoning")
+        graph.add_edge("cross_teacher_reasoning", "check_context_sufficiency")
 
         graph.add_conditional_edges(
             "check_context_sufficiency",

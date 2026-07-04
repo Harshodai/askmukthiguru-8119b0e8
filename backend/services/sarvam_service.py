@@ -91,14 +91,14 @@ class SarvamCloudService:
 
     def __init__(self) -> None:
         """Initialize the Sarvam Cloud API client."""
-        self._api_key = settings.sarvam_api_key
-        if not self._api_key:
+        self._api_key = settings.sarvam_30b_api_key or settings.sarvam_api_key
+        if not self._api_key and not settings.sarvam_30b_endpoint:
             raise ValueError(
                 "SARVAM_API_KEY is required for Sarvam Cloud API mode. "
                 "Set it in your .env file or environment variables."
             )
 
-        self._base_url = getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
+        self._base_url = settings.sarvam_30b_endpoint or getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
         self._gen_model = settings.sarvam_cloud_model
         self._cls_model = settings.sarvam_cloud_classify_model
         self._timeout = getattr(settings, "llm_timeout", 60)
@@ -116,16 +116,21 @@ class SarvamCloudService:
         self._http_client_lock = AsyncLock()
 
         # Also set env for any code that might use langchain-sarvam internally
-        os.environ["SARVAM_API_KEY"] = self._api_key
+        if self._api_key:
+            os.environ["SARVAM_API_KEY"] = self._api_key
+            # Gateway for all non-streaming LLM transport
+            self._http = SarvamHTTPGateway()
+        elif settings.sarvam_30b_endpoint:
+            # Skip the env assignment and gateway instantiation when only endpoint-based mode is intended
+            self._http = None
+        else:
+            self._http = None
 
         logger.info(
             f"Sarvam Cloud Service ready — "
             f"gen_model={self._gen_model}, cls_model={self._cls_model}, "
             f"base_url={self._base_url}"
         )
-
-        # Gateway for all non-streaming LLM transport
-        self._http = SarvamHTTPGateway()
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create the singleton HTTP client with connection pooling."""
@@ -154,7 +159,8 @@ class SarvamCloudService:
                 await self._http_client.aclose()
                 self._http_client = None
                 logger.info("HTTP client closed")
-        await self._http.close()
+        if self._http is not None:
+            await self._http.close()
 
     def _extract_structured_content(self, text: str, operation: str) -> Optional[str]:
         """
@@ -252,6 +258,8 @@ class SarvamCloudService:
         **kwargs,
     ) -> str:
         """Delegated to SarvamHTTPGateway — all transport logic removed."""
+        if self._http is None:
+            raise RuntimeError("SarvamHTTPGateway is not initialized (no API key and/or endpoint mode configured)")
         return await self._http.call(
             messages=messages,
             model=model,
@@ -451,8 +459,9 @@ class SarvamCloudService:
 
         headers = {
             "Content-Type": "application/json",
-            "api-subscription-key": self._api_key,
         }
+        if self._api_key:
+            headers["api-subscription-key"] = self._api_key
 
         model = kwargs.get("model", self._gen_model)
         max_tokens = kwargs.get("max_tokens", 8192)
@@ -728,11 +737,15 @@ class SarvamCloudService:
 
         # Try Instructor first with explicit JSON mode
         try:
+            default_headers = {}
+            if self._api_key:
+                default_headers["api-subscription-key"] = self._api_key
+
             client = instructor.from_openai(
                 AsyncOpenAI(
                     base_url=self._base_url,
                     api_key="api-key-not-used-by-bearer",
-                    default_headers={"api-subscription-key": self._api_key},
+                    default_headers=default_headers,
                 ),
                 mode=instructor.Mode.JSON,
             )
@@ -1146,7 +1159,9 @@ class SarvamCloudService:
             return text
 
         url = "https://api.sarvam.ai/translate"
-        headers = {"api-subscription-key": self._api_key, "Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["api-subscription-key"] = self._api_key
         payload = {
             "input": text,
             "source_language_code": src_code,
@@ -1176,12 +1191,15 @@ class SarvamCloudService:
         """Check if Sarvam Cloud API is reachable."""
         try:
             client = await self._get_http_client()
+            headers = {
+                "Content-Type": "application/json",
+            }
+            if self._api_key:
+                headers["api-subscription-key"] = self._api_key
+
             resp = await client.post(
                 f"{self._base_url}/chat/completions",
-                headers={
-                    "api-subscription-key": self._api_key,
-                    "Content-Type": "application/json",
-                },
+                headers=headers,
                 json={
                     "model": self._gen_model,
                     "messages": [{"role": "user", "content": "ping"}],

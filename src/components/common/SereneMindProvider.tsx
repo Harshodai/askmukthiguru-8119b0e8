@@ -65,6 +65,7 @@ export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
           onClose={close}
           customSteps={customSteps}
           sourceTeaching={sourceTeaching}
+          onComplete={handleComplete}
         />
       ) : (
         <SereneMindModal

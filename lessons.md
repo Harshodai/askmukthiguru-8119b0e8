@@ -1,5 +1,35 @@
 # Agentic Lessons & Memory
 
+## Jul 4, 2026 — Ingest, Services, and Seeding Bug Fixes
+
+### Ingestion Checkpoint Attribute Guarding
+- When classes support multiple backends (Redis, Supabase, local files), methods like `save` and `is_processed` must access client attributes using `getattr(self, "redis_client", None)` to prevent `AttributeError` when those backends are uninitialized (e.g. under mock test setups or partial initialization).
+
+### Boundary-Aware Teacher Detection
+- Simple substring matching (`"krishna" in question_lower`) causes false positives like matching `"krishnaji"`. Using regex word boundaries (`\b`) ensures precise entity matching.
+
+### Endpoint-Only API Key Guarding
+- Gateways running in endpoint-only mode (e.g. locally hosted models) might not have API keys. Ensure `os.environ` assignments and `Authorization` header setups are guarded to prevent writing `None` values.
+
+## Jul 4, 2026 — Ingestion Scaling & Teaching Graph Alignment (Audit V2 Phase 1)
+
+### Celery Unification & Concurrency backpressure
+- When scaling youtube transcripts extraction, sequential loops fail on large channels. Using `asyncio.gather` with an `asyncio.Semaphore` provides a controlled rate-limit backpressure guard.
+- Background tasks (like single video ingestion) must be routed to Celery (`orchestrate_ingestion.delay`) rather than using inline FastAPI `BackgroundTasks`. The Celery worker must use the unified `IngestionPipeline` container to execute identical quality gate, PII, LightRAG, and Neo4j indexing checks.
+
+### Database-Backed Checkpoints fallback
+- Local file-based ingestion checkpoints (`ingest_checkpoint.json`) fail in horizontal containerized environments.
+- Fall back to Supabase client tables (`ingestion_checkpoints` with tenant isolation) when Redis is unreachable, and ensure schema migrations are applied locally via `npx supabase migration up`.
+
+### Teaching Graph Schema Alignment (Neo4j Unique Constraints)
+- In Neo4j, unique constraints (e.g. `CREATE CONSTRAINT UNIQUE_TEACHER_NAME FOR (t:Teacher) REQUIRE t.name IS UNIQUE`) prevent adding canonical labels/names to multiple alias/duplicate nodes.
+- Fix: Set the canonical labels (`:Teacher`, `:Concept`, `:Practice`) and `name` properties only on the master/survivor node. Link all other duplicates and alternates (e.g. synonyms from `DOCTRINE_SYNONYMS`) using the `SYNONYMOUS_WITH` relationship to the master node instead of duplicating labels.
+- Schema constraints and write queries cannot run in the same transaction in Neo4j 5.x. Schema migrations must run in a separate transaction prior to data merge/seeding.
+
+### Hardening GraphRAG Connectivity (No Degraded Mode Fallbacks)
+- Operating in "degraded mode" (falling back silently to vector-only search when Neo4j is unreachable) weakens spiritual concept-reasoning queries.
+- Fix: Enforce Neo4j connectivity as a hard startup requirement by throwing a `RuntimeError` immediately if connection fails in any environment where Neo4j is configured, forcing immediate failure rather than silent feature degradation.
+
 ## Jul 4, 2026 — Gold Particles Fix, Benchmark Fix, Worktree Cleanup
 
 ### HSL Color Fragmentation on Refactor
@@ -2702,3 +2732,15 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
 - **Top 3 bottlenecks:** Sequential checkpointing (JSON → needs Redis), sequential playlist processing (needs Celery), flat tagging (needs `teacher:sadhguru` hierarchical tags)
 - **Next phase work:** Celery distributed workers, Redis-backed `IngestionCheckpoint`, `teacher_id` parameter in `ingest_url()`, Neo4j spiritual ontology schema (Teacher→Concept→Practice relationships)
 - **Hosting recommendation:** Railway (Backend + DBs), Vercel (Frontend), E2E Networks (Sarvam 30B GPU on A100/H100)
+
+### 160. Nvidia NIM Intent Routing Bug & Cross-Teacher Reasoning Integration (July 4, 2026)
+- **Problem**: In `backend/services/nim_service.py`, the `classify_intent_and_complexity` method was improperly using the `IS_COMPLEX_QUERY_PROMPT` system prompt (which only returns `complex` or `simple`) but attempting to parse the result as JSON. This caused a `JSONDecodeError` on every factual query, making the router permanently fall back to a `"general"` CASUAL intent, bypassing the entire RAG pipeline and returning empty answers.
+- **Fix**: Replaced the system prompt with the correct `INTENT_AND_COMPLEXITY_PROMPT` in `nim_service.py` and implemented a robust string parser (matching the OpenRouter/Ollama logic) with a JSON fallback to support both standard execution and mock tests.
+- **Cross-Teacher Node**: Implemented the `cross_teacher_reasoning` node and wired it into Standard/Deep graph strategies. If the query references multiple teachers, it queries Neo4j for shared concepts, constructs comparative context, and injects it into retrieval.
+- **Never Again Rule**: When implementing intent classification gateways on a new LLM provider class, **ALWAYS** verify that the prompt, API parameters, and response parsing logic match the exact format produced by the LLM (`INTENT: <value>\nCOMPLEXITY: <value>`). Never let format parse errors fail silently to a fallback intent without comprehensive test suite coverage.
+
+### 161. Concurrent Ingestion Exception Safety & Name Collision Fixes (July 4, 2026)
+- **Playlist Extraction Exception Safety**: In `backend/ingest/youtube_loader.py`, concurrent playlist fetching was running without try-except blocks around the individual task threads. Any network or STT exception in a single video would crash the entire `asyncio.gather(*tasks)`, aborting the playlist. Added a try-except wrapper to record failed videos gracefully.
+- **Cross-Teacher Substring Matches**: In `cross_teacher_reasoning.py`, matching the `"krishna"` keyword for ISKCON would collision-match on `"krishnaji"` (Sri Krishnaji). Added a substring guard `and "krishnaji" not in question_lower` to keep these domains separated.
+- **Ekam Co-founders Separated**: Split Sri Preethaji and Sri Krishnaji checks in cross-teacher matching so that mentioning one does not automatically pull in the other.
+

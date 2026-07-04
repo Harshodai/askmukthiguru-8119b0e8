@@ -37,6 +37,7 @@ from rag.prompts import (
     HYDE_PROMPT,
     INTENT_CLASSIFICATION_PROMPT,
     IS_COMPLEX_QUERY_PROMPT,
+    INTENT_AND_COMPLEXITY_PROMPT,
     QUERY_REWRITE_PROMPT,
     SUMMARIZE_PROMPT,
     VERIFICATION_PROMPT,
@@ -376,20 +377,53 @@ class NimService:
 
     async def classify_intent_and_complexity(self, message: str, **kwargs) -> dict[str, str]:
         messages = [
-            {"role": "system", "content": IS_COMPLEX_QUERY_PROMPT},
+            {"role": "system", "content": INTENT_AND_COMPLEXITY_PROMPT},
             {"role": "user", "content": message},
         ]
         raw = await self._call_api(
             messages=messages,
             model=self._cls_model,
-            max_tokens=100,
+            max_tokens=64,
             temperature=0.0,
-            operation="classify_complexity",
+            operation="classify_intent_and_complexity",
         )
+        result_upper = raw.upper().strip()
+        
+        # Robust fallback for JSON formatted responses (e.g. from mock tests)
         try:
-            return json.loads(raw)
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                intent_raw = parsed.get("intent")
+                intent = str(intent_raw).upper() if intent_raw is not None else "FACTUAL"
+                complexity_raw = parsed.get("complexity")
+                complexity = str(complexity_raw).lower() if complexity_raw is not None else "complex"
+                if intent == "QUERY":
+                    intent = "FACTUAL"
+                return {"intent": intent, "complexity": complexity}
         except (json.JSONDecodeError, TypeError):
-            return {"intent": "general", "complexity": "standard"}
+            pass
+
+        lines = result_upper.splitlines()
+
+        intent = "FACTUAL"
+        complexity = "complex"
+
+        for line in lines:
+            line = line.strip()
+            if line.startswith("INTENT:"):
+                val = line.split(":", 1)[-1].strip()
+                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY"]:
+                    if candidate in val:
+                        intent = candidate
+                        break
+            elif line.startswith("COMPLEXITY:"):
+                val = line.split(":", 1)[-1].strip()
+                complexity = "simple" if "SIMPLE" in val else "complex"
+
+        if intent == "QUERY":
+            intent = "FACTUAL"
+
+        return {"intent": intent, "complexity": complexity}
 
     async def classify_distress_structured(self, message: str) -> dict:
         from services.serene_mind_service import DISTRESS_CLASSIFICATION_SYSTEM_PROMPT
