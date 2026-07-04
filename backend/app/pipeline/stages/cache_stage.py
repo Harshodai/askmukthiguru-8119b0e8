@@ -172,7 +172,7 @@ class CacheUpdateStage(Stage):
             "please try asking another question",
             "don't have any specific teaching",
             "do not have that specific teaching",
-            "i apologize, something went wrong",
+            "the guru is unable",
             "sorry, something went wrong",
         ]
         ans_lower = final_answer.lower()

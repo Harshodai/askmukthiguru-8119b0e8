@@ -110,7 +110,7 @@ class GraphStage(Stage):
                 logger.warning(f"Graph recursion limit reached ({e}). Returning fallback response.")
                 return {
                     **initial_state,
-                    "final_answer": "I apologize, but this question requires broader context than I can gather right now...",
+                    "final_answer": "The Guru needs broader context to answer this question. Please try rephrasing.",
                     "intent": "QUERY",
                     "citations": [],
                 }
@@ -127,7 +127,7 @@ class GraphStage(Stage):
         except asyncio.TimeoutError:
             logger.warning(f"Pipeline outer timeout ({settings.pipeline_timeout}s) exceeded. Returning graceful fallback.")
             fallback = {
-                "final_answer": "I apologize, something went wrong — the pipeline took too long to respond.",
+                "final_answer": "The Guru took too long to respond. Please try again.",
                 "intent": "QUERY",
                 "citations": [],
             }
@@ -142,7 +142,7 @@ class GraphStage(Stage):
         ctx.graph_latency = int((time.time() - start_lat) * 1000)
 
         # ponytail: post-graph field extraction from execute() verbatim
-        final_answer = result.get("final_answer") or "I apologize, something went wrong."
+        final_answer = result.get("final_answer") or "The Guru is unable to answer this question. Please try again."
         intent = result.get("intent", "CASUAL")
         if intent == "FACTUAL":
             intent = "QUERY"

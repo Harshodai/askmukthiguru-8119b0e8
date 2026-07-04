@@ -723,7 +723,21 @@ export const ChatInterface = () => {
       e.preventDefault();
     }
     const textToSend = overrideText ?? inputValue;
-    if (!textToSend.trim() || isTyping) {
+    // Race condition fix: if already streaming/typing, abort previous request before starting new one
+    if (isTyping || isStreaming) {
+      streamControllerRef.current?.abort();
+      if (currentJobIdRef.current) {
+        fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
+      }
+      setIsTyping(false);
+      setIsStreaming(false);
+      setShowPipeline(false);
+      setPipelineSteps([]);
+      setShowInstantPill(false);
+      streamControllerRef.current = null;
+      currentJobIdRef.current = null;
+    }
+    if (!textToSend.trim()) {
       return;
     }
 

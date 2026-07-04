@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { UserMenu } from '@/components/common/UserMenu';
@@ -26,7 +26,7 @@ export const Navbar = () => {
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-ojas" />
+              <span className="text-lg" aria-hidden="true">🙏</span>
               <span className="text-lg font-bold text-gradient-gold">AskMukthiGuru</span>
             </Link>
 

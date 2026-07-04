@@ -260,42 +260,62 @@ export const generateSummary = async (messages: MessagePayload[]): Promise<strin
 };
 
 export const generateConversationTitle = async (firstUserMessage: string): Promise<string> => {
-  const { provider, endpoint } = getCurrentConfig();
+  const { provider, endpoint, apiKey } = getCurrentConfig();
   const fallback = firstUserMessage.trim().slice(0, 48);
-  if (provider !== 'custom' || !endpoint || !fallback) return fallback || 'New conversation';
+  if (!fallback) return 'New conversation';
 
-  try {
-    const token = await getAccessToken();
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'Create a concise chat title. Return only the title, no quotes, no punctuation at the end.',
-          },
-        ],
-        user_message: `Title this conversation in 3 to 6 words: ${firstUserMessage}`,
+  // For sarvam_cloud and other providers, use the sendMessage API directly
+  if (provider === 'sarvam_cloud') {
+    try {
+      const { sendMessage } = await import('@/lib/aiService');
+      const result = await sendMessage({
+        message: `Generate a short, meaningful title (max 6 words) for a spiritual conversation starting with: "${firstUserMessage}". Return ONLY the title, no quotes, no punctuation.`,
         language: 'en',
-      }),
-    });
-
-    if (!response.ok) return fallback;
-    const data = await response.json();
-    const raw = String(data.response || data.choices?.[0]?.message?.content || data.content || fallback);
-    const title = raw
-      .split('\n')[0]
-      .replace(/^[\"'`]+|[\"'`.]+$/g, '')
-      .trim();
-    return title.length > 60 ? `${title.slice(0, 57)}...` : title || fallback;
-  } catch {
-    return fallback;
+        assistantSlug: 'general',
+      });
+      const title = result.content?.trim() || fallback;
+      return title.length > 60 ? `${title.slice(0, 57)}...` : title;
+    } catch {
+      return fallback;
+    }
   }
+
+  // Custom endpoint (existing logic)
+  if (provider === 'custom' && endpoint) {
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: 'Create a concise chat title. Return only the title, no quotes, no punctuation at the end.',
+            },
+          ],
+          user_message: `Title this conversation in 3 to 6 words: ${firstUserMessage}`,
+          language: 'en',
+        }),
+      });
+
+      if (!response.ok) return fallback;
+      const data = await response.json();
+      const raw = String(data.response || data.choices?.[0]?.message?.content || data.content || fallback);
+      const title = raw
+        .split('\n')[0]
+        .replace(/^[\"'`]+|[\"'`.]+$/g, '')
+        .trim();
+      return title.length > 60 ? `${title.slice(0, 57)}...` : title || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
 };
 
 export const submitFeedbackToBackend = async (payload: {
