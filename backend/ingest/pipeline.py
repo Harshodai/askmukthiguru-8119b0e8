@@ -77,7 +77,6 @@ from ingest.youtube_loader import (
     is_channel_url,
     is_playlist_url,
 )
-from services.adaptive_chunking_adapter import AdaptiveChunkingAdapter
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.injection_scanner import scan_chunks_for_injection
@@ -207,7 +206,7 @@ class IngestionPipeline:
         self._lightrag = lightrag_service
         self._semantic_cache = semantic_cache_service
 
-        self._adaptive_chunker = AdaptiveChunkingAdapter(self._embedder)
+        self._adaptive_chunker = AdaptiveChunker(self._embedder)
         self._proposition_service = PropositionService(self._llm)
         self._contextual_chunker = ContextualChunkingService(self._llm)
         self._neo4j_driver = None
@@ -817,7 +816,7 @@ class IngestionPipeline:
                 if apply_props:
                     propositions = await self._proposition_split(parent_chunk)
                 else:
-                    propositions = self._adaptive_chunker.chunk_document(parent_chunk)
+                    propositions = AdaptiveChunker(self._embedder).chunk_document(parent_chunk)
 
                 # Pass the full clean_text so ContextualChunkingService situates each proposition
                 augmented = await self._augment_chunks(propositions, full_document=clean_text)
@@ -1659,9 +1658,7 @@ class IngestionPipeline:
             )
             return chunks
 
-        if settings.use_ingest_adaptive_chunker and len(text) >= settings.adaptive_chunking_min_chars:
-            chunks = AdaptiveChunker(self._embedder).chunk_document(text)
-        elif settings.use_adaptive_chunking:
+        if settings.use_adaptive_chunking:
             chunks = self._adaptive_chunker.chunk_document(text)
         elif semantic:
             chunks = self._semantic_split(text)
