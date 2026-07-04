@@ -33,6 +33,7 @@ export const CODE_BY_KIND: Record<MessageErrorKind, { code: string; nextStep: st
   backend_down: { code: 'BACKEND_DOWN', nextStep: 'The Guru is offline. Please try again shortly.' },
   connection_refused: { code: 'CONN_REFUSED', nextStep: 'Connection refused by server. Retry in a moment.' },
   dns_failure: { code: 'DNS_FAIL', nextStep: 'Could not resolve the server address. Check your network.' },
+  circuit_breaker: { code: 'CIRCUIT_OPEN', nextStep: 'The backend AI service is temporarily unavailable. Retry in a moment.' },
   telemetry_failed: { code: 'TELEMETRY_FAILED', nextStep: 'Usage metrics may be incomplete — this does not affect your chat.' },
   unknown: { code: 'ERR_UNKNOWN', nextStep: 'Retry. If it persists, copy the technical detail and share with support.' },
 };

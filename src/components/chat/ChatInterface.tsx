@@ -123,6 +123,14 @@ const buildMessageError = (
         actionLabel: 'retry',
         detail,
       };
+    case 'circuit_breaker':
+      return {
+        kind: 'circuit_breaker',
+        title: 'AI service temporarily unavailable',
+        description: 'The Guru\'s inner circuit is resetting. The cosmic connection will be restored shortly — please retry in a moment.',
+        actionLabel: 'retry',
+        detail,
+      };
     default:
       return {
         kind: 'unknown',
@@ -166,6 +174,7 @@ import { MessageList } from './MessageList';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
+import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
 import { SpiritualWelcomeBanner } from './SpiritualWelcomeBanner';
 
@@ -183,27 +192,40 @@ const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
 
 
 
-const WELCOME_MESSAGE =
-  'Namaste, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.';
+const greetingPrefix = (slug: string | undefined): string => {
+  if (slug === 'sri_preethaji' || slug === 'sri_krishnaji') return 'Namaste';
+  if (slug === 'sadhguru') return 'Namaskaram';
+  return 'Namaste';
+};
+
+const greetingSuffix = (slug: string | undefined, name: string): string => {
+  if (slug === 'sri_preethaji' || slug === 'sri_krishnaji') return ` ${name} Ji`;
+  if (slug === 'sadhguru') return ` ${name}`;
+  return name ? `, ${name}` : '';
+};
+
+const WELCOME_MESSAGE = (slug: string | undefined): string =>
+  `${greetingPrefix(slug)}, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.`;
 
 type PrePracticeLog = NonNullable<
   ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog']
 >;
 
-const buildPersonalisedWelcome = (log: PrePracticeLog | undefined): string => {
-  if (!log) return WELCOME_MESSAGE;
+const buildPersonalisedWelcome = (log: PrePracticeLog | undefined, slug: string | undefined): string => {
+  if (!log) return WELCOME_MESSAGE(slug);
   const insights = derivePrePracticeInsights(log);
+  const prefix = greetingPrefix(slug);
   switch (log.lastAnswer) {
     case 'soul_sync':
-      return `Namaste. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
+      return `${prefix}. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
     case 'serene_mind':
-      return `Namaste. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
+      return `${prefix}. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
     case 'both':
-      return `Namaste. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
+      return `${prefix}. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
     case 'none':
-      return `Namaste, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
+      return `${prefix}, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
     default:
-      return WELCOME_MESSAGE;
+      return WELCOME_MESSAGE(slug);
   }
 };
 
@@ -258,6 +280,7 @@ export const ChatInterface = () => {
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const { profile, loading: profileLoading, update: updateProfile } = useProfile();
+  const { selected } = useAssistants();
   const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
@@ -439,7 +462,7 @@ export const ChatInterface = () => {
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
-        content: buildPersonalisedWelcome(profile.prePracticeLog),
+        content: buildPersonalisedWelcome(profile.prePracticeLog, selected?.slug),
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);
@@ -982,25 +1005,39 @@ export const ChatInterface = () => {
 
           // Trigger Serene Mind based on response signals
           if (streamedBlocked) {
-            // Blocked content → gated Serene Mind (chat locked until completed)
-            const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.';
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: generateId(),
-                role: 'guru',
-                content: prelude,
-                timestamp: new Date(),
-              },
-            ]);
-            setTimeout(() => {
-              setIsAwaitingSereneMind(true);
-              setSereneMindOnComplete(() => {
-                setIsAwaitingSereneMind(false);
-                setSereneMindOnComplete(null);
-              });
-              openSereneMind('breathing', true);
-            }, 7000);
+            if (streamedBlockReason === 'circuit_breaker_open') {
+              const err = buildMessageError('circuit_breaker', fullContent);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: generateId(),
+                  role: 'guru',
+                  content: fullContent,
+                  timestamp: new Date(),
+                  error: err,
+                },
+              ]);
+            } else {
+              // Blocked content → gated Serene Mind (chat locked until completed)
+              const prelude = 'Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say "can you open serene mind for me" to begin.';
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: generateId(),
+                  role: 'guru',
+                  content: prelude,
+                  timestamp: new Date(),
+                },
+              ]);
+              setTimeout(() => {
+                setIsAwaitingSereneMind(true);
+                setSereneMindOnComplete(() => {
+                  setIsAwaitingSereneMind(false);
+                  setSereneMindOnComplete(null);
+                });
+                openSereneMind('breathing', true);
+              }, 7000);
+            }
           } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
             // Voluntary request: open without gating — user asked for it
             openSereneMind('breathing');
@@ -1528,7 +1565,7 @@ return (
                   transition={{ delay: 0.1 }}
                   className="text-xl sm:text-2xl font-serif text-foreground/90"
                 >
-                  Namaste{profile.displayName ? `, ${profile.displayName}` : ''}
+                  {greetingPrefix(selected?.slug)}{greetingSuffix(selected?.slug, profile.displayName ?? '')}
                 </motion.h2>
               </div>
 

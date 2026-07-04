@@ -280,6 +280,8 @@ class PipelineCoordinator:
             model_used=model,
             model_provider=getattr(settings, "llm_provider", None),
             route_decision="error",
+            blocked=True,
+            block_reason="circuit_breaker_open",
         )
 
     # ------------------------------------------------------------------
