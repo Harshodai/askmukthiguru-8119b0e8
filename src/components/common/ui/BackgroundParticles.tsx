@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 
 interface Particle {
   id: number;
@@ -17,12 +17,24 @@ export interface BackgroundParticlesProps {
   className?: string;
 }
 
+function hsla(hsl: string, a: number): string {
+  return `${hsl.replace(')', '')} / ${a})`;
+}
+
 export const BackgroundParticles = ({
   count = 35,
-  primaryColor = 'hsl(43 96% 56%',
-  secondaryColor = 'hsl(45 100% 70%',
+  primaryColor = 'hsl(43 96% 56%)',
+  secondaryColor = 'hsl(45 100% 70%)',
   className = 'absolute inset-0 overflow-hidden pointer-events-none',
 }: BackgroundParticlesProps) => {
+  const heightRef = useRef(window.innerHeight);
+
+  useEffect(() => {
+    const onResize = () => { heightRef.current = window.innerHeight; };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const particles = useMemo<Particle[]>(() => {
     return Array.from({ length: count }, (_, i) => ({
       id: i,
@@ -37,10 +49,7 @@ export const BackgroundParticles = ({
   return (
     <div className={className}>
       {particles.map((particle) => {
-        const c1 = `${primaryColor} / ${particle.opacity}`;
-        const c2 = `${secondaryColor} / ${particle.opacity * 0.6}`;
-        const glow = `${primaryColor} / ${particle.opacity * 0.6}`;
-        const softGlow = `${primaryColor} / ${particle.opacity * 0.2}`;
+        const o = particle.opacity;
         return (
           <motion.div
             key={particle.id}
@@ -50,12 +59,12 @@ export const BackgroundParticles = ({
               bottom: '-20px',
               width: particle.size,
               height: particle.size,
-              background: `radial-gradient(circle, ${c1}, ${c2})`,
-              boxShadow: `0 0 ${particle.size * 4}px ${glow}, 0 0 ${particle.size * 8}px ${softGlow}`,
+              background: `radial-gradient(circle, ${hsla(primaryColor, o)}, ${hsla(secondaryColor, o * 0.6)})`,
+              boxShadow: `0 0 ${particle.size * 4}px ${hsla(primaryColor, o * 0.6)}, 0 0 ${particle.size * 8}px ${hsla(primaryColor, o * 0.2)}`,
             }}
             animate={{
-              y: [0, -window.innerHeight - 100],
-              opacity: [0, particle.opacity, particle.opacity, 0],
+              y: [0, -heightRef.current - 100],
+              opacity: [0, o, o, 0],
             }}
             transition={{
               duration: particle.duration,

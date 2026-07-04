@@ -159,8 +159,10 @@ async def run_benchmark():
     test_cases: list[tuple[str, str]] = []
     for category, items in QUERIES.items():
         for item in items:
-            if isinstance(item, dict) and "query" in item:
-                test_cases.append((item["query"], category))
+            if isinstance(item, dict):
+                qtext = item.get("query") or item.get("q")
+                if qtext:
+                    test_cases.append((qtext, category))
             elif isinstance(item, str):
                 test_cases.append((item, category))
 
