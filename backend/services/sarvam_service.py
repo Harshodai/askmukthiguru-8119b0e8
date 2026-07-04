@@ -118,11 +118,10 @@ class SarvamCloudService:
         # Also set env for any code that might use langchain-sarvam internally
         if self._api_key:
             os.environ["SARVAM_API_KEY"] = self._api_key
-            # Gateway for all non-streaming LLM transport
+
+        # Gateway for all non-streaming LLM transport is instantiated if either api key or endpoint is set
+        if self._api_key or settings.sarvam_30b_endpoint:
             self._http = SarvamHTTPGateway()
-        elif settings.sarvam_30b_endpoint:
-            # Skip the env assignment and gateway instantiation when only endpoint-based mode is intended
-            self._http = None
         else:
             self._http = None
 
