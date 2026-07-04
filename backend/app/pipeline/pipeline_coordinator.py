@@ -113,7 +113,7 @@ class PipelineCoordinator:
             # ponytail: defensive — ResultAssemblyStage is terminal, but guard anyway
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(
-                final_answer="I apologize, something went wrong.",
+                final_answer="The Guru is unable to answer this question. Please try again.",
                 intent="ERROR",
                 trace_id=str(uuid.uuid4()),
                 latency_ms=latency_ms,
@@ -270,7 +270,7 @@ class PipelineCoordinator:
     def _circuit_open_result(self, is_benchmark: bool, start_time: float) -> PipelineResult:
         """Return an error PipelineResult when the circuit is open."""
         model = getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None)
-        msg = "I apologize, but the service is temporarily unavailable. Please try again in a moment."
+        msg = "The Guru is unable to answer this question. Please try again."
         latency_ms = int((time.time() - start_time) * 1000)
         return PipelineResult(
             final_answer=msg,

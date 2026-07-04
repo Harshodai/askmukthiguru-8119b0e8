@@ -541,7 +541,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                       title="Regenerate response"
                     >
-                      <RotateCcw className="w-3 h-3" />
+                      <RotateCcw className="w-4 h-4" />
                     </button>
                   )}
                   <button
@@ -554,7 +554,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     title="Helpful"
                     disabled={!!feedback}
                   >
-                    <ThumbsUp className="w-3 h-3" />
+                    <ThumbsUp className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleVote('down')}
@@ -566,14 +566,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     title="Not helpful"
                     disabled={!!feedback}
                   >
-                    <ThumbsDown className="w-3 h-3" />
+                    <ThumbsDown className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleCopy}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                     title={copied ? 'Copied!' : 'Copy response'}
                   >
-                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={handleSaveToMemory}
@@ -585,7 +585,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     } ${savingMemory ? 'opacity-60' : ''}`}
                     title={saved ? 'Saved to memory' : 'Save to memory'}
                   >
-                    <Bookmark className={`w-3 h-3 ${saved ? 'fill-current' : ''}`} />
+                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
                   </button>
                   <button
                     onClick={handleSaveAsNote}
@@ -596,14 +596,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     }`}
                     title={noteSaved ? 'Saved to Notes' : 'Save as note'}
                   >
-                    <StickyNote className={`w-3 h-3 ${noteSaved ? 'fill-current' : ''}`} />
+                    <StickyNote className={`w-4 h-4 ${noteSaved ? 'fill-current' : ''}`} />
                   </button>
                   <button
                     onClick={() => setShowWisdomCard(true)}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                     title="Share as Wisdom Card"
                   >
-                    <Share2 className="w-3 h-3" />
+                    <Share2 className="w-4 h-4" />
                   </button>
                   <LanguageTranslateButton message={message} />
                 </div>
@@ -617,7 +617,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                     title={copied ? 'Copied!' : 'Copy question'}
                   >
-                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
                   {(onSubmitEdit || onEditUserMessage) && (
                     <button
@@ -632,7 +632,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
                       title="Edit & resend"
                     >
-                      <Pencil className="w-3 h-3" />
+                      <Pencil className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -930,7 +930,7 @@ const LanguageTranslateButton = ({ message }: { message: Message }) => {
         {loading ? (
           <span className="w-3 h-3 block rounded-full border border-ojas border-t-transparent animate-spin" />
         ) : (
-          <Languages className="w-3 h-3" />
+          <Languages className="w-4 h-4" />
         )}
       </button>
       <AnimatePresence>
