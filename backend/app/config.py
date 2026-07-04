@@ -116,12 +116,14 @@ class Settings(BaseSettings):
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
+    openrouter_rpm_limit: int = 20
 
     # --- Nvidia NIM (hosted API Catalog) ---
     nim_api_key: str = ""
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
     nim_generation_model: str = "minimaxai/minimax-m2.7"
     nim_classify_model: str = "meta/llama-3.1-8b-instruct"
+    nim_rpm_limit: int = 30
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
@@ -265,6 +267,7 @@ class Settings(BaseSettings):
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True
     flashrank_model: str = "auto"
+    use_cross_encoder_only: bool = False
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 5000
     use_boundary_chunker: bool = False
@@ -280,6 +283,7 @@ class Settings(BaseSettings):
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
     semantic_cache_similarity: float = 0.87  # Cosine similarity threshold for cache hit
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
+    rag_cache_alignment_enabled: bool = True
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
 
     # Qdrant-backed semantic cache (Phase 1.2)
