@@ -113,65 +113,38 @@ async def ingest_endpoint(
             source_url=url,
         )
 
-    # Run ingestion in the background for large content
-    async def _run_ingestion():
-        start_time = time.time()
-        chunks_added = 0
-        status = "ok"
-        error_log = None
-
-        def progress_callback(msg: str, pct: float):
-            container.update_progress(url, msg, pct, tags=tags)
-
+    # For single video/media, queue it directly to Celery instead of running as BackgroundTasks.
+    # We can use the orchestrate_ingestion task.
+    job_id = None
+    from supabase import create_client
+    if settings.supabase_url and settings.supabase_key:
         try:
-            # Init tracker
-            container.update_progress(url, "Starting...", 0.0, tags=tags)
-
-            result = await container.ingestion.ingest_url(
-                url,
-                max_accuracy=ingest_body.max_accuracy,
-                on_progress=progress_callback,
-                tags=tags,
-            )
-            logger.info(f"Ingestion complete: {result}")
-            container.update_progress(url, "Complete!", 1.0)
-
-            if isinstance(result, dict):
-                chunks_added = result.get("chunks_indexed", result.get("chunks_added", 0))
-
-            # Invalidate response cache after new content ingestion
-            container.exact_cache.invalidate_all()
-            container.semantic_cache.invalidate_all()
-
+            supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            resp = supabase_client.table("ingest_jobs").insert({
+                "source": url,
+                "status": "queued",
+                "progress_pct": 0,
+                "tags": tags,
+            }).execute()
+            if resp.data:
+                job_id = resp.data[0]["id"]
         except Exception as e:
-            logger.error(f"Ingestion failed for {url}: {e}", exc_info=True)
-            status = "failed"
-            error_log = str(e)
-            # Mark as error
-            container.ingestion_tracker.mark_error(url, str(e), tags=tags)
-        finally:
-            duration_ms = int((time.time() - start_time) * 1000)
-            try:
-                await log_ingestion_run(
-                    {
-                        "id": str(uuid.uuid4()),
-                        "source": url,
-                        "chunks_added": chunks_added,
-                        "embedding_model": settings.embedding_model,
-                        "duration_ms": duration_ms,
-                        "status": status,
-                        "error_log": error_log,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
-            except Exception as db_e:
-                logger.error(f"Failed to log ingestion run in background task: {db_e}")
+            logger.warning(f"Failed to create job in Supabase: {e}")
 
-    background_tasks.add_task(_run_ingestion)
+    from tasks.ingest_tasks import orchestrate_ingestion
+    # Queue single video ingestion to Celery
+    task = orchestrate_ingestion.delay(
+        url,
+        "en",
+        None,  # metadata
+        job_id,
+        tags,
+        max_accuracy=ingest_body.max_accuracy,
+    )
 
     return IngestResponse(
         status="processing",
-        message=f"Ingestion started for: {url}",
+        message=f"Ingestion queued via Celery. Job ID: {job_id or 'N/A'}",
         source_url=url,
     )
 

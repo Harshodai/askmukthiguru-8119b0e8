@@ -234,6 +234,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"LightRAG initialization failed (GraphRAG unavailable): {e}")
 
+    # 3.5 Seed Neo4j Spiritual Ontology Schema and Default Nodes
+    try:
+        from app.db.seed_ontology import seed_spiritual_ontology
+        await asyncio.to_thread(seed_spiritual_ontology)
+    except Exception as e:
+        logger.error(f"Ontology seeding failed: {e}")
+
     # 4. (Deprecated) Depression detector is now merged into Serene Mind Engine
 
     # 5. Observability tracing (OpenTelemetry + Jaeger)

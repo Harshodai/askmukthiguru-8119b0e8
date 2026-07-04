@@ -15,6 +15,7 @@ interface GuidedMeditationFlowProps {
   customSteps?: MeditationStep[];
   /** Source teaching citation shown when customSteps are active */
   sourceTeaching?: string;
+  onComplete?: () => void;
 }
 
 type BreathPhase = 'inhale' | 'hold' | 'exhale';
@@ -54,7 +55,7 @@ const clearResume = () => {
   try { localStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
 };
 
-export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching }: GuidedMeditationFlowProps) => {
+export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, onComplete }: GuidedMeditationFlowProps) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -192,9 +193,10 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
       const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
       completeMeditationSession(sessionIdRef.current, durationSec, 0);
       clearResume();
+      onComplete?.();
     }
     if (!isComplete) savedOnCompleteRef.current = false;
-  }, [isComplete]);
+  }, [isComplete, onComplete]);
 
   const requestClose = useCallback(() => {
     // If the user has not started yet, or has finished, close immediately.

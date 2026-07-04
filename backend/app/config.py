@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     sarvam_base_url: str = (
         "https://api.sarvam.ai/v1"  # Sarvam API base URL (override for proxy/staging)
     )
+    sarvam_30b_endpoint: Optional[str] = None  # e.g., "http://<E2E_INSTANCE_IP>:8000/v1"
+    sarvam_30b_api_key: Optional[str] = None  # If E2E endpoint requires auth
     sarvam_reasoning_effort: str = "medium"  # Default reasoning effort for main generation (low | medium | high)
     sarvam_reasoning_effort_fast: str = "low"   # Effort for fast/classification calls (intent routing, grading)
     sarvam_reasoning_effort_complex: str = "high"  # Effort for complex multi-hop, CoVe, and deep-reasoning queries
@@ -191,6 +193,7 @@ class Settings(BaseSettings):
     queue_enabled: bool = True
     queue_max_size: int = 50
     queue_concurrency: int = 5
+    ingestion_concurrency: int = 5
     queue_job_ttl: int = 1800
     queue_default_timeout: int = 300
 
@@ -567,6 +570,13 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_api_keys(self):
         """Fail-fast on missing required API keys for the active provider."""
+        # CENTRALIZED FALLBACK: If sarvam_30b_endpoint is provided, make sure we fallback base_url and api_key
+        if getattr(self, "sarvam_30b_endpoint", None):
+            if not getattr(self, "sarvam_api_key", "") and getattr(self, "sarvam_30b_api_key", None):
+                self.sarvam_api_key = self.sarvam_30b_api_key
+            if getattr(self, "sarvam_base_url", "") == "https://api.sarvam.ai/v1":
+                self.sarvam_base_url = self.sarvam_30b_endpoint
+
         provider = self.llm_provider.lower()
         required_keys = {
             "sarvam_cloud": "sarvam_api_key",
@@ -578,6 +588,9 @@ class Settings(BaseSettings):
         }
         key_attr = required_keys.get(provider)
         if key_attr:
+            # If using custom Sarvam 30B endpoint, skip the hard requirement of standard key
+            if provider == "sarvam_cloud" and getattr(self, "sarvam_30b_endpoint", None):
+                return self
             value = getattr(self, key_attr, "") or ""
             if not value.strip():
                 raise ValueError(f"{key_attr} is required when llm_provider='{provider}'")

@@ -57,6 +57,7 @@ from .verification import (
     verify_answer,
 )
 from .web_search import web_search_node
+from .cross_teacher_reasoning import cross_teacher_reasoning
 
 # Placeholder module-level attributes for IDE/static analysis and direct access
 _ollama: Any = None
@@ -153,5 +154,6 @@ __all__ = [
     "handle_fallback",
     "settings",
     "web_search_node",
+    "cross_teacher_reasoning",
 ]
 

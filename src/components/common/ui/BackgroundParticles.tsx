@@ -18,6 +18,11 @@ export interface BackgroundParticlesProps {
 }
 
 function hsla(hsl: string, a: number): string {
+  const match = hsl.match(/hsl\s*\(\s*([\d.]+)(?:deg|grad|rad|turn)?[\s,]+([\d.]+)%[\s,]+([\d.]+)%\s*\)?/i);
+  if (match) {
+    const [_, h, s, l] = match;
+    return `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  }
   return `${hsl.replace(')', '')} / ${a})`;
 }
 

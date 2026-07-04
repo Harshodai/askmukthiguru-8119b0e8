@@ -585,52 +585,56 @@ async def fetch_transcripts_concurrent(
     on_progress: Optional[Callable] = None,
 ) -> list[dict]:
     """
-    Fetch transcripts for multiple videos sequentially to avoid YouTube 429 rate limits.
-
-    Despite the name (kept for API compatibility), this processes one video at a time
-    with a 2-second delay between requests. The Transcript Council adds Sarvam STT
-    per video, which runs after each YouTube caption fetch.
+    Fetch transcripts for multiple videos concurrently to speed up playlist extraction,
+    using an asyncio.Semaphore to bound concurrency and prevent rate limits.
 
     Args:
         video_list: List of dicts with 'video_id', 'title', 'url'
-        max_workers: Ignored — kept for API compat. Always sequential.
+        max_workers: Max concurrent requests. Default is settings.ingestion_concurrency (5)
         on_progress: Optional callback(video_index, total, result)
 
     Returns:
         List of transcript result dicts
     """
-    results = []
+    from app.config import settings
+    limit = getattr(settings, "transcript_concurrent_workers", 1)
+    concurrency = max_workers or getattr(settings, "ingestion_concurrency", 5)
+    concurrency = min(concurrency, limit)
+    semaphore = asyncio.Semaphore(concurrency)
     total = len(video_list)
+    results = [None] * total
 
-    for i, video in enumerate(video_list):
+    async def fetch_single_video(index: int, video: dict):
         video_id = video.get("video_id", extract_video_id(video.get("url", "")))
         title = video.get("title", "Unknown")
 
         if not video_id:
-            result = {"text": "", "method": "failed", "error": "No video ID"}
+            res = {"text": "", "method": "failed", "error": "No video ID"}
         else:
-            result = await asyncio.to_thread(
-                fetch_transcript_hybrid,
-                video_id,
-                title,
-                False,  # allow auto-captions
-                video.get("speaker", "Unknown"),
-                video.get("topic", "Spiritual"),
-            )
-
-        results.append(result)
-
+            try:
+                async with semaphore:
+                    res = await asyncio.to_thread(
+                        fetch_transcript_hybrid,
+                        video_id,
+                        title,
+                        False,  # allow auto-captions
+                        video.get("speaker", "Unknown"),
+                        video.get("topic", "Spiritual"),
+                    )
+            except Exception as e:
+                logger.error(f"Error fetching transcript for {video_id}: {e}", exc_info=True)
+                res = {"text": "", "method": "failed", "error": str(e)}
+        results[index] = res
         if on_progress:
             try:
-                on_progress(i, total, result)
+                on_progress(index, total, res)
             except Exception:
                 pass
 
-        # Rate-limit delay between videos
-        if i < total - 1:
-            await asyncio.sleep(2)
+    tasks = [fetch_single_video(i, video) for i, video in enumerate(video_list)]
+    await asyncio.gather(*tasks)
 
-    success = sum(1 for r in results if r.get("method") != "failed")
+    success = sum(1 for r in results if r and r.get("method") != "failed")
     logger.info(f"Extraction complete: {success}/{total} videos successful")
 
     return results

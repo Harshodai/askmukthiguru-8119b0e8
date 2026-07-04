@@ -197,90 +197,59 @@ def orchestrate_ingestion(
     language: str = "en",
     metadata: Optional[dict[str, Any]] = None,
     job_id: str = None,
+    tags: Optional[list[str]] = None,
+    max_accuracy: bool = True,
 ) -> dict[str, Any]:
-    """Orchestrate the full ingestion pipeline as a chain of tasks."""
+    """Orchestrate the full ingestion pipeline using the unified IngestionPipeline."""
     logger.info(f"Orchestrating ingestion for: {video_url}")
 
     if job_id:
-        update_job_progress(job_id, "running", progress_pct=5, worker_id=self.request.hostname)
+        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
 
     try:
-        result = transcribe_video(video_url, language, job_id=job_id)
-        if result.get("status") != "success":
-            raise RuntimeError(f"Transcription failed: {result}")
+        from app.dependencies import get_container
+        container = get_container()
 
-        chunks = result["chunks"]
-        content_hash = result["content_hash"]
-
-        # Run quality gate on the full text (reconstructed from chunks)
-        raw_text = " ".join(chunks)
-        
-        # Instantiate services needed for quality gate
-        from services.ollama_service import OllamaService
-        from app.config import settings
-        from supabase import create_client
-        
-        llm = OllamaService()
-        supabase_client = None
-        if settings.supabase_url and settings.supabase_key:
-            try:
-                supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-            except Exception as e:
-                logger.warning(f"Could not init Supabase in Celery task: {e}")
-                
-        from ingest.quality_gate import DataQualityGate
-        gate = DataQualityGate(
-            llm_service=llm,
-            supabase_client=supabase_client,
-            quality_threshold=getattr(settings, "data_quality_threshold", 65),
-            enabled=getattr(settings, "data_quality_gate_enabled", True)
-        )
-        
-        # Run quality gate
-        if job_id:
-            update_job_progress(job_id, "running", progress_pct=50)
-            
-        quality_result = self.run_async(gate.run(raw_text, source_url=video_url))
-        
-        if not quality_result.passed:
-            msg = f"Rejected by quality gate: score {quality_result.score}/100. Reasons: {'; '.join(quality_result.reasons)}. Staging ID: {quality_result.staging_id or 'N/A'}"
-            logger.warning(msg)
+        # Define progress callback
+        def progress_cb(msg: str, pct: float):
             if job_id:
-                update_job_progress(job_id, "failed", error_message=msg)
-            return {
-                "status": "rejected",
-                "message": msg,
-                "video_url": video_url,
-                "content_hash": content_hash,
-                "quality_score": quality_result.score,
-                "staging_id": quality_result.staging_id,
-            }
+                # Map 0.0-1.0 to 10-90% progress
+                progress_pct = int(10 + pct * 80)
+                update_job_progress(job_id, "running", progress_pct=progress_pct)
 
-        # Quality passed, continue to embedding
-        if job_id:
-            update_job_progress(job_id, "running", progress_pct=60)
-
-        embed_result = embed_chunks(chunks, content_hash, job_id=job_id)
-        if embed_result.get("status") != "success":
-            raise RuntimeError(f"Embedding failed: {embed_result}")
-
-        index_result = index_vectors(
-            chunks, embed_result["embeddings"], content_hash, metadata, job_id=job_id
+        # Run the unified pipeline
+        # Run async function in Celery's event loop
+        result = self.run_async(
+            container.ingestion.ingest_url(
+                video_url,
+                max_accuracy=max_accuracy,
+                on_progress=progress_cb,
+                tags=tags or ["general"],
+            )
         )
-        if index_result.get("status") != "success":
-            raise RuntimeError(f"Indexing failed: {index_result}")
+
+        if isinstance(result, dict) and result.get("status") == "error":
+            raise RuntimeError(result.get("message", "Ingestion failed"))
+
+        chunks_indexed = 0
+        if isinstance(result, dict):
+            chunks_indexed = result.get("chunks_indexed", result.get("chunks_added", 0))
 
         if job_id:
-            update_job_progress(job_id, "completed", progress_pct=100, chunks_indexed=index_result["indexed_count"])
+            update_job_progress(job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed)
+
+        # Invalidate response cache after successful ingestion
+        try:
+            container.exact_cache.invalidate_all()
+            container.semantic_cache.invalidate_all()
+        except Exception as cache_e:
+            logger.warning(f"Failed to invalidate cache: {cache_e}")
 
         return {
             "status": "success",
             "video_url": video_url,
-            "content_hash": content_hash,
-            "transcription": {"chunks": len(chunks), "tier": result.get("transcription_tier", "unknown")},
-            "embedding": {"count": embed_result["chunk_count"]},
-            "indexing": {"count": index_result["indexed_count"]},
-            "quality_score": quality_result.score,
+            "indexing": {"count": chunks_indexed},
+            "result": result,
         }
     except Exception as exc:
         logger.error(f"Orchestration failed for {video_url}: {exc}")
@@ -450,6 +419,7 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
                     "language": language,
                     "metadata": metadata,
                     "job_id": child_job_id,
+                    "tags": tags,
                 }
             )
         )

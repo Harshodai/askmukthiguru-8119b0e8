@@ -272,6 +272,8 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
     container_name: mukthiguru-celery-worker
+    healthcheck:
+      disable: true
     env_file:
       - ../.env
     environment: *backend-env
