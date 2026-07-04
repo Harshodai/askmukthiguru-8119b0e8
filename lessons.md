@@ -2684,3 +2684,21 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
   5. `pipeline.py` passes language from result → `_embed_and_index()` in all 3 video paths.
 - **Never Again Rule**: **ALWAYS** resolve YouTube metadata (title/speaker/language) from yt-dlp inside `fetch_transcript_hybrid()` rather than trusting caller-provided defaults. Add `_resolve_video_metadata()` once at the top so every return path automatically benefits.
 - **Backfill Script**: `scripts/ingestion/backfill_metadata.py` scrolls Qdrant points with empty title/speaker/language, fetches metadata via yt-dlp, updates payload in-place.
+
+### 157. Adaptive Chunking E2E + Social Media Ingestion (July 4, 2026)
+- **Adaptive Chunking is ALREADY wired** in `_split_text()` via `settings.use_adaptive_chunking` (default: True). It uses 5 intrinsic metrics (SC, ICC, DCC, BI, RC).
+- **Social Media Gap Fixed:** Created `backend/ingest/social_media_loader.py` + wired into `ingest_url()` routing. Instagram Reels, TikTok, Twitter/X videos, and direct MP4/MOV/WEBM files now route through yt-dlp → Whisper → adaptive chunking → RAPTOR → LightRAG.
+- **Critical:** `adaptive_chunking_service.py` is NOT an orphan — it's the base class for `AdaptiveChunkingAdapter`. NEVER delete it. The adapter adds DCC+BI+RC metrics on top of the base 2-metric service.
+- **yt-dlp pattern:** Use `cookiesfrombrowser: ('chrome',)` as last-resort auth for Instagram. Production needs a `cookies.txt` from a logged-in browser session.
+- **OKF files written:** `memory/okf/adaptive_chunking_principles.md`, `ingestion_patterns.md`, `retrieval_patterns.md`, `config_pruning_lessons.md`
+
+### 158. Config Pruning — 14 Dead Configs Removed (July 4, 2026)
+- Removed: `graph_hard_deadline_s`, `use_openrouter_for_simple`, `nim_rpm_limit`, `openrouter_rpm_limit`, `feature_lightweight_classifier`, `whisper_local_device`, `generation_top_k_fast/standard/deep`, `generation_top_p_standard/deep`, `rag_cache_alignment_enabled`, `use_cross_encoder_only`, `use_gateway_service`
+- **False positives KEPT:** `ab_testing_enabled/ratio` (used in graph_stage.py), `whisper_local_model` (used in whisper_local_service.py)
+- **Rule:** Always grep ALL files including adapters, tests, wrapper classes before deleting any config or module.
+
+### 159. Ultra-Ruthless Foundation Audit V2 — Key Findings (July 4, 2026)
+- **Audit score: 94/100.** Foundation strong, needs structural scaling changes.
+- **Top 3 bottlenecks:** Sequential checkpointing (JSON → needs Redis), sequential playlist processing (needs Celery), flat tagging (needs `teacher:sadhguru` hierarchical tags)
+- **Next phase work:** Celery distributed workers, Redis-backed `IngestionCheckpoint`, `teacher_id` parameter in `ingest_url()`, Neo4j spiritual ontology schema (Teacher→Concept→Practice relationships)
+- **Hosting recommendation:** Railway (Backend + DBs), Vercel (Frontend), E2E Networks (Sarvam 30B GPU on A100/H100)

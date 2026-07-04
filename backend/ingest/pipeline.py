@@ -23,8 +23,34 @@ class IngestionCheckpoint:
     def __init__(self, filepath="data/ingest_checkpoint.json"):
         self.filepath = Path(filepath)
         self.filepath.parent.mkdir(exist_ok=True)
-        self.data = self._load()
-        self.processed_chunks = set(self.data.keys())
+        self.redis_client = None
+        self.tenant_id = "default"
+
+        # Try establishing connection to Redis for centralized checkpointing
+        try:
+            from app.config import settings
+            import redis
+            if getattr(settings, "redis_url", None):
+                # Tenant isolation context support
+                try:
+                    from services.tenant_context import TenantContext
+                    self.tenant_id = TenantContext.get() or "default"
+                except Exception:
+                    self.tenant_id = "default"
+
+                self.redis_client = redis.from_url(settings.redis_url, socket_timeout=2.0)
+                self.redis_client.ping()
+                logger.info(f"IngestionCheckpoint: Centralized Redis backend connected. Tenant: {self.tenant_id}")
+        except Exception as e:
+            logger.warning(f"IngestionCheckpoint: Redis connection failed or unconfigured ({e}). Falling back to local JSON.")
+            self.redis_client = None
+
+        if not self.redis_client:
+            self.data = self._load()
+            self.processed_chunks = set(self.data.keys())
+
+    def _get_redis_key(self, chunk_id: str) -> str:
+        return f"ingestion_checkpoint:{self.tenant_id}:{chunk_id}"
 
     def _load(self) -> dict:
         if self.filepath.exists():
@@ -42,6 +68,15 @@ class IngestionCheckpoint:
 
     def save(self, chunk_id: str, metadata: Optional[dict] = None):
         import time
+        if self.redis_client:
+            try:
+                key = self._get_redis_key(chunk_id)
+                data = metadata or {"timestamp": time.time()}
+                self.redis_client.set(key, json.dumps(data))
+                return
+            except Exception as e:
+                logger.error(f"Failed to save checkpoint to Redis: {e}. Falling back to file.")
+
         self.processed_chunks.add(chunk_id)
         self.data[chunk_id] = metadata or {"timestamp": time.time()}
         try:
@@ -50,14 +85,27 @@ class IngestionCheckpoint:
             logger.error(f"Failed to save checkpoint: {e}")
 
     def is_processed(self, chunk_id: str) -> bool:
+        if self.redis_client:
+            try:
+                key = self._get_redis_key(chunk_id)
+                return bool(self.redis_client.exists(key))
+            except Exception as e:
+                logger.error(f"Failed to check checkpoint in Redis: {e}")
         return chunk_id in self.processed_chunks
 
     def prune_stale_entries(self, active_hashes: list[str]):
         """Remove any entries from checkpoint that are no longer active."""
+        if self.redis_client:
+            logger.warning("prune_stale_entries is not supported in Redis mode.")
+            return
+
         active_set = set(active_hashes)
         self.data = {k: v for k, v in self.data.items() if k in active_set}
         self.processed_chunks = set(self.data.keys())
-        self.filepath.write_text(json.dumps(self.data, indent=2))
+        try:
+            self.filepath.write_text(json.dumps(self.data, indent=2))
+        except Exception as e:
+            logger.error(f"Failed to save pruned checkpoint: {e}")
 
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -323,6 +371,18 @@ class IngestionPipeline:
         self._notify(on_progress, "Detecting content type...", 0.05)
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
 
+        # Hierarchical Multi-Teacher Ingestion Tagging (Audit V2 Section 6.1.3)
+        lower_url = url.lower()
+        if "sadhguru" in lower_url or "isha" in lower_url:
+            tags.append("teacher:sadhguru")
+        elif "amma" in lower_url or "bhagavan" in lower_url or "oneness" in lower_url:
+            tags.append("teacher:amma_bhagavan")
+        elif "iskcon" in lower_url or "krishna" in lower_url or "prabhupada" in lower_url:
+            tags.append("teacher:iskcon")
+
+        if not any(t.startswith("teacher:") for t in tags):
+            tags.append("teacher:unknown")
+
         # === Route to correct loader ===
         from app.security_utils import is_valid_youtube_url
 
@@ -339,17 +399,128 @@ class IngestionPipeline:
             return await self._ingest_playlist(url, max_accuracy, on_progress, tags=tags)
         elif is_image_url(url):
             return await self._ingest_image(url, on_progress, tags=tags)
-        if extract_video_id(url):
+        elif extract_video_id(url):
             if max_accuracy:
                 return await self._ingest_video_enhanced(url, on_progress, tags=tags)
             return await self._ingest_video(url, max_accuracy, on_progress, tags=tags)
         else:
+            # Try social media / direct video (Instagram Reels, TikTok, direct MP4 etc.)
+            from ingest.social_media_loader import is_social_media_url
+            if is_social_media_url(url):
+                return await self._ingest_social_media_video(url, on_progress, tags=tags)
             return {
                 "status": "error",
                 "message": f"Unsupported URL format: {url}",
                 "chunks_indexed": 0,
                 "summaries_created": 0,
             }
+
+    async def _ingest_social_media_video(
+        self,
+        url: str,
+        on_progress: Optional[Callable] = None,
+        tags: Optional[list[str]] = None,
+    ) -> dict:
+        """
+        Ingest Instagram Reels, TikTok, Twitter/X videos, and direct video files (MP4/MOV/WEBM).
+        Uses yt-dlp for download + WhisperLocalService for transcription.
+        Feeds the standard adaptive-chunking → RAPTOR → LightRAG pipeline.
+        """
+        import re
+        from ingest.social_media_loader import ingest_social_media
+        from ingest.transcript_cleaner import clean_transcript, redact_pii
+        from ingest.quality_gate import DataQualityGate
+
+        tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+        self._notify(on_progress, "Downloading social/direct media via yt-dlp...", 0.1)
+
+        result = await ingest_social_media(
+            url,
+            whisper_service=getattr(self, "_whisper", None),
+        )
+
+        if not result.get("text"):
+            return {
+                "status": "error",
+                "message": f"No transcript extracted: {result.get('error', 'unknown')}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
+
+        raw_text = result["text"]
+        video_title = result.get("title", "")
+        video_speaker = result.get("speaker", "Unknown")
+
+        # Clean & PII redact
+        self._notify(on_progress, "Cleaning transcript...", 0.3)
+        clean_text = clean_transcript(raw_text)
+        clean_text, pii_found = redact_pii(clean_text)
+        if pii_found:
+            logger.warning(f"PII redacted from social media url={url} — {pii_found} instances")
+
+        # Data Quality Gate
+        self._notify(on_progress, "Auditing content quality...", 0.4)
+        quality_res = await self._auditor.run(clean_text, url)
+        if not quality_res.passed:
+            return {
+                "status": "rejected",
+                "message": (
+                    f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
+                    f"Reasons: {'; '.join(quality_res.reasons)}"
+                ),
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
+
+        # Chunk → embed → index (uses adaptive chunking via _split_text)
+        self._notify(on_progress, "Chunking and indexing...", 0.55)
+        backup_collection = self._backup_before_reindex(url)
+        chunks = self._split_text(
+            clean_text,
+            title=video_title,
+            speaker=video_speaker,
+            topic="Spiritual",
+        )
+        if not chunks:
+            return {"status": "error", "message": "No meaningful chunks", "source_url": url,
+                    "chunks_indexed": 0, "summaries_created": 0}
+
+        chunks_count = self._embed_and_index(
+            chunks,
+            source_url=url,
+            title=video_title,
+            speaker=video_speaker,
+            topic="Spiritual",
+            content_type="social_video",
+            source_type="social_video",
+            tags=tags,
+        )
+
+        # RAPTOR + LightRAG (fire-and-forget; rollback on failure)
+        summaries_count = 0
+        try:
+            chunk_dicts = [{"text": c, "source_url": url, "title": video_title,
+                            "speaker": video_speaker, "topic": "Spiritual"} for c in chunks]
+            summaries_count = await self._raptor.build_tree(chunk_dicts)
+            await self._lightrag.ainsert(clean_text)
+        except Exception as e:
+            logger.error(f"Downstream step failed for social media {url}, rolling back: {e}")
+            self._rollback_reindex(url, backup_collection)
+            return {"status": "error", "message": f"Rolled back — downstream step failed: {e}",
+                    "source_url": url, "chunks_indexed": 0, "summaries_created": 0}
+
+        self._notify(on_progress, "Social media ingestion complete!", 1.0)
+        return {
+            "status": "success",
+            "source_url": url,
+            "title": video_title,
+            "method": result.get("method", "yt_dlp_whisper"),
+            "chunks_indexed": chunks_count,
+            "summaries_created": summaries_count,
+            "duration_seconds": result.get("duration_seconds", 0),
+        }
 
     async def ingest_raw_text(
         self,
@@ -1442,6 +1613,25 @@ class IngestionPipeline:
             return 0
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+
+        # Ruthless Hierarchical Multi-Teacher Tagging (V2 Audit Section 6.1.3)
+        # Scan chunk contents, title, source URL, and speaker name to resolve the teacher context.
+        combined_context = f"{' '.join(chunks[:3])} {title} {source_url} {speaker}".lower()
+        teacher_tags = []
+        if any(term in combined_context for term in ["sadhguru", "jaggi", "vasudev", "isha"]):
+            teacher_tags.append("teacher:sadhguru")
+        if any(term in combined_context for term in ["amma", "bhagavan", "bhagwan", "oneness", "kalki", "deeksha"]):
+            if any(term in combined_context for term in ["amma", "kalki", "deeksha", "oneness"]):
+                teacher_tags.append("teacher:amma_bhagavan")
+        if any(term in combined_context for term in ["iskcon", "prabhupada", "krishna consciousness", "hare krishna", "bhagavad gita", "gita", "chaitanya"]):
+            teacher_tags.append("teacher:iskcon")
+
+        if not teacher_tags:
+            # Only add teacher:unknown if no teacher tag was passed in from upstream
+            if not any(t.startswith("teacher:") for t in tags):
+                teacher_tags.append("teacher:unknown")
+
+        tags = list(set(tags + teacher_tags))
 
         # Optional ingestion-time deduplication
         if getattr(settings, "ingestion_deduplication_enabled", False):

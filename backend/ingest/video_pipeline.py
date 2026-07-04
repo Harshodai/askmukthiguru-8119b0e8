@@ -149,20 +149,46 @@ class VideoPipeline:
         with concurrent.futures.ThreadPoolExecutor() as pool:
             return await loop.run_in_executor(pool, _run_whisper, audio_path)
 
-    def _chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
-        """Chunk text via RecursiveCharacterTextSplitter (same splitter as ingest/pipeline.py)."""
+    def _chunk_text(self, text: str, chunk_size: int = 0, overlap: int = 0) -> list[str]:
+        """Chunk text using AdaptiveChunker (preferred) or RecursiveCharacterTextSplitter fallback.
+
+        Uses config-driven chunk sizes from settings.rag_chunk_size / settings.rag_chunk_overlap.
+        AdaptiveChunker auto-selects Recursive vs Semantic strategy based on intrinsic quality scoring.
+        """
+        from app.config import settings
+
+        # Use config values if not explicitly overridden by caller
+        effective_size = chunk_size or settings.rag_chunk_size
+        effective_overlap = overlap or settings.rag_chunk_overlap
+
+        # Prefer AdaptiveChunker (same strategy used by IngestionPipeline._split_text)
+        if getattr(settings, "use_adaptive_chunking", True):
+            try:
+                from ingest.adaptive_chunking import AdaptiveChunker
+                chunker = AdaptiveChunker(
+                    embedder=self._embedder,
+                    chunk_size=effective_size,
+                    chunk_overlap=effective_overlap,
+                )
+                return chunker.chunk_document(text)
+            except Exception as e:
+                logger.warning("AdaptiveChunker unavailable in VideoPipeline (%s) — falling back to recursive", e)
+
+        # Fallback: RecursiveCharacterTextSplitter with config-driven sizes
         try:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
 
             splitter = RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size, chunk_overlap=overlap, separators=["\n\n", "\n", ". ", " ", ""]
+                chunk_size=effective_size,
+                chunk_overlap=effective_overlap,
+                separators=["\n\n", "\n", ". ", " ", ""],
             )
             return splitter.split_text(text)
         except Exception:
-            # ponytail: fallback to naive word-window if langchain splitter missing
+            # ponytail: last-resort naive word-window
             words = text.split()
-            step = max(chunk_size - overlap, 1)
-            return [" ".join(words[i : i + chunk_size]) for i in range(0, len(words), step)]
+            step = max(effective_size - effective_overlap, 1)
+            return [" ".join(words[i : i + effective_size]) for i in range(0, len(words), step)]
 
     async def _upsert_chunks(self, chunks: list, source: str) -> None:
         """Embed and upsert chunks to Qdrant with modality:video."""
