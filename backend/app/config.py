@@ -85,10 +85,8 @@ class Settings(BaseSettings):
     # --- Feature Flags & Memory Layer ---
     feature_memory_enabled: bool = True
     feature_memory_write: bool = True
-    feature_lightweight_classifier: bool = False   # Gemini Flash for fast nodes
     feature_regex_prerouter: bool = True
     node_model_overrides: dict[str, str] = {}
-    graph_hard_deadline_s: float = 20.0   # DEAD CONFIG — not used by LangGraph, kept for compatibility
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
     semantic_router_enabled: bool = True        # Toggle between semantic (fast) and LLM-based (slow) routing
@@ -118,15 +116,12 @@ class Settings(BaseSettings):
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
-    use_openrouter_for_simple: bool = True
-    openrouter_rpm_limit: int = 20
 
     # --- Nvidia NIM (hosted API Catalog) ---
     nim_api_key: str = ""
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"
     nim_generation_model: str = "minimaxai/minimax-m2.7"
     nim_classify_model: str = "meta/llama-3.1-8b-instruct"
-    nim_rpm_limit: int = 30
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
@@ -157,7 +152,6 @@ class Settings(BaseSettings):
     )
     whisper_compute_type: str = "float16"  # GPU: float16, CPU: int8 or float32
     whisper_local_model: str = "mlx-community/whisper-large-v3-turbo"
-    whisper_local_device: str = "mps"
 
     # --- Transcript Extraction ---
     transcript_languages: str = (
@@ -264,7 +258,6 @@ class Settings(BaseSettings):
     raptor_parent_summaries_enabled: bool = True
     use_markitdown_parser: bool = True
     rag_compression_similarity_threshold: float = 0.50
-    rag_cache_alignment_enabled: bool = True
     rag_context_compression_enabled: bool = True
     rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)
     rag_okf_auto_extract_enabled: bool = True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
@@ -306,11 +299,6 @@ class Settings(BaseSettings):
     generation_temp_fast: float = 0.3  # Temperature for fast-graph generation
     generation_temp_standard: float = 0.7  # Temperature for standard-graph generation
     generation_temp_deep: float = 0.9  # Temperature for deep-graph generation
-    generation_top_k_fast: int = 40
-    generation_top_k_standard: int = 50
-    generation_top_k_deep: int = 100
-    generation_top_p_standard: float = 0.9
-    generation_top_p_deep: float = 0.95
 
     # --- Context Budget (Phase 3.2) ---
     context_window_total: int = 8192  # Total context window in tokens
@@ -321,8 +309,6 @@ class Settings(BaseSettings):
     # --- Feature flags (Phase 2-3) ---
     phi_accrual_enabled: bool = True
     use_qdrant_semantic_cache: bool = True
-    use_cross_encoder_only: bool = False
-    use_gateway_service: bool = False
 
     # --- Idempotency (Phase 3.3) ---
     idempotency_ttl_seconds: int = 86400
