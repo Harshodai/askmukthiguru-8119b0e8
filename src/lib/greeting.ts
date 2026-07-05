@@ -20,7 +20,7 @@ const TIME_GREETINGS: Record<TimeOfDay, string> = {
   night: 'Namaste',
 };
 
-const JI_PERSONAS = new Set(['sri_preethaji', 'sri_krishnaji']);
+const JI_PERSONAS = new Set(['sri_preethaji', 'sri_krishnaji', 'general', 'relationship', 'sky']);
 
 export const timeOfDay = (date: Date = new Date()): TimeOfDay => {
   const hour = date.getHours();
