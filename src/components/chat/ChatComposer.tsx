@@ -213,6 +213,33 @@ export function ChatComposer({
               </div>
             )}
 
+            {/* Always-visible mic — voice input was buried in the language dropdown */}
+            {(
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={onVoiceToggle}
+                aria-label={isListening ? 'Stop voice input' : 'Speak your question'}
+                aria-pressed={isListening}
+                title={isListening ? 'Stop listening' : 'Speak your question'}
+                className={`h-8 w-8 rounded-full transition-all ${
+                  isListening
+                    ? 'bg-red-500/15 text-red-500 hover:bg-red-500/25'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {isListening ? (
+                  <span className="relative flex items-center justify-center">
+                    <span className="absolute inline-flex h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
+                    <Mic className="w-4 h-4 relative" />
+                  </span>
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </Button>
+            )}
+
             {(isStreaming || isTyping) ? (
               <Button
                 type="button"
