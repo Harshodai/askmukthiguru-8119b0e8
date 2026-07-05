@@ -25,7 +25,7 @@ def test_generate_title_endpoint_success(monkeypatch):
     # Verify it was called with correct prompts
     mock_container.ollama.generate.assert_called_once()
     kwargs = mock_container.ollama.generate.call_args[1]
-    assert "Concise" in kwargs["system_prompt"]
+    assert "concise" in kwargs["system_prompt"]
     assert "How do I heal my relationship" in kwargs["user_prompt"]
     
     app.dependency_overrides.clear()

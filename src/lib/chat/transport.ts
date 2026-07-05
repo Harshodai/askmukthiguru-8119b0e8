@@ -17,22 +17,42 @@ const buildRequestBody = (
   summary: string | undefined,
   lastSereneMindAt: number | null | undefined,
   seekerContext: string | undefined,
-) => JSON.stringify({
-  messages: [
-    { role: 'system', content: systemPrompt },
-    ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
-    ...messages.slice(-20),
-  ],
-  user_message: userMessage,
-  meditation_step: meditationStep,
-  session_id: sessionId,
-  language: getCurrentConfig().language || 'en',
-  ...(lastSereneMindAt != null
-    ? { last_serene_mind_at: lastSereneMindAt / 1000 }
-    : {}),
-  ...(seekerContext ? { seeker_context: seekerContext } : {}),
-  ...buildAssistantContext(),
-});
+) => {
+  const date = new Date();
+  const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
+  let localTimeStr = '12:00:00';
+  try {
+    localTimeStr = date.toLocaleTimeString('en-US', { timeZone, hour12: false });
+  } catch { /* fallback */ }
+  const localHour = parseInt(localTimeStr.split(':')[0], 10) || 12;
+  
+  let timeOfDay = 'night';
+  if (localHour >= 5 && localHour < 12) timeOfDay = 'morning';
+  else if (localHour >= 12 && localHour < 17) timeOfDay = 'afternoon';
+  else if (localHour >= 17 && localHour < 21) timeOfDay = 'evening';
+
+  const slug = (typeof window !== 'undefined' ? window.localStorage.getItem('askmukthi.assistant.slug') : null) || 'general';
+  const greetingWord = slug === 'sadhguru' ? 'Namaskaram' : (timeOfDay === 'morning' ? 'Suprabhat' : timeOfDay === 'evening' ? 'Shubh Sandhya' : 'Namaste');
+
+  const formattedSystemPrompt = `${systemPrompt || ''}\n\nSeeker Environment:\n- Local Time: ${date.toLocaleString('en-US', { timeZone })}\n- Time Zone: ${timeZone}\n- Greeting Word: "${greetingWord}"\n- Rule: When greeting the user, align your opening greeting with the Local Time and Greeting Word. Never use a double "Ji" suffix for "Sri Preethaji" or "Sri Krishnaji" (i.e. do not write "Sri Preethaji Ji" or "Sri Krishnaji Ji", only use "Sri Preethaji" and "Sri Krishnaji").`;
+
+  return JSON.stringify({
+    messages: [
+      { role: 'system', content: formattedSystemPrompt },
+      ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
+      ...messages.slice(-20),
+    ],
+    user_message: userMessage,
+    meditation_step: meditationStep,
+    session_id: sessionId,
+    language: getCurrentConfig().language || 'en',
+    ...(lastSereneMindAt != null
+      ? { last_serene_mind_at: lastSereneMindAt / 1000 }
+      : {}),
+    ...(seekerContext ? { seeker_context: seekerContext } : {}),
+    ...buildAssistantContext(),
+  });
+};
 
 export const sendMessage = async (
   messages: MessagePayload[],

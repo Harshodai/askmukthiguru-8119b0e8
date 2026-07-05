@@ -370,34 +370,6 @@ export const MemoryManager = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* ── Conversation Continuity ────────────────────────────────────── */}
-      {conversations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MessagesSquare className="w-5 h-5 text-ojas" /> Recent sessions
-            </CardTitle>
-            <CardDescription>
-              Threads the guru carries forward to maintain context.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {conversations.map((c) => (
-                <li
-                  key={c.session_id}
-                  className="p-3 rounded-lg bg-muted/40 border border-border"
-                >
-                  <p className="text-xs text-muted-foreground">
-                    Session started {formatDate(c.started_at)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
