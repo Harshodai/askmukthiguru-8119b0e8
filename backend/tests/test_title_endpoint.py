@@ -1,0 +1,49 @@
+import pytest
+from unittest.mock import AsyncMock, MagicMock
+from fastapi.testclient import TestClient
+from app.main import app
+from app.dependencies import get_container
+
+# Create client without entering context manager to bypass lifespan qdrant startup
+client = TestClient(app)
+
+def test_generate_title_endpoint_success(monkeypatch):
+    mock_container = MagicMock()
+    mock_container.ollama = AsyncMock()
+    mock_container.ollama.generate.return_value = "Spiritual Healing Process"
+    
+    app.dependency_overrides[get_container] = lambda: mock_container
+    
+    response = client.post(
+        "/api/chat/title",
+        json={"first_message": "How do I heal my relationship from deep anger?"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Spiritual Healing Process"
+    
+    # Verify it was called with correct prompts
+    mock_container.ollama.generate.assert_called_once()
+    kwargs = mock_container.ollama.generate.call_args[1]
+    assert "Concise" in kwargs["system_prompt"]
+    assert "How do I heal my relationship" in kwargs["user_prompt"]
+    
+    app.dependency_overrides.clear()
+
+def test_generate_title_endpoint_fallback(monkeypatch):
+    mock_container = MagicMock()
+    mock_container.ollama = AsyncMock()
+    mock_container.ollama.generate.side_effect = Exception("LLM connection timed out")
+    
+    app.dependency_overrides[get_container] = lambda: mock_container
+    
+    first_msg = "Short query"
+    response = client.post(
+        "/api/chat/title",
+        json={"first_message": first_msg}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == first_msg
+    
+    app.dependency_overrides.clear()
