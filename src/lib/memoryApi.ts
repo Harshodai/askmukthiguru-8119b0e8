@@ -101,6 +101,42 @@ async function invokeEdgeFn<T>(
   return data as T;
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+
+/**
+ * Fallback save path: the FastAPI backend embeds server-side with the local
+ * model. Needed because local/dev Supabase stacks often run without an edge
+ * runtime, which makes `memory-embed` unreachable and broke every add.
+ */
+async function addViaBackend(text: string, accessToken: string, cause: unknown): Promise<GuruMemory> {
+  if (!BACKEND_URL) {
+    throw cause instanceof MemoryApiError
+      ? cause
+      : new MemoryApiError('server_error', 'Memory service unavailable.');
+  }
+  const res = await fetch(`${BACKEND_URL}/api/memory/add`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    throw new MemoryApiError(
+      res.status === 401 ? 'unauthorized' : 'server_error',
+      `Memory save failed (${res.status}).`,
+    );
+  }
+  const saved = await res.json();
+  return {
+    id: saved.id,
+    content: saved.claim ?? text,
+    source: saved.source ?? 'explicit',
+    created_at: saved.created_at || new Date().toISOString(),
+  } as GuruMemory;
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export const memoryApi = {
@@ -143,26 +179,31 @@ export const memoryApi = {
     const trimmed = text.trim();
     if (!trimmed) throw new MemoryApiError('server_error', 'Memory text cannot be empty.');
 
-    // Step 1: Get embedding from server (never exposes API key to client)
-    const { embedding } = await invokeEdgeFn<{ embedding: number[]; backend: string }>(
-      'memory-embed',
-      { text: trimmed },
-    );
+    try {
+      // Step 1: Get embedding from server (never exposes API key to client)
+      const { embedding } = await invokeEdgeFn<{ embedding: number[]; backend: string }>(
+        'memory-embed',
+        { text: trimmed },
+      );
 
-    // Step 2: Insert into DB — RLS scopes to auth.uid()
-    const { data, error } = await supabase
-      .from('guru_memories')
-      .insert({
-        user_id: session.user.id,
-        content: trimmed,
-        embedding: embedding as unknown as string,
-        source: 'explicit',
-      })
-      .select('id, content, source, created_at')
-      .single();
+      // Step 2: Insert into DB — RLS scopes to auth.uid()
+      const { data, error } = await supabase
+        .from('guru_memories')
+        .insert({
+          user_id: session.user.id,
+          content: trimmed,
+          embedding: embedding as unknown as string,
+          source: 'explicit',
+        })
+        .select('id, content, source, created_at')
+        .single();
 
-    if (error) throw new MemoryApiError('server_error', error.message);
-    return data as GuruMemory;
+      if (error) throw new MemoryApiError('server_error', error.message);
+      return data as GuruMemory;
+    } catch (edgeErr) {
+      // Edge runtime absent (local stack) or embed failed — save via backend.
+      return addViaBackend(trimmed, session.access_token, edgeErr);
+    }
   },
 
   /** Delete a memory by ID. RLS ensures users can only delete their own. */
