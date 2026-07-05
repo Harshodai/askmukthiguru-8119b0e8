@@ -96,6 +96,37 @@ const path = require('path');
   await page.screenshot({ path: `${outputDir}/11-privacy.png`, fullPage: true });
   console.log('11-privacy.png captured');
 
+  // 8. Capture Serene Mind Modal and its Tabs
+  console.log('Navigating back to Chat page to verify Serene Mind tabs...');
+  await page.goto('http://localhost:80/chat', { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(3000);
+  await page.click('button:has-text("Skip for now")').catch(() => {});
+
+  console.log('Opening Serene Mind modal...');
+  await page.fill('textarea', 'open serene mind');
+  await page.click('button[aria-label="Send message"]');
+  await page.waitForSelector('[role="dialog"]', { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(1000);
+
+  // Take screenshot of Breathe Tab
+  console.log('Capturing Breathe Tab...');
+  await page.screenshot({ path: `${outputDir}/12-serene-mind-breathe.png` });
+
+  // Click Audio Tab
+  console.log('Clicking Audio Tab...');
+  await page.click('button[role="tab"]:has-text("Audio")').catch(() => {});
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: `${outputDir}/13-serene-mind-audio.png` });
+
+  // Click Video Tab
+  console.log('Clicking Video Tab...');
+  await page.click('button[role="tab"]:has-text("Video")').catch(() => {});
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: `${outputDir}/14-serene-mind-video.png` });
+
+  // Close the modal
+  await page.click('button[aria-label="Close"]').catch(() => {});
+
   await browser.close();
   console.log('Screenshot sweep complete.');
 })();
