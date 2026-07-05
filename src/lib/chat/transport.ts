@@ -260,25 +260,10 @@ export const generateSummary = async (messages: MessagePayload[]): Promise<strin
 };
 
 export const generateConversationTitle = async (firstUserMessage: string): Promise<string> => {
-  const { provider, endpoint, apiKey } = getCurrentConfig();
+  const { provider, endpoint } = getCurrentConfig();
   const fallback = firstUserMessage.trim().slice(0, 48);
   if (!fallback) return 'New conversation';
 
-  // For sarvam_cloud and other providers, use the sendMessage API directly
-  if (provider === 'sarvam_cloud') {
-    try {
-      const { sendMessage } = await import('@/lib/aiService');
-      const result = await sendMessage({
-        message: `Generate a short, meaningful title (max 6 words) for a spiritual conversation starting with: "${firstUserMessage}". Return ONLY the title, no quotes, no punctuation.`,
-        language: 'en',
-        assistantSlug: 'general',
-      });
-      const title = result.content?.trim() || fallback;
-      return title.length > 60 ? `${title.slice(0, 57)}...` : title;
-    } catch {
-      return fallback;
-    }
-  }
 
   // Custom endpoint (existing logic)
   if (provider === 'custom' && endpoint) {
