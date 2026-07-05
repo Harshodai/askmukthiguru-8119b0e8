@@ -88,7 +88,6 @@ class Settings(BaseSettings):
     feature_memory_enabled: bool = True
     feature_memory_write: bool = True
     feature_regex_prerouter: bool = True
-    node_model_overrides: dict[str, str] = {}
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
     semantic_router_enabled: bool = True        # Toggle between semantic (fast) and LLM-based (slow) routing
@@ -294,8 +293,6 @@ class Settings(BaseSettings):
     semantic_cache_hnsw_ef: int = 128  # HNSW ef parameter for cache lookups
 
     # --- P90/P99 Hybrid Search (Phase 1.1) ---
-    p90_confidence_threshold: float = 0.8  # Confidence above which P90 fast-path is used
-    p99_timeout_ms: int = 5000  # P99 full-pipeline timeout in ms
     faiss_cache_size: int = 500  # Number of top docs mirrored in local FAISS index
     hybrid_search_enabled: bool = True  # Feature flag: enable P90/P99 hybrid search
 
@@ -341,8 +338,6 @@ class Settings(BaseSettings):
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
     web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
     web_search_max_results: int = 5
-    web_search_timeout: int = 10  # Web search timeout in seconds
-    web_search_parallel: bool = True  # Run web search in parallel with RAG retrieval
     searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
     # Coverage-gap: if ALL retrieved docs score below this, treat as zero-coverage → fire web search
     web_search_coverage_threshold: float = 0.08
@@ -387,10 +382,6 @@ class Settings(BaseSettings):
         "anthropic:claude-haiku-4-5-20251001,"
         "openai:gpt-5.4"
     )
-    llm_gateway_streaming_default: bool = True
-    llm_gateway_session_prefix: str = "mukthi-guru"
-    llm_gateway_max_tokens: int = 4096
-    llm_gateway_request_timeout_s: int = 60
 
     # --- Persona controls (Phase B — guru voice quality) ---
     # When True, the generation node strips the canned "*Note: Based on what I found...*"
@@ -455,9 +446,6 @@ class Settings(BaseSettings):
     # TTL in seconds for the retrieval-level doc-ID cache keyed by (query_embedding_bucket, tenant_id).
     # Reduces Qdrant round-trips for repeated query patterns by ~40%.
     retrieval_cache_ttl: int = 300
-    # Override uvicorn worker count (0 = auto → min(CPU cores, 2)).
-    # Useful on 4-CPU prod VMs where ML models fit in 3.5 GB per process.
-    uvicorn_workers_override: int = 0
 
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---

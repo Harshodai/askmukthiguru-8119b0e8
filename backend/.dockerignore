@@ -26,6 +26,8 @@ dist/
 # Models (downloaded at runtime)
 models/
 hf_model_cache/
+.model_cache/
+.docker_clean/
 
 # IDE
 .idea/
