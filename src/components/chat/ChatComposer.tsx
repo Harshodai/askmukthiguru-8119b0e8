@@ -133,7 +133,7 @@ export function ChatComposer({
 
         <div className="px-5 pt-4 pb-2">
           <textarea
-            ref={inputRef}
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
             value={inputValue}
             onChange={onInputChange}
             onKeyDown={onKeyDown}
