@@ -1554,27 +1554,48 @@ return (
       >
         <div ref={innerContentRef} className="max-w-3xl mx-auto">
           {isLandingMode ? (
-            /* ── Landing State ── */
+            /* ── Landing State (ChatGPT-inspired, spiritual) ── */
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center min-h-full"
-              style={{ paddingTop: '15vh' }}
+              className="flex flex-col items-center justify-start min-h-full gap-5"
+              style={{ paddingTop: 'clamp(3rem, 8vh, 6rem)' }}
             >
-              <SpiritualWelcomeBanner />
+              {/* Guru orb */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 180, damping: 18 }}
+                className="w-16 h-16 rounded-full bg-gradient-to-br from-ojas/30 via-ojas/20 to-ojas/10 border border-ojas/25 flex items-center justify-center shadow-[0_8px_32px_-8px_hsl(var(--ojas)/0.35)]"
+                aria-hidden
+              >
+                <Flame className="w-7 h-7 text-ojas" strokeWidth={1.75} />
+              </motion.div>
 
-              <div className="mt-6 text-center">
+              <div className="text-center max-w-xl px-4">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-xl sm:text-2xl font-serif text-foreground/90"
+                  className="text-h1 font-serif text-foreground/95"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '')}
                 </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="mt-2 text-body text-foreground/65 leading-relaxed"
+                >
+                  I am here to walk with you toward your Beautiful State. What is stirring in your heart today?
+                </motion.p>
               </div>
 
-              <div className="w-full mt-5">
+              <div className="w-full max-w-2xl">
+                <SpiritualWelcomeBanner />
+              </div>
+
+              <div className="w-full max-w-2xl">
                 <ChatComposer
                   inputValue={inputValue}
                   inputRef={inputRef}
@@ -1616,37 +1637,54 @@ return (
                     }
                   }}
                 />
+                <p className="mt-2 text-center text-caption text-foreground/45">
+                  AI companion · Not a substitute for professional care
+                </p>
               </div>
 
+              {/* 2×2 prompt-card grid */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="flex flex-wrap gap-2 justify-center mt-4"
+                className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3"
               >
                 {STARTER_CARDS.map((card, idx) => {
                   const Icon = card.icon;
                   return (
                     <motion.button
                       key={card.id}
+                      type="button"
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.25 + idx * 0.05 }}
+                      whileHover={{ y: -2 }}
                       onClick={() => handleSuggestionClick(card.prompt)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-ojas/15 bg-ojas/[0.03] hover:border-ojas/40 hover:bg-ojas/[0.06] hover:shadow-sm transition-all text-[13px] text-foreground/70 hover:text-foreground"
+                      className="group text-left rounded-2xl border border-ojas/15 bg-gradient-to-br from-card/70 to-ojas/[0.03] hover:border-ojas/40 hover:bg-ojas/[0.05] hover:shadow-md hover:shadow-ojas/10 backdrop-blur-sm p-4 transition-all"
                     >
-                      <Icon className="w-3.5 h-3.5 text-ojas" strokeWidth={2} />
-                      <span>{card.prompt}</span>
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0">
+                          <Icon className="w-4 h-4 text-ojas" strokeWidth={1.75} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-eyebrow text-ojas/80 mb-1">{card.eyebrow}</p>
+                          <p className="text-body-sm text-foreground/80 leading-snug line-clamp-2">
+                            {card.prompt}
+                          </p>
+                        </div>
+                      </div>
                     </motion.button>
                   );
                 })}
               </motion.div>
 
               {messages.length === 1 && (
-                <ChatEmptyState
-                  currentConversationId={currentConversation?.id}
-                  onResume={handleSelectConversation}
-                />
+                <div className="w-full max-w-2xl">
+                  <ChatEmptyState
+                    currentConversationId={currentConversation?.id}
+                    onResume={handleSelectConversation}
+                  />
+                </div>
               )}
             </motion.div>
           ) : (
