@@ -14,3 +14,9 @@ approval_mode = "approve"
 
 [mcp_servers.code-review-graph.tools.get_minimal_context_tool]
 approval_mode = "approve"
+
+[mcp_servers.code-review-graph.tools.cross_repo_search_tool]
+approval_mode = "approve"
+
+[mcp_servers.code-review-graph.tools.traverse_graph_tool]
+approval_mode = "approve"

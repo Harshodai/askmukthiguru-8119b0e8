@@ -1,5 +1,23 @@
 # Agentic Lessons & Memory
 
+## Jul 5, 2026 — Docker Health, Celery Hardening, and Ingestion Copy Updates
+
+### Multi-Process Model Loading & Startup OOM Prevention
+- **Problem**: Running FastAPI with `WEB_CONCURRENCY=2` (or multiple worker processes) on hosts where a massive ML/embedding model (like BGE-M3, which uses ~1.4GB RAM) is loaded at startup can cause container OOM (Out Of Memory) failures. With `WEB_CONCURRENCY=2` and background cache warming, memory consumption easily exceeds 4.2GB, causing Docker Desktop VM (capped at 8GB) to trigger the OOM killer (`OOMKilled: true`).
+- **Fix**: Set default `WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}` for backend and `--concurrency=${CELERY_CONCURRENCY:-1}` for Celery workers in `docker-compose.yml` to limit memory consumption to 1 process on resource-limited development machines. Provide environment variable overrides for production.
+
+### Docker Build Context Bloat (.dockerignore)
+- **Problem**: When using `..` (workspace root) as the docker build context, massive directories like `.model_cache/` (containing gigabytes of downloaded HuggingFace models) or `.docker_clean/` are sent to the Docker daemon build context, bloating context size to 6.8GB and slowing down builds.
+- **Fix**: Always include `.model_cache/`, `backend/.model_cache/`, and `.docker_clean/` in the root and backend-specific `.dockerignore` files. This keeps the build context lightweight (~360MB) and fast (2.8s context transfer).
+
+### Redundant Model Cache Pre-downloads
+- **Problem**: Calling `huggingface_hub.snapshot_download("BAAI/bge-m3")` in the docker build script is redundant and prone to hanging when `SentenceTransformer("BAAI/bge-m3")` has already fully downloaded and cached the model in the same `HF_HOME` cache folder.
+- **Fix**: Comment out the redundant `snapshot_download` call to speed up image build times and prevent hanging on slow HuggingFace downloads during Docker builds.
+
+### Celery Worker Healthchecks
+- **Problem**: Disabling Celery worker healthchecks (`healthcheck: disable: true`) hides health issues, but using standard `celery inspect ping` command can fail if the hostname is not correctly specified.
+- **Fix**: Use a CMD-SHELL healthcheck: `celery -A celery_config inspect ping -d celery@$$HOSTNAME --timeout 5 || exit 1` to verify broker availability and worker health.
+
 ## Jul 4, 2026 — Ingest, Services, and Seeding Bug Fixes
 
 ### Ingestion Checkpoint Attribute Guarding

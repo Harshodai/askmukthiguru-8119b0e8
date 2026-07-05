@@ -74,7 +74,14 @@ class DeterministicChecker:
     MIN_WORD_COUNT = 20
     NGRAM_SIZE = 3
 
-    def check(self, text: str) -> tuple[bool, int, list[str]]:
+    def _is_short_video(self, url: str) -> bool:
+        """Detect if the URL points to a short video format (Reel/Short/TikTok)."""
+        if not url:
+            return False
+        url_lower = url.lower()
+        return "shorts/" in url_lower or "reel/" in url_lower or "tiktok.com" in url_lower or "instagram.com" in url_lower
+
+    def check(self, text: str, source_url: str = "") -> tuple[bool, int, list[str]]:
         """
         Returns (passed, score_penalty, fail_reasons).
         score_penalty is subtracted from 100 by the gate orchestrator.
@@ -84,13 +91,19 @@ class DeterministicChecker:
 
         stripped = text.strip()
 
+        # Apply Reel min-length grace: if URL matches short video formats,
+        # lower the minimum bounds.
+        is_short = self._is_short_video(source_url)
+        min_len = 30 if is_short else self.MIN_LENGTH
+        min_words = 5 if is_short else self.MIN_WORD_COUNT
+
         # Length check
-        if len(stripped) < self.MIN_LENGTH:
-            return False, 100, [f"Text too short ({len(stripped)} chars, min={self.MIN_LENGTH})"]
+        if len(stripped) < min_len:
+            return False, 100, [f"Text too short ({len(stripped)} chars, min={min_len})"]
 
         words = stripped.lower().split()
-        if len(words) < self.MIN_WORD_COUNT:
-            return False, 100, [f"Too few words ({len(words)}, min={self.MIN_WORD_COUNT})"]
+        if len(words) < min_words:
+            return False, 100, [f"Too few words ({len(words)}, min={min_words})"]
 
         # HTML pollution check
         html_tags = re.findall(r"<[^>]+>", stripped)
@@ -312,7 +325,7 @@ class DataQualityGate:
             )
 
         # ── Tier 1: Deterministic ──────────────────────────────────────────
-        t1_ok, t1_penalty, t1_reasons = self._deterministic.check(text)
+        t1_ok, t1_penalty, t1_reasons = self._deterministic.check(text, source_url)
         if not t1_ok:
             result = QualityResult(
                 passed=False, score=0, tier_reached=1,

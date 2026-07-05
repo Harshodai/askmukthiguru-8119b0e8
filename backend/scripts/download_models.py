@@ -17,10 +17,10 @@ SentenceTransformer("BAAI/bge-m3")
 print("sentence_transformers cache populated")
 
 # 2. HuggingFace hub cache (for BGEM3FlagModel / FlagEmbedding API)
-from huggingface_hub import snapshot_download
-
-snapshot_download("BAAI/bge-m3")
-print("huggingface hub cache populated")
+# Commented out to avoid redundant/hanging download (SentenceTransformer already caches it under the same HF_HOME)
+# from huggingface_hub import snapshot_download
+# snapshot_download("BAAI/bge-m3")
+# print("huggingface hub cache populated")
 
 # 3. CrossEncoder cache (for reranker API)
 from sentence_transformers import CrossEncoder

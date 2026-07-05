@@ -10,6 +10,9 @@ build/
 
 # Ignore massive model caches and local databases
 hf_model_cache/
+backend/.model_cache/
+.model_cache/
+.docker_clean/
 qdrant_data/
 neo4j_data/
 redis_data/
