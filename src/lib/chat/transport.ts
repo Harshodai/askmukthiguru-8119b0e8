@@ -265,32 +265,28 @@ export const generateConversationTitle = async (firstUserMessage: string): Promi
   if (!fallback) return 'New conversation';
 
 
-  // Custom endpoint (existing logic)
+  // Custom endpoint (calls synchronous /chat/title)
   if (provider === 'custom' && endpoint) {
     try {
       const token = await getAccessToken();
-      const response = await fetch(endpoint, {
+      const titleUrl = endpoint.endsWith('/chat')
+        ? endpoint + '/title'
+        : endpoint.replace(/\/$/, '') + '/chat/title';
+
+      const response = await fetch(titleUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          messages: [
-            {
-              role: 'system',
-              content: 'Create a concise chat title. Return only the title, no quotes, no punctuation at the end.',
-            },
-          ],
-          user_message: `Title this conversation in 3 to 6 words: ${firstUserMessage}`,
-          language: 'en',
+          first_message: firstUserMessage,
         }),
       });
 
       if (!response.ok) return fallback;
       const data = await response.json();
-      const raw = String(data.response || data.choices?.[0]?.message?.content || data.content || fallback);
-      const title = raw
+      const title = (data.title || fallback)
         .split('\n')[0]
         .replace(/^[\"'`]+|[\"'`.]+$/g, '')
         .trim();

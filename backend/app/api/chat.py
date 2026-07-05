@@ -136,6 +136,47 @@ def _cache_language_key(message: str, language: str) -> str:
     return f"{normalized_lang}:{message.strip()}"
 
 
+from pydantic import BaseModel
+
+class TitleRequest(BaseModel):
+    first_message: str
+
+@router.post("/chat/title")
+@limiter.limit("20/minute")
+async def generate_title_endpoint(
+    request: Request,
+    body: TitleRequest,
+    container: ServiceContainer = Depends(get_container),
+):
+    """
+    Synchronously generate a short 3-6 word title for a conversation
+    using the active LLM service.
+    """
+    first_message = body.first_message.strip()
+    if not first_message:
+        return {"title": "New conversation"}
+
+    try:
+        system_prompt = "Create a concise, meaningful chat title. Return ONLY the title, no quotes, no punctuation, and keep it under 6 words."
+        user_prompt = f"Title this conversation: {first_message}"
+        
+        raw_title = await container.ollama.generate(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+        
+        title = raw_title.strip().replace('"', '').replace("'", "").strip()
+        if title:
+            if len(title) > 50:
+                title = title[:47] + "..."
+            return {"title": title}
+    except Exception as e:
+        logger.warning(f"Failed to generate conversation title via LLM: {e}")
+        
+    fallback = first_message[:47] + "..." if len(first_message) > 50 else first_message
+    return {"title": fallback}
+
+
 @router.post("/chat")
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat")
