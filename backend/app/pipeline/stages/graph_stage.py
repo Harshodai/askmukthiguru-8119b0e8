@@ -85,17 +85,20 @@ class GraphStage(Stage):
                 if initial_state.get("query_tier") is None:
                     initial_state["query_tier"] = "tier2_simple" if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION") else "tier3_complex"
 
-            # Kill #7: select_graph_for_query uses pure heuristics now (sub-1ms).
-            # It respects the detected_intent and query_tier from on-device and does NOT make
-            # an LLM call. We use the result to pick the graph variant but do
-            # NOT overwrite query_tier — on-device tier is authoritative.
+            # Kill #7: reuse query tier already determined by CacheCheckStage to avoid
+            # a redundant select_graph_for_query call. Falls back to calling it only
+            # if the cache stage didn't run (e.g., cache disabled).
             tier_for_graph = initial_state.get("query_tier", "standard")
-            graph_variant = await select_graph_for_query(
-                user_msg_en,
-                container=container,
-                detected_intent=detected_intent,
-                query_tier=tier_for_graph,
-            )
+            if ctx.detected_query_tier is not None:
+                # Fast path: CacheCheckStage already ran select_graph_for_query — reuse result.
+                graph_variant = ctx.detected_query_tier
+            else:
+                graph_variant = await select_graph_for_query(
+                    user_msg_en,
+                    container=container,
+                    detected_intent=detected_intent,
+                    query_tier=tier_for_graph,
+                )
             # Only set query_tier if on-device didn't already set it
             if "query_tier" not in initial_state or initial_state.get("query_tier") is None:
                 initial_state["query_tier"] = graph_variant

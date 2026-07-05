@@ -40,13 +40,15 @@ class CacheCheckStage(Stage):
         preferred_lang = ctx.preferred_lang
         container = ctx.container
 
-        # Determine query tier and dynamic cache threshold
+        # Determine query tier and dynamic cache threshold.
+        # Store result on ctx so GraphStage can reuse it — avoids redundant LLM classification.
         query_tier = "standard"
         if container:
             try:
                 from app.orchestrator_utils import select_graph_for_query
 
                 query_tier = await select_graph_for_query(query_text, container=container)
+                ctx.detected_query_tier = query_tier  # cache for GraphStage
             except Exception as e:
                 logger.warning(f"Failed to determine query tier for cache check: {e}")
 

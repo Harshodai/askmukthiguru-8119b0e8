@@ -17,6 +17,7 @@ from rag.prompts import (
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
+from rag.doc_utils import doc_text
 from services.confidence_scorer import calculate_confidence
 
 from . import _services
@@ -52,7 +53,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
         }
 
     await emit_status(config, "Reviewing the response for clarity...")
-    context = "\n\n".join(doc["text"] for doc in relevant_docs)
+    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
     is_faithful_strict = ld_result["score"] >= settings.faithfulness_floor
 
@@ -142,7 +143,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled CoVe + self-consistency blocks below
 
     await emit_status(config, "Verifying alignment with the teachings...")
-    context = "\n\n".join(doc["text"] for doc in relevant_docs)
+    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
 
     if not context or len(context.strip()) < 200:
         logger.warning(
@@ -314,7 +315,7 @@ async def explain_retrieval(state: GraphState, config: dict = None) -> dict:
         if not url:
             return None
         try:
-            user_prompt = f"Question: {question}\nTeaching: {doc['text'][:500]}"
+            user_prompt = f"Question: {question}\nTeaching: {doc_text(doc)[:500]}"
             t_out = get_node_timeout("explain_retrieval", 12)
             resp = await ollama.generate(
                 system_prompt=CITATION_REASONING_PROMPT,

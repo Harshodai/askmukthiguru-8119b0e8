@@ -66,3 +66,6 @@ class PipelineContext:
     # --- Per-stage telemetry (set by stages, read by StageRunner) ---
     last_stage_status: str = "success"
     last_stage_metadata: dict | None = None
+
+    # --- Query tier (set by CacheCheckStage, reused by GraphStage to avoid double LLM call) ---
+    detected_query_tier: str | None = None

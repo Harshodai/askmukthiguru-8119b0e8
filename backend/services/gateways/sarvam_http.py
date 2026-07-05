@@ -73,7 +73,7 @@ class SarvamHTTPGateway:
         # Rate limiting
         self._last_request_time = 0.0
         self._rate_limit_lock = AsyncLock()
-        self._max_tokens_limit = 32768
+        self._max_tokens_limit = 4096
 
         # Connection pooling
         self._http_client: httpx.AsyncClient | None = None
@@ -291,7 +291,7 @@ class SarvamHTTPGateway:
                             if payload.get("model") == "sarvam-m":
                                 logger.warning("Context exceeded on sarvam-m; upgrading → sarvam-30b")
                                 payload["model"] = "sarvam-30b"
-                                payload["max_tokens"] = min(payload.get("max_tokens", 32768), 32768)
+                                payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
                                 if span_ctx is not None:
                                     span_ctx.__exit__(None, None, None)
                                 continue  # retry immediately within while loop

@@ -68,19 +68,19 @@ class Settings(BaseSettings):
     sarvam_reasoning_effort: str = "medium"  # Default reasoning effort for main generation (low | medium | high)
     sarvam_reasoning_effort_fast: str = "low"   # Effort for fast/classification calls (intent routing, grading)
     sarvam_reasoning_effort_complex: str = "high"  # Effort for complex multi-hop, CoVe, and deep-reasoning queries
-    # Per-call HTTP timeout. Sarvam Cloud has a 30s server-side limit; Ollama tends to hang on
-    # slow models. Must be smaller than pipeline_timeout. Individual LLM calls that exceed this
-    # trigger retry logic in OllamaService.generate() (max_retries attempts with backoff).
-    llm_timeout: int = 60
-    # Total outer pipeline timeout — must comfortably exceed (llm_timeout × num_retries × num_calls).
-    # With 8 sequential LLM calls at 10-20s each and up to 2 retries, 120s gives healthy headroom.
-    pipeline_timeout: int = 180
+    # Per-call HTTP timeout. NIM/OpenRouter have low server-side limits; 45s provides
+    # adequate headroom while keeping total pipeline latency acceptable.
+    # Must be smaller than pipeline_timeout.
+    llm_timeout: int = 45  # reduced from 60 — NIM India→US typically responds in <20s
+    # Total outer pipeline timeout. With 3 sequential LLM calls at 15s each + retrieval,
+    # 120s is comfortable headroom without hanging users for 3+ minutes.
+    pipeline_timeout: int = 120  # reduced from 180
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # --- Timeout Budget ---
-    pipeline_timeout_budget: int = 300  # Total pipeline timeout budget in seconds
-    node_timeout_fast: int = 20  # Default fast-model node timeout
-    node_timeout_main: int = 90  # Default main-model node timeout
+    # pipeline_timeout_budget removed — dead config, never read. Use pipeline_timeout instead.
+    node_timeout_fast: int = 15  # reduced from 20
+    node_timeout_main: int = 20  # reduced from 90 — prevents 90s hangs on slow Qdrant/Neo4j
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
 
@@ -346,8 +346,10 @@ class Settings(BaseSettings):
     searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
     # Coverage-gap: if ALL retrieved docs score below this, treat as zero-coverage → fire web search
     web_search_coverage_threshold: float = 0.08
-    # LightRAG per-call timeout headroom (prevents 145s spike seen in logs)
-    lightrag_retrieval_timeout: int = 30
+    # LightRAG per-call timeout headroom. LightRAG makes internal LLM calls for entity
+    # extraction at query time — cap tightly to prevent single-query 30s hangs.
+    # For tier2_simple queries, graph_stage.py skips LightRAG entirely.
+    lightrag_retrieval_timeout: int = 8  # reduced from 30 — saves up to 22s per query
 
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces
@@ -423,7 +425,13 @@ class Settings(BaseSettings):
     lettuce_detect_threshold: float = 0.25
     cove_supported_threshold: float = 0.8
     cove_partial_threshold: float = 0.5
-    faithfulness_floor: float = 0.8
+    # WHY 0.60: measured LettuceDetect scores for GOOD grounded answers on this
+    # corpus sit at 0.71-0.74 (spiritual paraphrase never reaches 0.8). At the
+    # old 0.8 floor, reflect_on_answer rejected every complex answer → 2 CRAG
+    # rewrites → fallback ("I don't have that specific teaching") in 60-140s.
+    # 0.60 clears real answers with margin; garbage still fails (<0.25 detector
+    # floor). Do not raise without re-measuring the score distribution.
+    faithfulness_floor: float = 0.6
     confidence_gating_floor: float = 6.5
     verifier_pass_ratio: float = 0.5
     rerank_threshold_complex: float = 0.01

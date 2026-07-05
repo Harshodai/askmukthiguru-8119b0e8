@@ -319,7 +319,12 @@ class StandardGraphStrategy(GraphStrategy):
         )
         graph.add_edge("verify_answer", "extract_citations")
         graph.add_edge("extract_citations", "format_final_answer")
-        graph.add_edge("explain_retrieval", "format_final_answer")
+        # explain_retrieval must NOT feed format_final_answer: LangGraph edges are
+        # OR-triggers, so the fast explain lane fired format before reflect/verify
+        # wrote is_faithful — every standard-tier answer was rejected as
+        # "faithful=None" and burned the retry loop into the fallback response.
+        # Its citation_reasoning still lands in state; ainvoke waits for all nodes.
+        graph.add_edge("explain_retrieval", END)
 
         # --- Reject-and-retry loop ---
         graph.add_conditional_edges(
@@ -572,8 +577,12 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_edge("generate_answer", "check_contradiction")  # parallel branch
         graph.add_edge("verify_answer", "extract_citations")
         graph.add_edge("extract_citations", "format_final_answer")
-        graph.add_edge("check_contradiction", "format_final_answer")
-        graph.add_edge("explain_retrieval", "format_final_answer")
+        # OR-trigger semantics: parallel check_contradiction / explain_retrieval
+        # lanes finished before the reflect→verify lane and fired format early
+        # with is_faithful unset → spurious rejection + retry churn. They end
+        # their own branches; state writes still merge before ainvoke returns.
+        graph.add_edge("check_contradiction", END)
+        graph.add_edge("explain_retrieval", END)
 
         # --- Reject-and-retry loop ---
         graph.add_conditional_edges(

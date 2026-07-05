@@ -10,6 +10,7 @@ from rag.compressor import compress_documents
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import check_sufficiency
+from rag.doc_utils import doc_text
 
 from . import _services
 from .utils import _grounded_citation_urls, _trace_update, emit_status, log_metrics, settings
@@ -321,7 +322,10 @@ async def check_context_sufficiency(state: GraphState, config: dict = None) -> d
     if not relevant_docs:
         return {}
 
-    context = "\n\n".join(doc["text"] for doc in relevant_docs)
+    # Docs carry "text" or "content" depending on retriever — never KeyError here:
+    # a crash in this node used to wipe relevant_docs and send every complex query
+    # into the CRAG rewrite loop until fallback (60s+ wasted per query).
+    context = "\n\n".join((doc.get("text") or doc.get("content") or "") for doc in relevant_docs)
     t_out = get_node_timeout("check_context_sufficiency", 12)
     result = await check_sufficiency(question, context, ollama, timeout=t_out, max_retries=1)
 
@@ -364,13 +368,13 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
                     seen_hashes.add(h)
                     enriched_docs.append(n)
         else:
-            h = hash(doc["text"][:100])
+            h = hash(doc_text(doc)[:100])
             if h not in seen_hashes:
                 seen_hashes.add(h)
                 enriched_docs.append(doc)
 
     for doc in relevant_docs[3:]:
-        h = hash(doc["text"][:100])
+        h = hash(doc_text(doc)[:100])
         if h not in seen_hashes:
             seen_hashes.add(h)
             enriched_docs.append(doc)

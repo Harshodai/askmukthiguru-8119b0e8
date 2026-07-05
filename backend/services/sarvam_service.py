@@ -109,7 +109,7 @@ class SarvamCloudService:
         self._circuit = DefaultCircuitBreaker(sarvam_config)
         self._last_request_time = 0.0
         self._rate_limit_lock = AsyncLock()
-        self._max_tokens_limit = 32768
+        self._max_tokens_limit = 4096
 
         # Connection pooling: Create a singleton httpx.AsyncClient with pool limits
         self._http_client = None

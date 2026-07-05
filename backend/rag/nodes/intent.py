@@ -38,6 +38,7 @@ from rag.query_patterns import (
     DOCTRINE_SIMPLE_PATTERNS as _SIMPLE_QUERY_PATTERNS,
     DOCTRINE_TEMPORAL_PATTERNS as _TEMPORAL_PATTERNS,
 )
+from rag.doc_utils import doc_text
 
 
 def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None:
@@ -430,7 +431,7 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
     queries like "how do i practice soul sync" if LLM misclassifies.
     """
     if state.get("final_answer"):
-        return state
+        return {}  # answer already produced — write nothing (returning full state collides with parallel writers)
 
     _SPIRITUAL_PRACTICE_SIGNALS = [
         r"\bpractice\b", r"\bpracticing\b", r"\bhow\s+(do|can|should)\s+i\b",
@@ -508,7 +509,7 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
 
     if relevant_docs:
         context = "\n\n---\n\n".join(
-            f"[Source: {doc.get('title', 'Unknown')}]\n{doc['text']}" for doc in relevant_docs[:3]
+            f"[Source: {doc.get('title', 'Unknown')}]\n{doc_text(doc)}" for doc in relevant_docs[:3]
         )
 
         prompt = f"""The user is in emotional distress. Their message: {question}

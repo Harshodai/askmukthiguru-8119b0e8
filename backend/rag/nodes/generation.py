@@ -14,6 +14,7 @@ from rag.prompts import (
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
+from rag.doc_utils import doc_text
 from services.cache_service import InMemoryCacheAdapter
 from services.language_router import LanguageCode, LanguageRouter
 
@@ -167,7 +168,7 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         knowledge_budget = 3072  # standard
     knowledge = "\n\n".join(
         [
-            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
+            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
             for doc in relevant_docs
         ]
     )
@@ -544,7 +545,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if use_compression and total_raw_len > threshold:
             async def compress_and_format(doc):
                 t_out = get_node_timeout("default_fast", 15.0)
-                compressed_text = await ollama.compress_context(question=question, text=doc["text"], timeout=t_out)
+                compressed_text = await ollama.compress_context(question=question, text=doc_text(doc), timeout=t_out)
                 if compressed_text:
                     title = doc.get("title", doc.get("source_url", "Unknown"))
                     return f"[Source: {title}]\n{compressed_text}"
@@ -559,7 +560,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 context = "\n\n---\n\n".join(valid_compressed)
             else:
                 context = "\n\n---\n\n".join(
-                    f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+                    f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc_text(doc)}"
                     for doc in relevant_docs
                 )
         else:
@@ -568,7 +569,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 f"total_len={total_raw_len}, threshold={threshold}), formatting raw context directly"
             )
             context = "\n\n---\n\n".join(
-                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc_text(doc)}"
                 for doc in relevant_docs
             )
     else:
@@ -947,7 +948,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     new_relevant_docs.append(doc)
 
             context = "\n\n---\n\n".join(
-                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc['text']}"
+                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc_text(doc)}"
                 for doc in new_relevant_docs
             )
 
@@ -955,7 +956,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 layers_copy = dict(layers)
                 knowledge = "\n\n".join(
                     [
-                        f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc['text']}"
+                        f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
                         for doc in new_relevant_docs
                     ]
                 )
@@ -1396,6 +1397,14 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     elif intent in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"] and answer:
         logger.info(
             f"Final: Allowing {intent} answer through despite verification failure"
+        )
+    elif is_faithful is None and answer and len(answer.strip()) > 50 and citations:
+        # Verification lane hasn't written is_faithful yet (None ≠ failed).
+        # Rejecting here throws away substantive cited answers and triggers
+        # the retry/fallback spiral — accept and let post-hoc checks log.
+        logger.info(
+            f"Final: verification pending — accepting substantive cited answer "
+            f"(len={len(answer)}, citations={len(citations)})"
         )
     else:
         logger.warning(
