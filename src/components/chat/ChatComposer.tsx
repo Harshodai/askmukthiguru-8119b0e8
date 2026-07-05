@@ -198,20 +198,6 @@ export function ChatComposer({
           <div className="flex-1" />
 
           <div className="flex items-center gap-1">
-            {showThinking && (
-              <div className="flex items-center gap-2 mr-2">
-                <ThinkingPills
-                  steps={pipelineSteps}
-                  visible={showThinking}
-                  heartbeat={pipelineHeartbeat}
-                  fallbackLabel={
-                    isStreaming
-                      ? 'The Guru is reflecting…'
-                      : 'Analyzing…'
-                  }
-                />
-              </div>
-            )}
 
             {/* Always-visible mic — voice input was buried in the language dropdown */}
             {(
