@@ -51,14 +51,34 @@ async def test_memory_service_search_semantic():
 
     embedding_mock.encode_single_full.assert_called_with("Soul Sync")
     supabase_mock.rpc.assert_called_with(
-        "match_user_memories",
+        "match_user_memories_by_user",
         {
+            "p_user_id": "user123",
             "p_query_embedding": [0.1] * 1024,
             "p_k": 5,
             "p_min_sim": 0.6,
         }
     )
     assert res == mock_data
+
+
+@pytest.mark.asyncio
+async def test_memory_service_search_fail_fast_after_repeated_failures():
+    """After 3 consecutive RPC failures, search is disabled for the process."""
+    supabase_mock = MagicMock()
+    supabase_mock.rpc.side_effect = RuntimeError("not_authenticated")
+
+    embedding_mock = MagicMock()
+    embedding_mock.encode_single_full.return_value = {"dense": [0.1] * 1024}
+
+    service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
+    for _ in range(3):
+        assert await service.search_semantic("user123", "Soul Sync") == []
+
+    assert service._search_disabled is True
+    calls_before = supabase_mock.rpc.call_count
+    assert await service.search_semantic("user123", "Soul Sync") == []
+    assert supabase_mock.rpc.call_count == calls_before  # no further RPC attempts
 
 @pytest.mark.asyncio
 async def test_memory_service_recent_summaries():

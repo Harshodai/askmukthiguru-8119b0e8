@@ -27,10 +27,17 @@ class MemoryService:
     Uses Supabase PostgreSQL for persistence and local embedding service for vector queries.
     """
 
+    # After this many consecutive auth/RPC failures, stop attempting semantic
+    # search for the process lifetime — a misconfigured key otherwise adds an
+    # error + stack unwind to EVERY user query without ever succeeding.
+    _SEARCH_FAILURE_LIMIT = 3
+
     def __init__(self, supabase_client=None, embedding_service=None, llm_service=None):
         self._supabase = supabase_client
         self._embedding_service = embedding_service
         self._llm_service = llm_service
+        self._search_failures = 0
+        self._search_disabled = False
 
     async def get_core(self, user_id: str) -> list[dict[str, Any]]:
         """Retrieve core memories for a user."""
@@ -52,8 +59,8 @@ class MemoryService:
     async def search_semantic(
         self, user_id: str, query: str, limit: int = 5, min_similarity: float = 0.6
     ) -> list[dict[str, Any]]:
-        """Search episodic memories using semantic vector search via the match_user_memories RPC."""
-        if not self._supabase or not self._embedding_service:
+        """Search episodic memories using semantic vector search via the match_user_memories_by_user RPC."""
+        if not self._supabase or not self._embedding_service or self._search_disabled:
             return []
         try:
             # Generate query embedding
@@ -61,21 +68,32 @@ class MemoryService:
             emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, query)
             query_embedding = emb_dict["dense"]
 
-            # Call the match_user_memories RPC function
-            # NOTE: DB signature has 3 params (no p_user_id) — do NOT add it back
+            # Call the match_user_memories_by_user RPC function
             result = await asyncio.to_thread(
                 self._supabase.rpc(
-                    "match_user_memories",
+                    "match_user_memories_by_user",
                     {
+                        "p_user_id": user_id,
                         "p_query_embedding": query_embedding,
                         "p_k": limit,
                         "p_min_sim": min_similarity,
                     },
                 ).execute
             )
+            self._search_failures = 0
             return result.data if result and hasattr(result, "data") else []
         except Exception as e:
-            logger.error(f"Semantic search failed for {user_id}: {e}")
+            self._search_failures += 1
+            if self._search_failures >= self._SEARCH_FAILURE_LIMIT:
+                self._search_disabled = True
+                logger.error(
+                    "Semantic memory search disabled for this process after %d consecutive "
+                    "failures (last: %s). Fix the Supabase key/RPC and restart to re-enable.",
+                    self._search_failures,
+                    e,
+                )
+            else:
+                logger.error(f"Semantic search failed for {user_id}: {e}")
             return []
 
     async def recent_summaries(self, user_id: str, limit: int = 3) -> list[dict[str, Any]]:
