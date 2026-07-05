@@ -71,6 +71,7 @@ import {
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
+import { buildGreeting, greetingPrefix } from '@/lib/greeting';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
@@ -192,17 +193,7 @@ const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
 
 
 
-const greetingPrefix = (slug: string | undefined): string => {
-  if (slug === 'sri_preethaji' || slug === 'sri_krishnaji') return 'Namaste';
-  if (slug === 'sadhguru') return 'Namaskaram';
-  return 'Namaste';
-};
-
-const greetingSuffix = (slug: string | undefined, name: string): string => {
-  if (slug === 'sri_preethaji' || slug === 'sri_krishnaji') return ` ${name} Ji`;
-  if (slug === 'sadhguru') return ` ${name}`;
-  return name ? `, ${name}` : '';
-};
+// Time-of-day + persona greeting logic lives in src/lib/greeting.ts (unit-tested).
 
 const WELCOME_MESSAGE = (slug: string | undefined): string =>
   `${greetingPrefix(slug)}, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.`;
@@ -1579,7 +1570,7 @@ return (
                   transition={{ delay: 0.1 }}
                   className="text-xl sm:text-2xl font-serif text-foreground/90"
                 >
-                  {greetingPrefix(selected?.slug)}{greetingSuffix(selected?.slug, profile.displayName ?? '')}
+                  {buildGreeting(selected?.slug, profile.displayName ?? '')}
                 </motion.h2>
               </div>
 

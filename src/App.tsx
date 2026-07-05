@@ -34,6 +34,7 @@ const QueriesPage = lazy(() => import("./admin/pages/QueriesPage"));
 const QualityPage = lazy(() => import("./admin/pages/QualityPage"));
 const RetrievalPage = lazy(() => import("./admin/pages/RetrievalPage"));
 const DailyTeachingPage = lazy(() => import("./admin/pages/DailyTeachingPage"));
+const TeachingTipsPage = lazy(() => import("./admin/pages/TeachingTipsPage"));
 const TriggersPage = lazy(() => import("./admin/pages/TriggersPage"));
 const TopicsPage = lazy(() => import("./admin/pages/TopicsPage"));
 const PromptsPage = lazy(() => import("./admin/pages/PromptsPage"));
@@ -86,6 +87,7 @@ const App = () => {
               <Route path="quality" element={<QualityPage />} />
               <Route path="retrieval" element={<RetrievalPage />} />
               <Route path="daily-teaching" element={<DailyTeachingPage />} />
+              <Route path="teaching-tips" element={<TeachingTipsPage />} />
               <Route path="triggers" element={<TriggersPage />} />
               <Route path="topics" element={<TopicsPage />} />
               <Route path="prompts" element={<PromptsPage />} />

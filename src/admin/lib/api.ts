@@ -51,6 +51,30 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
   return response.json();
 }
 
+/* ── Wisdom Tips (teachings shown while answers generate) ────────────────── */
+export interface WisdomTipDto {
+  id: string;
+  text: string;
+  source: string;
+  teacher: string;
+}
+
+export interface WisdomTipsPayload {
+  tips: WisdomTipDto[];
+  generated_at: string;
+  expires_at: string;
+}
+
+export async function getWisdomTips(): Promise<WisdomTipsPayload> {
+  const response = await fetch(`${BACKEND_URL}/api/teachings/tips`);
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  return response.json();
+}
+
+export async function regenerateWisdomTips(): Promise<WisdomTipsPayload> {
+  return fetchWithAuth('/api/admin/teachings/regenerate', { method: 'POST' });
+}
+
 /* ── Helper: backend-first with dev-only mock fallback ───────────────────── */
 function withDevFallback<T>(
   label: string,
