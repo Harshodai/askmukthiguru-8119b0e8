@@ -37,6 +37,20 @@ def collect_sub_results(existing: list, new: list) -> list:
     return existing + [new]
 
 
+def take_max(left: int, right: int) -> int:
+    """Reducer for monotone counters written by concurrent branches (e.g. CRAG
+    rewrite rounds): both branches increment from the same base, so max keeps
+    the true round count instead of raising InvalidUpdateError."""
+    return max(left or 0, right or 0)
+
+
+def keep_latest(left, right):
+    """Reducer for single-value channels that concurrent branches may both set;
+    the newest write wins. Only None counts as "no value" — False/0/[]/"" are
+    legitimate writes (e.g. needs_correction=False must clear a stale True)."""
+    return left if right is None else right
+
+
 class GraphState(TypedDict):
     """
     Complete state for the Mukthi Guru RAG pipeline.
@@ -97,19 +111,22 @@ class GraphState(TypedDict):
     # Request correlation ID ( propagated through every node for log correlation )
     request_id: Optional[str]
 
-    # Routing
-    intent: Optional[str]
+    # Routing (multi-writer: intent_router, casual redirect guard, distress path)
+    intent: Annotated[Optional[str], keep_latest]
 
     # Retrieval
-    documents: list[dict]
-    reranked_docs: list[dict]
+    # keep_latest reducers: the CRAG rewrite loop re-enters retrieve→rerank→grade
+    # while the explain/generation lane is still ticking, so these channels can
+    # receive two same-tick writes (InvalidUpdateError without a reducer).
+    documents: Annotated[list, keep_latest]
+    reranked_docs: Annotated[list, keep_latest]
     hyde_text: Optional[str]  # Hypothetical answer for HyDE retrieval
 
     # CRAG
-    relevant_docs: list[dict]
-    grading_reasons: list[str]  # Reasoning for document relevance/irrelevance
-    rewrite_count: int
-    rewritten_query: Optional[str]
+    relevant_docs: Annotated[list, keep_latest]
+    grading_reasons: Annotated[list, keep_latest]  # Reasoning for document relevance/irrelevance
+    rewrite_count: Annotated[int, take_max]
+    rewritten_query: Annotated[Optional[str], keep_latest]
 
     # Decomposition
     sub_queries: list[str]
@@ -127,20 +144,20 @@ class GraphState(TypedDict):
     # Stimulus RAG
     hints: list[str]
 
-    # Generation
-    answer: Optional[str]
-    citations: list[str]
+    # Generation (multi-writer lanes — keep_latest prevents same-tick InvalidUpdateError)
+    answer: Annotated[Optional[str], keep_latest]
+    citations: Annotated[list, keep_latest]
 
     # Self-RAG
-    is_faithful: Optional[bool]
+    is_faithful: Annotated[Optional[bool], keep_latest]
 
     # Self-Reflection RAG (Nir Diamant pattern)
-    needs_correction: bool
+    needs_correction: Annotated[bool, keep_latest]
     reflection_feedback: Optional[str]
 
     # CoVe
     verification: Optional[dict]
-    confidence_score: Optional[float]  # 1-10 confidence from combined verification
+    confidence_score: Annotated[Optional[float], keep_latest]  # 1-10 confidence from combined verification
 
     # Guardrails
     input_blocked: bool
@@ -151,9 +168,9 @@ class GraphState(TypedDict):
     meditation_step: int
     meditation_response: Optional[str]
 
-    # Final
-    final_answer: Optional[str]
-    error: Optional[str]
+    # Final (13 writer nodes across casual/distress/fallback/format lanes)
+    final_answer: Annotated[Optional[str], keep_latest]
+    error: Annotated[Optional[str], keep_latest]
 
     # Context Engineering
     context_layers: Optional[dict]  # {persona, knowledge, instructions, user_state}
@@ -169,7 +186,7 @@ class GraphState(TypedDict):
     detected_language: Optional[str]
     memory_context: Optional[str]
     ab_model: Optional[str]  # "primary" or "krutrim" for A/B testing
-    query_tier: Optional[str]  # "fast" vs "standard" vs "deep"
+    query_tier: Annotated[Optional[str], keep_latest]  # "fast" vs "standard" vs "deep"
     model_used: Optional[str]
     model_provider: Optional[str]
     route_decision: Optional[str]
