@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Sparkles, Download, Library } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Download, Library } from 'lucide-react';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
 
@@ -59,7 +59,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
           )}
 
           <span className="flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none" data-testid="chat-header-wordmark">
-            <Sparkles className="w-3.5 h-3.5 text-ojas" />
+            <span className="text-sm leading-none" aria-hidden="true">🙏</span>
             AskMukthiGuru
           </span>
         </div>

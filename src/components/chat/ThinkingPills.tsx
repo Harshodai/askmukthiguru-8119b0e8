@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Check, ChevronDown, Circle, Loader2 } from 'lucide-react';
 
+import { useWisdomTips } from '@/hooks/useWisdomTips';
+
 export interface PipelineStep {
   id: string;
   label: string;
@@ -53,6 +55,9 @@ export const ThinkingPills = ({
   fallbackLabel = 'Reflecting on the teachings…',
 }: ThinkingPillsProps) => {
   const [expanded, setExpanded] = useState(false);
+
+  // Rotating wisdom tip — turns the wait into a moment of teaching.
+  const wisdomTip = useWisdomTips(visible);
 
   // Elapsed seconds — gives a gentle "still working" reassurance after a while.
   const [elapsed, setElapsed] = useState(0);
@@ -183,6 +188,28 @@ export const ThinkingPills = ({
                 })}
               </ul>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Wisdom tip while waiting — appears after ~2s, rotates every 8s */}
+        <AnimatePresence mode="wait">
+          {wisdomTip && (
+            <motion.blockquote
+              key={wisdomTip.id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="mt-2 max-w-[52ch] border-l-2 border-ojas/30 pl-3 py-0.5"
+              data-testid="wisdom-tip"
+            >
+              <p className="font-serif italic text-[12.5px] leading-relaxed text-muted-foreground">
+                “{wisdomTip.text}”
+              </p>
+              <footer className="mt-1 text-[10px] tracking-wide text-muted-foreground/60">
+                🪷 {wisdomTip.teacher}
+              </footer>
+            </motion.blockquote>
           )}
         </AnimatePresence>
       </div>

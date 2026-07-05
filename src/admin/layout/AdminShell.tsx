@@ -20,6 +20,7 @@ import {
   Network,
   BookOpen,
   LineChart,
+  Quote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const NAV = [
   { to: "/admin/rag-flow", label: "RAG Flow", icon: Network },
   { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
   { to: "/admin/daily-teaching", label: "Daily Teaching", icon: Image },
+  { to: "/admin/teaching-tips", label: "Teaching Tips", icon: Quote },
   { to: "/admin/triggers", label: "Triggers", icon: Activity },
   { to: "/admin/topics", label: "Topics", icon: Sparkles },
   { to: "/admin/prompts", label: "Prompts", icon: FileText },
