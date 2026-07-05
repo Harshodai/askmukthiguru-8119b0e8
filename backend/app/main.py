@@ -493,7 +493,7 @@ async def inflight_tracker(request: Request, call_next):
 
 
 # ── Global request-level timeout middleware ──
-# Caps every HTTP request at pipeline_timeout_budget (default 300s).
+# Caps every HTTP request at pipeline_timeout (default 180s).
 # Streaming (SSE) paths are excluded — they intentionally hold the connection open.
 _STREAMING_PATHS: frozenset[str] = frozenset({"/api/chat/stream"})
 
