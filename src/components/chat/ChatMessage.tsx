@@ -1,8 +1,9 @@
 import { forwardRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
 import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
@@ -228,6 +229,23 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         setTimeout(() => setCopied(false), 1500);
       } catch { /* ignore */ }
     }, [message.content]);
+
+    // Per-message read-aloud. speak() cancels any other message's speech, so
+    // one utterance plays at a time across the conversation.
+    const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTextToSpeech();
+    const handleSpeak = useCallback(() => {
+      if (isSpeaking) {
+        stopSpeaking();
+        return;
+      }
+      const plainText = message.content
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, ' ')
+        .replace(/[#*_>`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (plainText) speak(plainText);
+    }, [isSpeaking, stopSpeaking, speak, message.content]);
 
     const handleSaveToMemory = useCallback(async () => {
       if (saved || savingMemory) return;
@@ -575,6 +593,20 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
+                  {ttsSupported && (
+                    <button
+                      onClick={handleSpeak}
+                      aria-pressed={isSpeaking}
+                      className={`p-1 rounded-full transition-colors ${
+                        isSpeaking
+                          ? 'bg-ojas/15 text-ojas'
+                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                      }`}
+                      title={isSpeaking ? 'Stop reading' : 'Read aloud'}
+                    >
+                      {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
+                  )}
                   <button
                     onClick={handleSaveToMemory}
                     disabled={saved || savingMemory}
