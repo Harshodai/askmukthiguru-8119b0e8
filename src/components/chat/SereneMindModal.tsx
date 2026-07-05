@@ -316,7 +316,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
                       role="tab"
                       aria-selected={active}
                       onClick={() => setActiveTab(t.id)}
-                      className={`inline-flex items-center gap-1.5 px-4.5 py-2 rounded-full text-xs font-medium transition-all ${
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all ${
                         active
                           ? 'bg-card text-ojas shadow-sm'
                           : 'text-muted-foreground hover:text-foreground'
