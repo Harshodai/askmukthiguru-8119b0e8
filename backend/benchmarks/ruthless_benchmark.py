@@ -572,22 +572,13 @@ async def init_llm_service():
     global _llm_service
     if _llm_service is not None:
         return _llm_service
-    
+
     try:
         from app.config import settings
+        from services.llm import LLMProviderFactory
         provider = settings.llm_provider.lower()
-        if provider == "sarvam_cloud":
-            from services.sarvam_service import SarvamCloudService
-            _llm_service = SarvamCloudService()
-            print("  🤖 Query Rewriter: Initialized SarvamCloudService")
-        elif provider == "openrouter":
-            from services.openrouter_service import OpenRouterService
-            _llm_service = OpenRouterService()
-            print("  🤖 Query Rewriter: Initialized OpenRouterService")
-        else:
-            from services.ollama_service import OllamaService
-            _llm_service = OllamaService()
-            print("  🤖 Query Rewriter: Initialized OllamaService")
+        _llm_service = LLMProviderFactory.create_provider(provider)
+        print(f"  🤖 Query Rewriter: Initialized active provider ({provider}) via LLMProviderFactory")
     except Exception as e:
         print(f"  ⚠️ Could not initialize active LLM service for query rewriter: {e}")
         _llm_service = None

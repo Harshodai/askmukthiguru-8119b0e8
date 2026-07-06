@@ -19,10 +19,10 @@ describe('timeOfDay', () => {
 
 describe('greetingPrefix', () => {
   it('uses Indic time greetings for Preethaji/Krishnaji personas', () => {
-    expect(greetingPrefix('sri_preethaji', at(8))).toBe('Suprabhat');
-    expect(greetingPrefix('sri_krishnaji', at(14))).toBe('Namaste');
-    expect(greetingPrefix('sri_preethaji', at(18))).toBe('Shubh Sandhya');
-    expect(greetingPrefix('sri_krishnaji', at(23))).toBe('Namaste');
+    expect(greetingPrefix('sri_preethaji', at(8))).toBe('Good morning');
+    expect(greetingPrefix('sri_krishnaji', at(14))).toBe('Good afternoon');
+    expect(greetingPrefix('sri_preethaji', at(18))).toBe('Good evening');
+    expect(greetingPrefix('sri_krishnaji', at(23))).toBe('Good evening');
   });
 
   it('always greets Namaskaram for Sadhguru regardless of hour', () => {
@@ -31,7 +31,7 @@ describe('greetingPrefix', () => {
   });
 
   it('falls back to time greeting for unknown personas', () => {
-    expect(greetingPrefix(undefined, at(8))).toBe('Suprabhat');
+    expect(greetingPrefix(undefined, at(8))).toBe('Good morning');
   });
 });
 
@@ -54,8 +54,8 @@ describe('greetingSuffix', () => {
 
 describe('buildGreeting', () => {
   it('composes the full display greeting', () => {
-    expect(buildGreeting('sri_preethaji', 'Harshoda', at(7))).toBe('Suprabhat, Harshoda Ji');
-    expect(buildGreeting('sri_krishnaji', 'Harshoda', at(18))).toBe('Shubh Sandhya, Harshoda Ji');
+    expect(buildGreeting('sri_preethaji', 'Harshoda', at(7))).toBe('Good morning, Harshoda Ji');
+    expect(buildGreeting('sri_krishnaji', 'Harshoda', at(18))).toBe('Good evening, Harshoda Ji');
     expect(buildGreeting('sadhguru', 'Harshoda', at(7))).toBe('Namaskaram, Harshoda');
   });
 });

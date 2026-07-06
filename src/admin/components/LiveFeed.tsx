@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useLiveFeed } from "@/admin/hooks/useAdminData";
 import { fmtMs, truncate } from "@/admin/lib/formatters";
-import { Activity } from "lucide-react";
+import { Activity, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function LiveFeed() {
@@ -29,7 +29,7 @@ export function LiveFeed() {
             className="text-xs flex items-center gap-2 border-b border-border/50 pb-1.5 last:border-0"
           >
             {e.status === 'error' ? (
-              <Badge variant="destructive" className="h-4 text-[10px]">⚠</Badge>
+              <Badge variant="destructive" className="h-4 text-[10px] gap-0.5"><AlertTriangle className="w-2.5 h-2.5" /></Badge>
             ) : (
               <Badge variant="secondary" className="h-4 text-[10px]">ok</Badge>
             )}

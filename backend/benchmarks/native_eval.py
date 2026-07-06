@@ -18,7 +18,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from benchmarks.question_bank import QUERIES
 from guardrails import LightweightGuardrails
 from services.embedding_service import EmbeddingService
-from services.ollama_service import OllamaService
+from services.llm import LLMProviderFactory
 from services.qdrant_service import QdrantService
 
 
@@ -28,7 +28,8 @@ async def run_native_evaluation(limit: int = 5):
     print("=" * 60 + "\n")
 
     try:
-        ollama = OllamaService()
+        from app.config import settings
+        provider = LLMProviderFactory.create_provider(settings.llm_provider)
         embedder = EmbeddingService()
         qdrant = QdrantService()
         guardrails = LightweightGuardrails()
@@ -105,7 +106,7 @@ async def run_native_evaluation(limit: int = 5):
             precision_score = 0.0
             if docs:
                 doc_texts = [d["text"] for d in docs]
-                grades = await ollama.batch_grade_relevance(query, doc_texts)
+                grades = await provider.grade_relevance(question=query, doc_texts=doc_texts)
                 relevant_count = sum(1 for g in grades if g.get("relevant", False))
                 precision_score = relevant_count / len(docs)
                 print(

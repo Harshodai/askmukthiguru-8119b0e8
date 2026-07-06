@@ -166,6 +166,17 @@
     html.theme-transition *::after {
       transition: none !important;
     }
+
+    /* Stop looping motion (Tailwind's spin/pulse/ping utilities and any
+       infinite Framer Motion animation) for users who asked the OS for
+       reduced motion — these utilities have no reduced-motion variant
+       of their own. */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
   }
 }
 

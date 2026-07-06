@@ -8,14 +8,14 @@ interface InlineActionsProps {
 }
 
 const ACTIONS = [
-  { label: "Tell me more", icon: Sparkles, getQuery: (content: string) => `Tell me more about this: ${content.slice(0, 100)}` },
-  { label: "Explain simply", icon: Lightbulb, getQuery: (content: string) => `Explain this in simpler terms: ${content.slice(0, 100)}` },
-  { label: "How relates to me", icon: User, getQuery: (content: string) => `How does this relate to my personal journey? ${content.slice(0, 100)}` },
+  { label: "Tell me more", icon: Sparkles, getQuery: (content: string) => `Tell me more about this: ${content}` },
+  { label: "Explain simply", icon: Lightbulb, getQuery: (content: string) => `Explain this in simpler terms: ${content}` },
+  { label: "How relates to me", icon: User, getQuery: (content: string) => `How does this relate to my personal journey? ${content}` },
 ];
 
 export function InlineActions({ messageContent, onAction }: InlineActionsProps) {
   return (
-    <div className="flex flex-wrap gap-2 mt-3">
+    <div className="flex flex-wrap gap-2 mt-2">
       {ACTIONS.map((action) => (
         <Button
           key={action.label}

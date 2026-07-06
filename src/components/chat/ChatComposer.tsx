@@ -85,7 +85,7 @@ export function ChatComposer({
 
   return (
     <motion.div
-      layoutId="chat-composer"
+
       className="w-full max-w-3xl mx-auto"
     >
       <form

@@ -15,6 +15,17 @@ import { Pencil, Plus, Trash2, Play, Loader2 } from "lucide-react";
 import { fmtDateTime, fmtPct } from "@/admin/lib/formatters";
 import { MetricDelta } from "@/admin/components/MetricDelta";
 import { GoldenQuestionDialog } from "@/admin/components/GoldenQuestionDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { deleteGoldenQuestion } from "@/admin/lib/mockData";
 import { runEval } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
@@ -139,21 +150,38 @@ export default function EvalsPage() {
               <Button
                 size="icon"
                 variant="ghost"
+                aria-label="Edit golden question"
                 onClick={() => { setEditing(g); setDialogOpen(true); }}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={async () => {
-                  await deleteGoldenQuestion(g.id);
-                  qc.invalidateQueries({ queryKey: ["admin", "golden"] });
-                  toast.success("Deleted");
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="icon" variant="ghost" aria-label="Delete golden question">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this golden question?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      &ldquo;{g.question}&rdquo; will be permanently removed from the regression-scoring dataset. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        await deleteGoldenQuestion(g.id);
+                        qc.invalidateQueries({ queryKey: ["admin", "golden"] });
+                        toast.success("Deleted");
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ))}
         </CardContent>

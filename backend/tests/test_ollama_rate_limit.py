@@ -6,12 +6,16 @@ import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from app.config import settings
 from ollama import ResponseError
 
 from services.ollama_service import OllamaService
 
 
 def _svc_with_mocked_circuit():
+    # Tests exercise OllamaService internals; temporarily bypass cloud-only guard.
+    settings.ollama_cloud_only = False
     svc = OllamaService()
     svc._circuit_breaker = MagicMock()
     svc._circuit_breaker.can_execute.return_value = True

@@ -1,0 +1,43 @@
+# CLAUDE.md — backend/
+
+Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents the full RAG graph node-by-node; this file covers what you need while editing backend code. Python 3.12 (`.python-version`), venv at `backend/.venv/`.
+
+## Commands (run from backend/)
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload   # run API (needs infra below)
+docker compose up -d qdrant redis neo4j jaeger              # infra only; Ollama runs on the host
+docker compose up -d --build                                # full stack incl. backend
+
+.venv/bin/pytest                          # all tests
+.venv/bin/pytest tests/test_nodes.py      # one file
+.venv/bin/pytest tests/test_nodes.py -k name_fragment      # one test
+```
+
+Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by the user, not automated). Individual scripts: `python3 benchmarks/ruthless_benchmark.py --endpoint http://localhost:8000`.
+
+## Request flow (chat)
+
+`POST /api/chat` → `app/orchestrator.py` (sync) or `app/stream_orchestrator.py` (SSE) → `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()` → `StageRunner` runs the ordered stage chain from `app/pipeline/stages/pipeline_builder.py`:
+
+```
+CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
+→ CasualShortCircuit → Distress → Graph → MeditationGen → Translation
+→ Memory → OutputGuardrail → CacheUpdate → ResultAssembly
+```
+
+- Stages are pure functions over a `PipelineContext` (`app/pipeline/stages/context.py`), unit-testable in isolation; they reach services via `ctx.container` and coordinator helpers via `ctx.coordinator`.
+- `GraphStage` executes the LangGraph: `rag/graph.py` is a thin facade over `rag/graph_strategies.py` (Fast/Standard/Deep); nodes live in `rag/nodes/`. The node data contract is the `GraphState` TypedDict in `rag/states.py` (carries `request_id` for log correlation).
+
+## Hard rules
+
+- `app/dependencies.py` is the composition root (`ServiceContainer`). Get services via `get_container()`; never instantiate services in route handlers or nodes.
+- Config only via `from app.config import settings` (pydantic-settings, loaded from `backend/.env`). Never read env vars directly.
+- `LLM_PROVIDER` selects the LLM backend: `sarvam_cloud` (default, `SARVAM_API_KEY`), `ollama` (`OLLAMA_BASE_URL`), `openrouter` (`OPENROUTER_API_KEY`). Caching adapters live in `services/cache/` (redis/semantic/memory/hot-cache behind `factory.py`).
+- Inference must stay local/free-tier and dependencies open source; keep the anti-hallucination guarantees (guardrails, distress detection, verification thresholds, doctrinal keyword injection) intact when refactoring.
+
+## Conventions
+
+- New Python modules end with a runnable `if __name__ == "__main__":` self-check block.
+- Degrade gracefully when an optional dependency is missing on the host (skip, don't crash).
+- Timeouts always carry safety margins (see `rag/timeout_utils.py`); benchmark-tuned values come from `.env.optimized`.

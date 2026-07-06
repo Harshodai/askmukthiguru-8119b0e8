@@ -36,6 +36,16 @@ This file serves as a knowledge base for AI agents interacting with this workspa
 - **Local Supabase**: Can be run via `npx supabase start`, but requires the Docker path to be properly mapped if executed programmatically.
 - **Google OAuth (Local)**: To test Google Sign-in locally, set `VITE_USE_NATIVE_OAUTH=true` in `.env.local` and ensure `supabase/config.toml` has valid Google credentials. Restart the stack with `npx supabase stop` and `npx supabase start` after changes.
 - **Environment Variable Binding**: Missing `SUPABASE_URL` and `SUPABASE_KEY` must be populated in `backend/.env` for Docker builds.
+- **Benchmark Auth Backdoor (local only)**: The `X-Test-Key` header is accepted only when `IS_PRODUCTION=false` AND `ENABLE_TEST_AUTH=true` are set in `.env`/`backend/.env` and the backend container is restarted. Without these, `ruthless_benchmark.py` and manual `curl -H X-Test-Key` will receive 401. Never enable this in production.
+
+## Local Benchmarking
+- After setting the auth backdoor vars above, run from `backend`:
+  ```bash
+  JWT_SECRET=$(grep '^JWT_SECRET=' .env | cut -d= -f2- | tr -d '\n\r')
+  .venv/bin/python -u benchmarks/ruthless_benchmark.py --endpoint http://localhost:8000 --test-key "$JWT_SECRET" --concurrency 2
+  ```
+- The current working provider for low-latency local runs is `LLM_PROVIDER=nim`. Sarvam and OpenRouter keys are present as fallbacks.
+
 
 ## Cache Management & Ingestion Isolation
 - **Query-Side Caches (GPTCache & Redis)**: The application uses GPTCache (for semantic caching) and Redis (for response caching) to optimize frontend query latency.

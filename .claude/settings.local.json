@@ -167,7 +167,21 @@
       "Bash(.venv/bin/pip show *)",
       "Bash(grep -E '\\\\.\\(ts|tsx|js|jsx|py|go|rs|java|rb|cpp|c|h|cs|swift|kt|php\\)$')",
       "Bash(grep -n \"^ [a-z-]*:$\" docker-compose.yml)",
-      "Bash(/opt/homebrew/bin/rg *)"
+      "Bash(/opt/homebrew/bin/rg *)",
+      "Bash(.venv/bin/pytest tests/test_crag_confidence_skip.py -q)",
+      "Bash(.venv/bin/pytest tests/test_crag_confidence_skip.py tests/test_nodes.py -q)",
+      "Bash(.venv/bin/pytest tests/test_flashrank_rerank.py tests/test_retrieve_documents_contract.py -q)",
+      "Bash(grep -E \"/app$|/rag|/app/app\")",
+      "Bash(docker restart *)",
+      "Bash(curl -s -m 2 http://localhost:8000/api/health)",
+      "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"Compare how Sri Preethaji and Sri Krishnaji describe the relationship between suffering, inner truth, and the beautiful state, and how Deeksha supports this transformation\"}')",
+      "Bash(docker exec *)",
+      "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"Explain in depth what the Beautiful State is according to the teachings, how it differs from states of suffering, and which practices help a seeker move from suffering into the beautiful state\"}')",
+      "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"What is Deeksha and how does it work according to the teachings?\"}')",
+      "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"Compare and contrast how Sri Preethaji and Sri Krishnaji approach the relationship between mind, consciousness, suffering, and the beautiful state. What are the key differences in their teachings and how do they complement each other?\"}')",
+      "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"What is the relationship between the beautiful state and deeksha?\"}')",
+      "mcp__codegraph__codegraph_explore",
+      "Bash(.venv/bin/pytest tests/ -q)"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -204,7 +218,11 @@
     ]
   },
   "enabledPlugins": {
-    "headroom@headroom-marketplace": true
+    "headroom@headroom-marketplace": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "understand-anything@understand-anything": true,
+    "ruflo-swarm@ruflo": true
   },
   "sandbox": {
     "enabled": false,

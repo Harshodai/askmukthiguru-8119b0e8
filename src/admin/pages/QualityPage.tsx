@@ -9,6 +9,7 @@ import {
 import { fmtDateTime, fmtPct, truncate } from "@/admin/lib/formatters";
 import { EmptyState } from "@/admin/components/EmptyState";
 import { RagasHeatmap } from "@/admin/components/RagasHeatmap";
+import { ThumbsUp, ThumbsDown, AlertTriangle } from "lucide-react";
 
 export default function QualityPage() {
   const { data: quality } = useQuality();
@@ -57,9 +58,11 @@ export default function QualityPage() {
                       <Badge
                         variant={d.kind === "judge_good_user_bad" ? "destructive" : "secondary"}
                       >
-                        {d.kind === "judge_good_user_bad"
-                          ? "judge OK · user 👎"
-                          : "judge ⚠ · user 👍"}
+                        {d.kind === "judge_good_user_bad" ? (
+                          <span className="flex items-center gap-1">judge OK · user <ThumbsDown className="w-3 h-3" /></span>
+                        ) : (
+                          <span className="flex items-center gap-1">judge <AlertTriangle className="w-3 h-3" /> · user <ThumbsUp className="w-3 h-3" /></span>
+                        )}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         Faithfulness {fmtPct(d.faithfulness)}
