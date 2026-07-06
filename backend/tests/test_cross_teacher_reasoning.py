@@ -1,7 +1,28 @@
+import sys
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from rag.states import GraphState
 from rag.nodes.cross_teacher_reasoning import cross_teacher_reasoning
+
+# rag/nodes/__init__.py does `from .cross_teacher_reasoning import cross_teacher_reasoning`,
+# which shadows the `cross_teacher_reasoning` submodule attribute on the `rag.nodes`
+# package with the function itself — so `import rag.nodes.cross_teacher_reasoning as x`
+# would resolve to the function, not the module. Go through sys.modules instead.
+cross_teacher_module = sys.modules["rag.nodes.cross_teacher_reasoning"]
+
+
+@pytest.fixture(autouse=True)
+def _reset_cross_teacher_module_state():
+    """Each test patches GraphDatabase.driver independently — reset the shared
+    driver singleton and query cache so they don't leak a stale mock/result
+    across tests."""
+    cross_teacher_module._driver = None
+    cross_teacher_module._neo4j_query_cache.clear()
+    yield
+    cross_teacher_module._driver = None
+    cross_teacher_module._neo4j_query_cache.clear()
+
 
 @pytest.mark.asyncio
 async def test_cross_teacher_reasoning_skipped_for_single_teacher():
@@ -84,3 +105,32 @@ async def test_cross_teacher_reasoning_krishnaji_vs_iskcon_guard():
         assert "Sri Krishnaji" in compared
         assert "Sri Preethaji" not in compared
         assert "ISKCON" not in compared
+
+
+@pytest.mark.asyncio
+async def test_cross_teacher_reasoning_reuses_shared_driver_across_calls():
+    """The Neo4j driver does a handshake/routing-table fetch on construction —
+    it must be created once per process and reused, not opened per request."""
+    mock_session = MagicMock()
+    mock_session.execute_read.return_value = []
+
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__.return_value = mock_session
+
+    with patch("rag.nodes.cross_teacher_reasoning.GraphDatabase.driver", return_value=mock_driver) as mock_ctor, \
+         patch("app.config.settings.neo4j_uri", "bolt://mock:7687"):
+
+        state1 = GraphState(
+            question="How does Sadhguru's view on Karma compare to Sri Preethaji's?",
+            relevant_docs=[]
+        )
+        await cross_teacher_reasoning(state1)
+
+        state2 = GraphState(
+            question="How does Sadhguru's view compare to Krishnaji's?",
+            relevant_docs=[]
+        )
+        await cross_teacher_reasoning(state2)
+
+        assert mock_ctor.call_count == 1
+        mock_driver.close.assert_not_called()
