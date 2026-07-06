@@ -206,7 +206,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     ollama = _services._ollama
 
     # Check if we're in an active meditation session (state machine check)
-    meditation_step = state.get("meditation_step", 0)
+    raw_meditation_step = state.get("meditation_step", 0)
+    try:
+        meditation_step = int(raw_meditation_step)
+    except (TypeError, ValueError):
+        meditation_step = 0
     if meditation_step > 0:
         if is_meditation_complete(meditation_step):
             return {"intent": "CASUAL", "meditation_step": 0}

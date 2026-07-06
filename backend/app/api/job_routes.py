@@ -28,7 +28,9 @@ async def get_job(
     if not container.job_queue:
         raise HTTPException(status_code=503, detail="Job queue is disabled")
     job = await container.job_queue.get_job(job_id)
-    if job is None or not _owns_job(job, user):
+    owner = str(job.get("user_id") or "") if job else ""
+    uid = str(user.get("id") or "")
+    if job is None or not (bool(owner) and bool(uid) and owner == uid):
         # Return 404 on mismatch to avoid confirming existence.
         raise HTTPException(status_code=404, detail="Job not found or expired")
     return job
@@ -44,7 +46,9 @@ async def cancel_job(
     if not container.job_queue:
         raise HTTPException(status_code=503, detail="Job queue is disabled")
     job = await container.job_queue.get_job(job_id)
-    if job is None or not _owns_job(job, user):
+    owner = str(job.get("user_id") or "") if job else ""
+    uid = str(user.get("id") or "")
+    if job is None or not (bool(owner) and bool(uid) and owner == uid):
         raise HTTPException(status_code=404, detail="Job not found or already processing")
     cancelled = await container.job_queue.cancel_job(job_id)
     if not cancelled:

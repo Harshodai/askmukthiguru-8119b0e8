@@ -128,5 +128,29 @@ def test_no_admin_route_is_anonymous():
     )
 
 
+def test_job_routes_owns_job_logic():
+    from app.api.job_routes import _owns_job
+    
+    # Matching and non-empty -> True
+    assert _owns_job({"user_id": "usr_123"}, {"id": "usr_123"}) is True
+    
+    # Mismatched -> False
+    assert _owns_job({"user_id": "usr_123"}, {"id": "usr_456"}) is False
+    
+    # Empty user_id -> False
+    assert _owns_job({"user_id": ""}, {"id": "usr_123"}) is False
+    assert _owns_job({"user_id": None}, {"id": "usr_123"}) is False
+    
+    # Empty user.id -> False
+    assert _owns_job({"user_id": "usr_123"}, {"id": ""}) is False
+    assert _owns_job({"user_id": "usr_123"}, {"id": None}) is False
+    
+    # Both empty/None -> False
+    assert _owns_job({"user_id": ""}, {"id": ""}) is False
+    assert _owns_job({"user_id": None}, {"id": None}) is False
+    assert _owns_job({}, {}) is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
