@@ -309,6 +309,43 @@ async def test_stage_runner_assembles_result(coordinator):
 
 
 # ---------------------------------------------------------------------------
+# InputGuardrailStage: blocked responses must report the real safety category,
+# not a blanket ERROR that reads as a system failure (see lessons.md).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "reason,expected_intent,expected_route",
+    [
+        ("Off-topic: self_harm", "DISTRESS", "distress"),
+        ("Emotional wellness: serene_mind redirect", "DISTRESS", "distress"),
+        ("Medical advice requested", "SAFETY_VIOLATION", "blocked"),
+        ("Harmful pattern detected", "SAFETY_VIOLATION", "blocked"),
+        ("Off-topic: flight_booking", "ERROR", "blocked"),
+        ("Input too long", "ERROR", "blocked"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_input_guardrail_blocked_reports_real_category(
+    coordinator, reason, expected_intent, expected_route
+):
+    coordinator.container = _mock_container()
+    coordinator.container.guardrails.check_input.return_value = {
+        "blocked": True,
+        "reason": reason,
+        "response": "I can't help with that.",
+    }
+    ctx = _build_ctx(coordinator.container, coordinator)
+
+    result = await InputGuardrailStage().run(ctx)
+
+    assert result is not None
+    assert result.blocked is True
+    assert result.intent == expected_intent
+    assert result.route_decision == expected_route
+
+
+# ---------------------------------------------------------------------------
 # Self-check: pipeline builder returns all 12 stages in the expected order
 # ---------------------------------------------------------------------------
 

@@ -58,12 +58,17 @@ class InputGuardrailStage(Stage):
                 blocked_resp = await container.translation.translate_text(
                     text=blocked_resp, source_lang="en", target_lang=preferred_lang
                 )
-            # Crisis/self-harm blocks already contain compassionate helpline responses.
-            # Report DISTRESS intent so the benchmark sees the correct routing label
-            # instead of a generic ERROR.
-            is_self_harm = "self_harm" in (input_check.get("reason") or "")
-            intent = "DISTRESS" if is_self_harm else "ERROR"
-            route_decision = "distress" if is_self_harm else "blocked"
+            # Report the guardrail's actual detected category (from IntentType,
+            # app/constants.py) instead of a blanket ERROR, which reads as a
+            # system failure even when the block was a correct, deliberate
+            # safety refusal (medical advice, harmful pattern, self-harm, etc).
+            reason = input_check.get("reason") or ""
+            if "self_harm" in reason or "Emotional wellness" in reason:
+                intent, route_decision = "DISTRESS", "distress"
+            elif "Medical advice" in reason or "Harmful pattern" in reason:
+                intent, route_decision = "SAFETY_VIOLATION", "blocked"
+            else:
+                intent, route_decision = "ERROR", "blocked"
             return PipelineResult(
                 final_answer=blocked_resp,
                 intent=intent,
