@@ -14,10 +14,11 @@ import { fmtDateTime } from "@/admin/lib/formatters";
 import { upsertAlertRule } from "@/admin/lib/mockData";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertRuleBuilder } from "@/admin/components/AlertRuleBuilder";
+import { EmptyState } from "@/admin/components/EmptyState";
 
 export default function AlertsPage() {
-  const { data: rules } = useAlertRules();
-  const { data: events } = useAlertEvents();
+  const { data: rules, isLoading: rulesLoading } = useAlertRules();
+  const { data: events, isLoading: eventsLoading } = useAlertEvents();
   const qc = useQueryClient();
 
   return (
@@ -35,7 +36,12 @@ export default function AlertsPage() {
           <AlertRuleBuilder />
         </CardHeader>
         <CardContent className="space-y-2">
-          {rules?.map((r) => (
+          {rulesLoading ? (
+            <div className="text-sm text-muted-foreground">Loading…</div>
+          ) : !rules?.length ? (
+            <EmptyState title="No alert rules configured" />
+          ) : (
+            rules.map((r) => (
             <div
               key={r.id}
               className="border border-border rounded-md p-3 text-sm flex items-center gap-3"
@@ -55,39 +61,46 @@ export default function AlertsPage() {
                 }}
               />
             </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Recently fired</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Rule</TableHead>
-                <TableHead className="text-right">Value</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {events?.map((e) => (
-                <TableRow key={e.id}>
-                  <TableCell className="text-xs">{fmtDateTime(e.fired_at)}</TableCell>
-                  <TableCell>{e.rule_name}</TableCell>
-                  <TableCell className="text-right tabular-nums">{e.value.toFixed(3)}</TableCell>
-                  <TableCell>
-                    {e.resolved_at ? (
-                      <Badge variant="secondary">resolved</Badge>
-                    ) : (
-                      <Badge variant="destructive">firing</Badge>
-                    )}
-                  </TableCell>
+          {eventsLoading ? (
+            <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+          ) : !events?.length ? (
+            <EmptyState title="No alerts fired yet" />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>When</TableHead>
+                  <TableHead>Rule</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {events.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="text-xs">{fmtDateTime(e.fired_at)}</TableCell>
+                    <TableCell>{e.rule_name}</TableCell>
+                    <TableCell className="text-right tabular-nums">{e.value.toFixed(3)}</TableCell>
+                    <TableCell>
+                      {e.resolved_at ? (
+                        <Badge variant="secondary">resolved</Badge>
+                      ) : (
+                        <Badge variant="destructive">firing</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
