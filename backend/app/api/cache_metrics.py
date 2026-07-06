@@ -13,14 +13,21 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from app.dependencies import ServiceContainer, get_container
+from services.auth_service import get_current_user_from_supabase
 from services.hot_cache import hot_cache
 
 router = APIRouter(tags=["Metrics"])
 
 
 @router.get("/api/metrics/cache")
-async def cache_metrics(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
-    """Return cache tier statistics for production monitoring."""
+async def cache_metrics(
+    container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(get_current_user_from_supabase),
+) -> JSONResponse:
+    """Return cache tier statistics for production monitoring. Admin only."""
+    if not user or not user.get("is_superuser"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Admin access required")
     # --- Hot cache (in-memory, <1ms) ---
     hot_stats = hot_cache.stats()
 
