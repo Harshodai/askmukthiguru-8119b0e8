@@ -23,6 +23,7 @@ from anyio import Lock as AsyncLock
 import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
+from ollama import ResponseError as OllamaResponseError
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import settings
@@ -48,6 +49,13 @@ from services.circuit_breaker import (
 from services.streaming_hardening import StreamInterruptedError, guarded_stream  # Unit 18
 
 logger = logging.getLogger(__name__)
+
+
+def _is_rate_limited(exc: Exception) -> bool:
+    """429 (quota/session-limit) means the service is up but throttling —
+    not a real outage, so it must not count toward the circuit breaker.
+    Mirrors the OpenRouter 429 fix (see lessons.md #118)."""
+    return isinstance(exc, OllamaResponseError) and exc.status_code == 429
 
 
 class ModelUnavailableError(Exception):  # Unit 25
@@ -284,7 +292,10 @@ class OllamaService:
             logger.error(f"Ollama generation failed (transient): {type(e).__name__}: {e}")
             raise ModelUnavailableError(str(e), is_transient=True) from e
         except Exception as e:
-            self._circuit_breaker.record_failure()
+            if not _is_rate_limited(e):
+                self._circuit_breaker.record_failure()
+            else:
+                logger.warning(f"Ollama rate limited (429) — not counted against circuit breaker: {e}")
             logger.error(f"Ollama generation failed: {e}")
             raise
         finally:
@@ -378,6 +389,13 @@ class OllamaService:
                     self._circuit_breaker.record_success()
                     return content
         except Exception as e:
+            if _is_rate_limited(e):
+                # Same account/quota as the main model — falling back would just
+                # 429 again after wasting a full timeout. Don't count it either.
+                # No manual decrement here: `finally` below handles it, same as
+                # any other non-delegating exit from this method.
+                logger.warning(f"Ollama rate limited (429) on fast model — not falling back: {e}")
+                raise
             self._circuit_breaker.record_failure()
             logger.warning(f"Fast model failed: {e}, falling back to main model")
             # Decrement before delegating so the main model's increment is clean
@@ -494,7 +512,10 @@ class OllamaService:
             logger.error(f"Ollama streaming failed (transient): {type(e).__name__}: {e}")
             raise ModelUnavailableError(str(e), is_transient=True) from e
         except Exception as e:
-            self._circuit_breaker.record_failure()
+            if not _is_rate_limited(e):
+                self._circuit_breaker.record_failure()
+            else:
+                logger.warning(f"Ollama rate limited (429) on stream — not counted against circuit breaker: {e}")
             logger.error(f"Ollama streaming failed: {e}")
             raise
 
