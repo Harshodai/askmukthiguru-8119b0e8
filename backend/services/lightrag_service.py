@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
+import time
 from typing import Optional
 
 from lightrag import LightRAG
@@ -30,7 +32,8 @@ class LightRAGService:
         return cls._instance
 
     def __init__(self):
-        pass
+        self._query_cache = {}  # {query_hash: (results, timestamp)}
+        self._cache_ttl_seconds = 300  # 5 min TTL
 
     async def initialize(self):
         if self._initialized:
@@ -361,9 +364,17 @@ class LightRAGService:
         self, query: str, mode: str = "hybrid", only_need_context: bool = False
     ) -> str:
         """
-        Execute GraphRAG query async.
+        Execute GraphRAG query async with 5-min result caching.
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
         """
+        # ponytail: 5min TTL cache for identical queries
+        cache_key = hashlib.md5(f"{query}:{mode}:{only_need_context}".encode()).hexdigest()
+        if cache_key in self._query_cache:
+            results, ts = self._query_cache[cache_key]
+            if time.time() - ts < self._cache_ttl_seconds:
+                logger.info(f"LightRAG cache hit for query (age={time.time()-ts:.1f}s)")
+                return results
+
         if not self._initialized:
             await self.initialize()
 
@@ -377,17 +388,22 @@ class LightRAGService:
             logger.info(
                 f"Querying LightRAG graph (mode={mode}, only_need_context={only_need_context})..."
             )
-            return await self.rag.aquery(
+            result = await self.rag.aquery(
                 query, param=QueryParam(mode=mode, only_need_context=only_need_context)
             )
+            # Cache result
+            self._query_cache[cache_key] = (result, time.time())
+            return result
         except Exception as e:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
                 logger.warning("LightRAG storage not initialized, retrying...")
                 await self.rag.initialize_storages()
-                return await self.rag.aquery(
+                result = await self.rag.aquery(
                     query, param=QueryParam(mode=mode, only_need_context=only_need_context)
                 )
+                self._query_cache[cache_key] = (result, time.time())
+                return result
             logger.error(f"LightRAG query failed: {e}")
             return ""
 

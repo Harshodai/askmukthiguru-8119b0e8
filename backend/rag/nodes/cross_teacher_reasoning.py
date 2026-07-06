@@ -1,10 +1,16 @@
 import asyncio
+import hashlib
 import logging
+import time
 from neo4j import GraphDatabase
 from rag.states import GraphState
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# ponytail: Neo4j cross-teacher query cache (5min TTL)
+_neo4j_query_cache = {}
+_cache_ttl_seconds = 300
 
 async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:
     """
@@ -50,7 +56,29 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
         return {}
 
     logger.info(f"cross_teacher_reasoning: Comparison detected between: {teachers}")
-    
+
+    # ponytail: Check cache before Neo4j query
+    cache_key = hashlib.md5(",".join(sorted(teachers)).encode()).hexdigest()
+    if cache_key in _neo4j_query_cache:
+        cached_results, ts = _neo4j_query_cache[cache_key]
+        if time.time() - ts < _cache_ttl_seconds:
+            logger.info(f"Neo4j cross-teacher cache hit (age={time.time()-ts:.1f}s)")
+            if cached_results:
+                comparison_doc = {
+                    "content": "\n".join(cached_results),
+                    "score": 0.95,
+                    "title": "Cross-Teacher Ontology Mapping",
+                    "source": "neo4j://ontology/comparison",
+                    "content_type": "ontology_comparison"
+                }
+                current_docs = state.get("relevant_docs") or []
+                return {
+                    "relevant_docs": [comparison_doc] + current_docs,
+                    "is_cross_teacher": True,
+                    "compared_teachers": teachers
+                }
+            return {}
+
     # Query Neo4j for relationships between these teachers and common concepts
     relationships_found = []
     if settings.neo4j_uri:
@@ -82,6 +110,9 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
 
     # If we found ontology connections, construct a comparison context and add to documents
     if relationships_found:
+        # Cache the results before returning
+        _neo4j_query_cache[cache_key] = (relationships_found, time.time())
+
         comparison_doc = {
             "content": "\n".join(relationships_found),
             "score": 0.95,
@@ -97,5 +128,7 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
             "is_cross_teacher": True,
             "compared_teachers": teachers
         }
-        
+
+    # Cache empty result too to avoid repeated queries with no results
+    _neo4j_query_cache[cache_key] = ([], time.time())
     return {}

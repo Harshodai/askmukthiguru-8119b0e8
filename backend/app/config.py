@@ -430,6 +430,10 @@ class Settings(BaseSettings):
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
     reranker_enabled_for_complex: bool = True  # Enable cross-encoder reranker for tier3_complex queries
+    # Adaptive-RAG confidence gate: when >=3 reranked docs score at or above this
+    # (sigmoid-normalized [0,1]), skip the LLM grading and sufficiency calls for
+    # complex queries — saves 2 serial LLM round-trips. 0 disables.
+    crag_skip_confidence: float = 0.75
     # --- RAGFlow integration gaps ---
     rag_deep_research_enabled: bool = False  # ponytail: master switch; auto-fires for tier3_complex + standard
     rag_deep_research_max_depth: int = 2
