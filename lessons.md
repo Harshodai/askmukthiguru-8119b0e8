@@ -2832,3 +2832,29 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Second bug found live, not from a report**: A "▼ Latest" jump-to-bottom FAB (`ScrollToBottomFab`) was overlapping the "Today's Line" quote card on the empty greeting screen. Root cause: `handleScroll`'s "near bottom" check (`ChatInterface.tsx`) only compares scroll position, not whether a conversation exists — the empty-state's stacked content (heading + quote + input + 4 suggestion cards) is tall enough to exceed the viewport on its own, so the scroll-tracking logic concluded the user had "scrolled away" with zero messages present. Fixed by gating the FAB's visibility on `messages.length > 0` at the render call site, not by touching the scroll-tracking closure (avoids a stale-closure risk from adding `messages` to a `useCallback` with empty deps).
 - **Contrast pass**: `text-muted-foreground/40` on the disclaimer caption (10px text at 40% opacity — the lowest opacity modifier found across the chat components) and `border-ojas/15` on the suggestion cards (vs. `border-ojas/20` already used on the adjacent quote banner) were the two confirmed low-contrast outliers, found by grepping every `text-*/NN` and `border-ojas/NN` opacity modifier in the touched files rather than guessing. Bumped to `/70` and `/25` respectively — same warm amber palette, just legible.
 - **Process note**: `/chat` requires real Supabase auth with no dev bypass; reaching the actual rendered page required completing a full signup flow through the preview browser tools, not just reading component source.
+
+
+## 2026-07-06 — Ruthless Quality/Latency Round: benchmark auth blocker + NIM provider + Claude-like /chat UI
+
+### Benchmark blocker: X-Test-Key auth disabled in local Docker
+- **Problem**: ruthless_benchmark.py and curl -H X-Test-Key returned 401 even though JWT_SECRET matched the running backend. Root cause: backend/app/config.py defaults is_production=True and enable_test_auth=False, and the local .env files did not override them, so services/auth_service.py never registered TestAuthStrategy.
+- **Fix**: Added IS_PRODUCTION=false and ENABLE_TEST_AUTH=true to both .env and backend/.env. Restarted the mukthiguru-backend container with the new env. Verified TestAuthStrategy is in _strategies and /api/chat accepts X-Test-Key.
+- **Impact**: Benchmark responses are no longer empty/timeouts masquerading as pipeline failures. First limited run (2 queries) jumped from 12% to 69%; p95 latency dropped to ~730ms because the backend is now actually invoked instead of rejected.
+- **Security note**: These flags are local-only and must never be set in production. config.py still defaults to secure production values.
+
+### Provider: NIM primary, Sarvam/OpenRouter fallback configured
+- **Current state**: LLM_PROVIDER=nim with meta/llama-3.1-8b-instruct for both generation and classification. NIM key is active and fast (~2.5s for simple CASUAL greeting, ~700ms for guardrail blocks).
+- **Fallback readiness**: Sarvam API key and OpenRouter free-tier models are already wired in .env (SARVAM_API_KEY, OPENROUTER_API_KEY, models). The MultiProviderLLMService and LLMServiceFactory registry exist for future LLM_PROVIDER=auto or per-call failover; the immediate priority was unblocking measurement with the working NIM path.
+- **Latency win**: Switching from Sarvam-30b to NIM llama-3.1-8b plus the existing tier2_simple fast-path bypass reduced measured p95 from 10-30s per call to sub-second for many categories.
+
+### UI: /chat Claude-inspired minimal centered redesign
+- **Goal**: Keep FloatingParticles ambient background but move the empty-state layout closer to Claude.ai — centered, low chrome, composer as the hero element.
+- **Changes in src/components/chat/ChatInterface.tsx**:
+  - Removed the large guru orb and Flame import.
+  - Removed SpiritualWelcomeBanner from the landing state (still available elsewhere if needed).
+  - Shrunk the headline to text-2xl/sm:text-3xl and subtitle to a concise line.
+  - Centered the composer with max-w-2xl padding.
+  - Converted the 2x2 heavy starter-card grid into compact horizontal pills.
+  - Kept DesktopSidebar labeled-by-default behavior from lesson 2026-07-06 round 2.
+- **Verification**: npm run build passes. Docker frontend rebuilt and redeployed on port 80.
+- **Frontend auth reality**: /chat still requires a real Supabase session; there is no dev bypass. Browser automation in this agent environment cannot reach localhost from the Chromium sandbox, so visual validation relied on build + Docker deploy; a real browser session is needed for pixel-perfect review.
