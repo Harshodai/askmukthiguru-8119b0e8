@@ -44,7 +44,7 @@ def seed_admin() -> None:
 
     print(f"👤 Checking for admin user: {admin_email}")
     try:
-        result = client.auth.admin.list_users()
+        result = client.auth.admin.list_users(per_page=200)
         users = result if isinstance(result, list) else getattr(result, "users", [])
         existing = [u for u in users if getattr(u, "email", None) == admin_email]
 

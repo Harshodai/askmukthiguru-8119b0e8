@@ -83,8 +83,17 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
                 if keyword_assessment.level >= DistressLevel.MODERATE:
                     intent = "DISTRESS"
                     query_tier = "tier2_simple"
-        except Exception:
-            pass  # If distress check also fails, fall through to FACTUAL
+        except Exception as e:
+            logger.warning("Serene Mind distress check failed in fallback: %s", e)
+            crisis_keywords = {
+                "suicide", "suicidal", "kill myself", "want to die", "end my life", 
+                "harm myself", "self harm", "depressed", "worthless", "hopeless", 
+                "slit my wrist", "overdose", "jump off"
+            }
+            if any(kw in lower_q for kw in crisis_keywords):
+                logger.warning("Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS.")
+                intent = "DISTRESS"
+                query_tier = "tier2_simple"
         if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
             needs_web_search = True
             query_tier = "tier3_complex"
@@ -118,6 +127,7 @@ def _early_filter(
     if serene_mind is not None:
         chat_history = state.get("chat_history", [])
         try:
+            from services.serene_mind_engine import DistressLevel
             keyword_assessment = serene_mind.assess_distress(question, chat_history)
             if keyword_assessment.level >= DistressLevel.MODERATE:
                 logger.info(
@@ -139,6 +149,22 @@ def _early_filter(
                 }
         except Exception as e:
             logger.warning("Serene Mind keyword distress check failed: %s", e)
+            crisis_keywords = {
+                "suicide", "suicidal", "kill myself", "want to die", "end my life", 
+                "harm myself", "self harm", "depressed", "worthless", "hopeless", 
+                "slit my wrist", "overdose", "jump off"
+            }
+            if any(kw in lower_q for kw in crisis_keywords):
+                logger.warning("Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS.")
+                return {
+                    "intent": "DISTRESS",
+                    "query_tier": "tier2_simple",
+                    "confidence_tier": "high",
+                    "evaluation_trace": _trace_update(
+                        state, intent="DISTRESS", query_tier="tier2_simple",
+                        routing_reason="fallback_of_fallback_keyword_distress",
+                    ),
+                }
 
     # ---- Temporal / Real-Time Query Check ----
     if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):

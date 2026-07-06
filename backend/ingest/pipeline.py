@@ -2087,7 +2087,7 @@ class IngestionPipeline:
         try:
             import asyncio
             from app.constants import CONCEPT_SIMILARITY_THRESHOLD
-            from datetime import datetime
+            from datetime import datetime, timezone
             import numpy as np
 
             # 1. Fetch all concept/entity nodes from Neo4j
@@ -2185,7 +2185,7 @@ class IngestionPipeline:
                                     chunk_text=chunk_text[:300],
                                     similarity=float(sim_val),
                                     desc=desc,
-                                    timestamp=datetime.utcnow().isoformat()
+                                    timestamp=datetime.now(timezone.utc).isoformat()
                                 )
                         await asyncio.to_thread(
                             _write_relation,
