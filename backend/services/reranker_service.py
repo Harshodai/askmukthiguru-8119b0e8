@@ -79,10 +79,11 @@ class RerankerService:
                             "Selected 'ms-marco-MultiBERT-L-12' for Apple Silicon to support rich multilingual spiritual wisdom."
                         )
                     else:
-                        # Default to lighter model in constrained environments
-                        model_name = "ms-marco-MiniLM-L-6-v2"
+                        # FlashRank model names are exotic; the 404 on download is common.
+                        # Disable for now — cascaded CrossEncoder already works well.
+                        model_name = None
                         logger.info(
-                            "Selected light 'ms-marco-MiniLM-L-6-v2' for resource-constrained or generic environments."
+                            "Skipping FlashRank auto-tune; using cascaded CrossEncoder fallback."
                         )
 
                 logger.info(f"Initializing FlashRank with model: {model_name}")

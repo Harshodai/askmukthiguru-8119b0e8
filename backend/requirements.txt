@@ -129,3 +129,6 @@ numpy<2.0.0
 
 
 langdetect
+
+# Fast ONNX reranker (USE_FLASHRANK=true was silently falling back without it)
+flashrank>=0.2.10

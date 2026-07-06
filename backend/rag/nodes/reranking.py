@@ -211,6 +211,28 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                 f"{before_count} -> {len(reranked_docs)} docs"
             )
 
+    # Adaptive-RAG confidence gate: reranker already confident → skip the LLM
+    # grading round-trip entirely (scores are sigmoid-normalized to [0,1]).
+    skip_conf = getattr(settings, "crag_skip_confidence", 0.0)
+    if skip_conf > 0:
+        confident = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
+        if len(confident) >= 3:
+            relevant = confident[: settings.rag_top_k_rerank]
+            state["grading_reasons"] = ["High-confidence rerank bypass" for _ in relevant]
+            logger.info(
+                f"CRAG batch: {len(confident)} docs >= {skip_conf} rerank confidence, "
+                f"skipping LLM grading, accepted {len(relevant)} docs"
+            )
+            return {
+                "relevant_docs": relevant,
+                "evaluation_trace": _trace_update(
+                    state,
+                    relevant_count=len(relevant),
+                    relevant_sources=_grounded_citation_urls(relevant),
+                    grading_skipped_high_confidence=True,
+                ),
+            }
+
     await emit_status(config, "Filtering for relevance...")
     question = state.get("rewritten_query") or state["question"]
 
@@ -315,12 +337,23 @@ async def check_context_sufficiency(state: GraphState, config: dict = None) -> d
         logger.info("Sufficiency check: bypassing for DISTRESS intent")
         return {}
 
-    await emit_status(config, "Checking if I have enough to answer well...")
     question = state["question"]
     relevant_docs = state.get("relevant_docs", [])
 
     if not relevant_docs:
         return {}
+
+    # Adaptive-RAG confidence gate: same threshold as grade_documents — when the
+    # top docs are high-confidence, skip the LLM sufficiency round-trip.
+    skip_conf = getattr(settings, "crag_skip_confidence", 0.0)
+    top3 = relevant_docs[:3]
+    if skip_conf > 0 and len(top3) == 3 and all(
+        d.get("rerank_score", 0.0) >= skip_conf for d in top3
+    ):
+        logger.info("Sufficiency check: high rerank confidence, skipping LLM call")
+        return {}
+
+    await emit_status(config, "Checking if I have enough to answer well...")
 
     # Docs carry "text" or "content" depending on retriever — never KeyError here:
     # a crash in this node used to wipe relevant_docs and send every complex query
