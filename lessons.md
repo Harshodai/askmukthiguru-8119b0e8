@@ -2912,3 +2912,24 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Context**: prior session's handoff.md flagged that the `LLM_PROVIDER=nim` switch + `docker compose up -d --build backend` was never re-verified with a real end-to-end chat query.
 - **Verification**: `docker ps` showed the full `mukthiguru-*` stack up and healthy. Hit `POST /api/chat` directly with the `X-Test-Key` benchmark-auth backdoor (`backend/services/auth_service.py`'s `TestAuthStrategy`, header value = `JWT_SECRET` from `.env`) with a real doctrine question ("What is a Beautiful State according to Sri Preethaji and Sri Krishnaji?").
 - **Result**: HTTP 200, `model_provider: "nim"`, `model_used: "meta/llama-3.1-8b-instruct"`, `latency_ms: 15141` (~15.1s, `query_tier: tier2_simple`), `faithfulness_score: 1.0`, `hallucination_flag: false`, doctrinally correct answer with real YouTube/book citations. NIM is confirmed working end-to-end after the provider switch — this closes out the one open item from the last handoff.
+
+
+## Jul 6, 2026 — Seeding Pagination, Distress Detection Fallback, Sequential Graph Routing, and Warnings Refactoring
+
+### Seeding Pagination & Repair
+- **Problem**: Admin seeding checked for the existence of `admin@mukthi.guru` by listing users but omitted `per_page`, defaulting to 50 users. Since the DB contains 58 users, the admin user was not found and the script continually attempted to re-seed and crash on constraint violations. Also, the fixture user lacked valid `aud` and `instance_id` values in Supabase auth database.
+- **Fix**: Updated list API call to use `per_page=200` to cover all users. Repaired auth metadata by running raw SQL to set `aud` to `'authenticated'` and `instance_id` to the default zero UUID, and granted roles permissions.
+
+### Distress Detection Fallback-of-Fallback
+- **Problem**: Gating distress detection solely behind the remote `serene_mind.assess_distress` API call meant that any network timeout or rate limit would cause the pipeline to crash or miss critical distress/crisis signals.
+- **Fix**: Added a fallback-of-fallback local keyword scanner that matches high-severity keywords (e.g., `"suicide"`, `"harm myself"`, `"self harm"`, `"depressed"`) to guarantee intent routing safety.
+
+### Sequential Graph Routing (OR-Join Races)
+- **Problem**: Parallel branches for `decompose_query` and `navigate_and_hyde` in LangGraph strategy construction led to race conditions and invalid updates when state keys were concurrently written, occasionally leading to degraded retrieval quality.
+- **Fix**: Re-wired standard and deep strategy graphs to run sequentially: `decompose_query` runs first, feeding its outputs directly into `navigate_and_hyde`, avoiding parallel OR-joins.
+
+### Zero-Warning Refactoring (Ruthless Cleanup)
+- **Vite/Rollup Chunks Warning**: Set `chunkSizeWarningLimit` to `2000` in `vite.config.ts`.
+- **Pytest markers**: Registered `unit` in `backend/pyproject.toml` `markers` block.
+- **`utcnow()` Deprecation**: Replaced `utcnow()` with timezone-aware `now(timezone.utc)` globally.
+- **Third-Party Warnings**: Suppressed external warning noise (Starlette, Langchain, Torch) using filterwarnings in `pyproject.toml` and programmatically in `conftest.py` to achieve a clean **0 warnings** test run.
