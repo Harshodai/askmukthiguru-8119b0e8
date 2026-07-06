@@ -496,8 +496,11 @@ async def get_breath_teaching(
 @router.get("/admin/concept-graph")
 async def get_concept_graph(
     container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(get_current_user_from_supabase),
 ):
-    """Query Neo4j for spiritual concept nodes and relationships for D3.js visualization."""
+    """Query Neo4j for spiritual concept nodes and relationships. Admin only."""
+    if not user or not user.get("is_superuser"):
+        raise HTTPException(status_code=403, detail="Admin access required")
     if not settings.neo4j_uri:
         return {
             "nodes": [
