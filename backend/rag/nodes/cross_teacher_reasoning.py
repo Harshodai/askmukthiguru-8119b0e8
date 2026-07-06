@@ -12,6 +12,24 @@ logger = logging.getLogger(__name__)
 _neo4j_query_cache = {}
 _cache_ttl_seconds = 300
 
+# Shared driver: constructing a driver does a handshake/routing-table fetch,
+# so open one per process and reuse it instead of per-request.
+_driver = None
+
+
+def _get_driver():
+    global _driver
+    if _driver is None:
+        try:
+            _driver = GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password)
+            )
+        except Exception as e:
+            logger.warning(f"cross_teacher_reasoning: Failed to create Neo4j driver: {e}")
+            _driver = None
+    return _driver
+
 async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:
     """
     RAG Node for Cross-Teacher comparisons.
@@ -92,14 +110,12 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
                 """
                 return [dict(record) for record in tx.run(cypher, teachers=teachers)]
 
-            driver = GraphDatabase.driver(
-                settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password)
-            )
+            driver = _get_driver()
+            if driver is None:
+                raise RuntimeError("Neo4j driver unavailable")
             with driver.session() as session:
                 records = await asyncio.to_thread(session.execute_read, _query_paths)
-            driver.close()
-            
+
             for r in records:
                 relationships_found.append(
                     f"Ontology Connection: Both {r['teacher1']} and {r['teacher2']} expound the concept of '{r['concept']}'. "
