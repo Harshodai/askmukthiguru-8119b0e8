@@ -117,8 +117,8 @@ class PipelineCoordinator:
                 intent="ERROR",
                 trace_id=str(uuid.uuid4()),
                 latency_ms=latency_ms,
-                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-                model_provider=getattr(settings, "llm_provider", None),
+                model_used=None,  # error fallback — no model produced this text
+                model_provider=None,
                 route_decision="error",
             )
 

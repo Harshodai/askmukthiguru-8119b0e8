@@ -30,10 +30,15 @@ class DoctrineCacheStage(Stage):
             return None
 
         logger.info("DoctrineCache fast-path hit for: %s", ctx.user_msg[:60])
+        # cache_hit=True also makes the coordinator patch in the real latency;
+        # citations stay empty — the canned answer embeds its own source line,
+        # and "doctrine-cache" is not a retrievable source.
         return PipelineResult(
             final_answer=answer,
             intent="doctrine",
             trace_id=getattr(ctx, "trace_id", "doctrine-hit"),
             latency_ms=0,
-            citations=["doctrine-cache"],
+            citations=[],
+            route_decision="doctrine_cache",
+            cache_hit=True,
         )
