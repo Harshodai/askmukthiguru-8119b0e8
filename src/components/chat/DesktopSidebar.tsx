@@ -389,7 +389,7 @@ export const useSidebarCollapsed = () => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(SIDEBAR_PREF_KEY);
-      return saved !== null ? JSON.parse(saved) : true; // default: collapsed
+      return saved !== null ? JSON.parse(saved) : false; // default: expanded (labeled sidebar)
     } catch { return true; }
   });
 

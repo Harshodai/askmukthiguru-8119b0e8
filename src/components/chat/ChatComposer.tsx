@@ -255,7 +255,7 @@ export function ChatComposer({
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-[10px] text-center text-muted-foreground/40 mt-3 select-none"
+          className="text-[10px] text-center text-muted-foreground/70 mt-3 select-none"
         >
           AI companion &bull; Not a substitute for professional care
         </motion.p>
