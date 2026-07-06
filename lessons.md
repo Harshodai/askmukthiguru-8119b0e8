@@ -1,5 +1,13 @@
 # Agentic Lessons & Memory
 
+## Jul 6, 2026 — CLAUDE.md Rewrite
+
+### Keep the root CLAUDE.md lean and high-signal
+- **Problem**: The root CLAUDE.md had grown to ~800 lines, duplicating detailed backend/frontend trees, commands, and reference tables that already lived in backend/CLAUDE.md, src/CLAUDE.md, README.md, and docs/CLAUDE.md. Long CLAUDE.md files reduce adherence because important rules get lost in noise.
+- **Fix**: Rewrote root CLAUDE.md as a concise session brief (~150 lines) covering project identity, hard rules, verification gates, core contracts, MCP tooling, and a terminology reference. Detailed per-area guidance is delegated to folder-scoped files.
+- **Pattern**: Root CLAUDE.md should only contain what every session must know. Move exhaustive reference material to backend/CLAUDE.md, src/CLAUDE.md, docs/CLAUDE.md, or a skill. When Claude errs, add the rule to the narrowest scope that covers it (folder CLAUDE.md for path-specific issues, root for cross-cutting ones, skill for reusable workflows).
+
+
 ## Jul 6, 2026 — API Security, RAG Generation & Meditation Step Robustness
 
 ### Job API Authorization Guards
