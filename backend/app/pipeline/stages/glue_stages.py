@@ -132,7 +132,7 @@ class ResultAssemblyStage(Stage):
             # the answer (rag/nodes/generation.py route_metadata) — report that,
             # never the configured default, which can silently diverge from reality.
             model_used=graph_result.get("model_used"),
-            model_provider=getattr(settings, "llm_provider", None) if graph_result.get("model_used") else None,
+            model_provider=graph_result.get("model_provider"),
             route_decision=(ctx.intent.lower() if ctx.intent else "error"),
             # Use graph_result as the source of truth for tier/score because it is
             # the output of the LangGraph execution; ctx.state holds the pre-graph

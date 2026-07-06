@@ -75,7 +75,7 @@ def init_llm_cache(embedding_func: Optional[Callable] = None):
                 similarity_evaluation=ExactMatchEvaluation(),
                 post_process_messages_func=temperature_softmax,
                 config=Config(
-                    similarity_threshold=getattr(settings, "SEMANTIC_CACHE_SIMILARITY", 0.85),
+                    similarity_threshold=getattr(settings, "semantic_cache_similarity", 0.87),
                 ),
             )
 

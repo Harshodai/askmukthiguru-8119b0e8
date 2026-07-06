@@ -117,22 +117,53 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         }
 
     # --- rag_parallel_verify fast-exit (Ruthless Audit Phase 1 TTFT) ---
-    # When rag_parallel_verify=True, return optimistic verification for tier3_complex
-    # without blocking on an LLM call. format_final_answer's retry logic is the
-    # safety net: it still checks is_faithful/confidence before accepting the answer,
-    # and falls back to FALLBACK_RESPONSE if scores are too low.
-    # This removes the sequential Generate→Verify bottleneck and halves TTFT.
+    # Skips only the EXPENSIVE CoVe sub-question check (~60s LLM call) for
+    # tier3_complex. It must NOT skip the faithfulness check itself:
+    # LettuceDetect is a local embedding/lexical scorer (no LLM round-trip,
+    # often already computed and cached by reflect_on_answer), so running it
+    # here costs effectively nothing. The previous version hardcoded
+    # is_faithful=True/confidence=7.0 unconditionally — that structurally
+    # guaranteed every tier3_complex query (this tier also covers ADVERSARIAL
+    # and TEMPORAL intents, not just "hard factual") passed verification with
+    # zero actual check against retrieved context, because format_final_answer's
+    # confidence gate (floor 6.5) was then fed a hardcoded 7.0 by this exact code.
     if getattr(settings, "rag_parallel_verify", True) and state.get("query_tier") == "tier3_complex":
+        answer = state["answer"]
+        relevant_docs = state["relevant_docs"]
+        question = state.get("rewritten_query") or state["question"]
+        lettuce_detect = _services._lettuce_detect
+        context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+
+        if not context or len(context.strip()) < 200:
+            logger.warning("Combined verify: parallel_verify fast-exit — context too short, rejecting")
+            return {
+                "is_faithful": False,
+                "verification": {"passed": False, "details": "Context too short for scoring — unverified (fast-exit)"},
+                "confidence_score": 0.0,
+                "faithfulness_score": 0.0,
+                "relevancy_score": 0.0,
+            }
+
+        ld_result = state.get("lettuce_detect_result")
+        if ld_result is None:
+            ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
+        faithfulness_score = ld_result["score"]
+        is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
+
         logger.info(
-            "Combined verify: parallel_verify fast-exit for tier3_complex — "
-            "format_final_answer confidence gate will catch hallucinations"
+            f"Combined verify: parallel_verify fast-exit for tier3_complex — "
+            f"LettuceDetect faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
+            f"CoVe/consistency skipped for TTFT"
         )
         return {
-            "is_faithful": True,
-            "verification": {"passed": True, "details": "Parallel verify fast-exit (tier3_complex)"},
-            "confidence_score": state.get("confidence_score") or 7.0,
-            "faithfulness_score": 1.0,
-            "relevancy_score": 1.0,
+            "is_faithful": is_faithful_ld,
+            "verification": {
+                "passed": is_faithful_ld,
+                "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
+            },
+            "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": faithfulness_score,
         }
 
     answer = state["answer"]

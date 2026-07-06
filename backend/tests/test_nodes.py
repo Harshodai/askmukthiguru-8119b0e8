@@ -232,6 +232,74 @@ async def test_verify_answer_node(mock_services):
 
 
 @pytest.mark.asyncio
+async def test_verify_answer_tier3_complex_fast_exit_rejects_low_faithfulness(mock_services):
+    """The rag_parallel_verify fast-exit for tier3_complex must still run
+    LettuceDetect (cheap, no LLM call) — it must not unconditionally pass
+    every hard/adversarial query regardless of actual answer quality."""
+    mock_ollama, mock_ld = mock_services
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": False,
+        "score": 0.1,
+        "details": "Unsupported by context.",
+        "unsupported_sentences": ["fabricated claim"],
+    }
+
+    state = GraphState(
+        question="Compare Sadhguru and Sri Preethaji on karma",
+        chat_history=[],
+        request_id="test-req-tier3",
+        intent="QUERY",
+        query_tier="tier3_complex",
+        documents=[],
+        reranked_docs=[],
+        hyde_text=None,
+        relevant_docs=[
+            {
+                "text": "Sri Preethaji teaches karma as the residue of past intentions shaping present experience, "
+                "and the path to freedom lies in transforming one's inner state rather than merely one's actions. "
+                "This transformation happens through daily practices of self-inquiry, meditation, and cultivating "
+                "the Beautiful State, rather than through ritual or external karma-clearing acts alone.",
+                "source_url": "url1",
+            }
+        ],
+        grading_reasons=[],
+        rewrite_count=0,
+        rewritten_query=None,
+        sub_queries=["Compare Sadhguru and Sri Preethaji on karma"],
+        is_complex=True,
+        selected_clusters=[],
+        hints=[],
+        answer="Fabricated claim not supported by the retrieved teachings.",
+        citations=[],
+        is_faithful=None,
+        needs_correction=False,
+        reflection_feedback=None,
+        verification=None,
+        confidence_score=None,
+        input_blocked=False,
+        output_blocked=False,
+        block_reason=None,
+        meditation_step=0,
+        meditation_response=None,
+        final_answer=None,
+        error=None,
+        context_layers=None,
+        citation_reasoning={},
+        metrics={},
+        user_id=None,
+        detected_language="en",
+        memory_context="",
+        ab_model="primary",
+    )
+
+    result = await nodes.verify_answer(state)
+
+    assert result["is_faithful"] is False
+    assert result["verification"]["passed"] is False
+    assert result["faithfulness_score"] == 0.1
+
+
+@pytest.mark.asyncio
 async def test_explain_retrieval_node(mock_services):
     mock_ollama, mock_ld = mock_services
 
