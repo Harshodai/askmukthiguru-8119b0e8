@@ -1637,9 +1637,6 @@ return (
                     }
                   }}
                 />
-                <p className="mt-2 text-center text-caption text-foreground/45">
-                  AI companion · Not a substitute for professional care
-                </p>
               </div>
 
               {/* 2×2 prompt-card grid */}
