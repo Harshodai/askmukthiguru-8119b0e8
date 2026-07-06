@@ -58,7 +58,7 @@ from qdrant_client.models import PointIdsList
 
 from app.config import settings
 from services.contextual_chunking_service import ContextualChunkingService
-from services.ollama_service import OllamaService
+from services.llm import LLMProviderFactory
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,8 +100,8 @@ async def reprocess(
     logger.info("Connecting to Qdrant at %s (collection: %s)", qdrant_url, collection)
     client = QdrantClient(url=qdrant_url, timeout=30)
 
-    # Initialise LLM + contextual service
-    llm = OllamaService()
+    # Initialise LLM + contextual service using the configured provider
+    llm = LLMProviderFactory.create_provider(settings.llm_provider)
     svc = ContextualChunkingService(llm, concurrency=concurrency)
 
     done = _load_state()

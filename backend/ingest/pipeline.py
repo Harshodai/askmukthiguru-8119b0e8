@@ -347,14 +347,35 @@ class IngestionPipeline:
             try:
                 from markitdown import MarkItDown
                 from openai import OpenAI
-                
-                # Configure local OpenAI-compatible client for Ollama
-                ollama_v1_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
-                llm_client = OpenAI(base_url=ollama_v1_url, api_key="ollama")
-                
+
+                # Configure OpenAI-compatible client for the active LLM provider
+                provider = settings.llm_provider.lower()
+                if provider == "ollama":
+                    base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
+                    api_key = "ollama"
+                    model = settings.model_for_generation
+                elif provider == "nim":
+                    base_url = settings.nim_base_url
+                    api_key = settings.nim_api_key
+                    model = settings.nim_generation_model
+                elif provider == "openrouter":
+                    base_url = settings.openrouter_base_url
+                    api_key = settings.openrouter_api_key
+                    model = settings.openrouter_generation_model
+                elif provider in ("sarvam", "sarvam_cloud"):
+                    base_url = settings.sarvam_base_url
+                    api_key = settings.sarvam_api_key
+                    model = settings.sarvam_cloud_model
+                else:
+                    base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
+                    api_key = "ollama"
+                    model = settings.model_for_generation
+
+                llm_client = OpenAI(base_url=base_url, api_key=api_key)
+
                 md = MarkItDown(
                     llm_client=llm_client,
-                    llm_model=settings.model_for_generation
+                    llm_model=model
                 )
                 # Run convert synchronously
                 result = md.convert(file_path)

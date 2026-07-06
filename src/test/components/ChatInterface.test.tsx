@@ -224,7 +224,7 @@ describe('ChatInterface (regression)', () => {
         <ChatInterface />
       </BrowserRouter>
     );
-    expect(screen.getByText(/Namaste/i)).toBeInTheDocument();
+    expect(screen.getByText(/Good (morning|afternoon|evening)/i)).toBeInTheDocument();
   });
 
   it('allows user to type and sends a message via streaming', async () => {

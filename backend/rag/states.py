@@ -158,6 +158,7 @@ class GraphState(TypedDict):
     # CoVe
     verification: Optional[dict]
     confidence_score: Annotated[Optional[float], keep_latest]  # 1-10 confidence from combined verification
+    faithfulness_score: Annotated[Optional[float], keep_latest]  # Self-RAG / LettuceDetect faithfulness score
 
     # Guardrails
     input_blocked: bool

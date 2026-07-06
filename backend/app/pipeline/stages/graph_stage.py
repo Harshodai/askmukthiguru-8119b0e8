@@ -89,9 +89,11 @@ class GraphStage(Stage):
             # a redundant select_graph_for_query call. Falls back to calling it only
             # if the cache stage didn't run (e.g., cache disabled).
             tier_for_graph = initial_state.get("query_tier", "standard")
-            if ctx.detected_query_tier is not None:
+            if ctx.detected_query_tier is not None and detected_intent != "DISTRESS":
                 # Fast path: CacheCheckStage already ran select_graph_for_query — reuse result.
-                graph_variant = ctx.detected_query_tier
+                # Honor the on-device classifier's fast-tier decision; the cache stage runs
+                # before intent classification and can over-classify simple queries.
+                graph_variant = ctx.detected_query_tier if tier_for_graph not in ("fast", "tier2_simple") else "fast"
             else:
                 graph_variant = await select_graph_for_query(
                     user_msg_en,
@@ -99,11 +101,26 @@ class GraphStage(Stage):
                     detected_intent=detected_intent,
                     query_tier=tier_for_graph,
                 )
+
+            # Explicit check to preserve full RAG/guardrail path for DISTRESS
+            if detected_intent == "DISTRESS" and graph_variant == "fast":
+                graph_variant = "standard"
+                initial_state["query_tier"] = "standard"
+
             # Only set query_tier if on-device didn't already set it
             if "query_tier" not in initial_state or initial_state.get("query_tier") is None:
                 initial_state["query_tier"] = graph_variant
 
             selected_graph = getattr(container, f"{graph_variant}_graph")
+
+            # Verify the fast_graph definition contains the distress/quality-gate nodes before allowing fast routing
+            if graph_variant == "fast":
+                required_nodes = ["handle_distress_check", "handle_distress"]
+                if not hasattr(selected_graph, "nodes") or not all(node in selected_graph.nodes for node in required_nodes):
+                    logger.warning("fast_graph is missing required distress/quality-gate nodes! Routing to standard graph instead.")
+                    graph_variant = "standard"
+                    selected_graph = getattr(container, "standard_graph")
+                    initial_state["query_tier"] = "standard"
             try:
                 config = {"recursion_limit": 60}
                 if stream_queue:

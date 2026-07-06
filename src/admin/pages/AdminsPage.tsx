@@ -7,6 +7,17 @@ import { promoteAdmin, demoteAdmin } from "@/admin/lib/mockData";
 import { useQueryClient } from "@tanstack/react-query";
 import { fmtDate } from "@/admin/lib/formatters";
 import { Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminsPage() {
   const { data } = useAdmins();
@@ -62,17 +73,33 @@ export default function AdminsPage() {
                 <div className="font-medium">{a.email}</div>
                 <div className="text-xs text-muted-foreground">since {fmtDate(a.created_at)}</div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  await demoteAdmin(a.id);
-                  qc.invalidateQueries({ queryKey: ["admin", "admins"] });
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-                Revoke
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Trash2 className="h-4 w-4" />
+                    Revoke
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Revoke admin access?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {a.email} will immediately lose admin access. This cannot be undone from here — they would need to be promoted again.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        await demoteAdmin(a.id);
+                        qc.invalidateQueries({ queryKey: ["admin", "admins"] });
+                      }}
+                    >
+                      Revoke access
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ))}
         </CardContent>

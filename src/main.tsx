@@ -25,6 +25,12 @@ const canRegisterSW = (() => {
 })();
 
 if (canRegisterSW) {
+  // Reload once a new SW takes control of this tab, so an already-open tab
+  // never keeps running against assets a fresh deploy has already removed.
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")

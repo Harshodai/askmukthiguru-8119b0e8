@@ -1,10 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Eye, Image as ImageIcon, History } from 'lucide-react';
+import { Upload, Trash2, Eye, Image as ImageIcon, History, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import type { DailyTeachingData } from '@/components/chat/DailyTeaching';
 
@@ -208,10 +219,26 @@ const DailyTeachingPage = () => {
                 {currentTeaching.caption && (
                   <p className="text-sm text-foreground">{currentTeaching.caption}</p>
                 )}
-                <Button variant="destructive" size="sm" onClick={handleClear}>
-                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                  Remove Teaching
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                      Remove Teaching
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove the active teaching?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This teaching will stop showing to users immediately. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClear}>Remove</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           ) : (
@@ -266,7 +293,7 @@ const DailyTeachingPage = () => {
                   >
                     <ImageIcon className="w-8 h-8 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Click to upload an image</span>
-                    <span className="text-[11px] text-muted-foreground/60">
+                    <span className="text-[11px] text-muted-foreground/80">
                       JPG, PNG, WebP — max 5MB
                     </span>
                   </button>
@@ -295,9 +322,9 @@ const DailyTeachingPage = () => {
                 disabled={!imageFile || loading}
                 className="w-full bg-ojas hover:bg-ojas/90 text-primary-foreground"
               >
-                <Upload className="w-4 h-4 mr-2" />
+                {published ? <CheckCircle2 className="w-4 h-4 mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
                 {published
-                  ? '✓ Published!'
+                  ? 'Published!'
                   : loading
                     ? 'Uploading…'
                     : 'Publish Teaching'}
@@ -353,15 +380,32 @@ const DailyTeachingPage = () => {
                         })}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive flex-shrink-0"
-                      onClick={() => handleDeleteHistoryItem(item.id)}
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive flex-shrink-0"
+                          aria-label="Delete teaching"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this teaching?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This past teaching record will be permanently removed. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteHistoryItem(item.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </CardContent>
                 </Card>
               ))}

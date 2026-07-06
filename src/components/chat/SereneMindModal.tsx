@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Pause, RotateCcw, Wind, Headphones, Youtube, ExternalLink } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, Wind, Headphones, Youtube, ExternalLink, Check } from 'lucide-react';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { BREATH_TECHNIQUES, DEFAULT_TECHNIQUE, BreathTechnique } from '@/components/meditation/breathTechniques';
@@ -270,7 +270,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-background/95 backdrop-blur-xl"
-            onClick={isGated ? undefined : onClose}
+            onClick={isGated && phase !== 'complete' ? undefined : onClose}
           />
 
           <motion.div
@@ -281,8 +281,8 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
             className="relative z-10 w-full max-w-lg mx-4"
           >
             <div className="glass-card rounded-3xl bg-card/85 backdrop-blur-xl border border-border/40 shadow-2xl p-6 sm:p-8 text-center max-h-[90vh] overflow-y-auto scrollbar-spiritual">
-              {/* Close Button — hidden when gated (must complete session to dismiss) */}
-              {!isGated && (
+              {/* Close Button — hidden/disabled when gated until complete. */}
+              {!(isGated && phase !== 'complete') && (
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
@@ -358,6 +358,17 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
 
               {activeTab === 'video' && (
                 <MediaTab mode="video" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
+              )}
+
+              {/* Gentle escape hatch — hidden/disabled when gated until complete. */}
+              {!(isGated && phase !== 'complete') && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="mt-5 text-[11px] text-muted-foreground/80 hover:text-foreground underline underline-offset-2 transition-colors"
+                >
+                  Continue chatting
+                </button>
               )}
             </div>
           </motion.div>
@@ -921,9 +932,10 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
       {isGated && (
         <button
           onClick={onComplete}
-          className="mt-3 w-full py-2.5 px-4 rounded-full bg-ojas/90 hover:bg-ojas text-white text-sm font-semibold transition-all shadow-md"
+          className="mt-3 w-full py-2.5 px-4 rounded-full bg-ojas/90 hover:bg-ojas text-white text-sm font-semibold transition-all shadow-md flex items-center justify-center gap-1.5"
         >
-          ✓ Complete Meditation &amp; Unlock Chat
+          <Check className="w-4 h-4" />
+          Complete Meditation &amp; Unlock Chat
         </button>
       )}
 

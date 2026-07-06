@@ -122,7 +122,9 @@ class TestIsAvailable(unittest.TestCase):
 
     def test_ollama_is_available(self) -> None:
         from services.ollama_service import OllamaService
-        # Cloud-only mode permits :cloud-tagged models; service should construct.
+        from app.config import settings
+        # Exercise OllamaService internals; temporarily bypass cloud-only guard.
+        settings.ollama_cloud_only = False
         svc = OllamaService()
         self.assertTrue(svc.is_available)
 

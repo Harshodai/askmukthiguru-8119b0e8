@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, request-pipeline stages) and `src/CLAUDE.md` (frontend workflow, testing, storage contracts) — and is loaded automatically when working in those trees.
+
 ## Project Overview
 
 **Mukthi Guru** is a privacy-first, zero-hallucination AI spiritual guide grounded in Sri Preethaji & Sri Krishnaji's teachings. It combines a React frontend chat UI with a Python FastAPI backend running a multi-layer RAG pipeline.
@@ -76,7 +78,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   ├── api/             # API route modules
 │   │   ├── contracts/       # Pydantic request/response contracts
 │   │   ├── core/            # Core utilities, base classes, middleware
-│   │   ├── pipeline/        # Pipeline definitions and orchestration
+│   │   ├── pipeline/        # PipelineCoordinator + pure-function stages/ (see Request Pipeline section)
 │   │   ├── telemetry/       # Telemetry data models
 │   │   ├── __init__.py
 │   │   ├── coalescer.py
@@ -104,6 +106,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   ├── trace_dashboard.py
 │   │   └── tracing.py
 │   ├── benchmarks/
+│   │   ├── RUN_ME.sh        # One-shot benchmark runner (requires live Docker stack)
 │   │   ├── chunk_size_evaluation.py
 │   │   ├── comprehensive_benchmark.py
 │   │   ├── focused_fix_test.py
@@ -159,6 +162,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   ├── rag/
 │   │   ├── nodes/           # Modular graph nodes
 │   │   │   ├── _services.py
+│   │   │   ├── cross_teacher_reasoning.py
 │   │   │   ├── generation.py
 │   │   │   ├── intent.py
 │   │   │   ├── keyword_injection.py
@@ -209,6 +213,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 │   │   ├── verify_sarvam.py
 │   │   └── warm_semantic_cache.py
 │   ├── services/
+│   │   ├── cache/           # Cache adapters (redis, semantic, memory, hot-cache, llm) behind factory.py
 │   │   ├── gateways/
 │   │   ├── llm/
 │   │   ├── translation/
@@ -362,6 +367,8 @@ npm run build        # Production build
 npm run lint         # ESLint
 npm test             # Run Vitest tests (once)
 npm run test:watch   # Run Vitest in watch mode
+npm run test:e2e     # Playwright end-to-end tests
+npx vitest run src/test/greeting.test.ts   # Run a single test file
 ```
 
 Tests are in `src/test/` and `src/tests/`. The `@` alias maps to `src/`.
@@ -424,13 +431,26 @@ chmod +x setup_sarvam.sh && ./setup_sarvam.sh   # Linux/Colab
 
 All backend config lives in `backend/.env` (copy from `backend/.env.example`). Optimised overrides can be loaded from `backend/.env.optimized` after sourcing `.env`. Key settings:
 
-- `OLLAMA_MODEL` — default `sarvam-30b:latest` (the primary LLM)
+- `LLM_PROVIDER` — `sarvam_cloud` (default; needs `SARVAM_API_KEY`, optional `SARVAM_RPM_LIMIT`), `ollama` (`OLLAMA_BASE_URL`), or `openrouter` (`OPENROUTER_API_KEY`)
+- `OLLAMA_MODEL` — default `sarvam-30b:latest` (used when the provider is `ollama`)
 - `QDRANT_URL` — default `http://localhost:6333`
 - `QDRANT_LOCAL_PATH` — set for local (no-Docker) Qdrant mode
 - `WHISPER_MODEL` — `large-v3` (uses `faster-whisper` backend by default)
 - `WHISPER_COMPUTE_TYPE` — `float16` for GPU, `int8` or `float32` for CPU
 
 Config is loaded via `backend/app/config.py` (pydantic-settings). Import as `from app.config import settings`. For benchmark runs, use `source .env.optimized` after `.env` for tuned timeouts (`LLM_TIMEOUT=90`, `PIPELINE_TIMEOUT=90`, `SEMANTIC_CACHE_SIMILARITY=0.90`).
+
+## Architecture: Request Pipeline (`app/pipeline/`)
+
+Every chat request flows through an ordered chain of pure-function stages that wrap the RAG graph. `app/orchestrator.py` (sync) and `app/stream_orchestrator.py` (SSE) both delegate to `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()`, which runs the chain defined in `app/pipeline/stages/pipeline_builder.py`:
+
+```
+CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
+→ CasualShortCircuit → Distress → Graph → MeditationGen → Translation
+→ Memory → OutputGuardrail → CacheUpdate → ResultAssembly
+```
+
+Stages operate on a shared `PipelineContext` (services via `ctx.container`, coordinator helpers via `ctx.coordinator`) and are unit-testable in isolation. `GraphStage` is the step that invokes the LangGraph described below.
 
 ## Architecture: The Multi-Node Anti-Hallucination Pipeline
 
@@ -491,14 +511,14 @@ The graph nodes have been modularized into `rag/nodes/`:
 - `explain_retrieval` (parallel) — generates 1-sentence reasoning for each top citation
 - `format_final_answer` — confidence-based graduated responses, citation formatting, caveats
 
-**Post-Graph (handled in `main.py`)**
-- **Zero-Shot Output Rail** — moderates/blocks harmful output
+**Post-Graph (pipeline stages after `GraphStage`)**
+- **Zero-Shot Output Rail** (`OutputGuardrailStage`) — moderates/blocks harmful output
 - **Telemetry Logging** — query trace + response trace saved to telemetry DB
 
 The `GraphState` TypedDict in `rag/states.py` is the data contract flowing through all nodes. It includes `request_id` for end-to-end log correlation.
 
-### Pre-Graph (handled in `main.py`)
-1. **Zero-Shot Input Rail** (`guardrails/`) — blocks harmful/off-topic input
+### Pre-Graph (pipeline stages before `GraphStage`)
+1. **Zero-Shot Input Rail** (`guardrails/` via `InputGuardrailStage`) — blocks harmful/off-topic input
 2. **Serene Mind Distress Detector** (`services/serene_mind_engine.py` via `on_device_intent.py`) — assesses emotional state; does NOT bypass RAG — distress queries run through the full pipeline to retrieve compassionate teachings
 
 ## Architecture: Guardrails
@@ -744,6 +764,8 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
 | **codegraph** | node | Live code intelligence — callers, callees, traces |
 | **graphify** | python | PR analysis, pathfinding, community detection |
 | **claude-mem** | node | Persistent project memory — observations, context |
+
+Runtime requirement: Node 22 LTS strictly (Node 25.x has a WASM allocation bug that OOM-crashes codegraph); claude-mem's worker needs Bun ≥1.3.14. A git `post-commit` hook keeps these indexes synchronized automatically.
 
 ### Additional MCP Servers (ECC bundled)
 

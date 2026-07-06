@@ -69,6 +69,26 @@ class NimService:
         self._http_client: Optional[httpx.AsyncClient] = None
         self._http_client_lock = AsyncLock()
 
+        # Sarvam fallback for when NIM is rate-limited or unreachable (local only)
+        self._sarvam_fallback = None
+        if getattr(settings, "sarvam_api_key", None):
+            try:
+                from services.sarvam_service import SarvamCloudService
+                self._sarvam_fallback = SarvamCloudService()
+                logger.info("NIM Service: Sarvam fallback initialized")
+            except Exception as e:
+                logger.warning(f"NIM Service: could not initialize Sarvam fallback: {e}")
+
+        # OpenRouter fallback for when both NIM and Sarvam fail
+        self._openrouter_fallback = None
+        if getattr(settings, "openrouter_api_key", None):
+            try:
+                from services.openrouter_service import OpenRouterService
+                self._openrouter_fallback = OpenRouterService()
+                logger.info("NIM Service: OpenRouter fallback initialized")
+            except Exception as e:
+                logger.warning(f"NIM Service: could not initialize OpenRouter fallback: {e}")
+
         logger.info(
             f"NIM Service initialized: "
             f"gen_model={self._gen_model}, cls_model={self._cls_model}, "
@@ -124,6 +144,18 @@ class NimService:
             logger.warning(f"NIM returned 429 — rate limiter exhausted for {delay:.1f}s")
 
     async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
+        # Last-ditch: try OpenRouter if available even for non-rate-limit failures
+        if self._openrouter_fallback is not None:
+            try:
+                return await self._openrouter_fallback._call_api(
+                    messages=messages,
+                    model=getattr(settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free"),
+                    max_tokens=2048,
+                    temperature=0.7,
+                    operation=operation,
+                )
+            except Exception as e:
+                logger.warning(f"OpenRouter last-resort fallback failed for {operation}: {e}")
         logger.warning(f"Using graceful degradation for {operation}")
         last_msg = messages[-1]["content"] if messages else ""
         is_question = any(last_msg.lower().startswith(q) for q in ["what", "how", "who", "where", "why", "when", "can", "do", "is", "are"])
@@ -155,6 +187,48 @@ class NimService:
                 acc.provider = "nim"
         except Exception as exc:
             logger.warning(f"Failed to record NIM token usage: {exc}")
+
+
+
+    async def _fallback_to_openrouter(self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str) -> str:
+        """Try OpenRouter when NIM and Sarvam are unavailable. Returns graceful degradation if no fallback."""
+        if self._openrouter_fallback is None:
+            return await self._graceful_degradation(messages, operation=operation)
+        try:
+            logger.warning(f"NIM/Sarvam failed for {operation}; trying OpenRouter fallback")
+            target_model = getattr(settings, "openrouter_generation_model", None) or "meta-llama/llama-3.3-70b-instruct:free"
+            content = await self._openrouter_fallback._call_api(
+                messages=messages,
+                model=target_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                operation=operation,
+            )
+            if content:
+                logger.info(f"OpenRouter fallback succeeded for {operation} (model={target_model})")
+                return content
+        except Exception as e:
+            logger.warning(f"OpenRouter fallback failed for {operation}: {e}")
+        return await self._graceful_degradation(messages, operation=operation)
+    async def _fallback_to_sarvam(self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str) -> str:
+        """Try Sarvam when NIM is unavailable. Returns graceful degradation if no fallback."""
+        if self._sarvam_fallback is None:
+            return await self._graceful_degradation(messages, operation=operation)
+        try:
+            logger.warning(f"NIM failed for {operation}; trying Sarvam fallback")
+            content = await self._sarvam_fallback._call_api(
+                messages=messages,
+                model=getattr(settings, "sarvam_cloud_model", "sarvam-30b"),
+                max_tokens=max_tokens,
+                temperature=temperature,
+                operation=operation,
+            )
+            if content:
+                logger.info(f"Sarvam fallback succeeded for {operation}")
+                return content
+        except Exception as e:
+            logger.warning(f"Sarvam fallback failed for {operation}: {e}")
+        return await self._fallback_to_openrouter(messages, model, max_tokens, temperature, operation)
 
     async def _call_api(
         self,
@@ -226,8 +300,8 @@ class NimService:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
-                logger.warning(f"NIM {reason} during {operation} — graceful degradation")
-                return await self._graceful_degradation(messages, operation=operation)
+                logger.warning(f"NIM {reason} during {operation} — trying fallback")
+                return await self._fallback_to_sarvam(messages, model, max_tokens, temperature, operation)
             self._circuit.record_failure()
             logger.error(f"NIM call failed during {operation} (model={model}): {exc}")
             raise

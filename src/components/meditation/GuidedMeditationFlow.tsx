@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Play, Pause, SkipForward, RotateCcw } from 'lucide-react';
+import {
+  X, Play, Pause, SkipForward, RotateCcw,
+  HandHeart, Leaf, Feather, Lightbulb, Droplet, Zap, Sparkles,
+} from 'lucide-react';
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import {
@@ -275,20 +278,20 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
               <>
                 <div className="text-center space-y-2">
                   <div className="w-16 h-16 mx-auto rounded-full bg-ojas/15 flex items-center justify-center">
-                    <span className="text-2xl">🙏</span>
+                    <HandHeart className="w-7 h-7 text-ojas" />
                   </div>
                   <h2 className="text-xl font-semibold text-foreground">Namaste</h2>
                   <p className="text-sm text-muted-foreground">How do you feel right now?</p>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { emoji: '☮️', label: 'Peaceful' },
-                    { emoji: '🙏', label: 'Grateful' },
-                    { emoji: '🌸', label: 'Lighter' },
-                    { emoji: '🤔', label: 'Reflective' },
-                    { emoji: '💧', label: 'Emotional' },
-                    { emoji: '⚡', label: 'Energised' },
-                  ].map(({ emoji, label }) => (
+                    { Icon: Leaf, label: 'Peaceful' },
+                    { Icon: HandHeart, label: 'Grateful' },
+                    { Icon: Feather, label: 'Lighter' },
+                    { Icon: Lightbulb, label: 'Reflective' },
+                    { Icon: Droplet, label: 'Emotional' },
+                    { Icon: Zap, label: 'Energised' },
+                  ].map(({ Icon, label }) => (
                     <button
                       key={label}
                       onClick={() => setSelectedMood(label)}
@@ -298,7 +301,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                           : 'border-border/40 bg-card/60 text-muted-foreground hover:border-ojas/30'
                       }`}
                     >
-                      <span className="text-lg">{emoji}</span>
+                      <Icon className="w-5 h-5" />
                       {label}
                     </button>
                   ))}
@@ -375,7 +378,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {reflectionStep === 3 && (
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
-                  <span className="text-2xl">✨</span>
+                  <Sparkles className="w-7 h-7 text-green-500" />
                 </div>
                 <h2 className="text-xl font-semibold text-foreground">Beautiful</h2>
                 <p className="text-sm text-muted-foreground">

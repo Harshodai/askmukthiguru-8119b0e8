@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Copy, Download } from "lucide-react";
+import { ChevronDown, Copy, Download, ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryTrace } from "@/admin/hooks/useAdminData";
 import { SpanWaterfall } from "./SpanWaterfall";
@@ -259,11 +259,13 @@ export function TraceDrawer({ queryId, onClose }: Props) {
                               : "outline"
                         }
                       >
-                        {trace.feedback.rating === 1
-                          ? "👍 thumbs up"
-                          : trace.feedback.rating === -1
-                            ? "👎 thumbs down"
-                            : "neutral"}
+                        {trace.feedback.rating === 1 ? (
+                          <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> thumbs up</span>
+                        ) : trace.feedback.rating === -1 ? (
+                          <span className="flex items-center gap-1"><ThumbsDown className="w-3 h-3" /> thumbs down</span>
+                        ) : (
+                          "neutral"
+                        )}
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground text-xs">none</span>

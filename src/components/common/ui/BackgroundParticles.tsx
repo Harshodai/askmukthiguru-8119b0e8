@@ -4,6 +4,7 @@ import { useMemo, useRef, useEffect } from 'react';
 interface Particle {
   id: number;
   x: number;
+  y: number;
   delay: number;
   duration: number;
   size: number;
@@ -27,10 +28,10 @@ function hsla(hsl: string, a: number): string {
 }
 
 export const BackgroundParticles = ({
-  count = 35,
+  count = 80,
   primaryColor = 'hsl(43 96% 56%)',
   secondaryColor = 'hsl(45 100% 70%)',
-  className = 'absolute inset-0 overflow-hidden pointer-events-none',
+  className = 'absolute inset-0 overflow-hidden pointer-events-none z-0',
 }: BackgroundParticlesProps) => {
   const heightRef = useRef(window.innerHeight);
 
@@ -44,10 +45,11 @@ export const BackgroundParticles = ({
     return Array.from({ length: count }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
-      delay: Math.random() * 12,
-      duration: 10 + Math.random() * 12,
-      size: 4 + Math.random() * 6,
-      opacity: 0.5 + Math.random() * 0.4,
+      y: Math.random() * 110 - 10,
+      delay: Math.random() * 6,
+      duration: 16 + Math.random() * 18,
+      size: 6 + Math.random() * 14,
+      opacity: 0.7 + Math.random() * 0.3,
     }));
   }, [count]);
 
@@ -61,14 +63,15 @@ export const BackgroundParticles = ({
             className="absolute rounded-full"
             style={{
               left: `${particle.x}%`,
-              bottom: '-20px',
+              bottom: `${particle.y}%`,
               width: particle.size,
               height: particle.size,
-              background: `radial-gradient(circle, ${hsla(primaryColor, o)}, ${hsla(secondaryColor, o * 0.6)})`,
-              boxShadow: `0 0 ${particle.size * 4}px ${hsla(primaryColor, o * 0.6)}, 0 0 ${particle.size * 8}px ${hsla(primaryColor, o * 0.2)}`,
+              background: `radial-gradient(circle, ${hsla(primaryColor, o)}, ${hsla(secondaryColor, o * 0.5)})`,
+              boxShadow: `0 0 ${particle.size * 5}px ${hsla(primaryColor, o * 0.8)}, 0 0 ${particle.size * 10}px ${hsla(primaryColor, o * 0.25)}`,
             }}
+            initial={{ opacity: 0, y: 0 }}
             animate={{
-              y: [0, -heightRef.current - 100],
+              y: [0, -heightRef.current - 120],
               opacity: [0, o, o, 0],
             }}
             transition={{
@@ -76,6 +79,7 @@ export const BackgroundParticles = ({
               repeat: Infinity,
               delay: particle.delay,
               ease: 'linear',
+              times: [0, 0.08, 0.92, 1],
             }}
           />
         );

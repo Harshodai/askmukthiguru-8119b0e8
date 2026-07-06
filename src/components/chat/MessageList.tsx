@@ -130,7 +130,7 @@ export const MessageList = React.memo(({
       {groups.map((group) => (
         <React.Fragment key={group.label}>
           {/* Date separator — Claude.ai style */}
-          <div className="flex items-center gap-3 my-8">
+          <div className="flex items-center gap-3 my-2">
             <hr className="flex-1 border-border/30" />
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 select-none">
               {group.label}
@@ -150,11 +150,14 @@ export const MessageList = React.memo(({
             }
             const isStreamingMsg = message.id === streamingId;
             const isEmptyStreaming = isStreamingMsg && !(streamingContent && streamingContent.length > 0) && message.content.length === 0;
+            if (isEmptyStreaming) {
+              return <div key={message.id} data-message-id={message.id} className="h-0" />;
+            }
             return (
               <VirtualMessageWrapper
                 key={message.id}
                 id={message.id}
-                defaultHeight={isEmptyStreaming ? 24 : (message.role === 'user' ? 60 : 140)}
+                defaultHeight={message.role === 'user' ? 40 : 80}
                 alwaysVisible={isStreamingMsg}
               >
                 {/* During the entire streaming period (including before the first token arrives)
@@ -168,7 +171,7 @@ export const MessageList = React.memo(({
                   onRegenerate={message.id === lastGuruId && !streamingId ? onRegenerate : undefined}
                   onEditUserMessage={message.role === 'user' ? onEditUserMessage : undefined}
                   onSubmitEdit={message.role === 'user' ? onSubmitEdit : undefined}
-                  onAction={message.role === 'guru' ? onAction : undefined}
+                  onAction={message.role === 'guru' && message.id === lastGuruId && !streamingId ? onAction : undefined}
                   onCitationClick={message.role === 'guru' ? onCitationClick : undefined}
 
                 />

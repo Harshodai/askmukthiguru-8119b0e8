@@ -85,7 +85,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
 
   if (loaded) {
     return (
-      <div className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[400px]">
+      <div className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px]">
         <iframe
           width="100%"
           height="100%"
@@ -102,7 +102,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
 
   return (
     <div
-      className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[400px] relative cursor-pointer group"
+      className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px] relative cursor-pointer group"
       onClick={() => setLoaded(true)}
       role="button"
       aria-label="Play YouTube video"
@@ -321,10 +321,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             <div
               className={`relative w-full transition-all duration-300 ${
                 isGuru
-                  ? 'bg-card/45 backdrop-blur-md border border-border/30 rounded-2xl rounded-tl-md px-5 py-4 text-[15.5px] leading-[1.75] text-foreground/90 font-normal shadow-[0_4px_16px_-4px_rgba(0,0,0,0.05)]'
+                  ? 'bg-card/45 backdrop-blur-md border border-border/30 rounded-2xl rounded-tl-md px-4 py-3 text-[15.5px] leading-[1.75] text-foreground/90 font-normal shadow-[0_4px_16px_-4px_rgba(0,0,0,0.05)]'
                   : isEditing
                   ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
-                  : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/30 rounded-2xl rounded-tr-md px-4 py-3 text-[15px] text-foreground font-medium shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]'
+                  : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/30 rounded-2xl rounded-tr-md px-3 py-2 text-[15px] text-foreground font-medium shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]'
               }`}
             >
               {isGuru && !message.error && (
@@ -506,8 +506,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 )}
               </div>
 
-              {/* Inline action buttons for guru messages */}
-              {isGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && (
+              {/* Inline action buttons for the latest guru message only */}
+              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && (
                 <InlineActions messageContent={message.content} onAction={onAction} />
               )}
 
@@ -522,10 +522,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     return videoId ? { videoId, url } : null;
                   })
                   .filter(Boolean) as { videoId: string; url: string }[];
-                const inline = ytUrls.slice(0, 2);
-                const extra = ytUrls.slice(2);
+                const inline = ytUrls.slice(0, 1);
+                const extra = ytUrls.slice(1);
                 return inline.length > 0 ? (
-                  <div className="space-y-2.5 mt-2">
+                  <div className="space-y-2 mt-1">
                     {inline.map(({ videoId, url }) => (
                       <LazyYouTube key={videoId} videoId={videoId} url={url} />
                     ))}
@@ -535,7 +535,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                           <Youtube className="w-3 h-3" />
                           {extra.length} more video{extra.length > 1 ? 's' : ''}
                         </summary>
-                        <div className="space-y-2.5 mt-2">
+                        <div className="space-y-2 mt-1">
                           {extra.map(({ videoId, url }) => (
                             <LazyYouTube key={videoId} videoId={videoId} url={url} />
                           ))}
@@ -777,7 +777,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}
             {isGuru && citations.length > 0 && (
-              <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/80 to-card/50 backdrop-blur-sm px-4 py-3 group/details">
+              <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/80 to-card/50 backdrop-blur-sm px-3 py-2 group/details">
                 <summary className="flex items-center gap-2 cursor-pointer list-none">
                   <BookOpen className="w-3.5 h-3.5 text-ojas" />
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-ojas/80">
@@ -927,7 +927,11 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.message.content === next.message.content &&
     prev.message.feedback === next.message.feedback &&
     prev.isStreaming === next.isStreaming &&
-    prev.index === next.index
+    prev.index === next.index &&
+    prev.isLastGuru === next.isLastGuru &&
+    prev.onAction === next.onAction &&
+    prev.onRegenerate === next.onRegenerate &&
+    prev.onCitationClick === next.onCitationClick
   );
 }) as typeof ChatMessageInner;
 (ChatMessage as { displayName?: string }).displayName = 'ChatMessage';

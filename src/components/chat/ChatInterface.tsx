@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Flame, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square } from 'lucide-react';
+import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square } from 'lucide-react';
 
 const OptimisticPlaceholder = () => (
   <motion.div
@@ -177,7 +177,6 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
-import { SpiritualWelcomeBanner } from './SpiritualWelcomeBanner';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
@@ -1550,34 +1549,22 @@ return (
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 sm:px-8 py-4 scrollbar-spiritual"
+        className="flex-1 overflow-y-auto px-6 sm:px-8 pt-6 pb-2 scrollbar-spiritual"
       >
-        <div ref={innerContentRef} className="max-w-3xl mx-auto">
+        <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-2">
           {isLandingMode ? (
-            /* ── Landing State (ChatGPT-inspired, spiritual) ── */
+            /* ── Landing State (Claude-inspired, minimal, particles) ── */
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-start min-h-full gap-5"
-              style={{ paddingTop: 'clamp(3rem, 8vh, 6rem)' }}
+              className="flex flex-col items-center justify-center min-h-full gap-4 py-6"
             >
-              {/* Guru orb */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 180, damping: 18 }}
-                className="w-16 h-16 rounded-full bg-gradient-to-br from-ojas/30 via-ojas/20 to-ojas/10 border border-ojas/25 flex items-center justify-center shadow-[0_8px_32px_-8px_hsl(var(--ojas)/0.35)]"
-                aria-hidden
-              >
-                <Flame className="w-7 h-7 text-ojas" strokeWidth={1.75} />
-              </motion.div>
-
-              <div className="text-center max-w-xl px-4">
+              <div className="text-center px-4">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-h1 font-serif text-foreground/95"
+                  className="text-2xl sm:text-3xl font-serif text-foreground/90 tracking-tight"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '')}
                 </motion.h2>
@@ -1585,98 +1572,80 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-2 text-body text-foreground/65 leading-relaxed"
+                  className="mt-2 text-sm sm:text-base text-muted-foreground/80 leading-relaxed max-w-md mx-auto"
                 >
-                  I am here to walk with you toward your Beautiful State. What is stirring in your heart today?
+                  Ask anything about the teachings, practices, or your journey.
                 </motion.p>
               </div>
 
-              <div className="w-full max-w-2xl">
-                <SpiritualWelcomeBanner />
-              </div>
-
-              <div className="w-full max-w-2xl">
+              <div className="w-full max-w-2xl px-4 mt-2">
                 <ChatComposer
-                  inputValue={inputValue}
-                  inputRef={inputRef}
-                  onInputChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  onSubmit={(e) => handleSubmit(e)}
-                  onStop={() => {
-                    streamControllerRef.current?.abort();
-                    if (inputRef.current) inputRef.current.focus();
-                  }}
-                  isTyping={isTyping}
-                  isStreaming={isStreaming}
-                  isAwaitingSereneMind={isAwaitingSereneMind}
-                  isListening={isListening}
-                  currentLanguage={currentLanguage}
-                  voiceEnabled={voiceEnabled}
-                  ttsEnabled={ttsEnabled}
-                  isSpeaking={isSpeaking}
-                  inputFocused={inputFocused}
-                  showPipeline={showPipeline}
-                  pipelineSteps={pipelineSteps}
-                  pipelineHeartbeat={pipelineHeartbeat}
-                  showInstantPill={showInstantPill}
-                  isLandingMode={true}
-                  onVoiceToggle={handleVoiceToggle}
-                  onTtsToggle={handleTtsToggle}
-                  onLanguageChange={handleLanguageChange}
-                  onSereneMind={() => openSereneMind()}
-                  onGuidedMeditation={() => setShowGuidedMeditation(true)}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  onSlashCommand={(cmd) => {
-                    setInputValue('');
-                    switch (cmd) {
-                      case 'serene': openSereneMind(); break;
-                      case 'meditate': setShowGuidedMeditation(true); break;
-                      case 'retry': if (messages.length > 0) handleRegenerate(); break;
-                      case 'clear': handleNewConversation(); break;
-                    }
-                  }}
-                />
+                                  inputValue={inputValue}
+                                  inputRef={inputRef}
+                                  onInputChange={handleInputChange}
+                                  onKeyDown={handleKeyDown}
+                                  onSubmit={(e) => handleSubmit(e)}
+                                  onStop={() => {
+                                    streamControllerRef.current?.abort();
+                                    if (inputRef.current) inputRef.current.focus();
+                                  }}
+                                  isTyping={isTyping}
+                                  isStreaming={isStreaming}
+                                  isAwaitingSereneMind={isAwaitingSereneMind}
+                                  isListening={isListening}
+                                  currentLanguage={currentLanguage}
+                                  voiceEnabled={voiceEnabled}
+                                  ttsEnabled={ttsEnabled}
+                                  isSpeaking={isSpeaking}
+                                  inputFocused={inputFocused}
+                                  showPipeline={showPipeline}
+                                  pipelineSteps={pipelineSteps}
+                                  pipelineHeartbeat={pipelineHeartbeat}
+                                  showInstantPill={showInstantPill}
+                                  isLandingMode={true}
+                                  onVoiceToggle={handleVoiceToggle}
+                                  onTtsToggle={handleTtsToggle}
+                                  onLanguageChange={handleLanguageChange}
+                                  onSereneMind={() => openSereneMind()}
+                                  onGuidedMeditation={() => setShowGuidedMeditation(true)}
+                                  onFocus={() => setInputFocused(true)}
+                                  onBlur={() => setInputFocused(false)}
+                                  onSlashCommand={(cmd) => {
+                                    setInputValue('');
+                                    switch (cmd) {
+                                      case 'serene': openSereneMind(); break;
+                                      case 'meditate': setShowGuidedMeditation(true); break;
+                                      case 'retry': if (messages.length > 0) handleRegenerate(); break;
+                                      case 'clear': handleNewConversation(); break;
+                                    }
+                                  }}
+                                />
               </div>
 
-              {/* 2×2 prompt-card grid */}
+              {/* Compact starter pills */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3"
+                className="w-full max-w-2xl px-4 flex flex-wrap items-center justify-center gap-2 mt-2"
               >
-                {STARTER_CARDS.map((card, idx) => {
-                  const Icon = card.icon;
-                  return (
-                    <motion.button
-                      key={card.id}
-                      type="button"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25 + idx * 0.05 }}
-                      whileHover={{ y: -2 }}
-                      onClick={() => handleSuggestionClick(card.prompt)}
-                      className="group text-left rounded-2xl border border-ojas/25 bg-gradient-to-br from-card/70 to-ojas/[0.03] hover:border-ojas/40 hover:bg-ojas/[0.05] hover:shadow-md hover:shadow-ojas/10 backdrop-blur-sm p-4 transition-all"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0">
-                          <Icon className="w-4 h-4 text-ojas" strokeWidth={1.75} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-eyebrow text-ojas/80 mb-1">{card.eyebrow}</p>
-                          <p className="text-body-sm text-foreground/80 leading-snug line-clamp-2">
-                            {card.prompt}
-                          </p>
-                        </div>
-                      </div>
-                    </motion.button>
-                  );
-                })}
+                {STARTER_CARDS.map((card, idx) => (
+                  <motion.button
+                    key={card.id}
+                    type="button"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 + idx * 0.05 }}
+                    onClick={() => handleSuggestionClick(card.prompt)}
+                    className="px-3 py-1.5 rounded-full border border-border/70 bg-card/50 hover:bg-card/80 hover:border-ojas/30 text-xs text-muted-foreground/90 transition-colors"
+                  >
+                    {card.prompt}
+                  </motion.button>
+                ))}
               </motion.div>
 
               {messages.length === 1 && (
-                <div className="w-full max-w-2xl">
+                <div className="w-full max-w-2xl px-4">
                   <ChatEmptyState
                     currentConversationId={currentConversation?.id}
                     onResume={handleSelectConversation}
@@ -1685,9 +1654,9 @@ return (
               )}
             </motion.div>
           ) : (
-            /* ── Active Chat State ── */
+
             <>
-              <div className="space-y-7">
+              <div className="space-y-5">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}

@@ -14,10 +14,10 @@ const EVENING_START_HOUR = 17;
 const NIGHT_START_HOUR = 21;
 
 const TIME_GREETINGS: Record<TimeOfDay, string> = {
-  morning: 'Suprabhat',
-  afternoon: 'Namaste',
-  evening: 'Shubh Sandhya',
-  night: 'Namaste',
+  morning: 'Good morning',
+  afternoon: 'Good afternoon',
+  evening: 'Good evening',
+  night: 'Good evening',
 };
 
 const JI_PERSONAS = new Set(['sri_preethaji', 'sri_krishnaji', 'general', 'relationship', 'sky']);

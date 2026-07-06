@@ -28,16 +28,16 @@ describe('chat/transport helpers', () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
     fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ response: '"  Awareness and Presence  "' }),
+      json: async () => ({ title: '"  Awareness and Presence  "' }),
     });
 
     const title = await generateConversationTitle('What is awareness?');
     expect(title).toBe('Awareness and Presence');
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/chat',
+      'http://localhost:8000/api/chat/title',
       expect.objectContaining({
         method: 'POST',
-        body: expect.stringContaining('Title this conversation'),
+        body: expect.stringContaining('first_message'),
       }),
     );
   });
