@@ -19,6 +19,46 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  // Authorization: require either a shared CRON secret (for scheduled invocation)
+  // or an authenticated admin user (via Supabase JWT + has_role check).
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const providedSecret = req.headers.get('x-cron-secret');
+  let authorized = false;
+  if (cronSecret && providedSecret && providedSecret === cronSecret) {
+    authorized = true;
+  } else {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (authHeader.startsWith('Bearer ')) {
+      try {
+        const jwt = authHeader.replace('Bearer ', '');
+        const sbAuth = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_ANON_KEY')!,
+        );
+        const { data: userData } = await sbAuth.auth.getUser(jwt);
+        if (userData?.user?.id) {
+          const sbAdmin = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          );
+          const { data: isAdmin } = await sbAdmin.rpc('has_role', {
+            _user_id: userData.user.id,
+            _role: 'admin',
+          });
+          if (isAdmin === true) authorized = true;
+        }
+      } catch (_e) {
+        // fall through to 401
+      }
+    }
+  }
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY');
   const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY');
   const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:hello@askmukthiguru.app';
