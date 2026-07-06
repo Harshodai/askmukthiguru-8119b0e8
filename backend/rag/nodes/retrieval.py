@@ -521,9 +521,11 @@ async def retrieve_for_single_query(
         lightrag_index = len(tasks)
         # Use config-driven timeout (prevents 145s spike — see logs/backend.log line 264)
         t_out = getattr(settings, "lightrag_retrieval_timeout", 30)
+        # Adaptive graph depth: fast/simple tiers skip community-summary traversal
+        graph_mode = "local" if query_tier in ("fast", "tier2_simple") else "hybrid"
         tasks.append(
             asyncio.wait_for(
-                lightrag.aquery(query, mode="hybrid", only_need_context=True),
+                lightrag.aquery(query, mode=graph_mode, only_need_context=True),
                 timeout=float(t_out),
             )
         )
