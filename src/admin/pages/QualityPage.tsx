@@ -12,9 +12,9 @@ import { RagasHeatmap } from "@/admin/components/RagasHeatmap";
 import { ThumbsUp, ThumbsDown, AlertTriangle } from "lucide-react";
 
 export default function QualityPage() {
-  const { data: quality } = useQuality();
-  const { data: safety } = useSafetyEvents();
-  const { data: annos } = useAnnotations();
+  const { data: quality, isLoading: qualityLoading } = useQuality();
+  const { data: safety, isLoading: safetyLoading } = useSafetyEvents();
+  const { data: annos, isLoading: annosLoading } = useAnnotations();
 
   return (
     <div className="space-y-4">
@@ -46,7 +46,9 @@ export default function QualityPage() {
               <CardTitle className="text-base">Where the judge and the user disagree</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {!quality?.disagreements.length ? (
+              {qualityLoading ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : !quality?.disagreements.length ? (
                 <EmptyState title="No disagreements in this window" />
               ) : (
                 quality.disagreements.map((d) => (
@@ -82,7 +84,9 @@ export default function QualityPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Low-confidence responses</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {!quality?.low_confidence.length ? (
+              {qualityLoading ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : !quality?.low_confidence.length ? (
                 <EmptyState title="No low-confidence responses" />
               ) : (
                 quality.low_confidence.map((r) => (
@@ -106,7 +110,9 @@ export default function QualityPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Safety events</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {!safety?.length ? (
+              {safetyLoading ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : !safety?.length ? (
                 <EmptyState title="No safety events in this window" />
               ) : (
                 safety.map((e) => (
@@ -141,7 +147,9 @@ export default function QualityPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Reviewer annotations</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {!annos?.length ? (
+              {annosLoading ? (
+                <div className="text-sm text-muted-foreground">Loading…</div>
+              ) : !annos?.length ? (
                 <EmptyState title="No annotations yet" />
               ) : (
                 annos.map((a) => (

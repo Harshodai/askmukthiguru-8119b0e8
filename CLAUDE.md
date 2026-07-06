@@ -15,6 +15,14 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 - Target: <1% hallucination rate, <3s response time
 - Data source: only Sri Preethaji & Sri Krishnaji's YouTube videos + approved images
 
+## Rules for This Repo
+
+- Secrets stay in env vars — never write a real key into any file. Only `backend/.env.example` is checked in; never commit `backend/.env`, `.env.local`, or `.env.optimized` values.
+
+## Gotchas
+
+- The repo has both `package-lock.json` and `bun.lockb`. npm is canonical — don't regenerate or update the bun lockfile.
+
 ## Repository Structure
 
 ```
