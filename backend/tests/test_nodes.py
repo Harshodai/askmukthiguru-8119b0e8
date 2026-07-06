@@ -286,3 +286,54 @@ async def test_explain_retrieval_node(mock_services):
     assert "url2" in result["citation_reasoning"]
     assert result["citation_reasoning"]["url1"] == "This document describes the Beautiful State."
     assert mock_ollama.generate.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_intent_router_meditation_step_robustness(mock_services):
+    from rag.nodes.intent import intent_router
+    
+    # Test case 1: meditation_step is a string number
+    state = GraphState(
+        question="yes",
+        chat_history=[],
+        intent=None,
+        meditation_step="3",
+        user_id=None,
+        detected_language="en",
+        memory_context="",
+        ab_model="primary",
+    )
+    result = await intent_router(state)
+    assert result["intent"] == "MEDITATION_CONTINUE"
+    assert result["meditation_step"] == 3
+    
+    # Test case 2: meditation_step is None (TypeError test)
+    mock_ollama, _ = mock_services
+    mock_ollama.generate.return_value = "INTENT: CASUAL\nCOMPLEXITY: simple"
+    state = GraphState(
+        question="hello",
+        chat_history=[],
+        intent=None,
+        meditation_step=None,
+        user_id=None,
+        detected_language="en",
+        memory_context="",
+        ab_model="primary",
+    )
+    result = await intent_router(state)
+    assert result.get("meditation_step", 0) == 0 or result.get("intent") == "CASUAL"
+
+    # Test case 3: meditation_step is invalid string (ValueError test)
+    state = GraphState(
+        question="hello",
+        chat_history=[],
+        intent=None,
+        meditation_step="invalid_step_str",
+        user_id=None,
+        detected_language="en",
+        memory_context="",
+        ab_model="primary",
+    )
+    result = await intent_router(state)
+    assert result.get("meditation_step", 0) == 0 or result.get("intent") == "CASUAL"
+

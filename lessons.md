@@ -1,5 +1,23 @@
 # Agentic Lessons & Memory
 
+## Jul 6, 2026 — API Security, RAG Generation & Meditation Step Robustness
+
+### Job API Authorization Guards
+- **Problem**: In `job_routes.py`, the inline authorization check compared string conversions of `job.get("user_id")` and `user.get("id")` but lacked empty-string/None validation. As a result, if both were empty/missing, they converted to `""` and erroneously allowed unauthorized access (IDOR vulnerability).
+- **Fix**: Added explicit non-empty validation `bool(owner) and bool(uid) and owner == uid` to inline authorization checks in `get_job` and `cancel_job` to ensure empty/None values are denied access.
+
+### RAG Generation Answer Normalization
+- **Problem**: If an LLM gateway or provider branch returns `None` as the generated answer, passing it to `strip_cot(answer)` or string search methods caused `TypeError` crashes. The fallback was only applied in one branch.
+- **Fix**: Guaranteed that `answer` is normalized to `""` at all LLM provider/gateway assignment sites, and added a shared post-fetch string fallback `if answer is None: answer = ""` before all `strip_cot` calls.
+
+### Faithfulness Score Assembly Mismatch
+- **Problem**: In the final generation result dictionary, `faithfulness_score` was read from `verification.get("score")`, which is non-existent, resulting in a fallback to 1.0 or 0.0 instead of using the real computed score.
+- **Fix**: Updated result assembly in `generation.py` to source `faithfulness_score` from `state.get("faithfulness_score")` (written by `verify_answer`), falling back to 1.0/0.0 only if missing.
+
+### Robust Meditation Step Validation
+- **Problem**: In intent routing, checking if the session is active coerced `meditation_step` only if it was a string and caught only `ValueError`, leaving `None` or other types vulnerable to comparison crashes.
+- **Fix**: Standardized the active-session check in `intent.py` using `int(raw_step)` wrapped in a `try/except` block catching both `TypeError` and `ValueError`, reverting to `0` on any parsing exception.
+
 ## Jul 5, 2026 — Docker Health, Celery Hardening, and Ingestion Copy Updates
 
 ### Multi-Process Model Loading & Startup OOM Prevention
@@ -2763,3 +2781,11 @@ The 2026 Audit Report identified critical TTFT bottlenecks (duplicate LettuceDet
 - **Cross-Teacher Substring Matches**: In `cross_teacher_reasoning.py`, matching the `"krishna"` keyword for ISKCON would collision-match on `"krishnaji"` (Sri Krishnaji). Added a substring guard `and "krishnaji" not in question_lower` to keep these domains separated.
 - **Ekam Co-founders Separated**: Split Sri Preethaji and Sri Krishnaji checks in cross-teacher matching so that mentioning one does not automatically pull in the other.
 
+
+## 2026-07-06 — Telemetry honesty + KG reality check (ruthless backend review)
+
+- **Telemetry must report what ran, not what's configured.** Seven pipeline sites copy-pasted `model_used=<settings model>` into responses where no LLM executed (canned greetings, cache hits, guardrail blocks, error fallbacks). Result: responses claimed `sarvam-30b` while `LLM_PROVIDER=nim` served an 8B llama in the cloud — the lie masked a full spec drift (privacy-first/local-only was silently false). Fix pattern: no-model paths report `model_used=None`; the graph path reports `graph_result["model_used"]` recorded by the generation node (rag/nodes/generation.py route_metadata). Grep guard: `model_used=getattr(settings` should return 0 hits outside tests.
+- **Cache-hit results must set `cache_hit=True`** — the coordinator back-patches real latency only for `cache_hit=True` results (pipeline_coordinator.py). DoctrineCacheStage missed it and shipped `latency_ms=0` + fake citation `"doctrine-cache"`. Citations must only contain retrievable sources.
+- **Benchmark the graph before optimizing it.** The Neo4j "ontology" had 5 EXPOUNDS edges total (hand-seeded). Caching/parallelizing queries against it (GRAPH_LATENCY_PLAN Phase 4) optimized microseconds; the 86s complex-query latency is serial LLM calls. Phase 4 was dropped as YAGNI after the shared driver + query cache landed. Check `MATCH (t:Teacher)-[:EXPOUNDS]->(c) RETURN count(*)` before any KG perf work.
+- **A test red for weeks is worse than no test** — test_thresholds asserted the pre-migration 0.8 faithfulness_floor against the deliberately migrated 0.6 default (commit b5399e48); everyone scrolled past the failure. Align or delete stale assertions immediately; suite is now 553/553 green.
+- **552 mocked tests in 9s catch none of the above.** Cloud drift, fake citations, and one-sided "comparison" answers all passed CI. One unmocked end-to-end benchmark gate (latency ceiling + "answer mentions both teachers") is worth more than 100 more unit mocks.

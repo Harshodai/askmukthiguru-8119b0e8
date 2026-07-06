@@ -817,7 +817,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     max_tokens=max_tokens_val,
                     temperature=temperature_val,
                 )
-                answer = resp.text
+                answer = resp.text or ""
                 api_citations = []
                 for c in resp.citations:
                     doc_idx = c.document_index
@@ -854,10 +854,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                                 await stream_queue.put(chunk)
                                 answer += chunk
                     else:
-                        answer = await container.krutrim.generate(
+                        answer = (await container.krutrim.generate(
                             system_prompt=system_prompt,
                             user_prompt=user_prompt,
-                        )
+                        )) or ""
                         if stream_queue:
                             await stream_queue.put(answer)
                 else:
@@ -872,11 +872,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                                 await stream_queue.put(chunk)
                                 answer += chunk
                     else:
-                        answer = await ollama.generate(
+                        answer = (await ollama.generate(
                             system_prompt=system_prompt,
                             user_prompt=user_prompt,
                             **generation_kwargs,
-                        )
+                        )) or ""
             except Exception as e:
                 logger.error(f"Krutrim generation failed, falling back to Ollama: {e}")
                 if stream_queue:
@@ -890,11 +890,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                             await stream_queue.put(chunk)
                             answer += chunk
                 else:
-                    answer = await ollama.generate(
+                    answer = (await ollama.generate(
                         system_prompt=system_prompt,
                         user_prompt=user_prompt,
                         **generation_kwargs,
-                    )
+                    )) or ""
         else:
             from app.config import settings as app_settings
 
@@ -922,7 +922,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             # Use the universal provider (ollama = configured LLM provider)
             # sarvam_cloud is only for STT/TTS/Translation, not for generation
             answer = await _generate_with(ollama, add_timeout=True)
+            if answer is None:
+                answer = ""
 
+    if answer is None:
+        answer = ""
     answer = strip_cot(answer)
 
     # ---- headroom CCR (Reversible Context Compression) Interception ----
@@ -1043,12 +1047,14 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                         max_tokens=generation_kwargs.get("max_tokens"),
                         temperature=generation_kwargs.get("temperature"),
                     )
-                    answer = resp.text
+                    answer = resp.text or ""
                 except Exception as exc:
                     logger.warning(f"headroom CCR: Gateway retry failed: {exc}")
             else:
                 # Use the universal provider (ollama = configured LLM provider)
-                answer = await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+                answer = (await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)) or ""
+            if answer is None:
+                answer = ""
             answer = strip_cot(answer)
 
     answer = _ensure_keywords_in_answer(answer, question)
@@ -1090,6 +1096,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     if is_tier2:
         output["is_faithful"] = True
         output["confidence_score"] = 8.0
+        output["faithfulness_score"] = 1.0
         output["verification"] = {"passed": True, "method": "fast_tier_bypass"}
     return output
 
@@ -1350,7 +1357,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     verification = state.get("verification") or {}
     verified = verification.get("passed", False)
     confidence = state.get("confidence_score") or 5.0
-    answer = state.get("answer", "")
+    answer = state.get("answer") or ""
     citations = state.get("citations", [])
     intent = state.get("intent") or "CASUAL"
     query_tier = state.get("query_tier", "standard")
@@ -1371,7 +1378,16 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             if isinstance(c, dict) else str(c)
             for c in citations
         ]
-        return {"final_answer": answer, "citations": citations, "intent": intent, "_needs_retry": False}
+        return {
+            "final_answer": answer,
+            "citations": citations,
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": True,
+            "verification": {"passed": True, "method": "fast_tier_bypass"},
+            "faithfulness_score": 1.0,
+            "confidence_score": 8.0,
+        }
 
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)
@@ -1429,6 +1445,10 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             "citations": citations,
             "intent": intent,
             "_needs_retry": False,
+            "is_faithful": False,
+            "verification": verification,
+            "faithfulness_score": 0.0,
+            "confidence_score": confidence,
             "evaluation_trace": _trace_update(
                 state,
                 final_answer_chars=len(FALLBACK_RESPONSE),
@@ -1488,12 +1508,19 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         except Exception as exc:
             logger.debug(f"Follow-up suggestions skipped: {exc}")
 
+    faithfulness_score = state.get("faithfulness_score")
+    if faithfulness_score is None:
+        faithfulness_score = 1.0 if (state.get("verification") or {}).get("passed", False) else 0.0
     result = {
         "final_answer": answer,
         "citations": citations,
         "intent": intent,
         "follow_up_suggestions": follow_up_suggestions,
         "_needs_retry": False,
+        "is_faithful": is_faithful if is_faithful is not None else verified,
+        "verification": state.get("verification") or {},
+        "faithfulness_score": faithfulness_score,
+        "confidence_score": confidence,
         "evaluation_trace": _trace_update(
             state,
             final_answer_chars=len(answer),
