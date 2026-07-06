@@ -75,10 +75,19 @@ class OllamaService:
 
     def __init__(self) -> None:
         """Initialize the Ollama LLM clients (main + fast classifier)."""
-        raise RuntimeError("Ollama local models are strictly disabled by user request.")
-        # Legacy initialization below is dead code
         gen_model = settings.model_for_generation
         cls_model = settings.model_for_classification
+
+        # Cloud-only guard: when OLLAMA_CLOUD_ONLY is true (default), refuse to
+        # initialize with local-only models (no :cloud tag). This honors the
+        # "cloud models only" mandate while still allowing Ollama cloud endpoints.
+        cloud_only = getattr(settings, "ollama_cloud_only", True)
+        if cloud_only and not (gen_model.endswith(":cloud") and cls_model.endswith(":cloud")):
+            raise RuntimeError(
+                f"Ollama local models are disabled (cloud-only mode). "
+                f"Configured models: gen={gen_model}, cls={cls_model}. "
+                f"Add ':cloud' tag or set OLLAMA_CLOUD_ONLY=false."
+            )
 
         # Main model — for generation and verification
         # timeout=settings.llm_timeout enforces per-call HTTP timeout on ChatOllama's
@@ -219,53 +228,57 @@ class OllamaService:
 
                 async for attempt in retryer:
                     with attempt:
-                        # Strip ChatOllama pydantic fields from kwargs before bind().
-                        # _chat_params puts model params (temperature, num_predict, etc.)
-                        # in the options dict, but leftover **kwargs leak as top-level
-                        # Ollama client params. These fields are already on the instance.
-                        clean_kwargs = {
-                            k: v for k, v in kwargs.items()
-                            if k not in ChatOllama.model_fields
-                        } if kwargs else {}
+                        # Keep only valid ChatOllama pydantic fields in kwargs before bind().
+                        # Non-model kwargs (e.g. context, hashing_kv) passed by LightRAG are stripped.
+                        clean_kwargs = {}
+                        if kwargs:
+                            options = {}
+                            for k, v in kwargs.items():
+                                if k in ["num_predict", "temperature", "top_k", "top_p", "repeat_penalty"]:
+                                    options[k] = v
+                                elif k in ChatOllama.model_fields:
+                                    clean_kwargs[k] = v
+                            if options:
+                                clean_kwargs["options"] = options
                         chain = self._llm.bind(**clean_kwargs) if clean_kwargs else self._llm
                         response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
-                    content = response.content.strip()
-                    import re
+                        content = response.content.strip()
+                        import re
 
-                    think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                    content_outside_think = re.sub(
-                        r"<think>.*?</think>", "", content, flags=re.DOTALL
-                    ).strip()
+                        think_match = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                        content_outside_think = re.sub(
+                            r"<think>.*?</think>", "", content, flags=re.DOTALL
+                        ).strip()
 
-                    if content_outside_think:
-                        content = content_outside_think
-                    elif think_match:
-                        content = think_match.group(1).strip()
-                    else:
-                        content = content.strip()
+                        if content_outside_think:
+                            content = content_outside_think
+                        elif think_match:
+                            content = think_match.group(1).strip()
+                        else:
+                            content = content.strip()
 
-                    # Token usage logging (Unit 12)
-                    tokens_sent = self._estimate_tokens(system_prompt + user_prompt)
-                    tokens_received = self._estimate_tokens(content)
-                    logger.info(
-                        f"tokens_sent={tokens_sent}, tokens_received={tokens_received}, "
-                        f"content_len={len(content)}, model={self._llm.model}"
-                    )
+                        # Token usage logging (Unit 12)
+                        tokens_sent = self._estimate_tokens(system_prompt + user_prompt)
+                        tokens_received = self._estimate_tokens(content)
+                        logger.info(
+                            f"tokens_sent={tokens_sent}, tokens_received={tokens_received}, "
+                            f"content_len={len(content)}, model={self._llm.model}"
+                        )
 
-                    # Update request-scoped token accumulator
-                    try:
-                        from services.cost_tracker import token_accumulator_var
-                        acc = token_accumulator_var.get()
-                        if acc is not None:
-                            acc.tokens_in += tokens_sent
-                            acc.tokens_out += tokens_received
-                            acc.model = self._llm.model
-                            acc.provider = "ollama"
-                    except Exception as e:
-                        logger.warning(f"Failed to record Ollama token usage: {e}")
+                        # Update request-scoped token accumulator
+                        try:
+                            from services.cost_tracker import token_accumulator_var
+                            acc = token_accumulator_var.get()
+                            if acc is not None:
+                                acc.tokens_in += tokens_sent
+                                acc.tokens_out += tokens_received
+                                acc.model = self._llm.model
+                                acc.provider = "ollama"
+                        except Exception as e:
+                            logger.warning(f"Failed to record Ollama token usage: {e}")
 
-                    self._circuit_breaker.record_success()
-                    return content
+                        self._circuit_breaker.record_success()
+                        return content
         except (asyncio.TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
             self._circuit_breaker.record_failure()
             logger.error(f"Ollama generation failed (transient): {type(e).__name__}: {e}")
@@ -322,10 +335,16 @@ class OllamaService:
         try:
             async for attempt in retryer:
                 with attempt:
-                    clean_kwargs = {
-                        k: v for k, v in kwargs.items()
-                        if k not in ChatOllama.model_fields
-                    } if kwargs else {}
+                    clean_kwargs = {}
+                    if kwargs:
+                        options = {}
+                        for k, v in kwargs.items():
+                            if k in ["num_predict", "temperature", "top_k", "top_p", "repeat_penalty"]:
+                                options[k] = v
+                            elif k in ChatOllama.model_fields:
+                                clean_kwargs[k] = v
+                        if options:
+                            clean_kwargs["options"] = options
                     chain = self._llm_fast.bind(**clean_kwargs) if clean_kwargs else self._llm_fast
                     response = await asyncio.wait_for(chain.ainvoke(messages), timeout=timeout)
                     content = response.content.strip()
@@ -409,10 +428,16 @@ class OllamaService:
             """Inner generator — yields filtered tokens from the chain."""
             async for attempt in retryer:
                 with attempt:
-                    clean_kwargs = {
-                        k: v for k, v in kwargs.items()
-                        if k not in ChatOllama.model_fields
-                    } if kwargs else {}
+                    clean_kwargs = {}
+                    if kwargs:
+                        options = {}
+                        for k, v in kwargs.items():
+                            if k in ["num_predict", "temperature", "top_k", "top_p", "repeat_penalty"]:
+                                options[k] = v
+                            elif k in ChatOllama.model_fields:
+                                clean_kwargs[k] = v
+                        if options:
+                            clean_kwargs["options"] = options
                     chain = self._llm.bind(**clean_kwargs) if clean_kwargs else self._llm
                     in_think_block = False
                     async for chunk in await asyncio.wait_for(
