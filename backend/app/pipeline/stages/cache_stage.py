@@ -75,7 +75,7 @@ class CacheCheckStage(Stage):
                 citations=citations,
                 trace_id=str(uuid.uuid4()),
                 latency_ms=0,
-                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
+                model_used=None,  # cached response — no model ran this request
                 model_provider=None,
                 route_decision="hot_cache",
                 cache_hit=True,
@@ -104,7 +104,7 @@ class CacheCheckStage(Stage):
                     citations=citations,
                     trace_id=str(uuid.uuid4()),
                     latency_ms=0,
-                    model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
+                    model_used=None,  # cached response — no model ran this request
                     model_provider=None,
                     route_decision="vector_cache_p90",
                     cache_hit=True,
@@ -137,7 +137,7 @@ class CacheCheckStage(Stage):
                 citations=cached.get("citations", []),
                 trace_id=str(uuid.uuid4()),
                 latency_ms=0,
-                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
+                model_used=None,  # cached response — no model ran this request
                 model_provider=None,
                 route_decision="semantic_cache",
                 cache_hit=True,
@@ -211,6 +211,28 @@ class CacheUpdateStage(Stage):
                         citations=citations,
                         meditation_step=med_step,
                     )
+
+                # Update local vector cache (P90 fast path). Previously this stage
+                # never wrote to TurboQuantCache, so the P90 cache stayed empty and
+                # every repeat/similar query missed.
+                if getattr(settings, "hybrid_search_enabled", False):
+                    try:
+                        query_text = ctx.query_for_embedding or cache_key
+                        embedding = await ctx.coordinator._embed_query(query_text)
+                        if embedding is not None:
+                            vcache = ctx.coordinator._ensure_vector_cache()
+                            vcache.put(
+                                embedding=embedding,
+                                metadata={
+                                    "response": final_answer,
+                                    "citations": citations,
+                                    "intent": intent,
+                                    "meditation_step": med_step,
+                                    "cache_key": cache_key,
+                                },
+                            )
+                    except Exception as e:
+                        logger.warning(f"Vector cache update failed (non-fatal): {e}")
             except Exception as e:
                 logger.warning(f"Cache update failed (non-fatal): {e}")
         return None

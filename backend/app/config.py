@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     node_timeout_main: int = 20  # reduced from 90 — prevents 90s hangs on slow Qdrant/Neo4j
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
+    doctrine_cache_enabled: bool = False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
 
     # --- Feature Flags & Memory Layer ---
     feature_memory_enabled: bool = True
@@ -105,10 +106,11 @@ class Settings(BaseSettings):
     guardrails_provider: str = "nemo"  # Falls back to lightweight if NeMo unavailable
     guardrails_audit_enabled: bool = True  # Structured audit logging for blocked requests
 
-    # --- Ollama (local mode) ---
+    # --- Ollama (local mode / cloud tag) ---
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
+    ollama_cloud_only: bool = True  # When True, refuse local-only models (no :cloud tag)
     sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
 
     # --- OpenRouter (free tier for simple queries) ---

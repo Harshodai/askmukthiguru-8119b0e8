@@ -781,7 +781,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     selected_clusters,
                     embedder,
                     qdrant,
-                    lightrag if query_tier == "tier3_complex" else None,
+                    None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
                     knowledge_tags=knowledge_tags,
                     query_tier=query_tier,
                 ),
@@ -842,7 +842,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                             selected_clusters,
                             embedder,
                             qdrant,
-                            lightrag if query_tier == "tier3_complex" else None,
+                            None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
                             knowledge_tags=knowledge_tags,
                         ),
                         timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),

@@ -99,7 +99,108 @@ async def select_graph_for_query(
             pass
         return "fast"
 
-    # 1. Semantic router (embedding-based, sub-100 ms, zero LLM call)
+    # 1. Heuristic routing FIRST (no LLM, deterministic, prevents simple queries
+    # like "what is Soul Sync" from being over-classified as 'standard' by the
+    # embedding router and paying for 6+ serial LLM calls).
+    tokens = q.split()
+
+    # Deep patterns first (highest priority)
+    for pattern in _DEEP_QUERY_PATTERNS:
+        if re.search(pattern, q):
+            try:
+                asyncio.create_task(
+                    log_router_decision(
+                        query=query,
+                        tier="deep",
+                        confidence=1.0,
+                        method="heuristic_deep",
+                    )
+                )
+            except Exception:
+                pass
+            return "deep"
+
+    # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
+    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
+
+    # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
+    if detected_intent in ("FACTUAL", "QUERY"):
+        if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
+            if len(tokens) <= 25:
+                try:
+                    asyncio.create_task(
+                        log_router_decision(
+                            query=query,
+                            tier="fast",
+                            confidence=1.0,
+                            method="heuristic_doctrine",
+                        )
+                    )
+                except Exception:
+                    pass
+                return "fast"
+        elif len(tokens) <= 20 and not is_multi_part:
+            try:
+                asyncio.create_task(
+                    log_router_decision(
+                        query=query,
+                        tier="fast",
+                        confidence=1.0,
+                        method="heuristic_short",
+                    )
+                )
+            except Exception:
+                pass
+            return "fast"
+
+    # Regex-based simple query detection
+    for pattern in _SIMPLE_QUERY_PATTERNS:
+        if re.search(pattern, q) and len(tokens) <= 15 and not is_multi_part:
+            try:
+                asyncio.create_task(
+                    log_router_decision(
+                        query=query,
+                        tier="fast",
+                        confidence=1.0,
+                        method="heuristic_pattern",
+                    )
+                )
+            except Exception:
+                pass
+            return "fast"
+
+    # Broader regex-based simple query detection
+    for pattern in HEURISTIC_BROAD_SIMPLE_PATTERNS:
+        if re.search(pattern, q) and len(tokens) <= 15 and not is_multi_part:
+            try:
+                asyncio.create_task(
+                    log_router_decision(
+                        query=query,
+                        tier="fast",
+                        confidence=1.0,
+                        method="heuristic_broad",
+                    )
+                )
+            except Exception:
+                pass
+            return "fast"
+
+    # Final catch-all: short greetings and statements
+    if len(tokens) <= 4 and detected_intent in ("CASUAL", "GREETING"):
+        try:
+            asyncio.create_task(
+                log_router_decision(
+                    query=query,
+                    tier="fast",
+                    confidence=1.0,
+                    method="heuristic_greeting",
+                )
+            )
+        except Exception:
+            pass
+        return "fast"
+
+    # 2. Semantic router (embedding-based, sub-100 ms, zero LLM call)
     semantic_tier: str | None = None
     semantic_confidence: float = 0.0
     if container and hasattr(container, "semantic_router"):
@@ -112,7 +213,6 @@ async def select_graph_for_query(
                     f"(confidence={semantic_confidence:.3f})"
                 )
                 if semantic_confidence >= threshold and not shadow_mode:
-                    # Fast path: log and return immediately
                     try:
                         asyncio.create_task(
                             log_router_decision(
@@ -125,7 +225,6 @@ async def select_graph_for_query(
                     except Exception:
                         pass
                     return semantic_tier
-                # In shadow mode: continue to heuristic but log the semantic result
                 if shadow_mode:
                     logger.info(
                         f"SemanticModelRouter shadow mode: semantic='{semantic_tier}' "
@@ -134,31 +233,25 @@ async def select_graph_for_query(
                 else:
                     logger.warning(
                         f"SemanticModelRouter low confidence ({semantic_confidence:.3f} < {threshold}). "
-                        f"Falling back to heuristics."
+                        f"Falling back to default 'standard'."
                     )
         except Exception as exc:
             logger.warning(f"SemanticModelRouter failed: {exc}. Falling back to heuristics.")
 
-    # 2. Heuristic fallback (no LLM call)
-    tokens = q.split()
-
-    # Check deep patterns first (highest priority)
-    for pattern in _DEEP_QUERY_PATTERNS:
-        if re.search(pattern, q):
-            heuristic_tier = "deep"
-            try:
-                asyncio.create_task(
-                    log_router_decision(
-                        query=query,
-                        tier=heuristic_tier,
-                        confidence=1.0,
-                        method="heuristic",
-                        shadow_tier=semantic_tier if shadow_mode else None,
-                    )
-                )
-            except Exception:
-                pass
-            return heuristic_tier
+    # 3. Default fallback
+    try:
+        asyncio.create_task(
+            log_router_decision(
+                query=query,
+                tier="standard",
+                confidence=1.0,
+                method="default",
+                shadow_tier=semantic_tier if shadow_mode else None,
+            )
+        )
+    except Exception:
+        pass
+    return "standard"
 
     # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
     # even with doctrine keywords (avoids "What is deeksha and how do I practice it?")

@@ -80,7 +80,7 @@ def test_standard_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "check_context_sufficiency" in nodes
     assert "reflect_on_answer" in nodes
     assert "verify_answer" in nodes
-    assert "explain_retrieval" in nodes
+    assert "explain_retrieval" not in nodes
     assert "check_contradiction" not in nodes
 
 
@@ -100,8 +100,8 @@ def test_deep_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "check_context_sufficiency" in nodes
     assert "reflect_on_answer" in nodes
     assert "verify_answer" in nodes
-    assert "explain_retrieval" in nodes
-    assert "check_contradiction" in nodes
+    assert "explain_retrieval" not in nodes
+    assert "check_contradiction" not in nodes
 
 
 def test_graph_strategy_names():

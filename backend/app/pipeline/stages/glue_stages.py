@@ -133,12 +133,17 @@ class ResultAssemblyStage(Stage):
             # never the configured default, which can silently diverge from reality.
             model_used=graph_result.get("model_used"),
             model_provider=getattr(settings, "llm_provider", None) if graph_result.get("model_used") else None,
-            route_decision=ctx.intent.lower(),
-            query_tier=ctx.state.get("query_tier"),
+            route_decision=(ctx.intent.lower() if ctx.intent else "error"),
+            # Use graph_result as the source of truth for tier/score because it is
+            # the output of the LangGraph execution; ctx.state holds the pre-graph
+            # input state and may still carry the initial None placeholder.
+            query_tier=graph_result.get("query_tier") or ctx.state.get("query_tier") or ctx.detected_query_tier,
             blocked=False,
             cache_hit=False,
             proactive_serene_mind=ctx.state.get("proactive_serene_mind"),
-            faithfulness_score=response_data["faithfulness"],
+            # Forward the score computed by verify_answer/format_final_answer;
+            # fall back to the coordinator-derived value only when missing.
+            faithfulness_score=graph_result.get("faithfulness_score", response_data["faithfulness"]),
             hallucination_flag=response_data["hallucination_flag"],
             answer_relevancy=response_data["answer_relevancy"],
             context_precision=response_data["context_precision"],

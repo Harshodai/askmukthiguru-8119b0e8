@@ -26,11 +26,9 @@ from langgraph.types import Send
 from app.config import settings
 from rag.nodes import (
     check_context_sufficiency,
-    check_contradiction,
     context_engineer,
     decompose_query,
     enrich_context,
-    explain_retrieval,
     extract_citations,
     format_final_answer,
     generate_answer,
@@ -244,7 +242,6 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
         graph.add_node("verify_answer", verify_answer)
-        graph.add_node("explain_retrieval", explain_retrieval)
         graph.add_node("extract_citations", extract_citations)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
@@ -303,7 +300,8 @@ class StandardGraphStrategy(GraphStrategy):
 
         graph.add_edge("enrich_context", "context_engineer")
         graph.add_edge("context_engineer", "generate_answer")
-        graph.add_edge("context_engineer", "explain_retrieval")
+        # explain_retrieval removed from default hot path (RAG_SKIP_EXPLAIN_RETRIEVAL).
+        # It can be re-enabled under settings.rag_explain_retrieval_enabled if needed.
 
         graph.add_edge("rewrite_query", "retrieve_documents")
 
@@ -319,12 +317,6 @@ class StandardGraphStrategy(GraphStrategy):
         )
         graph.add_edge("verify_answer", "extract_citations")
         graph.add_edge("extract_citations", "format_final_answer")
-        # explain_retrieval must NOT feed format_final_answer: LangGraph edges are
-        # OR-triggers, so the fast explain lane fired format before reflect/verify
-        # wrote is_faithful — every standard-tier answer was rejected as
-        # "faithful=None" and burned the retry loop into the fallback response.
-        # Its citation_reasoning still lands in state; ainvoke waits for all nodes.
-        graph.add_edge("explain_retrieval", END)
 
         # --- Reject-and-retry loop ---
         graph.add_conditional_edges(
@@ -482,11 +474,10 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
         graph.add_node("verify_answer", verify_answer)
-        graph.add_node("explain_retrieval", explain_retrieval)
         graph.add_node("extract_citations", extract_citations)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
-        graph.add_node("check_contradiction", check_contradiction)
+        # check_contradiction disabled by default; see comment above.
         graph.add_node("handle_casual", handle_casual)
         graph.add_node("handle_distress", handle_distress)
         graph.add_node("handle_meditation", handle_meditation)
@@ -542,7 +533,8 @@ class DeepGraphStrategy(GraphStrategy):
 
         graph.add_edge("enrich_context", "context_engineer")
         graph.add_edge("context_engineer", "generate_answer")
-        graph.add_edge("context_engineer", "explain_retrieval")
+        # explain_retrieval removed from default hot path (RAG_SKIP_EXPLAIN_RETRIEVAL).
+        # It can be re-enabled under settings.rag_explain_retrieval_enabled if needed.
 
         graph.add_edge("rewrite_query", "retrieve_documents")
 
@@ -558,31 +550,13 @@ class DeepGraphStrategy(GraphStrategy):
             },
         )
 
-        # -----------------------------------------------------------------------
-        # Parallel verification fan-out (DeepGraph optimisation — [2.3.3])
-        # -----------------------------------------------------------------------
-        # verify_answer (LettuceDetect faithfulness) runs AFTER reflect_on_answer
-        # (needs the final corrected answer). check_contradiction (history scan) and
-        # explain_retrieval (citation reasoning) can run CONCURRENTLY from generate_answer
-        # since they only need `answer` + `relevant_docs` / `chat_history`, not the
-        # reflection corrections.
-        #
-        # Topology:
-        #   generate_answer ─┬─► reflect_on_answer ──► verify_answer ─────────────┐
-        #                    ├─► check_contradiction (parallel, no LLM deps)        ├─► format_final_answer → END
-        #                    └─► explain_retrieval (parallel citation reasoning)  ──┘
-        #
-        # Net saving vs. sequential verify→contradiction: ~5-10s/query on tier3_complex.
-        # -----------------------------------------------------------------------
-        graph.add_edge("generate_answer", "check_contradiction")  # parallel branch
+        # Deep graph: sequential reflect → verify → extract → format.
+        # Parallel check_contradiction / explain_retrieval branches were removed
+        # because LangGraph OR-edges caused format_final_answer to fire before
+        # verify_answer wrote is_faithful, producing faithfulness_score=0.0 and
+        # burning retries into fallback answers.
         graph.add_edge("verify_answer", "extract_citations")
         graph.add_edge("extract_citations", "format_final_answer")
-        # OR-trigger semantics: parallel check_contradiction / explain_retrieval
-        # lanes finished before the reflect→verify lane and fired format early
-        # with is_faithful unset → spurious rejection + retry churn. They end
-        # their own branches; state writes still merge before ainvoke returns.
-        graph.add_edge("check_contradiction", END)
-        graph.add_edge("explain_retrieval", END)
 
         # --- Reject-and-retry loop ---
         graph.add_conditional_edges(
