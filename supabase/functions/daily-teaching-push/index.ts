@@ -7,7 +7,17 @@ webpush.setVapidDetails(
   Deno.env.get("VAPID_PRIVATE_KEY")!,
 );
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Require shared CRON secret so this cannot be triggered by arbitrary callers.
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const provided = req.headers.get("x-cron-secret");
+  if (!cronSecret || provided !== cronSecret) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const sb = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
