@@ -82,8 +82,8 @@ class CasualShortCircuitStage(Stage):
                 intent="CASUAL",
                 trace_id=ctx.trace_id,
                 latency_ms=latency_ms,
-                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-                model_provider=getattr(settings, "llm_provider", None),
+                model_used=None,  # canned greeting — no LLM ran
+                model_provider=None,
                 route_decision="instant_greeting",
                 cache_hit=False,
             )
@@ -128,8 +128,11 @@ class ResultAssemblyStage(Stage):
             citations=ctx.citations,
             trace_id=str(uuid.uuid4()),
             latency_ms=latency_ms,
-            model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-            model_provider=getattr(settings, "llm_provider", None),
+            # The generation node records which gateway/model actually produced
+            # the answer (rag/nodes/generation.py route_metadata) — report that,
+            # never the configured default, which can silently diverge from reality.
+            model_used=graph_result.get("model_used"),
+            model_provider=getattr(settings, "llm_provider", None) if graph_result.get("model_used") else None,
             route_decision=ctx.intent.lower(),
             query_tier=ctx.state.get("query_tier"),
             blocked=False,

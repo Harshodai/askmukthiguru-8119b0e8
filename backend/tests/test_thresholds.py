@@ -9,7 +9,7 @@ def test_settings_thresholds_defaults():
     assert settings.lettuce_detect_threshold == 0.25
     assert settings.cove_supported_threshold == 0.8
     assert settings.cove_partial_threshold == 0.5
-    assert settings.faithfulness_floor == 0.8
+    assert settings.faithfulness_floor == 0.6  # migrated default (b5399e48); 0.8 was stale
     assert settings.verifier_pass_ratio == 0.5
     assert settings.rerank_threshold_complex == 0.01
     assert settings.rerank_threshold_simple == 0.05

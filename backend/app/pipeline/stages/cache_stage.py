@@ -76,7 +76,7 @@ class CacheCheckStage(Stage):
                 trace_id=str(uuid.uuid4()),
                 latency_ms=0,
                 model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-                model_provider=getattr(settings, "llm_provider", None),
+                model_provider=None,
                 route_decision="hot_cache",
                 cache_hit=True,
             )
@@ -105,7 +105,7 @@ class CacheCheckStage(Stage):
                     trace_id=str(uuid.uuid4()),
                     latency_ms=0,
                     model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-                    model_provider=getattr(settings, "llm_provider", None),
+                    model_provider=None,
                     route_decision="vector_cache_p90",
                     cache_hit=True,
                 )
@@ -138,7 +138,7 @@ class CacheCheckStage(Stage):
                 trace_id=str(uuid.uuid4()),
                 latency_ms=0,
                 model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-                model_provider=getattr(settings, "llm_provider", None),
+                model_provider=None,
                 route_decision="semantic_cache",
                 cache_hit=True,
             )

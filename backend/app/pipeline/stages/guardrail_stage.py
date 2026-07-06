@@ -12,7 +12,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 
-from app.config import settings
+
 from app.metrics import REQUEST_LATENCY
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
@@ -65,8 +65,8 @@ class InputGuardrailStage(Stage):
                 block_reason=input_check["reason"],
                 latency_ms=int((time.time() - ctx.start_time) * 1000),
                 trace_id=ctx.trace_id,
-                model_used=getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None),
-                model_provider=getattr(settings, "llm_provider", None),
+                model_used=None,  # blocked before any model ran
+                model_provider=None,
                 route_decision="blocked",
             )
         return None
