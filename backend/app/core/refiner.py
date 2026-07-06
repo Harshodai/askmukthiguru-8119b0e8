@@ -1,7 +1,7 @@
 import json
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from app.dependencies import get_container
 from app.constants import FEEDBACK_LESSONS_FILE_PATH
@@ -74,7 +74,7 @@ async def mine_failed_session(
 
     # Append structured entry to feedback_lessons.jsonl
     entry = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "query": query,
         "category": analysis_json.get("category", "other"),
         "analysis": analysis_json.get("analysis", ""),
@@ -126,7 +126,7 @@ async def mine_failed_session(
             if is_faithful:
                 from app.constants import PROMPT_PATCHES_VALIDATED_FILE_PATH
                 validated_entry = {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "query": query,
                     "suggested_correction": suggested_correction,
                     "student_answer": student_answer,

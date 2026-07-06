@@ -8,7 +8,7 @@ import sys
 import json
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add backend directory to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -56,7 +56,7 @@ async def run_batch_ralph():
         print("Generating a test failure lesson to verify the validation loop...")
         lessons = [
             {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "query": "Who is Lokaa's daughter?",
                 "category": "hallucination",
                 "analysis": "LLM claimed Lokaa has a daughter, violating Lokaa Rule.",

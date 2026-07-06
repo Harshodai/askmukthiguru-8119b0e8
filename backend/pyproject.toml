@@ -131,6 +131,21 @@ norecursedirs = [
     "__pycache__",
 ]
 python_files = ["test_*.py"]
+markers = [
+    "unit: Unit tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::ImportWarning",
+    "ignore::ResourceWarning",
+    "ignore:.*allowed_objects.*",
+    "ignore:.*LangChainPendingDeprecationWarning.*",
+    "ignore:::langgraph.*",
+    "ignore:::langchain_core.*",
+]
 
 [tool.mypy]
 python_version = "3.12"

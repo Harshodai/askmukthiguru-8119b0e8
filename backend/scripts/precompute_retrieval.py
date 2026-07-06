@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add backend/ to the path so imports work when run as a script
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -92,7 +92,7 @@ async def precompute_topic(container, topic: str, redis_client, limit: int = 5) 
 
         payload = {
             "topic": topic,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "count": len(docs),
             "docs": docs,
         }

@@ -205,7 +205,7 @@ def main() -> int:
     # ── Runtime graph selection check ────────────────────────────────
     print("\n=== Runtime graph selection ===")
     orchestrator_source = (backend / "app/orchestrator_utils.py").read_text()
-    coordinator_source = (backend / "app/pipeline/pipeline_coordinator.py").read_text()
+    coordinator_source = (backend / "app/pipeline/stages/graph_stage.py").read_text()
     if "def select_graph_for_query(" in orchestrator_source:
         print("  ✅ select_graph_for_query() defined in orchestrator_utils.py")
     else:
@@ -213,9 +213,9 @@ def main() -> int:
         all_ok = False
     
     if "select_graph_for_query(" in coordinator_source:
-        print("  ✅ Runtime graph selection wired in pipeline_coordinator.py")
+        print("  ✅ Runtime graph selection wired in graph_stage.py")
     else:
-        print("  ❌ Runtime graph selection NOT wired in pipeline_coordinator.py")
+        print("  ❌ Runtime graph selection NOT wired in graph_stage.py")
         all_ok = False
         
     # Pipeline timeout fix

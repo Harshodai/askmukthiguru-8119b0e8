@@ -1049,13 +1049,16 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     )
                     answer = resp.text or ""
                 except Exception as exc:
-                    logger.warning(f"headroom CCR: Gateway retry failed: {exc}")
+                    logger.warning(f"headroom CCR: Gateway retry failed: {exc}. Falling back to configured LLM provider.")
+                    answer = (await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)) or ""
             else:
                 # Use the universal provider (ollama = configured LLM provider)
                 answer = (await ollama.generate(system_prompt=system_prompt, user_prompt=user_prompt)) or ""
             if answer is None:
                 answer = ""
             answer = strip_cot(answer)
+            # Ensure no remaining CCR [RETRIEVE: <source_url>] tag leaks to the user
+            answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
 
     answer = _ensure_keywords_in_answer(answer, question)
 

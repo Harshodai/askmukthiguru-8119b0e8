@@ -271,16 +271,11 @@ class StandardGraphStrategy(GraphStrategy):
         )
 
         graph.add_edge("web_search", "resolve_followup")
-        # ponytail: decompose_query and navigate_and_hyde read only
-        # question/query_tier/rewritten_query and write disjoint keys
-        # (sub_queries/is_complex vs hyde_text/selected_clusters) — no
-        # read/write overlap, so fan them out from resolve_followup instead
-        # of chaining. retrieve_documents (which already reads both outputs)
-        # is the natural AND-join, same pattern format_final_answer already
-        # uses for extract_citations/explain_retrieval.
+        # To avoid LangGraph OR-join race condition (and prevent intermittently degraded retrieval quality
+        # if both nodes fail or execute out of sync), we chain decompose_query and navigate_and_hyde
+        # sequentially. This ensures they execute in a predictable order and satisfies validate_graph.py.
         graph.add_edge("resolve_followup", "decompose_query")
-        graph.add_edge("resolve_followup", "navigate_and_hyde")
-        graph.add_edge("decompose_query", "retrieve_documents")
+        graph.add_edge("decompose_query", "navigate_and_hyde")
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
@@ -504,16 +499,11 @@ class DeepGraphStrategy(GraphStrategy):
         )
 
         graph.add_edge("web_search", "resolve_followup")
-        # ponytail: decompose_query and navigate_and_hyde read only
-        # question/query_tier/rewritten_query and write disjoint keys
-        # (sub_queries/is_complex vs hyde_text/selected_clusters) — no
-        # read/write overlap, so fan them out from resolve_followup instead
-        # of chaining. retrieve_documents (which already reads both outputs)
-        # is the natural AND-join, same pattern format_final_answer already
-        # uses for extract_citations/explain_retrieval.
+        # To avoid LangGraph OR-join race condition (and prevent intermittently degraded retrieval quality
+        # if both nodes fail or execute out of sync), we chain decompose_query and navigate_and_hyde
+        # sequentially. This ensures they execute in a predictable order and satisfies validate_graph.py.
         graph.add_edge("resolve_followup", "decompose_query")
-        graph.add_edge("resolve_followup", "navigate_and_hyde")
-        graph.add_edge("decompose_query", "retrieve_documents")
+        graph.add_edge("decompose_query", "navigate_and_hyde")
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")

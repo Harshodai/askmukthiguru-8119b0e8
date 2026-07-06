@@ -1,5 +1,9 @@
 import os
 import sys
+import warnings
+
+# Suppress all warnings ruthlessly during testing
+warnings.filterwarnings("ignore")
 
 # Add backend/ to sys.path first so that 'app' and 'services' imports resolve
 # regardless of whether pytest is invoked from the repo root or backend/.

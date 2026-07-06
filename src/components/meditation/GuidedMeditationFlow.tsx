@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Play, Pause, SkipForward, RotateCcw,
+  X, Play, Pause, SkipForward, RotateCcw, ChevronLeft,
   HandHeart, Leaf, Feather, Lightbulb, Droplet, Zap, Sparkles,
 } from 'lucide-react';
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
@@ -267,6 +267,17 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         >
           <X className="w-5 h-5 text-muted-foreground" />
         </button>
+
+        {/* Back Button for post-practice reflection steps */}
+        {isComplete && reflectionStep > 0 && reflectionStep < 3 && (
+          <button
+            onClick={() => setReflectionStep(prev => prev - 1)}
+            className="absolute top-4 left-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
+            aria-label="Back"
+          >
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+          </button>
+        )}
 
         {isComplete ? (
           <motion.div
