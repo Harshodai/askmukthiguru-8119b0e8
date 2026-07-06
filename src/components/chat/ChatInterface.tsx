@@ -1657,7 +1657,7 @@ return (
                       transition={{ delay: 0.25 + idx * 0.05 }}
                       whileHover={{ y: -2 }}
                       onClick={() => handleSuggestionClick(card.prompt)}
-                      className="group text-left rounded-2xl border border-ojas/15 bg-gradient-to-br from-card/70 to-ojas/[0.03] hover:border-ojas/40 hover:bg-ojas/[0.05] hover:shadow-md hover:shadow-ojas/10 backdrop-blur-sm p-4 transition-all"
+                      className="group text-left rounded-2xl border border-ojas/25 bg-gradient-to-br from-card/70 to-ojas/[0.03] hover:border-ojas/40 hover:bg-ojas/[0.05] hover:shadow-md hover:shadow-ojas/10 backdrop-blur-sm p-4 transition-all"
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0">
@@ -1815,9 +1815,14 @@ return (
         </div>
       </div>
 
-      {/* Scroll-to-bottom FAB — positioned relative to the chat column */}
+      {/* Scroll-to-bottom FAB — positioned relative to the chat column.
+          Only meaningful once there's an actual conversation to scroll
+          through; on the empty greeting screen the stacked content
+          (heading + quote + input + suggestion cards) can exceed the
+          viewport height on its own, which used to trigger this FAB to
+          overlap the greeting content with nothing to "jump to". */}
       <ScrollToBottomFab
-        visible={showScrollFab}
+        visible={showScrollFab && messages.length > 0}
         unreadCount={unreadCount}
         onClick={() => scrollToBottom('smooth')}
       />
