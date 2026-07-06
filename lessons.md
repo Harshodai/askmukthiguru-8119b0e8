@@ -18,6 +18,10 @@
 - **Problem**: In intent routing, checking if the session is active coerced `meditation_step` only if it was a string and caught only `ValueError`, leaving `None` or other types vulnerable to comparison crashes.
 - **Fix**: Standardized the active-session check in `intent.py` using `int(raw_step)` wrapped in a `try/except` block catching both `TypeError` and `ValueError`, reverting to `0` on any parsing exception.
 
+### ChatOllama Bind TypeError (num_predict option)
+- **Problem**: Passing options like `num_predict`, `temperature`, `top_k`, or `top_p` directly to `ChatOllama.bind()` causes it to pass them down as top-level parameters to `AsyncClient.chat()`. Since the underlying `ollama` client library's `chat()` method only accepts options within the `options` parameter dictionary, this raises a `TypeError: AsyncClient.chat() got an unexpected keyword argument 'num_predict'`.
+- **Fix**: Updated `OllamaService` (`generate`, `generate_fast`, and `generate_stream` methods) to filter out those specific model parameters from `clean_kwargs` and nest them inside an `options` dictionary before calling `self._llm.bind()`.
+
 ## Jul 5, 2026 — Docker Health, Celery Hardening, and Ingestion Copy Updates
 
 ### Multi-Process Model Loading & Startup OOM Prevention
