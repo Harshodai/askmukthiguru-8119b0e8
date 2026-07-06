@@ -71,6 +71,10 @@ async def neo4j_fulltext_search(
         logger.debug("SemanticRouterFallback: NEO4J_URI not configured; skipping")
         return []
 
+    # Use the shared, process-wide driver unless the caller explicitly passed
+    # custom connection params (e.g. tests) — then fall back to a one-off driver.
+    use_shared_driver = neo4j_uri is None and neo4j_user is None and neo4j_password is None
+
     cypher = """
     CALL db.index.fulltext.queryNodes('chunk_text', $query, {limit: $limit})
     YIELD node, score
@@ -86,9 +90,19 @@ async def neo4j_fulltext_search(
     """
 
     def _run_query():
-        from neo4j import GraphDatabase
+        if use_shared_driver:
+            from app.dependencies import get_container
 
-        driver = GraphDatabase.driver(uri, auth=(user, pwd))
+            driver = get_container().neo4j_driver
+            if driver is None:
+                raise RuntimeError("Neo4j driver unavailable")
+            close_driver = False
+        else:
+            from neo4j import GraphDatabase
+
+            driver = GraphDatabase.driver(uri, auth=(user, pwd))
+            close_driver = True
+
         try:
             with driver.session() as session:
                 result = session.run(cypher, query=query, limit=limit)
@@ -110,7 +124,8 @@ async def neo4j_fulltext_search(
                     })
                 return records
         finally:
-            driver.close()
+            if close_driver:
+                driver.close()
 
     try:
         results = await asyncio.wait_for(

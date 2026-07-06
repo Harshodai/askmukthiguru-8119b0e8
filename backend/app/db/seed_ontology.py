@@ -1,8 +1,8 @@
 import asyncio
 import logging
 import os
-from neo4j import GraphDatabase
 from app.config import settings
+from app.dependencies import get_container
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,10 @@ def seed_spiritual_ontology():
 
     logger.info(f"seed_spiritual_ontology: Checking Neo4j connection at {settings.neo4j_uri}...")
     try:
-        driver = GraphDatabase.driver(
-            settings.neo4j_uri,
-            auth=(settings.neo4j_user, settings.neo4j_password)
-        )
-        
+        driver = get_container().neo4j_driver
+        if driver is None:
+            raise RuntimeError("Neo4j driver unavailable")
+
         # Verify connection
         driver.verify_connectivity()
         
@@ -167,8 +166,7 @@ def seed_spiritual_ontology():
 
         with driver.session() as session:
             session.execute_write(_seed)
-        driver.close()
-        
+
         # Post-seeding: Run ontology alignment to link any existing extracted nodes
         align_extracted_ontology()
     except Exception as e:
@@ -187,10 +185,10 @@ def align_extracted_ontology():
 
     logger.info("align_extracted_ontology: Aligning extracted graph nodes to spiritual ontology...")
     try:
-        driver = GraphDatabase.driver(
-            settings.neo4j_uri,
-            auth=(settings.neo4j_user, settings.neo4j_password)
-        )
+        driver = get_container().neo4j_driver
+        if driver is None:
+            raise RuntimeError("Neo4j driver unavailable")
+
         def _align(tx):
             # 1. Map extracted person/organization nodes to Teacher nodes using synonyms
             teachers_synonyms = {
@@ -239,7 +237,6 @@ def align_extracted_ontology():
             
         with driver.session() as session:
             session.execute_write(_align)
-        driver.close()
         logger.info("align_extracted_ontology: Alignment completed successfully.")
     except Exception as e:
         logger.error(f"align_extracted_ontology: Alignment failed: {e}", exc_info=True)
