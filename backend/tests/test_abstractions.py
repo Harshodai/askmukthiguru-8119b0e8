@@ -122,8 +122,9 @@ class TestIsAvailable(unittest.TestCase):
 
     def test_ollama_is_available(self) -> None:
         from services.ollama_service import OllamaService
-        with self.assertRaises(RuntimeError):
-            OllamaService()
+        # Cloud-only mode permits :cloud-tagged models; service should construct.
+        svc = OllamaService()
+        self.assertTrue(svc.is_available)
 
     def test_sarvam_is_available(self) -> None:
         from services.sarvam_service import SarvamCloudService

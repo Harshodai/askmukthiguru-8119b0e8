@@ -82,7 +82,9 @@ async def test_retrieve_documents_contract(monkeypatch):
     assert any(doc["text"] == "Found document teaching" for doc in res["documents"])
     assert not any(doc["text"] == "LightRAG wisdom" for doc in res["documents"])
 
-    # 3. Test valid state with query_tier = tier3_complex (should call LightRAG)
+    # 3. Test valid state with query_tier = tier3_complex.
+    # LightRAG is disabled in the hot retrieval path to avoid latency spikes
+    # and Ollama circuit-breaker trips, so Qdrant results are returned instead.
     complex_state = {
         **valid_state,
         "query_tier": "tier3_complex"
@@ -91,12 +93,6 @@ async def test_retrieve_documents_contract(monkeypatch):
     assert "error" not in res_complex
     assert "documents" in res_complex
     assert any(doc["text"] == "Found document teaching" for doc in res_complex["documents"])
-    import sys as _sys
-    for _k, _v in res_complex.items():
-        print(f"  key={_k} type={type(_v).__name__}", file=_sys.stderr)
-        if _k == "documents" and isinstance(_v, list):
-            print(f"    len={len(_v)}", file=_sys.stderr)
-            for _i, _d in enumerate(_v):
-                print(f"    [{_i}] text={_d.get('text','')!r}", file=_sys.stderr)
-    assert any(doc["text"] == "LightRAG wisdom" for doc in res_complex["documents"])
+    assert not any(doc["text"] == "LightRAG wisdom" for doc in res_complex["documents"])
+    mock_lightrag.aquery.assert_not_awaited()
 

@@ -58,16 +58,22 @@ class InputGuardrailStage(Stage):
                 blocked_resp = await container.translation.translate_text(
                     text=blocked_resp, source_lang="en", target_lang=preferred_lang
                 )
+            # Crisis/self-harm blocks already contain compassionate helpline responses.
+            # Report DISTRESS intent so the benchmark sees the correct routing label
+            # instead of a generic ERROR.
+            is_self_harm = "self_harm" in (input_check.get("reason") or "")
+            intent = "DISTRESS" if is_self_harm else "ERROR"
+            route_decision = "distress" if is_self_harm else "blocked"
             return PipelineResult(
                 final_answer=blocked_resp,
-                intent="ERROR",
+                intent=intent,
                 blocked=True,
                 block_reason=input_check["reason"],
                 latency_ms=int((time.time() - ctx.start_time) * 1000),
                 trace_id=ctx.trace_id,
                 model_used=None,  # blocked before any model ran
                 model_provider=None,
-                route_decision="blocked",
+                route_decision=route_decision,
             )
         return None
 

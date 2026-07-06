@@ -193,7 +193,8 @@ async def test_quality_checks_bypass(mock_services):
     res_verify = await nodes.verify_answer(state)
     assert res_verify["is_faithful"] is True
     assert res_verify["verification"]["passed"] is True
-    assert res_verify["confidence_score"] == 10.0
+    assert res_verify["confidence_score"] == 8.0
+    assert res_verify["faithfulness_score"] == 1.0
 
     # check_contradiction bypass
     res_contradiction = await nodes.check_contradiction(state)

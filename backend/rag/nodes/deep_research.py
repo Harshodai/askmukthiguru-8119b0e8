@@ -148,7 +148,8 @@ async def conduct_deep_research(
     query_tier = state.get("query_tier", "standard")
     embedder = _services._embedder
     qdrant = _services._qdrant
-    lightrag = _services._lightrag
+    # LightRAG is disabled in the hot retrieval path (latency/circuit-breaker safety).
+    lightrag = None
 
     async def _one(q: str) -> list[dict]:
         try:

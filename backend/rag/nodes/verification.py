@@ -99,9 +99,9 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         return {
             "is_faithful": True,
             "verification": {"passed": True, "details": "Bypassed for simple query tier"},
-            "confidence_score": 10.0,
-            "faithfulness_score": 10.0,
-            "relevancy_score": 10.0,
+            "confidence_score": 8.0,
+            "faithfulness_score": 1.0,
+            "relevancy_score": 1.0,
         }
 
     # Skip for standard tier with short answers (< 150 chars)
@@ -111,9 +111,9 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         return {
             "is_faithful": True,
             "verification": {"passed": True, "details": "Bypassed for standard tier short answer"},
-            "confidence_score": 10.0,
-            "faithfulness_score": 10.0,
-            "relevancy_score": 10.0,
+            "confidence_score": 8.0,
+            "faithfulness_score": 1.0,
+            "relevancy_score": 1.0,
         }
 
     # --- rag_parallel_verify fast-exit (Ruthless Audit Phase 1 TTFT) ---
@@ -131,8 +131,8 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "is_faithful": True,
             "verification": {"passed": True, "details": "Parallel verify fast-exit (tier3_complex)"},
             "confidence_score": state.get("confidence_score") or 7.0,
-            "faithfulness_score": 7.0,
-            "relevancy_score": 7.0,
+            "faithfulness_score": 1.0,
+            "relevancy_score": 1.0,
         }
 
     answer = state["answer"]

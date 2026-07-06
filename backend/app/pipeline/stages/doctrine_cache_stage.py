@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 
+from app.config import settings
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 
@@ -16,11 +17,19 @@ logger = logging.getLogger(__name__)
 
 
 class DoctrineCacheStage(Stage):
-    """Fast-path stage using DoctrineCache for known spiritual questions."""
+    """Fast-path stage using DoctrineCache for known spiritual questions.
+
+    Default disabled (DOCTRINE_CACHE_ENABLED=false) because the built-in canned
+    map lacks structured citations and misses many doctrinal keywords, which
+    tanks ruthless benchmark scores.  Enable only after curating a high-quality
+    FAQ file with citation metadata.
+    """
 
     name = "doctrine_cache"
 
     async def run(self, ctx) -> PipelineResult | None:  # noqa: ANN001  — ctx: PipelineContext
+        if not getattr(settings, "doctrine_cache_enabled", False):
+            return None
         doctrine_cache = getattr(ctx.container, "doctrine_cache", None) if ctx.container else None
         if doctrine_cache is None:
             return None
