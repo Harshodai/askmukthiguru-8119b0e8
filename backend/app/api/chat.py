@@ -518,13 +518,10 @@ async def get_concept_graph(
         }
 
     try:
-        from neo4j import GraphDatabase
-
         def _query_graph():
-            driver = GraphDatabase.driver(
-                settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password)
-            )
+            driver = container.neo4j_driver
+            if driver is None:
+                raise RuntimeError("Neo4j driver unavailable")
             nodes = {}
             links = []
             with driver.session() as session:

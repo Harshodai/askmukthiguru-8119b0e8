@@ -111,6 +111,11 @@ class ServiceContainer:
         self.qdrant.init_collection()
         self.lightrag = lightrag_service
 
+        # Shared Neo4j driver — constructing a driver does a handshake/routing-table
+        # fetch, so lazily create one per process (via the `neo4j_driver` property)
+        # and reuse it everywhere instead of every call site opening its own.
+        self._neo4j_driver = None
+
         # Other infrastructure
         self.ocr = OCRService()
         self.krutrim = KrutrimService()
@@ -373,6 +378,22 @@ class ServiceContainer:
         """Dynamic check of LightRAG initialization status."""
         return not self.lightrag._initialized
 
+    @property
+    def neo4j_driver(self):
+        """Shared Neo4j driver, lazily created once and reused by all callers."""
+        if self._neo4j_driver is None:
+            from neo4j import GraphDatabase
+
+            try:
+                self._neo4j_driver = GraphDatabase.driver(
+                    settings.neo4j_uri,
+                    auth=(settings.neo4j_user, settings.neo4j_password),
+                )
+            except Exception as e:
+                logger.warning(f"ServiceContainer: Failed to create shared Neo4j driver: {e}")
+                self._neo4j_driver = None
+        return self._neo4j_driver
+
     async def health_status(self) -> dict:
         """Check health of all services (non-blocking)."""
         loop = asyncio.get_running_loop()
@@ -447,6 +468,15 @@ class ServiceContainer:
                     except Exception as exc:
                         logger.warning(f"Error closing {name}.{method_name}(): {exc}")
                     break  # Only call the first available cleanup method
+
+        if self._neo4j_driver is not None:
+            try:
+                self._neo4j_driver.close()
+                logger.debug("Closed shared neo4j_driver")
+            except Exception as exc:
+                logger.warning(f"Error closing shared neo4j_driver: {exc}")
+            self._neo4j_driver = None
+
         logger.info("All services closed")
 
 

@@ -143,13 +143,12 @@ async def query_neo4j_subgraph(query: str) -> str:
         return ""
 
     try:
-        from neo4j import GraphDatabase
+        from app.dependencies import get_container
 
         def _run():
-            driver = GraphDatabase.driver(
-                settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password)
-            )
+            driver = get_container().neo4j_driver
+            if driver is None:
+                raise RuntimeError("Neo4j driver unavailable")
             subgraph_context = []
             with driver.session() as session:
                 # Fix: LightRAG's Neo4JStorage writes entity_id (not entity_name),
@@ -209,13 +208,12 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
         ]
 
     try:
-        from neo4j import GraphDatabase
+        from app.dependencies import get_container
         tenant_id = TenantContext.get()
         def _run():
-            driver = GraphDatabase.driver(
-                settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password)
-            )
+            driver = get_container().neo4j_driver
+            if driver is None:
+                raise RuntimeError("Neo4j driver unavailable")
             steps = []
             with driver.session() as session:
                 cypher = """
