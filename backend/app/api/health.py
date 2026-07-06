@@ -123,13 +123,20 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
     })
 
 
-@router.get("/api/circuit-breaker/status")
-async def circuit_breaker_status(container: ServiceContainer = Depends(get_container)) -> dict:
-    """
-    Get circuit breaker status for all registered providers.
+def _require_admin(user: dict) -> None:
+    if not user or not user.get("is_superuser"):
+        raise HTTPException(status_code=403, detail="Admin access required")
 
-    Useful for debugging circuit breaker state without needing to reset it.
+
+@router.get("/api/circuit-breaker/status")
+async def circuit_breaker_status(
+    container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict:
     """
+    Get circuit breaker status for all registered providers. Admin only.
+    """
+    _require_admin(user)
     try:
         registry = container.circuit_breaker_registry
         if not registry:
@@ -138,7 +145,6 @@ async def circuit_breaker_status(container: ServiceContainer = Depends(get_conta
         all_stats = registry.get_all_stats()
         active_provider = registry.get_active_provider()
 
-        # Also check the Sarvam service circuit breaker directly
         sarvam_circuit = None
         if hasattr(container.ollama, "_service"):
             svc = container.ollama._service
@@ -154,25 +160,17 @@ async def circuit_breaker_status(container: ServiceContainer = Depends(get_conta
         }
     except Exception as e:
         logger.error(f"Circuit breaker status failed: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "internal_error"}
 
 
 @router.get("/api/circuit-breaker/reset")
-async def circuit_breaker_reset_endpoint() -> dict:
-    """
-    Manually reset the active circuit breaker to CLOSED.
-
-    Use when the circuit has been OPEN for a long time (e.g. after
-    a temporary API outage) and you want to allow traffic immediately
-    instead of waiting for the auto-recovery timeout.
-
-    Works with any LLM provider (Sarvam, Ollama, OpenRouter, etc.)
-    based on the currently active provider in the registry.
-    """
-    # Access the circuit breaker through the dependency container
+async def circuit_breaker_reset_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict:
+    """Manually reset the active circuit breaker to CLOSED. Admin only."""
+    _require_admin(user)
     try:
         container = get_container()
-        # Use provider-agnostic circuit breaker registry
         active_breaker = container.circuit_breaker_registry.get_active()
         if not active_breaker:
             return {
@@ -186,27 +184,32 @@ async def circuit_breaker_reset_endpoint() -> dict:
         active_breaker._failures = 0
         active_breaker._last_failure_time = None
         active_breaker._half_open_calls = 0
-        logger.info(f"Circuit breaker [{provider}] manually reset (was {previous_state}) → CLOSED")
+        logger.info(f"Circuit breaker [{provider}] manually reset (was {previous_state}) → CLOSED by admin {user.get('id')}")
         return {
             "status": "ok",
             "provider": provider,
             "previous_state": previous_state,
             "current_state": "closed",
-            "message": f"Circuit breaker for {provider} has been reset. New requests will be attempted.",
+            "message": f"Circuit breaker for {provider} has been reset.",
         }
     except AttributeError as e:
         logger.error(f"Circuit breaker reset failed: {e}")
         return {
             "status": "error",
-            "message": "Could not access circuit breaker. Ensure services are initialized.",
+            "message": "Could not access circuit breaker.",
         }
 
 
 @router.get("/api/debug/headers")
-async def debug_headers(request: Request) -> dict:
-    """Debug endpoint to see what headers are received."""
+async def debug_headers(
+    request: Request,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict:
+    """Debug endpoint. Disabled in production; admin-only otherwise."""
+    if getattr(settings, "is_production", True):
+        raise HTTPException(status_code=404, detail="Not found")
+    _require_admin(user)
     headers = dict(request.headers)
-    # Filter for auth-related headers
     auth_headers = {k: v for k, v in headers.items() if k.lower() in ('authorization', 'cookie', 'x-test-key', 'content-type')}
     return {
         "all_headers_count": len(headers),
