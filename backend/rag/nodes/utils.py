@@ -702,23 +702,34 @@ def log_metrics(func):
                 NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
             except Exception:
                 pass
-            # Unit 9: preserve the full expected GraphState shape so downstream
-            # nodes (e.g. verify_answer, format_final_answer) do not KeyError when
-            # the previous node failed. Copy existing state first, then add safe
-            # defaults and fallback metadata.
+            # Unit 9: guarantee downstream nodes (e.g. verify_answer,
+            # format_final_answer) do not KeyError when the previous node failed.
+            #
+            # IMPORTANT: return only this small delta, never `dict(state)`.
+            # LangGraph's default channels accept at most one write per
+            # super-step. decompose_query and navigate_and_hyde fan out in
+            # PARALLEL from the same predecessor — if both fail (e.g. both hit
+            # the same LLM rate limit) and each echoes the *entire* state back
+            # (including untouched keys like "question"), LangGraph sees two
+            # writes to the same channel in one step and raises
+            # InvalidUpdateError, turning a graceful per-node fallback into a
+            # hard 500 for the whole request. Only echo the specific fields
+            # this fallback needs to guarantee, preserving already-populated
+            # values from state so earlier progress isn't lost.
             fallback = {
                 "error": str(e),
                 "node": node_name,
                 "fallback": True,
                 "node_timings": {node_name: duration_ms},
             }
-            result = dict(state)
-            result.setdefault("relevant_docs", [])
-            result.setdefault("reranked_docs", [])
-            result.setdefault("documents", [])
-            result.setdefault("answer", None)
-            result.setdefault("citations", [])
-            result.setdefault("final_answer", None)
+            result = {
+                "relevant_docs": state.get("relevant_docs") or [],
+                "reranked_docs": state.get("reranked_docs") or [],
+                "documents": state.get("documents") or [],
+                "answer": state.get("answer"),
+                "citations": state.get("citations") or [],
+                "final_answer": state.get("final_answer"),
+            }
             result.update(fallback)
 
             # Persist failed span

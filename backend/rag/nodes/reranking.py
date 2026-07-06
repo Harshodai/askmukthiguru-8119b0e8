@@ -213,7 +213,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
 
     # Adaptive-RAG confidence gate: reranker already confident → skip the LLM
     # grading round-trip entirely (scores are sigmoid-normalized to [0,1]).
-    skip_conf = getattr(settings, "crag_skip_confidence", 0.0)
+    skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
     if skip_conf > 0:
         confident = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
         if len(confident) >= 3:
@@ -284,9 +284,15 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                         relevant_db.append(doc)
                     db_reasons.append(res["reason"])
             except Exception as e:
-                logger.warning(f"Grading failed for DB docs: {e}. Falling back to keeping all.")
-                relevant_db = list(db_docs)
-                db_reasons = [f"Grading fallback due to error: {e}" for _ in db_docs]
+                # Unit 9 fail-safe (same pattern as the web-docs branch above):
+                # keep only the top-3 reranked docs instead of unconditionally
+                # accepting every retrieved doc, which inverted CRAG's entire
+                # purpose (filter-on-failure becoming accept-everything-on-failure).
+                logger.warning(
+                    f"Grading failed for DB docs: {e}. Falling back to top-3 reranked DB docs."
+                )
+                relevant_db = db_docs[:3]
+                db_reasons = [f"Grading fallback: {e}" for _ in relevant_db]
 
         # Compress only the relevant DB documents (do not compress temporal web search results)
         if relevant_db:
@@ -345,7 +351,7 @@ async def check_context_sufficiency(state: GraphState, config: dict = None) -> d
 
     # Adaptive-RAG confidence gate: same threshold as grade_documents — when the
     # top docs are high-confidence, skip the LLM sufficiency round-trip.
-    skip_conf = getattr(settings, "crag_skip_confidence", 0.0)
+    skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
     top3 = relevant_docs[:3]
     if skip_conf > 0 and len(top3) == 3 and all(
         d.get("rerank_score", 0.0) >= skip_conf for d in top3

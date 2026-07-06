@@ -320,6 +320,9 @@ class Settings(BaseSettings):
     idempotency_ttl_seconds: int = 86400
     idempotency_redis_prefix: str = "idempotency:"
 
+    # --- Daily teachings cache (app/api/teachings.py) ---
+    teachings_tips_ttl_seconds: int = 604_800  # 7 days
+
     # --- User Profiles & Persistence ---
     user_profile_enabled: bool = True  # Enable user profiles and persistent memory
     krutrim_api_key: str = ""  # Fallback Indian LLM provider

@@ -710,7 +710,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         }
 
     configurable = {}
-    if getattr(settings, "SEMANTIC_CACHE_ENABLED", True):
+    if getattr(settings, "semantic_cache_enabled", True):
         query = state.get("rewritten_query") or state["question"]
         cache_repo = _services._semantic_cache
         cached = cache_repo.get(query) if cache_repo else None

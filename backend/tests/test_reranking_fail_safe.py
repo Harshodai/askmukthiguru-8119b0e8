@@ -140,3 +140,35 @@ async def test_grade_documents_web_grading_failure_keeps_top_three(
         "web doc 1",
         "web doc 2",
     ]
+
+
+@pytest.mark.asyncio
+async def test_grade_documents_db_grading_failure_keeps_top_three(
+    mock_services, monkeypatch
+):
+    """If DB-doc grading raises, only the top-3 reranked DB docs are kept —
+    it must fail closed like the web-docs branch, not accept every doc
+    (which inverts CRAG's entire filtering purpose)."""
+    mock_ollama, _, _ = mock_services
+
+    fake_settings = SimpleNamespace(
+        rerank_min_score=0.2,
+        rerank_floor=0.1,
+    )
+    monkeypatch.setattr(reranking_module, "settings", fake_settings)
+
+    state = _make_state(web_count=0, db_count=5)
+
+    # DB grading raises; there are no web docs to grade.
+    mock_ollama.grade_relevance.side_effect = Exception("ollama db grading exploded")
+
+    result = await reranking_module.grade_documents(state, config=None)
+
+    relevant = result["relevant_docs"]
+    assert len(relevant) == 3
+    assert all(doc.get("content_type") == "transcript" for doc in relevant)
+    assert [doc["text"] for doc in relevant] == [
+        "db doc 0",
+        "db doc 1",
+        "db doc 2",
+    ]
