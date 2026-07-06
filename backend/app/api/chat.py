@@ -301,14 +301,20 @@ async def chat_stream_endpoint(
 async def chat_stream_poll(
     job_id: str,
     container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(get_current_user_from_supabase),
 ):
     """
-    SSE endpoint for queued streaming jobs.
+    SSE endpoint for queued streaming jobs. Only the job owner may stream.
 
     Reads events from Redis Stream (populated by worker) and streams them as SSE.
     """
     if not container.job_queue:
         raise HTTPException(status_code=503, detail="Job queue is disabled")
+
+    # Ownership check — return 404 on mismatch to avoid confirming existence.
+    job_meta = await container.job_queue.get_job(job_id)
+    if not job_meta or str(job_meta.get("user_id") or "") != str(user.get("id") or ""):
+        raise HTTPException(status_code=404, detail="Job not found or expired")
 
     import redis.asyncio as aioredis
     r = aioredis.from_url(settings.redis_url, decode_responses=True)
