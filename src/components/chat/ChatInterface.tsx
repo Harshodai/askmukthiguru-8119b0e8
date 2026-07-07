@@ -1524,7 +1524,7 @@ return (
           ) : (
 
             <>
-                <div className="space-y-2 sm:space-y-3 pb-36 sm:pb-40">
+                <div className="space-y-2 sm:space-y-3 pb-6 sm:pb-8">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
