@@ -118,6 +118,8 @@ _BLOCKED_TOPICS = {
         r"\bdan\s+mode\b",
         r"\bjailbreak\b",
         r"\bdo\s+anything\s+now\b",
+        r"\bSYSTEM\s*:\s*.+\b(override|guardrails?|safety|instructions?|rules?)\b",
+        r"\boverride\s+(mode|system|safety|guardrails?|instructions?)\b",
     ],
     "medical_advice_broad": [
         r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria)\b",
