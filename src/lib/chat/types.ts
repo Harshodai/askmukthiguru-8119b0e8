@@ -66,6 +66,8 @@ export type StreamChunk =
       proactiveSereneMind?: ProactiveSereneMindTrigger | null;
       followUpSuggestions?: string[];
       confidenceScore?: number | null;
+      /** E3.2 one-line explainable reason (optional, forward-compat). */
+      confidenceReason?: string | null;
     }
   | { type: 'error'; text: string };
 

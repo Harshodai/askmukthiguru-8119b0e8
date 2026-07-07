@@ -16,6 +16,10 @@ interface ThinkingPillsProps {
   heartbeat?: boolean;
   /** Fallback label used before any pipeline event arrives (e.g. "Analyzing your question…"). */
   fallbackLabel?: string;
+  /** E6.1: spiritual tradition being searched (e.g. "Ekam — Sri Preethaji & Sri Krishnaji"). */
+  tradition?: string;
+  /** E6.2: the user's query text, surfaced as an optimistic "searching on <topic>" hint. */
+  searchContext?: string;
 }
 
 /**
@@ -53,6 +57,8 @@ export const ThinkingPills = ({
   visible,
   heartbeat,
   fallbackLabel = 'Reflecting on the teachings…',
+  tradition,
+  searchContext,
 }: ThinkingPillsProps) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -81,6 +87,19 @@ export const ThinkingPills = ({
   let subLabel = latestStep?.label ?? fallbackLabel;
   if (heartbeat) subLabel = 'Still working on it…';
   else if (!latestStep && elapsed >= 10) subLabel = 'Drawing from the teachings…';
+
+  // E6.1/E6.2: when no concrete pipeline step has landed yet, enrich the fallback
+  // with the tradition + the user's query topic so the wait feels purposeful.
+  if (!latestStep && !heartbeat) {
+    const topic = searchContext?.trim();
+    if (topic && tradition) {
+      subLabel = `Searching ${tradition} on “${topic.slice(0, 60)}”…`;
+    } else if (topic) {
+      subLabel = `Searching the teachings on “${topic.slice(0, 60)}”…`;
+    } else if (tradition) {
+      subLabel = `Drawing from ${tradition}…`;
+    }
+  }
 
   const hasSteps = displaySteps.length > 0;
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '@/lib/chatStorage';
 import { ChatMessage } from './ChatMessage';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // ── VirtualMessageWrapper for list virtualization (dynamic heights) ──────────────────
 const VirtualMessageWrapper = ({
@@ -94,6 +95,7 @@ export const MessageList = React.memo(({
   onSubmitEdit,
   onAction,
   onCitationClick,
+  loading = false,
 }: {
   messages: Message[];
   streamingId?: string;
@@ -104,7 +106,32 @@ export const MessageList = React.memo(({
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
   onAction?: (query: string) => void;
   onCitationClick?: (messageId: string, citationIndex: number) => void;
+  /** E6.3: when true and there are no messages yet, render shadcn skeletons. */
+  loading?: boolean;
 }) => {
+
+  // E6.3: skeleton placeholder during an async initial load with no messages yet.
+  if (loading && messages.length === 0) {
+    return (
+      <div className="space-y-4 py-2" data-testid="message-list-skeleton">
+        <div className="flex justify-end">
+          <Skeleton className="h-10 w-[55%] rounded-2xl" />
+        </div>
+        <div className="flex justify-start gap-2.5">
+          <Skeleton className="h-7 w-7 rounded-full flex-shrink-0" />
+          <div className="space-y-2 flex-1 max-w-[80%]">
+            <Skeleton className="h-3 w-[90%]" />
+            <Skeleton className="h-3 w-[75%]" />
+            <Skeleton className="h-3 w-[60%]" />
+          </div>
+        </div>
+        <div className="flex justify-start gap-2.5">
+          <Skeleton className="h-7 w-7 rounded-full flex-shrink-0" />
+          <Skeleton className="h-3 w-[50%]" />
+        </div>
+      </div>
+    );
+  }
 
   // Find the ID of the last guru message for the regenerate button
   let lastGuruId: string | undefined;
