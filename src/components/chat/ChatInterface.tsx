@@ -1412,13 +1412,13 @@ return (
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual"
       >
-        <div ref={innerContentRef} className="max-w-3xl mx-auto">
+        <div ref={innerContentRef} className="max-w-3xl mx-auto min-h-full">
           {isLandingMode ? (
             /* ── Landing State (Claude-inspired, minimal, particles) ── */
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center min-h-[calc(100dvh-11rem)] gap-5 py-8"
+              className="flex flex-col items-center justify-center min-h-[calc(100dvh-12rem)] gap-4 py-6 sm:gap-5 sm:py-8"
             >
               <div className="text-center px-4">
                 <motion.h2
@@ -1517,7 +1517,7 @@ return (
           ) : (
 
             <>
-              <div className="space-y-2 sm:space-y-3 pb-4">
+                <div className="space-y-2 sm:space-y-3 pb-36 sm:pb-40">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
@@ -1596,54 +1596,56 @@ return (
                 <div ref={messagesEndRef} className="h-1" />
               </div>
 
-              {/* Active Chat Composer */}
-              <div className="sticky bottom-0 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background/95 to-transparent -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8">
-                <ChatComposer
-                  inputValue={inputValue}
-                  inputRef={inputRef}
-                  onInputChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  onSubmit={(e) => handleSubmit(e)}
-                  onStop={() => {
-                    streamControllerRef.current?.abort();
-                    if (inputRef.current) inputRef.current.focus();
-                  }}
-                  isTyping={isTyping}
-                  isStreaming={isStreaming}
-                  isAwaitingSereneMind={isAwaitingSereneMind}
-                  isListening={isListening}
-                  currentLanguage={currentLanguage}
-                  voiceEnabled={voiceEnabled}
-                  ttsEnabled={ttsEnabled}
-                  isSpeaking={isSpeaking}
-                  inputFocused={inputFocused}
-                  showPipeline={showPipeline}
-                  pipelineSteps={pipelineSteps}
-                  pipelineHeartbeat={pipelineHeartbeat}
-                  showInstantPill={showInstantPill}
-                  isLandingMode={false}
-                  onVoiceToggle={handleVoiceToggle}
-                  onTtsToggle={handleTtsToggle}
-                  onLanguageChange={handleLanguageChange}
-                  onSereneMind={() => openSereneMind()}
-                  onGuidedMeditation={() => setShowGuidedMeditation(true)}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
-                  onSlashCommand={(cmd) => {
-                    setInputValue('');
-                    switch (cmd) {
-                      case 'serene': openSereneMind(); break;
-                      case 'meditate': setShowGuidedMeditation(true); break;
-                      case 'retry': if (messages.length > 0) handleRegenerate(); break;
-                      case 'clear': handleNewConversation(); break;
-                    }
-                  }}
-                />
-              </div>
             </>
           )}
         </div>
       </div>
+
+      {!isLandingMode && (
+        <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
+          <ChatComposer
+            inputValue={inputValue}
+            inputRef={inputRef}
+            onInputChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onSubmit={(e) => handleSubmit(e)}
+            onStop={() => {
+              streamControllerRef.current?.abort();
+              if (inputRef.current) inputRef.current.focus();
+            }}
+            isTyping={isTyping}
+            isStreaming={isStreaming}
+            isAwaitingSereneMind={isAwaitingSereneMind}
+            isListening={isListening}
+            currentLanguage={currentLanguage}
+            voiceEnabled={voiceEnabled}
+            ttsEnabled={ttsEnabled}
+            isSpeaking={isSpeaking}
+            inputFocused={inputFocused}
+            showPipeline={showPipeline}
+            pipelineSteps={pipelineSteps}
+            pipelineHeartbeat={pipelineHeartbeat}
+            showInstantPill={showInstantPill}
+            isLandingMode={false}
+            onVoiceToggle={handleVoiceToggle}
+            onTtsToggle={handleTtsToggle}
+            onLanguageChange={handleLanguageChange}
+            onSereneMind={() => openSereneMind()}
+            onGuidedMeditation={() => setShowGuidedMeditation(true)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            onSlashCommand={(cmd) => {
+              setInputValue('');
+              switch (cmd) {
+                case 'serene': openSereneMind(); break;
+                case 'meditate': setShowGuidedMeditation(true); break;
+                case 'retry': if (messages.length > 0) handleRegenerate(); break;
+                case 'clear': handleNewConversation(); break;
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Scroll-to-bottom FAB — positioned relative to the chat column.
           Only meaningful once there's an actual conversation to scroll
@@ -1664,7 +1666,7 @@ return (
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30"
+            className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30"
           >
             <motion.div
               className="w-2 h-2 rounded-full bg-ojas"
@@ -1687,7 +1689,7 @@ return (
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30"
+            className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-prana/20 border border-prana/30"
           >
             <motion.div className="flex gap-0.5">
               {[0, 1, 2, 3].map((i) => (
@@ -1716,10 +1718,10 @@ return (
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-4 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30"
+            className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 max-w-[calc(100vw-2rem)] flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30"
           >
             <AlertCircle className="w-4 h-4 text-destructive" />
-            <span className="text-sm text-destructive">{voiceError}</span>
+            <span className="text-sm text-destructive truncate">{voiceError}</span>
           </motion.div>
         )}
       </AnimatePresence>
