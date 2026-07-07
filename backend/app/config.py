@@ -278,6 +278,21 @@ class Settings(BaseSettings):
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
 
+    # --- Implicit Teachings Concept Connector (ingestion optimization) ---
+    # Cosine similarity below which entity-pair LLM relation classification is skipped.
+    concept_similarity_threshold: float = 0.78
+    # Optional smaller/faster model for ingestion-time relation extraction.
+    # Empty string = use the configured classification model (provider default).
+    ingestion_relation_model: str = ""
+    # Max entity pairs classified in a single batched LLM call (reduces call count).
+    ingestion_relation_batch_size: int = 5
+    # LRU cache size for (entity_a, entity_b) -> relation lookups.
+    ingestion_relation_cache_size: int = 256
+
+    # --- Quality gate (Tier 1+) density / fact-check / bias stubs ---
+    quality_min_information_density: float = 0.35  # unique meaningful words / total; below = penalty
+    quality_bias_blocklist: str = ""  # comma-separated loaded/hate terms; empty = use built-in stub list
+
     # --- Hyper-Extract enrichment (Phase 5.3) ---
     use_hyper_extract_enrichment: bool = False  # Enable lightweight structure/entity/fact extraction
     hyper_extract_min_chars: int = 200  # Skip texts shorter than this

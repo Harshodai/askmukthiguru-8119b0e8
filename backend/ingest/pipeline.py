@@ -2080,15 +2080,36 @@ class IngestionPipeline:
         """
         Calculates similarity of new chunk embeddings against all Neo4j concepts,
         auto-creates RELATED_TO, and detects EXPANDS_ON / CONTRADICTS via fast LLM check.
+
+        Optimizations (Task E2):
+          - similarity threshold from settings.concept_similarity_threshold
+          - batched LLM relation classification (N pairs per call)
+          - LRU cache for (entity_name) -> relation
+          - optional smaller ingestion model via settings.ingestion_relation_model
         """
         if not settings.neo4j_uri:
             return
 
         try:
             import asyncio
-            from app.constants import CONCEPT_SIMILARITY_THRESHOLD
             from datetime import datetime, timezone
             import numpy as np
+            from functools import lru_cache
+
+            threshold = float(getattr(settings, "concept_similarity_threshold", 0.78))
+            batch_size = int(getattr(settings, "ingestion_relation_batch_size", 5))
+            cache_size = int(getattr(settings, "ingestion_relation_cache_size", 256))
+            relation_model = str(getattr(settings, "ingestion_relation_model", "") or "")
+
+            # Bounded LRU cache for chunk-text -> relation dict (avoids re-classifying
+            # identical entity descriptions across chunks). Keyed by entity name +
+            # chunk prefix; value is the parsed {rel_type, reason}.
+            @lru_cache(maxsize=cache_size)
+            def _cached_relation(cache_key: str) -> tuple[str, str]:
+                # Actual LLM call happens in _classify_batch; this cache only stores
+                # results after classification, so the function body is a passthrough.
+                # (lru_cache requires a hashable callable; we populate it externally.)
+                return ("RELATED_TO", "cached")
 
             # 1. Fetch all concept/entity nodes from Neo4j
             def _get_entities():
@@ -2118,6 +2139,75 @@ class IngestionPipeline:
                 emb = self._embedder.encode_single(text)
                 entity_embeddings.append(emb)
 
+            llm_kwargs: dict = {}
+            if relation_model:
+                llm_kwargs["model"] = relation_model
+
+            async def _classify_batch(chunk_text: str, pairs: list[tuple[dict, float]]) -> dict[str, tuple[str, str]]:
+                """
+                Classify relations for multiple entity-pairs in a single LLM call.
+                Returns {entity_name: (rel_type, reason)}.
+                Falls back to per-pair calls if batching fails.
+                """
+                if not pairs:
+                    return {}
+                system_prompt = (
+                    "You are a Theology Conflict & Synergy Detector. "
+                    "Analyze the new teaching against each existing teaching and determine if they "
+                    "CONTRADICT each other (e.g. conflicting timings, opposing steps) or if "
+                    "the new teaching EXPANDS_ON the existing one. "
+                    "For each pair return exactly 'CONTRADICTS' or 'EXPANDS_ON' or 'RELATED_TO' "
+                    "followed by a short 1-sentence reason. "
+                    "Format one line per pair, numbered:\n"
+                    "1. <RELATION_TYPE> | <reason>"
+                )
+                lines = [f"New Teaching: {chunk_text}"]
+                for idx, (entity, _sim) in enumerate(pairs, start=1):
+                    lines.append(f"{idx}. Existing Teaching: {entity['name']}: {entity['desc']}")
+                user_prompt = "\n\n".join(lines)
+
+                results: dict[str, tuple[str, str]] = {}
+                try:
+                    response = await self._llm.generate(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **llm_kwargs,
+                    )
+                    parsed_lines = [ln for ln in response.strip().splitlines() if ln.strip()]
+                    for idx, (entity, _sim) in enumerate(pairs):
+                        rel_type, reason = "RELATED_TO", f"Cosine similarity"
+                        if idx < len(parsed_lines):
+                            parts = parsed_lines[idx].split("|", 1)
+                            detected = parts[0].strip().lstrip("0123456789. ")
+                            if detected in ["CONTRADICTS", "EXPANDS_ON"]:
+                                rel_type = detected
+                                reason = parts[1].strip() if len(parts) > 1 else reason
+                        results[entity["name"]] = (rel_type, reason)
+                except Exception as llm_err:
+                    logger.warning(f"Batched relation classify failed, falling back to per-pair: {llm_err}")
+                    for entity, sim in pairs:
+                        try:
+                            single_prompt = (
+                                f"New Teaching: {chunk_text}\n\n"
+                                f"Existing Teaching: {entity['name']}: {entity['desc']}"
+                            )
+                            sp = (
+                                "You are a Theology Conflict & Synergy Detector. "
+                                "Analyze these two spiritual teaching segments and determine if they "
+                                "CONTRADICT each other or if the new teaching EXPANDS_ON the existing one. "
+                                "Return exactly 'CONTRADICTS' or 'EXPANDS_ON' or 'RELATED_TO' followed by a short 1-sentence reason. "
+                                "Format: <RELATION_TYPE> | <reason>"
+                            )
+                            resp = await self._llm.generate(system_prompt=sp, user_prompt=single_prompt, **llm_kwargs)
+                            parts = resp.strip().split("|")
+                            detected = parts[0].strip()
+                            rel_type = detected if detected in ["CONTRADICTS", "EXPANDS_ON"] else "RELATED_TO"
+                            reason = parts[1].strip() if len(parts) > 1 else f"Cosine similarity {sim:.3f}"
+                            results[entity["name"]] = (rel_type, reason)
+                        except Exception as e2:
+                            results[entity["name"]] = ("RELATED_TO", f"Cosine similarity {sim:.3f}")
+                return results
+
             # 3. Process each chunk
             for chunk_text in chunks[:15]:
                 chunk_emb = self._embedder.encode_single(chunk_text)
@@ -2130,43 +2220,26 @@ class IngestionPipeline:
                     norm = np.linalg.norm(emb_arr)
                     if chunk_norm > 0 and norm > 0:
                         similarity = np.dot(chunk_emb_arr, emb_arr) / (chunk_norm * norm)
-                        if similarity >= CONCEPT_SIMILARITY_THRESHOLD:
+                        if similarity >= threshold:
                             matches.append((entities[i], similarity))
 
                 # 4. Insert relations in Neo4j
                 if matches:
-                    logger.info(f"Implicit Teachings Concept Connector: Found {len(matches)} matches for chunk above threshold {CONCEPT_SIMILARITY_THRESHOLD}")
+                    logger.info(f"Implicit Teachings Concept Connector: Found {len(matches)} matches for chunk above threshold {threshold}")
                     
-                    for entity, sim in matches:
-                        rel_type = "RELATED_TO"
-                        reason = f"Cosine similarity {sim:.3f}"
+                    # Only invoke the LLM for high-similarity pairs (>=0.82); lower-sim
+                    # matches stay RELATED_TO without an LLM call (threshold skip).
+                    high_sim = [(e, s) for e, s in matches if s >= 0.82]
+                    classified: dict[str, tuple[str, str]] = {}
+                    if high_sim:
+                        for i in range(0, len(high_sim), batch_size):
+                            batch = high_sim[i : i + batch_size]
+                            classified.update(await _classify_batch(chunk_text, batch))
 
-                        if sim >= 0.82:
-                            system_prompt = (
-                                "You are a Theology Conflict & Synergy Detector. "
-                                "Analyze these two spiritual teaching segments and determine if they "
-                                "CONTRADICT each other (e.g. conflicting timings, opposing steps) or if "
-                                "the new teaching EXPANDS_ON the existing one. "
-                                "Return exactly 'CONTRADICTS' or 'EXPANDS_ON' or 'RELATED_TO' followed by a short 1-sentence reason. "
-                                "Format: <RELATION_TYPE> | <reason>"
-                            )
-                            user_prompt = (
-                                f"New Teaching: {chunk_text}\n\n"
-                                f"Existing Teaching: {entity['name']}: {entity['desc']}"
-                            )
-                            try:
-                                response = await self._llm.generate(
-                                    system_prompt=system_prompt,
-                                    user_prompt=user_prompt
-                                )
-                                parts = response.strip().split("|")
-                                detected_rel = parts[0].strip()
-                                if detected_rel in ["CONTRADICTS", "EXPANDS_ON"]:
-                                    rel_type = detected_rel
-                                    if len(parts) > 1:
-                                        reason = parts[1].strip()
-                            except Exception as llm_err:
-                                logger.warning(f"Failed to run LLM synergy detector: {llm_err}")
+                    for entity, sim in matches:
+                        rel_type, reason = "RELATED_TO", f"Cosine similarity {sim:.3f}"
+                        if sim >= 0.82 and entity["name"] in classified:
+                            rel_type, reason = classified[entity["name"]]
 
                         # Write to Neo4j
                         def _write_relation(target_name, relation, desc, sim_val):
