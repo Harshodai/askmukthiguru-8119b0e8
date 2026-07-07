@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setLanguage } from '@/lib/aiService';
@@ -85,6 +85,7 @@ export const LanguageSelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const [internalLang, setInternalLang] = useState('en');
   const [search, setSearch] = useState('');
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedLanguage = value ?? internalLang;
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { toast } = useToast();
@@ -114,12 +115,95 @@ export const LanguageSelector = ({
   };
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
+  const filteredLanguages = useMemo(() => {
+    if (!search.trim()) return LANGUAGES;
+    const q = search.toLowerCase();
+    return LANGUAGES.filter((l) =>
+      l.name.toLowerCase().includes(q) ||
+      l.native.toLowerCase().includes(q) ||
+      l.code.toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  const compactPanelStyle = useMemo<React.CSSProperties>(() => {
+    if (typeof window === 'undefined') return {};
+    const rect = triggerRef.current?.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    const left = rect
+      ? Math.max(12, Math.min(rect.left - 20, window.innerWidth - width - 12))
+      : Math.max(12, (window.innerWidth - width) / 2);
+    const bottom = rect ? Math.max(88, window.innerHeight - rect.top + 10) : 112;
+    const maxHeight = Math.max(240, Math.min(360, window.innerHeight - bottom - 16));
+    return { width, left, bottom, maxHeight };
+  }, [isOpen]);
+
+  const renderLanguageRows = (showVoiceBadges: boolean) => (
+    <>
+      {filteredLanguages.map((lang) => {
+        const isSelected = selectedLanguage === lang.code;
+        const hasVoice = voiceCapable.has(lang.code);
+        return (
+          <button
+            key={lang.code}
+            onClick={() => handleLanguageChange(lang.code)}
+            className={`w-full px-3 py-2.5 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
+              isSelected ? 'bg-ojas/15' : ''
+            }`}
+            role="option"
+            aria-selected={isSelected}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`font-medium truncate ${
+                    isSelected ? 'text-ojas' : 'text-foreground'
+                  }`}
+                >
+                  {lang.native}
+                </span>
+                <span className="text-muted-foreground text-xs truncate">
+                  {lang.name}
+                </span>
+              </div>
+              {showVoiceBadges && (
+                hasVoice ? (
+                  <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-prana/90 font-medium">
+                    <Volume2 className="w-2.5 h-2.5" />
+                    Local Voice Enabled
+                  </span>
+                ) : lang.code === 'en' ? (
+                  <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    Voice not supported in this browser
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-ojas/90 font-medium">
+                    <Volume2 className="w-2.5 h-2.5" />
+                    Cloud Voice (Sarvam)
+                  </span>
+                )
+              )}
+            </div>
+            {isSelected && (
+              <span className="w-2 h-2 rounded-full bg-ojas flex-shrink-0" />
+            )}
+          </button>
+        );
+      })}
+      {filteredLanguages.length === 0 && (
+        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+          No language matches "{search}"
+        </div>
+      )}
+    </>
+  );
 
   if (compact) {
     return (
       <div className="flex items-center gap-1">
         <div className="relative">
           <motion.button
+            ref={triggerRef}
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(!isOpen);
@@ -144,10 +228,11 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-[min(60vh,420px)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
+                className="fixed flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
+                style={compactPanelStyle}
                 role="listbox"
               >
-                <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
+                <div className="px-3 py-2 border-b border-border bg-card/95 sticky top-0 z-10">
                   <input
                     type="text"
                     value={search}
@@ -158,62 +243,7 @@ export const LanguageSelector = ({
                   />
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-                  <div className="py-1">
-                    {LANGUAGES.filter((l) => {
-                      if (!search.trim()) return true;
-                      const q = search.toLowerCase();
-                      return (
-                        l.name.toLowerCase().includes(q) ||
-                        l.native.toLowerCase().includes(q) ||
-                        l.code.toLowerCase().includes(q)
-                      );
-                    }).map((lang) => {
-                      const isSelected = selectedLanguage === lang.code;
-                      const hasVoice = voiceCapable.has(lang.code);
-                      return (
-                        <button
-                          key={lang.code}
-                          onClick={() => handleLanguageChange(lang.code)}
-                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
-                            isSelected ? 'bg-ojas/15' : ''
-                          }`}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2">
-                              <span
-                                className={`font-medium truncate ${
-                                  isSelected ? 'text-ojas' : 'text-foreground'
-                                }`}
-                              >
-                                {lang.native}
-                              </span>
-                              <span className="text-muted-foreground text-xs truncate">
-                                {lang.name}
-                              </span>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <span className="w-2 h-2 rounded-full bg-ojas flex-shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                    {LANGUAGES.filter((l) => {
-                      if (!search.trim()) return true;
-                      const q = search.toLowerCase();
-                      return (
-                        l.name.toLowerCase().includes(q) ||
-                        l.native.toLowerCase().includes(q) ||
-                        l.code.toLowerCase().includes(q)
-                      );
-                    }).length === 0 && (
-                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                        No language matches "{search}"
-                      </div>
-                    )}
-                  </div>
+                  <div className="py-1">{renderLanguageRows(false)}</div>
                 </div>
               </motion.div>
             </>
@@ -227,6 +257,7 @@ export const LanguageSelector = ({
     <div className="flex items-center gap-2">
       <div className="relative">
         <motion.button
+          ref={triggerRef}
           onClick={(e) => {
             e.stopPropagation();
             setIsOpen(!isOpen);
@@ -276,76 +307,7 @@ export const LanguageSelector = ({
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
-                    {LANGUAGES.filter((l) => {
-                      if (!search.trim()) return true;
-                      const q = search.toLowerCase();
-                      return (
-                        l.name.toLowerCase().includes(q) ||
-                        l.native.toLowerCase().includes(q) ||
-                        l.code.toLowerCase().includes(q)
-                      );
-                    }).map((lang) => {
-                      const isSelected = selectedLanguage === lang.code;
-                      const hasVoice = voiceCapable.has(lang.code);
-                      return (
-                        <button
-                          key={lang.code}
-                          onClick={() => handleLanguageChange(lang.code)}
-                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
-                            isSelected ? 'bg-ojas/15' : ''
-                          }`}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2">
-                              <span
-                                className={`font-medium truncate ${
-                                  isSelected ? 'text-ojas' : 'text-foreground'
-                                }`}
-                              >
-                                {lang.native}
-                              </span>
-                              <span className="text-muted-foreground text-xs truncate">
-                                {lang.name}
-                              </span>
-                            </div>
-                            {hasVoice ? (
-                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-prana/90 font-medium">
-                                <Volume2 className="w-2.5 h-2.5" />
-                                Local Voice Enabled
-                              </span>
-                            ) : lang.code === 'en' ? (
-                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
-                                <AlertCircle className="w-2.5 h-2.5" />
-                                Voice not supported in this browser
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-ojas/90 font-medium">
-                                <Volume2 className="w-2.5 h-2.5" />
-                                Cloud Voice (Sarvam)
-                              </span>
-                            )}
-                          </div>
-                          {isSelected && (
-                            <span className="w-2 h-2 rounded-full bg-ojas flex-shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                    {LANGUAGES.filter((l) => {
-                      if (!search.trim()) return true;
-                      const q = search.toLowerCase();
-                      return (
-                        l.name.toLowerCase().includes(q) ||
-                        l.native.toLowerCase().includes(q) ||
-                        l.code.toLowerCase().includes(q)
-                      );
-                    }).length === 0 && (
-                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                        No language matches "{search}"
-                      </div>
-                    )}
+                    {renderLanguageRows(true)}
                   </div>
                 </div>
                 <div className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/30">

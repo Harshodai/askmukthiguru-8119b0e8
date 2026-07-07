@@ -11,8 +11,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { LanguageSelector } from './LanguageSelector';
 import { AssistantSwitcher } from './AssistantSwitcher';
-import { ThinkingPills, type PipelineStep } from './ThinkingPills';
+import { type PipelineStep } from './ThinkingPills';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
+import {
+  PromptInput,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from '@/components/ai-elements/prompt-input';
 
 interface ChatComposerProps {
   inputValue: string;
@@ -88,11 +95,11 @@ export function ChatComposer({
 
       className="w-full max-w-3xl mx-auto"
     >
-      <form
+      <PromptInput
         onSubmit={handleFormSubmit}
         role="form"
         aria-label="Message composer"
-        className={`rounded-2xl sm:rounded-3xl border bg-card/85 backdrop-blur-xl transition-all duration-300 ${
+        className={`rounded-2xl border bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
           inputFocused || isListening
             ? 'border-ojas/40 shadow-lg shadow-ojas/5'
             : 'border-border/60 shadow-sm'
@@ -131,8 +138,8 @@ export function ChatComposer({
           />
         </div>
 
-        <div className="px-5 pt-4 pb-2">
-          <textarea
+        <div className="px-4 pt-3">
+          <PromptInputTextarea
             ref={inputRef as React.Ref<HTMLTextAreaElement>}
             value={inputValue}
             onChange={onInputChange}
@@ -148,14 +155,14 @@ export function ChatComposer({
             }
             rows={1}
             aria-label="Your message"
-            className="w-full bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed max-h-32 scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-h-9 max-h-32 w-full bg-transparent border-none outline-none resize-none px-0 py-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ minHeight: '28px' }}
             disabled={isAwaitingSereneMind}
           />
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 pb-3">
-          <div className="flex items-center gap-1">
+        <PromptInputFooter className="flex items-center gap-1.5 px-3 pb-3 pt-2">
+          <PromptInputTools>
             <AssistantSwitcher variant="chip" />
 
             <DropdownMenu>
@@ -193,11 +200,11 @@ export function ChatComposer({
               isSpeaking={isSpeaking}
               compact
             />
-          </div>
+          </PromptInputTools>
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-1">
+          <PromptInputTools>
 
             {/* Always-visible mic — voice input was buried in the language dropdown */}
             {(
@@ -227,17 +234,18 @@ export function ChatComposer({
             )}
 
             {(isStreaming || isTyping) ? (
-              <Button
+              <PromptInputSubmit
                 type="button"
                 size="icon"
                 onClick={onStop}
                 className="h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
                 aria-label="Stop generating"
+                status="streaming"
               >
                 <Square className="w-4 h-4 fill-current" />
-              </Button>
+              </PromptInputSubmit>
             ) : (
-              <Button
+              <PromptInputSubmit
                 type="submit"
                 size="icon"
                 disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
@@ -245,11 +253,11 @@ export function ChatComposer({
                 aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
-              </Button>
+              </PromptInputSubmit>
             )}
-          </div>
-        </div>
-      </form>
+          </PromptInputTools>
+        </PromptInputFooter>
+      </PromptInput>
 
       {isLandingMode && (
         <motion.p
