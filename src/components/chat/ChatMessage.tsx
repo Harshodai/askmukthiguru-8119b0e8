@@ -170,9 +170,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     // Covers: YouTube links, source references like "Source: https://...", inline citations.
     const inlineUrls = isGuru
       ? Array.from(new Set(
-          (message.content.match(/https?:\/\/[^\s)"'<>]+/g) ?? [])
-            .filter(u => { try { new URL(u); return true; } catch { return false; } })
-        ))
+        (message.content.match(/https?:\/\/[^\s)"'<>]+/g) ?? [])
+          .filter(u => { try { new URL(u); return true; } catch { return false; } })
+      ))
       : [];
     const citations = (message.citations && message.citations.length > 0)
       ? message.citations
@@ -327,13 +327,12 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'w-full max-w-full' : 'max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`relative w-full transition-all duration-300 ${
-                isGuru
+              className={`relative w-full transition-all duration-300 ${isGuru
                   ? 'px-0 py-1 text-[15.5px] leading-[1.7] text-foreground/90 font-normal'
                   : isEditing
-                  ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
-                  : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/25 rounded-2xl rounded-tr-md px-3.5 py-2 text-[15px] text-foreground font-medium'
-              }`}
+                    ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
+                    : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/25 rounded-2xl rounded-tr-md px-3.5 py-2 text-[15px] text-foreground font-medium'
+                }`}
             >
               {isGuru && !message.error && (
                 <div className="w-5 h-5 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 float-left mr-2 mt-1">
@@ -401,51 +400,51 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       </div>
                     </div>
                   ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none
+                    <div className="prose prose-sm dark:prose-invert max-w-none
                     prose-p:mb-2.5 prose-p:mt-0 prose-p:leading-relaxed
                     prose-li:mb-1 prose-strong:text-ojas prose-strong:font-semibold
                     prose-headings:text-foreground prose-headings:font-bold prose-headings:text-base prose-headings:mb-2
                     prose-a:text-ojas prose-a:no-underline hover:prose-a:underline
                     prose-pre:overflow-x-auto prose-pre:max-w-full
                     selection:bg-ojas/20">
-                    {/* While streaming with no content, render nothing — the single
+                      {/* While streaming with no content, render nothing — the single
                         ThinkingPills indicator in ChatInterface is the source of truth.
                         This prevents two simultaneous "thinking" indicators. */}
-                    {isStreaming && !message.content ? null : (
-                      <ReactMarkdown
-                        components={{
-                          a: ({ href, children, ...rest }) => {
-                            const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
-                            if (match) {
-                              const n = parseInt(match[1], 10);
+                      {isStreaming && !message.content ? null : (
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children, ...rest }) => {
+                              const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
+                              if (match) {
+                                const n = parseInt(match[1], 10);
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      onCitationClick?.(message.id, n - 1);
+                                    }}
+                                    className="inline-flex items-center justify-center align-super mx-[1px] px-[5px] min-w-[18px] h-[18px] rounded-md text-[10px] font-semibold tabular-nums bg-ojas/10 text-ojas border border-ojas/30 hover:bg-ojas/20 hover:border-ojas/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas transition-colors"
+                                    aria-label={`Show source ${n} in the sources panel`}
+                                    title={`Source ${n} — click to open in Sources`}
+                                  >
+                                    {n}
+                                  </button>
+                                );
+                              }
                               return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    onCitationClick?.(message.id, n - 1);
-                                  }}
-                                  className="inline-flex items-center justify-center align-super mx-[1px] px-[5px] min-w-[18px] h-[18px] rounded-md text-[10px] font-semibold tabular-nums bg-ojas/10 text-ojas border border-ojas/30 hover:bg-ojas/20 hover:border-ojas/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas transition-colors"
-                                  aria-label={`Show source ${n} in the sources panel`}
-                                  title={`Source ${n} — click to open in Sources`}
-                                >
-                                  {n}
-                                </button>
+                                <a href={href} {...rest} target="_blank" rel="noopener noreferrer">
+                                  {children}
+                                </a>
                               );
-                            }
-                            return (
-                              <a href={href} {...rest} target="_blank" rel="noopener noreferrer">
-                                {children}
-                              </a>
-                            );
-                          },
-                        }}
-                      >
-                        {injectCitationLinks(message.content, (message.citations ?? []).length)}
-                      </ReactMarkdown>
-                    )}
+                            },
+                          }}
+                        >
+                          {injectCitationLinks(message.content, (message.citations ?? []).length)}
+                        </ReactMarkdown>
+                      )}
 
-                  </div>
+                    </div>
                   )
                 ) : isEditing ? (
                   <div className="flex flex-col gap-2 w-full">
@@ -519,40 +518,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 <InlineActions messageContent={message.content} onAction={onAction} />
               )}
 
-              {/* Lazy YouTube Thumbnails — show max 2 inline, rest in references */}
-              {isGuru && citations.length > 0 && (() => {
-                const ytUrls = citations
-                  .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
-                  .map((url) => {
-                    const videoId = url.includes('v=')
-                      ? url.split('v=')[1]?.split('&')[0]
-                      : url.split('/').pop();
-                    return videoId ? { videoId, url } : null;
-                  })
-                  .filter(Boolean) as { videoId: string; url: string }[];
-                const inline = ytUrls.slice(0, 1);
-                const extra = ytUrls.slice(1);
-                return inline.length > 0 ? (
-                  <div className="space-y-2 mt-1">
-                    {inline.map(({ videoId, url }) => (
-                      <LazyYouTube key={videoId} videoId={videoId} url={url} />
-                    ))}
-                    {extra.length > 0 && (
-                      <details className="mt-1.5 rounded-lg border border-ojas/15 bg-ojas/5 px-3 py-2">
-                        <summary className="text-[11px] font-medium text-ojas/80 cursor-pointer select-none flex items-center gap-1.5">
-                          <Youtube className="w-3 h-3" />
-                          {extra.length} more video{extra.length > 1 ? 's' : ''}
-                        </summary>
-                        <div className="space-y-2 mt-1">
-                          {extra.map(({ videoId, url }) => (
-                            <LazyYouTube key={videoId} videoId={videoId} url={url} />
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                  </div>
-                ) : null;
-              })()}
+
 
               {/* Hover-only timestamp */}
               <time className="opacity-0 group-hover:opacity-60 text-[11px] text-muted-foreground transition-opacity mt-1 block">
@@ -573,11 +539,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   )}
                   <button
                     onClick={() => handleVote('up')}
-                    className={`p-1 rounded-full transition-colors ${
-                      feedback?.vote === 'up'
+                    className={`p-1 rounded-full transition-colors ${feedback?.vote === 'up'
                         ? 'bg-green-500/15 text-green-600 dark:text-green-400'
                         : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
+                      }`}
                     title="Helpful"
                     disabled={!!feedback}
                   >
@@ -585,11 +550,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   </button>
                   <button
                     onClick={() => handleVote('down')}
-                    className={`p-1 rounded-full transition-colors ${
-                      feedback?.vote === 'down'
+                    className={`p-1 rounded-full transition-colors ${feedback?.vote === 'down'
                         ? 'bg-red-500/15 text-red-600 dark:text-red-400'
                         : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
+                      }`}
                     title="Not helpful"
                     disabled={!!feedback}
                   >
@@ -606,11 +570,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     <button
                       onClick={handleSpeak}
                       aria-pressed={isSpeaking}
-                      className={`p-1 rounded-full transition-colors ${
-                        isSpeaking
+                      className={`p-1 rounded-full transition-colors ${isSpeaking
                           ? 'bg-ojas/15 text-ojas'
                           : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                      }`}
+                        }`}
                       title={isSpeaking ? 'Stop reading' : 'Read aloud'}
                     >
                       {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -619,22 +582,20 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   <button
                     onClick={handleSaveToMemory}
                     disabled={saved || savingMemory}
-                    className={`p-1 rounded-full transition-colors ${
-                      saved
+                    className={`p-1 rounded-full transition-colors ${saved
                         ? 'bg-prana/15 text-prana'
                         : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                    } ${savingMemory ? 'opacity-60' : ''}`}
+                      } ${savingMemory ? 'opacity-60' : ''}`}
                     title={saved ? 'Saved to memory' : 'Save to memory'}
                   >
                     <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
                   </button>
                   <button
                     onClick={handleSaveAsNote}
-                    className={`p-1 rounded-full transition-colors ${
-                      noteSaved
+                    className={`p-1 rounded-full transition-colors ${noteSaved
                         ? 'bg-prana/15 text-prana'
                         : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                    }`}
+                      }`}
                     title={noteSaved ? 'Saved to Notes' : 'Save as note'}
                   >
                     <StickyNote className={`w-4 h-4 ${noteSaved ? 'fill-current' : ''}`} />
@@ -702,11 +663,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       <button
                         key={tag}
                         onClick={() => toggleTag(tag)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
-                          selectedTags.includes(tag)
+                        className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${selectedTags.includes(tag)
                             ? 'border-ojas/50 bg-ojas/10 text-ojas font-medium'
                             : 'border-border/60 text-muted-foreground hover:border-ojas/30'
-                        }`}
+                          }`}
                       >
                         {tag}
                       </button>
@@ -735,8 +695,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               // score is 1-10 from backend
               const pct = Math.round((score / 10) * 100);
               const isHigh = score >= 7;
-              const isMed  = score >= 4 && score < 7;
-              const colorDot  = isHigh ? 'bg-emerald-400' : isMed ? 'bg-amber-400' : 'bg-rose-400';
+              const isMed = score >= 4 && score < 7;
+              const colorDot = isHigh ? 'bg-emerald-400' : isMed ? 'bg-amber-400' : 'bg-rose-400';
               const colorText = isHigh ? 'text-emerald-400' : isMed ? 'text-amber-400' : 'text-rose-400';
               const colorBorder = isHigh ? 'border-emerald-400/25' : isMed ? 'border-amber-400/25' : 'border-rose-400/25';
               const colorBg = isHigh ? 'bg-emerald-400/8' : isMed ? 'bg-amber-400/8' : 'bg-rose-400/8';
@@ -785,116 +745,158 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}
             {isGuru && citations.length > 0 && (
-              <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/80 to-card/50 backdrop-blur-sm px-3 py-2 group/details">
-                <summary className="flex items-center gap-2 cursor-pointer list-none">
-                  <BookOpen className="w-3.5 h-3.5 text-ojas" />
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-ojas/80">
+              <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
+                <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">
+                  <BookOpen className="w-4 h-4 text-ojas" />
+                  <span className="text-[12px] font-semibold uppercase tracking-wider text-ojas/90">
                     References
-                  </p>
+                  </span>
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); setSourcesOpen(true); }}
-                    className="text-[10px] text-muted-foreground/75 ml-auto bg-muted/30 hover:bg-ojas/15 hover:text-ojas px-2 py-0.5 rounded-full transition-colors"
+                    className="text-[10px] text-muted-foreground/80 ml-auto bg-muted/40 hover:bg-ojas/15 hover:text-ojas px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 font-medium"
                     aria-label="View all sources in panel"
                   >
-                    {citations.length} {citations.length === 1 ? 'source' : 'sources'} →
+                    <span>{citations.length} {citations.length === 1 ? 'source' : 'sources'}</span>
+                    <span>→</span>
                   </button>
                 </summary>
 
-                {/* Citation Cards — show first 3 inline */}
-                <div className="flex flex-col gap-2 mt-2">
-                  {citations.slice(0, 3).map((url, i) => {
-                    const ytId = getYouTubeId(url);
-                    const isYT = isYouTubeUrl(url);
-                    const displayName = getSourceDisplayName(url, i);
-                    const domain = getDomain(url);
+                <div className="mt-3.5 space-y-4">
+                  {/* YouTube Videos Section */}
+                  {(() => {
+                    const ytUrls = citations
+                      .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
+                      .map((url) => {
+                        const videoId = url.includes('v=')
+                          ? url.split('v=')[1]?.split('&')[0]
+                          : url.split('/').pop();
+                        return videoId ? { videoId, url } : null;
+                      })
+                      .filter(Boolean) as { videoId: string; url: string }[];
+
+                    if (ytUrls.length === 0) return null;
 
                     return (
-                      <div
-                        key={`${url}-${i}`}
-                        className="group rounded-lg border border-border/30 bg-background/40 hover:border-ojas/25 hover:bg-background/60 transition-all duration-200 overflow-hidden"
-                      >
-                        {/* Main citation card */}
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-start gap-3 p-2.5"
-                        >
-                          {/* Icon / Thumbnail */}
-                          <div className="flex-shrink-0">
-                            {isYT && ytId ? (
-                              <div className="relative w-12 h-9 rounded-md overflow-hidden bg-black/60">
-                                <img
-                                  src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
-                                  alt="Video thumbnail"
-                                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                                  loading="lazy"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <Play className="w-4 h-4 text-white drop-shadow-md" fill="white" />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-12 h-9 rounded-md bg-ojas/8 flex items-center justify-center border border-ojas/10">
-                                {isYT ? (
-                                  <Youtube className="w-4 h-4 text-red-500" />
-                                ) : (
-                                  <ExternalLink className="w-3.5 h-3.5 text-ojas/60" />
-                                )}
-                              </div>
-                            )}
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/85 flex items-center gap-1.5 pl-0.5">
+                          <Youtube className="w-3.5 h-3.5 text-red-500" />
+                          Video Lessons ({ytUrls.length})
+                        </p>
+                        
+                        {ytUrls.length === 1 ? (
+                          <div className="w-full max-w-[400px]">
+                            <LazyYouTube videoId={ytUrls[0].videoId} url={ytUrls[0].url} />
                           </div>
-
-                          {/* Text content */}
-                          <div className="flex-1 min-w-0 pt-0.5">
-                            <p className="text-[12px] font-medium text-ojas group-hover:text-ojas-light transition-colors line-clamp-1 leading-snug">
-                              {displayName}
-                            </p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[10px] text-muted-foreground/60 truncate max-w-[180px]">
-                                {domain}
-                              </span>
-                              <span className="text-[10px] text-ojas/40 hidden group-hover:inline-flex items-center gap-0.5 group-hover/link:underline transition-all">
-                                <ExternalLink className="w-2.5 h-2.5 inline" />
-                              </span>
-                            </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {ytUrls.map(({ videoId, url }) => (
+                              <div key={videoId} className="w-full">
+                                <LazyYouTube videoId={videoId} url={url} />
+                              </div>
+                            ))}
                           </div>
-                        </a>
+                        )}
                       </div>
                     );
-                  })}
+                  })()}
 
-                  {/* Show more when >3 citations — rest as compact links */}
-                  {citations.length > 3 && (
-                    <details className="mt-1">
-                      <summary className="text-[11px] text-ojas/70 hover:text-ojas cursor-pointer list-none flex items-center gap-1 py-1">
-                        <ExternalLink className="w-3 h-3" />
-                        Show {citations.length - 3} more source{citations.length > 4 ? 's' : ''}
-                      </summary>
-                      <div className="flex flex-col gap-2 mt-2">
-                        {citations.slice(3).map((url, i) => {
-                          const displayName = getSourceDisplayName(url, i + 3);
-                          const domain = getDomain(url);
-                          return (
+                  {/* Document/Link References Section */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/85 pl-0.5">
+                      Source Documents
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {citations.slice(0, 3).map((url, i) => {
+                        const ytId = getYouTubeId(url);
+                        const isYT = isYouTubeUrl(url);
+                        const displayName = getSourceDisplayName(url, i);
+                        const domain = getDomain(url);
+
+                        return (
+                          <div
+                            key={`${url}-${i}`}
+                            className="group/card rounded-lg border border-border/30 bg-background/30 hover:border-ojas/25 hover:bg-background/60 transition-all duration-200 overflow-hidden"
+                          >
                             <a
-                              key={`${url}-${i + 3}`}
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/20 bg-background/30 hover:bg-background/60 transition-colors"
+                              className="flex items-start gap-3 p-2.5"
                             >
-                              <ExternalLink className="w-3 h-3 text-ojas/60 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-medium text-ojas line-clamp-1">{displayName}</p>
-                                <p className="text-[10px] text-muted-foreground/50 truncate max-w-[200px]">{domain}</p>
+                              <div className="flex-shrink-0">
+                                {isYT && ytId ? (
+                                  <div className="relative w-12 h-9 rounded-md overflow-hidden bg-black/60">
+                                    <img
+                                      src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
+                                      alt="Video thumbnail"
+                                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                      loading="lazy"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <Play className="w-3.5 h-3.5 text-white drop-shadow-md" fill="white" />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-12 h-9 rounded-md bg-ojas/5 flex items-center justify-center border border-ojas/10">
+                                    {isYT ? (
+                                      <Youtube className="w-3.5 h-3.5 text-red-500" />
+                                    ) : (
+                                      <ExternalLink className="w-3 h-3 text-ojas/60" />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0 pt-0.5">
+                                <p className="text-[12px] font-medium text-ojas group-hover/card:text-ojas-light transition-colors line-clamp-1 leading-snug">
+                                  {displayName}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-muted-foreground/60 truncate max-w-[200px]">
+                                    {domain}
+                                  </span>
+                                  <span className="text-[10px] text-ojas/50 opacity-0 group-hover/card:opacity-100 transition-opacity flex items-center gap-0.5">
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                  </span>
+                                </div>
                               </div>
                             </a>
-                          );
-                        })}
-                      </div>
-                    </details>
-                  )}
+                          </div>
+                        );
+                      })}
+
+                      {citations.length > 3 && (
+                        <details className="mt-1">
+                          <summary className="text-[11px] text-ojas/70 hover:text-ojas cursor-pointer list-none flex items-center gap-1 py-1 select-none">
+                            <ExternalLink className="w-3 h-3" />
+                            Show {citations.length - 3} more source{citations.length > 4 ? 's' : ''}
+                          </summary>
+                          <div className="flex flex-col gap-2 mt-2">
+                            {citations.slice(3).map((url, i) => {
+                              const displayName = getSourceDisplayName(url, i + 3);
+                              const domain = getDomain(url);
+                              return (
+                                <a
+                                  key={`${url}-${i + 3}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-border/20 bg-background/30 hover:bg-background/60 transition-colors"
+                                >
+                                  <ExternalLink className="w-3 h-3 text-ojas/60 flex-shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] font-medium text-ojas line-clamp-1">{displayName}</p>
+                                    <p className="text-[10px] text-muted-foreground/50 truncate max-w-[200px]">{domain}</p>
+                                  </div>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </details>
             )}
