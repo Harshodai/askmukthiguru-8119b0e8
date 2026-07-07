@@ -100,6 +100,15 @@ export const LanguageSelector = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
+
   const handleLanguageChange = (code: string) => {
     const lang = LANGUAGES.find((l) => l.code === code);
     setInternalLang(code);
@@ -132,8 +141,12 @@ export const LanguageSelector = ({
     const left = rect
       ? Math.max(12, Math.min(rect.left - 20, window.innerWidth - width - 12))
       : Math.max(12, (window.innerWidth - width) / 2);
-    const bottom = rect ? Math.max(88, window.innerHeight - rect.top + 10) : 112;
-    const maxHeight = Math.max(240, Math.min(360, window.innerHeight - bottom - 16));
+    const desiredBottom = rect && rect.top > window.innerHeight * 0.35
+      ? window.innerHeight - rect.top + 10
+      : 96;
+    const desiredHeight = Math.min(360, Math.max(240, window.innerHeight * 0.45));
+    const bottom = Math.max(80, Math.min(desiredBottom, window.innerHeight - desiredHeight - 16));
+    const maxHeight = Math.max(220, Math.min(desiredHeight, window.innerHeight - bottom - 16));
     return { width, left, bottom, maxHeight };
   }, [isOpen]);
 
