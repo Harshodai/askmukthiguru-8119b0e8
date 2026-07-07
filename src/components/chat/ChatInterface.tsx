@@ -17,7 +17,8 @@ import {
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
-import { buildGreeting, greetingPrefix, buildGreetingSubline } from '@/lib/greeting';
+import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
+import { useVisitContext } from '@/hooks/useVisitContext';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
@@ -78,6 +79,7 @@ const STARTER_CARDS = [
 const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
 
 export const ChatInterface = () => {
+  const { greetingContext } = useVisitContext();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
@@ -1434,7 +1436,7 @@ return (
                   transition={{ delay: 0.1 }}
                   className="text-[26px] sm:text-4xl font-serif text-foreground/95 tracking-tight leading-tight"
                 >
-                  {buildGreeting(selected?.slug, profile.displayName ?? '')}
+                  {buildGreeting(selected?.slug, profile.displayName ?? '', greetingContext)}
                 </motion.h2>
                 <motion.p
                   initial={{ opacity: 0, y: 6 }}
@@ -1442,7 +1444,7 @@ return (
                   transition={{ delay: 0.15 }}
                   className="mt-3 text-sm sm:text-base text-muted-foreground/75 leading-relaxed max-w-md mx-auto font-serif italic"
                 >
-                  {buildGreetingSubline()}
+                  {buildGreetingSubline(greetingContext)}
                 </motion.p>
               </div>
 

@@ -127,7 +127,7 @@ export const buildMessageError = (
 };
 
 export const WELCOME_MESSAGE = (slug: string | undefined): string =>
-  `${greetingPrefix(slug)}, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.`;
+  `${greetingPrefix(slug, 'return_new_day')}, dear seeker. I am here to guide you toward your beautiful state. What brings you here today? Share what is in your heart, and together we shall explore the path to inner peace.`;
 
 type PrePracticeLog = NonNullable<
   ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog']
@@ -136,7 +136,7 @@ type PrePracticeLog = NonNullable<
 export const buildPersonalisedWelcome = (log: PrePracticeLog | undefined, slug: string | undefined): string => {
   if (!log) return WELCOME_MESSAGE(slug);
   const insights = derivePrePracticeInsights(log);
-  const prefix = greetingPrefix(slug);
+  const prefix = greetingPrefix(slug, 'return_new_day');
   switch (log.lastAnswer) {
     case 'soul_sync':
       return `${prefix}. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
