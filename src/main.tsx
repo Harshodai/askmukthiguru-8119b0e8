@@ -27,8 +27,10 @@ const canRegisterSW = (() => {
 if (canRegisterSW) {
   // Reload once a new SW takes control of this tab, so an already-open tab
   // never keeps running against assets a fresh deploy has already removed.
+  // Guard: skip reload on first install (controller was null at attach time).
+  const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    window.location.reload();
+    if (hadController) window.location.reload();
   });
 
   window.addEventListener("load", () => {
