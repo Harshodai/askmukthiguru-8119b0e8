@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle } from 'lucide-react';
+import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setLanguage } from '@/lib/aiService';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +39,52 @@ export const LANGUAGES: Language[] = [
   { code: 'sat', name: 'Santali', native: 'ᱥᱟᱱᱛᱟᱲᱤ', bcp47: 'sat-IN' },
   { code: 'brx', name: 'Bodo', native: 'बड़ो', bcp47: 'brx-IN' },
 ];
+
+/**
+ * Flag emoji per language code. Used to make the pill visually rich.
+ * A few rare scheduled languages share the 🇮🇳 flag.
+ */
+export const LANGUAGE_FLAGS: Record<string, string> = {
+  en:  '🇮🇳',
+  hi:  '🇮🇳',
+  bn:  '🇮🇳',
+  te:  '🇮🇳',
+  mr:  '🇮🇳',
+  ta:  '🇮🇳',
+  ur:  '🇮🇳',
+  gu:  '🇮🇳',
+  kn:  '🇮🇳',
+  ml:  '🇮🇳',
+  or:  '🇮🇳',
+  pa:  '🇮🇳',
+  as:  '🇮🇳',
+  mai: '🇮🇳',
+  sa:  '🇮🇳',
+  ks:  '🇮🇳',
+  ne:  '🇳🇵',
+  sd:  '🇮🇳',
+  kok: '🇮🇳',
+  doi: '🇮🇳',
+  mni: '🇮🇳',
+  sat: '🇮🇳',
+  brx: '🇮🇳',
+};
+
+/**
+ * Short display label for the pill (≤ 6 chars). For English show "EN";
+ * for other languages show their 2-char code uppercased so the pill is compact.
+ * The full native name appears in the popover list.
+ */
+const pillLabel = (lang: Language): string => {
+  if (lang.code === 'en') return 'EN';
+  // For common langs show their native short-form
+  const SHORT: Record<string, string> = {
+    hi: 'हिन्', te: 'తె', ta: 'த', bn: 'বাং', mr: 'मरा',
+    gu: 'ગુ', kn: 'ಕ', ml: 'മ', pa: 'ਪੰ', ur: 'اُردُو',
+    or: 'ওড়',  as: 'অস', ne: 'ने',
+  };
+  return SHORT[lang.code] ?? lang.code.toUpperCase();
+};
 
 interface LanguageSelectorProps {
   onVoiceToggle?: () => void;
@@ -232,6 +278,11 @@ export const LanguageSelector = ({
   );
 
   if (compact) {
+    const flag = LANGUAGE_FLAGS[selectedLanguage] ?? '🌐';
+    const lang = LANGUAGES.find((l) => l.code === selectedLanguage);
+    const label = lang ? pillLabel(lang) : selectedLanguage.toUpperCase();
+    const isNonEnglish = selectedLanguage !== 'en';
+
     return (
       <div className="flex items-center gap-1">
         <div className="relative">
@@ -241,46 +292,81 @@ export const LanguageSelector = ({
               e.stopPropagation();
               setIsOpen(!isOpen);
             }}
-            className="flex items-center gap-1.5 px-2.5 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all text-xs font-semibold"
+            className={`flex items-center gap-1.5 px-2.5 h-8 rounded-full transition-all text-xs font-semibold border ${
+              isNonEnglish
+                ? 'bg-ojas/10 border-ojas/30 text-ojas hover:bg-ojas/20'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent'
+            }`}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             aria-haspopup="listbox"
             aria-expanded={isOpen}
+            aria-label={`Selected language: ${lang?.name ?? selectedLanguage}. Click to change.`}
+            title={`Language: ${lang?.name ?? selectedLanguage}`}
           >
-            <Globe className="w-3.5 h-3.5" />
-            <span className="uppercase">{selectedLanguage}</span>
+            <span className="text-sm leading-none">{flag}</span>
+            <span className="font-medium">{label}</span>
+            {isNonEnglish && (
+              <span className="flex items-center gap-0.5 text-[9px] font-bold text-ojas/80 bg-ojas/10 px-1 rounded">
+                <Languages className="w-2.5 h-2.5" />
+                AUTO
+              </span>
+            )}
+            <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </motion.button>
-          {isOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[90]"
-                onClick={() => setIsOpen(false)}
-              />
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
-                className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)] max-h-[360px]"
-                role="listbox"
-              >
-                <div className="px-3 py-2 border-b border-border bg-card/95 sticky top-0 z-10">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search 23 languages…"
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
-                    autoFocus
-                  />
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-                  <div className="py-1">{renderLanguageRows(false)}</div>
-                </div>
-              </motion.div>
-            </>
-          )}
+
+          <AnimatePresence>
+            {isOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[90]"
+                  onClick={() => setIsOpen(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)]"
+                  style={{ maxHeight: Math.min(360, coords?.maxHeight ?? 360) }}
+                  role="listbox"
+                  aria-label="Select language"
+                >
+                  {/* Header */}
+                  <div className="px-3 pt-3 pb-2 border-b border-border bg-card/95">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Globe className="w-3.5 h-3.5 text-ojas" />
+                      <span className="text-xs font-semibold text-foreground">Select Language</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search 23 languages…"
+                      className="w-full px-3 py-1.5 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Language list */}
+                  <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                    <div className="py-1">{renderLanguageRows(false)}</div>
+                  </div>
+
+                  {/* Translation notice footer */}
+                  <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
+                    <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Non-English messages are auto-translated before being sent to the Guru.
+                    </p>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     );

@@ -1,4 +1,4 @@
-import { forwardRef, useState, useCallback, memo } from 'react';
+import { forwardRef, useState, useCallback, memo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
@@ -190,6 +190,24 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [editValue, setEditValue] = useState(message.content);
     const [noteSaved, setNoteSaved] = useState(false);
     const [sourcesOpen, setSourcesOpen] = useState(false);
+    const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-resize + cursor-end when editing opens or text changes
+    useEffect(() => {
+      const el = editTextareaRef.current;
+      if (!el || !isEditing) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 260)}px`;
+    }, [editValue, isEditing]);
+
+    // Place cursor at end only once when edit mode opens
+    useEffect(() => {
+      if (!isEditing) return;
+      const el = editTextareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, [isEditing]);
     const { toast } = useToast();
     const { createNote } = useNotes();
     const { notebooks, createNotebook, addItem } = useStudyNotebooks();
@@ -400,19 +418,83 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       </div>
                     </div>
                   ) : (
-                    <div className="prose prose-sm dark:prose-invert max-w-none
-                    prose-p:mb-2.5 prose-p:mt-0 prose-p:leading-relaxed
-                    prose-li:mb-1 prose-strong:text-ojas prose-strong:font-semibold
-                    prose-headings:text-foreground prose-headings:font-bold prose-headings:text-base prose-headings:mb-2
-                    prose-a:text-ojas prose-a:no-underline hover:prose-a:underline
-                    prose-pre:overflow-x-auto prose-pre:max-w-full
-                    selection:bg-ojas/20">
+                    <div className="text-[15px] leading-[1.75] text-foreground/90 space-y-3 selection:bg-ojas/20">
                       {/* While streaming with no content, render nothing — the single
                         ThinkingPills indicator in ChatInterface is the source of truth.
                         This prevents two simultaneous "thinking" indicators. */}
                       {isStreaming && !message.content ? null : (
                         <ReactMarkdown
                           components={{
+                            // Paragraphs — tight spacing, no bottom margin on last
+                            p: ({ children }) => (
+                              <p className="leading-[1.75] text-foreground/88 mb-2 last:mb-0">{children}</p>
+                            ),
+                            // Headings — semantic visual hierarchy
+                            h1: ({ children }) => (
+                              <h1 className="text-base font-bold text-foreground mt-4 mb-1.5 first:mt-0 flex items-center gap-2">
+                                <span className="w-1 h-4 rounded-full bg-ojas inline-block shrink-0" />
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="text-[15px] font-semibold text-foreground/90 mt-3.5 mb-1 first:mt-0">{children}</h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="text-[14px] font-medium text-ojas mt-3 mb-0.5 first:mt-0">{children}</h3>
+                            ),
+                            // Lists — pill-style markers for unordered, clean counters for ordered
+                            ul: ({ children }) => (
+                              <ul className="space-y-1.5 my-2 pl-0">{children}</ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="space-y-1.5 my-2 pl-0 list-none counter-reset-[item]">{children}</ol>
+                            ),
+                            li: ({ children, ...props }) => {
+                              const isOrdered = (props as { ordered?: boolean }).ordered;
+                              return (
+                                <li className="flex items-start gap-2.5 text-foreground/85">
+                                  {isOrdered ? (
+                                    <span className="shrink-0 mt-[3px] w-5 h-5 rounded-full bg-ojas/10 text-ojas text-[10px] font-bold flex items-center justify-center border border-ojas/20">
+                                      {(props as { index?: number }).index !== undefined ? (props as { index: number }).index + 1 : '•'}
+                                    </span>
+                                  ) : (
+                                    <span className="shrink-0 mt-[7px] w-1.5 h-1.5 rounded-full bg-ojas/70" />
+                                  )}
+                                  <span className="flex-1 min-w-0">{children}</span>
+                                </li>
+                              );
+                            },
+                            // Blockquote — spiritual callout style
+                            blockquote: ({ children }) => (
+                              <blockquote className="border-l-[3px] border-ojas/50 pl-4 py-1 my-2 bg-ojas/5 rounded-r-lg italic text-foreground/75 text-[14px]">
+                                {children}
+                              </blockquote>
+                            ),
+                            // Inline code
+                            code: ({ children, className }) => {
+                              const isBlock = !!className;
+                              if (isBlock) {
+                                return (
+                                  <code className={`block bg-muted/60 rounded-lg px-3 py-2 text-[13px] font-mono overflow-x-auto border border-border/40 my-2 ${className ?? ''}`}>
+                                    {children}
+                                  </code>
+                                );
+                              }
+                              return (
+                                <code className="bg-ojas/8 text-ojas px-1.5 py-0.5 rounded text-[13px] font-mono border border-ojas/15">
+                                  {children}
+                                </code>
+                              );
+                            },
+                            // Strong — ojas accent
+                            strong: ({ children }) => (
+                              <strong className="font-semibold text-foreground">{children}</strong>
+                            ),
+                            // Horizontal rule — subtle divider
+                            hr: () => (
+                              <hr className="border-0 border-t border-border/40 my-3" />
+                            ),
+                            // Links + citation buttons
                             a: ({ href, children, ...rest }) => {
                               const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
                               if (match) {
@@ -433,7 +515,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                                 );
                               }
                               return (
-                                <a href={href} {...rest} target="_blank" rel="noopener noreferrer">
+                                <a href={href} {...rest} target="_blank" rel="noopener noreferrer" className="text-ojas underline-offset-2 hover:underline">
                                   {children}
                                 </a>
                               );
@@ -443,21 +525,29 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                           {injectCitationLinks(message.content, (message.citations ?? []).length)}
                         </ReactMarkdown>
                       )}
-
                     </div>
                   )
                 ) : isEditing ? (
-                  <div className="flex flex-col gap-2 w-full">
-                    <p className="text-[11px] text-muted-foreground font-sans italic">
-                      Edit your question — earlier replies below will be regenerated.
-                    </p>
+                  <div className="flex flex-col gap-2.5 w-full">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-ojas animate-pulse" />
+                      <p className="text-[11px] text-ojas/70 font-medium">
+                        Editing — earlier replies will be regenerated
+                      </p>
+                    </div>
                     <textarea
+                      ref={editTextareaRef}
                       value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      autoFocus
-                      rows={Math.max(2, Math.min(10, editValue.split('\n').length + 1))}
-                      ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 240)}px`; el.setSelectionRange(el.value.length, el.value.length); } }}
-                      className="w-full bg-background border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-ojas/60 focus:ring-2 focus:ring-ojas/20 resize-none leading-relaxed"
+                      onChange={(e) => {
+                        setEditValue(e.target.value);
+                        // immediate height sync on change
+                        const el = e.currentTarget;
+                        el.style.height = 'auto';
+                        el.style.height = `${Math.min(el.scrollHeight, 260)}px`;
+                      }}
+                      rows={2}
+                      className="w-full bg-background/80 border border-ojas/30 rounded-xl p-3 text-[14px] text-foreground placeholder:text-muted-foreground outline-none focus:border-ojas/60 focus:ring-2 focus:ring-ojas/15 resize-none leading-relaxed overflow-y-auto"
+                      style={{ minHeight: '64px', maxHeight: '260px' }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                           e.preventDefault();
@@ -473,14 +563,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                       }}
                     />
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-muted-foreground/70">
-                        ⌘↵ to save · Esc to cancel
+                      <span className="text-[10px] text-muted-foreground/60">
+                        ⌘↵ save · Esc cancel
                       </span>
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => { setEditValue(message.content); setIsEditing(false); }}
-                          className="px-3 py-1.5 rounded-md text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                          className="px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-muted/70 transition-colors"
                         >
                           Cancel
                         </button>
@@ -494,7 +584,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                             setIsEditing(false);
                           }}
                           disabled={!editValue.trim() || editValue.trim() === message.content}
-                          className="px-3 py-1.5 rounded-md text-[12px] font-semibold bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
                         >
                           Save &amp; resend
                         </button>
