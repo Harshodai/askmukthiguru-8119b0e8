@@ -324,21 +324,21 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           className={`group flex items-start gap-3 ${isGuru ? 'justify-start' : 'justify-end'}`}
           data-message-id={message.id}
         >
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'w-full max-w-full' : 'max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          {isGuru && (
+            <div className="w-6 h-6 rounded-full bg-ojas/10 border border-ojas/25 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-ojas" />
+            </div>
+          )}
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0' : 'max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`relative w-full transition-all duration-300 ${isGuru
+              className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-300 ${isGuru
                   ? 'px-0 py-1 text-[15.5px] leading-[1.7] text-foreground/90 font-normal'
                   : isEditing
                     ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
                     : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/25 rounded-2xl rounded-tr-md px-3.5 py-2 text-[15px] text-foreground font-medium'
                 }`}
             >
-              {isGuru && !message.error && (
-                <div className="w-5 h-5 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 float-left mr-2 mt-1">
-                  <Sparkles className="w-2.5 h-2.5 text-ojas/70" />
-                </div>
-              )}
               <div
                 className={`break-words ${isGuru ? '' : 'whitespace-pre-wrap'}`}
               >
@@ -611,35 +611,36 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 </div>
               )}
 
-              {/* User hover actions */}
-              {!isGuru && message.content && !isStreaming && !isEditing && (
-                <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
-                  <button
-                    onClick={handleCopy}
-                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title={copied ? 'Copied!' : 'Copy question'}
-                  >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                  {(onSubmitEdit || onEditUserMessage) && (
-                    <button
-                      onClick={() => {
-                        if (onSubmitEdit) {
-                          setEditValue(message.content);
-                          setIsEditing(true);
-                        } else if (onEditUserMessage) {
-                          onEditUserMessage(message);
-                        }
-                      }}
-                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                      title="Edit & resend"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
+
+            {/* User hover actions */}
+            {!isGuru && message.content && !isStreaming && !isEditing && (
+              <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1 mr-1">
+                <button
+                  onClick={handleCopy}
+                  className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                  title={copied ? 'Copied!' : 'Copy question'}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+                {(onSubmitEdit || onEditUserMessage) && (
+                  <button
+                    onClick={() => {
+                      if (onSubmitEdit) {
+                        setEditValue(message.content);
+                        setIsEditing(true);
+                      } else if (onEditUserMessage) {
+                        onEditUserMessage(message);
+                      }
+                    }}
+                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                    title="Edit & resend"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Feedback panel */}
             <AnimatePresence>
