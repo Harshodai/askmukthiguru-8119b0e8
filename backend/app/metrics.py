@@ -24,6 +24,15 @@ REQUEST_LATENCY = Histogram(
     buckets=[0.5, 1, 2, 5, 10, 30, 60, 120],
 )
 
+# E3.3: TTFT histogram — time to first token for streaming responses (seconds).
+# Distinct from REQUEST_LATENCY (full e2e) so TTFT can be observed independently.
+TTFT_SECONDS = Histogram(
+    "guru_ttft_seconds",
+    "Time to first token (streaming) in seconds",
+    ["provider"],
+    buckets=[0.05, 0.1, 0.25, 0.5, 0.75, 1, 2, 3, 5, 10],
+)
+
 REQUEST_COUNT = Counter(
     "guru_requests_total",
     "Total requests by status",

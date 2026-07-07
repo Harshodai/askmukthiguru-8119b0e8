@@ -82,6 +82,8 @@ class ChatStreamRequestOrchestrator:
         # Stream result as SSE
         async def _sse():
             tokens_streamed = 0
+            _ttft_recorded = False
+            _t0 = asyncio.get_event_loop().time()
             try:
                 yield "event: status\ndata: Query received, starting pipeline…\n\n"
 
@@ -131,6 +133,15 @@ class ChatStreamRequestOrchestrator:
                         event_data = item.get("data", "")
                         yield f"event: {event_type}\ndata: {event_data}\n\n"
                     elif isinstance(item, str):
+                        if not _ttft_recorded:
+                            try:
+                                from app.metrics import TTFT_SECONDS
+                                TTFT_SECONDS.labels(provider="stream").observe(
+                                    asyncio.get_event_loop().time() - _t0
+                                )
+                            except Exception:
+                                pass
+                            _ttft_recorded = True
                         tokens_streamed += len(item)
                         escaped = item.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"

@@ -132,6 +132,12 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom"
 
+    # --- Multi-teacher personality (Phase E5) ---
+    # When set, generation prepends a teacher-specific voice instruction.
+    # Maps teacher_id → personality prompt fragment. JSON-encoded string in env.
+    # Example: {"sadhguru":"Speak with the direct, earthy tone of a yogi.","preethaji":"Speak with warmth and stillness."}
+    teacher_personalities: str = ""
+
     # --- Supabase (Docker Local) ---
     supabase_url: str = "http://host.docker.internal:54321"
     supabase_key: str = ""  # SERVICE_ROLE_KEY for backend write access
@@ -300,7 +306,8 @@ class Settings(BaseSettings):
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
-    semantic_cache_similarity: float = 0.87  # Cosine similarity threshold for cache hit
+    semantic_cache_similarity: float = 0.90  # E3.4: lowered from 0.87/0.92 to improve hit rate
+    intent_prerouter_cache_hint_enabled: bool = True  # E3.1: hint cache-first for FACTUAL/CASUAL
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
     rag_cache_alignment_enabled: bool = True
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks

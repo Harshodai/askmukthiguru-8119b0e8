@@ -41,6 +41,21 @@ from rag.query_patterns import (
 from rag.doc_utils import doc_text
 
 
+def _cache_hint(intent: str) -> dict:
+    """E3.1: emit cache_preferred hint for cache-friendly intents when enabled.
+
+    The pipeline cache stage (CacheCheckStage) already short-circuits on hit
+    regardless of intent. This hint is informational — it lets downstream
+    observability / future cache-tier logic know the router expected a
+    cacheable query. Minimal: only adds the key when the flag is on.
+    """
+    if not getattr(settings, "intent_prerouter_cache_hint_enabled", False):
+        return {}
+    if intent in ("FACTUAL", "CASUAL"):
+        return {"cache_preferred": True}
+    return {}
+
+
 def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None:
     """Map a SemanticRouter route label to the (intent, query_tier, needs_web_search) tuple
     that the rest of the pipeline expects.
@@ -103,6 +118,7 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
             "query_tier": query_tier,
             "confidence_tier": "medium",
             "needs_web_search": needs_web_search,
+            **_cache_hint(intent),
             "evaluation_trace": _trace_update(
                 state, intent=intent, query_tier=query_tier,
                 routing_reason="intent_fallback_with_distress_check",
@@ -195,6 +211,7 @@ def _early_filter(
             "intent": mapped_intent,
             "query_tier": query_tier,
             "confidence_tier": "high" if mapped_intent != "CASUAL" else "medium",
+            **_cache_hint(mapped_intent),
             "evaluation_trace": _trace_update(
                 state, intent=mapped_intent, query_tier=query_tier,
                 routing_reason="regex_prerouter",
@@ -224,6 +241,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 else "low" if _qt == "tier3_complex"
                 else "medium"
             ),
+            **_cache_hint(pre_intent),
             "evaluation_trace": _trace_update(
                 state, intent=pre_intent, query_tier=_qt,
                 routing_reason="pre_classified_from_pipeline_coordinator"
@@ -284,6 +302,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                         else "medium"
                     ),
                     "needs_web_search": needs_web,
+                    **_cache_hint(mapped_intent),
                     "evaluation_trace": _trace_update(
                         state,
                         intent=mapped_intent,
@@ -302,6 +321,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
+            **_cache_hint("FACTUAL"),
             "evaluation_trace": _trace_update(
                 state, intent="FACTUAL", query_tier="tier2_simple",
                 routing_reason="heuristic_capability"
@@ -316,6 +336,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "intent": "FACTUAL",
                 "query_tier": "tier2_simple",
                 "confidence_tier": "high",
+                **_cache_hint("FACTUAL"),
                 "evaluation_trace": _trace_update(
                     state, intent="FACTUAL", query_tier="tier2_simple",
                     routing_reason="heuristic_simple"
@@ -346,6 +367,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                     else "low" if tier == "tier3_complex"
                     else "medium"
                 ),
+                **_cache_hint(cached_intent),
                 "evaluation_trace": _trace_update(
                     state, intent=cached_intent, query_tier=tier,
                     routing_reason="cache_hit"
@@ -369,6 +391,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                     else "low" if tier == "tier3_complex"
                     else "medium"
                 ),
+                **_cache_hint(intent),
                 "evaluation_trace": _trace_update(
                     state, intent=intent, query_tier=tier,
                     routing_reason=routing_reason
@@ -446,6 +469,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             else "low" if query_tier == "tier3_complex"
             else "medium"
         ),
+        **_cache_hint(intent),
         "evaluation_trace": _trace_update(
             state, intent=intent, query_tier=query_tier, routing_reason="classifier"
         ),
