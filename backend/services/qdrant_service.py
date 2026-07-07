@@ -187,7 +187,7 @@ class QdrantService:
     def scroll_content(
         self, query: str, limit: int = 20, filter_cond=None
     ) -> list[dict]:
-        """BM25-like full-text search via Qdrant text_index on content field."""
+        """BM25-like full-text search via Qdrant text_index on text field."""
         return self._client_manager.scroll_content(query, limit, filter_cond)
 
     # === Neighbor / RAPTOR delegation =======================================

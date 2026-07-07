@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -19,6 +20,19 @@ from qdrant_client.http.models import (
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _bm25_overlap_score(query: str, text: str) -> float:
+    """Word-overlap relevance score in [0.0, 1.0] for BM25 scroll results.
+
+    Qdrant's scroll API returns no native BM25 score, so we approximate relevance
+    as the fraction of query tokens present in the matched text.
+    """
+    q_tokens = set(re.findall(r"\w+", query.lower()))
+    if not q_tokens:
+        return 0.0
+    t_tokens = set(re.findall(r"\w+", text.lower()))
+    return len(q_tokens & t_tokens) / len(q_tokens)
 
 
 class QdrantClientManager:
@@ -138,10 +152,10 @@ class QdrantClientManager:
                     field_name="tags",
                     field_schema="keyword",
                 )
-                # Full-text index on content for BM25-like keyword search
+                # Full-text index on text for BM25-like keyword search
                 self._client.create_payload_index(
                     collection_name=self._collection,
-                    field_name="content",
+                    field_name="text",
                     field_schema="text",
                 )
                 # Additional payload indexes for filtered queries
@@ -167,10 +181,26 @@ class QdrantClientManager:
                 )
                 logger.info(
                     f"Created collection: {self._collection} "
-                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, content-FTS, and metadata indexes)"
+                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, text-FTS, and metadata indexes)"
                 )
             else:
                 logger.info(f"Collection exists: {self._collection}")
+                # Ensure text-FTS index exists on already-created collections.
+                # Older collections may only have the stale `content` index; create
+                # the `text` index idempotently so BM25 search matches ingested payloads.
+                try:
+                    self._client.create_payload_index(
+                        collection_name=self._collection,
+                        field_name="text",
+                        field_schema="text",
+                    )
+                    logger.info(f"Created text-FTS index on existing collection: {self._collection}")
+                except Exception as idx_err:
+                    err_msg = str(idx_err).lower()
+                    if "already exists" in err_msg or "conflict" in err_msg:
+                        logger.info(f"text-FTS index already exists on {self._collection}")
+                    else:
+                        logger.warning(f"Failed to ensure text-FTS index on {self._collection}: {idx_err}")
         except Exception as e:
             err_msg = str(e).lower()
             if "already exists" in err_msg or "conflict" in err_msg:
@@ -184,7 +214,7 @@ class QdrantClientManager:
         limit: int = 20,
         filter_cond: Optional[Any] = None,
     ) -> list[dict[str, Any]]:
-        """BM25-like full-text search via Qdrant text_index on content field.
+        """BM25-like full-text search via Qdrant text_index on text field.
 
         Uses Qdrant's scroll with text-matching filter for keyword retrieval.
         Results are scored by text relevance, not vector similarity.
@@ -192,7 +222,7 @@ class QdrantClientManager:
         from qdrant_client.http.models import FieldCondition, MatchText, Filter
 
         text_filter = Filter(
-            must=[FieldCondition(key="content", match=MatchText(text=query))]
+            must=[FieldCondition(key="text", match=MatchText(text=query))]
         )
         # Combine with existing filter if provided
         combined = text_filter
@@ -214,10 +244,10 @@ class QdrantClientManager:
             return [
                 {
                     "id": str(r.id),
-                    "content": r.payload.get("content", ""),
-                    "score": 0.5,  # BM25 has no score in scroll; assign neutral weight for RRF
+                    "content": r.payload.get("text", ""),
+                    "score": _bm25_overlap_score(query, r.payload.get("text", "")),
                     "metadata": {
-                        k: v for k, v in r.payload.items() if k != "content"
+                        k: v for k, v in r.payload.items() if k != "text"
                     },
                     "source": "bm25_text",
                 }
