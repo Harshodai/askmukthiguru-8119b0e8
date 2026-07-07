@@ -321,10 +321,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             <div
               className={`relative w-full transition-all duration-300 ${
                 isGuru
-                  ? 'bg-card/45 backdrop-blur-md border border-border/30 rounded-2xl rounded-tl-md px-4 py-3 text-[15.5px] leading-[1.75] text-foreground/90 font-normal shadow-[0_4px_16px_-4px_rgba(0,0,0,0.05)]'
+                  ? 'px-0 py-1 text-[15.5px] leading-[1.7] text-foreground/90 font-normal'
                   : isEditing
                   ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
-                  : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/30 rounded-2xl rounded-tr-md px-3 py-2 text-[15px] text-foreground font-medium shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)]'
+                  : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/25 rounded-2xl rounded-tr-md px-3.5 py-2 text-[15px] text-foreground font-medium'
               }`}
             >
               {isGuru && !message.error && (
