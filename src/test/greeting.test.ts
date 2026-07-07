@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildGreeting, greetingPrefix, greetingSuffix, timeOfDay } from '@/lib/greeting';
+import { buildGreeting, firstName, greetingPrefix, greetingSuffix, timeOfDay } from '@/lib/greeting';
 
 const at = (hour: number) => new Date(2026, 6, 5, hour, 30, 0);
 
@@ -52,10 +52,22 @@ describe('greetingSuffix', () => {
   });
 });
 
+describe('firstName', () => {
+  it('returns only the first word', () => {
+    expect(firstName('Harshoda Kolluru')).toBe('Harshoda');
+    expect(firstName('Harshoda')).toBe('Harshoda');
+    expect(firstName('  Sri Preethaji  ')).toBe('Sri');
+    expect(firstName('')).toBe('');
+    expect(firstName('   ')).toBe('');
+  });
+});
+
 describe('buildGreeting', () => {
-  it('composes the full display greeting', () => {
+  it('composes the full display greeting using first name only', () => {
+    // single-word name unchanged
     expect(buildGreeting('sri_preethaji', 'Harshoda', at(7))).toBe('May this morning meet you in stillness, Harshoda Ji');
-    expect(buildGreeting('sri_krishnaji', 'Harshoda', at(18))).toBe('Let the day settle, Harshoda Ji');
-    expect(buildGreeting('sadhguru', 'Harshoda', at(7))).toBe('Namaskaram, Harshoda');
+    // full name — should extract first word
+    expect(buildGreeting('sri_krishnaji', 'Harshoda Kolluru', at(18))).toBe('Let the day settle, Harshoda Ji');
+    expect(buildGreeting('sadhguru', 'Harshoda Kolluru', at(7))).toBe('Namaskaram, Harshoda');
   });
 });
