@@ -241,11 +241,12 @@ export const LanguageSelector = ({
               e.stopPropagation();
               setIsOpen(!isOpen);
             }}
-            className="flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+            className="flex items-center gap-1.5 px-2.5 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all text-xs font-semibold"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
           >
-            <Globe className="w-4 h-4" />
+            <Globe className="w-3.5 h-3.5" />
+            <span className="uppercase">{selectedLanguage}</span>
           </motion.button>
           {isOpen && (
             <>
@@ -261,13 +262,7 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="fixed z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl"
-                style={{
-                  bottom: coords ? `${coords.bottom}px` : '80px',
-                  left: coords ? `${coords.left}px` : '16px',
-                  maxHeight: coords ? `${coords.maxHeight}px` : '360px',
-                  width: 'min(20rem, calc(100vw - 1.5rem))',
-                }}
+                className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)] max-h-[360px]"
                 role="listbox"
               >
                 <div className="px-3 py-2 border-b border-border bg-card/95 sticky top-0 z-10">
