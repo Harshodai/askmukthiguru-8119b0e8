@@ -108,7 +108,7 @@ class ChatRequestOrchestrator:
             response=result.final_answer,
             intent=result.intent,
             meditation_step=result.meditation_step,
-            citations=result.citations,
+            citations=_coerce_citations_to_str(result.citations),
             blocked=result.blocked,
             block_reason=result.block_reason,
             trace_id=result.trace_id,
@@ -296,3 +296,29 @@ def _response_to_dict(response) -> dict:
     if dataclasses.is_dataclass(response):
         return dataclasses.asdict(response)
     return {"response": str(response)}
+
+
+def _coerce_citations_to_str(citations) -> list[str]:
+    """Coerce citation objects to the list[str] shape ChatResponse expects.
+
+    citation_extractor emits list[dict] with {doc_id, quote, ...}; the API
+    contract + frontend expect list[str]. Use doc_id (or quote fallback) as
+    the string representation. Gracefully handles already-string items.
+    """
+    if not citations:
+        return []
+    out: list[str] = []
+    for c in citations:
+        if isinstance(c, str):
+            out.append(c)
+        elif isinstance(c, dict):
+            doc_id = c.get("doc_id") or c.get("source") or c.get("source_url")
+            if doc_id and doc_id != "unknown":
+                out.append(str(doc_id))
+            else:
+                quote = c.get("quote") or c.get("title") or ""
+                if quote:
+                    out.append(str(quote)[:200])
+        else:
+            out.append(str(c))
+    return out
