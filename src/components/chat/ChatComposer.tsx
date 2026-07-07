@@ -13,6 +13,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { AssistantSwitcher } from './AssistantSwitcher';
 import { type PipelineStep } from './ThinkingPills';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
+import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import {
   PromptInput,
   PromptInputFooter,
@@ -85,7 +86,7 @@ export function ChatComposer({
   const showThinking =
     showInstantPill || showPipeline || isTyping || (isStreaming && inputValue === '');
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (_message: PromptInputMessage, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit(e);
   };
@@ -210,7 +211,7 @@ export function ChatComposer({
             {(
               <Button
                 type="button"
-                size="icon"
+                size="icon-sm"
                 variant="ghost"
                 onClick={onVoiceToggle}
                 aria-label={isListening ? 'Stop voice input' : 'Speak your question'}
@@ -236,7 +237,7 @@ export function ChatComposer({
             {(isStreaming || isTyping) ? (
               <PromptInputSubmit
                 type="button"
-                size="icon"
+                size="icon-sm"
                 onClick={onStop}
                 className="h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
                 aria-label="Stop generating"
