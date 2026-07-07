@@ -1597,7 +1597,7 @@ return (
               </div>
 
               {/* Active Chat Composer */}
-              <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background/95 to-transparent">
+              <div className="sticky bottom-0 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background/95 to-transparent -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8">
                 <ChatComposer
                   inputValue={inputValue}
                   inputRef={inputRef}
