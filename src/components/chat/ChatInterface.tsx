@@ -17,7 +17,7 @@ import {
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
-import { buildGreeting, greetingPrefix } from '@/lib/greeting';
+import { buildGreeting, greetingPrefix, buildGreetingSubline } from '@/lib/greeting';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
