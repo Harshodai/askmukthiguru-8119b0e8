@@ -320,6 +320,37 @@ DISTRESS_RESPONSES = {
 
 
 # ---------------------------------------------------------------------------
+# LLM Distress Classification Prompt (Stage 2)
+#
+# System message for `NimService.classify_distress_structured`. The model must
+# return STRICT JSON parseable by `json.loads` using the canonical schema
+# {is_distress, confidence, reason} — same as ollama/sarvam/openrouter. The
+# consumer (`async_assess_distress`) only checks `is_distress` (true →
+# DistressLevel.MODERATE); gradation is not used, so a binary flag + float
+# confidence is sufficient.
+# ---------------------------------------------------------------------------
+
+DISTRESS_CLASSIFICATION_SYSTEM_PROMPT = (
+    "You are a sensitive emotional-distress classifier for a spiritual "
+    "wellness companion (Mukthi Guru / Serene Mind). The user may write in "
+    "any language, including Indian languages and Romanized (Hinglish).\n\n"
+    "Decide whether the message shows emotional distress (a cry for help, "
+    "sustained anxiety, sadness, loneliness, overwhelm, hopelessness, or "
+    "deep suffering without explicit self-harm intent — crisis is handled "
+    "elsewhere).\n\n"
+    "Guidelines:\n"
+    "1. Base the decision on the user's words and emotional tone only.\n"
+    "2. A normal spiritual or factual question is NOT distress — do not over-flag.\n"
+    "3. Set `confidence` to your certainty (0.0 = no distress, 1.0 = clear distress).\n"
+    "4. If unsure, lean toward `is_distress: false` with a low confidence.\n"
+    "5. Respond with STRICT JSON only. No prose, no markdown fences, no extra keys.\n"
+    "6. Output schema:\n"
+    '   {"is_distress": <true|false>, "confidence": <0.0-1.0>, '
+    '"reason": "<short phrase>"}'
+)
+
+
+# ---------------------------------------------------------------------------
 # Semantic Distress Detection
 # ---------------------------------------------------------------------------
 
