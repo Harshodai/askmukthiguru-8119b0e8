@@ -1,136 +1,90 @@
-# Ruthless Finish Sprint — Status
+## Goal
 
-**Confidence: 9.3 / 10.** Typography scale locked. Chat now ships a **ChatGPT-inspired conversation-wide Sources side panel** (`ConversationSourcesPanel.tsx`): aggregates every citation across all guru turns, **dedupes by URL**, renders YouTube thumbnails, and gives each source a set of **"Used in answer #N" pointer chips** that close the panel and scroll+ring-highlight the target message. Opened from a new `Sources` button in `ChatHeader` with live-count badge. Keeps the transcript compact — inline citations stay minimal, the panel is the full library. AI Elements destructive migration deferred to protect the 15 domain features (regenerate, edit-in-place, TTS, wisdom card, etc.); primitives will layer in incrementally.
+Ruthlessly fix `ChatPage` end-to-end so it feels on par with claude.ai / manus.im: centered empty state with spiritual greetings, tight message rhythm, sticky non-overlapping composer, clean language menu, refined sidebar, and correct mobile/tablet layout.
 
+## Root causes (from audit of `src/components/chat/*`, 1771-line `ChatInterface.tsx`)
 
+1. **Empty state off-center** — `ChatInterface` renders empty state inside the same flex column as the composer with no min-height centering; hero is top-aligned, not vertically centered in the available area.
+2. **Greeting is time-of-day only** — no spiritual variants; claude.ai-style personal + spiritual greeting missing.
+3. **Prompt-card click broken** — `ChatEmptyState` prompt cards call a handler that sets composer text but never triggers `handleSend`; also races with focus timing.
+4. **Huge message gaps** — `MessageList` uses `space-y-8`/large vertical padding per message; user + assistant rendered as heavy cards with `py-6`/`my-6`; no grouping.
+5. **Composer overlap with last answer** — messages container lacks bottom padding equal to composer height; composer is `absolute`/`fixed` without a spacer.
+6. **Language selector opens upward off-screen** — `LanguageSelector` popover uses `side="top"` with no `collisionPadding`/`avoidCollisions`; on short viewports it clips above the fold.
+7. **Sidebar** — `DesktopSidebar` fixed width, no collapse polish, thread rows too tall, hover states weak.
+8. **Mobile/tablet** — no responsive breakpoints on grid; sidebar always mounted; composer full-bleed with wrong safe-area padding; header wraps.
 
-## ✅ Shipped this pass
+## Approach
 
-### Layout & dvh (Sprint A)
-- `min-h-screen` → `min-h-dvh` swept across 14 pages/components (PracticeDetail, Terms, NotFound, TTS, ResetPassword, Profile, Privacy, Practices, Auth, AuthLatency, AdminShell, AnimatedLayout, AdminLogin, AdminErrorBoundary). No more Safari URL-bar jump.
-- Footer: `pb-[calc(3rem+env(safe-area-inset-bottom))]` — respects iOS home-indicator.
-- Cookie banner: same safe-area padding at top and bottom, plus `md:max-w-md` cap so it stops spanning full width on tablets.
+Migrate the chat surface to **AI Elements** (per `chat-ui-composition` contract) and rebuild layout with a strict 3-zone shell. Preserve backend transport, storage, streaming, memory, citations — only presentation changes.
 
-### Tablet (Sprint B)
-- Cookie banner width capped at tablet.
-- Hero already `md:max-w-3xl lg:max-w-5xl` (P1 pass).
-- Chat header: already responsive (avatar+title truncate ladder, memory pill hidden <sm, export hidden <sm) — verified, no fix needed.
+### Phase 1 — Install AI Elements + shell
 
-### Typography (Sprint C, partial)
-- Verified: body copy uses Inter (index.css:140), monospace is confined to error codes and code blocks — no landing body text is mono.
-- `.prose` already uses `prose-p:leading-relaxed`. No global sweep needed.
+- `bunx ai-elements@latest add conversation message prompt-input shimmer tool`
+- New `ChatShell.tsx`: CSS grid `[sidebar] [main]` on `lg+`, single column on mobile with `Sheet` sidebar.
+- Main column is a flex column: `header` (sticky top) / `scroll region` (Conversation) / `composer` (sticky bottom, safe-area padded).
+- Scroll region gets `pb-[calc(var(--composer-h)+1rem)]` via CSS var written from composer `ResizeObserver` — kills composer/answer overlap.
 
-### Accessibility (Sprint D)
-- Navbar hamburger: `aria-label` + `aria-expanded` + `aria-controls="mobile-nav"` ✅
-- Cookie dismiss: `aria-label="Dismiss"` ✅
-- ChatHeader icon-only buttons all have `aria-label` ✅
-- Practice fav star: `aria-pressed={fav}` ✅
-- Hero image: `alt=""` (decorative) ✅
-- `<html lang="en">` ✅
-- React Router v7 future flags (`v7_startTransition`, `v7_relativeSplatPath`) ✅
-- Avatar contrast (P1): solid gold disc + `text-primary-foreground` ✅
-- CTA disclaimer (P1): `bg-background/60 backdrop-blur-sm` for AA ✅
+### Phase 2 — Empty state (centered + spiritual)
 
-### Build health
-- `tsgo` clean (fixed `StudyNotebook | undefined` in ChatMessage).
-- Console: only harmless `RESET_BLANK_CHECK` from lovable.js sandbox — not app code.
+- `ChatEmptyHero.tsx` grid-placed with `place-items-center` inside a `min-h-full` wrapper so orb + greeting + prompt cards sit dead-center regardless of viewport height.
+- Greeting util: rotate through spiritual variants keyed on time-of-day AND day-of-week (e.g., "Namaste, {name}. May this morning meet you in stillness.", "Peace to you, {name} — the evening is a good teacher.", "Welcome home, seeker."). Deterministic per session, not random-flickering.
+- Prompt cards call `onPromptSelect(text)` which BOTH pre-fills composer AND immediately calls `send(text)` — no double-click required. Focus returns to composer only if send is deferred.
 
-## 🟡 Deferred — chat AI Elements migration (Sprint E)
+### Phase 3 — Message rhythm (claude.ai density)
 
-**Not shipped this pass.** Reason: the current `ChatMessage`/`ChatInterface`/`MessageList`/`SlashCommandMenu`/`ThinkingPills`/`WisdomCardGenerator`/`ChatErrorBanner` stack carries ~15 domain features (streaming, regenerate, edit-in-place with resubmit, virtualized rendering, TTS, wisdom-card export, meditation gate, sample pills, quick actions, error-code panel, feedback capture). A faithful AI Elements composition preserving all of these is a 45–60 min focused sprint of its own with real regression risk. Rushing it in the same pass would trade a working chat for a partially working AI-Elements shell.
+- Replace `MessageList` + `ChatMessage` with AI Elements `Conversation` / `Message` / `MessageContent` / `MessageResponse`.
+- Assistant: no background, `text-foreground`, `prose-sm` markdown, 12px between turns, 4px within a turn's parts.
+- User: right-aligned bubble, `bg-primary/10 text-foreground`, max-width `min(70%, 42rem)`.
+- Group consecutive same-role messages: shared avatar rail on first, subsequent get indent only.
+- `Shimmer` "Contemplating…" while `status==='submitted'`.
 
-**Proposal:** approve a dedicated next turn for it. Scope:
-1. `bun x ai-elements@latest add conversation message prompt-input shimmer tool`
-2. Wrap existing `MessageList` inside `<Conversation><ConversationContent>` with `<ConversationScrollButton>`.
-3. Migrate assistant text rendering to `MessageResponse` (keep custom actions row as siblings).
-4. Composer → `PromptInput` + footer with mic/language/submit (preserve `sendMessageStreaming`).
-5. Thinking pills → `Shimmer` ("Reflecting…"). Empty state uses guru portrait, not Sparkles.
-6. Playwright verify 384/820/1440.
+### Phase 4 — Composer
 
-## Confidence per surface (post this pass)
+- AI Elements `PromptInput` + `PromptInputTextarea` + `PromptInputFooter` (submit right-aligned via `justify-end`).
+- Sticky bottom, `max-w-3xl mx-auto`, `pb-[env(safe-area-inset-bottom)]`.
+- Enter sends, Shift+Enter newline, submit toggles to Stop while streaming.
+- Autofocus on: mount, post-send, stream-end, thread switch.
+- Disclaimer line rendered as a single muted caption directly under the composer, consistent across empty + active states.
 
-| Surface | Score | Notes |
-|---|---|---|
-| Landing `/` | 9 / 10 | Distinctive, accessible, tablet-safe. |
-| Auth `/auth` | 9 / 10 | Cookie banner no longer blocks. |
-| Chat `/chat` | 7.5 / 10 | Feature-rich and accessible, custom (not AI Elements). |
-| Practices | 8 / 10 | Fav a11y done. |
-| Profile / Admin | 8 / 10 | dvh fixed. |
-| **Overall** | **8.5 / 10** | Ceiling to 9.5 gated on AI Elements migration. |
+### Phase 5 — Language selector
 
----
+- Rebuild `LanguageSelector` on shadcn `Popover` with `side="top" align="end" sideOffset={8} collisionPadding={16} avoidCollisions`.
+- On `<sm` screens, switch to `Sheet` from bottom instead of popover.
 
-**Original audit history preserved below.**
+### Phase 6 — Sidebar refresh
 
----
+- `DesktopSidebar`: 260px wide, condensed rows (h-9), truncate w/ tooltip, active row uses `bg-accent`, hover `bg-accent/50`. Add pinned "New chat" button top, footer user chip bottom. Collapse toggle persists to localStorage.
+- Mobile: same content behind `Sheet`, trigger in header.
 
+### Phase 7 — Responsive pass
 
-## Scope (what you asked for)
+- Header collapses actions into overflow menu below `md`.
+- Empty-state prompt grid: `grid-cols-1 sm:grid-cols-2`, cards `min-h-24`.
+- Orb: `w-20 sm:w-24`.
+- Verify at 360, 414, 768, 1024, 1280 via Playwright screenshots and attach.
 
-1. Footer + dvh audit — no layout jump, nothing hidden below fold on mobile Safari.
-2. Tablet (768–1024) polish — hero, cookie banner, chat header.
-3. Consistent typography scale — landing / chat / footer, verified contrast + line-height.
-4. Axe a11y sweep — fix every P0/P1 on landing + chat.
-5. Reaudit remaining items from `.lovable/plan.md`.
-6. **AI Elements migration** of the chat surface (Conversation, Message, MessageResponse, PromptInput, Tool, Shimmer).
-7. Empty / loading / streaming states consistent on 384 / 820 / 1440.
+### Phase 8 — Verification
 
-## Plan
+- Playwright script at `/tmp/browser/chat-audit/` captures: empty state (mobile/tablet/desktop), post-first-message, mid-stream, post-stream, language menu open, sidebar open on mobile. View each screenshot to confirm centering, spacing, no overlap, language menu on-screen.
+- `tsgo` typecheck.
+- Vitest run for `ChatInterface.test.tsx` — update assertions where DOM shape changed.
 
-### Sprint A — Layout & dvh (fast, safe)
-- Replace remaining `h-screen` / `min-h-screen` with `h-dvh` / `min-h-dvh` project-wide (rg sweep).
-- Footer: verify it renders on all pages; if Index page's `min-h-dvh` + sticky hero pushes footer off, wrap in a flex column so footer sits at document end without jumping when mobile URL bar collapses.
-- Add `pb-[env(safe-area-inset-bottom)]` where fixed bottom elements exist (composer, cookie banner).
+## Files touched
 
-### Sprint B — Tablet (768–1024)
-- Hero: bump `max-w-*` scale (`md:max-w-3xl lg:max-w-5xl` already partially there — verify Meet the Gurus, Practices, How It Works).
-- Cookie banner: at `md+`, keep bottom-left toast width capped at `max-w-md` so it doesn't span full width.
-- Chat header: verify avatar + title + language selector + user menu don't wrap or truncate at 820. Add responsive gap/hide-label rules.
+- **New:** `src/components/chat/ChatShell.tsx`, `ChatEmptyHero.tsx`, `hooks/useChatSession.ts`, `lib/chat/greeting.ts`, `src/components/ai-elements/*` (via CLI).
+- **Rewritten:** `ChatInterface.tsx` (down to ~350 lines as orchestrator), `ChatComposer.tsx`, `MessageList.tsx`, `ChatMessage.tsx`, `LanguageSelector.tsx`, `DesktopSidebar.tsx`, `ChatEmptyState.tsx` (→ delegates to `ChatEmptyHero`).
+- **Untouched:** `src/lib/chat/transport.ts`, `chatStorage.ts`, memory/citation code, backend.
 
-### Sprint C — Typography system
-- Define scale in `tailwind.config.ts` + `index.css`:
-  - Display (H1 hero): typewriter, 3xl→7xl
-  - Heading (H2 section): typewriter, 2xl→5xl
-  - Subheading (H3): sans, xl→2xl semibold
-  - Body: sans, base, `leading-relaxed`
-  - Caption/eyebrow: sans, xs uppercase tracking-widest
-- Sweep landing components + Footer + Chat: replace ad-hoc `text-*` chains with the scale.
-- Body copy currently monospace → switch `.prose` and long `<p>` to paired sans (already loaded).
+## Out of scope
 
-### Sprint D — Accessibility (axe P0/P1)
-- Alt text sweep (hero lotus, guru images, decorative → `alt=""`).
-- Icon-only buttons → `aria-label` (hamburger, close, fav star, scroll-to-bottom fab, mic).
-- Fav star → `aria-pressed`.
-- Focus-visible rings on all interactive elements (already global? verify).
-- Single `<main>` per route.
-- Verify contrast tokens (muted-foreground/50 → muted-foreground) in disclaimer, timestamps, chat meta.
-- Color-not-alone: error states get icon + text.
-- `lang="en"` on `<html>`.
-- React Router v7 future flags to silence console noise.
+- Rate limiting (still pending Redis-vs-in-memory answer).
+- Landing page redesign.
+- New backend endpoints.
 
-### Sprint E — AI Elements chat migration
-- `bun x ai-elements@latest add conversation message prompt-input shimmer tool`
-- Rewrite `ChatInterface` to compose `Conversation` / `ConversationContent` / `ConversationScrollButton`.
-- `ChatMessage` → `Message` + `MessageContent` + `MessageResponse` (markdown streaming).
-- Composer → `PromptInput` + `PromptInputTextarea` + `PromptInputFooter` (submit right-aligned, mic + language chips in footer).
-- Thinking indicator → `Shimmer` ("Reflecting…").
-- Assistant messages: NO background bubble (per contract). User bubble: `bg-primary text-primary-foreground`.
-- Empty state: guru portrait + suggested prompts (no Sparkles icon).
-- Verify streaming, error, and loading render identically at 384 / 820 / 1440 via Playwright.
+## Technical notes
 
-### Sprint F — Reaudit
-- Rerun Playwright at 3 viewports on `/`, `/chat` (with injected session), `/practices`, `/profile`.
-- Cross-check `.lovable/plan.md` items 1–12; close resolved, log remainder.
-- Run axe via Playwright, list residual violations (accept only AAA-tier or design-decision).
+- CSS var `--composer-h` set by `ResizeObserver` on the composer wrapper — the only reliable way to keep the scroll region padded regardless of textarea auto-grow.
+- Greeting util is a pure function `getSpiritualGreeting({ hour, firstName, seed })` — testable in vitest.
+- Prompt-card send: single `send(text, { origin: 'prompt-card' })` call, no double-hop through composer state.
 
-## Deliverables
-- Updated `.lovable/plan.md` with post-sprint scores per surface.
-- Before/after screenshots checked into `/tmp/browser/` for the audit trail.
-- Final confidence score with justification.
-
-## Risks / Notes
-- AI Elements migration touches many chat files. I will preserve message persistence, streaming transport (`sendMessageStreaming`), and existing hooks — only the presentational layer changes.
-- Existing custom ChatMessage has domain-specific features (regenerate, edit-in-place, quick actions, TTS, wisdom card). These stay as message actions on top of `MessageResponse`.
-- Tests: run vitest + typecheck after each sprint.
-
-**Approve to execute all six sprints in order.** ETA ~45–60 min of tool time.
+Approve to proceed to build. And use websearch so that you can see and feel how Claude and chatgpt and even lovable on how they do ruthlessly, you are a staff product designer and frontend engineer now
