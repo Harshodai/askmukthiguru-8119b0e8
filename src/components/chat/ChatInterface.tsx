@@ -58,6 +58,7 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
+import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 import {
   OptimisticPlaceholder,
@@ -134,6 +135,10 @@ export const ChatInterface = () => {
   const [ttsEnabled, setTtsEnabled] = useState(profile.ttsEnabled);
   const [inputFocused, setInputFocused] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState(profile.preferredLanguage);
+  // Auto-translate: non-English user text → English before AI call
+  const { translateToEnglish, isActive: translateActive } = useAutoTranslate({
+    languageCode: currentLanguage,
+  });
   const { isCollapsed: sidebarCollapsed, toggle: toggleSidebar } = useSidebarCollapsed();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [prevProfileLoading, setPrevProfileLoading] = useState(true);
@@ -606,12 +611,26 @@ export const ChatInterface = () => {
     const historyMessages = options.historyMessages ?? baseMessages;
     const isFirstUserMessage = appendUser && baseMessages.every((m) => m.role !== 'user');
 
+    // Translate non-English input → English before sending to AI.
+    // The user sees their original text in the chat bubble; the AI receives translated text.
+    let textForAI = textToSend.trim();
+    if (translateActive) {
+      try {
+        textForAI = await translateToEnglish(textToSend.trim());
+      } catch {
+        // fail-safe: continue with original text
+      }
+    }
+
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
-      content: textToSend.trim(),
+      content: textToSend.trim(), // always show original language in chat bubble
       timestamp: new Date(),
     };
+
+    // The AI-bound text may differ (translated)
+    const aiText = textForAI;
 
     if (appendUser) {
       setMessages((prev) => [...prev, userMessage]);
@@ -636,8 +655,9 @@ export const ChatInterface = () => {
       content: m.content,
     }));
 
-    // Check cache first
-    const allMsgs = [...messageHistory, { role: 'user' as const, content: userMessage.content }];
+    // Check cache first — use aiText (translated) as the cache key so identical
+    // questions in different scripts deduplicate properly.
+    const allMsgs = [...messageHistory, { role: 'user' as const, content: aiText }];
     const cacheKey = `${currentLanguage}:${hashMessages(allMsgs)}`;
     const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
 
@@ -656,6 +676,7 @@ export const ChatInterface = () => {
 
     if (isFirstUserMessage && currentConversation?.id && !titleGenerationRef.current.has(currentConversation.id)) {
       titleGenerationRef.current.add(currentConversation.id);
+      // Title generation uses the original user text (their language), which is more natural
       generateConversationTitle(userMessage.content).then((title) => {
         setCurrentConversation((prev) => {
           if (!prev || prev.id !== currentConversation.id) return prev;
@@ -688,7 +709,8 @@ export const ChatInterface = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const relevant = await memoryApi.getRelevant(userMessage.content, 5);
+        // Memory search uses aiText (English) for better semantic matching
+        const relevant = await memoryApi.getRelevant(aiText, 5);
         if (relevant.length > 0) {
           seekerContext = relevant.map((m) => `- ${m.content}`).join('\n');
         }
@@ -712,7 +734,7 @@ export const ChatInterface = () => {
 
         const stream = sendMessageStreaming(
           messageHistory,
-          userMessage.content,
+          aiText,  // translated (English) text sent to AI
           meditationStep,
           currentConversation?.summary,
           currentConversation?.id,
@@ -1022,7 +1044,7 @@ export const ChatInterface = () => {
       const lastSereneMindAt = getLastCompletedMeditationTimestamp();
       const response = await sendMessage(
         messageHistory,
-        userMessage.content,
+        aiText,  // translated (English) text sent to AI
         meditationStep,
         currentConversation?.summary,
         currentConversation?.id,

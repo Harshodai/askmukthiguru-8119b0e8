@@ -96,6 +96,21 @@ export function ChatComposer({
 
       className="w-full max-w-3xl mx-auto"
     >
+      {/* Language + TTS controls — floated above the composer, not inside the input bar */}
+      <div className="flex items-center justify-start gap-2 mb-2 px-1">
+        <LanguageSelector
+          value={currentLanguage}
+          voiceEnabled={voiceEnabled}
+          isListening={isListening}
+          onVoiceToggle={onVoiceToggle}
+          onLanguageChange={onLanguageChange}
+          ttsEnabled={ttsEnabled}
+          onTtsToggle={onTtsToggle}
+          isSpeaking={isSpeaking}
+          compact
+        />
+      </div>
+
       <PromptInput
         onSubmit={handleFormSubmit}
         role="form"
@@ -187,18 +202,6 @@ export function ChatComposer({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <LanguageSelector
-              value={currentLanguage}
-              voiceEnabled={voiceEnabled}
-              isListening={isListening}
-              onVoiceToggle={onVoiceToggle}
-              onLanguageChange={onLanguageChange}
-              ttsEnabled={ttsEnabled}
-              onTtsToggle={onTtsToggle}
-              isSpeaking={isSpeaking}
-              compact
-            />
           </PromptInputTools>
 
           <div className="flex-1" />
