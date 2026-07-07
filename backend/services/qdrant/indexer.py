@@ -115,8 +115,9 @@ class QdrantIndexer:
             )
             points.append(point)
 
-        # Batch upsert in chunks of 100
-        batch_size = 100
+        # Batch upsert in chunks of 200 (bumped from 100 — Task E2.6; safe for the
+        # payload sizes used here: text + phonetic_tokens + small meta per point).
+        batch_size = 200
         for i in range(0, len(points), batch_size):
             batch = points[i : i + batch_size]
             self._client.upsert(

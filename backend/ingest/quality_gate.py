@@ -130,6 +130,20 @@ class DeterministicChecker:
             reasons.append("No spiritual doctrine keywords detected")
             penalty += 15
 
+        # Information density (Task E2.5) — thin content penalty
+        from app.config import settings
+        density_min = float(getattr(settings, "quality_min_information_density", 0.35))
+        density = information_density(stripped)
+        if density < density_min:
+            reasons.append(f"Low information density ({density:.2f}, min={density_min:.2f})")
+            penalty += 20
+
+        # Bias / loaded-language stub (Task E2.5) — flag but don't hard-fail alone
+        bias_terms = detect_bias(stripped, getattr(settings, "quality_bias_blocklist", ""))
+        if bias_terms:
+            reasons.append(f"Loaded/bias terms detected: {bias_terms}")
+            penalty += 25
+
         passed = penalty < 50
         return passed, penalty, reasons
 
@@ -146,6 +160,63 @@ class DeterministicChecker:
             return 0.0
         max_count = max(ngrams.values())
         return max_count / total
+
+
+# ── Tier 1+: Information density / fact-check / bias stubs (Task E2.5) ────────
+
+# Minimal stopword set so density scoring ignores filler words.
+_DENSITY_STOPWORDS = frozenset({
+    "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "be", "been",
+    "of", "to", "in", "on", "for", "with", "as", "by", "at", "from", "it", "this",
+    "that", "these", "those", "i", "you", "we", "they", "he", "she", "his", "her",
+    "not", "so", "if", "then", "than", "do", "does", "did", "have", "has", "had",
+})
+
+
+def information_density(text: str) -> float:
+    """
+    Ratio of unique meaningful (non-stopword) tokens to total tokens.
+    Higher = denser. Low density → thin/gibberish content.
+    Ponytail: one function, no class.
+    """
+    words = [w.strip(".,!?;:\"'()[]").lower() for w in text.split()]
+    words = [w for w in words if w]
+    if not words:
+        return 0.0
+    meaningful = [w for w in words if w not in _DENSITY_STOPWORDS and len(w) > 2]
+    if not meaningful:
+        return 0.0
+    return len(set(meaningful)) / len(meaningful)
+
+
+# Tiny built-in blocklist for the bias-detection stub. Extend via
+# settings.quality_bias_blocklist (comma-separated) for production use.
+_BIAS_BLOCKLIST_STUB = frozenset({
+    "heretic", "infidel", "blasphemy", "cultist", "heathen",
+})
+
+
+def detect_bias(text: str, extra_blocklist: str = "") -> list[str]:
+    """
+    Stub bias/loaded-language detector. Returns list of flagged terms found.
+    Ponytail: blocklist scan, no NLP. Returns [] when clean.
+    """
+    terms = set(_BIAS_BLOCKLIST_STUB)
+    if extra_blocklist:
+        terms.update(t.strip().lower() for t in extra_blocklist.split(",") if t.strip())
+    lower = text.lower()
+    return [t for t in terms if t in lower]
+
+
+def fact_check_stub(chunk: str, known_true: list[str] | None = None) -> bool:
+    """
+    Stub fact-checker. Always returns True (pass) for now.
+    TODO: replace with LLM-based contradiction check against `known_true` statements
+    and a vetted doctrinal corpus. Kept as a no-op so ingestion is never blocked
+    by an incomplete gate.
+    """
+    # Intentional passthrough — graceful, never rejects.
+    return True
 
 
 # ── Tier 2: LLM quality scoring ───────────────────────────────────────────────
@@ -430,4 +501,18 @@ if __name__ == "__main__":
     ok2, pen2, reasons2 = checker.check(bad)
     print(f"Bad text: passed={ok2} penalty={pen2} reasons={reasons2}")
     assert not ok2, "Should reject repetitive text"
+
+    # Information density self-check
+    dense = "Consciousness liberation meditation dharma karma moksha awareness presence stillness"
+    thin = "the the the the the the the the the the the the the the the the"
+    print(f"dense density={information_density(dense):.2f}")
+    print(f"thin density={information_density(thin):.2f}")
+    assert information_density(dense) > information_density(thin)
+
+    # Bias stub self-check
+    assert detect_bias("this is a heretic teaching") == ["heretic"]
+    assert detect_bias("a peaceful meditation") == []
+
+    # Fact-check stub always passes
+    assert fact_check_stub("any chunk", ["known true statement"]) is True
     print("✅ Self-check passed")
