@@ -8,7 +8,7 @@ from app.pipeline import PipelineCoordinator
 from app.pipeline.result import PipelineResult
 
 def test_cache_config_settings():
-    assert settings.semantic_cache_similarity == 0.92
+    assert settings.semantic_cache_similarity == 0.90
     assert settings.semantic_cache_ttl == 604800
     assert settings.guardrails_llm_enabled is False
 

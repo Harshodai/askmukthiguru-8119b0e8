@@ -18,7 +18,7 @@ from rag.prompts import (
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.doc_utils import doc_text
-from services.confidence_scorer import calculate_confidence
+from services.confidence_scorer import calculate_confidence, calculate_confidence_reason
 
 from . import _services
 from .utils import _trace_update, emit_status, log_metrics, settings
@@ -232,6 +232,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         },
     }
     confidence_score = calculate_confidence(_conf_state)
+    confidence_reason = calculate_confidence_reason(_conf_state)
 
     try:
         VERIFICATION_RESULTS.labels(result="faithful" if is_faithful_ld else "hallucinated").inc()
@@ -263,6 +264,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         "is_faithful": is_faithful_ld,
         "verification": {"passed": is_valid, "details": verification_details},
         "confidence_score": confidence_score,
+        "confidence_reason": confidence_reason,
         "faithfulness_score": faithfulness_score,
         "relevancy_score": relevancy_score,
     }
