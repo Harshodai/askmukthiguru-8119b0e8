@@ -448,6 +448,65 @@ class MemoryServiceV2(MemoryService):
         if self._neo4j_driver:
             await self._neo4j_driver.close()
 
+    # ---- E4.3: Personalized subgraphs ----
+
+    async def get_user_subgraph(self, user_id: str, concept: str, depth: int = 2) -> dict[str, Any]:
+        """Return a personalized context subgraph for `user_id` around `concept`.
+
+        E4.3 stub (Ponytail). Combines:
+          - Tier-3 global graph memory for this user (`get_global_graph`)
+          - Neo4j ontology neighbors of `concept` (if Neo4j is up)
+        into a single dict for the prompt to consume as personalized context.
+
+        Existing per-user Neo4j data: `set_global_memory` writes
+        (:User {id})-[:HAS_MEMORY]->(:GlobalMemory {content}) with tenant_id;
+        `get_global_graph` traverses HAS_MEMORY + RELATED_TO. That is user-
+        specific Neo4j data already — this method wraps it with concept focus.
+
+        Args:
+            user_id: Supabase auth user id.
+            concept: Canonical concept name (e.g. "Karma", "Beautiful State").
+            depth: Traversal depth (1-2 typical; capped at 3).
+
+        Returns:
+            {
+              "user_id": str,
+              "concept": str,
+              "memories": list[dict],     # from get_global_graph
+              "ontology_neighbors": list[str],  # neighbor entity_ids
+            }
+            Never raises — degrades to empty lists on any failure.
+        """
+        result: dict[str, Any] = {
+            "user_id": user_id,
+            "concept": concept,
+            "memories": [],
+            "ontology_neighbors": [],
+        }
+        # 1. Per-user global graph memories
+        try:
+            result["memories"] = await self.get_global_graph(user_id, depth=depth)
+        except Exception as e:
+            logger.warning(f"get_user_subgraph: global graph failed: {e}")
+
+        # 2. Ontology neighbors of the concept (best-effort, one Cypher)
+        try:
+            driver = await asyncio.to_thread(self._get_neo4j)
+            if driver is not None:
+                def _neighbors():
+                    with driver.session() as session:
+                        res = session.run(
+                            "MATCH (n {entity_id: $concept})-[r]-(neighbor) "
+                            "WHERE neighbor.entity_id IS NOT NULL "
+                            "RETURN DISTINCT neighbor.entity_id AS neighbor LIMIT 15",
+                            concept=concept,
+                        )
+                        return [rec.get("neighbor") for rec in res if rec.get("neighbor")]
+                result["ontology_neighbors"] = await asyncio.to_thread(_neighbors)
+        except Exception as e:
+            logger.warning(f"get_user_subgraph: ontology neighbors failed: {e}")
+        return result
+
     # ---- LRU fallback helpers ----
 
     def _lru_set(self, key: str, value: str) -> None:

@@ -768,6 +768,21 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         await expand_query_with_synonyms(base_question, assistant_slug),
         assistant_slug
     )
+    # E4.2: KG-RAG ontology traversal — broaden query with Neo4j neighbors
+    # of mentioned concepts (e.g. "karma" -> also retrieve "Dharma", "prarabdha").
+    # Ponytail: one helper, fire-and-forget, non-fatal. Runs alongside synonym
+    # expansion so docs tagged with sub-concepts are also surfaced.
+    try:
+        from rag.kg_expansion import expand_query_with_ontology, augment_query
+        from app.dependencies import get_container
+        _neo4j = getattr(get_container(), "neo4j_driver", None)
+        if _neo4j is not None:
+            neighbors = await expand_query_with_ontology(base_question, _neo4j)
+            if neighbors:
+                base_question = augment_query(base_question, neighbors)
+                logger.info(f"KG ontology expansion: +{len(neighbors)} neighbor(s)")
+    except Exception as _kg_err:
+        logger.debug(f"KG ontology expansion skipped: {_kg_err}")
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
 
     # OPTIMIZATION (Phase-3 / Truth-3): Fire LLM expansion CONCURRENTLY with
