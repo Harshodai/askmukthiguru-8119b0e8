@@ -2,15 +2,20 @@
 
 ## Jul 7, 2026 — Chat UI Composer, Language Popover & Overlap Audit
 
-### Auto-dismiss and close voice input error pills
-- **Problem**: Speech recognition errors (e.g., denied microphone access) spawn permanent warning pills at the bottom center of the viewport. Without a close button or timeout, they obscure the composer and ruin layout aesthetics.
-- **Fix**: Return a `clearError` handler from `useSpeechRecognition`, add a manual close button (`X` icon) to the UI error pill, and use a `useEffect` timer inside the hook to automatically clear errors after 5 seconds.
-- **Pattern**: Viewport-anchored error status pill overlays must have automatic fade-out timers (e.g., 5s) and manual dismiss capability.
+### Shift user copy/edit buttons outside message bubble
+- **Problem**: Renders copy and edit actions directly inside the user's message bubble wrapper. Since they are hidden on default layout (`opacity-0`) and shown only on hover, they still occupy layout height inside the bubble, causing a big empty spacing gap at the bottom of the card.
+- **Fix**: Move the action buttons container outside the bubble `div` as a sibling within the parent flexbox column, so they do not add any padding/space inside the bubble.
+- **Pattern**: Interactive actions that are hidden by default should be placed outside the content card wrapper to prevent layout spacing inflation.
+
+### Compact language popover absolute positioning and label
+- **Problem**: The compact language selector dropdown is anchored using fixed positioning with coordinates computed dynamically in JS. This causes a noticeable visual snap/drift when first opened or when the screen layout changes, and it only renders a bare icon without indicating the selected language.
+- **Fix**: Position the dropdown popover using CSS `absolute bottom-full left-0 mb-2` inside the relative trigger container for zero-flicker alignment, and render the current language code next to the icon (e.g., `🌐 EN`) for immediate visual feedback.
+- **Pattern**: Bottom-rail input options menus should use CSS absolute positioning inside relative boundaries instead of javascript coordinate calculations.
 
 ### Synchronize textarea auto-resize with programmatic state updates
-- **Problem**: Height-adjustment triggers on the message composer only ran inside standard input change handlers (`handleInputChange`). Programmatic modifications to the draft text (like speech-to-text transcript insertions or preset template buttons) did not fire `onChange`, resulting in clipped text and scroll-box clipping.
-- **Fix**: Use a `useEffect` hook watching `inputValue` directly to dynamically calculate and adjust the textarea's height based on `scrollHeight` (clamped between 36px and 128px).
-- **Pattern**: Textarea auto-resize logic must watch the input state variable directly to support both user typing and programmatic insertions.
+- **Problem**: Height-adjustment triggers on the message composer only ran inside standard input change handlers (`handleInputChange`). Programmatic modifications to the draft text (like speech-to-text transcript insertions or preset template buttons) did not fire `onChange`. Additionally, wrapping the custom input component did not forward React refs (`React.forwardRef`), making the ref `null` and disabling auto-resizing.
+- **Fix**: Refactor `PromptInputTextarea` and `InputGroupTextarea` to use `React.forwardRef` to pass the ref down to the raw `<textarea>`. Use a `useEffect` hook watching `inputValue` directly to dynamically calculate and adjust the textarea's height based on `scrollHeight` (clamped between 36px and 128px).
+- **Pattern**: Textarea components must forward React refs properly and use state-bound hooks for auto-resizing to handle typing and programmatic modifications alike.
 
 ### Lazy YouTube embeds and playback error fallbacks
 - **Problem**: Passing local/preview `origin` parameters to lazy YouTube embeds inside sandboxed iframes can fail with YouTube playback errors. If the iframe fails, the user is stuck because the YouTube link is hidden when the thumbnail is unmounted.
