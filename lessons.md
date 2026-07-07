@@ -1,5 +1,17 @@
 # Agentic Lessons & Memory
 
+## Jul 7, 2026 — Chat UI Composer, Language Popover & Overlap Audit
+
+### Keep active chat composer outside the scroll transcript
+- **Problem**: A sticky composer nested inside the scrollable transcript can visually cover streamed answers, especially with translucent backgrounds and long responses near the bottom.
+- **Fix**: Render the active composer as a separate flex child below the scroll region, reserve transcript bottom padding, and move floating voice/status indicators above the composer.
+- **Pattern**: ChatGPT/Claude-style active chat layouts should be `header → scroll transcript → fixed composer rail`; only empty-state composer belongs inside centered hero content.
+
+### Clamp icon-anchored language menus by trigger geometry
+- **Problem**: A language selector opened from a small footer icon can expand toward the top of the viewport when it uses a static `bottom-full` anchor and `vh` max-height.
+- **Fix**: Measure trigger rect and use fixed positioning with computed `bottom`, `left`, and `maxHeight` so the menu stays near the composer and scrolls internally.
+- **Pattern**: Any dense popover opened inside a bottom composer must have viewport-aware max height and internal scrolling; never let menu content define page height.
+
 ## Jul 6, 2026 — CLAUDE.md Rewrite
 
 ### Keep the root CLAUDE.md lean and high-signal
