@@ -70,13 +70,19 @@ export const greetingPrefix = (slug: string | undefined, date: Date = new Date()
   return pool[dayOfYear(date) % pool.length];
 };
 
-export const greetingSuffix = (slug: string | undefined, name: string): string => {
+/** Returns only the first word/token of a display name. "Harshoda Kolluru" → "Harshoda". */
+export const firstName = (name: string): string => {
   const trimmed = (name ?? '').trim();
-  if (slug && JI_PERSONAS.has(slug)) return trimmed ? `, ${trimmed} Ji` : '';
-  return trimmed ? `, ${trimmed}` : '';
+  return trimmed.split(/\s+/)[0] ?? '';
 };
 
-/** Full display greeting, e.g. "Suprabhat, Harshoda Ji". */
+export const greetingSuffix = (slug: string | undefined, name: string): string => {
+  const first = firstName(name);
+  if (slug && JI_PERSONAS.has(slug)) return first ? `, ${first} Ji` : '';
+  return first ? `, ${first}` : '';
+};
+
+/** Full display greeting, e.g. "Suprabhat, Harshoda Ji" (always uses first name only). */
 export const buildGreeting = (slug: string | undefined, name: string, date: Date = new Date()): string =>
   `${greetingPrefix(slug, date)}${greetingSuffix(slug, name)}`;
 
