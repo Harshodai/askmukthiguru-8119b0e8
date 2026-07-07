@@ -1410,9 +1410,9 @@ return (
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 sm:px-8 pt-6 pb-2 scrollbar-spiritual"
+        className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual"
       >
-        <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-2">
+        <div ref={innerContentRef} className="max-w-3xl mx-auto">
           {isLandingMode ? (
             /* ── Landing State (Claude-inspired, minimal, particles) ── */
             <motion.div
