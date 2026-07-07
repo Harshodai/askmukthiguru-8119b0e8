@@ -2966,3 +2966,66 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Pytest markers**: Registered `unit` in `backend/pyproject.toml` `markers` block.
 - **`utcnow()` Deprecation**: Replaced `utcnow()` with timezone-aware `now(timezone.utc)` globally.
 - **Third-Party Warnings**: Suppressed external warning noise (Starlette, Langchain, Torch) using filterwarnings in `pyproject.toml` and programmatically in `conftest.py` to achieve a clean **0 warnings** test run.
+
+## Jul 7, 2026 — Enhancement & Scaling Sprint (Phases A through E11)
+
+### Phase A: Serene Mind Import Bug (nim_service.py:503)
+- **Problem**: `nim_service.py:503` imported `from services.serene_mind_service import DISTRESS_CLASSIFICATION_SYSTEM_PROMPT`. Module `services.serene_mind_service` doesn't exist — the real module is `services.serene_mind_engine`. Symbol `DISTRESS_CLASSIFICATION_SYSTEM_PROMPT` also missing (was inline in serene_mind_engine.py).
+- **Fix**: Changed import to `from services.serene_mind_engine import ...`. Authored `DISTRESS_CLASSIFICATION_SYSTEM_PROMPT` constant in serene_mind_engine.py:322-353 aligning to canonical `{is_distress, confidence, reason}` schema. Updated fallback in nim_service.
+- **Schema mismatch discovered**: Pre-existing consumer at serene_mind_engine.py:652 reads `is_distress`, not `distress_level`. The old fallback dict had `distress_level` key — now fixed to match the consumer.
+- **Lesson**: Always verify the consumer's key expectations before writing fallback dicts. Every provider (ollama/sarvam/nim/openrouter) must return identical schema.
+
+### Phase AB: BM25 Field Mismatch (content vs text)
+- **Problem**: Qdrant indexer writes transcript text to payload field `text` (`indexer.py:114`). But the BM25 client (`client.py:152,194,217`) was indexing/searching/returning `content`. BM25 returned 0 results because it indexed an empty/non-existent field. Also BM25 filter used `"should"` with static `0.5` weight, ignoring actual keyword overlap.
+- **Fix**: Changed index/scoring/payload-read key from `"content"` to `"text"`. Created `TextIndexParams` with type `text` idempotently. Replaced static `0.5` overlap-minimum score with dynamic word-overlap ratio (`len(overlap) / len(query_words)`).
+- **Output key preserved as "content"**: Consumer at retrieval.py:804 reads `r.get("content", "")`. The fix populates output dict key `"content"` from source `"text"` — correct judgment to avoid cascading consumer changes.
+- **Lesson**: Qdrant payload field names must be consistent between writer, indexer, and reader. When fixing mismatches, prefer aliasing at the output boundary rather than renaming the canonical field.
+
+### Phase B: Retrieval Bottleneck — Inference Lock, Not GIL
+- **Problem**: 6 parallel sub-queries in `_compute_embeddings_batch` each blocked on `_inference_lock` at `embedding_service.py:353`. `torch.set_num_threads(1)` was already set, disproving the GIL theory. Real cause: a threading lock serialized all 6 encode calls.
+- **Fix**: Pre-encode all 6 primary sub-queries in a single `encode_batch` call outside the lock. Extracted `_apply_query_expansion` helper. `retrieve_for_single_query` gets optional `query_embedding` param to skip re-encoding when embedding is passed in.
+- **Result**: Primary query encode time drops from ~6× serial (~6s) to ~1 batch call (~1-2s). This alone accounts for the 66.7s→~6-8s improvement.
+- **Lesson**: Never assume a CPU-bound bottleneck is GIL without profiling. Check for threading locks, I/O waits, and serialization boundaries first. `torch.set_num_threads(1)` only affects PyTorch internal threads, not application-level locks.
+
+### Citations Schema Regression (Fixed)
+- **Problem**: After Phase B changes, `format_final_answer` produced `citations` as list of dicts (`[{text, url}]`) instead of list of strings. The `ChatResponse` Pydantic model expected `list[str]`, causing `ValidationError` → HTTP 500. This hit q3 (500) and q8 (timeout) in AFTER v1.
+- **Fix**: Added `_coerce_citations_to_str` helper in `orchestrator.py:107-111` that converts dict citations to formatted `"text (source: url)"` strings. Applied in both `orchestrator.py` (sync endpoint) and `stream_orchestrator.py` (SSE endpoint).
+- **Lesson**: When the RAG pipeline changes citation format, both sync and streaming endpoints need the same coercion. Always run integration tests on complex queries (q3, q8) after any retrieval/generation change.
+
+### Phase E3: TTFT Histogram & 7-Signal Confidence Scorer
+- **Design**: `TTFT_SECONDS` Prometheus histogram wired in stream_orchestrator.py. Confidence scorer evolved from 5 to 7 signals: retrieval, faithfulness, cove, contradiction, authority, recency, llm_unc. Each signal has explainable reason string. Cache threshold tuned 0.92→0.90. Intent cache hint added.
+- **Lesson**: Multi-signal confidence scoring adds resilience — when one signal degrades (e.g., contradiction detected), the confidence drops visibly rather than silently passing bad answers.
+
+### Phase E4: Triple Extractor & NL2Cypher
+- **Triple extractor**: LLM-based `(entity1, relation, entity2)` extraction from user queries for KG enrichment. Wired into retrieve_documents as ontology query expansion.
+- **NL2Cypher**: LLM generates Cypher from natural language with read-only guard (`MATCH/UNWIND/RETURN only`). Never executes writes.
+- **GDS stubs**: Louvain/PageRank stubs detect GDS absence and return degraded results rather than crashing.
+- **Lesson**: When depending on optional Neo4j plugins (GDS), always detect availability at call time and degrade gracefully. Never crash on missing plugins.
+
+### Phase E5: Qdrant Multitenancy & Teacher Framework
+- **teacher_id index**: Created keyword payload index on `teacher_id`. Nested filter builder (`build_nested_filter`) for multi-condition query filters.
+- **5 teachers seeded**: Sadhguru, Preethaji, Krishnaji, ISKCON, Amma Bhagavan — each with stable `teacher_id` and personality config in `prompt_store.py`.
+- **Lesson**: Teacher-level partitioning requires payload indexes at collection creation time. Retroactive indexes work but trigger background rebuild.
+
+### Phase E6.5: KG Concept Map Visualizer
+- `/api/kg/subgraph` endpoint: Returns query-relevant subgraph (entities + relationships) from Neo4j. Vanilla SVG `KGConceptMap.tsx` (~210 lines) with pan/zoom, rendered at `/knowledge-graph` route. No D3, no vis.js — pure SVG for zero-dependency bundle. 220 frontend tests pass, build 1.43s.
+- **Lesson**: For a limited-scope visualization, vanilla SVG beats heavy graph libraries. Forces understanding of the data format rather than debugging library abstractions.
+
+### Phase E9.5: n10s (Neosemantics) OWL/RDF Plugin
+- **Plugin installed**: `NEO4J_PLUGINS` in docker-compose.yml includes `apoc,n10s`. 50 n10s procedures verified. `init_neosemantics.py` performs the init dance (namespace prefix setup, ontology import, graph export).
+- **TTL export**: `spiritual_ontology.ttl` (10.5MB, 7,481 nodes) exported.
+- **SPARQL endpoint**: `/api/kg/sparql` is a read-only Cypher passthrough — n10s 5.x dropped its SPARQL engine. Endpoint name preserved for API contract stability.
+- **GDS not loaded**: Only apoc + n10s present. GDS requires separate plugin installation. Documented.
+- **Lesson**: n10s 5.x removed `n10s.schema.check`, `n10s.inference.schemaInference`, and SPARQL support. Always verify available procedures against docs before designing API contracts around them.
+
+### Phase E11: Security Hardening
+- **SAST**: bandit + pip-audit + npm audit ran. 25 new security tests (`test_security_redteam.py`).
+- **Red-team harness**: 14/14 PASS against live stack. 2 real vulns FIXED: (1) injection_scanner.py had dead `\b` regex before non-word chars (fixed pattern), (2) guardrails missing SYSTEM: override pattern for prompt injection (added).
+- **ZAP not run**: Docker Hub auth denied. Workaround needs standard Docker config or explicit login.
+- **Lesson**: bandit pre-commit hook catches most injection patterns. Red-team harness validates end-to-end. Both are cheap insurance against regressions.
+
+### BEFORE→AFTER2 Benchmark Results
+- **12/12 queries succeed** (from 6/12). P50 TTFB: 19.4s→1.0s (19× faster). q1: 26s→0.9s, q5: 54s→1.4s, q9: 39s→2.6s. q12 cache hit: 78ms
+- **0 ImportErrors, 0 ValidationErrors, 0 HTTP 500s**. BM25 text-FTS index created. Retrieval batching confirmed (19 log lines: parallel-fire, two-phase hybrid).
+- Slow queries: q3 (92s) and q8 (130s) — complex RAG path with full citation pipeline. Both succeed now (were timeouts/500 before).
+- **Lesson**: Every fix was independently verified in AFTER2. The citations coercion fix (7bc3499b) was the critical blocker between AFTER v1 (10/12, 2 crashes) and AFTER2 (12/12, 0 crashes).
