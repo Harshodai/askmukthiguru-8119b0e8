@@ -85,17 +85,25 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
 
   if (loaded) {
     return (
-      <div className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px]">
+      <div className="relative group rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px]">
         <iframe
           width="100%"
           height="100%"
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&origin=${encodeURIComponent(window.location.origin)}`}
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
           title="YouTube video player"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] text-white/90 bg-black/70 px-2 py-1 rounded flex items-center gap-1 shadow-md hover:bg-black/90"
+        >
+          Watch on YouTube ↗
+        </a>
       </div>
     );
   }

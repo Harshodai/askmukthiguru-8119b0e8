@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square } from 'lucide-react';
+import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
 
 import {
   Message,
@@ -256,10 +256,16 @@ export const ChatInterface = () => {
   // ── Textarea auto-resize ─────────────────────────────────────────
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
-    const ta = e.target;
-    ta.style.height = '36px';
-    ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
   }, []);
+
+  // Auto-resize textarea when inputValue changes (handles typing, STT, and templates)
+  useEffect(() => {
+    const ta = inputRef.current;
+    if (ta) {
+      ta.style.height = '36px';
+      ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
+    }
+  }, [inputValue]);
 
   // Sync profile changes into local chat state + push language to AI service
   useEffect(() => {
@@ -394,6 +400,7 @@ export const ChatInterface = () => {
     isListening,
     isSupported: voiceSupported,
     error: voiceError,
+    clearError: clearVoiceError,
     startListening,
     stopListening,
     resetTranscript,
@@ -1718,10 +1725,17 @@ return (
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 max-w-[calc(100vw-2rem)] flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30"
+            className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 max-w-[calc(100vw-2rem)] flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/30 backdrop-blur-md"
           >
             <AlertCircle className="w-4 h-4 text-destructive" />
             <span className="text-sm text-destructive truncate">{voiceError}</span>
+            <button
+              onClick={clearVoiceError}
+              className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 text-destructive transition-colors"
+              aria-label="Dismiss error"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
