@@ -1418,14 +1418,14 @@ return (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center min-h-full gap-4 py-6"
+              className="flex flex-col items-center justify-center min-h-[calc(100dvh-11rem)] gap-5 py-8"
             >
               <div className="text-center px-4">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-2xl sm:text-3xl font-serif text-foreground/90 tracking-tight"
+                  className="text-[26px] sm:text-4xl font-serif text-foreground/95 tracking-tight leading-tight"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '')}
                 </motion.h2>
@@ -1433,9 +1433,9 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-2 text-sm sm:text-base text-muted-foreground/80 leading-relaxed max-w-md mx-auto"
+                  className="mt-3 text-sm sm:text-base text-muted-foreground/75 leading-relaxed max-w-md mx-auto font-serif italic"
                 >
-                  Ask anything about the teachings, practices, or your journey.
+                  {buildGreetingSubline()}
                 </motion.p>
               </div>
 
