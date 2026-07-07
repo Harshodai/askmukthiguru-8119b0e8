@@ -1,9 +1,9 @@
 /**
- * Time-of-day + persona-aware greeting helpers.
+ * Time-of-day + persona-aware greeting helpers with spiritual variants.
  *
- * Personas:
- *  - Sri Preethaji / Sri Krishnaji → Indic time greeting + ", {name} Ji"
- *  - Sadhguru                      → always "Namaskaram" + ", {name}" (no Ji)
+ * Design intent: greetings feel like a devotional welcome, not a generic
+ * "Good morning". Ships a deterministic (per-day) rotation of spiritual
+ * lines rooted in Sri Preethaji & Sri Krishnaji's teachings.
  */
 
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
@@ -13,14 +13,42 @@ const AFTERNOON_START_HOUR = 12;
 const EVENING_START_HOUR = 17;
 const NIGHT_START_HOUR = 21;
 
-const TIME_GREETINGS: Record<TimeOfDay, string> = {
-  morning: 'Good morning',
-  afternoon: 'Good afternoon',
-  evening: 'Good evening',
-  night: 'Good evening',
+const JI_PERSONAS = new Set(['sri_preethaji', 'sri_krishnaji', 'general', 'relationship', 'sky']);
+
+/** Spiritual greeting lines rotated deterministically by day-of-year. */
+const SPIRITUAL_GREETINGS: Record<TimeOfDay, readonly string[]> = {
+  morning: [
+    'Suprabhat',
+    'A calm morning to you',
+    'May this morning meet you in stillness',
+    'Namaste — begin gently',
+  ],
+  afternoon: [
+    'Namaste',
+    'May this hour hold you kindly',
+    'Rest into this afternoon',
+    'Peace to you',
+  ],
+  evening: [
+    'Shubh Sandhya',
+    'A soft evening to you',
+    'Let the day settle',
+    'Peace, as the light softens',
+  ],
+  night: [
+    'Shubh Ratri',
+    'Rest well tonight',
+    'May the night be gentle',
+    'Namaste — carry stillness into rest',
+  ],
 };
 
-const JI_PERSONAS = new Set(['sri_preethaji', 'sri_krishnaji', 'general', 'relationship', 'sky']);
+const SADHGURU_GREETINGS: Record<TimeOfDay, readonly string[]> = {
+  morning: ['Namaskaram', 'A blissful morning to you', 'Namaskaram — receive the morning'],
+  afternoon: ['Namaskaram', 'Namaskaram — a still afternoon'],
+  evening: ['Namaskaram', 'Namaskaram — a graceful evening'],
+  night: ['Namaskaram', 'Namaskaram — rest deeply'],
+};
 
 export const timeOfDay = (date: Date = new Date()): TimeOfDay => {
   const hour = date.getHours();
@@ -30,17 +58,36 @@ export const timeOfDay = (date: Date = new Date()): TimeOfDay => {
   return 'night';
 };
 
+/** Day-of-year (0-365) — stable seed so the greeting doesn't flicker across renders. */
+const dayOfYear = (date: Date): number => {
+  const start = new Date(date.getFullYear(), 0, 0);
+  return Math.floor((date.getTime() - start.getTime()) / 86_400_000);
+};
+
 export const greetingPrefix = (slug: string | undefined, date: Date = new Date()): string => {
-  if (slug === 'sadhguru') return 'Namaskaram';
-  return TIME_GREETINGS[timeOfDay(date)];
+  const tod = timeOfDay(date);
+  const pool = slug === 'sadhguru' ? SADHGURU_GREETINGS[tod] : SPIRITUAL_GREETINGS[tod];
+  return pool[dayOfYear(date) % pool.length];
 };
 
 export const greetingSuffix = (slug: string | undefined, name: string): string => {
   const trimmed = (name ?? '').trim();
-  if (slug && JI_PERSONAS.has(slug)) return trimmed ? `, ${trimmed} Ji` : ' Ji';
+  if (slug && JI_PERSONAS.has(slug)) return trimmed ? `, ${trimmed} Ji` : '';
   return trimmed ? `, ${trimmed}` : '';
 };
 
 /** Full display greeting, e.g. "Suprabhat, Harshoda Ji". */
 export const buildGreeting = (slug: string | undefined, name: string, date: Date = new Date()): string =>
   `${greetingPrefix(slug, date)}${greetingSuffix(slug, name)}`;
+
+/** A short spiritual sub-line to appear under the greeting on empty state. */
+const SUB_LINES: readonly string[] = [
+  'Ask anything about the teachings, practices, or your journey.',
+  'What is stirring in your heart today?',
+  'Bring your question — the teachings will meet you.',
+  'Speak from where you are. Silence is also welcome.',
+  'What would you like to sit with today?',
+];
+
+export const buildGreetingSubline = (date: Date = new Date()): string =>
+  SUB_LINES[dayOfYear(date) % SUB_LINES.length];
