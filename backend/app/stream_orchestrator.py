@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.dependencies import ServiceContainer
+from app.orchestrator import _coerce_citations_to_str
 from app.pipeline import PipelineCoordinator
 from app.schemas import ChatRequest
 from app.telemetry_sink import SupabaseTelemetrySink
@@ -177,7 +178,7 @@ class ChatStreamRequestOrchestrator:
             # Done event with metadata
             meta = json.dumps({
                 "intent": result.intent,
-                "citations": result.citations,
+                "citations": _coerce_citations_to_str(result.citations),
                 "meditation_step": result.meditation_step,
                 "proactive_serene_mind": result.proactive_serene_mind,
                 "trace_id": result.trace_id,
