@@ -357,14 +357,30 @@ export const useSpeechRecognition = (
     setInterimTranscript('');
   }, []);
 
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Auto-dismiss errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   return {
     transcript,
     interimTranscript,
     isListening,
     isSupported,
     error,
+    clearError,
     startListening,
     stopListening,
     resetTranscript,
   };
 };
+

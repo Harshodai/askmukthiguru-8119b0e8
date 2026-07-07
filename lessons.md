@@ -2,15 +2,31 @@
 
 ## Jul 7, 2026 — Chat UI Composer, Language Popover & Overlap Audit
 
-### Keep active chat composer outside the scroll transcript
-- **Problem**: A sticky composer nested inside the scrollable transcript can visually cover streamed answers, especially with translucent backgrounds and long responses near the bottom.
-- **Fix**: Render the active composer as a separate flex child below the scroll region, reserve transcript bottom padding, and move floating voice/status indicators above the composer.
-- **Pattern**: ChatGPT/Claude-style active chat layouts should be `header → scroll transcript → fixed composer rail`; only empty-state composer belongs inside centered hero content.
+### Auto-dismiss and close voice input error pills
+- **Problem**: Speech recognition errors (e.g., denied microphone access) spawn permanent warning pills at the bottom center of the viewport. Without a close button or timeout, they obscure the composer and ruin layout aesthetics.
+- **Fix**: Return a `clearError` handler from `useSpeechRecognition`, add a manual close button (`X` icon) to the UI error pill, and use a `useEffect` timer inside the hook to automatically clear errors after 5 seconds.
+- **Pattern**: Viewport-anchored error status pill overlays must have automatic fade-out timers (e.g., 5s) and manual dismiss capability.
+
+### Synchronize textarea auto-resize with programmatic state updates
+- **Problem**: Height-adjustment triggers on the message composer only ran inside standard input change handlers (`handleInputChange`). Programmatic modifications to the draft text (like speech-to-text transcript insertions or preset template buttons) did not fire `onChange`, resulting in clipped text and scroll-box clipping.
+- **Fix**: Use a `useEffect` hook watching `inputValue` directly to dynamically calculate and adjust the textarea's height based on `scrollHeight` (clamped between 36px and 128px).
+- **Pattern**: Textarea auto-resize logic must watch the input state variable directly to support both user typing and programmatic insertions.
+
+### Lazy YouTube embeds and playback error fallbacks
+- **Problem**: Passing local/preview `origin` parameters to lazy YouTube embeds inside sandboxed iframes can fail with YouTube playback errors. If the iframe fails, the user is stuck because the YouTube link is hidden when the thumbnail is unmounted.
+- **Fix**: Remove the `origin` query parameter from the `iframe` source URL and render a persistent "Watch on YouTube ↗" link absolute-positioned over the active iframe container when hovered.
+- **Pattern**: Always provide an escape hatch link to watch media directly on the host platform in case embedded iframe playback fails.
 
 ### Clamp icon-anchored language menus by trigger geometry
 - **Problem**: A language selector opened from a small footer icon can expand toward the top of the viewport when it uses a static `bottom-full` anchor and `vh` max-height.
 - **Fix**: Measure trigger rect and use fixed positioning with computed `bottom`, `left`, and `maxHeight` so the menu stays near the composer and scrolls internally.
 - **Pattern**: Any dense popover opened inside a bottom composer must have viewport-aware max height and internal scrolling; never let menu content define page height.
+
+### Keep active chat composer outside the scroll transcript
+- **Problem**: A sticky composer nested inside the scrollable transcript can visually cover streamed answers, especially with translucent backgrounds and long responses near the bottom.
+- **Fix**: Render the active composer as a separate flex child below the scroll region, reserve transcript bottom padding, and move floating voice/status indicators above the composer.
+- **Pattern**: ChatGPT/Claude-style active chat layouts should be `header → scroll transcript → fixed composer rail`; only empty-state composer belongs inside centered hero content.
+
 
 ## Jul 6, 2026 — CLAUDE.md Rewrite
 

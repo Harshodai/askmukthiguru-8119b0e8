@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setLanguage } from '@/lib/aiService';
@@ -89,6 +89,42 @@ export const LanguageSelector = ({
   const selectedLanguage = value ?? internalLang;
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { toast } = useToast();
+
+  const [coords, setCoords] = useState<{ bottom: number; left: number; maxHeight: number } | null>(null);
+
+  const updatePosition = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const margin = 8;
+      
+      const bottom = viewportHeight - rect.top + margin;
+      
+      let left = rect.left;
+      const menuWidth = Math.min(320, viewportWidth - 24); // 20rem is 320px
+      
+      // Clamp left to avoid overflowing the right side of the screen
+      if (left + menuWidth > viewportWidth - 12) {
+        left = Math.max(12, viewportWidth - menuWidth - 12);
+      }
+      
+      const maxHeight = rect.top - margin - 20; // 20px padding from the top
+      setCoords({ bottom, left, maxHeight });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
+    }
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, updatePosition]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -221,11 +257,17 @@ export const LanguageSelector = ({
                 onClick={() => setIsOpen(false)}
               />
               <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="fixed left-1/2 top-20 z-[100] flex max-h-[calc(100dvh-8rem)] w-[min(20rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl sm:top-auto sm:bottom-24 sm:max-h-[min(45dvh,360px)]"
+                className="fixed z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl"
+                style={{
+                  bottom: coords ? `${coords.bottom}px` : '80px',
+                  left: coords ? `${coords.left}px` : '16px',
+                  maxHeight: coords ? `${coords.maxHeight}px` : '360px',
+                  width: 'min(20rem, calc(100vw - 1.5rem))',
+                }}
                 role="listbox"
               >
                 <div className="px-3 py-2 border-b border-border bg-card/95 sticky top-0 z-10">

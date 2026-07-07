@@ -85,7 +85,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           <div className="mt-3 rounded-lg overflow-hidden border">
                             <iframe
                               width="100%"
-                              src={`https://www.youtube.com/embed/${ytId}?origin=${encodeURIComponent(window.location.origin)}`}
+                              src={`https://www.youtube.com/embed/${ytId}`}
                               title="YouTube video player"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               className="w-full aspect-video"
