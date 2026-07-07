@@ -19,10 +19,10 @@ describe('timeOfDay', () => {
 
 describe('greetingPrefix', () => {
   it('uses Indic time greetings for Preethaji/Krishnaji personas', () => {
-    expect(greetingPrefix('sri_preethaji', at(8))).toBe('Good morning');
-    expect(greetingPrefix('sri_krishnaji', at(14))).toBe('Good afternoon');
-    expect(greetingPrefix('sri_preethaji', at(18))).toBe('Good evening');
-    expect(greetingPrefix('sri_krishnaji', at(23))).toBe('Good evening');
+    expect(greetingPrefix('sri_preethaji', at(8))).toBe('May this morning meet you in stillness');
+    expect(greetingPrefix('sri_krishnaji', at(14))).toBe('Rest into this afternoon');
+    expect(greetingPrefix('sri_preethaji', at(18))).toBe('Let the day settle');
+    expect(greetingPrefix('sri_krishnaji', at(23))).toBe('May the night be gentle');
   });
 
   it('always greets Namaskaram for Sadhguru regardless of hour', () => {
@@ -31,7 +31,7 @@ describe('greetingPrefix', () => {
   });
 
   it('falls back to time greeting for unknown personas', () => {
-    expect(greetingPrefix(undefined, at(8))).toBe('Good morning');
+    expect(greetingPrefix(undefined, at(8))).toBe('May this morning meet you in stillness');
   });
 });
 
@@ -41,8 +41,8 @@ describe('greetingSuffix', () => {
     expect(greetingSuffix('sri_krishnaji', 'Harshoda')).toBe(', Harshoda Ji');
   });
 
-  it('adds " Ji" without a name for Ji personas', () => {
-    expect(greetingSuffix('sri_preethaji', '')).toBe(' Ji');
+  it('returns empty string without a name for Ji personas', () => {
+    expect(greetingSuffix('sri_preethaji', '')).toBe('');
   });
 
   it('omits Ji for Sadhguru and unknown personas', () => {
@@ -54,8 +54,8 @@ describe('greetingSuffix', () => {
 
 describe('buildGreeting', () => {
   it('composes the full display greeting', () => {
-    expect(buildGreeting('sri_preethaji', 'Harshoda', at(7))).toBe('Good morning, Harshoda Ji');
-    expect(buildGreeting('sri_krishnaji', 'Harshoda', at(18))).toBe('Good evening, Harshoda Ji');
+    expect(buildGreeting('sri_preethaji', 'Harshoda', at(7))).toBe('May this morning meet you in stillness, Harshoda Ji');
+    expect(buildGreeting('sri_krishnaji', 'Harshoda', at(18))).toBe('Let the day settle, Harshoda Ji');
     expect(buildGreeting('sadhguru', 'Harshoda', at(7))).toBe('Namaskaram, Harshoda');
   });
 });
