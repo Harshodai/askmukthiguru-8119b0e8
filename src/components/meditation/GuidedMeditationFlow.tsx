@@ -271,7 +271,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         {/* Back Button for post-practice reflection steps */}
         {isComplete && reflectionStep > 0 && reflectionStep < 3 && (
           <button
-            onClick={() => setReflectionStep(prev => prev - 1)}
+            onClick={() => setReflectionStep(prev => (prev - 1) as 0 | 1 | 2 | 3)}
             className="absolute top-4 left-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
             aria-label="Back"
           >
