@@ -1150,10 +1150,13 @@ setIsAwaitingSereneMind(true);
 };
 
 const handleSuggestionClick = (text: string) => {
-  setInputValue(text);
-  if (inputRef.current) {
-    inputRef.current.focus();
-  }
+  // Prompt cards should behave like Claude.ai — one click sends immediately.
+  setInputValue('');
+  if (inputRef.current) inputRef.current.focus();
+  requestAnimationFrame(() => {
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, text);
+  });
 };
 
 const handleInlineAction = (query: string) => {
