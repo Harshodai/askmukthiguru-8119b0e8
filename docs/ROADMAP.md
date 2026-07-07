@@ -255,6 +255,34 @@ requirements.txt (no deps)
 
 ---
 
+---
+
+## Deferred Items (Enhancement Sprint — Jul 7, 2026)
+
+Items explicitly moved out of scope or blocked during the Enhancement & Scaling sprint:
+
+| Item | Reason | Path Forward |
+|------|--------|-------------|
+| **Sarvam vLLM self-host** | No GPU available in environment. Entire vLLM server + model download is ~50GB GPU-memory task. | Defer until GPU instance (A100/H100) provisioned. Requires docker-compose GPU support. |
+| **GDS (Graph Data Science) plugin for Neo4j** | Only `apoc` + `n10s` loaded. GDS requires separate Neo4j plugin download + license (community edition limitations). | Add to `NEO4J_PLUGINS` once GDS CE works with Neo4j 5.17. Louvain/PageRank stubs already exist in `kg_algorithms.py` — they return degraded results. |
+| **n10s SPARQL engine** | n10s 5.x dropped its built-in SPARQL engine entirely. `/api/kg/sparql` is a read-only Cypher passthrough. | Either downgrade to n10s 4.x (incompatible with Neo4j 5.17), or implement custom SPARQL→Cypher translation layer. |
+| **OWASP ZAP security scan** | `owasp/zap2docker-stable` Docker pull fails — Docker Hub auth denied via `.docker_clean` DOCKER_CONFIG bypass. | Run ZAP with standard Docker config (`sudo` or non-bypass) or switch to `ghcr.io/zaproxy/zaproxy`. |
+| **Manim spiritual visualizations** | Manim requires heavy system dependencies (FFmpeg, Cairo, LaTeX) and is a reference-use tool, not production code. | Add to a `docs/` or `notebooks/` companion repo. Not eligible for main app Docker. |
+| **Marketing / CLG content** | Blog posts, case studies, landing page copy. Non-code work. | Create a separate `content/` repo or Notion workspace. |
+| **Full learning paths** (Karma→Dharma→Moksha progression) | Requires pedagogical design + content curation — not an engineering task. | Add as a specification document first; implement as a guided UI layer after Phase E6 chat UX is stable. |
+| **OWL/RDF full roundtrip** (RDF→Neo4j→RDF) | n10s export works (10.5MB TTL, 7,481 nodes). Full roundtrip (import→query→re-export) needs more testing. | Add SPARQL→Cypher query bridge and verify n10s import preserves all node properties. |
+| **n10s inference / schema reasoning** | `n10s.schema.check` and `n10s.inference.schemaInference` were removed in n10s 5.x. | No replacement available. If inference needed, consider a custom Python reasoner over the TTL export. |
+
+## Technical Debt (Remaining from Sprint)
+
+- **BM25 still logs "0 results" for 2/12 queries**: Expected — BM25 is keyword-based; queries without overlapping keywords naturally return 0. Not a bug. Follow-up: consider hybrid BM25+vector search fallback.
+- **q3 and q8 slow (92s, 130s)**: Complex RAG with full citation enrichment. These are correct now (200, not 500) but slow. Consider reducing LLM reasoning_effort for these paths.
+- **Citations schema in pipeline cache**: Pipeline-level cache (cache_stage.py) short-circuits correctly. In-graph cache (retrieval.py:723) doesn't short-circuit generation. Pipeline cache handles the common case.
+- **Embedding cache stale after batch encode change**: Phase B moved to `encode_batch` for primary queries but expansion queries still encode individually. Acceptable — expansion runs in parallel with LLM call, so encode time is hidden.
+- **Security checklist 12/22 done**: Items 13-22 (WAF, rate limiting, DDoS, audit logging, backup verification, incident response runbook) require infra/platform decisions beyond code changes.
+
+---
+
 ## Timeline Estimate
 | Phase | Estimated Effort | Cumulative |
 |-------|-----------------|------------|
