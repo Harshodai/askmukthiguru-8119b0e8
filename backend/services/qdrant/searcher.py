@@ -71,11 +71,16 @@ class QdrantSearcher:
         content_type: Optional[str] = None,
         sparse_vector: Optional[dict] = None,
         raptor_level: Optional[int] = None,
+        teacher_id: Optional[str] = None,
         **kwargs,
     ) -> list[dict]:
         """
         Hybrid search using Reciprocal Rank Fusion (RRF) over dense + sparse vectors.
         Falls back to dense-only if sparse vector not provided.
+
+        When ``teacher_id`` is provided, a ``must`` filter on the ``teacher_id``
+        payload field is applied, enabling per-teacher content isolation
+        (payload-based multitenancy).
         """
         # Keep internal over-fetch small — fewer prefetches means lower Qdrant latency
         # and less chance of cascading timeout/retry loops on simple FAQ queries.
@@ -90,6 +95,10 @@ class QdrantSearcher:
         if raptor_level is not None:
             filter_conditions.append(
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
+            )
+        if teacher_id:
+            filter_conditions.append(
+                FieldCondition(key="teacher_id", match=MatchValue(value=teacher_id))
             )
         if kwargs.get("cluster_ids"):
             filter_conditions.append(
@@ -207,6 +216,7 @@ class QdrantSearcher:
                 "is_child": hit.payload.get("is_child", False),
                 "speaker": hit.payload.get("speaker", "Unknown"),
                 "topic": hit.payload.get("topic", "Spiritual"),
+                "teacher_id": hit.payload.get("teacher_id", ""),
             }
             for hit in hits
         ]

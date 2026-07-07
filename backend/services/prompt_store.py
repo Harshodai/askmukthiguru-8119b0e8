@@ -27,14 +27,60 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 UTC = timezone.utc
+
+
+# Default teacher personality fragments (Phase E5 stub).
+# Overridable via settings.teacher_personalities (JSON string).
+DEFAULT_TEACHER_PERSONALITIES: dict[str, str] = {
+    "sadhguru": "Speak with the direct, earthy, and pragmatic tone of a yogi.",
+    "preethaji": "Speak with warmth, stillness, and a focus on the Beautiful State.",
+    "krishnaji": "Speak with clarity, pointing to ego observation and presence.",
+    "amma_bhagavan": "Speak with the inclusive voice of the Oneness Movement.",
+    "iskcon": "Speak with devotional warmth rooted in Bhakti Yoga and Lord Krishna.",
+}
+
+
+def get_teacher_personality(teacher_id: Optional[str]) -> str:
+    """Return the personality prompt fragment for ``teacher_id``.
+
+    Config-driven: ``settings.teacher_personalities`` (JSON string) overrides
+    the built-in defaults. Returns "" when no teacher is specified or no
+    personality is configured.
+    """
+    if not teacher_id:
+        return ""
+    personalities = dict(DEFAULT_TEACHER_PERSONALITIES)
+    raw = getattr(settings, "teacher_personalities", "") or ""
+    if raw:
+        try:
+            personalities.update(json.loads(raw))
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.warning(f"get_teacher_personality: bad teacher_personalities JSON: {exc}")
+    return personalities.get(teacher_id, "")
+
+
+def build_teacher_prompt(teacher_id: Optional[str], base_prompt: str) -> str:
+    """Prepend a teacher-specific voice instruction to ``base_prompt``.
+
+    If no personality is configured for ``teacher_id``, ``base_prompt`` is
+    returned unchanged. This is the stub used by generation nodes to support
+    multi-teacher voice without changing prompt schemas.
+    """
+    personality = get_teacher_personality(teacher_id)
+    if not personality:
+        return base_prompt
+    return f"[Teacher voice] {personality}\n\n{base_prompt}"
 
 
 def _get_client():
@@ -288,3 +334,15 @@ def get_prompt_store() -> PromptStore:
         except Exception as exc:
             logger.warning(f"PromptStore: auto-seed failed: {exc}")
     return _store
+
+
+if __name__ == "__main__":
+    # Self-check: teacher personality wiring.
+    assert get_teacher_personality(None) == ""
+    assert get_teacher_personality("unknown_teacher") == ""
+    sadhguru = get_teacher_personality("sadhguru")
+    assert sadhguru and "yogi" in sadhguru.lower()
+    out = build_teacher_prompt("sadhguru", "Answer the question.")
+    assert out.startswith("[Teacher voice]") and "Answer the question." in out
+    assert build_teacher_prompt(None, "x") == "x"
+    print("ok")

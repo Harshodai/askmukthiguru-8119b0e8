@@ -179,9 +179,15 @@ class QdrantClientManager:
                     field_name="title",
                     field_schema="keyword",
                 )
+                # Multi-teacher payload partitioning index (per-teacher isolation)
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name="teacher_id",
+                    field_schema="keyword",
+                )
                 logger.info(
                     f"Created collection: {self._collection} "
-                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, text-FTS, and metadata indexes)"
+                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, text-FTS, teacher_id, and metadata indexes)"
                 )
             else:
                 logger.info(f"Collection exists: {self._collection}")
@@ -201,6 +207,22 @@ class QdrantClientManager:
                         logger.info(f"text-FTS index already exists on {self._collection}")
                     else:
                         logger.warning(f"Failed to ensure text-FTS index on {self._collection}: {idx_err}")
+
+                # Ensure teacher_id index exists on already-created collections
+                # (added in Phase E5 for multi-teacher payload partitioning).
+                try:
+                    self._client.create_payload_index(
+                        collection_name=self._collection,
+                        field_name="teacher_id",
+                        field_schema="keyword",
+                    )
+                    logger.info(f"Created teacher_id index on existing collection: {self._collection}")
+                except Exception as idx_err:
+                    err_msg = str(idx_err).lower()
+                    if "already exists" in err_msg or "conflict" in err_msg:
+                        logger.info(f"teacher_id index already exists on {self._collection}")
+                    else:
+                        logger.warning(f"Failed to ensure teacher_id index on {self._collection}: {idx_err}")
         except Exception as e:
             err_msg = str(e).lower()
             if "already exists" in err_msg or "conflict" in err_msg:
