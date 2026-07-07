@@ -157,7 +157,7 @@ export const LanguageSelector = ({
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
                     {LANGUAGES.filter((l) => {
                       if (!search.trim()) return true;
@@ -274,7 +274,7 @@ export const LanguageSelector = ({
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
                     {LANGUAGES.filter((l) => {
                       if (!search.trim()) return true;
