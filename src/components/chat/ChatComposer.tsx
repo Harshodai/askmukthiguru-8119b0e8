@@ -248,7 +248,7 @@ export function ChatComposer({
             ) : (
               <PromptInputSubmit
                 type="submit"
-                size="icon"
+                size="icon-sm"
                 disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
                 className="h-8 w-8 rounded-full bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
                 aria-label="Send message"
