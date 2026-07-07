@@ -225,7 +225,7 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="fixed left-1/2 bottom-24 z-[100] flex max-h-[min(45dvh,360px)] w-[min(20rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl"
+                className="fixed left-1/2 top-20 z-[100] flex max-h-[calc(100dvh-8rem)] w-[min(20rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl sm:top-auto sm:bottom-24 sm:max-h-[min(45dvh,360px)]"
                 role="listbox"
               >
                 <div className="px-3 py-2 border-b border-border bg-card/95 sticky top-0 z-10">
