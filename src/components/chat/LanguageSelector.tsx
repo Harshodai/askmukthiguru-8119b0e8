@@ -134,22 +134,6 @@ export const LanguageSelector = ({
     );
   }, [search]);
 
-  const compactPanelStyle = useMemo<React.CSSProperties>(() => {
-    if (typeof window === 'undefined') return {};
-    const rect = triggerRef.current?.getBoundingClientRect();
-    const width = Math.min(320, window.innerWidth - 24);
-    const left = rect
-      ? Math.max(12, Math.min(rect.left - 20, window.innerWidth - width - 12))
-      : Math.max(12, (window.innerWidth - width) / 2);
-    const desiredBottom = rect && rect.top > window.innerHeight * 0.35
-      ? window.innerHeight - rect.top + 10
-      : 96;
-    const desiredHeight = Math.min(360, Math.max(240, window.innerHeight * 0.45));
-    const bottom = Math.max(80, Math.min(desiredBottom, window.innerHeight - desiredHeight - 16));
-    const maxHeight = Math.max(220, Math.min(desiredHeight, window.innerHeight - bottom - 16));
-    return { width, left, bottom, maxHeight };
-  }, [isOpen]);
-
   const renderLanguageRows = (showVoiceBadges: boolean) => (
     <>
       {filteredLanguages.map((lang) => {
@@ -241,8 +225,7 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="fixed flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
-                style={compactPanelStyle}
+                className="fixed left-1/2 bottom-24 z-[100] flex max-h-[min(45dvh,360px)] w-[min(20rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl"
                 role="listbox"
               >
                 <div className="px-3 py-2 border-b border-border bg-card/95 sticky top-0 z-10">
