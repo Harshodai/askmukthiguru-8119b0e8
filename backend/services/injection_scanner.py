@@ -10,7 +10,7 @@ class InjectionScanner:
         (r"\bignore\s+(all\s+)?(previous|above|prior)\s+(instructions|commands|directions|prompts)\b", "instruction_override"),
         (r"\b(feign|pretend|act\s+as|you\s+are\s+now)\s+", "role_play"),
         (r"\bSYSTEM\s*:", "system_override"),
-        (r"\b<\|im_start\|>", "token_injection"),
+        (r"<\|im_start\|>", "token_injection"),
         (r"\boverride\s+(mode|system|safety|guardrails)\b", "override_attempt"),
         (r"\\u200b|\\u200c|\\u200d|\\ufeff|\\u00a0", "unicode_hidden"),
         (r"\[REDACTED_", "pii_redacted"),
