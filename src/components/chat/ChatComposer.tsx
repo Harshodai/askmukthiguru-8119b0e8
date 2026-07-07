@@ -92,10 +92,10 @@ export function ChatComposer({
         onSubmit={handleFormSubmit}
         role="form"
         aria-label="Message composer"
-        className={`rounded-3xl border bg-card/70 backdrop-blur-md transition-all duration-300 ${
+        className={`rounded-2xl sm:rounded-3xl border bg-card/85 backdrop-blur-xl transition-all duration-300 ${
           inputFocused || isListening
             ? 'border-ojas/40 shadow-lg shadow-ojas/5'
-            : 'border-border/60'
+            : 'border-border/60 shadow-sm'
         }`}
       >
         {isAwaitingSereneMind && (

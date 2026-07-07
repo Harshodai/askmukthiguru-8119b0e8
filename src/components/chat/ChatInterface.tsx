@@ -17,7 +17,7 @@ import {
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
-import { buildGreeting, greetingPrefix } from '@/lib/greeting';
+import { buildGreeting, greetingPrefix, buildGreetingSubline } from '@/lib/greeting';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
@@ -1150,10 +1150,13 @@ setIsAwaitingSereneMind(true);
 };
 
 const handleSuggestionClick = (text: string) => {
-  setInputValue(text);
-  if (inputRef.current) {
-    inputRef.current.focus();
-  }
+  // Prompt cards should behave like Claude.ai — one click sends immediately.
+  setInputValue('');
+  if (inputRef.current) inputRef.current.focus();
+  requestAnimationFrame(() => {
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, text);
+  });
 };
 
 const handleInlineAction = (query: string) => {
@@ -1407,22 +1410,22 @@ return (
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 sm:px-8 pt-6 pb-2 scrollbar-spiritual"
+        className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual"
       >
-        <div ref={innerContentRef} className="max-w-3xl mx-auto space-y-2">
+        <div ref={innerContentRef} className="max-w-3xl mx-auto">
           {isLandingMode ? (
             /* ── Landing State (Claude-inspired, minimal, particles) ── */
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center min-h-full gap-4 py-6"
+              className="flex flex-col items-center justify-center min-h-[calc(100dvh-11rem)] gap-5 py-8"
             >
               <div className="text-center px-4">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-2xl sm:text-3xl font-serif text-foreground/90 tracking-tight"
+                  className="text-[26px] sm:text-4xl font-serif text-foreground/95 tracking-tight leading-tight"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '')}
                 </motion.h2>
@@ -1430,9 +1433,9 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-2 text-sm sm:text-base text-muted-foreground/80 leading-relaxed max-w-md mx-auto"
+                  className="mt-3 text-sm sm:text-base text-muted-foreground/75 leading-relaxed max-w-md mx-auto font-serif italic"
                 >
-                  Ask anything about the teachings, practices, or your journey.
+                  {buildGreetingSubline()}
                 </motion.p>
               </div>
 
@@ -1514,7 +1517,7 @@ return (
           ) : (
 
             <>
-              <div className="space-y-5">
+              <div className="space-y-2 sm:space-y-3 pb-4">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
@@ -1594,7 +1597,7 @@ return (
               </div>
 
               {/* Active Chat Composer */}
-              <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background/95 to-transparent">
+              <div className="sticky bottom-0 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background/95 to-transparent -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8">
                 <ChatComposer
                   inputValue={inputValue}
                   inputRef={inputRef}

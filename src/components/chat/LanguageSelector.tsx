@@ -144,7 +144,7 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
+                className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-[min(60vh,420px)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
                 role="listbox"
               >
                 <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
@@ -157,7 +157,7 @@ export const LanguageSelector = ({
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
                     {LANGUAGES.filter((l) => {
                       if (!search.trim()) return true;
@@ -261,7 +261,7 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden"
+                className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-[min(60vh,420px)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
                 role="listbox"
               >
                 <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
@@ -274,7 +274,7 @@ export const LanguageSelector = ({
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[50vh] sm:max-h-80 overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
                     {LANGUAGES.filter((l) => {
                       if (!search.trim()) return true;
