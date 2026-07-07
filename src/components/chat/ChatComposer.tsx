@@ -139,28 +139,26 @@ export function ChatComposer({
           />
         </div>
 
-        <div className="px-4 pt-3">
-          <PromptInputTextarea
-            ref={inputRef as React.Ref<HTMLTextAreaElement>}
-            value={inputValue}
-            onChange={onInputChange}
-            onKeyDown={onKeyDown}
-            onFocus={onFocus}
-            onBlur={onBlur}
-            placeholder={
-              isAwaitingSereneMind
-                ? 'Do Serene Mind now (say "open Serene Mind" to begin)…'
-                : isListening
-                  ? 'Speak now…'
-                  : "Share what's on your heart…"
-            }
-            rows={1}
-            aria-label="Your message"
-            className="min-h-9 max-h-32 w-full bg-transparent border-none outline-none resize-none px-0 py-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ minHeight: '28px' }}
-            disabled={isAwaitingSereneMind}
-          />
-        </div>
+        <PromptInputTextarea
+          ref={inputRef as React.Ref<HTMLTextAreaElement>}
+          value={inputValue}
+          onChange={onInputChange}
+          onKeyDown={onKeyDown}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          placeholder={
+            isAwaitingSereneMind
+              ? 'Do Serene Mind now (say "open Serene Mind" to begin)…'
+              : isListening
+                ? 'Speak now…'
+                : "Share what's on your heart…"
+          }
+          rows={1}
+          aria-label="Your message"
+          className="min-h-9 max-h-32 w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ minHeight: '28px' }}
+          disabled={isAwaitingSereneMind}
+        />
 
         <PromptInputFooter className="flex items-center gap-1.5 px-3 pb-3 pt-2">
           <PromptInputTools>
