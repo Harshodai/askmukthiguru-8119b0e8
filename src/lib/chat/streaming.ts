@@ -204,6 +204,7 @@ export async function* sendMessageStreaming(
               proactiveSereneMind: meta.proactive_serene_mind ?? null,
               followUpSuggestions: meta.follow_up_suggestions ?? [],
               confidenceScore: meta.confidence_score ?? null,
+              confidenceReason: meta.confidence_reason ?? null,
             };
           } catch {
             // Ignore malformed done payload

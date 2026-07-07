@@ -13,6 +13,7 @@ import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { InlineActions } from './InlineActions';
 import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { useToast } from '@/hooks/use-toast';
 import { CitationPanel, type Citation } from './CitationPanel';
 
@@ -780,7 +781,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               )}
             </AnimatePresence>
 
-            {/* Confidence score — color-coded badge */}
+            {/* Confidence score — color-coded badge + dynamic bar + hover reason (E6.4) */}
             {isGuru && message.confidenceScore != null && message.confidenceScore > 0 && (() => {
               const score = message.confidenceScore;
               // score is 1-10 from backend
@@ -791,13 +792,34 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               const colorText = isHigh ? 'text-emerald-400' : isMed ? 'text-amber-400' : 'text-rose-400';
               const colorBorder = isHigh ? 'border-emerald-400/25' : isMed ? 'border-amber-400/25' : 'border-rose-400/25';
               const colorBg = isHigh ? 'bg-emerald-400/8' : isMed ? 'bg-amber-400/8' : 'bg-rose-400/8';
+              const barColor = isHigh ? 'bg-emerald-400' : isMed ? 'bg-amber-400' : 'bg-rose-400';
               const label = isHigh ? 'High confidence' : isMed ? 'Moderate confidence' : 'Low confidence';
-              return (
+              const reason = message.confidenceReason?.trim();
+              const badge = (
                 <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${colorBorder} ${colorBg}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${colorDot} shrink-0`} />
                   <span className={`text-[10px] font-medium ${colorText}`}>
                     {label} · {pct}%
                   </span>
+                </div>
+              );
+              return (
+                <div className="flex flex-col gap-1 items-start">
+                  {reason ? (
+                    <HoverCard openDelay={150} closeDelay={100}>
+                      <HoverCardTrigger asChild>{badge}</HoverCardTrigger>
+                      <HoverCardContent side="top" className="w-72 text-xs leading-relaxed">
+                        <p className="font-medium mb-0.5">Why this confidence?</p>
+                        <p className="text-muted-foreground">{reason}</p>
+                      </HoverCardContent>
+                    </HoverCard>
+                  ) : (
+                    badge
+                  )}
+                  {/* Dynamic confidence bar — thin, colored, width = pct */}
+                  <div className="w-28 h-1 rounded-full bg-muted/60 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                    <div className={`h-full ${barColor} transition-[width] duration-500`} style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
               );
             })()}

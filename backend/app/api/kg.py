@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_container
@@ -111,3 +111,111 @@ async def kg_sparql(req: SparqlRequest, _user=Depends(get_current_user_from_supa
         )
 
     return SparqlResponse(columns=columns, rows=rows, count=len(rows), inference=req.inference, note=note)
+
+
+# ── E6.5: query-driven subgraph for the KG visualizer ──────────────────────────
+
+
+class KGNode(BaseModel):
+    id: str
+    label: str
+    type: str
+    teacher: str | None = None
+
+
+class KGEdge(BaseModel):
+    source: str
+    target: str
+    label: str | None = None
+
+
+class SubgraphResponse(BaseModel):
+    nodes: list[KGNode]
+    edges: list[KGEdge]
+    query: str
+    count: int
+
+
+def _teacher_from_labels(labels: list[str] | None) -> str | None:
+    """Best-effort: surface a teacher/tradition tag from Neo4j labels.
+    LightRAG nodes are labelled by source chunk; we look for known teacher markers."""
+    if not labels:
+        return None
+    joined = " ".join(labels).lower()
+    for key in ("preethaji", "krishnaji", "ekam", "buddha", "osho", "krishnamurti"):
+        if key in joined:
+            return key.capitalize()
+    return labels[0] if labels else None
+
+
+@router.get("/kg/subgraph", response_model=SubgraphResponse)
+async def kg_subgraph(
+    query: str = Query(..., min_length=1, description="Concept or keyword to center the subgraph on"),
+    limit: int = Query(20, ge=1, le=100),
+    _user: dict = Depends(get_current_user_from_supabase),
+) -> SubgraphResponse:
+    """Return a concept subgraph around `query` for the KG visualizer.
+
+    Ponytail: one Cypher query, 1-2 hop neighborhood, graceful fallback to empty.
+    Output shape: {nodes:[{id,label,type,teacher}], edges:[{source,target,label}]}.
+    """
+    container = get_container()
+    driver = container.neo4j_driver
+    if driver is None:
+        return SubgraphResponse(nodes=[], edges=[], query=query, count=0)
+
+    q = query.strip().lower()
+    nodes: dict[str, KGNode] = {}
+    edges: list[KGEdge] = []
+
+    try:
+        with driver.session() as session:
+            # 1-hop neighborhood: any node whose entity_id contains the query,
+            # plus its immediate neighbours. LightRAG writes `entity_id`.
+            cypher = """
+            MATCH (n)
+            WHERE toLower(n.entity_id) CONTAINS $q
+            WITH n LIMIT $cap
+            OPTIONAL MATCH (n)-[r]->(m)
+            RETURN n.entity_id AS src_id, labels(n) AS src_labels, type(r) AS rel, m.entity_id AS dst_id, labels(m) AS dst_labels
+            """
+            result = session.run(cypher, q=q, cap=limit)
+            for rec in result:
+                src = rec.get("src_id")
+                if not src:
+                    continue
+                if src not in nodes:
+                    nodes[src] = KGNode(
+                        id=src,
+                        label=src,
+                        type=(rec.get("src_labels") or ["Concept"])[0],
+                        teacher=_teacher_from_labels(rec.get("src_labels")),
+                    )
+                dst = rec.get("dst_id")
+                if dst:
+                    if dst not in nodes:
+                        nodes[dst] = KGNode(
+                            id=dst,
+                            label=dst,
+                            type=(rec.get("dst_labels") or ["Concept"])[0],
+                            teacher=_teacher_from_labels(rec.get("dst_labels")),
+                        )
+                    edges.append(KGEdge(source=src, target=dst, label=rec.get("rel")))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("kg/subgraph query failed: %s", exc)
+        return SubgraphResponse(nodes=[], edges=[], query=query, count=0)
+
+    return SubgraphResponse(
+        nodes=list(nodes.values()),
+        edges=edges,
+        query=query,
+        count=len(nodes),
+    )
+
+
+if __name__ == "__main__":
+    # Self-check: import + model sanity.
+    assert SubgraphResponse(nodes=[], edges=[], query="x", count=0).count == 0
+    assert _teacher_from_labels(["Ekam chunk"]) == "Ekam"
+    assert _teacher_from_labels(["Misc"]) == "Misc"
+    print("kg.py ok")

@@ -26,6 +26,8 @@ export interface Message {
   timestamp: Date;
   citations?: string[];
   confidenceScore?: number;
+  /** E3.2 one-line explainable reason for the confidence score (optional, forward-compat). */
+  confidenceReason?: string;
   feedback?: MessageFeedback;
   /** Memory facts the backend retrieved and used to ground this guru reply. */
   memoriesUsed?: string[];
@@ -56,6 +58,7 @@ const MessageSchema = z.object({
   timestamp: z.coerce.date(),
   citations: z.array(z.string()).optional(),
   confidenceScore: z.number().optional(),
+  confidenceReason: z.string().optional(),
   feedback: z.object({
     vote: z.enum(['up', 'down']),
     tags: z.array(z.string()),

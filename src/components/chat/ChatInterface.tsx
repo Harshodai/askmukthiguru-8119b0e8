@@ -159,6 +159,8 @@ export const ChatInterface = () => {
   const [pipelineHeartbeat, setPipelineHeartbeat] = useState(false);
   // Instant pill shown immediately on submit, before backend status events arrive
   const [showInstantPill, setShowInstantPill] = useState(false);
+  // E6.2: the just-sent user query, surfaced in the optimistic placeholder pill.
+  const [pendingQuery, setPendingQuery] = useState<string>('');
   const { teaching: dailyTeaching } = useDailyTeaching();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -605,6 +607,7 @@ export const ChatInterface = () => {
 
     // Show instant pill immediately on submit — appears before any backend status events
     setShowInstantPill(true);
+    setPendingQuery(textToSend.trim());
 
     const appendUser = options.appendUser ?? true;
     const baseMessages = options.baseMessages ?? messages;
@@ -783,14 +786,16 @@ export const ChatInterface = () => {
         let streamedBlockReason: string | null = null;
         let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
         let streamedFollowUpSuggestions: string[] = [];
-        let streamedConfidenceScore: number | null = null;
-        for await (const chunk of stream) {
+  let streamedConfidenceScore: number | null = null;
+  let streamedConfidenceReason: string | null = null;
+  for await (const chunk of stream) {
           if (chunk.type === 'status') {
             if (chunk.jobId) {
               currentJobIdRef.current = chunk.jobId;
             }
             // First status event from backend → hide instant pill
             setShowInstantPill(false);
+            setPendingQuery('');
             // Pipeline status update → add or advance pills
             const label = mapStatusToLabel(chunk.text);
             // Handle heartbeat: pulse the current active step instead of adding a new step
@@ -825,6 +830,7 @@ export const ChatInterface = () => {
             streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
             streamedFollowUpSuggestions = chunk.followUpSuggestions ?? [];
             streamedConfidenceScore = chunk.confidenceScore ?? null;
+            streamedConfidenceReason = chunk.confidenceReason ?? null;
             continue;
           }
 
@@ -873,6 +879,7 @@ export const ChatInterface = () => {
                     citations: streamedCitations.length > 0 ? streamedCitations : undefined,
                     followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
                     confidenceScore: streamedConfidenceScore ?? undefined,
+                    confidenceReason: streamedConfidenceReason ?? undefined,
                   }
                 : m
             )
@@ -1017,6 +1024,7 @@ export const ChatInterface = () => {
         setShowPipeline(false);
         setPipelineSteps([]);
         setShowInstantPill(false);
+        setPendingQuery('');
         setPipelineHeartbeat(false);
         streamControllerRef.current = null;
         currentJobIdRef.current = null;
@@ -1575,6 +1583,8 @@ return (
                         (isStreaming && streamingContent === '')
                       }
                       heartbeat={pipelineHeartbeat}
+                      tradition="Ekam — Sri Preethaji & Sri Krishnaji"
+                      searchContext={showInstantPill ? pendingQuery : undefined}
                       fallbackLabel={
                         isStreaming && streamingContent === ''
                           ? 'The Guru is reflecting on the sacred teachings…'
