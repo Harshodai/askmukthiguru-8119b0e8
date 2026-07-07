@@ -500,7 +500,7 @@ class NimService:
         return {"intent": intent, "complexity": complexity}
 
     async def classify_distress_structured(self, message: str) -> dict:
-        from services.serene_mind_service import DISTRESS_CLASSIFICATION_SYSTEM_PROMPT
+        from services.serene_mind_engine import DISTRESS_CLASSIFICATION_SYSTEM_PROMPT
         messages = [
             {"role": "system", "content": DISTRESS_CLASSIFICATION_SYSTEM_PROMPT},
             {"role": "user", "content": message},
@@ -515,7 +515,7 @@ class NimService:
         try:
             return json.loads(raw)
         except (json.JSONDecodeError, TypeError):
-            return {"distress_level": "none", "reason": "parse_failed"}
+            return {"is_distress": False, "confidence": 0.0, "reason": "parse_failed"}
 
     # ------------------------------------------------------------------#
     # Retrieval & Grading
