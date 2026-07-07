@@ -87,3 +87,31 @@ class QdrantFilterBuilder:
             conditions.append(FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level)))
 
         return Filter(must=conditions)
+
+    @staticmethod
+    def build_nested_filter(conditions: list, op: str = "must") -> Filter:
+        """Build a nested boolean Qdrant filter from a list of conditions.
+
+        Supports Qdrant's three boolean operators: ``must`` (AND),
+        ``should`` (OR — at least one match), ``must_not`` (NAND).
+
+        Each element of ``conditions`` may be either:
+          - a :class:`FieldCondition` (leaf), or
+          - a nested :class:`Filter` (for arbitrary boolean composition).
+
+        Args:
+            conditions: list of FieldCondition or Filter objects.
+            op: one of ``"must"``, ``"should"``, ``"must_not"``.
+
+        Returns:
+            A Qdrant :class:`Filter` with the conditions placed under the
+            requested boolean clause. Empty input returns an empty filter.
+        """
+        op = op.lower()
+        valid = {"must", "should", "must_not"}
+        if op not in valid:
+            raise ValueError(f"build_nested_filter: op must be one of {valid}, got '{op}'")
+        if not conditions:
+            return Filter()
+        kwargs = {op: list(conditions)}
+        return Filter(**kwargs)

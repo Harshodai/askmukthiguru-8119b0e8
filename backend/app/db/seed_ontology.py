@@ -39,36 +39,41 @@ def seed_spiritual_ontology():
 
         def _seed(tx):
             logger.info("seed_spiritual_ontology: Seeding data...")
-            # 2. Seed Teachers
+            # 2. Seed Teachers (with stable teacher_id for payload partitioning)
             tx.run("""
                 MERGE (t:base {entity_id: 'Sadhguru'})
                 SET t:Teacher:person, t.name = 'Sadhguru',
                     t.bio = 'Jaggi Vasudev, commonly known as Sadhguru, is an Indian yogi, mystic, and author.',
-                    t.entity_type = 'person'
+                    t.entity_type = 'person',
+                    t.teacher_id = 'sadhguru'
             """)
             tx.run("""
                 MERGE (t:base {entity_id: 'Sri Amma Bhagavan'})
                 SET t:Teacher:organization, t.name = 'Sri Amma Bhagavan',
                     t.bio = 'Founders of the Oneness Movement, focusing on shifting consciousness from division to oneness.',
-                    t.entity_type = 'organization'
+                    t.entity_type = 'organization',
+                    t.teacher_id = 'amma_bhagavan'
             """)
             tx.run("""
                 MERGE (t:base {entity_id: 'ISKCON'})
                 SET t:Teacher:organization, t.name = 'ISKCON',
                     t.bio = 'International Society for Krishna Consciousness, teaching Bhakti Yoga and devotion to Lord Krishna.',
-                    t.entity_type = 'organization'
+                    t.entity_type = 'organization',
+                    t.teacher_id = 'iskcon'
             """)
             tx.run("""
                 MERGE (t:base {entity_id: 'Sri Preethaji'})
                 SET t:Teacher:person, t.name = 'Sri Preethaji',
                     t.bio = 'Co-founder of Ekam, teacher of the Beautiful State and dissolving suffering.',
-                    t.entity_type = 'person'
+                    t.entity_type = 'person',
+                    t.teacher_id = 'preethaji'
             """)
             tx.run("""
                 MERGE (t:base {entity_id: 'Sri Krishnaji'})
                 SET t:Teacher:person, t.name = 'Sri Krishnaji',
                     t.bio = 'Co-founder of Ekam, teacher of the Beautiful State and ego observation.',
-                    t.entity_type = 'person'
+                    t.entity_type = 'person',
+                    t.teacher_id = 'krishnaji'
             """)
 
             # 3. Seed Concepts
