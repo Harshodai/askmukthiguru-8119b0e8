@@ -17,7 +17,7 @@ from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
 from services.cache_service import InMemoryCacheAdapter
-from services.embedding_service import EmbeddingService
+from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
 
@@ -461,6 +461,28 @@ async def navigate_knowledge_tree(state: GraphState, config: dict = None) -> dic
         return {"selected_clusters": []}
 
 
+def _compute_query_for_embedding(
+    query: str,
+    chat_history: list,
+    hyde_text: Optional[str],
+) -> str:
+    """Compute the text that gets encoded for a sub-query.
+
+    Mirrors the augmentation + hyde + rule-based expansion logic in
+    `retrieve_for_single_query` so the retrieve node can batch-encode
+    all primary queries in one `encode_batch` call (collapses 6
+    `_inference_lock` acquisitions into 1).
+    """
+    augmented_query = query
+    if chat_history:
+        last_user_msgs = [m["content"] for m in chat_history[-4:] if m.get("role") == "user"]
+        if last_user_msgs:
+            augmented_query = f"{last_user_msgs[-1]} {query}"
+
+    query_for_embedding = hyde_text or augmented_query
+    return _apply_query_expansion(query_for_embedding)
+
+
 async def retrieve_for_single_query(
     query: str,
     chat_history: list,
@@ -472,8 +494,15 @@ async def retrieve_for_single_query(
     lightrag: Optional[LightRAGService],
     knowledge_tags: Optional[list[str]] = None,
     query_tier: str = "standard",
+    query_embedding: Optional[dict] = None,
 ) -> list[dict]:
-    """Retrieve documents for a single sub-query, decoupled from state."""
+    """Retrieve documents for a single sub-query, decoupled from state.
+
+    If `query_embedding` is supplied ({"dense": ..., "sparse": ...}),
+    skip the encode step and use it directly — this lets the retrieve
+    node batch-encode all primary sub-queries in one `encode_batch`
+    call. When None, fall back to `encode_single_full` (backward compat).
+    """
     augmented_query = query
     if chat_history:
         last_user_msgs = [m["content"] for m in chat_history[-4:] if m.get("role") == "user"]
@@ -481,7 +510,8 @@ async def retrieve_for_single_query(
             augmented_query = f"{last_user_msgs[-1]} {query}"
 
     query_for_embedding = hyde_text or augmented_query
-    query_embedding = await asyncio.to_thread(embedder.encode_single_full, query_for_embedding)
+    if query_embedding is None:
+        query_embedding = await asyncio.to_thread(embedder.encode_single_full, query_for_embedding)
 
     # 1.8: Adaptive retrieval depth by tier
     if query_tier in ("fast", "tier2_simple"):
@@ -768,6 +798,28 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     lightrag = _services._lightrag
 
     primary_queries = list(dict.fromkeys(sub_queries))[:6]
+    # Batch-encode ALL primary queries in ONE encode_batch call.
+    # Collapses 6 `_inference_lock` acquisitions into 1 (66.7s -> ~3.5s
+    # for the encode step). Order is preserved: precomputed[i] matches
+    # primary_queries[i]. Expansion queries keep using encode_single_full
+    # individually (capped at remaining_budget, usually 0-3) to preserve
+    # the parallel-fire pattern with the LLM expansion call.
+    precomputed_embeddings: list[Optional[dict]] = [None] * len(primary_queries)
+    if primary_queries:
+        primary_query_texts = [
+            _compute_query_for_embedding(q, chat_history, hyde_text)
+            for q in primary_queries
+        ]
+        try:
+            batched = await asyncio.to_thread(embedder.encode_batch, primary_query_texts)
+            precomputed_embeddings = [
+                {"dense": batched["dense"][i], "sparse": batched["sparse"][i]}
+                for i in range(len(primary_queries))
+            ]
+        except Exception as enc_err:
+            logger.warning(
+                f"Batched encode failed (non-fatal, falling back to per-query): {enc_err}"
+            )
     primary_results = await asyncio.gather(
         *[
             asyncio.wait_for(
@@ -782,10 +834,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
                     knowledge_tags=knowledge_tags,
                     query_tier=query_tier,
+                    query_embedding=precomputed_embeddings[i],
                 ),
                 timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )
-            for q in primary_queries
+            for i, q in enumerate(primary_queries)
         ],
         return_exceptions=True,
     )

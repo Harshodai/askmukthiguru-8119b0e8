@@ -24,6 +24,22 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _apply_query_expansion(text: str) -> str:
+    """Rule-based query expansion for geographic/biographical terms.
+
+    Aids dense retrieval for known entity patterns ("where ekam",
+    "who preethaji"). Applied before encoding so the augmented text
+    participates in the embedding. Shared by `encode_single_full`
+    and the retrieval node's batched-encode path.
+    """
+    low = text.lower()
+    if "where" in low and ("ekam" in low or "akam" in low):
+        return f"{text} temple location Tirupati Chennai"
+    if "who" in low and ("preethaji" in low or "krishnaji" in low):
+        return f"{text} founders Ekam one world academy"
+    return text
+
+
 class EmbeddingService:
     """
     Multilingual embedding service with native hybrid search support.
@@ -441,12 +457,7 @@ class EmbeddingService:
         Encode a single query text into both dense and sparse vectors.
         Uses the instruction prefix required for e5 models.
         """
-        # Rule-based query expansion for geographic/biographical terms to aid dense retrieval
-        low = text.lower()
-        if "where" in low and ("ekam" in low or "akam" in low):
-            text = f"{text} temple location Tirupati Chennai"
-        elif "who" in low and ("preethaji" in low or "krishnaji" in low):
-            text = f"{text} founders Ekam one world academy"
+        text = _apply_query_expansion(text)
 
         # encode_batch naturally prepends self.instruction and handles caching
         result = self.encode_batch([text])
