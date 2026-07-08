@@ -1571,6 +1571,13 @@ return (
                   scrollContainerRef={scrollContainerRef}
                 />
 
+                {/* Optimistic placeholder: guru thinking skeleton before pipeline pills arrive */}
+                {showInstantPill && (
+                  <div className="mb-2">
+                    <OptimisticPlaceholder />
+                  </div>
+                )}
+
                 {/* Unified thinking indicator */}
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
