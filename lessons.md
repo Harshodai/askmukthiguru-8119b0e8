@@ -3077,3 +3077,38 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Fix**: Use the GitHub Container Registry mirror instead — `ghcr.io/zaproxy/zaproxy:stable` (ZAP 2.17.0). It was already cached locally (3.49GB), bypasses Docker Hub auth entirely, and exposes the same `zap-baseline.py` / `zap-full-scan.py` / `zap-api-scan.py` scripts. On macOS Docker, target the host with `http://host.docker.internal:<port>` and mount a `-v /tmp/zap-work:/zap/wrk` volume to collect JSON reports.
 - **Scan result**: Baseline (passive) scan — backend `:8000` (0 FAIL, 66 PASS) and frontend `:80` (0 FAIL, 62 PASS, 5 hardening warnings for missing CSP/COOP/COEP/CORP headers). Plus bandit SAST (2 HIGH = `hashlib.md5` without `usedforsecurity=False` in pipeline_coordinator.py:214 + graph_stage.py:140), pip-audit (clean), npm audit (1 low esbuild dev-only Windows-only). Results in `/tmp/zap_results.md`.
 - **Lesson**: When Docker Hub pulls fail on macOS due to keychain -25293 errors, do NOT fight the keychain. Check for an image mirror on `ghcr.io` (GitHub Container Registry) — many security tools publish there and it uses a different auth path. `ghcr.io/zaproxy/zaproxy:stable` is a drop-in for `owasp/zap2docker-stable`. The baseline scan is safe to run against a live stack (passive, no exploit payloads); reserve the full scan for a throwaway environment with auth configured.
+
+## Jul 8, 2026 — Advanced Python Upgrade: Async ML, Structured Concurrency, API Contracts
+
+### CPU-bound ML models MUST use asyncio.to_thread, NOT raw async calls
+- **Problem**: `EmbeddingService.encode()` and `rerank()` were called directly inside `async def` FastAPI handlers. Python's GIL prevents true parallel execution, so 6 concurrent queries all blocked each other — measured 66s retrieval latency at 6 concurrency.
+- **Fix**: Added async siblings (`encode_async`, `encode_batch_async`, `rerank_async`, `cascaded_rerank_async`) that wrap the sync methods via `await asyncio.to_thread(self.encode, texts)`. The model stays in-process (no ProcessPoolExecutor reload overhead), but the FastAPI event loop is freed while encoding runs in a thread.
+- **Pattern**: For CPU-bound ML inference (transformers, cross-encoder, whisper, OCR): use `asyncio.to_thread()` to run the sync method in a thread pool. Do NOT use `ProcessPoolExecutor` unless you need true multi-process isolation (e.g., different models in different processes) because it requires the model to be re-loaded in each worker process, multiplying RAM usage.
+- **Key**: Thread pool size for ML inference: `EMBED_THREAD_WORKERS` env var. Default auto-detects from CPU count. Docker: 1 worker. Railway/K8s (2+ CPUs): 2 workers.
+
+### asyncio.TaskGroup replaces gather() for structured exception propagation
+- **Problem**: `asyncio.gather(vector_task, graph_task)` silently swallows exceptions when not using `return_exceptions=True`, or returns a mixed list of results and errors when `return_exceptions=True`. Either way, error diagnosis is hard.
+- **Fix**: Replaced with `asyncio.TaskGroup` (Python 3.11+). On first exception, all sibling tasks are immediately cancelled. `except* Exception` catches the `ExceptionGroup` and re-raises the root cause cleanly.
+- **Pattern**: Use `TaskGroup` for structured concurrency in new Python code. `asyncio.gather` is fine for fire-and-forget fan-out but avoid it for tasks that should fail atomically.
+
+### lru_cache on classification functions: return tuple not list
+- **Problem**: `classify_doctrine_query()` re-ran an O(N·M) category pattern scan on every call. Same query (e.g., "what is deeksha") hit this multiple times per request.
+- **Fix**: Added `@lru_cache(maxsize=1024)`. Changed return type from `list[str]` to `tuple[str, ...]` — lru_cache requires hashable return types and arguments.
+- **Pattern**: Any pure function that: (a) takes only hashable args (str, int, tuple), (b) is deterministic, (c) is called repeatedly with the same inputs → add `@lru_cache`. Return tuples not lists when the caller just iterates.
+
+### dataclass(slots=True, frozen=True) for hot-path domain structs
+- **Fix**: Created `domain/retrieval_types.py` with `RetrievedDoc` and `RetrievalBatch` using `slots=True, frozen=True`. Added `to_dict()` backward-compat shim and `from_dict()` for incremental migration from plain dicts.
+- **Pattern**: slots=True eliminates `__dict__` per instance (~50 bytes). frozen=True makes instances hashable (can use in sets, as dict keys, in lru_cache). Requires Python ≥ 3.10. Always add `to_dict()` shim when migrating from dict-heavy codebases.
+
+### Kubernetes ML deployment: Guaranteed QoS prevents OOMKill
+- **Pattern**: For pods that load large ML models (BGE-M3 = 1.6GB), always set `resources.requests == resources.limits` to get Guaranteed QoS class. This prevents the K8s scheduler from evicting the pod during model load peaks. Set `readinessProbe.initialDelaySeconds` to the full model load time (7+ min for this stack). Use `startupProbe` to disable liveness during cold starts.
+- **Railway → K8s migration notes**: Railway uses `healthcheckPath`/`healthcheckTimeout`; K8s uses `readinessProbe`/`livenessProbe`/`startupProbe`. Railway auto-detects PORT env var; K8s requires explicit containerPort. Railway env vars → K8s Secrets + ConfigMap.
+
+### ErrorResponse contract: machine-readable codes over string detail
+- **Pattern**: Never raise `HTTPException(status_code=503, detail="Sarvam is down")`. Use `ErrorResponse(error="ProviderUnavailable", message="...", details={...})`. Machine-readable `error` field allows frontend to handle specific error types without brittle string matching.
+- **File**: `backend/app/contracts/errors.py` — import `provider_unavailable`, `not_found`, `retrieval_timeout`, `rate_limited`, `internal_error`.
+
+### Property-based testing with hypothesis for RAG invariants
+- **Pattern**: Use `@given(st.text())` to test functions like `classify_doctrine_query` and `inject_doctrine_keywords` with hundreds of random inputs. Core invariants to test: return type correctness, no exception on any valid input, length monotonicity, prefix preservation.
+- **File**: `backend/tests/test_rag_properties.py` — 7 property tests covering keyword injection, RetrievedDoc round-trips, and ConcurrentRetriever.
+- **Install**: `hypothesis>=6.100.0` in `[dependency-groups] dev` in `pyproject.toml`.

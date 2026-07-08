@@ -1,7 +1,22 @@
 """Doctrine Keyword Injection System for Mukthi Guru RAG.
 
 Injects doctrine-specific keywords into queries for improved retrieval coverage.
+
+Performance: ``classify_doctrine_query`` is decorated with ``lru_cache`` so
+repeated identical queries skip the O(N·M) category scan. Returns a tuple
+(hashable) rather than a list to satisfy lru_cache's requirement.
 """
+
+from __future__ import annotations
+
+import logging
+from functools import lru_cache
+
+logger = logging.getLogger(__name__)
+
+# Self-correction counter — tracks repeated coverage failures per query pattern
+# (self-improving-agent: >3 failures flags the doctrine category for review)
+_coverage_failures: dict[str, int] = {}
 
 
 # Doctrine categories with their keywords and patterns
@@ -72,8 +87,15 @@ DOCTRINE_CATEGORIES = {
 }
 
 
-def classify_doctrine_query(query: str) -> list[str]:
-    """Return list of matching doctrine categories for a query."""
+# Evolution marker: 2026-07-08 | source: advanced-python-plan | confidence: 0.95
+# lru_cache: same query → instant return, avoids repeated O(N·M) pattern scan
+@lru_cache(maxsize=1024)
+def classify_doctrine_query(query: str) -> tuple[str, ...]:
+    """Return tuple of matching doctrine categories for a query.
+
+    Returns a tuple (not list) so the result is hashable and cacheable.
+    Call ``list(classify_doctrine_query(q))`` if a list is needed downstream.
+    """
     q = query.lower()
     matched = []
     for category, data in DOCTRINE_CATEGORIES.items():
@@ -81,35 +103,62 @@ def classify_doctrine_query(query: str) -> list[str]:
             if pattern in q:
                 matched.append(category)
                 break
-    return matched
+    return tuple(matched)
+
+
+def _note_coverage_failure(query: str) -> None:
+    """Record a doctrine coverage miss; log when threshold exceeded (self-correction)."""
+    key = query[:80]  # Normalise long queries to a fixed-width key
+    _coverage_failures[key] = _coverage_failures.get(key, 0) + 1
+    if _coverage_failures[key] >= 3:
+        logger.warning(
+            "Doctrine coverage repeatedly failing — category patterns may need updating",
+            extra={"query_prefix": key, "failures": _coverage_failures[key]},
+        )
 
 
 def inject_doctrine_keywords(query: str, top_k: int = 3) -> str:
     """Inject top-k doctrine keywords into query for retrieval."""
+    # classify returns tuple — iterate normally
     categories = classify_doctrine_query(query)
     if not categories:
         return query
-    
+
     keywords = []
     for cat in categories:
         keywords.extend(DOCTRINE_CATEGORIES[cat]["keywords"][:top_k])
-    
+
     # Deduplicate preserving order
-    seen = set()
-    unique_keywords = [k for k in keywords if not (k in seen or seen.add(k))]
-    
+    seen: set[str] = set()
+    unique_keywords = [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore[func-returns-value]
+
     if unique_keywords:
         return f"{query} {' '.join(unique_keywords[:top_k * len(categories)])}"
     return query
 
 
+FACTUAL_CONTEXT = {
+    "ekam": (
+        "Ekam is a sacred space located in Varadaiahpalem, near Tirupati, "
+        "Andhra Pradesh, India. It is the World Centre for Enlightenment "
+        "founded by Sri Preethaji and Sri Krishnaji. "
+        "The official website for Ekam is https://ekam.org."
+    ),
+}
+
+
 def get_doctrine_context_enrichment(query: str) -> dict:
     """Get doctrine context for retrieval and answer formatting."""
     categories = classify_doctrine_query(query)
+    factual = {}
+    for cat in categories:
+        if cat in FACTUAL_CONTEXT:
+            factual[cat] = FACTUAL_CONTEXT[cat]
     return {
         "categories": categories,
         "keywords": [kw for cat in categories for kw in DOCTRINE_CATEGORIES[cat]["keywords"]],
         "has_doctrine_match": len(categories) > 0,
+        "factual_context": factual,
     }
 
 

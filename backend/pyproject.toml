@@ -96,7 +96,10 @@ dev = [
     "mypy>=1.10.0",
     "bandit>=1.7",
     "pip-audit>=2.7",
+    # Property-based testing — generates 100s of test cases automatically
+    "hypothesis>=6.100.0,<7.0",
 ]
+
 
 [build-system]
 requires = ["hatchling"]
@@ -104,7 +107,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py312"  # Matches .venv Python 3.12 — enables TaskGroup, except*, slots=True
 exclude = [
     "*.ipynb",
     "colab/**",
