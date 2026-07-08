@@ -69,6 +69,9 @@ import {
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const STARTER_CARDS = [
   { id: 'reflect', icon: Compass, eyebrow: 'Reflect', prompt: 'What is the Beautiful State, and how do I begin?' },
@@ -129,6 +132,8 @@ export const ChatInterface = () => {
   const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
   const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
+  const [pendingStarterPreview, setPendingStarterPreview] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const { profile, loading: profileLoading, update: updateProfile } = useProfile();
   const { selected } = useAssistants();
@@ -1208,9 +1213,12 @@ setIsAwaitingSereneMind(true);
 };
 
 const handleSuggestionClick = (text: string) => {
-  // Populate the composer with the full prompt so the user can preview/edit
-  // before sending. Prevents accidental submission of personal statements
-  // (e.g., "I'm feeling overwhelmed") from a one-word pill on mobile.
+  // On mobile, show a preview bottom-sheet so the user can see/edit the full
+  // prompt before sending. On desktop, populate the composer directly.
+  if (isMobile) {
+    setPendingStarterPreview(text);
+    return;
+  }
   setInputValue(text);
   if (inputRef.current) {
     inputRef.current.focus();
@@ -1218,6 +1226,20 @@ const handleSuggestionClick = (text: string) => {
     const len = text.length;
     inputRef.current.setSelectionRange?.(len, len);
   }
+};
+
+const confirmStarterPreview = () => {
+  const text = pendingStarterPreview ?? '';
+  setPendingStarterPreview(null);
+  setInputValue(text);
+  requestAnimationFrame(() => {
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, text, { bypassCache: true });
+  });
+};
+
+const cancelStarterPreview = () => {
+  setPendingStarterPreview(null);
 };
 
 const handleInlineAction = (query: string) => {
@@ -1815,6 +1837,30 @@ return (
       onSelectConversation={handleSelectConversation}
       currentConversationId={currentConversation?.id}
     />
+
+    {/* Starter prompt mobile preview bottom-sheet */}
+    <Sheet open={pendingStarterPreview !== null} onOpenChange={(open) => { if (!open) cancelStarterPreview(); }}>
+      <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetHeader>
+          <SheetTitle>Preview your prompt</SheetTitle>
+          <SheetDescription>
+            Review the full text before sending to the Guru.
+          </SheetDescription>
+        </SheetHeader>
+        <p className="text-foreground text-base leading-relaxed whitespace-pre-wrap break-words px-1 mt-2">
+          {pendingStarterPreview}
+        </p>
+        <SheetFooter className="flex-row gap-2 mt-4">
+          <Button variant="ghost" className="flex-1" onClick={cancelStarterPreview}>
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={confirmStarterPreview}>
+            <Send className="w-4 h-4 mr-2" />
+            Send
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
 
     {/* Guided Meditation Full-Screen Flow */}
     <GuidedMeditationFlow
