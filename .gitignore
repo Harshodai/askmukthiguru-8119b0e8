@@ -131,3 +131,10 @@ coverage.xml
 backend/.model_cache/
 
 transcripts/
+
+# Backups, dumps, and large artifacts — never commit
+backups/
+data/dump/
+data/ontology/*.ttl
+scratch/
+openwiki/.last-update.json
