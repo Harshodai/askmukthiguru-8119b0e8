@@ -7,7 +7,14 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
+
+# Sentinel user_id emitted by TestAuthStrategy (X-Test-Key backdoor). Profile
+# upserts against this id trigger a Postgres FK warning (the id is not in the
+# users table). In test mode we skip the DB write to keep logs clean.
+_TEST_BACKDOOR_USER_ID = "00000000-0000-0000-0000-000000000000"
 
 
 class SpiritualLevel(str, Enum):
@@ -113,6 +120,18 @@ class UserProfileService:
     async def update_profile(self, profile: UserProfile) -> None:
         """Update user profile in database."""
         profile.updated_at = time.time()
+        # Suppress FK warning noise in test mode: the X-Test-Key backdoor emits
+        # a synthetic user_id (_TEST_BACKDOOR_USER_ID) that has no row in the
+        # users table, so upserting user_profiles logs a FK violation warning
+        # on every turn. When ENABLE_TEST_AUTH is on (and not production), skip
+        # the Supabase write — the in-memory cache below is sufficient for tests.
+        if (
+            profile.user_id == _TEST_BACKDOOR_USER_ID
+            and getattr(settings, "enable_test_auth", False)
+            and not getattr(settings, "is_production", False)
+        ):
+            self._local_cache[profile.user_id] = profile
+            return
         if self._supabase:
             try:
                 data = asdict(profile)

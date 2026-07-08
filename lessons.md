@@ -3029,3 +3029,20 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **0 ImportErrors, 0 ValidationErrors, 0 HTTP 500s**. BM25 text-FTS index created. Retrieval batching confirmed (19 log lines: parallel-fire, two-phase hybrid).
 - Slow queries: q3 (92s) and q8 (130s) — complex RAG path with full citation pipeline. Both succeed now (were timeouts/500 before).
 - **Lesson**: Every fix was independently verified in AFTER2. The citations coercion fix (7bc3499b) was the critical blocker between AFTER v1 (10/12, 2 crashes) and AFTER2 (12/12, 0 crashes).
+
+### H3.3: E3 Early-Exit Misleading Commit Message
+- **Not a code issue.** The "early-exit" looked misleading in a commit message but the code behavior is correct. No code change needed — this is a commit-message hygiene note for future reference.
+- **Lesson**: Commit messages describing an "early exit" or "short-circuit" should state the actual trigger condition. If a reviewer flags a commit as misleading but the code is correct, document it in lessons.md rather than rewriting history.
+
+### H3.2: Decorative @lru_cache in Ingest Pipeline
+- **Removed** a no-op `@lru_cache` wrapping a function that returned `("RELATED_TO", "cached")` — `_classify_batch` results bypassed it entirely, so the cache stored nothing useful (YAGNI). Removed the decorator + `cache_size` setting read.
+- **Lesson**: `@lru_cache` on a passthrough function that never has its results read is dead code. If a cache is decorative, remove it; don't leave it to confuse future readers about what's actually cached.
+
+### H3.8: FlashRank Ranker(model_name=None) TypeError
+- **Guard**: On non-Apple-Silicon hosts, flashrank auto-tune sets `model_name=None`, and `Ranker(model_name=None)` raises TypeError before any ONNX path runs. Added an explicit `if model_name is None` guard that skips straight to the CrossEncoder fallback.
+- **Lesson**: An optional dependency whose auto-tune resolves to `None` should short-circuit cleanly rather than throw a TypeError that looks like a real failure. The CrossEncoder is the active path regardless.
+
+### H3.11: Test Backdoor FK Warning Noise
+- The `X-Test-Key` auth backdoor emits a synthetic `0000...` user_id that has no row in the `users` table, so `user_profiles` upserts log a Postgres FK violation warning on every benchmark turn.
+- **Fix**: In `update_profile`, skip the Supabase write (keep in-memory cache) when `user_id == _TEST_BACKDOOR_USER_ID` AND `enable_test_auth` is on AND not production. Real users are unaffected.
+- **Lesson**: Test-only auth backdoors that emit synthetic IDs should have their DB side-effects suppressed in test mode to keep logs clean. Never gate on the user_id alone — gate on the test-mode flag too, so a real `0000...` id (unlikely but possible) in prod still writes normally.

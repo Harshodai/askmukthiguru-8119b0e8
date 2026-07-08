@@ -78,6 +78,10 @@
 - Manim visualizations
 - Marketing content
 - Full learning paths
+- OWL/RDF full roundtrip (import→query→re-export needs more testing)
+- n10s inference / schema reasoning (removed in n10s 5.x; no replacement)
+
+(9 items total — reconciled with ROADMAP.md Deferred Items section)
 
 ## 6. Verification
 

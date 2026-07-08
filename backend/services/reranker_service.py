@@ -89,6 +89,17 @@ class RerankerService:
                 logger.info(f"Initializing FlashRank with model: {model_name}")
                 start_time = time.perf_counter()
 
+                # Guard: Ranker(model_name=None) raises TypeError before the
+                # network/ONNX path is even attempted. Skip cleanly and fall
+                # through to the CrossEncoder fallback (the active path anyway).
+                if model_name is None:
+                    logger.info(
+                        "FlashRank model_name resolved to None (non-Apple-Silicon auto-tune). "
+                        "Skipping FlashRank; cascaded CrossEncoder is the active reranker."
+                    )
+                    self._load_fallback()
+                    return
+
                 # Note: FlashRank downloads models to cache folder if not present
                 self._ranker = Ranker(model_name=model_name)
 

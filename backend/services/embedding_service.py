@@ -238,7 +238,16 @@ class EmbeddingService:
                 self._reranker_outputs_probs = False
 
     def _ensure_colbert(self) -> None:
-        """Lazy-load the ColBERT model."""
+        """Lazy-load the ColBERT model.
+
+        Fallback behavior (pre-existing): if RAGatouille is not installed, or
+        the ``colbert-ir/colbertv2.0`` model fails to load (offline, no HF
+        cache, network error, etc.), ``_colbert`` is set to ``False`` and the
+        cascaded rerank path degrades to pure CrossEncoder. This is intentional
+        — ColBERTv2 is an optional quality boost, not a hard dependency. The
+        warning below is logged loudly (not silently) so operators know the
+        fallback is active and can pre-download the model if they want it.
+        """
         if self._colbert is not None:
             return
         with self._lock:
@@ -252,11 +261,17 @@ class EmbeddingService:
                 self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
             except (ImportError, ModuleNotFoundError):
                 logger.info(
-                    "ColBERTv2 (RAGatouille) is not installed (optional). Cascaded reranking will fallback to pure CrossEncoder."
+                    "ColBERTv2 (RAGatouille) is not installed (optional). "
+                    "Cascaded reranking will fallback to pure CrossEncoder."
                 )
                 self._colbert = False
             except Exception as e:
-                logger.warning(f"Failed to load RAGatouille ColBERTv2: {e}")
+                logger.warning(
+                    f"Failed to load RAGatouille ColBERTv2: {e}. "
+                    "Falling back to pure CrossEncoder reranking (active path). "
+                    "To enable ColBERTv2, pre-download 'colbert-ir/colbertv2.0' "
+                    "to the HF cache or ensure network access at startup."
+                )
                 self._colbert = False
 
     def _ensure_models(self) -> None:

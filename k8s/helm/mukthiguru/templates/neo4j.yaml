@@ -48,7 +48,7 @@ spec:
             - name: NEO4J_AUTH
               value: neo4j/{{ .Values.neo4j.auth.password }}
             - name: NEO4J_PLUGINS
-              value: "[\"apoc\"]"
+              value: "[\"apoc\", \"n10s\"]"
           ports:
             - containerPort: 7687
               name: bolt
