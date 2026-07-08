@@ -6,9 +6,12 @@ import logging
 
 from rag.states import GraphState
 
+from app.tracing import trace_rag_node
+
 logger = logging.getLogger(__name__)
 
 
+@trace_rag_node("web_search")
 async def web_search_node(state: GraphState, config: dict = None) -> dict:
     """
     Fetch real-time web results for temporal queries.

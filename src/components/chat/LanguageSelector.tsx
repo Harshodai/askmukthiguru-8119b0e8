@@ -132,6 +132,7 @@ export const LanguageSelector = ({
   const [internalLang, setInternalLang] = useState('en');
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const selectedLanguage = value ?? internalLang;
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { toast } = useToast();
@@ -185,7 +186,31 @@ export const LanguageSelector = ({
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        // Restore focus to the trigger for keyboard users
+        requestAnimationFrame(() => triggerRef.current?.focus());
+        return;
+      }
+      // Focus trap: keep Tab cycling inside the open popover
+      if (event.key === 'Tab') {
+        const popover = popoverRef.current;
+        if (!popover) return;
+        const focusables = popover.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (event.shiftKey && active === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -330,6 +355,7 @@ export const LanguageSelector = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
+                  ref={popoverRef}
                   className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)]"
                   style={{ maxHeight: Math.min(360, coords?.maxHeight ?? 360) }}
                   role="listbox"
@@ -386,6 +412,7 @@ export const LanguageSelector = ({
           whileTap={{ scale: 0.98 }}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
+          aria-label={`Selected language: ${currentLang?.name ?? 'English'}. Click to change.`}
         >
           <Globe className="w-4 h-4 text-ojas" />
           <span className="text-foreground font-medium hidden sm:inline">
@@ -411,8 +438,10 @@ export const LanguageSelector = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
+                ref={popoverRef}
                 className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-[min(60vh,420px)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
                 role="listbox"
+                aria-label="Select language"
               >
                 <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
                   <input

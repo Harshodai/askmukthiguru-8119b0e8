@@ -17,6 +17,7 @@ from rag.prompts import CASUAL_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
 from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
+from app.tracing import trace_rag_node
 from . import _services
 from .utils import _trace_update, get_node_timeout, log_metrics, settings
 
@@ -77,6 +78,7 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
     return mapping.get(route_name)
 
 
+@trace_rag_node("intent_router")
 @log_metrics
 async def intent_router(state: GraphState, config: dict = None) -> dict:
     """Classify user message -> DISTRESS / QUERY / CASUAL / ADVERSARIAL / SAFETY_VIOLATION."""
@@ -476,6 +478,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     }
 
 
+@trace_rag_node("handle_casual")
 async def handle_casual(state: GraphState, config: dict = None) -> dict:
     """Handle casual conversation with multi-turn awareness.
 
@@ -544,6 +547,7 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
     return {"final_answer": response}
 
 
+@trace_rag_node("handle_distress")
 async def handle_distress(state: GraphState, config: dict = None) -> dict:
     """Handle distress with COMPASSIONATE TEACHINGS + meditation offer."""
     from rag.nodes.utils import emit_status
@@ -622,6 +626,7 @@ Based on the above teachings, compose a deeply compassionate response that:
     }
 
 
+@trace_rag_node("handle_distress_check")
 async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
     """Lightweight keyword-based distress check running in parallel with intent_router."""
     question = state.get("question", "")
@@ -641,6 +646,7 @@ async def handle_distress_check(state: GraphState, config: dict = None) -> dict:
         return {"parallel_distress_found": False}
 
 
+@trace_rag_node("handle_meditation")
 async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     """Continue an active meditation session, start a new one, or gracefully bail.
 

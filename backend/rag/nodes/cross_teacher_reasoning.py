@@ -5,6 +5,7 @@ import time
 from neo4j import GraphDatabase
 from rag.states import GraphState
 from app.config import settings
+from app.tracing import trace_rag_node
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ def _get_driver():
             _driver = None
     return _driver
 
+@trace_rag_node("cross_teacher_reasoning")
 async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:
     """
     RAG Node for Cross-Teacher comparisons.

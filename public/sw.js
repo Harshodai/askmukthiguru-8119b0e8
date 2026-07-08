@@ -40,7 +40,17 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event: handle offline caching policies
 self.addEventListener('fetch', (event) => {
+  // Only intercept GET requests
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(event.request.url);
+
+  // Only intercept http/https schemes (bypass chrome-extension, etc.)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
 
   // 1. Caching Policy for Meditation Audio and Media Assets (Cache-First)
   if (
@@ -57,7 +67,9 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           return fetch(event.request).then((networkResponse) => {
-            cache.put(event.request, networkResponse.clone());
+            if (networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
             return networkResponse;
           });
         });
@@ -76,13 +88,15 @@ self.addEventListener('fetch', (event) => {
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((cachedResponse) => {
           const fetchPromise = fetch(event.request).then((networkResponse) => {
-            cache.put(event.request, networkResponse.clone());
+            if (networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
             return networkResponse;
-          }).catch(() => {
-            // Offline fallback for crisis pages if network fails and not in cache
-            loggerLog('Offline: Serving cached crisis/breathing page fallback');
           });
           return cachedResponse || fetchPromise;
+        }).catch((err) => {
+          loggerLog(`Stale-while-revalidate error: ${err}`);
+          return new Response('Service Offline', { status: 503 });
         });
       })
     );
@@ -94,7 +108,7 @@ self.addEventListener('fetch', (event) => {
     fetch(event.request)
       .then((response) => {
         // Cache successful GET requests for same origin
-        if (event.request.method === 'GET' && url.origin === self.location.origin) {
+        if (url.origin === self.location.origin && response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
@@ -102,7 +116,8 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
+      .catch((err) => {
+        loggerLog(`Network-first fetch failed, trying cache: ${err}`);
         // Serve from cache if offline
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) {
@@ -124,6 +139,12 @@ self.addEventListener('fetch', (event) => {
               { headers: { 'Content-Type': 'application/json' } }
             );
           }
+          // Default offline response for other assets
+          return new Response('Offline / Resource Unavailable', {
+            status: 503,
+            statusText: 'Service Offline',
+            headers: new Headers({ 'Content-Type': 'text/plain' })
+          });
         });
       })
   );

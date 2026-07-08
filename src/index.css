@@ -566,3 +566,14 @@
   }
 }
 
+/* H2.3: Toast containers must sit above the chat composer (z-20) and
+   floating voice/send error pills (z-30). Sonner renders inline; the
+   radix ToastViewport is fixed. Both get a high z-index so voice/send
+   errors never overlap the prompt input or send button. */
+[data-sonner-toaster] {
+  z-index: 200 !important;
+}
+[data-radix-toast-viewport] {
+  z-index: 200 !important;
+}
+

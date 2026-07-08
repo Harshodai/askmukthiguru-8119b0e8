@@ -20,6 +20,7 @@ from rag.timeout_utils import get_node_timeout
 from rag.doc_utils import doc_text
 from services.confidence_scorer import calculate_confidence, calculate_confidence_reason
 
+from app.tracing import trace_rag_node
 from . import _services
 from .utils import _trace_update, emit_status, log_metrics, settings
 
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 
+@trace_rag_node("reflect_on_answer")
 @log_metrics
 async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     """Self-Reflection RAG loop with LettuceDetect and self-consistency checking."""
@@ -91,6 +93,7 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     return {"needs_correction": True, "reflection_feedback": feedback, "lettuce_detect_result": ld_result}
 
 
+@trace_rag_node("verify_answer")
 @log_metrics
 async def verify_answer(state: GraphState, config: dict = None) -> dict:
     """Enhanced Combined Self-RAG + CoVe verification with actual claim verification."""

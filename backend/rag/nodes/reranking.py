@@ -12,12 +12,14 @@ from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import check_sufficiency
 from rag.doc_utils import doc_text
 
+from app.tracing import trace_rag_node
 from . import _services
 from .utils import _grounded_citation_urls, _trace_update, emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 
 
+@trace_rag_node("rerank_documents")
 @log_metrics
 async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     """Rerank Documents (CrossEncoder) with adaptive thresholds and MMR."""
@@ -152,6 +154,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     }
 
 
+@trace_rag_node("grade_documents")
 @log_metrics
 async def grade_documents(state: GraphState, config: dict = None) -> dict:
     """CRAG: Batch relevance grading of all reranked documents in one LLM call."""
@@ -329,6 +332,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
     }
 
 
+@trace_rag_node("check_context_sufficiency")
 @log_metrics
 async def check_context_sufficiency(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired iterative sufficiency check."""
@@ -375,6 +379,7 @@ async def check_context_sufficiency(state: GraphState, config: dict = None) -> d
     return {}
 
 
+@trace_rag_node("enrich_context")
 @log_metrics
 async def enrich_context(state: GraphState, config: dict = None) -> dict:
     """Fetch neighbor chunks for the top relevant documents (RAG Made Simple Ch 8)."""
