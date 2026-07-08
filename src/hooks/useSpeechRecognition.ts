@@ -76,6 +76,7 @@ interface UseSpeechRecognitionReturn {
   startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
+  clearError: () => void;
 }
 
 export const useSpeechRecognition = (
