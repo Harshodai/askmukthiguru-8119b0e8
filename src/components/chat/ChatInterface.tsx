@@ -1189,13 +1189,16 @@ setIsAwaitingSereneMind(true);
 };
 
 const handleSuggestionClick = (text: string) => {
-  // Prompt cards should behave like Claude.ai — one click sends immediately.
-  setInputValue('');
-  if (inputRef.current) inputRef.current.focus();
-  requestAnimationFrame(() => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, text);
-  });
+  // Populate the composer with the full prompt so the user can preview/edit
+  // before sending. Prevents accidental submission of personal statements
+  // (e.g., "I'm feeling overwhelmed") from a one-word pill on mobile.
+  setInputValue(text);
+  if (inputRef.current) {
+    inputRef.current.focus();
+    // Move caret to end
+    const len = text.length;
+    inputRef.current.setSelectionRange?.(len, len);
+  }
 };
 
 const handleInlineAction = (query: string) => {
