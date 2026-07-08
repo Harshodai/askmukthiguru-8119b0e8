@@ -23,6 +23,7 @@ from services.qdrant_service import QdrantService
 
 import re
 
+from app.tracing import trace_rag_node
 from . import _services
 from .utils import (
     _grounded_citation_urls,
@@ -369,6 +370,7 @@ def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500
     return excerpt
 
 
+@trace_rag_node("navigate_and_hyde")
 async def navigate_and_hyde(state: GraphState, config: dict = None) -> dict:
     """Run ``navigate_knowledge_tree`` and ``generate_hyde`` in parallel.
 
@@ -389,6 +391,7 @@ async def navigate_and_hyde(state: GraphState, config: dict = None) -> dict:
     return merged
 
 
+@trace_rag_node("decompose_query")
 @log_metrics
 async def decompose_query(state: GraphState, config: dict = None) -> dict:
     """Always decompose queries into sub-queries."""
@@ -714,6 +717,7 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
         return docs
 
 
+@trace_rag_node("retrieve_documents")
 @log_metrics
 async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     """Two-phase hybrid retrieval from Qdrant."""

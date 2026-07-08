@@ -18,6 +18,7 @@ from rag.doc_utils import doc_text
 from services.cache_service import InMemoryCacheAdapter
 from services.language_router import LanguageCode, LanguageRouter
 
+from app.tracing import trace_rag_node
 from . import _services
 from .utils import (
     _generation_route,
@@ -106,6 +107,7 @@ def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
         return "Seeker"
 
 
+@trace_rag_node("context_engineer")
 @log_metrics
 async def context_engineer(state: GraphState, config: dict = None) -> dict:
     """PageIndex-inspired Context Engineering layers Persona, Knowledge, Instructions, and User State.
@@ -460,6 +462,7 @@ def _cite_sentences(
     return " ".join(result_parts)
 
 
+@trace_rag_node("generate_answer")
 @log_metrics
 async def generate_answer(state: GraphState, config: dict = None) -> dict:
     """Generate the final answer with inline hint extraction."""
@@ -1353,6 +1356,7 @@ async def _generate_follow_up_suggestions(
         return []
 
 
+@trace_rag_node("format_final_answer")
 async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     """Format the final response based on pipeline results."""
     await emit_status(config, "Finalizing your response...")
@@ -1402,7 +1406,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
 
     if is_faithful and verified and confidence >= settings.confidence_gating_floor:
         pass
-    elif is_faithful and citations and confidence >= max(5.0, settings.confidence_gating_floor) and answer:
+    elif is_faithful and citations and confidence >= 5.0 and answer:
         logger.info(
             f"Final: Verification soft-pass (faithful={is_faithful}, "
             f"verified={verified}, confidence={confidence}, "

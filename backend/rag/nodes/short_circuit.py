@@ -8,6 +8,7 @@ import re
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 
+from app.tracing import trace_rag_node
 from . import _services
 from .utils import emit_status, log_metrics
 
@@ -25,6 +26,7 @@ def _clean_rewrite(text: str) -> str:
     return cleaned
 
 
+@trace_rag_node("rewrite_query")
 @log_metrics
 async def rewrite_query(state: GraphState, config: dict = None) -> dict:
     """CRAG: Self-correcting query rewrite."""
@@ -48,6 +50,7 @@ async def rewrite_query(state: GraphState, config: dict = None) -> dict:
     }
 
 
+@trace_rag_node("handle_fallback")
 async def handle_fallback(state: GraphState, config: dict = None) -> dict:
     """Return the graceful fallback response."""
     await emit_status(config, "Preparing a graceful response...")
