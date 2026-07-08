@@ -704,6 +704,20 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
             </div>
 
+            {/* H1.3 — AI-generated transparency label */}
+            {isGuru && !message.error && (message.content || !isStreaming) && (
+              <div
+                className="text-[10.5px] text-muted-foreground/70 mt-2 select-none flex items-center gap-1.5"
+                role="status"
+                aria-label={`AI generated content${citations.length > 0 ? `, ${citations.length} ${citations.length === 1 ? 'source' : 'sources'}` : ''}`}
+              >
+                <Sparkles className="w-2.5 h-2.5 text-muted-foreground/60" aria-hidden />
+                <span>
+                  AI-generated{citations.length > 0 ? ` · ${citations.length} ${citations.length === 1 ? 'source' : 'sources'}` : ''}
+                </span>
+              </div>
+            )}
+
             {/* User hover actions */}
             {!isGuru && message.content && !isStreaming && !isEditing && (
               <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1 mr-1">
