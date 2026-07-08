@@ -1,5 +1,19 @@
 """
-Mukthi Guru — Semantic Cache Service
+Mukthi Guru — Semantic Cache Service (LEGACY path).
+
+This module provides ``SemanticCacheService``, a Redis-only embedding cache kept
+for backward compatibility. It is NOT the active path used by the pipeline.
+
+Canonical active path:
+  ``services/cache/semantic_adapter.py::SemanticCacheAdapter`` (Qdrant + Redis),
+  selected by ``services/cache/factory.py::CacheFactory.create_semantic_cache``.
+  ``app/pipeline/stages/cache_stage.py`` calls match the ``SemanticCacheAdapter``
+  signatures: ``get(query, threshold=None)`` and
+  ``put(query, response, intent, citations, meditation_step=0)``.
+
+The earlier dead ``QdrantSemanticCache`` class that lived in this file has been
+removed — it called ``self._qdrant.search(...)`` / ``self._qdrant.upsert(...)``
+which do not exist on ``QdrantService`` and would crash if activated.
 
 Embedding-based semantic caching that matches similar queries (not just exact matches).
 Uses cosine similarity between query embeddings to identify cache hits.
@@ -44,7 +58,13 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 class SemanticCacheService:
     """
-    Embedding-based semantic cache for RAG responses.
+    Embedding-based semantic cache for RAG responses (LEGACY, Redis-only).
+
+    .. deprecated::
+        Prefer ``services.cache.semantic_adapter.SemanticCacheAdapter`` (Qdrant + Redis),
+        the canonical active path selected by ``services.cache.factory.CacheFactory``.
+        This class is kept for backward compatibility only and is not wired into the
+        pipeline by ``cache/factory.py``.
 
     Stores query embeddings in Redis and matches new queries
     by cosine similarity rather than exact string match.
@@ -340,150 +360,8 @@ class SemanticCacheService:
         return self._available
 
 
-class QdrantSemanticCache:
-    """Qdrant HNSW-backed semantic cache for O(log n) lookup.
-
-    Used when settings.use_qdrant_semantic_cache is True.
-    """
-
-    def __init__(self, qdrant_service=None, embedding_service=None):
-        self._qdrant = qdrant_service
-        self._embedder = embedding_service
-        self._available = False
-        self._collection_name = settings.semantic_cache_qdrant_collection
-
-    async def initialize(self):
-        if self._qdrant is None:
-            logger.warning("QdrantSemanticCache: no Qdrant service available")
-            return
-        try:
-            from qdrant_client.http.models import VectorParams, Distance, HnswConfigDiff
-
-            try:
-                self._qdrant.get_collection(self._collection_name)
-            except Exception:
-                logger.info(f"Creating Qdrant collection '{self._collection_name}' for semantic cache")
-                self._qdrant.create_collection(
-                    collection_name=self._collection_name,
-                    vectors_config=VectorParams(
-                        size=1024,
-                        distance=Distance.COSINE,
-                        on_disk=True,
-                    ),
-                    hnsw_config=HnswConfigDiff(
-                        m=16,
-                        ef_construct=settings.semantic_cache_hnsw_ef,
-                    ),
-                )
-            self._available = True
-            logger.info(f"Qdrant semantic cache ready (collection={self._collection_name}, hnsw_ef={settings.semantic_cache_hnsw_ef})")
-        except Exception as e:
-            logger.warning(f"Qdrant semantic cache init failed: {e}")
-
-    async def lookup(self, query_embedding: list[float], threshold: float = None) -> dict | None:
-        if not self._available or self._qdrant is None:
-            return None
-        threshold = threshold or settings.semantic_cache_similarity
-        try:
-            from qdrant_client.http.models import Filter, FieldCondition, Range
-
-            t0 = time.time()
-            import asyncio
-
-            results = await asyncio.to_thread(
-                self._qdrant.search,
-                collection_name=self._collection_name,
-                query_vector=query_embedding,
-                limit=1,
-                score_threshold=threshold,
-                query_filter=Filter(
-                    must=[
-                        FieldCondition(
-                            key="created_at",
-                            range=Range(gte=time.time() - settings.semantic_cache_ttl),
-                        )
-                    ]
-                ),
-            )
-            latency = (time.time() - t0) * 1000
-            try:
-                from app.metrics import SEMANTIC_CACHE_LOOKUP_LATENCY
-
-                SEMANTIC_CACHE_LOOKUP_LATENCY.observe(latency)
-            except Exception:
-                pass
-            if results:
-                logger.debug(f"Qdrant semantic cache HIT (latency={latency:.1f}ms, score={results[0].score:.4f})")
-                return results[0].payload
-            logger.debug(f"Qdrant semantic cache MISS (latency={latency:.1f}ms)")
-            return None
-        except Exception as e:
-            logger.warning(f"Qdrant semantic cache lookup failed: {e}")
-            return None
-
-    async def store(self, query_embedding: list[float], response_data: dict) -> bool:
-        if not self._available or self._qdrant is None:
-            return False
-        try:
-            from qdrant_client.http.models import PointStruct
-            import uuid
-            import asyncio
-
-            point = PointStruct(
-                id=str(
-                    uuid.uuid5(
-                        uuid.NAMESPACE_DNS,
-                        str(response_data.get("response", ""))[:100],
-                    )
-                ),
-                vector=query_embedding,
-                payload={
-                    "response": response_data.get("response", ""),
-                    "intent": response_data.get("intent", "QUERY"),
-                    "citations": response_data.get("citations", []),
-                    "created_at": time.time(),
-                    "ttl": settings.semantic_cache_ttl,
-                },
-            )
-            await asyncio.to_thread(
-                self._qdrant.upsert,
-                self._collection_name,
-                points=[point],
-            )
-            try:
-                from app.metrics import CACHE_HIT_RATIO
-
-                CACHE_HIT_RATIO.labels(cache_type="semantic_qdrant").set(1.0)
-            except Exception:
-                pass
-            return True
-        except Exception as e:
-            logger.warning(f"Qdrant semantic cache store failed: {e}")
-            return False
-
-    @property
-    def is_available(self) -> bool:
-        return self._available
-
-    async def clear(self) -> None:
-        if self._qdrant is None:
-            return
-        try:
-            import asyncio
-
-            await asyncio.to_thread(self._qdrant.delete_collection, self._collection_name)
-            self._available = False
-            await self.initialize()
-        except Exception as e:
-            logger.warning(f"Qdrant semantic cache clear failed: {e}")
-
-    async def count(self) -> int:
-        if not self._available or self._qdrant is None:
-            return 0
-        try:
-            import asyncio
-
-            result = await asyncio.to_thread(self._qdrant.count, self._collection_name)
-            return result.count if hasattr(result, "count") else 0
-        except Exception:
-            return 0
+# NOTE: The dead `QdrantSemanticCache` class that previously lived here has been
+# removed (Task H1.1). It called `self._qdrant.search(...)` / `self._qdrant.upsert(...)`,
+# which do not exist on QdrantService, so it would have crashed if activated. The
+# canonical Qdrant+Redis semantic cache is `SemanticCacheAdapter` in
+# `services/cache/semantic_adapter.py`, selected by `services/cache/factory.py`.
