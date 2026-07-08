@@ -83,12 +83,27 @@ const AuthPage = () => {
           const isSchemaGap = msg.includes('404') || msg.includes('does not exist') || msg.includes('could not find') || msg.includes('function');
           if (!isSchemaGap) {
             console.error('[Auth] ensure_profile_and_role failed', ensureErr);
+            // H2.6: surface profile setup failures so the user knows their
+            // profile/role provisioning didn't complete (not silently swallowed).
+            toast({
+              title: 'Profile setup incomplete',
+              description: 'We could not finish setting up your profile. Some features may be limited — please retry from Settings if needed.',
+              variant: 'destructive',
+              duration: 6000,
+            });
           }
         } else {
           console.info('[Auth] ensure_profile_and_role', ensured);
         }
       } catch (rpcErr) {
         console.error('[Auth] ensure_profile_and_role threw', rpcErr);
+        // H2.6: also surface thrown errors so the failure isn't silent.
+        toast({
+          title: 'Profile setup incomplete',
+          description: 'A server error occurred while provisioning your profile. Please retry later.',
+          variant: 'destructive',
+          duration: 6000,
+        });
       }
     };
 

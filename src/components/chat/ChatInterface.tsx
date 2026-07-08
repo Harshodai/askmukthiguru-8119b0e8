@@ -633,11 +633,27 @@ export const ChatInterface = () => {
 
     // Translate non-English input → English for the AI. User already sees
     // their original text; this only affects what we forward downstream.
+    // NOTE (H2.7): this runs AFTER the user message is appended and the input
+    // is cleared (lines above), so it cannot block user message rendering or
+    // input clearing. Instrumented below to confirm that contract holds.
     let textForAI = textToSend.trim();
     if (translateActive) {
+      const translateT0 = performance.now();
       try {
         textForAI = await translateToEnglish(textToSend.trim());
+        const translateMs = Math.round(performance.now() - translateT0);
+        console.info('[Translation] translateToEnglish', {
+          ms: translateMs,
+          blockedRender: false,
+          inputLen: textToSend.trim().length,
+          outputLen: textForAI.length,
+        });
       } catch {
+        const translateMs = Math.round(performance.now() - translateT0);
+        console.warn('[Translation] translateToEnglish failed (fail-safe used)', {
+          ms: translateMs,
+          blockedRender: false,
+        });
         // fail-safe: continue with original text
       }
     }
