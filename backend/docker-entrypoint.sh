@@ -34,13 +34,26 @@ if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
     echo "Warming cache in the background..."
     gosu appuser python -m scripts.warm_cache > /app/data/warm_cache.log 2>&1 &
 
-    echo "Starting uvicorn with WEB_CONCURRENCY=${WEB_CONCURRENCY} workers..."
+    echo "Starting server with WEB_CONCURRENCY=${WEB_CONCURRENCY} workers..."
     echo "Dropping privileges to appuser..."
-    exec gosu appuser python -m uvicorn app.main:app \
-        --host 0.0.0.0 \
-        --port 8000 \
-        --workers "${WEB_CONCURRENCY}" \
-        --timeout-keep-alive 300
+    if [ "${WEB_CONCURRENCY}" -gt 1 ]; then
+        # Gunicorn with uvicorn workers for proper process isolation (worker crash
+        # doesn't bring down the master; master respawns crashed workers).
+        exec gosu appuser gunicorn app.main:app \
+            --worker-class uvicorn.workers.UvicornWorker \
+            --workers "${WEB_CONCURRENCY}" \
+            --bind 0.0.0.0:8000 \
+            --timeout 300 \
+            --keep-alive 300 \
+            --max-requests 1000 \
+            --max-requests-jitter 100 \
+            --graceful-timeout 60
+    else
+        exec gosu appuser python -m uvicorn app.main:app \
+            --host 0.0.0.0 \
+            --port 8000 \
+            --timeout-keep-alive 300
+    fi
 fi
 
 # Celery worker — drop privileges like uvicorn

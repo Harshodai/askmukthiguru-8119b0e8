@@ -23,6 +23,7 @@ the stage bodies are verbatim moves, not rewrites.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -108,7 +109,34 @@ class PipelineCoordinator:
             chat_body_messages=chat_body_messages,
         )
 
-        result = await StageRunner.run(build_default_pipeline(), ctx, coordinator=self)
+        try:
+            result = await asyncio.wait_for(
+                StageRunner.run(build_default_pipeline(), ctx, coordinator=self),
+                timeout=settings.pipeline_timeout + 60,
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                "Pipeline timed out for user %s: message='%s' trace='%s'",
+                user_id, user_msg[:60], trace_id,
+            )
+            latency_ms = int((time.time() - start_time) * 1000)
+            return PipelineResult(
+                final_answer="The Guru took too long to respond. Please try again.",
+                intent="TIMEOUT", trace_id=trace_id, latency_ms=latency_ms,
+                model_used=None, model_provider=None, route_decision="timeout",
+            )
+        except Exception:
+            logger.exception(
+                "Pipeline crashed for user %s: message='%s' trace='%s'",
+                user_id, user_msg[:60], trace_id,
+            )
+            latency_ms = int((time.time() - start_time) * 1000)
+            return PipelineResult(
+                final_answer="The Guru encountered an error. Please try again.",
+                intent="ERROR", trace_id=trace_id, latency_ms=latency_ms,
+                model_used=None, model_provider=None, route_decision="error",
+            )
+
         if result is None:
             # ponytail: defensive — ResultAssemblyStage is terminal, but guard anyway
             latency_ms = int((time.time() - start_time) * 1000)

@@ -68,7 +68,7 @@ COPY backend/docker-entrypoint.sh /app/docker-entrypoint.sh
 EXPOSE 8000
 
 # Health check — long start period for ML model download/loading
-HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=5 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=420s --retries=8 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Run with entrypoint

@@ -329,3 +329,27 @@ PORT=8000
 > [!NOTE]
 > These are estimates. Sarvam 30B is a MoE model with only 2.4B active parameters,
 > so it's significantly faster than a full 30B dense model.
+
+---
+
+## 🔒 Web Application Firewall (WAF) Requirement
+
+**Required before production deployment.** A WAF (Cloudflare, AWS WAF, or equivalent) must be in front of the public-facing endpoint.
+
+### Why
+- The `/api/chat` endpoint is LLM-powered and can be abused for prompt injection
+- Rate limiting at the application layer catches basic abuse, but WAF provides defense-in-depth against DDoS, parameter pollution, and bot attacks
+- Prevents direct exposure of backend services (Qdrant, Redis, Neo4j)
+
+### Recommended Rules
+- **Rate limiting**: 100 req/min per IP to `/api/*`
+- **Block known bot IP ranges** and TOR exit nodes
+- **SQLi/NoSQLi pattern blocking** on all query parameters
+- **Enforce HTTPS** with HSTS headers
+- **Block direct IP access** — only allow traffic through the domain
+
+### WAF Bypass Testing
+After enabling WAF, run:
+```bash
+while true; do curl -s -o /dev/null -w "%{http_code}\n" https://yourdomain.com/api/health && break; done
+```

@@ -3087,21 +3087,23 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Key**: Thread pool size for ML inference: `EMBED_THREAD_WORKERS` env var. Default auto-detects from CPU count. Docker: 1 worker. Railway/K8s (2+ CPUs): 2 workers.
 
 ### asyncio.TaskGroup replaces gather() for structured exception propagation
-- **Problem**: `asyncio.gather(vector_task, graph_task)` silently swallows exceptions when not using `return_exceptions=True`, or returns a mixed list of results and errors when `return_exceptions=True`. Either way, error diagnosis is hard.
+- **Problem**: `asyncio.gather(vector_task, graph_task)` propagates the first exception by default (re-raises immediately). When `return_exceptions=True` is used, it instead returns a mixed list of results and exceptions, making error handling more complex. Neither mode cancels the sibling tasks on failure.
 - **Fix**: Replaced with `asyncio.TaskGroup` (Python 3.11+). On first exception, all sibling tasks are immediately cancelled. `except* Exception` catches the `ExceptionGroup` and re-raises the root cause cleanly.
-- **Pattern**: Use `TaskGroup` for structured concurrency in new Python code. `asyncio.gather` is fine for fire-and-forget fan-out but avoid it for tasks that should fail atomically.
+- **Pattern**: Use `TaskGroup` for structured concurrency in new Python code. `asyncio.gather` is fine for independent fan-out where all results are needed regardless of partial failures, but avoid it for tasks that should fail atomically.
 
-### lru_cache on classification functions: return tuple not list
+### lru_cache on classification functions: inputs must be hashable
 - **Problem**: `classify_doctrine_query()` re-ran an O(N·M) category pattern scan on every call. Same query (e.g., "what is deeksha") hit this multiple times per request.
-- **Fix**: Added `@lru_cache(maxsize=1024)`. Changed return type from `list[str]` to `tuple[str, ...]` — lru_cache requires hashable return types and arguments.
-- **Pattern**: Any pure function that: (a) takes only hashable args (str, int, tuple), (b) is deterministic, (c) is called repeatedly with the same inputs → add `@lru_cache`. Return tuples not lists when the caller just iterates.
+- **Fix**: Added `@lru_cache(maxsize=1024)`. `lru_cache` requires hashable *arguments* (not the return value) — `str` arguments are already hashable, so the cache works without changing the return type.
+- **Note**: The return type was changed from `list[str]` to `tuple[str, ...]` as an optional API choice — tuples signal immutable intent and prevent callers from accidentally mutating the cached result. This is a design choice, not a caching requirement.
+- **Pattern**: Any pure function that: (a) takes only hashable args (str, int, tuple — NOT list/dict), (b) is deterministic, (c) is called repeatedly → add `@lru_cache`. Return tuples instead of lists when you want to communicate immutability of the result.
 
 ### dataclass(slots=True, frozen=True) for hot-path domain structs
 - **Fix**: Created `domain/retrieval_types.py` with `RetrievedDoc` and `RetrievalBatch` using `slots=True, frozen=True`. Added `to_dict()` backward-compat shim and `from_dict()` for incremental migration from plain dicts.
 - **Pattern**: slots=True eliminates `__dict__` per instance (~50 bytes). frozen=True makes instances hashable (can use in sets, as dict keys, in lru_cache). Requires Python ≥ 3.10. Always add `to_dict()` shim when migrating from dict-heavy codebases.
 
-### Kubernetes ML deployment: Guaranteed QoS prevents OOMKill
-- **Pattern**: For pods that load large ML models (BGE-M3 = 1.6GB), always set `resources.requests == resources.limits` to get Guaranteed QoS class. This prevents the K8s scheduler from evicting the pod during model load peaks. Set `readinessProbe.initialDelaySeconds` to the full model load time (7+ min for this stack). Use `startupProbe` to disable liveness during cold starts.
+### Kubernetes ML deployment: Guaranteed QoS reduces eviction pressure
+- **Pattern**: For pods that load large ML models (BGE-M3 = 1.6GB), setting `resources.requests == resources.limits` achieves Guaranteed QoS class, which reduces the likelihood of eviction under node memory pressure. However, this does **not** prevent OOMKill — if the container exceeds its memory *limit* (e.g. during peak model load), the kernel will still OOMKill it. Mitigate by setting the limit generously above the model's peak RSS, and monitor with `kubectl top pod`.
+- **Probe guidance**: Set `readinessProbe.initialDelaySeconds` to the full model load time (7+ min for this stack). Use `startupProbe` to disable the liveness check during cold starts, preventing premature pod restarts.
 - **Railway → K8s migration notes**: Railway uses `healthcheckPath`/`healthcheckTimeout`; K8s uses `readinessProbe`/`livenessProbe`/`startupProbe`. Railway auto-detects PORT env var; K8s requires explicit containerPort. Railway env vars → K8s Secrets + ConfigMap.
 
 ### ErrorResponse contract: machine-readable codes over string detail

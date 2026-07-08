@@ -11,12 +11,16 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 # Self-correction counter — tracks repeated coverage failures per query pattern
 # (self-improving-agent: >3 failures flags the doctrine category for review)
+# Bounded at _MAX_FAILURE_ENTRIES to prevent unbounded growth; oldest entry
+# evicted when the cap is reached (LRU-style: pop the first inserted key).
 _coverage_failures: dict[str, int] = {}
+_MAX_FAILURE_ENTRIES: int = 500
 
 
 # Doctrine categories with their keywords and patterns
@@ -106,22 +110,50 @@ def classify_doctrine_query(query: str) -> tuple[str, ...]:
     return tuple(matched)
 
 
-def _note_coverage_failure(query: str) -> None:
-    """Record a doctrine coverage miss; log when threshold exceeded (self-correction)."""
+def _note_coverage_failure(query: str, request_id: Optional[str] = None) -> None:
+    """Record a doctrine coverage miss; log when threshold exceeded (self-correction).
+
+    Args:
+        query: The original user query (truncated to 80 chars for the key).
+        request_id: RAG request ID for log correlation; included in warning extra.
+    """
+    global _coverage_failures
     key = query[:80]  # Normalise long queries to a fixed-width key
+
+    # Bounded retention: evict oldest entry when cap is reached
+    if key not in _coverage_failures and len(_coverage_failures) >= _MAX_FAILURE_ENTRIES:
+        oldest_key = next(iter(_coverage_failures))
+        del _coverage_failures[oldest_key]
+
     _coverage_failures[key] = _coverage_failures.get(key, 0) + 1
     if _coverage_failures[key] >= 3:
         logger.warning(
             "Doctrine coverage repeatedly failing — category patterns may need updating",
-            extra={"query_prefix": key, "failures": _coverage_failures[key]},
+            extra={
+                "query_prefix": key,
+                "failures": _coverage_failures[key],
+                "request_id": request_id,
+            },
         )
 
 
-def inject_doctrine_keywords(query: str, top_k: int = 3) -> str:
-    """Inject top-k doctrine keywords into query for retrieval."""
+def inject_doctrine_keywords(
+    query: str,
+    top_k: int = 3,
+    request_id: Optional[str] = None,
+) -> str:
+    """Inject top-k doctrine keywords into query for retrieval.
+
+    Args:
+        query: The user query to enrich.
+        top_k: Maximum keywords to inject per matched category.
+        request_id: RAG request ID for failure log correlation.
+    """
     # classify returns tuple — iterate normally
     categories = classify_doctrine_query(query)
     if not categories:
+        # Record miss for self-correction; includes request_id for log correlation
+        _note_coverage_failure(query, request_id=request_id)
         return query
 
     keywords = []

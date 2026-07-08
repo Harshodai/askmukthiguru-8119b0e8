@@ -53,12 +53,23 @@ class RetrievedDoc:
 
     @classmethod
     def from_dict(cls, d: dict) -> RetrievedDoc:
-        """Construct from legacy dict format (for incremental migration)."""
+        """Construct from legacy dict format (for incremental migration).
+
+        Fallback logic: only falls back to alias key when the primary key is
+        absent (KeyError / None), NOT when it is an empty string. This preserves
+        legitimate empty-string values (e.g. a document with no content yet).
+        """
+        raw_content = d.get("content")
+        content = raw_content if raw_content is not None else d.get("text", "")
+
+        raw_doc_id = d.get("doc_id")
+        doc_id = raw_doc_id if raw_doc_id is not None else d.get("id", "")
+
         return cls(
-            content=d.get("content") or d.get("text", ""),
+            content=content,
             score=float(d.get("score", 0.0)),
             source_url=d.get("source_url", ""),
-            doc_id=d.get("doc_id") or d.get("id", ""),
+            doc_id=doc_id,
             collection=d.get("collection", "default"),
             doc_type=d.get("doc_type", "text"),
         )
