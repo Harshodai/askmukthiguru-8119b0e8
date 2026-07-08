@@ -10,6 +10,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.telemetry_db import (
     get_admins,

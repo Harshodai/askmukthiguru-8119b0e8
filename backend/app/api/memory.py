@@ -5,11 +5,11 @@ from __future__ import annotations
 import datetime as _dt
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.dependencies import ServiceContainer, get_container
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import auth_bridge, get_current_user_from_supabase
 from services.user_profile_service import SpiritualLevel
 
 router = APIRouter(tags=["Memory"])
@@ -338,3 +338,59 @@ async def list_conversation_continuity_endpoint(
             "follow_up_suggestions": m.follow_up_suggestions or [],
         })
     return out
+
+
+class KGNode(BaseModel):
+    id: str
+    label: str
+    type: str
+    teacher: str | None = None
+
+
+class KGEdge(BaseModel):
+    source: str
+    target: str
+    label: str | None = None
+
+
+class PersonalKGResponse(BaseModel):
+    nodes: list[KGNode]
+    edges: list[KGEdge]
+    count: int
+
+
+@router.get("/memory/knowledge-graph", response_model=PersonalKGResponse)
+async def personal_knowledge_graph_endpoint(
+    request: Request,
+    container: ServiceContainer = Depends(get_container),
+) -> PersonalKGResponse:
+    """Return the user's personal knowledge graph.
+
+    With Supabase auth: returns full graph (memories + ontology concepts + edges).
+    Without auth (public): returns ontology concepts only (Teachers, Concepts, Practices).
+    Public view shows the spiritual knowledge base structure even to non-logged-in users.
+    """
+    svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
+    if svc is None:
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+
+    # Try auth; fallback to public ontology view
+    user_id = None
+    try:
+        _token = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            from fastapi.security.http import HTTPAuthorizationCredentials
+            _token = HTTPAuthorizationCredentials(scheme="Bearer", credentials=auth_header[7:])
+        user = await auth_bridge.get_user(request, _token)
+        if user and user.get("id"):
+            user_id = user["id"]
+    except Exception:
+        pass
+
+    result = await svc.build_personal_knowledge_graph(user_id)
+    return PersonalKGResponse(
+        nodes=[KGNode(**n) for n in result["nodes"]],
+        edges=[KGEdge(**e) for e in result["edges"]],
+        count=len(result["nodes"]),
+    )

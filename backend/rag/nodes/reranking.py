@@ -247,55 +247,41 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             f"CRAG batch: DISTRESS intent, bypassing grading, accepted {len(relevant)} docs"
         )
     else:
-        # Grade ALL docs — web search must pass relevance too (finding #44)
+        # Grade ALL docs in a single batch LLM call (web + db combined)
         web_docs = [doc for doc in reranked_docs if doc.get("content_type") == "web_search"]
         db_docs = [doc for doc in reranked_docs if doc.get("content_type") != "web_search"]
 
         relevant_web = []
-        web_reasons = []
-
-        if web_docs:
-            try:
-                web_texts = [doc["text"] for doc in web_docs]
-                t_out_web = get_node_timeout("grade_documents", 20.0)
-                web_results = await ollama.grade_relevance(
-                    question=question, doc_texts=web_texts, timeout=t_out_web
-                )
-                for doc, res in zip(web_docs, web_results):
-                    if res["relevant"]:
-                        relevant_web.append(doc)
-                    web_reasons.append(res["reason"])
-            except Exception as e:
-                # Unit 9 fail-safe: if web grading raises, keep only the top-3
-                # reranked web docs instead of unconditionally accepting all of them.
-                logger.warning(
-                    f"Grading failed for web docs: {e}. Falling back to top-3 reranked web docs."
-                )
-                relevant_web = web_docs[:3]
-                web_reasons = [f"Grading fallback: {e}" for _ in relevant_web]
-
         relevant_db = []
-        db_reasons = []
+        all_reasons = []
 
-        if db_docs:
+        all_docs = web_docs + db_docs
+        if all_docs:
             try:
-                doc_texts = [doc["text"] for doc in db_docs]
+                doc_texts = [doc["text"] for doc in all_docs]
                 t_out = get_node_timeout("grade_documents", 20.0)
-                relevance_results = await ollama.grade_relevance(question=question, doc_texts=doc_texts, timeout=t_out)
-                for doc, res in zip(db_docs, relevance_results):
-                    if res["relevant"]:
-                        relevant_db.append(doc)
-                    db_reasons.append(res["reason"])
-            except Exception as e:
-                # Unit 9 fail-safe (same pattern as the web-docs branch above):
-                # keep only the top-3 reranked docs instead of unconditionally
-                # accepting every retrieved doc, which inverted CRAG's entire
-                # purpose (filter-on-failure becoming accept-everything-on-failure).
-                logger.warning(
-                    f"Grading failed for DB docs: {e}. Falling back to top-3 reranked DB docs."
+                all_results = await ollama.grade_relevance(
+                    question=question, doc_texts=doc_texts, timeout=t_out
                 )
-                relevant_db = db_docs[:3]
-                db_reasons = [f"Grading fallback: {e}" for _ in relevant_db]
+                for doc, res in zip(all_docs, all_results):
+                    is_web = doc.get("content_type") == "web_search"
+                    if res["relevant"]:
+                        if is_web:
+                            relevant_web.append(doc)
+                        else:
+                            relevant_db.append(doc)
+                    all_reasons.append(res["reason"])
+            except Exception as e:
+                logger.warning(
+                    f"Grading failed for all docs: {e}. Falling back to top-3 reranked docs."
+                )
+                top3 = all_docs[:3]
+                for doc in top3:
+                    if doc.get("content_type") == "web_search":
+                        relevant_web.append(doc)
+                    else:
+                        relevant_db.append(doc)
+                all_reasons = [f"Grading fallback: {e}" for _ in top3]
 
         # Compress only the relevant DB documents (do not compress temporal web search results)
         if relevant_db:
@@ -312,7 +298,18 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
                 logger.warning(f"Document compression failed: {e}. Keeping uncompressed.")
 
         relevant = relevant_web + relevant_db
-        state["grading_reasons"] = web_reasons + db_reasons
+        state["grading_reasons"] = all_reasons
+
+    # Compute context sufficiency from grading results (replaces separate check_context_sufficiency node)
+    # Context is sufficient when at least 2 relevant docs exist with reasonable scores,
+    # OR there are any relevant docs with scores above the high-confidence threshold.
+    context_sufficient = True
+    if relevant:
+        high_conf_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.75]
+        moderate_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.5]
+        context_sufficient = len(high_conf_docs) >= 1 or len(moderate_docs) >= 2
+    else:
+        context_sufficient = False
 
     if reranked_docs:
         try:
@@ -321,9 +318,13 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         except Exception:
             pass
 
-    logger.info(f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check")
+    logger.info(
+        f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check "
+        f"(context_sufficient={context_sufficient})"
+    )
     return {
         "relevant_docs": relevant,
+        "_context_sufficient": context_sufficient,
         "evaluation_trace": _trace_update(
             state,
             relevant_count=len(relevant),

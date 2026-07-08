@@ -169,3 +169,46 @@ def test_intent_module_imports_without_indentation_error():
 
     source = intent_mod.__loader__.get_source(intent_mod.__name__)
     ast.parse(source)
+
+
+class TestHeuristicFollowup:
+    """Tests for _is_followup_heuristic in intent.py."""
+
+    def _detect(self, question: str, chat_history: list | None = None) -> bool:
+        from rag.nodes.intent import _is_followup_heuristic
+        return _is_followup_heuristic(question, chat_history or [])
+
+    def test_followup_phrase_detected(self):
+        """Multi-word follow-up phrases must be detected."""
+        chat = [{"role": "user", "content": "What is karma?"},
+                {"role": "assistant", "content": "Karma is action."}]
+        assert self._detect("tell me more", chat)
+        assert self._detect("what about that", chat)
+        assert self._detect("explain more about this", chat)
+        assert self._detect("can you elaborate on that", chat)
+        assert self._detect("go deeper", chat)
+
+    def test_referential_pronoun_short_query(self):
+        """Short query with referential pronoun must be detected."""
+        chat = [{"role": "user", "content": "What is the Beautiful State?"}]
+        assert self._detect("tell me about it", chat)
+        assert self._detect("what is that", chat)
+        assert self._detect("explain this", chat)
+
+    def test_standalone_topic_not_followup(self):
+        """Fresh topic query without references must NOT be detected."""
+        chat = [{"role": "user", "content": "What is karma?"}]
+        assert not self._detect("What is the Beautiful State?", chat)
+        assert not self._detect("How do I meditate?", chat)
+
+    def test_no_history_not_followup(self):
+        """No chat history → never a follow-up."""
+        assert not self._detect("tell me more", [])
+        assert not self._detect("what is that", [])
+        assert not self._detect("hello", [])
+
+    def test_empty_string_not_followup(self):
+        """Empty query must not crash or be detected."""
+        chat = [{"role": "user", "content": "hi"}]
+        assert not self._detect("", chat)
+        assert not self._detect("   ", chat)

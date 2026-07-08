@@ -14,12 +14,21 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Optional
 
 # Silence Hugging Face tokenizer advisory warnings in logs
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 
 from app.config import settings
+
+from app.metrics import (
+    EMBEDDING_CACHE_OPS,
+    EMBEDDING_CACHE_SIZE,
+    EMBEDDING_ERRORS,
+    EMBEDDING_LATENCY,
+    EMBEDDING_MODEL_FALLBACK,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +173,7 @@ class EmbeddingService:
             )
 
     def _ensure_encoder(self) -> None:
-        """Lazy-load the encoder model with robust fallback support."""
+        """Lazy-load the encoder model with multi-tier fallback support."""
         if self._encoder is not None:
             return
         with self._lock:
@@ -174,43 +183,52 @@ class EmbeddingService:
             device = self._get_device()
             logger.info(f"Dynamic device selection: using {device} for local models")
 
-            fallback_map = {
-                "intfloat/multilingual-e5-small": ("intfloat/multilingual-e5-large-instruct", 1024),
-                "intfloat/multilingual-e5-large-instruct": ("intfloat/multilingual-e5-small", 384),
-                "BAAI/bge-m3": ("intfloat/multilingual-e5-small", 384),
+            FALLBACK_CHAIN = [
+                settings.embedding_model,
+                "intfloat/multilingual-e5-small",
+                "BAAI/bge-small-en-v1.5",
+                "sentence-transformers/all-MiniLM-L6-v2",
+            ]
+            FALLBACK_DIMS = {
+                "intfloat/multilingual-e5-small": 384,
+                "intfloat/multilingual-e5-large-instruct": 1024,
+                "BAAI/bge-small-en-v1.5": 384,
+                "sentence-transformers/all-MiniLM-L6-v2": 384,
             }
 
-            try:
-                # Attempt to load primary model
-                self._load_encoder(settings.embedding_model, device)
-            except Exception as e:
-                logger.warning(
-                    f"⚠️ Failed to load primary embedding model '{settings.embedding_model}': {e}. "
-                    "Attempting to switch to fallback model..."
-                )
-                
-                # Retrieve fallback details
-                fallback_info = fallback_map.get(settings.embedding_model)
-                if not fallback_info:
-                    if settings.embedding_model == "intfloat/multilingual-e5-small":
-                        fallback_info = ("intfloat/multilingual-e5-large-instruct", 1024)
-                    else:
-                        fallback_info = ("intfloat/multilingual-e5-small", 384)
-
-                fallback_model, fallback_dim = fallback_info
-                logger.info(f"Switching config to fallback model: {fallback_model} (dimension {fallback_dim})")
-                
-                # Update settings dynamically
-                settings.embedding_model = fallback_model
-                settings.embedding_dimension = fallback_dim
-                
-                # Retry loading with fallback model
+            last_error = None
+            for i, model_name in enumerate(FALLBACK_CHAIN):
                 try:
-                    self._load_encoder(settings.embedding_model, device)
-                    logger.info(f"✅ Successfully loaded fallback embedding model '{settings.embedding_model}'")
-                except Exception as ex:
-                    logger.error(f"❌ Failed to load both primary and fallback models: {ex}", exc_info=True)
-                    raise ex
+                    self._load_encoder(model_name, device)
+                    logger.info(
+                        f"Successfully loaded embedding model '{model_name}'"
+                    )
+                    if model_name != settings.embedding_model:
+                        settings.embedding_model = model_name
+                        if model_name in FALLBACK_DIMS:
+                            settings.embedding_dimension = FALLBACK_DIMS[model_name]
+                        logger.info(
+                            f"Config updated: model={model_name}, "
+                            f"dim={settings.embedding_dimension}"
+                        )
+                    return
+                except Exception as e:
+                    last_error = e
+                    logger.warning(
+                        f"Failed to load embedding model '{model_name}': {e}."
+                    )
+                    if i + 1 < len(FALLBACK_CHAIN):
+                        EMBEDDING_MODEL_FALLBACK.labels(
+                            from_model=model_name,
+                            to_model=FALLBACK_CHAIN[i + 1],
+                        ).inc()
+
+            logger.error(
+                f"Failed to load all {len(FALLBACK_CHAIN)} embedding models. "
+                f"Tried: {', '.join(FALLBACK_CHAIN)}. Last error: {last_error}",
+                exc_info=True,
+            )
+            raise last_error
 
     def _ensure_reranker(self) -> None:
         """Lazy-load the reranker model."""
@@ -247,6 +265,9 @@ class EmbeddingService:
         — ColBERTv2 is an optional quality boost, not a hard dependency. The
         warning below is logged loudly (not silently) so operators know the
         fallback is active and can pre-download the model if they want it.
+
+        If the primary ColBERT model fails, an alternative (``colbert-ir/colbertv2.0``
+        → ``jina-colbert/v1-base-en``) is attempted before degrading to CrossEncoder.
         """
         if self._colbert is not None:
             return
@@ -254,25 +275,34 @@ class EmbeddingService:
             if self._colbert is not None:
                 return
             self._thread_setup()
-            try:
-                from ragatouille import RAGPretrainedModel
+            for model_name in ("colbert-ir/colbertv2.0", "jina-colbert/v1-base-en"):
+                try:
+                    from ragatouille import RAGPretrainedModel
 
-                logger.info("Loading ColBERTv2 reranker (RAGatouille)")
-                self._colbert = RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")
-            except (ImportError, ModuleNotFoundError):
-                logger.info(
-                    "ColBERTv2 (RAGatouille) is not installed (optional). "
-                    "Cascaded reranking will fallback to pure CrossEncoder."
-                )
-                self._colbert = False
-            except Exception as e:
+                    logger.info(f"Loading ColBERTv2 reranker (RAGatouille): {model_name}")
+                    self._colbert = RAGPretrainedModel.from_pretrained(model_name)
+                    return
+                except (ImportError, ModuleNotFoundError):
+                    logger.info(
+                        "ColBERTv2 (RAGatouille) is not installed (optional). "
+                        "Cascaded reranking will fallback to pure CrossEncoder."
+                    )
+                    self._colbert = False
+                    break
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to load RAGatouille ColBERT model '{model_name}': {e}. "
+                        f"Attempting next ColBERT model alternative if available."
+                    )
+                    self._colbert = False
+            if self._colbert is False:
                 logger.warning(
-                    f"Failed to load RAGatouille ColBERTv2: {e}. "
+                    "ColBERTv2 unavailable — all model attempts failed. "
                     "Falling back to pure CrossEncoder reranking (active path). "
-                    "To enable ColBERTv2, pre-download 'colbert-ir/colbertv2.0' "
-                    "to the HF cache or ensure network access at startup."
+                    "To enable ColBERTv2, run: pip install ragatouille>=2.0.0 && "
+                    "python -c 'from ragatouille import RAGPretrainedModel; "
+                    "RAGPretrainedModel.from_pretrained(\"colbert-ir/colbertv2.0\")'"
                 )
-                self._colbert = False
 
     def _ensure_models(self) -> None:
         """Lazy-load all models (backward compatibility)."""
@@ -293,6 +323,7 @@ class EmbeddingService:
         if not texts:
             return []
 
+        start_time = time.monotonic()
         with self._inference_lock:
             self._ensure_encoder()
             is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
@@ -310,29 +341,35 @@ class EmbeddingService:
                                 return_sparse=False,
                                 return_colbert_vecs=False,
                             )
-                            return output["dense_vecs"].tolist()
+                            result = output["dense_vecs"].tolist()
                         else:
                             output = self._encoder.encode(
                                 texts,
                                 normalize_embeddings=True,
                             )
                             if isinstance(output, list):
-                                return output
-                            return output.tolist()
+                                result = output
+                            else:
+                                result = output.tolist()
+                    EMBEDDING_LATENCY.labels(operation="encode").observe(
+                        time.monotonic() - start_time
+                    )
+                    return result
                 except Exception as e:
                     last_err = e
+                    EMBEDDING_ERRORS.labels(operation="encode").inc()
                     logger.warning(
                         f"Dense embedding failed on attempt {attempt}/{max_retries}: {e}. "
                         f"Performing garbage collection and retrying in 2 seconds..."
                     )
                     import gc
-                    import time
 
                     gc.collect()
                     time.sleep(2)
 
             logger.error(
-                f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
+                f"All {max_retries} attempts to encode dense failed. "
+                f"Raising last error: {last_err}"
             )
             raise last_err
 
@@ -364,9 +401,11 @@ class EmbeddingService:
             cached = self._embed_cache.get(prefixed_text)
             if cached is not None:
                 cached_embeddings.append((i, cached))
+                EMBEDDING_CACHE_OPS.labels(result="hit").inc()
             else:
                 uncached_indices.append(i)
                 uncached_prefixed_texts.append(prefixed_text)
+                EMBEDDING_CACHE_OPS.labels(result="miss").inc()
 
         # If all are cached, return immediately
         if not uncached_prefixed_texts:
@@ -381,6 +420,7 @@ class EmbeddingService:
                 "sparse": sparse_results,
             }
 
+        start_time = time.monotonic()
         with self._inference_lock:
             self._ensure_encoder()
             is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
@@ -426,12 +466,12 @@ class EmbeddingService:
                     # Build results in original order
                     dense_results = [None] * len(texts)
                     sparse_results = [None] * len(texts)
- 
+  
                     # Fill cached results
                     for idx, emb in cached_embeddings:
                         dense_results[idx] = emb["dense"]
                         sparse_results[idx] = emb["sparse"]
- 
+  
                     # Fill newly computed results
                     for i, idx in enumerate(uncached_indices):
                         dense_results[idx] = dense_vecs[i]
@@ -446,24 +486,28 @@ class EmbeddingService:
                         }
                         self._embed_cache.put(prefixed_text, embedding_result)
 
+                    EMBEDDING_LATENCY.labels(operation="encode_batch").observe(
+                        time.monotonic() - start_time
+                    )
                     return {
                         "dense": dense_results,
                         "sparse": sparse_results,
                     }
                 except Exception as e:
                     last_err = e
+                    EMBEDDING_ERRORS.labels(operation="encode_batch").inc()
                     logger.warning(
                         f"Embedding failed on attempt {attempt}/{max_retries}: {e}. "
                         f"Performing garbage collection and retrying in 2 seconds..."
                     )
                     import gc
-                    import time
 
                     gc.collect()
                     time.sleep(2)
 
             logger.error(
-                f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
+                f"All {max_retries} attempts to encode batch failed. "
+                f"Raising last error: {last_err}"
             )
             raise last_err
 

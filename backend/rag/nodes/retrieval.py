@@ -799,13 +799,19 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # expansion-generated queries (capped at 6 total). RRF reranking later
     # is order-independent so this does not change the result set quality.
     #
+    # Feature-flagged: set rag_skip_retrieval_expansions=true to skip the
+    # LLM expansion call (saves 1 LLM call on standard/deep paths).
+    #
     # --- LEGACY (preserved per "do not delete, just comment") ---
     # expansion_queries: list[str] = await _llm_retrieval_expansions(state)
     # if expansion_queries:
     #     logger.info(...)
     # sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
     # ------------------------------------------------------------
-    expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
+    if not getattr(settings, "rag_skip_retrieval_expansions", False):
+        expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
+    else:
+        expansion_task = None
 
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
@@ -884,11 +890,13 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     # Now consume the (likely already-completed) expansion task.
     # Cap total retrievals at 6 to bound LLM/Qdrant load.
-    try:
-        expansion_queries = await expansion_task
-    except Exception as exp_err:
-        logger.warning(f"LLM retrieval expansion failed (non-fatal): {exp_err}")
-        expansion_queries = []
+    expansion_queries = []
+    if expansion_task is not None:
+        try:
+            expansion_queries = await expansion_task
+        except Exception as exp_err:
+            logger.warning(f"LLM retrieval expansion failed (non-fatal): {exp_err}")
+            expansion_queries = []
 
     expansion_results: list = []
     remaining_budget = max(0, 6 - len(primary_queries))

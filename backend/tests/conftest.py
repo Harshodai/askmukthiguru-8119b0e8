@@ -39,6 +39,45 @@ limiter.enabled = False
 
 import asyncio
 import pytest
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@pytest.fixture
+def supabase_client():
+    """Provide a real Supabase client if SUPABASE_URL and SUPABASE_KEY are set.
+
+    Skips the test with a clear message if either env var is missing,
+    allowing tests to run in CI or environments without Supabase.
+    """
+    from app.config import settings
+
+    supabase_url = settings.supabase_url
+    supabase_key = settings.supabase_key
+
+    if not supabase_url or not supabase_key or supabase_key == "":
+        pytest.skip(
+            "SUPABASE_URL or SUPABASE_KEY not set — skipping Supabase integration test. "
+            "Set both in backend/.env or backend/.env.test to run."
+        )
+
+    try:
+        from supabase import create_client
+
+        client = create_client(supabase_url, supabase_key)
+        # Verify connectivity with a lightweight request
+        try:
+            client.table("_prisma_migrations").select("*", count="exact").limit(1).execute()
+        except Exception:
+            pytest.skip(
+                f"Supabase at {supabase_url} is not reachable — "
+                "start the local Supabase stack with 'npx supabase start'"
+            )
+        logger.info("Supabase client initialized for %s", supabase_url)
+        yield client
+    except Exception as e:
+        pytest.skip(f"Supabase client initialization failed: {e}")
 
 
 @pytest.fixture(autouse=True)

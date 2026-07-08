@@ -250,6 +250,19 @@ class ServiceContainer:
         else:
             self.llm_queue = None
 
+        # Request Queue (Phase 1 — horizontal scaling stub)
+        if settings.use_request_queue:
+            from app.queue.redis_stream_queue import RedisStreamQueue
+            self.request_queue = RedisStreamQueue(
+                redis_url=settings.redis_url,
+                consumer_group="backend-workers",
+            )
+            logger.info("RequestQueue: initialized RedisStreamQueue")
+        else:
+            from app.queue.in_process_queue import InProcessQueue
+            self.request_queue = InProcessQueue()
+            logger.info("RequestQueue: initialized InProcessQueue (no-op — USE_REQUEST_QUEUE=false)")
+
         # Web Search (real-time temporal queries, config-gated)
         if settings.web_search_enabled:
             # Load dynamic allowed domains from Supabase settings table, fallback to env config list

@@ -1,32 +1,12 @@
-"""Neo4j Graph Data Science (GDS) algorithm stubs (Task E4.5).
+"""Neo4j Graph Data Science (GDS) algorithm stubs.
 
 Checks whether the Neo4j Graph Data Science (GDS) plugin is loaded.
 If GDS is present, exposes `run_louvain()` and `run_pagerank()`.
-If GDS is absent (the current state — only apoc.jar + n10s.jar are loaded),
-the helpers log a warning and return empty results.
+If GDS is absent, the helpers log a warning and return empty results.
 
-## GDS Status — ROADMAP (2026-07-07)
-
-GDS is NOT loaded on `mukthiguru-neo4j`. Plugin directory contents:
-    /var/lib/neo4j/plugins/README.txt
-    /var/lib/neo4j/plugins/apoc.jar
-    /var/lib/neo4j/plugins/n10s.jar
-
-To enable GDS (roadmap):
-  1. Download `neo4j-graph-data-science-<version>.jar` matching the Neo4j
-     server version (currently 5.17.0 — see apoc jar filename) from
-     https://neo4j.com/deployment-center/#gds-tab
-  2. Drop the jar into the Neo4j plugins volume
-     (`/var/lib/neo4j/plugins/` in the container; mount in docker-compose).
-  3. In `neo4j.conf`: `dbms.security.procedures.unrestricted=gds.*,apoc.*,n10s.*`
-     and `dbms.security.procedures.allowlist=gds.*,apoc.*,n10s.*`
-  4. Restart Neo4j. Verify: `CALL gds.list() YIELD name RETURN count(*)`
-     (or `RETURN gds.version()`).
-  5. Then re-enable the real algorithm bodies below (the graph projection
-     + stream patterns are stubbed in comments).
-
-Do NOT install GDS unilaterally — it changes the Neo4j image footprint and
-needs volume/permission coordination with docker-compose.
+GDS is configured via NEO4J_PLUGINS=["apoc","n10s","graph-data-science"]
+in docker-compose.yml and k8s helm templates. The Neo4j 5.17.0 Docker image
+auto-downloads the matching GDS jar on startup.
 """
 
 from __future__ import annotations

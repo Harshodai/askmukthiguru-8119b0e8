@@ -18,6 +18,7 @@ Examples:
 
 import logging
 
+from app.config import settings
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 
@@ -31,6 +32,50 @@ def set_ollama(ollama_service):
     """Inject the OllamaService instance."""
     global _ollama
     _ollama = ollama_service
+
+
+_FOLLOWUP_PHRASES = [
+    "tell me more", "what about", "how about", "explain more",
+    "go deeper", "say more", "tell me about that", "more about",
+    "what does that mean", "what do you mean", "why is that",
+    "how is that", "what about that", "can you elaborate",
+    "can you tell me more", "elaborate on that", "tell me about it",
+    "explain that", "tell me more about", "further explain",
+    "go into more detail",
+]
+
+_REFERENTIAL_WORDS = {
+    "it", "that", "this", "these", "those", "they", "them",
+    "there", "more", "also", "further",
+}
+
+
+def _is_heuristic_followup(question: str, chat_history: list) -> bool:
+    """Cheap heuristic for follow-up detection — no LLM call."""
+    if not chat_history:
+        return False
+    lower_q = question.lower().strip()
+    if not lower_q:
+        return False
+    for phrase in _FOLLOWUP_PHRASES:
+        if phrase in lower_q:
+            return True
+    words = set(lower_q.split())
+    ref_count = sum(1 for w in words if w in _REFERENTIAL_WORDS)
+    if ref_count >= 1 and len(words) <= 8:
+        return True
+    if lower_q.startswith(("that ", "this ", "those ", "these ", "it ", "they ")):
+        return True
+    return False
+
+
+def _get_last_user_message(chat_history: list) -> str:
+    """Extract the most recent user message content from chat history."""
+    for msg in reversed(chat_history):
+        if msg.get("role") == "user":
+            content = msg.get("content", "")
+            return content[:200] if content else ""
+    return ""
 
 
 RESOLVE_FOLLOWUP_PROMPT = """You are a query resolver for a multi-turn spiritual chat system.
@@ -61,6 +106,9 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
     be a follow-up (uses pronouns, references prior context), rewrites it into
     a standalone question that can be searched independently.
 
+    When rag_heuristic_followup is True, uses pronoun/regex matching instead of
+    an LLM call — saves 1 LLM call per follow-up query.
+
     Returns:
         dict with updated 'question' if resolved, or empty dict if no change needed.
     """
@@ -75,11 +123,25 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
     if not chat_history:
         return {}
 
-    # Only resolve if Ollama is available
-    if _ollama is None:
-        logger.warning("resolve_followup: OllamaService not initialized, skipping")
+    # If intent_router already flagged this as a heuristic follow-up, skip entirely
+    if state.get("follow_up_detected"):
+        logger.info("Resolve Follow-up: already detected by intent_router, skipping.")
         return {}
 
+    # --- Heuristic path (no LLM call) ---
+    if getattr(settings, "rag_heuristic_followup", False):
+        if _is_heuristic_followup(question, chat_history):
+            last_user = _get_last_user_message(chat_history)
+            if last_user:
+                contextualized = f"{last_user} - {question}"
+                logger.info(
+                    f"Follow-up resolved (heuristic): '{question[:60]}' → '{contextualized[:60]}'"
+                )
+                return {"question": contextualized}
+        logger.info(f"Follow-up resolution (heuristic): no change needed for '{question[:60]}'")
+        return {}
+
+    # --- LLM path (legacy) ---
     # SSE status — let the user see that we're consulting the prior turn
     try:
         from rag.nodes.utils import emit_status
@@ -98,6 +160,10 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
         history_lines.append(f"{role}: {content}")
 
     history_str = "\n".join(history_lines)
+
+    if _ollama is None:
+        logger.warning("resolve_followup: OllamaService not initialized, skipping")
+        return {}
 
     try:
         prompt = RESOLVE_FOLLOWUP_PROMPT.format(

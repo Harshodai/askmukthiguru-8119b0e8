@@ -225,3 +225,47 @@ Stop: "stop caveman" or "normal mode"
 Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
 
 Boundaries: code/commits/PRs written normal.
+
+# Session Handoff — Jul 8, 2026
+
+## Session Summary
+Personal KG visualization + public ontology fallback. Changes span frontend KG component, backend memory API, seed scripts, Neo4j integration, and deployment config.
+
+## What Was Built
+- **KG Concept Map Visualizer**: `MemoryManager.tsx` (551 lines) — SVG-based knowledge graph with 40 ontology nodes, circular layout, pan/zoom, dual list/graph toggle. Fetches from `/api/memory/knowledge-graph` with auth fallback: authenticated → full personal graph, unauthenticated → public ontology (Teachers/Concepts/Practices).
+- **Seed Script**: `backend/scripts/seed_personal_kg.py` — seeds 40 ontology concepts + 3 teachers + 3 practices into Neo4j. Preserves existing data. Can target a specific user (`--user-id`).
+- **KG Endpoint**: Backend `GET /api/memory/knowledge-graph` in `memory.py` — tries Supabase auth, falls back to ontology-only public view.
+- **Memory API Client**: `memoryApi.ts` `getKnowledgeGraph()` — sends auth header if session exists, always returns data (no auth required).
+
+## Running Services
+- Backend: `http://localhost:8000` (healthy)
+- Frontend: `http://localhost:80` (Nginx proxy)
+- Neo4j: `bolt://localhost:7687` (browser at `http://localhost:7474`)
+- All infra: Qdrant, Redis, Jaeger, Prometheus, Grafana
+
+## How to Demo
+1. Open `http://localhost` → Chat with the guru
+2. Navigate to `/profile` → Click the graph toggle (Network icon in Memory card)
+3. See 40 ontology nodes (Teachers, Concepts, Practices) rendered as SVG
+4. Drag to pan, scroll to zoom, click reset button
+
+## Key Config Values
+- `VITE_BACKEND_URL=http://localhost:8000` (default in docker-compose)
+- Backend route: `router.include_router(memory_router, prefix="/api")` → `/api/memory/knowledge-graph`
+- `build_personal_knowledge_graph(None)` = public ontology view
+- `build_personal_knowledge_graph(user_id)` = full graph with memories
+
+## Files Changed
+- `backend/app/api/memory.py` — KG endpoint with auth fallback (lines 362-396)
+- `backend/services/memory_service_v2.py` — `build_personal_knowledge_graph()` with ontology-only fallback
+- `backend/scripts/seed_personal_kg.py` — seed 40 ontology concepts
+- `src/lib/memoryApi.ts` — `getKnowledgeGraph()` sends requests without auth
+- `src/components/profile/MemoryManager.tsx` — SVG KG visualization (551 lines)
+- `backend/rag/graph_strategies.py` — KGMergeStrategy for ephemeral graph state
+- `backend/app/api/ingest.py` — wired KGMergeStrategy into chat handler
+- `backend/app/dependencies.py` — ServiceContainer exposes KG strategy
+- `backend/app/main.py` — lifecycle management for Neo4j driver
+
+## Test Results
+- 297+32+106=435 tests pass (1 pre-existing failure in `test_important_kwd_backfill`)
+- 0 new warnings introduced

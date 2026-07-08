@@ -70,6 +70,12 @@ async def ingest_endpoint(
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
 
+    from services.web_search_guardrails import check_url_safety
+
+    url_safe, url_reason = check_url_safety(url)
+    if not url_safe:
+        raise HTTPException(status_code=400, detail=f"URL rejected by security guardrails: {url_reason}")
+
     is_yt = "youtube.com" in url or "youtu.be" in url
     if is_yt:
         if not is_valid_youtube_url(url):

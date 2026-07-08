@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, MessagesSquare } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { List, Loader2, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, MessagesSquare, ZoomIn, ZoomOut, RotateCcw, Network } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Card,
@@ -30,7 +30,34 @@ import {
   type GuruMemory,
   type SessionSummary,
   type ConversationContinuity,
+  type KGNode,
+  type KGEdge,
 } from '@/lib/memoryApi';
+
+const WIDTH = 700;
+const HEIGHT = 420;
+
+/** Deterministic hue from a label string. */
+const labelHue = (label: string): number => {
+  let h = 0;
+  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) % 360;
+  return h || 210;
+};
+
+/** Simple circular layout. */
+const layoutNodes = (nodes: KGNode[]) => {
+  const map = new Map<string, { x: number; y: number }>();
+  const n = nodes.length;
+  const radius = Math.min(WIDTH, HEIGHT) / 2 - 50;
+  nodes.forEach((node, i) => {
+    const angle = n > 1 ? (i / n) * Math.PI * 2 - Math.PI / 2 : 0;
+    map.set(node.id, {
+      x: WIDTH / 2 + Math.cos(angle) * radius * 0.7,
+      y: HEIGHT / 2 + Math.sin(angle) * radius * 0.7,
+    });
+  });
+  return map;
+};
 
 const formatDate = (iso: string): string => {
   try {
@@ -57,6 +84,18 @@ export const MemoryManager = () => {
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
   const [forgettingId, setForgettingId] = useState<string | null>(null);
+
+  // Personal KG state
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+  const [kgNodes, setKgNodes] = useState<KGNode[]>([]);
+  const [kgEdges, setKgEdges] = useState<KGEdge[]>([]);
+  const [kgLoading, setKgLoading] = useState(false);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const positions = layoutNodes(kgNodes);
 
   const refresh = async () => {
     setLoading(true);
@@ -87,6 +126,25 @@ export const MemoryManager = () => {
       setLoading(false);
     }
   };
+
+  const loadKg = async () => {
+    setKgLoading(true);
+    try {
+      const kg = await memoryApi.getKnowledgeGraph();
+      setKgNodes(kg.nodes);
+      setKgEdges(kg.edges);
+    } catch {
+      // silently degrade
+    } finally {
+      setKgLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'graph' && kgNodes.length === 0 && !kgLoading) {
+      loadKg();
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     refresh();
@@ -213,12 +271,34 @@ export const MemoryManager = () => {
       {/* ── Episodic Memories ──────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Brain className="w-5 h-5 text-ojas" /> Memories
-            <Badge variant="secondary" className="ml-2">
-              {memories.length}
-            </Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Brain className="w-5 h-5 text-ojas" /> Memories
+              <Badge variant="secondary" className="ml-2">
+                {memories.length}
+              </Badge>
+            </CardTitle>
+            <div className="flex gap-1">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="h-8 px-2"
+                title="List view"
+              >
+                <List className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'graph' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('graph')}
+                className="h-8 px-2"
+                title="Graph view"
+              >
+                <Network className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
           <CardDescription>
             Add a fact you'd like remembered, or release one that no longer fits.
             The guru also auto-extracts memories from your conversations.
@@ -253,7 +333,106 @@ export const MemoryManager = () => {
             </div>
           </div>
 
-          {memories.length === 0 ? (
+          {viewMode === 'graph' ? (
+            <div className="space-y-3">
+              {/* Graph controls */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <button onClick={() => setZoom((z) => Math.min(3, z + 0.2))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
+                <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title="Reset view"><RotateCcw className="w-3.5 h-3.5" /></button>
+                <span className="ml-1">Drag to pan · scroll to zoom</span>
+                {kgNodes.length > 0 && (
+                  <span className="ml-auto">{kgNodes.length} items · {kgEdges.length} connections</span>
+                )}
+              </div>
+
+              {/* Graph SVG */}
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                {kgLoading ? (
+                  <div className="flex items-center justify-center" style={{ height: HEIGHT }}>
+                    <Loader2 className="w-6 h-6 text-ojas animate-spin" />
+                  </div>
+                ) : kgNodes.length === 0 ? (
+                  <div className="flex items-center justify-center" style={{ height: HEIGHT }}>
+                    <p className="text-sm text-muted-foreground">No knowledge graph data available. Chat with the guru to build your personal knowledge graph.</p>
+                  </div>
+                ) : (
+                  <svg
+                    ref={svgRef}
+                    width="100%"
+                    viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                    className="block touch-none select-none"
+                    style={{ height: HEIGHT, cursor: dragRef.current ? 'grabbing' : 'grab' }}
+                    onWheel={(e) => { e.preventDefault(); setZoom((z) => Math.min(3, Math.max(0.3, z - e.deltaY * 0.0015))); }}
+                    onPointerDown={(e) => {
+                      (e.target as Element).setPointerCapture?.(e.pointerId);
+                      dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+                    }}
+                    onPointerMove={(e) => {
+                      if (!dragRef.current) return;
+                      setPan({ x: dragRef.current.panX + e.clientX - dragRef.current.startX, y: dragRef.current.panY + e.clientY - dragRef.current.startY });
+                    }}
+                    onPointerUp={() => { dragRef.current = null; }}
+                    onPointerLeave={() => { dragRef.current = null; }}
+                  >
+                    <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+                      {/* Edges */}
+                      {kgEdges.map((e, i) => {
+                        const s = positions.get(e.source);
+                        const t = positions.get(e.target);
+                        if (!s || !t) return null;
+                        return (
+                          <g key={`e-${i}`}>
+                            <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} stroke="hsl(var(--border))" strokeWidth={1} />
+                            {e.label && (
+                              <text x={(s.x + t.x) / 2} y={(s.y + t.y) / 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 8, pointerEvents: 'none' }}>
+                                {e.label}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                      {/* Nodes */}
+                      {kgNodes.map((n) => {
+                        const pos = positions.get(n.id);
+                        if (!pos) return null;
+                        const hue = labelHue(n.type);
+                        const r = n.type === 'User' ? 28 : n.type === 'Memory' ? 20 : 24;
+                        return (
+                          <g key={n.id} transform={`translate(${pos.x} ${pos.y})`}>
+                            {n.type === 'User' ? (
+                              <>
+                                <circle r={r} fill="hsl(35 85% 50% / 0.9)" stroke="hsl(35 85% 35%)" strokeWidth={2} />
+                                <text textAnchor="middle" dy="0.35em" className="fill-background" style={{ fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>
+                                  You
+                                </text>
+                              </>
+                            ) : (
+                              <>
+                                <circle r={r} fill={`hsl(${hue} 55% 45% / 0.85)`} stroke={`hsl(${hue} 55% 30%)`} strokeWidth={1.5} />
+                                {n.type === 'Memory' ? (
+                                  <text textAnchor="middle" dy="0.35em" className="fill-foreground" style={{ fontSize: 7, pointerEvents: 'none' }}>
+                                    {n.label.length > 16 ? n.label.slice(0, 16) + '…' : n.label}
+                                  </text>
+                                ) : (
+                                  <text textAnchor="middle" dy="0.35em" className="fill-foreground" style={{ fontSize: 9, fontWeight: 500, pointerEvents: 'none' }}>
+                                    {n.label.length > 14 ? n.label.slice(0, 14) + '…' : n.label}
+                                  </text>
+                                )}
+                              </>
+                            )}
+                            <text textAnchor="middle" dy={`${r + 12}px`} className="fill-muted-foreground" style={{ fontSize: 7, pointerEvents: 'none' }}>
+                              {n.type === 'Memory' ? 'Memory' : n.type}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </g>
+                  </svg>
+                )}
+              </div>
+            </div>
+          ) : memories.length === 0 ? (
             <div className="text-center py-8 space-y-2">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
                 <Brain className="w-6 h-6" />
@@ -275,16 +454,13 @@ export const MemoryManager = () => {
                     className="flex gap-3 p-3 rounded-lg bg-ojas/5 border border-ojas/10 items-start"
                   >
                     <div className="flex-1 min-w-0">
-                      {/* content (was: m.claim) */}
                       <p className="text-sm text-foreground/90 leading-relaxed">
                         {m.content}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        {/* created_at (was: m.last_seen) */}
                         <span className="text-xs text-muted-foreground">
                           {formatDate(m.created_at)}
                         </span>
-                        {/* source badge */}
                         {m.source === 'explicit' ? (
                           <Badge variant="outline" className="text-xs">
                             You added

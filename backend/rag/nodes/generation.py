@@ -765,6 +765,28 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     used_gateway = False
 
+    # ---- DSPy branch ----
+    if getattr(settings, "use_dspy", False):
+        try:
+            from rag.dspy_engine import make_module, dspy_generate
+            dspy_mod = make_module()
+            if dspy_mod:
+                logger.info("DSPy generation path: attempting DSPy module")
+                dspy_answer = dspy_generate(question=question, context=context, module=dspy_mod)
+                if dspy_answer:
+                    answer = dspy_answer
+                    route_metadata["model_used"] = settings.model_for_generation
+                    route_metadata["model_provider"] = "dspy"
+                    route_metadata["route_decision"] = "dspy"
+                    used_gateway = True  # Skip legacy path
+                    logger.info(f"DSPy generation succeeded ({len(answer)} chars)")
+                else:
+                    logger.warning("DSPy returned empty answer, falling back to legacy path")
+            else:
+                logger.warning("DSPy module not available, falling back to legacy path")
+        except Exception as exc:
+            logger.warning(f"DSPy generation failed, falling back to legacy path: {exc}")
+
     if gateway and gateway.enabled:
         try:
             logger.info("Using AnthropicGateway for generation")
