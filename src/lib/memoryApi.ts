@@ -62,6 +62,19 @@ export interface ConversationContinuity {
   started_at: string;
 }
 
+export interface KGNode {
+  id: string;
+  label: string;
+  type: string;
+  teacher?: string | null;
+}
+
+export interface KGEdge {
+  source: string;
+  target: string;
+  label?: string | null;
+}
+
 export type MemoryApiErrorCode =
   | 'unauthorized'
   | 'not_configured'
@@ -314,6 +327,29 @@ export const memoryApi = {
     } catch (e) {
       console.error('[memoryApi] getRelevant error', e);
       return [];
+    }
+  },
+
+  /** Get the user's personal knowledge graph (memories + ontology concepts).
+   *  With auth: full graph (User + Memories + Concepts + edges).
+   *  Without auth: public ontology view (Concepts/Teachers/Practices only).
+   */
+  async getKnowledgeGraph(): Promise<{ nodes: KGNode[]; edges: KGEdge[] }> {
+    const BACKEND = import.meta.env.VITE_BACKEND_URL || '';
+    if (!BACKEND) return { nodes: [], edges: [] };
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/knowledge-graph`, { headers });
+      if (!res.ok) return { nodes: [], edges: [] };
+      return await res.json();
+    } catch {
+      return { nodes: [], edges: [] };
     }
   },
 

@@ -269,9 +269,19 @@ Items explicitly moved out of scope or blocked during the Enhancement & Scaling 
 | **OWASP ZAP security scan** | `owasp/zap2docker-stable` Docker pull fails — Docker Hub auth denied via `.docker_clean` DOCKER_CONFIG bypass. | Run ZAP with standard Docker config (`sudo` or non-bypass) or switch to `ghcr.io/zaproxy/zaproxy`. |
 | **Manim spiritual visualizations** | Manim requires heavy system dependencies (FFmpeg, Cairo, LaTeX) and is a reference-use tool, not production code. | Add to a `docs/` or `notebooks/` companion repo. Not eligible for main app Docker. |
 | **Marketing / CLG content** | Blog posts, case studies, landing page copy. Non-code work. | Create a separate `content/` repo or Notion workspace. |
+| **Waitlist strategy** | Pre-launch signup collection — email capture, invite tiers, referral tracking. Not urgent until product-market fit is validated. | Placeholder doc at `docs/marketing_strategy.md`. Requires Stripe/email integration when activated. |
+| **Daily Wisdom Newsletter** | Scheduled email automation sending daily teaching excerpts. Requires content curation pipeline, email provider (e.g. Resend, SendGrid), and unsubscribe management. | Defer until ingestion is complete and chat UX is stable. Concept doc in `docs/marketing_strategy.md`. |
 | **Full learning paths** (Karma→Dharma→Moksha progression) | Requires pedagogical design + content curation — not an engineering task. | Add as a specification document first; implement as a guided UI layer after Phase E6 chat UX is stable. |
 | **OWL/RDF full roundtrip** (RDF→Neo4j→RDF) | n10s export works (10.5MB TTL, 7,481 nodes). Full roundtrip (import→query→re-export) needs more testing. | Add SPARQL→Cypher query bridge and verify n10s import preserves all node properties. |
 | **n10s inference / schema reasoning** | `n10s.schema.check` and `n10s.inference.schemaInference` were removed in n10s 5.x. | No replacement available. If inference needed, consider a custom Python reasoner over the TTL export. |
+
+## Personal KG Visualizer (Jul 8, 2026)
+- [x] Create `seed_personal_kg.py` — 40 ontology concepts (Teachers, Concepts, Practices) with idempotent MERGE
+- [x] Backend `GET /api/memory/knowledge-graph` with auth fallback (authenticated → full graph, unauthenticated → ontology only)
+- [x] Frontend `MemoryManager.tsx` SVG graph visualizer — circular layout, pan/zoom, dual list/graph toggle
+- [x] `memoryApi.ts` `getKnowledgeGraph()` — always sends request, auth header optional
+- [x] 435 tests pass (297+32+106, 1 pre-existing failure)
+- [x] All services running: backend:8000, frontend:80, Neo4j:7687, Qdrant, Redis, Jaeger, Prometheus, Grafana
 
 ## Technical Debt (Remaining from Sprint)
 

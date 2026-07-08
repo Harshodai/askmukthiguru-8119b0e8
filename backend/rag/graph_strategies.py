@@ -25,7 +25,6 @@ from langgraph.types import Send
 
 from app.config import settings
 from rag.nodes import (
-    check_context_sufficiency,
     context_engineer,
     decompose_query,
     enrich_context,
@@ -237,7 +236,6 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("rerank_documents", rerank_documents)
         graph.add_node("grade_documents", grade_documents)
         graph.add_node("enrich_context", enrich_context)
-        graph.add_node("check_context_sufficiency", check_context_sufficiency)
         graph.add_node("rewrite_query", rewrite_query)
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
@@ -280,10 +278,9 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
         graph.add_edge("grade_documents", "cross_teacher_reasoning")
-        graph.add_edge("cross_teacher_reasoning", "check_context_sufficiency")
 
         graph.add_conditional_edges(
-            "check_context_sufficiency",
+            "cross_teacher_reasoning",
             route_after_grading,
             {
                 "relevant": "enrich_context",
@@ -295,8 +292,6 @@ class StandardGraphStrategy(GraphStrategy):
 
         graph.add_edge("enrich_context", "context_engineer")
         graph.add_edge("context_engineer", "generate_answer")
-        # explain_retrieval removed from default hot path (RAG_SKIP_EXPLAIN_RETRIEVAL).
-        # It can be re-enabled under settings.rag_explain_retrieval_enabled if needed.
 
         graph.add_edge("rewrite_query", "retrieve_documents")
 
@@ -464,7 +459,6 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("rerank_documents", rerank_documents)
         graph.add_node("grade_documents", grade_documents)
         graph.add_node("enrich_context", enrich_context)
-        graph.add_node("check_context_sufficiency", check_context_sufficiency)
         graph.add_node("rewrite_query", rewrite_query)
         graph.add_node("generate_answer", generate_answer)
         graph.add_node("reflect_on_answer", reflect_on_answer)
@@ -472,7 +466,6 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_node("extract_citations", extract_citations)
         graph.add_node("context_engineer", context_engineer)
         graph.add_node("format_final_answer", format_final_answer)
-        # check_contradiction disabled by default; see comment above.
         graph.add_node("handle_casual", handle_casual)
         graph.add_node("handle_distress", handle_distress)
         graph.add_node("handle_meditation", handle_meditation)
@@ -508,10 +501,9 @@ class DeepGraphStrategy(GraphStrategy):
         graph.add_edge("retrieve_documents", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
         graph.add_edge("grade_documents", "cross_teacher_reasoning")
-        graph.add_edge("cross_teacher_reasoning", "check_context_sufficiency")
 
         graph.add_conditional_edges(
-            "check_context_sufficiency",
+            "cross_teacher_reasoning",
             route_after_grading,
             {
                 "relevant": "enrich_context",
@@ -523,8 +515,6 @@ class DeepGraphStrategy(GraphStrategy):
 
         graph.add_edge("enrich_context", "context_engineer")
         graph.add_edge("context_engineer", "generate_answer")
-        # explain_retrieval removed from default hot path (RAG_SKIP_EXPLAIN_RETRIEVAL).
-        # It can be re-enabled under settings.rag_explain_retrieval_enabled if needed.
 
         graph.add_edge("rewrite_query", "retrieve_documents")
 

@@ -229,6 +229,25 @@ EMBEDDING_CACHE_SIZE = Gauge(
     "Current size of the embedding LRU cache",
 )
 
+EMBEDDING_LATENCY = Histogram(
+    "guru_embedding_latency_seconds",
+    "Embedding encode latency per operation",
+    ["operation"],
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
+)
+
+EMBEDDING_ERRORS = Counter(
+    "guru_embedding_errors_total",
+    "Embedding operation errors by operation type",
+    ["operation"],
+)
+
+EMBEDDING_MODEL_FALLBACK = Counter(
+    "guru_embedding_model_fallback_total",
+    "Embedding model fallback activations",
+    ["from_model", "to_model"],
+)
+
 # ===================================================================
 # Dependency Health Metrics (Phase 2.4)
 # ===================================================================

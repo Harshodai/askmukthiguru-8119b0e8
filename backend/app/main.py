@@ -79,6 +79,8 @@ from app.api.feedback import router as feedback_router
 from app.api.health import router as health_router
 from app.core.limiter import limiter
 
+from app.api.waitlist import router as waitlist_router
+
 # Newly-extracted route groups
 from app.api.chat import router as chat_router
 from app.api.ingest import router as ingest_router
@@ -289,6 +291,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Failed to start LLMQueue: {e}")
 
+    # 12. Start Request Queue (Phase 1 — horizontal scaling)
+    if getattr(container, "request_queue", None):
+        try:
+            await container.request_queue.start()
+            logger.info("RequestQueue started (type=%s)", type(container.request_queue).__name__)
+        except Exception as e:
+            logger.warning(f"Failed to start RequestQueue: {e}")
+
     logger.info("=== Mukthi Guru Backend Ready ===")
     yield
 
@@ -334,6 +344,14 @@ async def lifespan(app: FastAPI):
             logger.info("LLMQueue stopped")
         except Exception as e:
             logger.warning(f"LLMQueue shutdown error: {e}")
+
+    # Stop Request Queue
+    if getattr(container, "request_queue", None):
+        try:
+            await container.request_queue.stop()
+            logger.info("RequestQueue stopped")
+        except Exception as e:
+            logger.warning(f"RequestQueue shutdown error: {e}")
 
     shutdown()
 
@@ -443,6 +461,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # ── TTL-based in-memory rate limiter ──
 _AUTH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=5)
+_ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
 
 
 # Auth endpoint rate limiter middleware — tight limits on login/reset/register
@@ -467,11 +486,33 @@ async def auth_rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+# Admin endpoint rate limiter — tighter limits to prevent admin API abuse
+_ADMIN_LIMIT_PATH = "/api/admin/"
+
+
+@app.middleware("http")
+async def admin_rate_limit_middleware(request: Request, call_next):
+    if request.url.path.startswith(_ADMIN_LIMIT_PATH):
+        client_ip = request.client.host if request.client else "unknown"
+        key = f"admin_rl:{client_ip}"
+        if not _ADMIN_RATE_LIMITER.is_allowed(key):
+            return JSONResponse(
+                status_code=429,
+                content={"error": "Too Many Requests", "message": "Admin rate limit exceeded. Try again later."},
+            )
+    return await call_next(request)
+
+
 # Token-bucket rate limiter for /api/chat (only when Redis is configured)
 from app.middleware.rate_limit import TokenBucketMiddleware
 
 if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
     app.add_middleware(TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60)
+
+# Audit logging middleware — logs method, path, status, duration for all requests
+from app.middleware.audit import AuditLogMiddleware
+
+app.add_middleware(AuditLogMiddleware)
 
 # Idempotency middleware for mutating endpoints (Phase 3.3)
 from app.middleware.idempotency import IdempotencyMiddleware
@@ -558,6 +599,7 @@ app.include_router(speech_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
 app.include_router(teachings_router, prefix="/api")
+app.include_router(waitlist_router, prefix="/api")
 app.include_router(notebooks_router, prefix="/api")
 from app.api.kg import router as kg_router
 

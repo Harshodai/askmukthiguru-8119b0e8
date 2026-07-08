@@ -204,6 +204,12 @@ class Settings(BaseSettings):
     queue_job_ttl: int = 1800
     queue_default_timeout: int = 300
 
+    # --- Request Queue (Phase 1A — horizontal scaling) ---
+    # When True, incoming requests are enqueued to Redis Streams and
+    # processed by workers from a consumer group (enables multi-replica).
+    # When False (default), requests are processed inline (current behaviour).
+    use_request_queue: bool = False
+
     # --- LLM Queue (Concurrency Gating) ---
     llm_queue_enabled: bool = True
     llm_queue_max_concurrent: int = 5
@@ -319,6 +325,9 @@ class Settings(BaseSettings):
     # --- P90/P99 Hybrid Search (Phase 1.1) ---
     faiss_cache_size: int = 500  # Number of top docs mirrored in local FAISS index
     hybrid_search_enabled: bool = True  # Feature flag: enable P90/P99 hybrid search
+
+    # --- DSPy ---
+    use_dspy: bool = False  # Enable DSPy-optimized generation (NIM-based)
 
     # --- Embedding Cache (Phase 1.3) ---
     embedding_cache_size: int = 10000  # LRU cache size for content-hash embeddings
@@ -474,9 +483,21 @@ class Settings(BaseSettings):
     # immediately; only a hard verification failure silently falls back to FALLBACK_RESPONSE.
     # When False, generation and verification are fully sequential (legacy behaviour).
     rag_parallel_verify: bool = True
+    # When True, skip the CoVe (sub-question verification) LLM calls for tier3_complex queries.
+    # CoVe adds ~60s and up to 4 small LLM calls. LettuceDetect faithfulness scoring remains.
+    # Default True (disabled) to reduce pipeline LLM calls.
+    rag_cove_disabled: bool = True
     # TTL in seconds for the retrieval-level doc-ID cache keyed by (query_embedding_bucket, tenant_id).
     # Reduces Qdrant round-trips for repeated query patterns by ~40%.
     retrieval_cache_ttl: int = 300
+    # When True, skip the LLM-based retrieval expansion call (parallel-fire from
+    # retrieve_documents). Saves 1 LLM call on the standard/deep paths. Off by
+    # default to avoid changing generation behavior.
+    rag_skip_retrieval_expansions: bool = False
+    # When True, use heuristic pronoun/reference matching instead of an LLM call
+    # to detect and contextualize follow-up queries. Saves 1 LLM call per query
+    # with chat history. Off by default to avoid changing generation behavior.
+    rag_heuristic_followup: bool = False
 
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---

@@ -77,7 +77,6 @@ def test_standard_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "navigate_and_hyde" in nodes
     assert "rerank_documents" in nodes
     assert "grade_documents" in nodes
-    assert "check_context_sufficiency" in nodes
     assert "reflect_on_answer" in nodes
     assert "verify_answer" in nodes
     assert "explain_retrieval" not in nodes
@@ -97,7 +96,6 @@ def test_deep_graph_compiles(mock_init_services, mock_build_kwargs):
     assert "navigate_and_hyde" in nodes
     assert "rerank_documents" in nodes
     assert "grade_documents" in nodes
-    assert "check_context_sufficiency" in nodes
     assert "reflect_on_answer" in nodes
     assert "verify_answer" in nodes
     assert "explain_retrieval" not in nodes

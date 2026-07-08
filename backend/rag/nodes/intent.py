@@ -223,6 +223,54 @@ def _early_filter(
     return None
 
 
+def _is_followup_heuristic(question: str, chat_history: list) -> bool:
+    """Detect follow-up queries via pronoun/reference matching — no LLM call.
+
+    Returns True when the current question looks like a reference to previous
+    turns (pronouns, continuations, short referential queries) and there is
+    enough conversation history to warrant treating it as a follow-up.
+    """
+    if not chat_history:
+        return False
+
+    lower_q = question.lower().strip()
+    if not lower_q:
+        return False
+
+    # Follow-up phrases — multi-word patterns that strongly signal continuation
+    followup_phrases = [
+        "tell me more", "what about", "how about", "explain more",
+        "go deeper", "say more", "tell me about that", "more about",
+        "what does that mean", "what do you mean", "why is that",
+        "how is that", "what about that", "can you elaborate",
+        "can you tell me more", "elaborate on that", "tell me about it",
+        "explain that", "tell me more about", "further explain",
+        "go into more detail",
+    ]
+    for phrase in followup_phrases:
+        if phrase in lower_q:
+            return True
+
+    # Referential single words — pronouns and deictic markers
+    referential_words = {
+        "it", "that", "this", "these", "those", "they", "them",
+        "there", "more", "also", "further",
+    }
+
+    words = set(lower_q.split())
+    ref_count = sum(1 for w in words if w in referential_words)
+
+    # Short query (<= 8 words) with at least one referential word → likely follow-up
+    if ref_count >= 1 and len(words) <= 8:
+        return True
+
+    # Query starts with a referential word + space → likely follow-up
+    if lower_q.startswith(("that ", "this ", "those ", "these ", "it ", "they ")):
+        return True
+
+    return False
+
+
 async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     """Internal implementation of the intent router."""
     from rag.nodes.utils import emit_status
@@ -270,6 +318,33 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     early = _early_filter(question, lower_q, state, serene_mind, meditation_step)
     if early:
         return early
+
+    # ---- Heuristic Follow-up Detection (saves 1 LLM call per follow-up query) ----
+    # When rag_heuristic_followup is True, detect pronouns/references to previous
+    # queries using a cheap regex check instead of an LLM call. If detected,
+    # assign FACTUAL/tier2_simple without going through the classifier.
+    if (
+        getattr(settings, "rag_heuristic_followup", False)
+        and state.get("chat_history")
+    ):
+        followup = _is_followup_heuristic(question, state["chat_history"])
+        if followup:
+            logger.info(
+                "Intent Router: heuristic follow-up detected — "
+                "skipping LLM classifier, assigning FACTUAL/tier2_simple"
+            )
+            return {
+                "intent": "FACTUAL",
+                "query_tier": "tier2_simple",
+                "confidence_tier": "high",
+                "follow_up_detected": True,
+                **_cache_hint("FACTUAL"),
+                "evaluation_trace": _trace_update(
+                    state, intent="FACTUAL", query_tier="tier2_simple",
+                    routing_reason="heuristic_followup",
+                    follow_up_detected=True,
+                ),
+            }
 
     # ---- YAML-driven Semantic Router (Phase A — replaces hardcoded keyword lists) ----
     # The SemanticRouter consults backend/config/router_routes.yaml: utterance
@@ -787,10 +862,11 @@ def route_by_intent(state: GraphState) -> str:
 
 
 def route_after_grading(state: GraphState) -> str:
-    """Route after CRAG grading."""
+    """Route after CRAG grading (merged with context sufficiency check)."""
     relevant = state.get("relevant_docs", [])
     rewrite_count = state.get("rewrite_count", 0)
     intent = state.get("intent", "FACTUAL")
+    context_sufficient = state.get("_context_sufficient", True)
 
     if intent in ["SAFETY_VIOLATION", "ADVERSARIAL"]:
         return "relevant"
@@ -798,6 +874,8 @@ def route_after_grading(state: GraphState) -> str:
     if relevant:
         if intent == "DISTRESS":
             return "distress"
+        if not context_sufficient and rewrite_count < settings.rag_max_rewrites:
+            return "rewrite"
         return "relevant"
     elif rewrite_count < settings.rag_max_rewrites:
         return "rewrite"

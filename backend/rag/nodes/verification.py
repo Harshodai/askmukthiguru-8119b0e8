@@ -199,11 +199,14 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     faithfulness_score = ld_result["score"]
     is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
 
-    # --- CoVe: selectively re-enabled for tier3_complex ---
+    # --- CoVe: feature-flagged off by default (saves ~60s LLM calls) ---
     # CoVe verification + LLM self-consistency add ~60s.
-    # Re-enabled only for tier3_complex where depth justifies the cost.
+    # Disabled via rag_cove_disabled setting (default: True).
     cove_failed = False
-    if state.get("query_tier") == "tier3_complex":
+    if (
+        not getattr(settings, "rag_cove_disabled", True)
+        and state.get("query_tier") == "tier3_complex"
+    ):
         cove_result = await _cove_subquestion_check(question, answer, context, ollama)
         cove_failed = not cove_result["passed"]
         claim_verification_passed = not cove_failed
@@ -211,6 +214,8 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     else:
         # Finding #43: non-tier3 queries use lightweight single-claim
         # check instead of hard-coded pass=True
+        if state.get("query_tier") == "tier3_complex":
+            logger.info("Combined verify: CoVe skipped (disabled by rag_cove_disabled)")
         claim_verification_passed = is_faithful_ld
         claim_verification_details = f"Lightweight claim check (non-tier3): faithful={is_faithful_ld}"
     # --- END CoVe ---

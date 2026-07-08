@@ -3047,6 +3047,31 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Fix**: In `update_profile`, skip the Supabase write (keep in-memory cache) when `user_id == _TEST_BACKDOOR_USER_ID` AND `enable_test_auth` is on AND not production. Real users are unaffected.
 - **Lesson**: Test-only auth backdoors that emit synthetic IDs should have their DB side-effects suppressed in test mode to keep logs clean. Never gate on the user_id alone — gate on the test-mode flag too, so a real `0000...` id (unlikely but possible) in prod still writes normally.
 
+## Jul 8, 2026 — Personal KG Visualizer & Public Ontology Fallback
+
+### KG endpoint must handle unauthenticated users gracefully
+- **Problem**: The `getKnowledgeGraph()` frontend function previously returned empty when no Supabase session existed. The backend KG endpoint required auth, so non-logged-in users got `{nodes:[], edges:[]}`.
+- **Fix**: Backend endpoint gracefully degrades: tries Supabase auth → passes `user_id` if available → calls `build_personal_knowledge_graph(None)` which returns ontology-only view (40 nodes, 0 edges). Frontend always sends the request regardless of session state.
+- **Pattern**: Knowledge-graph endpoints for content-driven apps should have an auth-optional fallback. The public ontology view (Teachers/Concepts/Practices) is meaningful even without user context — it's the structural map of the knowledge base.
+
+### Seed script must be idempotent for repeated runs
+- **Problem**: Running `seed_personal_kg.py` twice would crash on unique constraint violations (MERGE instead of CREATE) or duplicate nodes.
+- **Fix**: Use `MERGE` instead of `CREATE` for all ontology concept nodes. The script checks for existing data and skips if already present.
+- **Pattern**: Any seed/data-init script for a persistent graph database must use `MERGE` / idempotent patterns. `CREATE` is for test fixtures only.
+
+### SVG graph visualization beats heavy library for limited scope
+- **Problem**: Building a 40-node ontology graph visualizer. Options: D3.js (185KB), vis.js (500KB), Cytoscape (400KB), or vanilla SVG.
+- **Fix**: Vanilla SVG with manual circular layout (`layoutNodes()` function), pointer-event-based pan/zoom, deterministic label hue from string hash. 551 lines total, 0 new dependencies, render time <10ms for 40 nodes.
+- **Pattern**: For fixed-size static-layout graphs under 200 nodes, vanilla SVG is the right call. The DOM perf is fine, bundle impact is zero, and you avoid debugging library abstraction leaks. Only reach for D3/vis.js when you need force simulation, hierarchical layout, or webgl rendering.
+
+### Router prefix matters — memory routes don't use /api/v2 prefix
+- **Problem**: The `memory_router` is included at `prefix="/api"` (not `/api/v2`). Some routes in the codebase use `/api/v2` convention. Frontend KG call uses `${BACKEND}/api/memory/knowledge-graph` which matches the `/api` prefix.
+- **Pattern**: When adding new routes to a service, always check the router's `include_router` prefix in `main.py`. Don't assume path conventions based on other route groups.
+
+### H2.1: KG public ontology works without Supabase auth
+- **Fix**: `build_personal_knowledge_graph(None)` queries Neo4j for `:Concept`, `:Teacher`, `:Practice` nodes only (no user-specific memories). Returns 40 ontology nodes with 0 edge connections. Auth resolution is try/except wrapped — failure silently falls back to public view.
+- **Lesson**: When implementing auth-optional endpoints, the public fallback should be more than an empty response. Return a meaningful subset of data so non-logged-in users still see value.
+
 ### H1.7: ZAP Docker Hub Pull Denied — Use ghcr.io Mirror
 - **Problem**: `docker pull owasp/zap2docker-stable:*` (all tags) failed with keychain credential error (-25293 pattern from AGENTS.md). Same for `softwaresecurityproject/zap-stable`. The `.docker_clean/` config (`credsStore: ""`) did not fix Docker Hub pulls.
 - **Fix**: Use the GitHub Container Registry mirror instead — `ghcr.io/zaproxy/zaproxy:stable` (ZAP 2.17.0). It was already cached locally (3.49GB), bypasses Docker Hub auth entirely, and exposes the same `zap-baseline.py` / `zap-full-scan.py` / `zap-api-scan.py` scripts. On macOS Docker, target the host with `http://host.docker.internal:<port>` and mount a `-v /tmp/zap-work:/zap/wrk` volume to collect JSON reports.

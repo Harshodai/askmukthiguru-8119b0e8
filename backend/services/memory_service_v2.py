@@ -507,6 +507,109 @@ class MemoryServiceV2(MemoryService):
             logger.warning(f"get_user_subgraph: ontology neighbors failed: {e}")
         return result
 
+    # ---- Personal Knowledge Graph ----
+
+    async def build_personal_knowledge_graph(self, user_id: str) -> dict[str, list[dict]]:
+        """Build a {nodes, edges} personal knowledge graph for the user.
+
+        Merges three data sources:
+          1. Neo4j: :User node, :GlobalMemory nodes, ontology (:Concept/:Teacher/:Practice)
+          2. Supabase guru_memories (text-based episodic memories)
+          3. Keywords: memories → ontology concept cross-reference via content overlap
+
+        Returns shape matching /kg/subgraph: {nodes: [{id, label, type, teacher}], edges: [{source, target, label}]}
+        Never raises — degrades to empty on failure.
+        """
+        nodes: dict[str, dict] = {}
+        edges: list[dict] = []
+
+        # Helpers
+        def _add_node(uid: str, label: str, ntype: str, teacher: str | None = None) -> None:
+            if uid not in nodes:
+                nodes[uid] = {"id": uid, "label": label, "type": ntype, "teacher": teacher}
+
+        def _add_edge(src: str, dst: str, label: str | None = None) -> None:
+            edges.append({"source": src, "target": dst, "label": label})
+
+        # Always add the user node (if user_id available)
+        if user_id:
+            _add_node(f"user:{user_id}", "You", "User")
+
+        try:
+            driver = await asyncio.to_thread(self._get_neo4j)
+            if driver is not None:
+                def _query_neo4j():
+                    with driver.session() as session:
+                        memories = []
+                        ontology = []
+                        try:
+                            # Get user + memories
+                            res1 = session.run(
+                                "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
+                                "RETURN m.id AS mid, m.content AS content, m.created_at AS created",
+                                uid=user_id,
+                            )
+                            memories = [r.data() for r in res1 if r.get("mid")]
+
+                            # Get all ontology nodes
+                            res2 = session.run(
+                                "MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice "
+                                "RETURN c.entity_id AS eid, labels(c) AS labels "
+                                "LIMIT 50"
+                            )
+                            ontology = [r.data() for r in res2 if r.get("eid")]
+                        except Exception:
+                            pass
+                        return memories, ontology
+
+                neo4j_memories, ontology = await asyncio.to_thread(_query_neo4j)
+
+                # Add ontology concept nodes
+                concept_keywords: dict[str, str] = {}
+                for c in ontology:
+                    eid = c["eid"]
+                    labels = c.get("labels", ["Concept"])
+                    ntype = next((lbl for lbl in labels if lbl in ("Concept", "Teacher", "Practice")), "Concept")
+                    teacher = None
+                    if ntype == "Teacher":
+                        teacher = eid
+                    _add_node(f"concept:{eid}", eid, ntype, teacher)
+                    concept_keywords[eid.lower()] = eid
+
+                # Add memory nodes and link to user
+                for m in neo4j_memories:
+                    mid = m["mid"]
+                    content = m.get("content", "") or ""
+                    _add_node(f"memory:{mid}", content[:60], "Memory")
+                    _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
+
+                    # Cross-reference memory content to ontology concepts via keyword match
+                    content_lower = content.lower()
+                    for keyword, concept_id in concept_keywords.items():
+                        if keyword in content_lower:
+                            _add_edge(f"memory:{mid}", f"concept:{concept_id}", "RELATES_TO")
+
+        except Exception as exc:
+            logger.warning(f"build_personal_knowledge_graph neo4j failed: {exc}")
+
+        # Also fetch from Supabase guru_memories (secondary source)
+        if user_id:
+            try:
+                mems = await self.list_memories(user_id, page=1, page_size=50)
+                for m in mems.get("memories", []):
+                    mid = m.get("id", "")
+                    content = m.get("content", "") or ""
+                    if not mid:
+                        continue
+                    mem_node_id = f"memory:{mid}"
+                    if mem_node_id not in nodes:
+                        _add_node(mem_node_id, content[:60], "Memory")
+                        _add_edge(f"user:{user_id}", mem_node_id, "HAS_MEMORY")
+            except Exception as exc:
+                logger.warning(f"build_personal_knowledge_graph supabase failed: {exc}")
+
+        return {"nodes": list(nodes.values()), "edges": edges}
+
     # ---- LRU fallback helpers ----
 
     def _lru_set(self, key: str, value: str) -> None:
