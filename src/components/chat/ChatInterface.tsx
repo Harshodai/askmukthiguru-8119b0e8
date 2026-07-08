@@ -614,8 +614,25 @@ export const ChatInterface = () => {
     const historyMessages = options.historyMessages ?? baseMessages;
     const isFirstUserMessage = appendUser && baseMessages.every((m) => m.role !== 'user');
 
-    // Translate non-English input → English before sending to AI.
-    // The user sees their original text in the chat bubble; the AI receives translated text.
+    // Append user's message and clear the input IMMEDIATELY so the UI feels
+    // responsive. Translation (if needed) runs after — it only affects the
+    // text sent to the AI, not what the user sees in their own bubble.
+    const userMessage: Message = {
+      id: generateId(),
+      role: 'user',
+      content: textToSend.trim(), // always show original language in chat bubble
+      timestamp: new Date(),
+    };
+
+    if (appendUser) {
+      setMessages((prev) => [...prev, userMessage]);
+    } else if (options.baseMessages) {
+      setMessages(options.baseMessages);
+    }
+    if (!overrideText) setInputValue('');
+
+    // Translate non-English input → English for the AI. User already sees
+    // their original text; this only affects what we forward downstream.
     let textForAI = textToSend.trim();
     if (translateActive) {
       try {
@@ -625,22 +642,8 @@ export const ChatInterface = () => {
       }
     }
 
-    const userMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content: textToSend.trim(), // always show original language in chat bubble
-      timestamp: new Date(),
-    };
-
     // The AI-bound text may differ (translated)
     const aiText = textForAI;
-
-    if (appendUser) {
-      setMessages((prev) => [...prev, userMessage]);
-    } else if (options.baseMessages) {
-      setMessages(options.baseMessages);
-    }
-    if (!overrideText) setInputValue('');
 
     // Reset textarea height and refocus
     if (inputRef.current) {
@@ -1189,13 +1192,16 @@ setIsAwaitingSereneMind(true);
 };
 
 const handleSuggestionClick = (text: string) => {
-  // Prompt cards should behave like Claude.ai — one click sends immediately.
-  setInputValue('');
-  if (inputRef.current) inputRef.current.focus();
-  requestAnimationFrame(() => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    handleSubmit(fakeEvent, text);
-  });
+  // Populate the composer with the full prompt so the user can preview/edit
+  // before sending. Prevents accidental submission of personal statements
+  // (e.g., "I'm feeling overwhelmed") from a one-word pill on mobile.
+  setInputValue(text);
+  if (inputRef.current) {
+    inputRef.current.focus();
+    // Move caret to end
+    const len = text.length;
+    inputRef.current.setSelectionRange?.(len, len);
+  }
 };
 
 const handleInlineAction = (query: string) => {
