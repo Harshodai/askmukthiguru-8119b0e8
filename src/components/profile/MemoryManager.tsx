@@ -34,28 +34,52 @@ import {
   type KGEdge,
 } from '@/lib/memoryApi';
 
-const WIDTH = 700;
-const HEIGHT = 420;
+const WIDTH = 760;
+const HEIGHT = 500;
+const CX = WIDTH / 2;
+const CY = HEIGHT / 2;
 
-/** Deterministic hue from a label string. */
-const labelHue = (label: string): number => {
-  let h = 0;
-  for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) % 360;
-  return h || 210;
+/** Per-type visual config: color, ring, radius */
+const NODE_CONFIG: Record<string, { color: string; stroke: string; r: number; ring: number }> = {
+  User:     { color: 'hsl(35 90% 55%)',   stroke: 'hsl(35 90% 35%)',   r: 30, ring: 0 },
+  Teacher:  { color: 'hsl(260 70% 60%)',  stroke: 'hsl(260 70% 40%)',  r: 22, ring: 1 },
+  Practice: { color: 'hsl(170 60% 45%)',  stroke: 'hsl(170 60% 28%)',  r: 20, ring: 1 },
+  Concept:  { color: 'hsl(210 65% 55%)',  stroke: 'hsl(210 65% 35%)',  r: 18, ring: 2 },
+  Memory:   { color: 'hsl(340 55% 55%)',  stroke: 'hsl(340 55% 35%)',  r: 14, ring: 3 },
 };
 
-/** Simple circular layout. */
+const DEFAULT_NODE = { color: 'hsl(220 40% 50%)', stroke: 'hsl(220 40% 30%)', r: 16, ring: 2 };
+
+/** Multi-ring layout: User at center, type-grouped rings outward. */
 const layoutNodes = (nodes: KGNode[]) => {
   const map = new Map<string, { x: number; y: number }>();
-  const n = nodes.length;
-  const radius = Math.min(WIDTH, HEIGHT) / 2 - 50;
-  nodes.forEach((node, i) => {
-    const angle = n > 1 ? (i / n) * Math.PI * 2 - Math.PI / 2 : 0;
-    map.set(node.id, {
-      x: WIDTH / 2 + Math.cos(angle) * radius * 0.7,
-      y: HEIGHT / 2 + Math.sin(angle) * radius * 0.7,
+
+  // Sort nodes into rings by type
+  const rings: Record<number, KGNode[]> = { 0: [], 1: [], 2: [], 3: [] };
+  for (const node of nodes) {
+    const ring = (NODE_CONFIG[node.type] ?? DEFAULT_NODE).ring;
+    rings[ring].push(node);
+  }
+
+  // Ring radii — spaced so node circles don't touch
+  const ringRadius = [0, 110, 195, 270];
+
+  for (const [ringIdx, group] of Object.entries(rings)) {
+    const r = ringRadius[Number(ringIdx)];
+    const n = group.length;
+    group.forEach((node, i) => {
+      if (n === 1 && r === 0) {
+        map.set(node.id, { x: CX, y: CY });
+      } else {
+        const angle = n > 1 ? (i / n) * Math.PI * 2 - Math.PI / 2 : 0;
+        map.set(node.id, {
+          x: CX + Math.cos(angle) * r,
+          y: CY + Math.sin(angle) * r,
+        });
+      }
     });
-  });
+  }
+
   return map;
 };
 
@@ -95,6 +119,7 @@ export const MemoryManager = () => {
   const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
+  const [hoveredNode, setHoveredNode] = useState<KGNode | null>(null);
   const positions = layoutNodes(kgNodes);
 
   const refresh = async () => {
@@ -337,8 +362,8 @@ export const MemoryManager = () => {
             <div className="space-y-3">
               {/* Graph controls */}
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <button onClick={() => setZoom((z) => Math.min(3, z + 0.2))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
-                <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setZoom((z) => Math.min(3, z + 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
                 <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title="Reset view"><RotateCcw className="w-3.5 h-3.5" /></button>
                 <span className="ml-1">Drag to pan · scroll to zoom</span>
                 {kgNodes.length > 0 && (
@@ -347,88 +372,199 @@ export const MemoryManager = () => {
               </div>
 
               {/* Graph SVG */}
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="rounded-xl border border-border bg-card overflow-hidden relative">
                 {kgLoading ? (
                   <div className="flex items-center justify-center" style={{ height: HEIGHT }}>
                     <Loader2 className="w-6 h-6 text-ojas animate-spin" />
                   </div>
                 ) : kgNodes.length === 0 ? (
-                  <div className="flex items-center justify-center" style={{ height: HEIGHT }}>
-                    <p className="text-sm text-muted-foreground">No knowledge graph data available. Chat with the guru to build your personal knowledge graph.</p>
+                  <div className="flex flex-col items-center justify-center gap-3" style={{ height: HEIGHT }}>
+                    <Network className="w-10 h-10 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground text-center max-w-xs">
+                      No knowledge graph yet. Chat with the guru to build your personal ontology.
+                    </p>
                   </div>
                 ) : (
-                  <svg
-                    ref={svgRef}
-                    width="100%"
-                    viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                    className="block touch-none select-none"
-                    style={{ height: HEIGHT, cursor: dragRef.current ? 'grabbing' : 'grab' }}
-                    onWheel={(e) => { e.preventDefault(); setZoom((z) => Math.min(3, Math.max(0.3, z - e.deltaY * 0.0015))); }}
-                    onPointerDown={(e) => {
-                      (e.target as Element).setPointerCapture?.(e.pointerId);
-                      dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
-                    }}
-                    onPointerMove={(e) => {
-                      if (!dragRef.current) return;
-                      setPan({ x: dragRef.current.panX + e.clientX - dragRef.current.startX, y: dragRef.current.panY + e.clientY - dragRef.current.startY });
-                    }}
-                    onPointerUp={() => { dragRef.current = null; }}
-                    onPointerLeave={() => { dragRef.current = null; }}
-                  >
-                    <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
-                      {/* Edges */}
-                      {kgEdges.map((e, i) => {
-                        const s = positions.get(e.source);
-                        const t = positions.get(e.target);
-                        if (!s || !t) return null;
-                        return (
-                          <g key={`e-${i}`}>
-                            <line x1={s.x} y1={s.y} x2={t.x} y2={t.y} stroke="hsl(var(--border))" strokeWidth={1} />
-                            {e.label && (
-                              <text x={(s.x + t.x) / 2} y={(s.y + t.y) / 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 8, pointerEvents: 'none' }}>
-                                {e.label}
-                              </text>
-                            )}
-                          </g>
-                        );
-                      })}
-                      {/* Nodes */}
-                      {kgNodes.map((n) => {
-                        const pos = positions.get(n.id);
-                        if (!pos) return null;
-                        const hue = labelHue(n.type);
-                        const r = n.type === 'User' ? 28 : n.type === 'Memory' ? 20 : 24;
-                        return (
-                          <g key={n.id} transform={`translate(${pos.x} ${pos.y})`}>
-                            {n.type === 'User' ? (
-                              <>
-                                <circle r={r} fill="hsl(35 85% 50% / 0.9)" stroke="hsl(35 85% 35%)" strokeWidth={2} />
-                                <text textAnchor="middle" dy="0.35em" className="fill-background" style={{ fontSize: 11, fontWeight: 700, pointerEvents: 'none' }}>
-                                  You
+                  <>
+                    <svg
+                      ref={svgRef}
+                      width="100%"
+                      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                      className="block touch-none select-none"
+                      style={{ height: HEIGHT, cursor: dragRef.current ? 'grabbing' : 'grab' }}
+                      onWheel={(e) => { e.preventDefault(); setZoom((z) => Math.min(3, Math.max(0.3, z - e.deltaY * 0.001))); }}
+                      onPointerDown={(e) => {
+                        (e.target as Element).setPointerCapture?.(e.pointerId);
+                        dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+                      }}
+                      onPointerMove={(e) => {
+                        if (!dragRef.current) return;
+                        setPan({ x: dragRef.current.panX + e.clientX - dragRef.current.startX, y: dragRef.current.panY + e.clientY - dragRef.current.startY });
+                      }}
+                      onPointerUp={() => { dragRef.current = null; }}
+                      onPointerLeave={() => { dragRef.current = null; }}
+                    >
+                      <defs>
+                        {/* Subtle radial gradient background */}
+                        <radialGradient id="kg-bg" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="hsl(var(--card))" stopOpacity="0" />
+                          <stop offset="100%" stopColor="hsl(var(--border))" stopOpacity="0.15" />
+                        </radialGradient>
+                        <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                          <path d="M0,0 L0,6 L6,3 z" fill="hsl(var(--border))" />
+                        </marker>
+                      </defs>
+
+                      <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+                        {/* Background ring guides */}
+                        {[110, 195, 270].map((r) => (
+                          <circle key={r} cx={CX} cy={CY} r={r}
+                            fill="none"
+                            stroke="hsl(var(--border))"
+                            strokeWidth={0.5}
+                            strokeDasharray="4 6"
+                            opacity={0.4}
+                          />
+                        ))}
+
+                        {/* Edges — quadratic bezier for a cleaner arc */}
+                        {kgEdges.map((edge, i) => {
+                          const s = positions.get(edge.source);
+                          const t = positions.get(edge.target);
+                          if (!s || !t) return null;
+                          // Slight curve via midpoint offset
+                          const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.12;
+                          const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.12;
+                          return (
+                            <g key={`e-${i}`}>
+                              <path
+                                d={`M${s.x},${s.y} Q${mx},${my} ${t.x},${t.y}`}
+                                fill="none"
+                                stroke="hsl(var(--border))"
+                                strokeWidth={1.2}
+                                strokeOpacity={0.6}
+                                markerEnd="url(#arrow)"
+                              />
+                              {edge.label && (
+                                <text
+                                  x={mx} y={my}
+                                  textAnchor="middle"
+                                  className="fill-muted-foreground"
+                                  style={{ fontSize: 7, pointerEvents: 'none', opacity: 0.7 }}
+                                >
+                                  {edge.label}
                                 </text>
-                              </>
-                            ) : (
-                              <>
-                                <circle r={r} fill={`hsl(${hue} 55% 45% / 0.85)`} stroke={`hsl(${hue} 55% 30%)`} strokeWidth={1.5} />
-                                {n.type === 'Memory' ? (
-                                  <text textAnchor="middle" dy="0.35em" className="fill-foreground" style={{ fontSize: 7, pointerEvents: 'none' }}>
-                                    {n.label.length > 16 ? n.label.slice(0, 16) + '…' : n.label}
-                                  </text>
-                                ) : (
-                                  <text textAnchor="middle" dy="0.35em" className="fill-foreground" style={{ fontSize: 9, fontWeight: 500, pointerEvents: 'none' }}>
-                                    {n.label.length > 14 ? n.label.slice(0, 14) + '…' : n.label}
-                                  </text>
-                                )}
-                              </>
-                            )}
-                            <text textAnchor="middle" dy={`${r + 12}px`} className="fill-muted-foreground" style={{ fontSize: 7, pointerEvents: 'none' }}>
-                              {n.type === 'Memory' ? 'Memory' : n.type}
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </g>
-                  </svg>
+                              )}
+                            </g>
+                          );
+                        })}
+
+                        {/* Nodes */}
+                        {kgNodes.map((node) => {
+                          const pos = positions.get(node.id);
+                          if (!pos) return null;
+                          const cfg = NODE_CONFIG[node.type] ?? DEFAULT_NODE;
+                          const isUser = node.type === 'User';
+                          const isHovered = hoveredNode?.id === node.id;
+                          const displayLabel = node.label.length > 13
+                            ? node.label.slice(0, 13) + '…'
+                            : node.label;
+
+                          return (
+                            <g
+                              key={node.id}
+                              transform={`translate(${pos.x} ${pos.y})`}
+                              style={{ cursor: 'pointer' }}
+                              onPointerEnter={() => setHoveredNode(node)}
+                              onPointerLeave={() => setHoveredNode(null)}
+                            >
+                              {/* Glow ring on hover */}
+                              {isHovered && (
+                                <circle
+                                  r={cfg.r + 5}
+                                  fill={cfg.color}
+                                  opacity={0.2}
+                                />
+                              )}
+                              <circle
+                                r={cfg.r}
+                                fill={cfg.color}
+                                stroke={isHovered ? cfg.color : cfg.stroke}
+                                strokeWidth={isHovered ? 2.5 : 1.5}
+                              />
+                              {/* Label inside node for larger nodes */}
+                              {cfg.r >= 18 && (
+                                <text
+                                  textAnchor="middle"
+                                  dy="0.35em"
+                                  style={{
+                                    fontSize: isUser ? 10 : 8,
+                                    fontWeight: isUser ? 700 : 600,
+                                    pointerEvents: 'none',
+                                    fill: 'white',
+                                  }}
+                                >
+                                  {isUser ? 'You' : displayLabel}
+                                </text>
+                              )}
+                              {/* Label OUTSIDE circle for smaller nodes */}
+                              {cfg.r < 18 && (
+                                <text
+                                  textAnchor="middle"
+                                  y={cfg.r + 11}
+                                  style={{
+                                    fontSize: 7.5,
+                                    fontWeight: 500,
+                                    pointerEvents: 'none',
+                                    fill: 'hsl(var(--foreground))',
+                                    opacity: 0.85,
+                                  }}
+                                >
+                                  {displayLabel}
+                                </text>
+                              )}
+                              {/* Type badge below label for larger nodes */}
+                              {cfg.r >= 18 && !isUser && (
+                                <text
+                                  textAnchor="middle"
+                                  y={cfg.r + 11}
+                                  style={{
+                                    fontSize: 6.5,
+                                    pointerEvents: 'none',
+                                    fill: 'hsl(var(--muted-foreground))',
+                                    opacity: 0.75,
+                                  }}
+                                >
+                                  {node.type}
+                                </text>
+                              )}
+                            </g>
+                          );
+                        })}
+                      </g>
+                    </svg>
+
+                    {/* Hover tooltip */}
+                    {hoveredNode && (
+                      <div className="absolute bottom-3 left-3 bg-popover border border-border rounded-lg px-3 py-2 shadow-lg pointer-events-none z-10 max-w-[220px]">
+                        <p className="text-xs font-semibold text-foreground truncate">{hoveredNode.label}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{hoveredNode.type}</p>
+                      </div>
+                    )}
+
+                    {/* Legend */}
+                    <div className="absolute bottom-3 right-3 flex gap-3 flex-wrap justify-end">
+                      {Object.entries(NODE_CONFIG).filter(([k]) => k !== 'User').map(([type, cfg]) => (
+                        <div key={type} className="flex items-center gap-1.5">
+                          <div
+                            className="rounded-full"
+                            style={{ width: 8, height: 8, background: cfg.color }}
+                          />
+                          <span className="text-[10px] text-muted-foreground">{type}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

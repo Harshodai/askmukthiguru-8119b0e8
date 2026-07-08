@@ -1,0 +1,22 @@
+{
+  "name": "AskMukthiGuru — AI Spiritual Guide",
+  "short_name": "MukthiGuru",
+  "description": "AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Free, private, always available.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 256x256",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education", "spirituality"],
+  "lang": "en",
+  "dir": "ltr"
+}

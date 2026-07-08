@@ -51,7 +51,7 @@ class TimeoutBudget:
          # If we are using a cloud reasoning model (Sarvam Cloud or OpenRouter), scale up node timeouts
         # since reasoning can take much longer (e.g., 30-45s).
         # We only scale up answer generation nodes; classifier nodes are routed to fast models and should not scale up.
-        if settings.is_sarvam_cloud or settings.llm_provider.lower() == "openrouter":
+        if settings.is_sarvam_cloud or settings.llm_provider.lower() in ("openrouter", "nim"):
             if node_name in ["generate_answer", "explain_retrieval"]:
                 default_timeout = max(default_timeout, 90.0)
 

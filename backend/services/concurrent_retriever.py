@@ -1,9 +1,19 @@
 import asyncio
+import hashlib
 import logging
 from collections.abc import Callable, Coroutine
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _query_token(query: str) -> str:
+    """Non-reversible 8-char token derived from query for log correlation.
+
+    Avoids exposing raw user content in logs while still allowing
+    correlation between retrieval failure entries for the same query.
+    """
+    return hashlib.sha256(query.encode()).hexdigest()[:8]
 
 
 class ConcurrentRetriever:
@@ -31,11 +41,12 @@ class ConcurrentRetriever:
                 vt = tg.create_task(self.vector_fetcher(query), name="vector_retrieval")
                 gt = tg.create_task(self.graph_fetcher(query), name="graph_retrieval")
         except* Exception as eg:
-            # Unwrap the first exception from the ExceptionGroup for clean logging
+            # Unwrap the first exception from the ExceptionGroup for clean logging.
+            # Use a non-reversible hash token — never log raw user query content.
             first_exc = eg.exceptions[0]
             logger.error(
                 "Concurrent retrieval failed",
-                extra={"error": str(first_exc), "query_prefix": query[:80]},
+                extra={"error": str(first_exc), "query_token": _query_token(query)},
             )
             raise first_exc from None
         return {

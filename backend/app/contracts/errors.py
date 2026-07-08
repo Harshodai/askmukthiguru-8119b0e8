@@ -19,14 +19,15 @@ from pydantic import BaseModel, Field
 class ErrorResponse(BaseModel):
     """Standardized error envelope for all API error responses.
 
-    Example JSON:
+    Example JSON (timestamp is Python's datetime.now(UTC).isoformat() format):
         {
           "error": "RetrievalTimeout",
           "message": "Vector retrieval exceeded 30s timeout",
           "details": {"provider": "qdrant", "timeout_ms": 30000},
           "request_id": "req-abc123",
-          "timestamp": "2026-07-08T06:00:00Z"
+          "timestamp": "2026-07-08T06:00:00.123456+00:00"
         }
+    Note: timestamp uses Python's isoformat() which emits '+00:00' (not 'Z').
     """
 
     error: str = Field(description="Machine-readable PascalCase error code")

@@ -6,8 +6,11 @@ lifespan and middleware wiring live here, and the app is exported as `app`.
 """
 
 import asyncio
+import faulthandler
 import json
 import logging
+
+faulthandler.enable()
 import os
 import secrets
 import sys
