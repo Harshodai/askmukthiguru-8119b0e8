@@ -1,14 +1,19 @@
 import asyncio
 import logging
-from collections.abc import Coroutine
-from typing import Any, Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ConcurrentRetriever:
     """
-    Wraps vector and graph retrievers to fetch results concurrently via asyncio.gather.
+    Wraps vector and graph retrievers to fetch results concurrently.
+
+    Uses asyncio.TaskGroup (Python 3.11+) for structured concurrency:
+    - Any exception in vector or graph fetcher immediately cancels the sibling
+    - ExceptionGroup raised by TaskGroup is caught and re-raised as the root cause
+    - No silent exception swallowing (unlike asyncio.gather with return_exceptions=True)
     """
 
     def __init__(
@@ -20,12 +25,20 @@ class ConcurrentRetriever:
         self.graph_fetcher = graph_fetcher
 
     async def retrieve(self, query: str) -> dict[str, list[str]]:
-        """Executes vector and graph retrieval concurrently to eliminate blocking latency."""
-        vector_task = self.vector_fetcher(query)
-        graph_task = self.graph_fetcher(query)
-
-        vector_res, graph_res = await asyncio.gather(vector_task, graph_task)
+        """Structured concurrent retrieval — TaskGroup cancels all on first failure."""
+        try:
+            async with asyncio.TaskGroup() as tg:
+                vt = tg.create_task(self.vector_fetcher(query), name="vector_retrieval")
+                gt = tg.create_task(self.graph_fetcher(query), name="graph_retrieval")
+        except* Exception as eg:
+            # Unwrap the first exception from the ExceptionGroup for clean logging
+            first_exc = eg.exceptions[0]
+            logger.error(
+                "Concurrent retrieval failed",
+                extra={"error": str(first_exc), "query_prefix": query[:80]},
+            )
+            raise first_exc from None
         return {
-            "vector": vector_res,
-            "graph": graph_res,
+            "vector": vt.result(),
+            "graph": gt.result(),
         }

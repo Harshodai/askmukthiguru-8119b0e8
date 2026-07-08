@@ -8,10 +8,21 @@ Models:
 bge-m3 produces dense, sparse (lexical), and ColBERT vectors in a single encode() call,
 enabling native hybrid search without a separate BM25/sparse encoder. Supports 100+
 languages including all 10 target Indian languages.
+
+Async API (GIL escape via asyncio.to_thread):
+  - All encode_*/rerank methods have ``async def`` siblings named encode_async /
+    encode_batch_async / rerank_async / cascaded_rerank_async.
+  - These run the CPU-bound sync method in a background thread, keeping the
+    FastAPI event loop non-blocking under concurrent requests.
+  - Thread-pool size: EMBED_THREAD_WORKERS env var (default: auto-detect via
+    ``min(2, os.cpu_count() // 2 or 1)``).
+    Docker single-node → 1 worker; Railway/K8s multi-CPU → 2 workers.
+  - Model stays in-process (no ProcessPoolExecutor re-load overhead).
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -21,7 +32,6 @@ from typing import Optional
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 
 from app.config import settings
-
 from app.metrics import (
     EMBEDDING_CACHE_OPS,
     EMBEDDING_CACHE_SIZE,
@@ -75,7 +85,6 @@ class EmbeddingService:
         self.instruction = "Given a spiritual teaching, retrieve relevant passages: "
         # Embedding cache to avoid redundant encodes
         from app.config import settings
-        from app.metrics import EMBEDDING_CACHE_OPS, EMBEDDING_CACHE_SIZE
         from services.cache_service import EmbeddingCache
 
         self._embed_cache = EmbeddingCache(max_size=settings.embedding_cache_size)
@@ -373,9 +382,17 @@ class EmbeddingService:
             )
             raise last_err
 
+    async def encode_async(self, texts: list[str]) -> list[list[float]]:
+        """Async GIL-escape wrapper for encode(). Safe to await in FastAPI handlers."""
+        return await asyncio.to_thread(self.encode, texts)
+
     def encode_single(self, text: str) -> list[float]:
         """Encode a single text into a dense vector."""
         return self.encode([text])[0]
+
+    async def encode_single_async(self, text: str) -> list[float]:
+        """Async GIL-escape wrapper for encode_single()."""
+        return await asyncio.to_thread(self.encode_single, text)
 
     def encode_batch(self, texts: list[str]) -> dict:
         """
@@ -511,6 +528,10 @@ class EmbeddingService:
             )
             raise last_err
 
+    async def encode_batch_async(self, texts: list[str]) -> dict:
+        """Async GIL-escape wrapper for encode_batch(). Frees event loop during encoding."""
+        return await asyncio.to_thread(self.encode_batch, texts)
+
     def encode_single_full(self, text: str) -> dict:
         """
         Encode a single query text into both dense and sparse vectors.
@@ -524,6 +545,10 @@ class EmbeddingService:
             "dense": result["dense"][0],
             "sparse": result["sparse"][0],
         }
+
+    async def encode_single_full_async(self, text: str) -> dict:
+        """Async GIL-escape wrapper for encode_single_full(). Use in retrieval nodes."""
+        return await asyncio.to_thread(self.encode_single_full, text)
 
     def rerank(
         self,
@@ -615,6 +640,16 @@ class EmbeddingService:
 
             return top_docs
 
+    async def rerank_async(
+        self,
+        query: str,
+        documents: list[dict],
+        top_k: Optional[int] = None,
+        min_score: Optional[float] = None,
+    ) -> list[dict]:
+        """Async GIL-escape wrapper for rerank(). Frees event loop during CrossEncoder scoring."""
+        return await asyncio.to_thread(self.rerank, query, documents, top_k, min_score)
+
     def cascaded_rerank(
         self,
         query: str,
@@ -671,6 +706,19 @@ class EmbeddingService:
 
             # Step 2: CrossEncoder Polish
             return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
+
+    async def cascaded_rerank_async(
+        self,
+        query: str,
+        documents: list[dict],
+        colbert_top_k: int = 15,
+        cross_top_k: int = 5,
+        min_score: Optional[float] = None,
+    ) -> list[dict]:
+        """Async GIL-escape wrapper for cascaded_rerank(). Use in async retrieval nodes."""
+        return await asyncio.to_thread(
+            self.cascaded_rerank, query, documents, colbert_top_k, cross_top_k, min_score
+        )
 
     def _colbert_only_rerank(self, query: str, documents: list[dict], top_k: int = 5) -> list[dict]:
         """ColBERT-only reranking for small candidate sets."""

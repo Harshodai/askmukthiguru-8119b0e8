@@ -1,0 +1,162 @@
+# =============================================================================
+# Mukthi Guru — Backend Kubernetes Deployment
+# Migrates from: Railway.com (single container) → K8s (declarative, scalable)
+#
+# Key design decisions:
+# 1. Resource Guaranteed QoS: requests == limits to prevent OOMKill during
+#    BGE-M3 (1.6GB) + CrossEncoder (~200MB) model load peaks.
+# 2. Readiness probe checks /api/health (not liveness) so pods only receive
+#    traffic AFTER models are fully loaded (~7 min start-period).
+# 3. EMBED_THREAD_WORKERS: asyncio.to_thread pool size for embedding.
+#    Auto-detected from CPU count, overridable via ConfigMap.
+# 4. PYTHON_MEMORY_LIMIT_MB: soft heap guard, K8s hard limit via resources.limits.
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: askmukthiguru-backend
+  namespace: askmukthiguru
+  labels:
+    app: backend
+    tier: api
+    version: v1
+spec:
+  replicas: 1  # Scale up after memory profiling; each replica = +1.8GB RAM
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deploys
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: api
+    spec:
+      # ---- Init container: block traffic until Neo4j is ready ----
+      initContainers:
+        - name: wait-for-neo4j
+          image: busybox:1.35
+          command: ["sh", "-c", "until nc -z neo4j-svc 7687; do echo 'Waiting for Neo4j...'; sleep 5; done"]
+
+      containers:
+        - name: backend
+          image: ghcr.io/yourusername/askmukthiguru-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+
+          # ---- Resource limits: Guaranteed QoS (requests == limits) ----
+          # 4GB RAM = BGE-M3 (1.6GB) + CrossEncoder (0.2GB) + Python overhead
+          # 2 CPU = 1 for model inference + 1 for FastAPI handlers
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+
+          # ---- Env configuration (non-secret) ----
+          env:
+            - name: PORT
+              value: "8000"
+            - name: PYTHON_MEMORY_LIMIT_MB
+              value: "3500"  # Soft guard; K8s will OOMKill at 4GB hard limit
+            - name: EMBED_THREAD_WORKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: EMBED_THREAD_WORKERS
+                  optional: true  # Falls back to auto-detect if absent
+
+          # ---- Secrets mounted via secretKeyRef ----
+          envFrom:
+            - secretRef:
+                name: askmukthiguru-secrets
+
+          # ---- Readiness probe: delay 7 min for model download/load ----
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 420   # 7 min: model load time in cold pod
+            periodSeconds: 15
+            failureThreshold: 8
+            successThreshold: 1
+
+          # ---- Liveness probe: restart if truly stuck (not just loading) ----
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 480   # 8 min: give model extra time
+            periodSeconds: 30
+            failureThreshold: 3
+
+          # ---- Startup probe: disables liveness until pod is warm ----
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            failureThreshold: 40       # 40 × 15s = 10 min max startup
+            periodSeconds: 15
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: askmukthiguru
+data:
+  # EMBED_THREAD_WORKERS: asyncio.to_thread pool for BGE-M3 encoding
+  # Docker single-node: 1 | Railway: 2 | K8s (2-CPU node): 2
+  # Formula: min(2, cpu_request // 1000) — matches resource request above
+  EMBED_THREAD_WORKERS: "2"
+  LOG_LEVEL: "info"
+  IS_PRODUCTION: "true"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: askmukthiguru
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP  # Exposed via Ingress, not NodePort
+
+---
+# Horizontal Pod Autoscaler — scale on CPU (model inference saturation)
+# Only activate after memory baseline is confirmed stable
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: askmukthiguru
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: askmukthiguru-backend
+  minReplicas: 1
+  maxReplicas: 3  # Cap at 3: 3 × 4GB = 12GB total RAM
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Scale up when CPU > 70% sustained
