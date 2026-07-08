@@ -76,6 +76,15 @@ def build_teacher_prompt(teacher_id: Optional[str], base_prompt: str) -> str:
     If no personality is configured for ``teacher_id``, ``base_prompt`` is
     returned unchanged. This is the stub used by generation nodes to support
     multi-teacher voice without changing prompt schemas.
+
+    NOTE (Phase E5 — intentionally deferred): No generation node currently calls
+    this. Wiring it into ``context_engineer``/``generate_answer`` (rag/nodes/
+    generation.py) is deferred until retrieval can surface per-chunk
+    ``teacher_id`` filtering AND an end-to-end benchmark validates that
+    teacher-voice injection does not regress faithfulness/citation scores.
+    Calling it prematurely would change generation behavior untested. The
+    function and ``get_teacher_personality`` are exercised only by the
+    self-check block below and by tests.
     """
     personality = get_teacher_personality(teacher_id)
     if not personality:

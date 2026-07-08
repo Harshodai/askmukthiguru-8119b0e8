@@ -11,6 +11,12 @@
 #   JWT_SECRET        — JWT signing secret
 #   LLM_PROVIDER      — LLM provider (sarvam_cloud | ollama)
 #   SARVAM_API_KEY    — Sarvam API key (if using sarvam_cloud)
+#   NEOREJ_URI      — Neo4j Bolt URI (optional; defaults to managed/external instance)
+#
+# NOTE: Neo4j is NOT included in this prod compose. Production uses an external
+# managed Neo4j instance (Aura or self-hosted on a dedicated node) reachable
+# via NEO4J_URI. Local/dev brings Neo4j up via docker-compose.yml. If you must
+# run Neo4j in prod here, mirror the dev service and set NEO4J_PLUGINS=["apoc","n10s"].
 #
 # Usage:
 #   export GHCR_ORG=your-org IMAGE_TAG=latest && docker compose -f docker-compose.prod.yml up -d

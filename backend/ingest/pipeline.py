@@ -2094,22 +2094,10 @@ class IngestionPipeline:
             import asyncio
             from datetime import datetime, timezone
             import numpy as np
-            from functools import lru_cache
 
             threshold = float(getattr(settings, "concept_similarity_threshold", 0.78))
             batch_size = int(getattr(settings, "ingestion_relation_batch_size", 5))
-            cache_size = int(getattr(settings, "ingestion_relation_cache_size", 256))
             relation_model = str(getattr(settings, "ingestion_relation_model", "") or "")
-
-            # Bounded LRU cache for chunk-text -> relation dict (avoids re-classifying
-            # identical entity descriptions across chunks). Keyed by entity name +
-            # chunk prefix; value is the parsed {rel_type, reason}.
-            @lru_cache(maxsize=cache_size)
-            def _cached_relation(cache_key: str) -> tuple[str, str]:
-                # Actual LLM call happens in _classify_batch; this cache only stores
-                # results after classification, so the function body is a passthrough.
-                # (lru_cache requires a hashable callable; we populate it externally.)
-                return ("RELATED_TO", "cached")
 
             # 1. Fetch all concept/entity nodes from Neo4j
             def _get_entities():
