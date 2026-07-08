@@ -63,7 +63,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     setError(null);
     try {
       const { endpoint } = getAIConfig();
-      const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
+      const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
       const url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim())}&limit=20`;
       const token = await getAccessToken();
       const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
