@@ -7,6 +7,7 @@ from app.config import settings
 from guardrails.base import BaseGuardrailHandler
 from guardrails.disabled_handler import DisabledGuardrailHandler
 from guardrails.lightweight_handler import LightweightGuardrailHandler
+from guardrails.llama_guard_handler import LlamaGuardHandler
 from guardrails.nemo_handler import NeMoGuardrailHandler
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,24 @@ class GuardrailsChain:
         if provider == "disabled":
             logger.info("Guardrails DISABLED via config (not recommended for production)")
             self._head = DisabledGuardrailHandler()
+        elif provider == "llama_guard":
+            lightweight = LightweightGuardrailHandler()
+            llama = LlamaGuardHandler()
+            nemo = NeMoGuardrailHandler()
+
+            if llama.is_available:
+                lightweight.set_next(llama)
+                self._provider_name = "llama_guard"
+                logger.info("Guardrails Chain: [Lightweight] -> [LlamaGuard] configured and active")
+                if nemo.is_available:
+                    llama.set_next(nemo)
+                    logger.info("NeMo also available — chain: [Lightweight] -> [LlamaGuard] -> [NeMo]")
+            else:
+                self._provider_name = "lightweight"
+                logger.info("Llama Guard unavailable -> falling back to [Lightweight] only")
+
+            self._head = lightweight
         elif provider == "nemo":
-            # NeMo provider runs Lightweight first, then NeMo
             lightweight = LightweightGuardrailHandler()
             nemo = NeMoGuardrailHandler()
 

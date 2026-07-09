@@ -102,8 +102,8 @@ class Settings(BaseSettings):
     max_input_length: int = 2000  # Max user message length in characters
 
     # --- Guardrails ---
-    # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "disabled"
-    guardrails_provider: str = "nemo"  # Falls back to lightweight if NeMo unavailable
+    # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B), "disabled"
+    guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
     guardrails_audit_enabled: bool = True  # Structured audit logging for blocked requests
 
     # --- Ollama (local mode / cloud tag) ---
@@ -154,7 +154,7 @@ class Settings(BaseSettings):
     #            "sentence-transformers/all-MiniLM-L6-v2" (English-only, 384-dim, fast)
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
-    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
 
     # --- Whisper / Transcription ---
     whisper_model: str = "large-v3"  # Whisper model size

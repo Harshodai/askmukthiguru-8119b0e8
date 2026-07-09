@@ -743,18 +743,6 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         }
 
     configurable = {}
-    if getattr(settings, "semantic_cache_enabled", True):
-        query = state.get("rewritten_query") or state["question"]
-        cache_repo = _services._semantic_cache
-        cached = cache_repo.get(query) if cache_repo else None
-        if cached:
-            logger.info("Cache HIT in retrieve_documents — returning cached answer")
-            return {
-                "answer": cached["response"],
-                "citations": cached.get("citations", []),
-                "intent": cached.get("intent", "QUERY"),
-                "cache_hit": True,
-            }
     if config:
         if hasattr(config, "get"):
             configurable = config.get("configurable", {})
