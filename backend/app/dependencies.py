@@ -28,7 +28,6 @@ from services.ingestion_tracker import build_tracker as build_ingestion_tracker
 from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
-from services.model_registry import ModelRegistry  # Unit 25
 from services.sarvam_failover import SarvamFailoverService
 from services.ocr_service import OCRService
 from services.qdrant_service import QdrantService
@@ -144,14 +143,12 @@ class ServiceContainer:
 
     def _build_llm_services(self) -> None:
         """Layer 3: LLM, translation, failover, and circuit-breaker services."""
-        from services.llm import LLMProviderFactory, OllamaProvider
+        from services.llm import LLMProviderFactory
         from services.llm_factory import LLMServiceFactory
-        from services.openrouter_service import OpenRouterService
         from services.translation import TranslationProviderFactory
 
-        self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
+        self.ollama = _create_llm_service()
 
-        # Wire TranslationProvider using TranslationProviderFactory
         if settings.is_sarvam_cloud:
             self.sarvam_cloud = LLMServiceFactory.create("sarvam_cloud")
             self.translation = TranslationProviderFactory.create_provider(
@@ -160,15 +157,7 @@ class ServiceContainer:
         else:
             logger.info("Sarvam Cloud not active; skipping Sarvam service initialization")
             self.sarvam_cloud = None
-            if isinstance(self.ollama, OllamaProvider):
-                from services.translation import OllamaTranslationProvider
-                self.translation = OllamaTranslationProvider(self.ollama._service)
-            else:
-                # Non-Ollama provider without Sarvam: keep a placeholder that passes text through
-                self.translation = _NoopTranslationProvider()
-
-        # OpenRouter free-tier service for fast/simple queries
-        self.openrouter = OpenRouterService()
+            self.translation = _NoopTranslationProvider()
 
         # Multi-provider LLM failover router (circuit breakers + rate limiting)
         self.multi_provider_llm = None
@@ -179,12 +168,8 @@ class ServiceContainer:
         except Exception as e:
             logger.warning(f"MultiProviderLLMService init skipped: {e}")
 
-        # Model registry with cross-provider failover
-        if isinstance(self.ollama, OllamaProvider):
-            self.model_registry = ModelRegistry(self.ollama._service, self.krutrim)
-        else:
-            self.model_registry = SarvamFailoverService(self.ollama._service, self.krutrim)
-            logger.info("SarvamFailoverService active: cross-provider failover enabled")
+        self.model_registry = SarvamFailoverService(self.ollama._service, self.krutrim)
+        logger.info("SarvamFailoverService active: cross-provider failover enabled")
 
         # Circuit Breaker Registry (provider-agnostic)
         self.circuit_breaker_registry = initialize_circuit_breakers()
