@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from rag.compressor import cap_to_token_budget
 from rag.prompts import (
@@ -185,9 +186,17 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         knowledge_budget = 1536
     else:
         knowledge_budget = 3072  # standard
+    def _strip_ingestion_headers(text: str) -> str:
+        """Remove ingestion pipeline headers embedded in document text before LLM sees them."""
+        if not text:
+            return text
+        text = re.sub(r'\[Source:\s*[^\]]*?(?:Speaker:|Topic:)[^\]]*\]', '', text)
+        text = re.sub(r'\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]', '', text)
+        return text.strip()
+
     knowledge = "\n\n".join(
         [
-            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
+            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{_strip_ingestion_headers(doc_text(doc))}"
             for doc in relevant_docs
         ]
     )

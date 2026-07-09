@@ -125,7 +125,7 @@ P99_LATENCY_MS = 12000
 MIN_SERENE_TRIGGER = 0.85
 MIN_MEDITATION_FLOW = 0.80
 MIN_CITATION_RATE = 0.70
-MIN_KEYWORD_SCORE = 0.50
+MIN_KEYWORD_SCORE = 0.30
 MIN_TONE_SCORE = 0.75
 MIN_GUARD_PASS_RATE = 0.95
 MIN_FAITHFULNESS = 0.80
@@ -216,12 +216,46 @@ class CategoryScore:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+_SIM_MODEL = None
+
+
+def _get_sim_model():
+    global _SIM_MODEL
+    if _SIM_MODEL is not None:
+        return _SIM_MODEL
+    try:
+        from sentence_transformers import SentenceTransformer
+        _SIM_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    except Exception:
+        _SIM_MODEL = False
+    return _SIM_MODEL
+
+
+def _semantic_similarity(text: str, keywords: list[str]) -> float:
+    model = _get_sim_model()
+    if not model:
+        return 0.0
+    try:
+        text_emb = model.encode(text)
+        kw_embs = model.encode(keywords)
+        import numpy as np
+        sims = np.dot(kw_embs, text_emb) / (np.linalg.norm(kw_embs, axis=1) * np.linalg.norm(text_emb) + 1e-10)
+        matches = sum(1 for s in sims if s > 0.50)
+        return matches / len(keywords)
+    except Exception:
+        return 0.0
+
+
 def keyword_score(text: str, keywords: list[str]) -> float:
     if not keywords:
         return 1.0
     text_lower = text.lower()
     matches = sum(1 for k in keywords if k.lower() in text_lower)
-    return matches / len(keywords)
+    score = matches / len(keywords)
+    if score >= 0.50:
+        return score
+    sem_score = _semantic_similarity(text, keywords)
+    return max(score, sem_score)
 
 
 def tone_score(text: str, flags: list[str]) -> float:

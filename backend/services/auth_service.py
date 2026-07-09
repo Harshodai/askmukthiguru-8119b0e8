@@ -346,5 +346,10 @@ async def get_current_user_from_supabase(
     """
     Production-grade Auth Bridge.
     Returns a unified user object regardless of the underlying auth provider.
+    Falls back to anonymous user in non-production when no auth token is provided.
+    Expired/invalid tokens still reject properly.
     """
+    if token is None and not settings.is_production:
+        logger.warning("No auth token in dev mode — using anonymous user")
+        return {"id": "anonymous", "email": None, "is_anonymous": True}
     return await auth_bridge.get_user(request, token)

@@ -244,6 +244,16 @@ class Settings(BaseSettings):
     registration_rate_limit: str = "5/minute"
     admin_rate_limit: str = "5/minute"
 
+    # --- Support / Contact (SMTP) ---
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from_email: Optional[str] = None
+    support_to_email: str = "kharshaengineer@gmail.com"
+    # When SMTP is not configured, support submissions fall back to file storage.
+    support_storage_path: str = "data/support_messages"
+
     # --- RAPTOR ---
     raptor_cluster_size: int = 8
     raptor_summary_model: str = ""  # Auto-set from model_preset

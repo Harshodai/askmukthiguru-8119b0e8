@@ -23,6 +23,13 @@ import {
   ArrowRight,
   Loader2,
   MessageCircle,
+  Mail,
+  ExternalLink,
+  Bug,
+  Upload,
+  Paperclip,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -127,6 +134,12 @@ const ProfilePage = () => {
   // Local form state — only persists on Save
   const [form, setForm] = useState(profile);
   const [dirty, setDirty] = useState(false);
+
+  // Support form state
+  const [supportForm, setSupportForm] = useState({ name: '', email: profile.email || '', subject: '', message: '', category: 'Feedback' });
+  const [supportFiles, setSupportFiles] = useState<File[]>([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportSent, setSupportSent] = useState(false);
 
   useEffect(() => {
     setForm(profile);
@@ -243,6 +256,43 @@ const ProfilePage = () => {
     toast({ title: 'All data cleared', description: 'A fresh profile was created.' });
   };
 
+  const handleSupportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSupportLoading(true);
+    setSupportSent(false);
+    try {
+      const { submitSupportForm } = await import('@/lib/supportApi');
+      await submitSupportForm({
+        name: supportForm.name,
+        email: supportForm.email as string,
+        subject: supportForm.subject,
+        message: supportForm.message,
+        category: supportForm.category,
+        attachments: supportFiles,
+      });
+      setSupportSent(true);
+      setSupportForm({ name: '', email: profile.email || '', subject: '', message: '', category: 'Feedback' });
+      setSupportFiles([]);
+      toast({ title: 'Message sent', description: 'We will get back to you within 24-48 hours.' });
+    } catch (err) {
+      toast({ title: 'Failed to send', description: err instanceof Error ? err.message : 'Please try again.', variant: 'destructive' });
+    } finally {
+      setSupportLoading(false);
+    }
+  };
+
+  const handleSupportFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    setSupportFiles(prev => [...prev, ...picked].slice(0, 5));
+    e.target.value = '';
+  };
+
+  const removeSupportFile = (idx: number) => {
+    setSupportFiles(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const supportCategories = ['Feedback', 'Bug Report', 'Feature Request', 'Other'];
+
   const statCards = [
     { icon: Flame, label: 'Sessions', value: stats.totalSessions, color: 'text-ojas', bg: 'bg-ojas/10' },
     { icon: Clock, label: 'Minutes', value: stats.totalMinutes, color: 'text-prana', bg: 'bg-prana/10' },
@@ -267,12 +317,13 @@ const ProfilePage = () => {
         {/* I'll stop here to avoid creating too large a chunk, but I'll continue below if needed. */}
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-8">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-8">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="stats">Insights</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="memory">Memory</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="support">Support</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
@@ -762,6 +813,113 @@ const ProfilePage = () => {
                       Open auth diagnostics
                     </a>
                   </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="support" className="space-y-6 mt-0">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-6 w-6 text-ojas" />
+                    <div>
+                      <CardTitle className="text-lg">Contact Support</CardTitle>
+                      <CardDescription>
+                        Have a question, feedback, or run into an issue? We are here to help.
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {supportSent ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
+                      <CheckCircle2 className="h-12 w-12 text-prana" />
+                      <p className="text-lg font-medium">Message sent!</p>
+                      <p className="text-sm text-muted-foreground max-w-sm">
+                        We will get back to you within 24&ndash;48 hours. For urgent matters, please include &quot;URGENT&quot; in your subject line.
+                      </p>
+                      <Button variant="outline" className="mt-4" onClick={() => setSupportSent(false)}>
+                        Send another message
+                      </Button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSupportSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="s-name">Name <span className="text-muted-foreground">(optional)</span></Label>
+                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="s-email">Your Email <span className="text-destructive">*</span></Label>
+                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" required />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="s-category">Category</Label>
+                          <select id="s-category" value={supportForm.category} onChange={e => setSupportForm(p => ({ ...p, category: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                            {supportCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="s-subject">Subject <span className="text-destructive">*</span></Label>
+                          <Input id="s-subject" value={supportForm.subject} onChange={e => setSupportForm(p => ({ ...p, subject: e.target.value }))} placeholder="Brief summary" required />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="s-message">Message <span className="text-destructive">*</span></Label>
+                        <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue, feedback, or request in detail. Include what you were doing, what you expected, and what happened." className="min-h-[140px] resize-none" required />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label>Attachments <span className="text-muted-foreground">(screenshots, recordings, logs &mdash; max 5, 10MB each)</span></Label>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('s-file-input')?.click()}>
+                            <Upload className="h-4 w-4 mr-1" /> Attach files
+                          </Button>
+                          <input id="s-file-input" type="file" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.pdf,.txt,.log,.zip" onChange={handleSupportFilePick} className="hidden" />
+                        </div>
+                        {supportFiles.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {supportFiles.map((f, i) => (
+                              <div key={i} className="flex items-center gap-1.5 bg-muted rounded-md px-2.5 py-1.5 text-xs">
+                                <Paperclip className="h-3 w-3 text-muted-foreground" />
+                                <span className="max-w-[140px] truncate">{f.name}</span>
+                                <span className="text-muted-foreground">({(f.size / 1024).toFixed(0)}KB)</span>
+                                <button type="button" onClick={() => removeSupportFile(i)} className="text-muted-foreground hover:text-destructive ml-1">
+                                  <XCircle className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-muted/40 rounded-lg p-4 space-y-2">
+                        <h4 className="text-sm font-medium flex items-center gap-2">
+                          <Bug className="h-4 w-4 text-ojas" />
+                          Before reaching out
+                        </h4>
+                        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                          <li>Make sure you are on the latest version (refresh the page).</li>
+                          <li>Check your internet connection and try again.</li>
+                          <li>If the Guru is not responding, the backend may be temporarily busy.</li>
+                        </ul>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <p className="text-xs text-muted-foreground">
+                          Or email us directly at <a href="mailto:kharshaengineer@gmail.com" className="underline hover:text-foreground">kharshaengineer@gmail.com</a>
+                        </p>
+                        <Button type="submit" disabled={supportLoading}>
+                          {supportLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
+                          {supportLoading ? 'Sending...' : 'Send Message'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
