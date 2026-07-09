@@ -416,144 +416,20 @@ class FastGraphStrategy(GraphStrategy):
 
 
 class DeepGraphStrategy(GraphStrategy):
-    """Deep graph for complex queries (~19 LLM calls). Uses full verification chain."""
+    """Deep graph — alias to StandardStrategy (identical wiring).
+
+    Was a separate class with an identical graph structure. The parallel
+    check_contradiction / explain_retrieval branches were removed as buggy
+    (OR-edges caused format_final_answer to fire before verify_answer wrote
+    is_faithful). Remains as a distinct name for config-driven routing.
+    """
 
     @property
     def name(self) -> str:
         return "deep"
 
     def build(self, **kwargs) -> CompiledStateGraph:
-        ollama_service = kwargs.get("ollama_service")
-        embedding_service = kwargs.get("embedding_service")
-        qdrant_service = kwargs.get("qdrant_service")
-        lightrag_service = kwargs.get("lightrag_service")
-        serene_mind_engine = kwargs.get("serene_mind_engine")
-
-        # ponytail: skip init_services when no services passed — the cached
-        # compile path (build_cached) relies on the facade having already
-        # called init_services to set module globals. Ceiling: if a caller
-        # invokes build() directly with no services AND globals are unset,
-        # nodes will fail at invoke; upgrade by requiring services at compile.
-        if ollama_service is not None:
-            init_services(
-                ollama_service,
-                embedding_service,
-                qdrant_service,
-                lightrag_service,
-                serene_mind_engine,
-                web_search=kwargs.get("web_search"),
-                semantic_cache=kwargs.get("semantic_cache"),
-                sarvam_cloud=kwargs.get("sarvam_cloud"),
-            )
-
-        graph = StateGraph(GraphState)
-
-        # --- Add all nodes (full chain including verification) ---
-        graph.add_node("intent_router", intent_router)
-        graph.add_node("handle_distress_check", handle_distress_check)
-        graph.add_node("resolve_parallel", resolve_parallel)
-        graph.add_node("resolve_followup", resolve_followup)
-        graph.add_node("decompose_query", decompose_query)
-        graph.add_node("navigate_and_hyde", navigate_and_hyde)
-        graph.add_node("retrieve_documents", retrieve_documents)
-        graph.add_node("rerank_documents", rerank_documents)
-        graph.add_node("grade_documents", grade_documents)
-        graph.add_node("enrich_context", enrich_context)
-        graph.add_node("rewrite_query", rewrite_query)
-        graph.add_node("generate_answer", generate_answer)
-        graph.add_node("reflect_on_answer", reflect_on_answer)
-        graph.add_node("verify_answer", verify_answer)
-        graph.add_node("extract_citations", extract_citations)
-        graph.add_node("context_engineer", context_engineer)
-        graph.add_node("format_final_answer", format_final_answer)
-        graph.add_node("handle_casual", handle_casual)
-        graph.add_node("handle_distress", handle_distress)
-        graph.add_node("handle_meditation", handle_meditation)
-        graph.add_node("handle_fallback", handle_fallback)
-        graph.add_node("web_search", web_search_node)
-        graph.add_node("cross_teacher_reasoning", cross_teacher_reasoning)
-
-        # --- Parallel entry: intent_router + handle_distress_check ---
-        graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
-        graph.add_edge("intent_router", "resolve_parallel")
-        graph.add_edge("handle_distress_check", "resolve_parallel")
-
-        # --- Conditional edges from merge point ---
-        graph.add_conditional_edges(
-            "resolve_parallel",
-            route_after_intent,
-            {
-                "distress": "handle_distress",
-                "meditation": "handle_meditation",
-                "casual": "handle_casual",
-                "temporal": "web_search",
-                "query": "resolve_followup",
-            },
-        )
-
-        graph.add_edge("web_search", "resolve_followup")
-        # To avoid LangGraph OR-join race condition (and prevent intermittently degraded retrieval quality
-        # if both nodes fail or execute out of sync), we chain decompose_query and navigate_and_hyde
-        # sequentially. This ensures they execute in a predictable order and satisfies validate_graph.py.
-        graph.add_edge("resolve_followup", "decompose_query")
-        graph.add_edge("decompose_query", "navigate_and_hyde")
-        graph.add_edge("navigate_and_hyde", "retrieve_documents")
-        graph.add_edge("retrieve_documents", "rerank_documents")
-        graph.add_edge("rerank_documents", "grade_documents")
-        graph.add_edge("grade_documents", "cross_teacher_reasoning")
-
-        graph.add_conditional_edges(
-            "cross_teacher_reasoning",
-            route_after_grading,
-            {
-                "relevant": "enrich_context",
-                "distress": "handle_distress",
-                "rewrite": "rewrite_query",
-                "fallback": "handle_fallback",
-            },
-        )
-
-        graph.add_edge("enrich_context", "context_engineer")
-        graph.add_edge("context_engineer", "generate_answer")
-
-        graph.add_edge("rewrite_query", "retrieve_documents")
-
-        graph.add_edge("generate_answer", "reflect_on_answer")
-
-        graph.add_conditional_edges(
-            "reflect_on_answer",
-            _route_after_reflection,
-            {
-                "rewrite": "rewrite_query",
-                "fallback": "handle_fallback",
-                "verify": "verify_answer",
-            },
-        )
-
-        # Deep graph: sequential reflect → verify → extract → format.
-        # Parallel check_contradiction / explain_retrieval branches were removed
-        # because LangGraph OR-edges caused format_final_answer to fire before
-        # verify_answer wrote is_faithful, producing faithfulness_score=0.0 and
-        # burning retries into fallback answers.
-        graph.add_edge("verify_answer", "extract_citations")
-        graph.add_edge("extract_citations", "format_final_answer")
-
-        # --- Reject-and-retry loop ---
-        graph.add_conditional_edges(
-            "format_final_answer",
-            route_after_formatting,
-            {"retry_generate": "generate_answer", "end": END},
-        )
-
-        # --- Terminal edges ---
-        graph.add_edge("handle_casual", END)
-        graph.add_edge("handle_distress", END)
-        graph.add_edge("handle_meditation", END)
-        graph.add_edge("handle_fallback", END)
-
-        compiled = graph.compile()
-        logger.info("LangGraph DEEP pipeline compiled successfully")
-        return compiled
+        return StandardGraphStrategy().build(**kwargs)
 
 
 # ---------------------------------------------------------------------------

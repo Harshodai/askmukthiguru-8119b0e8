@@ -1,24 +1,25 @@
-# Session Handoff — Jul 9, 2026
+# Session Handoff — Jul 9, 2026 (P2 complete)
 
 ## 1. Goal
 
-Execute the **Ruthless Review** (RUTHLESS_REVIEW.md) — a self-audited plan to cut latency, remove dead code, fix safety bugs, and reduce surface area across the Mukthi Guru RAG pipeline. The review identifies **P0 (9 items)**, **P1 (5 items)**, and **P2 (3 items)** fixes, plus Part E recommendations.
+Execute the **Ruthless Review** (RUTHLESS_REVIEW.md) — a self-audited plan to cut latency, remove dead code, fix safety bugs, and reduce surface area across the Mukthi Guru RAG pipeline.
 
-**P0-P1 target**: Remove ~73 lines of dead/phantom code, fix 3 safety bugs (cache poisoning, guardrail ordering, unauthenticated endpoint), cut ~8s from P95 tier3 latency, and eliminate fabricated metrics — while passing 720+ tests.
+**Phase 1 (P0-P1)**: Removed ~73 lines of dead/phantom code, fixed 3 safety bugs, cut ~8s from P95 tier3 latency, eliminated fabricated metrics.
 
-**End game**: P0-P1 merged to `main`, branch deleted. P2 items (structural deletions, compose split) deferred.
+**Phase 2 (P2)**: Structural cleanup — alias Deep→Standard, remove 6 dead graph nodes + 45 lines unreachable code + duplicate function + httpx monkey-patch + 2 dead generation functions + 4 stale audit docs. **2,252 net lines removed** across 19 files.
 
 ---
 
 ## 2. Current State of Code
 
 ### Branch: `main`
-All P0 (1-9) and P1 (10-14) items are merged plus stash work:
+All P0-P2 items are merged:
 
 | Commit | What |
 |---|---|
 | `614737f2` | Stash apply — KG edge rendering (Neo4j rels), RAPTOR header filter, responsive MemoryManager |
 | `bbd5caac` | Merge: ruthless P0-P1 review fixes into main |
+| _current_ | P2: Deep alias, 6 dead nodes, httpx monkey-patch, dead code, stale docs |
 | `bd232069` | Lessons for P0-P1 patterns |
 | `8205d917` | P0-6 through P1-14 — stage order, auth, keyword removal, coalescer, compression, metrics |
 | `6e870e35` | P0-5: validate MessagePayload.role to user/assistant |
@@ -29,8 +30,7 @@ All P0 (1-9) and P1 (10-14) items are merged plus stash work:
 | `a97f5ae4` | Base: benchmark + auto-flush caches |
 
 ### Test Suite
-- **720 passed, 5 skipped, 1 warning** — clean (0 pre-existing failures carried forward)
-- No integration tests for the cross-stage bugs (Part D item 14 deferred)
+- **717 passed, 5 skipped, 1 warning** — clean (0 pre-existing failures; 3 tests removed alongside deleted dead nodes)
 
 ### Running Services
 - Backend: `http://localhost:8000` (healthy)
@@ -39,36 +39,30 @@ All P0 (1-9) and P1 (10-14) items are merged plus stash work:
 
 ---
 
-## 3. Files Actively Edited
+## 3. P2 Changes Summary
 
-### Production
-- `backend/rag/nodes/generation.py` — removed keyword footers, factual-slot rewrites, follow-up-suggestions LLM call; added RAPTOR header regex in `_clean_inline_citations`
-- `backend/app/api/chat.py` — added auth dep to `POST /api/chat/title`
-- `backend/app/pipeline/stages/pipeline_builder.py` — swapped MemoryStage after OutputGuardrailStage
-- `backend/app/pipeline/pipeline_coordinator.py` — removed hardcoded 1.0 metrics; uses `container.coalescer`
-- `backend/app/pipeline/stages/cache_stage.py` — defensive `isinstance(final_answer, str)` guard
-- `backend/app/pipeline/stages/glue_stages.py` — `.get()` defaults in ResultAssemblyStage
-- `backend/app/dependencies.py` — added `self.coalescer` to ServiceContainer
-- `backend/app/config.py` — `rag_context_compression_enabled=False` default
-- `backend/services/memory_service_v2.py` — Neo4j ontology edge query + rendering in KG builder
-
-### Frontend
-- `src/components/profile/MemoryManager.tsx` — dynamic width via ResizeObserver, fullscreen Escape key, responsive layout (422-line diff from stash)
+### Structural deletions
+| P2 Item | Files changed | Lines removed |
+|---------|---------------|---------------|
+| 1. DeepStrategy → alias | `graph_strategies.py` | −128 |
+| 2. 6 dead graph nodes | 10 files (definitions, config, tests) | −450 |
+| 3. Dead code after `return "standard"` | `orchestrator_utils.py` | −44 |
+| 4. Duplicate `_prepare_user_memory` | `chat.py` | −64 |
+| 5. httpx monkey-patch | `config.py` | −121 |
+| Tech: dead gen functions | `generation.py` | −223 |
 
 ### Config/Infra
-- `backend/docker-compose.yml` — removed `IS_PRODUCTION=false` / `ENABLE_TEST_AUTH=true` backdoor
-- `.gitignore` — added `backend/data/` to prevent user data tracking
-- `backend/data/feedback.jsonl` — deleted from git tracking
-- `backend/data/lightrag/kv_store_llm_response_cache.json` — deleted from git tracking
+- Stale audit docs deleted: `ARCHITECTURE_AUDIT.md`, `ARCHITECTURE_AUDIT_CORRECTED.md`, `HARDCODING_AUDIT.md`, `RUTHLESS_AUDIT_REPORT.md`
+- Remaining: `RUTHLESS_REVIEW.md` (canonical), `lessons.md`, `handoff.md`
 
-### New Files
-- `RUTHLESS_REVIEW.md` — the master review document (129 lines)
-- `backend/tests/test_test_auth_strategy.py` — auth strategy test
-- `backend/tests/test_chat_request_filter.py`, `test_generation_cache.py`, `test_generation_doc_order.py`, `test_guardrail_self_harm_priority.py`, `test_retrieval_okf_embedder.py` — ruthless review P0 tests
+### Dead nodes removed
+`check_contradiction`, `explain_retrieval`, `check_context_sufficiency`, `retrieve_single`, `merge_sub_results`, `route_sub_queries` — none wired into any graph strategy (verified: 0 `add_node` refs).
 
-### Documentation
-- `AGENTS.md` — updated with ruthless review execution context
-- `lessons.md` — 7 new lessons (stage ordering, auth, keyword footers, coalescer mocks, compression, spec removal, etc.)
+### What was intentionally deferred
+- Provider collapse (7→1-2) — bigger architectural decision
+- `backend/repos/` removal — needs git filtering
+- Compose `serve`/`ops` split — infra refactor
+- 3 integration tests for P1-14 — requires live infra
 
 ---
 
@@ -98,24 +92,19 @@ All P0 (1-9) and P1 (10-14) items are merged plus stash work:
 
 ---
 
-## 5. Next Steps (What I Would Do)
+## 5. Next Steps (Next Session)
 
-### Immediate (P2 — next session)
-1. **Delete Deep strategy** (alias to Standard per review) — `graph_strategies.py`
-2. **Remove 6 dead graph nodes** — 0 `add_node` refs: `check_contradiction`, `explain_retrieval`, `check_context_sufficiency`, `retrieve_single`, `merge_sub_results`, `route_sub_queries`
-3. **Delete dead code** — unreachable `return "standard"` in `orchestrator_utils.py:254`, duplicate `_prepare_user_memory` in `chat.py:67`
-4. **Remove httpx monkey-patch** from `config.py:668` — move rotation into provider client
-5. **Collapse providers** (7 → 1–2 active) or feature-flag the unused ones
-6. **Remove `backend/repos/`** (624 MB vendored third-party) from working tree; pin via `requirements.txt`
+### Structural (deferred from P2)
+1. **Collapse providers** (7 → 1–2 active) or feature-flag the unused ones — keep NIM + one cloud fallback, delete the rest
+2. **Remove `backend/repos/`** (624 MB vendored third-party) from working tree; pin via `requirements.txt`
+3. **Split compose** into `serve`/`ops` profiles — Qdrant+Redis+backend for serving, Neo4j+Jaeger+etc for ops
 
 ### Medium-term (Part E recommendations)
-7. **Upgrade reranker to `BAAI/bge-reranker-v2-m3`** — multilingual, `FlagEmbedding` already a dep
-8. **Replace regex guardrails with Llama Guard 3 1B** — eliminates ordering bugs
-9. **Add `promptfoo` for adversarial testing** — would have caught P0-2
-10. **Add `DeepEval` for CI metric gates** — fail build on faithfulness regression
-11. **Unify two-stage cache key** — in-graph semantic re-check (retrieval.py:747) vs pipeline cache use different key shapes
+4. **Upgrade reranker to `BAAI/bge-reranker-v2-m3`** — multilingual, `FlagEmbedding` already a dep
+5. **Replace regex guardrails with Llama Guard 3 1B** — eliminates ordering bugs
+6. **Add `promptfoo` for adversarial testing** + **DeepEval** for CI metric gates
+7. **Unify two-stage cache key** — in-graph semantic re-check vs pipeline cache use different key shapes
 
-### Technical debt to track
-- `_ensure_keywords_in_answer` and `_generate_follow_up_suggestions` **function definitions** remain in `generation.py` — only call sites removed. Delete the dead functions.
-- Three integration tests from P1-14 still unwritten (prompt-cache isolation, self-harm+medication → helplines, coalescer follower)
-- RUTHLESS_REVIEW.md should be reconciled with the 4 overlapping audit docs (`ARCHITECTURE_AUDIT.md`, `ARCHITECTURE_AUDIT_CORRECTED.md`, `HARDCODING_AUDIT.md`, `RUTHLESS_AUDIT_REPORT.md`)
+### Technical debt
+- 3 integration tests from P1-14 unwritten (prompt-cache isolation, self-harm+medication → helplines, coalescer follower)
+- Move API key rotation from deleted monkey-patch into the one active provider client

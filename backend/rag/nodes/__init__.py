@@ -28,7 +28,6 @@ from .intent import (
     route_by_intent,
 )
 from .reranking import (
-    check_context_sufficiency,
     enrich_context,
     grade_documents,
     rerank_documents,
@@ -36,11 +35,9 @@ from .reranking import (
 from .retrieval import (
     decompose_query,
     generate_hyde,
-    merge_sub_results,
     navigate_and_hyde,
     navigate_knowledge_tree,
     retrieve_documents,
-    retrieve_single,
 )
 from .short_circuit import (
     handle_fallback,
@@ -51,8 +48,6 @@ from .utils import (
 )
 from .citation_extractor import extract_citations
 from .verification import (
-    check_contradiction,
-    explain_retrieval,
     reflect_on_answer,
     verify_answer,
 )
@@ -136,19 +131,14 @@ __all__ = [
     "navigate_knowledge_tree",
     "navigate_and_hyde",
     "retrieve_documents",
-    "retrieve_single",
-    "merge_sub_results",
     "rerank_documents",
     "grade_documents",
-    "check_context_sufficiency",
     "enrich_context",
     "context_engineer",
     "generate_answer",
     "format_final_answer",
     "reflect_on_answer",
     "verify_answer",
-    "check_contradiction",
-    "explain_retrieval",
     "extract_citations",
     "rewrite_query",
     "handle_fallback",

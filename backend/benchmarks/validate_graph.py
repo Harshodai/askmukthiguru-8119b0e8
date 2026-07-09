@@ -115,13 +115,10 @@ def main() -> int:
         "generate_hyde",
         "rerank_documents",
         "grade_documents",
-        "check_context_sufficiency",
         "enrich_context",
         "context_engineer",
         "reflect_on_answer",
         "verify_answer",
-        "check_contradiction",
-        "explain_retrieval",
     }
     graph_source = (backend / "rag/graph_strategies.py").read_text()
     # Extract only the FastGraphStrategy class body

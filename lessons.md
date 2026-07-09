@@ -363,6 +363,24 @@
 
 This file documents key implementation patterns, architectural decisions, and "lessons learned" during the development of Mukthi Guru.
 
+## Jul 9, 2026 — P2 Ruthless Review: Structural Cleanup
+
+### Dead nodes strategy: delete function definitions AND all references in one pass
+- When removing dead graph nodes (not wired via `add_node`), you must delete from 6+ locations: function definition, `__init__.py` import/`__all__`, config (timeout_utils, node_llm_config), benchmark validation sets, and test files that call the functions directly. Missing any causes import errors or test failures.
+- Tests that call dead graph functions directly must be deleted or updated alongside the function removal. The test count will decrease — that's expected when the tested function was dead code.
+
+### DeepStrategy = StandardStrategy alias
+- When two graph strategies are byte-identical, replace the duplicate class body with a 3-line delegation: `class DeepStrategy(GraphStrategy): def build(self, **kwargs): return StandardStrategy().build(**kwargs)`. Keep the distinct class for config-driven routing (`name="deep"`), remove the 138-line duplicate wiring.
+
+### httpx monkey-patch removal
+- Global monkey-patches (`httpx.AsyncClient.send = patched_send` at module load) silently wrap every HTTP call in the process. Removing them is safe if the API key rotation logic either isn't used (single-key configs) or can be moved into the specific provider client. For this codebase, 4 providers × comma-separated keys meant rotation was unused in practice — no regression.
+
+### Stale audit docs are own tech debt
+- 4 overlapping audit files (`ARCHITECTURE_AUDIT.md`, `ARCHITECTURE_AUDIT_CORRECTED.md`, `HARDCODING_AUDIT.md`, `RUTHLESS_AUDIT_REPORT.md`) accumulated across model sessions. Keep one canonical review (`RUTHLESS_REVIEW.md`) and delete the rest. Four docs reconciling the same findings is itself a maintenance burden.
+
+### Ponytail: delete unused function bodies, not just call sites
+- P1 removed call sites for `_ensure_keywords_in_answer` and `_generate_follow_up_suggestions` but left the 247-line function definitions intact. Schedule a follow-up pass to delete the definitions — dead bodies are dead code even with no callers. In this session we removed them alongside the other structural deletions.
+
 ## Feature Implementations (May 2026)
 
 ### 1. Daily Teaching & Realtime Sync

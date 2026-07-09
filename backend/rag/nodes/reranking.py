@@ -334,51 +334,6 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
     }
 
 
-@trace_rag_node("check_context_sufficiency")
-@log_metrics
-async def check_context_sufficiency(state: GraphState, config: dict = None) -> dict:
-    """PageIndex-inspired iterative sufficiency check."""
-    ollama = _services._ollama
-
-    if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Sufficiency check: bypassing for simple query tier")
-        return {}
-
-    intent = state.get("intent")
-    if intent == "DISTRESS":
-        logger.info("Sufficiency check: bypassing for DISTRESS intent")
-        return {}
-
-    question = state["question"]
-    relevant_docs = state.get("relevant_docs", [])
-
-    if not relevant_docs:
-        return {}
-
-    # Adaptive-RAG confidence gate: same threshold as grade_documents — when the
-    # top docs are high-confidence, skip the LLM sufficiency round-trip.
-    skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
-    top3 = relevant_docs[:3]
-    if skip_conf > 0 and len(top3) == 3 and all(
-        d.get("rerank_score", 0.0) >= skip_conf for d in top3
-    ):
-        logger.info("Sufficiency check: high rerank confidence, skipping LLM call")
-        return {}
-
-    await emit_status(config, "Checking if I have enough to answer well...")
-
-    # Docs carry "text" or "content" depending on retriever — never KeyError here:
-    # a crash in this node used to wipe relevant_docs and send every complex query
-    # into the CRAG rewrite loop until fallback (60s+ wasted per query).
-    context = "\n\n".join((doc.get("text") or doc.get("content") or "") for doc in relevant_docs)
-    t_out = get_node_timeout("check_context_sufficiency", 12)
-    result = await check_sufficiency(question, context, ollama, timeout=t_out, max_retries=1)
-
-    if not result["sufficient"]:
-        logger.info("Sufficiency check: INSUFFICIENT — widening search scope")
-        return {"selected_clusters": []}
-
-    return {}
 
 
 @trace_rag_node("enrich_context")
