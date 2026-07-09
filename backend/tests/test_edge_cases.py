@@ -44,7 +44,7 @@ def mock_coalescer():
 
 def _build_mock_container():
     """Return a fully-mocked ServiceContainer ready for chat endpoint tests."""
-    mock_container = MagicMock(spec=ServiceContainer)
+    mock_container = MagicMock()
 
     mock_container.guardrails = AsyncMock()
     mock_container.guardrails.check_input.return_value = {"blocked": False, "reason": None}
@@ -114,6 +114,9 @@ def _build_mock_container():
     mock_container.profile_service = AsyncMock()
     mock_container.profile_service.get_profile.return_value = {}
     mock_container.user_profile = None
+
+    from app.coalescer import _InMemoryCoalescer
+    mock_container.coalescer = _InMemoryCoalescer()
 
     mock_container.health_status = AsyncMock()
     mock_container.health_status.return_value = {

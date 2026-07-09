@@ -27,7 +27,7 @@ def mock_get_current_user():
 
 
 def mock_get_container():
-    mock_container = MagicMock(spec=ServiceContainer)
+    mock_container = MagicMock()
     # Mock guardrails
     mock_container.guardrails = AsyncMock()
     mock_container.guardrails.check_input.return_value = {"blocked": False, "reason": None}
@@ -60,6 +60,9 @@ def mock_get_container():
     mock_container.semantic_cache = MagicMock()
     mock_container.semantic_cache.get.return_value = None
     mock_container.semantic_cache.is_available = True
+
+    from app.coalescer import _InMemoryCoalescer
+    mock_container.coalescer = _InMemoryCoalescer()
 
     # Mock Ollama
     mock_container.ollama = AsyncMock()
@@ -175,7 +178,9 @@ def test_chat_endpoint_indic_translation(mock_log_query_trace):
 def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     """Verify that cached responses are checked by output guardrails before returning."""
     # Setup mock container with a cached response that would be blocked by guardrails
-    mock_container = MagicMock(spec=ServiceContainer)
+    mock_container = MagicMock()
+    from app.coalescer import _InMemoryCoalescer
+    mock_container.coalescer = _InMemoryCoalescer()
     mock_container.guardrails = AsyncMock()
     mock_container.guardrails.check_input.return_value = {"blocked": False, "reason": None}
     # Mock guardrails output check to block the response

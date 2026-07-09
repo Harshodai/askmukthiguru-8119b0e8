@@ -57,8 +57,7 @@ class PipelineCoordinator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.telemetry = TelemetryPublisher()
-        from app.coalescer import build_coalescer
-        self.coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
+        self.coalescer = container.coalescer
         self._vector_cache: TurboQuantCache | None = None
         self._health_monitor: HealthMonitor | None = None
 
@@ -396,9 +395,6 @@ class PipelineCoordinator:
 
         return {
             "faithfulness": result.get("faithfulness_score", 0.0) if is_rag else 1.0,
-            "answer_relevancy": 1.0,
-            "context_precision": 1.0,
-            "context_recall": 1.0,
             "hallucination_flag": not result.get("is_faithful") if (is_rag and result.get("is_faithful") is not None) else False,
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
             "confidence_score": confidence,

@@ -263,6 +263,10 @@ class ServiceContainer:
             self.request_queue = InProcessQueue()
             logger.info("RequestQueue: initialized InProcessQueue (no-op — USE_REQUEST_QUEUE=false)")
 
+        # Request coalescer — single instance shared across pipeline and orchestrator
+        from app.coalescer import build_coalescer
+        self.coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
+
         # Web Search (real-time temporal queries, config-gated)
         if settings.web_search_enabled:
             # Load dynamic allowed domains from Supabase settings table, fallback to env config list

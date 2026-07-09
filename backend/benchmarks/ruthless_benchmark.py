@@ -1709,7 +1709,7 @@ def save_report(
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--endpoint", default="http://localhost:8000")
-    parser.add_argument("--test-key", default=os.getenv("JWT_SECRET"))
+    parser.add_argument("--test-key", default=os.getenv("BENCHMARK_SECRET") or os.getenv("JWT_SECRET"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--min-score", type=float, default=0.95)
     parser.add_argument("--min-category-score", type=float, default=0.90)

@@ -115,8 +115,8 @@ class TestAuthStrategy(AuthStrategy):
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
     ) -> Optional[dict]:
         test_key = request.headers.get("X-Test-Key")
-        benchmark_secret = getattr(settings, "benchmark_secret", None) or settings.jwt_secret
-        if test_key and test_key == benchmark_secret:
+        benchmark_secret = getattr(settings, "benchmark_secret", None)
+        if test_key and benchmark_secret and test_key == benchmark_secret:
             return {
                 "id": "00000000-0000-0000-0000-000000000000",
                 "email": "benchmark-admin@mukthi.guru",
@@ -329,9 +329,9 @@ class AuthBridge:
 
 security = HTTPBearer(auto_error=False)
 _strategies = [LocalAuthStrategy(), SupabaseAuthStrategy()]
-# TestAuthStrategy is a hard backdoor (X-Test-Key == jwt_secret -> superuser admin).
-# Require BOTH non-production AND an explicit opt-in flag; refuse to register it in prod.
-if getattr(settings, "enable_test_auth", False) and not settings.is_production:
+# TestAuthStrategy is a backdoor (X-Test-Key == benchmark_secret -> superuser admin).
+# Require BOTH explicit opt-in flag AND a configured benchmark secret; refuse in prod.
+if getattr(settings, "enable_test_auth", False) and not settings.is_production and getattr(settings, "benchmark_secret", None):
     _strategies.insert(0, TestAuthStrategy())
 if settings.is_production:
     assert not any(isinstance(s, TestAuthStrategy) for s in _strategies), (
