@@ -271,6 +271,28 @@ def _is_followup_heuristic(question: str, chat_history: list) -> bool:
     return False
 
 
+def _compute_complexity_score(question: str, chat_history: list[dict]) -> float:
+    """Pure-Python multi-signal complexity score (0.0-1.0). <1ms, no LLM.
+
+    Signals: question count, causal markers, entity density, word count,
+    conversation depth. Sits at the entry boundary — augments, does not
+    replace, the LLM classify_intent_and_complexity call.
+    """
+    words = question.split()
+    word_count = min(len(words) / 20.0, 1.0)
+    q_count = min((question.count("?") + question.count(";")) / 3.0, 1.0)
+    lower_q = question.lower()
+    causal_markers = ("why ", "how does", "how do ", "compare", "relationship between", "versus", "distinguish")
+    causal = 1.0 if any(m in lower_q for m in causal_markers) else 0.0
+    doctrine_entities = ("deeksha", "ekam", "soul sync", "four sacred secrets", "beautiful state",
+                         "sri preethaji", "sri krishnaji", "aham", "golden light", "manifest 2026",
+                         "universal intelligence", "spiritual vision", "inner truth", "oneness")
+    entity_density = min(sum(1 for e in doctrine_entities if e in lower_q) / 3.0, 1.0)
+    conv_depth = min(len(chat_history or []) / 10.0, 1.0)
+    score = 0.20 * q_count + 0.35 * causal + 0.20 * entity_density + 0.10 * word_count + 0.15 * conv_depth
+    return round(min(max(score, 0.0), 1.0), 3)
+
+
 async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     """Internal implementation of the intent router."""
     from rag.nodes.utils import emit_status
@@ -278,6 +300,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
 
     question = state["question"]
     lower_q = question.lower()
+    complexity_score = _compute_complexity_score(question, state.get("chat_history", []))
 
     # Pre-classified intent: pipeline_coordinator already ran on-device classifier
     pre_intent = state.get("intent")
@@ -286,6 +309,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": pre_intent,
             "query_tier": _qt,
+            "complexity_score": complexity_score,
             "confidence_tier": (
                 "high" if _qt in ("tier2_simple", "fast") and pre_intent != "CASUAL"
                 else "low" if _qt == "tier3_complex"
@@ -294,7 +318,8 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             **_cache_hint(pre_intent),
             "evaluation_trace": _trace_update(
                 state, intent=pre_intent, query_tier=_qt,
-                routing_reason="pre_classified_from_pipeline_coordinator"
+                routing_reason="pre_classified_from_pipeline_coordinator",
+                complexity_score=complexity_score
             ),
         }
     ollama = _services._ollama
@@ -307,16 +332,20 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         meditation_step = 0
     if meditation_step > 0:
         if is_meditation_complete(meditation_step):
-            return {"intent": "CASUAL", "meditation_step": 0}
+            return {"intent": "CASUAL", "meditation_step": 0, "complexity_score": complexity_score}
         if should_start_meditation(question):
-            return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step}
-        return {"intent": "CASUAL", "meditation_step": 0}
+            return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step, "complexity_score": complexity_score}
+        return {"intent": "CASUAL", "meditation_step": 0, "complexity_score": complexity_score}
 
     serene_mind = _services._serene_mind
 
     # ---- 1.14 Simplified Early Filter (merges Serene Mind + Temporal + Regex) ----
     early = _early_filter(question, lower_q, state, serene_mind, meditation_step)
     if early:
+        early["complexity_score"] = complexity_score
+        et = early.get("evaluation_trace")
+        if isinstance(et, dict):
+            et["complexity_score"] = complexity_score
         return early
 
     # ---- Heuristic Follow-up Detection (saves 1 LLM call per follow-up query) ----
@@ -336,6 +365,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": "FACTUAL",
                 "query_tier": "tier2_simple",
+                "complexity_score": complexity_score,
                 "confidence_tier": "high",
                 "follow_up_detected": True,
                 **_cache_hint("FACTUAL"),
@@ -343,6 +373,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                     state, intent="FACTUAL", query_tier="tier2_simple",
                     routing_reason="heuristic_followup",
                     follow_up_detected=True,
+                    complexity_score=complexity_score,
                 ),
             }
 
@@ -373,6 +404,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 return {
                     "intent": mapped_intent,
                     "query_tier": query_tier,
+                    "complexity_score": complexity_score,
                     "confidence_tier": (
                         "high" if query_tier in ("tier2_simple", "fast") and mapped_intent != "CASUAL"
                         else "low" if query_tier == "tier3_complex"
@@ -388,6 +420,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                         router_route=router_match.route,
                         router_score=router_match.score,
                         needs_web_search=needs_web,
+                        complexity_score=complexity_score,
                     ),
                 }
 
@@ -397,11 +430,13 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         return {
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
+            "complexity_score": complexity_score,
             "confidence_tier": "high",
             **_cache_hint("FACTUAL"),
             "evaluation_trace": _trace_update(
                 state, intent="FACTUAL", query_tier="tier2_simple",
-                routing_reason="heuristic_capability"
+                routing_reason="heuristic_capability",
+                complexity_score=complexity_score
             ),
         }
 
@@ -412,11 +447,13 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": "FACTUAL",
                 "query_tier": "tier2_simple",
+                "complexity_score": complexity_score,
                 "confidence_tier": "high",
                 **_cache_hint("FACTUAL"),
                 "evaluation_trace": _trace_update(
                     state, intent="FACTUAL", query_tier="tier2_simple",
-                    routing_reason="heuristic_simple"
+                    routing_reason="heuristic_simple",
+                    complexity_score=complexity_score
                 ),
             }
 
@@ -439,6 +476,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": cached_intent,
                 "query_tier": tier,
+                "complexity_score": complexity_score,
                 "confidence_tier": (
                     "high" if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
                     else "low" if tier == "tier3_complex"
@@ -447,7 +485,8 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 **_cache_hint(cached_intent),
                 "evaluation_trace": _trace_update(
                     state, intent=cached_intent, query_tier=tier,
-                    routing_reason="cache_hit"
+                    routing_reason="cache_hit",
+                    complexity_score=complexity_score
                 ),
             }
 
@@ -463,6 +502,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             return {
                 "intent": intent,
                 "query_tier": tier,
+                "complexity_score": complexity_score,
                 "confidence_tier": (
                     "high" if tier in ("tier2_simple", "fast") and intent != "CASUAL"
                     else "low" if tier == "tier3_complex"
@@ -471,7 +511,8 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 **_cache_hint(intent),
                 "evaluation_trace": _trace_update(
                     state, intent=intent, query_tier=tier,
-                    routing_reason=routing_reason
+                    routing_reason=routing_reason,
+                    complexity_score=complexity_score
                 ),
             }
     except Exception as e:
@@ -541,6 +582,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     return {
         "intent": intent,
         "query_tier": query_tier,
+        "complexity_score": complexity_score,
         "confidence_tier": (
             "high" if query_tier in ("tier2_simple", "fast") and intent != "CASUAL"
             else "low" if query_tier == "tier3_complex"
@@ -548,7 +590,8 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         ),
         **_cache_hint(intent),
         "evaluation_trace": _trace_update(
-            state, intent=intent, query_tier=query_tier, routing_reason="classifier"
+            state, intent=intent, query_tier=query_tier, routing_reason="classifier",
+            complexity_score=complexity_score
         ),
     }
 

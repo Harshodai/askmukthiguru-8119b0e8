@@ -101,11 +101,36 @@ def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
     practitioner_terms = ["meditation", "breath", "breath awareness", "teachings", "secrets", "wisdom", "practice"]
     
     if any(term in all_text for term in advanced_terms):
-        return "Advanced Meditator"
+        result = "Advanced Meditator"
     elif any(term in all_text for term in practitioner_terms):
-        return "Practitioner"
+        result = "Practitioner"
     else:
-        return "Seeker"
+        result = "Seeker"
+
+    question_types: list[str] = []
+    for msg in (chat_history or []):
+        if msg.get("role") != "user":
+            continue
+        content = msg.get("content", "").lower().strip()
+        if content.startswith(("what is", "who is", "where is", "what are", "define", "explain")):
+            question_types.append("what")
+        elif content.startswith(("how do", "how does", "how to", "how can", "how should")):
+            question_types.append("how")
+        elif content.startswith("why"):
+            question_types.append("why")
+    cur = question.lower().strip()
+    if cur.startswith(("what is", "who is", "where is", "what are", "define", "explain")):
+        question_types.append("what")
+    elif cur.startswith(("how do", "how does", "how to", "how can", "how should")):
+        question_types.append("how")
+    elif cur.startswith("why"):
+        question_types.append("why")
+    if len(question_types) >= 2 and question_types[-1] in ("how", "why") and "what" in question_types[:-1]:
+        if result == "Seeker":
+            return "Practitioner"
+        elif result == "Practitioner":
+            return "Advanced Meditator"
+    return result
 
 
 @trace_rag_node("context_engineer")
@@ -190,6 +215,13 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     user_state = cap_to_token_budget(user_state, 1024)
 
     # Layer 4: Instructions (capped to 900 tokens)
+    _cs = state.get("complexity_score", 0.5)
+    if _cs < 0.30:
+        _depth_instruction = "10. Keep the answer to 80-150 words unless the user asks for depth.\n"
+    elif _cs < 0.55:
+        _depth_instruction = "10. Keep the answer to 150-300 words with one example unless the user asks for depth.\n"
+    else:
+        _depth_instruction = "10. Provide a thorough answer of 300-500 words with context and examples unless the user asks for depth.\n"
     instructions = (
         "1. Base your answer ONLY on the provided Knowledge.\n"
         "2. If Knowledge is insufficient, admit it warmly.\n"
@@ -213,8 +245,7 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         "9. For verification/fact-check queries ('Verify this claim...'), evaluate the claim "
         "against the Knowledge and state clearly whether it is SUPPORTED or NOT SUPPORTED "
         "by the teachings. Do NOT refuse to verify.\n"
-        "10. Keep simple factual answers to 100-200 words and adversarial answers to "
-        "150-250 words unless the user asks for depth.\n"
+        + _depth_instruction +
         "11. CANONICAL URLS — When answering questions about where to find more information, "
         "biography, book purchases, or online resources, you MUST mention the relevant "
         "official website: ekam.org (for Ekam World Centre and co-founders), "
@@ -467,6 +498,7 @@ def _cite_sentences(
 @log_metrics
 async def generate_answer(state: GraphState, config: dict = None) -> dict:
     """Generate the final answer with inline hint extraction."""
+    _cs = state.get("complexity_score", 0.5)
     question = state.get("rewritten_query") or state["question"]
     relevant_docs = state["relevant_docs"]
     if getattr(settings, "rag_cache_alignment_enabled", True) and relevant_docs:
@@ -643,7 +675,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         else:
             system_prompt = (
                 "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. "
-                "Answer the user's question using only the provided context. Keep answers to 100-200 words. "
+                "Answer the user's question using only the provided context. "
+                f"Keep answers to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words. "
                 "Cite sources using [Source: <title>].\n"
                 "PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
                 "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
@@ -676,7 +709,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     else:
         intent = state.get("intent", "FACTUAL")
         distress_section = ""
-        if intent == "DISTRESS":
+        if intent == "DISTRESS" or state.get("parallel_distress_level") in ("MILD", "MODERATE", "SEVERE", "CRISIS"):
             distress_section = (
                 "INSTRUCTIONS FOR DISTRESS/SITUATIONS:\n"
                 "1. LISTEN FIRST: If the user shares a situation or distress, let them explain it fully. Acknowledge their feelings with deep compassion.\n"

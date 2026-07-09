@@ -3114,3 +3114,41 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Pattern**: Use `@given(st.text())` to test functions like `classify_doctrine_query` and `inject_doctrine_keywords` with hundreds of random inputs. Core invariants to test: return type correctness, no exception on any valid input, length monotonicity, prefix preservation.
 - **File**: `backend/tests/test_rag_properties.py` — 7 property tests covering keyword injection, RetrievedDoc round-trips, and ConcurrentRetriever.
 - **Install**: `hypothesis>=6.100.0` in `[dependency-groups] dev` in `pyproject.toml`.
+
+## Jul 9, 2026 — Intelligence Layer: Entry-Boundary Heuristics Refined + Adaptive Generation
+
+### Refined Lesson: Heuristics at Entry Boundary vs Downstream
+- **Prior lesson** (`lessons.md:1434`, May 2026): "Avoid hardcoded heuristics for control-flow routing... delegate to dedicated, fast LLM calls at the router/entry boundary."
+- **Refinement**: Heuristics are acceptable **at the entry boundary** (router + graph selector) to short-circuit and AVOID the LLM call — they don't conflict with agentic routing because they gate *whether* to route, not *how*. They are NOT acceptable in downstream control-flow nodes (decompose, HyDE, navigate, grade) where they conflict with agentic decisions.
+- **Application**: `_compute_complexity_score()` in `intent.py` is pure-Python (<1ms, no LLM), sits at the entry boundary, and AUGMENTS (does not replace) the `classify_intent_and_complexity` LLM call. The LLM still classifies intent; the scorer provides a continuous 0.0-1.0 complexity signal that drives response depth.
+- **Existing code that already follows this**: `orchestrator_utils.py:108-170` (`_DEEP_QUERY_PATTERNS`, `_SIMPLE_QUERY_PATTERNS`), `intent.py:394-421` (capability/simple-factual fast-paths), `on_device_intent.py:207-223` (bypass heuristics). All entry-boundary — consistent with the refined lesson.
+
+### On-Device Classifier Calibration
+- **Problem**: Single global `threshold=0.45` for all 7 intent classes in `on_device_intent.py`. Tie-break by hardcoded priority list. No per-class calibration, no margin check. False positives: adversarial queries mis-routed as MEDITATION/FACTUAL; distress missed.
+- **Fix**: Per-class thresholds (`_PER_CLASS_THRESHOLDS`: ADVERSARIAL=0.50, DISTRESS=0.52, others=0.45). Top-1/top-2 margin check (`_MARGIN_THRESHOLD=0.08`): if margin < 0.08, fall through to LLM (ambiguous). Debug logs for both threshold and margin rejections.
+- **Scope**: Embedding path only. Keyword path (`classify()`) and bypass heuristics (`classify_with_reason()`) unchanged.
+- **Lesson**: When using cosine-similarity centroid classifiers, a single global threshold is insufficient for safety-critical labels (adversarial, distress). Per-class thresholds + margin checks eliminate false positives at the cost of more LLM fallbacks — the right tradeoff for a spiritual advisor where mis-routing a distress signal is worse than a 50ms LLM call.
+
+### Complexity-Driven Response Depth
+- **Problem**: Hardcoded `"Keep simple factual answers to 100-200 words"` at `generation.py:216-217` and `"Keep answers to 100-200 words"` at `generation.py:647`. Same depth regardless of question complexity. A 5-word question and a deep philosophical question got the same word budget.
+- **Fix**: `_compute_complexity_score()` (0.0-1.0) computed in `intent.py`, flows through `GraphState.complexity_score` to `generation.py`. Three depth tiers: <0.30 → 80-150w, <0.55 → 150-300w, else 300-500w. Replaces both hardcoded strings.
+- **Calibration**: "what is deeksha" → 0.08 → short. "why does suffering exist and how does it relate to the Four Sacred Secrets?" → 0.55 → long. Bare "why" → 0.37 → medium (needs entity density or multi-part to reach longest tier — intentional).
+- **Lesson**: Response depth should be driven by a continuous signal, not a fixed string. But the signal weights need calibration against real queries — pure philosophical questions ("why does suffering exist") underweight without entity density or multi-part markers. The thresholds (0.30/0.55) were tuned so simple factual queries reliably get short answers and rich philosophical questions get long answers.
+
+### Conversation-Arc Familiarity Detection
+- **Problem**: `classify_user_familiarity` did flat keyword matching over concatenated history. No trajectory detection — couldn't recognize a user deepening from "what is" → "how does" → "why" across turns.
+- **Fix**: Track question-type progression across USER-ONLY messages (filter `role == "user"`, include current question). If arc shows what→how/why deepening, bump familiarity up one level (Seeker→Practitioner, Practitioner→Advanced Meditator).
+- **Bug caught in review**: Initial implementation classified ALL chat_history messages including assistant replies — assistant's "Explain what you mean" or "How do you feel" would false-bump the user's familiarity. Fixed by filtering to `role == "user"` only and appending the current question's type.
+
+### DISTRESS Gate Enum Mismatch (bug caught in review)
+- **Problem**: Broadened DISTRESS gate used `state.get("parallel_distress_level") in ("LOW", "MEDIUM", "HIGH")` — but `DistressLevel` IntEnum names are `NONE, MILD, MODERATE, SEVERE, CRISIS` (`serene_mind_engine.py:34-41`). The gate was dead code; only `intent == "DISTRESS"` ever triggered it.
+- **Fix**: Changed to `("MILD", "MODERATE", "SEVERE", "CRISIS")` to match actual enum names.
+- **Lesson**: When broadening a condition gate to include an enum from another module, verify the enum member names. String comparisons against `.name` are silent dead code if the names don't match — no error, just never fires.
+
+### What was deferred (not this task)
+- Telemetry gauges (complexity/coverage/quality) — ops-only, separate effort
+- Coverage-gate continuous score — existing web-search fallback at `retrieval.py:1027` already works
+- Cross-tier escalation — architecturally impossible (FastGraphStrategy has no grading node, LangGraph compiles static)
+- LettuceDetect on tier2 — latency regression risk (tier2 already at ~7s vs 6s target)
+- tier4_agentic — `agentic_nodes.py` is unwired greenfield
+- Latency profiling — separate profile-first effort (P95 currently 51.6s vs 6s target)
