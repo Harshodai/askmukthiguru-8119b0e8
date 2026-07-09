@@ -82,8 +82,7 @@ def _okf_match(query: str, limit: int = 3) -> list[dict]:
 
     # Try semantic matching first
     try:
-        from services.embedding_service import EmbeddingService
-        embedder = EmbeddingService()
+        embedder = _services._embedder
         q_vec = embedder.encode([query])[0]
         scored: list[tuple[float, dict]] = []
         for e in entries:
