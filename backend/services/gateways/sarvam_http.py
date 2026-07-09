@@ -40,6 +40,7 @@ class SarvamHTTPGateway:
     Responsible ONLY for transport concerns:
       - Connection pooling & lifecycle
       - Authentication headers
+      - API key rotation (comma-separated keys, rotates on 429)
       - Retry logic with exponential backoff
       - Circuit breaker integration
       - Rate limiting (RPM throttling)
@@ -52,12 +53,17 @@ class SarvamHTTPGateway:
     # ------------------------------------------------------------------
 
     def __init__(self) -> None:
-        self._api_key = settings.sarvam_30b_api_key or settings.sarvam_api_key
-        if not self._api_key and not settings.sarvam_30b_endpoint:
+        raw_key = settings.sarvam_30b_api_key or settings.sarvam_api_key or ""
+        if not raw_key and not settings.sarvam_30b_endpoint:
             raise ValueError(
                 "SARVAM_API_KEY is required for Sarvam Cloud API mode. "
-                "Set it in your .env file or environment variables."
+                "Set it in .env or environment."
             )
+
+        self._api_keys = [k.strip() for k in raw_key.split(",") if k.strip()]
+        self._api_key = self._api_keys[0] if self._api_keys else ""
+        self._key_index = 0
+        self._key_lock = AsyncLock()
 
         self._base_url = settings.sarvam_30b_endpoint or getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
         self._timeout = getattr(settings, "llm_timeout", 60)
@@ -83,7 +89,23 @@ class SarvamHTTPGateway:
         if self._api_key:
             os.environ["SARVAM_API_KEY"] = self._api_key
 
-        logger.info(f"SarvamHTTPGateway ready — base_url={self._base_url}")
+        key_count = len(self._api_keys)
+        if key_count > 1:
+            logger.info(f"SarvamHTTPGateway ready — {key_count} API keys loaded, key rotation enabled")
+        else:
+            logger.info(f"SarvamHTTPGateway ready — base_url={self._base_url}")
+
+    async def _rotate_api_key(self) -> bool:
+        """Rotate to the next API key in the comma-separated list.
+        Returns True if rotation succeeded, False if only one key available."""
+        async with self._key_lock:
+            if len(self._api_keys) <= 1:
+                return False
+            self._key_index = (self._key_index + 1) % len(self._api_keys)
+            self._api_key = self._api_keys[self._key_index]
+            os.environ["SARVAM_API_KEY"] = self._api_key
+            logger.info(f"Rotated Sarvam API key to key {self._key_index + 1}/{len(self._api_keys)}")
+            return True
 
     async def close(self) -> None:
         async with self._http_client_lock:
@@ -309,6 +331,16 @@ class SarvamHTTPGateway:
                                         if span_ctx is not None:
                                             span_ctx.__exit__(None, None, None)
                                         continue  # retry immediately within while loop
+
+                        # API key rotation on 429 (rate limit / quota exceeded)
+                        if resp.status_code == 429:
+                            rotated = await self._rotate_api_key()
+                            if rotated:
+                                headers["api-subscription-key"] = self._api_key
+                                logger.warning("Sarvam 429 — rotated API key, retrying immediately")
+                                if span_ctx is not None:
+                                    span_ctx.__exit__(None, None, None)
+                                continue
 
                         resp.raise_for_status()
 

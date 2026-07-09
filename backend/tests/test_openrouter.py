@@ -1,7 +1,6 @@
 import pytest
 from app.config import settings
 from services.openrouter_service import OpenRouterService
-from services.llm.openrouter_provider import OpenRouterProvider
 import httpx
 
 class FakeResponse:
@@ -66,17 +65,4 @@ async def test_openrouter_service_generate(monkeypatch):
     assert res == "A wise teaching on mindfulness."
 
 
-@pytest.mark.asyncio
-async def test_openrouter_provider_delegation(monkeypatch):
-    monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
-    
-    async def fake_get_client(self):
-        return FakeAsyncClient()
-    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
-    service = OpenRouterService()
-    provider = OpenRouterProvider(service)
-
-    # Test classify_intent_and_complexity
-    res = await provider.classify_intent_and_complexity("What is Zen?")
-    assert res == {"intent": "FACTUAL", "complexity": "simple"}

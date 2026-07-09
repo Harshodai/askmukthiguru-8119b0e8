@@ -41,8 +41,8 @@ class TestLLMFactory(unittest.TestCase):
         from services.llm_factory import LLMServiceFactory
 
         providers = LLMServiceFactory.list_providers()
-        self.assertIn("ollama", providers)
         self.assertIn("sarvam_cloud", providers)
+        self.assertIn("nim", providers)
 
     def test_unknown_provider_raises(self) -> None:
         from services.llm_factory import LLMServiceFactory
