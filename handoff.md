@@ -10,28 +10,31 @@ Execute the **Ruthless Review** (`RUTHLESS_REVIEW.md`) — cut latency, remove d
 
 ## 2. Current State of Code
 
-### Branch: `main` — up to date with `origin/main`, working tree clean
+### Branch: `main` — ahead of `origin/main` by 2 commits, working tree clean
 
-**P0-P1 (previous session):** 14 fixes — cache poisoning, guardrail ordering, embedder reuse, sort order, role validation, compose backdoor, user data tracking, stage ordering, auth on title endpoint, keyword footers, follow-up suggestions, coalescer consolidation, compression default, hardcoded metrics.
+**P0-P1 (previous session):** 14 fixes.
 
-**P2 (this session):** 5 structural deletions + tech debt:
+**P2 (through this session):** 9 items + tech debt:
 
-| Item | Lines removed | Files |
-|------|--------------|-------|
+| Item | Lines | Files |
+|------|-------|-------|
 | DeepStrategy → alias to StandardStrategy | −128 | `graph_strategies.py` |
-| 6 dead graph nodes | −450 | `verification.py`, `reranking.py`, `retrieval.py`, `__init__.py`, `timeout_utils.py`, `node_llm_config.py`, `validate_graph.py` + 3 test files |
+| 6 dead graph nodes | −450 | 7 backend + 3 test files |
 | Dead code after `return "standard"` | −44 | `orchestrator_utils.py` |
 | Duplicate `_prepare_user_memory` | −64 | `chat.py` |
 | httpx monkey-patch | −121 | `config.py` |
 | Dead generation functions | −223 | `generation.py` |
-| Stale audit docs | 4 files | `ARCHITECTURE_AUDIT.md`, `ARCHITECTURE_AUDIT_CORRECTED.md`, `HARDCODING_AUDIT.md`, `RUTHLESS_AUDIT_REPORT.md` |
+| Stale audit docs | 4 files | root `ARCHITECTURE_AUDIT*`, `HARDCODING*`, `RUTHLESS_AUDIT*` |
+| **Remove `backend/repos/` (624 MB)** | −1 tracked | `backend/repos/RAG-Anything` |
+| **Collapse providers (7 → 2)** | −226 | `OllamaProvider`, `OpenRouterProvider`, factory, registry, tests |
+| **Key rotation in SarvamHTTPGateway** | +43 | comma-separated keys, 429 rotation |
 
-**Total:** 2,252 net lines removed across 19 files. 13 lines added.
+**Total:** ~2,522 lines removed, 56 added across 29 files.
 
 ### Test Suite
-- **717 passed, 5 skipped (infra), 1 warning (pre-existing)** — 0 failures
-- 3 tests removed alongside the dead nodes they tested (expected)
-- No regressions from any structural deletion
+- **715 passed, 5 skipped (infra), 1 warning (pre-existing)** — 0 failures
+- Tests adapted for collapsed provider set (factory listing, token budget, OpenRouter)
+- 715 vs previous 717 = 3 tests removed for dead nodes + OllamaProvider/OpenRouterProvider provider tests; net -2 tests (some added for new provider test coverage) — wait, let me recalculate: previous was 717 passed (commit 32b1f071), today we have 715 passed. The difference: -2 tests from test_token_budget_guard (OpenRouter) and test_openrouter (OpenRouterProvider) were removed. That accounts for the delta.
 
 ### Running Services
 - Backend: `http://localhost:8000`
@@ -40,63 +43,50 @@ Execute the **Ruthless Review** (`RUTHLESS_REVIEW.md`) — cut latency, remove d
 
 ### Git Log (recent)
 ```
+8c706cdf P2 ruthless review: collapse providers + key rotation
+257cb6ba P2 ruthless review: remove backend/repos/ (624 MB vendored third-party)
 32b1f071 P2 ruthless review: structural cleanup
 a55ae167 docs: session handoff for Jul 9 ruthless P0-P1
-614737f2 chore: apply pre-ruthless WIP stash — KG edge rendering, RAPTOR ...
-bbd5caac merge: ruthless P0-P1 review fixes into main
-bd232069 docs: add ruthless P0-P1 lessons to lessons.md
-8205d917 ruthless P0-6 through P1-14: stage order, auth, keyword removal, ...
-6e870e35 fix(schemas): drop client system messages; validate role (P0-5)
-4fd358c4 fix(rag): remove alphabetical doc sort before budget truncation (P0-4)
-602f39e9 fix(rag): reuse shared embedder in _okf_match (P0-3)
-9f851806 fix(guardrails): self_harm before medical hard-block (P0-2)
-2253b3b9 fix(rag): delete cross-contaminating system-prompt cache (P0-1)
-a97f5ae4 feat(benchmark): auto-flush Redis + Qdrant caches before every run
 ```
 
 ---
 
 ## 3. Files Actively Edited (this session)
 
-All changes committed to `main`. These are the files to know about for the next session:
+All changes committed to `main`. New additions since previous handoff marked **NEW**.
 
-### Backend — production
+### Backend — production (NEW this session)
 | File | What changed |
 |------|-------------|
-| `backend/rag/graph_strategies.py` | DeepGraphStrategy.build() → delegates to StandardStrategy.build(). ~128 lines removed. |
-| `backend/rag/nodes/verification.py` | Deleted `check_contradiction` and `explain_retrieval` functions |
-| `backend/rag/nodes/reranking.py` | Deleted `check_context_sufficiency` function |
-| `backend/rag/nodes/retrieval.py` | Deleted `route_sub_queries`, `retrieve_single`, `merge_sub_results` functions |
-| `backend/rag/nodes/__init__.py` | Removed imports and `__all__` entries for all 6 dead nodes |
-| `backend/rag/timeout_utils.py` | Removed dead node timeout entries; removed `explain_retrieval` from scale-up condition |
+| `backend/services/gateways/sarvam_http.py` | **NEW**: API key rotation — parses comma-separated `SARVAM_API_KEY`, rotates on 429 with immediate retry |
+| `backend/services/llm/__init__.py` | **NEW**: Removed `OllamaProvider`, `OpenRouterProvider` exports |
+| `backend/services/llm/factory.py` | **NEW**: Removed `OllamaProvider`, `OpenRouterProvider` from `LLMProviderFactory` |
+| `backend/services/llm/ollama_provider.py` | **NEW**: Deleted (71 lines, dead wrapper) |
+| `backend/services/llm/openrouter_provider.py` | **NEW**: Deleted (71 lines, dead wrapper) |
+| `backend/services/llm_factory.py` | **NEW**: Removed ollama, openrouter from `_register_default_providers()` |
+| `backend/app/dependencies.py` | **NEW**: Removed `OllamaProvider` isinstance checks; simplified to always use `SarvamFailoverService` + `_NoopTranslationProvider` when Sarvam not available |
+
+### Backend — tests (NEW this session)
+| File | What changed |
+|------|-------------|
+| `backend/tests/test_abstractions.py` | **NEW**: Updated `test_provider_listing` to check for `sarvam_cloud` and `nim` |
+| `backend/tests/test_token_budget_guard.py` | **NEW**: Removed `OllamaProvider`/`OpenRouterProvider` imports and test cases |
+| `backend/tests/test_openrouter.py` | **NEW**: Removed `OpenRouterProvider` import and `test_openrouter_provider_delegation` test |
+
+### Backend — production (from previous session)
+| File | What changed |
+|------|-------------|
+| `backend/rag/graph_strategies.py` | DeepGraphStrategy.build() → delegates to StandardStrategy.build(). |
+| `backend/rag/nodes/verification.py` | Deleted `check_contradiction` and `explain_retrieval` |
+| `backend/rag/nodes/reranking.py` | Deleted `check_context_sufficiency` |
+| `backend/rag/nodes/retrieval.py` | Deleted `route_sub_queries`, `retrieve_single`, `merge_sub_results` |
+| `backend/rag/nodes/__init__.py` | Removed imports for 6 dead nodes |
+| `backend/rag/timeout_utils.py` | Removed dead node timeout entries |
 | `backend/rag/node_llm_config.py` | Removed dead node config entries |
-| `backend/rag/nodes/generation.py` | Deleted `_ensure_keywords_in_answer` (136 lines) and `_generate_follow_up_suggestions` (81 lines) |
-| `backend/app/orchestrator_utils.py` | Deleted unreachable code block after `return "standard"` (44 lines) |
-| `backend/app/api/chat.py` | Deleted duplicate `_prepare_user_memory` function (64 lines, zero call sites) |
-| `backend/app/config.py` | Removed `_init_api_key_rotator` monkey-patch (121 lines) |
-
-### Backend — tests/benchmarks
-| File | What changed |
-|------|-------------|
-| `backend/tests/test_tiered_routing_streaming.py` | Removed dead node tests (`check_context_sufficiency`, `check_contradiction`, `explain_retrieval`) |
-| `backend/tests/test_nodes.py` | Removed `test_explain_retrieval_node` |
-| `backend/tests/test_crag_confidence_skip.py` | Removed `test_sufficiency_skipped_when_rerank_confident` |
-| `backend/benchmarks/validate_graph.py` | Removed dead nodes from exclusion set |
-
-### Root — docs
-| File | What changed |
-|------|-------------|
-| `ARCHITECTURE_AUDIT.md` | Deleted |
-| `ARCHITECTURE_AUDIT_CORRECTED.md` | Deleted |
-| `HARDCODING_AUDIT.md` | Deleted |
-| `RUTHLESS_AUDIT_REPORT.md` | Deleted |
-| `RUTHLESS_REVIEW.md` | **Kept** — this is the canonical audit document |
-
-### Documentation
-| File | What changed |
-|------|-------------|
-| `lessons.md` | Added 5 P2 lessons (dead node sweep, Deep alias, monkey-patch removal, stale docs, dead function bodies) |
-| `handoff.md` | This file |
+| `backend/rag/nodes/generation.py` | Deleted `_ensure_keywords_in_answer` and `_generate_follow_up_suggestions` |
+| `backend/app/orchestrator_utils.py` | Deleted unreachable code block (44 lines) |
+| `backend/app/api/chat.py` | Deleted duplicate `_prepare_user_memory` |
+| `backend/app/config.py` | Removed `_init_api_key_rotator` monkey-patch |
 
 ---
 
@@ -142,21 +132,18 @@ All changes committed to `main`. These are the files to know about for the next 
 
 ## 5. Next Steps
 
-### Immediate (next session)
+### ✅ Completed (this session)
+1. **Remove `backend/repos/`** (624 MB vendored) — `git rm -r --cached`, already in `.gitignore`.
+2. **Collapse providers (7 → 2)** — Sarvam + NIM only. Deleted `OllamaProvider`, `OpenRouterProvider` wrappers. Simplified factory/registry/dependencies.
+3. **API key rotation** — in `SarvamHTTPGateway`: comma-separated keys, rotates on 429 with immediate retry (same self-healing pattern as 400 tier limit).
 
-1. **Move API key rotation into one provider client** — the httpx monkey-patch was deleted (P2-5), but rotation logic needs to live somewhere. Pick the active provider (NIM or Sarvam Cloud), add a client-level key rotator that on 429 swaps to the next comma-separated key. Test with `BENCHMARK_SECRET`.
+### Up next (choose your priority)
 
-2. **Collapse providers (7 → 1-2)** — `LLM_PROVIDER` supports nim, sarvam_cloud, openrouter, ollama, krutrim, and 3 more. Delete unused provider classes; make the selection a config toggle with one active + one fallback. Keeps code readable and eliminates dead provider init paths.
+1. **Split compose into `serve`/`ops` profiles** — `serve` profile: backend + qdrant + redis (~4 GB). `ops` profile: neo4j + jaeger + prometheus + grafana (+8 GB). Users doing simple chat don't need the ops stack.
 
-3. **Remove `backend/repos/`** (624 MB vendored third-party) — this is a vendored directory checked into git. Use `git rm -r --cached backend/repos/` and add to `.gitignore`. Pin the actual dependencies via `requirements.txt` / `pyproject.toml` instead.
+2. **Upgrade reranker** — `BAAI/bge-reranker-v2-m3` is multilingual and `FlagEmbedding` is already a dependency. Config + model swap, no new deps.
 
-### Medium-term (Part E)
-
-4. **Split compose into `serve`/`ops` profiles** — `serve` profile: backend + qdrant + redis (~4 GB). `ops` profile: neo4j + jaeger + prometheus + grafana (+8 GB). Users doing simple chat don't need the ops stack.
-
-5. **Upgrade reranker** — `BAAI/bge-reranker-v2-m3` is multilingual and `FlagEmbedding` is already a dependency. Config + model swap, no new deps.
-
-6. **Replace regex guardrails with Llama Guard 3 1B** — eliminates the ordering bug class (P0-2). Keep a thin regex for the spiritual allow-list.
+3. **Replace regex guardrails with Llama Guard 3 1B** — eliminates the ordering bug class (P0-2). Keep a thin regex for the spiritual allow-list.
 
 ### Technical debt
 - 3 integration tests unwritten (prompt-cache isolation, self-harm+medication→helplines, coalescer follower). Requires live infra (Neo4j, Redis, Qdrant).
