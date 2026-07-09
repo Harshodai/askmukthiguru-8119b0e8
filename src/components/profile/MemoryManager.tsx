@@ -34,9 +34,6 @@ import {
   type KGEdge,
 } from '@/lib/memoryApi';
 
-const WIDTH = 760;
-
-
 interface SimNode extends KGNode {
   x: number;
   y: number;
@@ -56,10 +53,10 @@ const NODE_CONFIG: Record<string, { color: string; stroke: string; r: number; ri
 const DEFAULT_NODE = { color: 'hsl(220 40% 50%)', stroke: 'hsl(220 40% 30%)', r: 15, ring: 2 };
 
 /** Initial ring layout for coordinate seeding */
-const getInitialCoords = (nodes: KGNode[], height: number) => {
+const getInitialCoords = (nodes: KGNode[], width: number, height: number) => {
   const coords = new Map<string, { x: number; y: number }>();
   const rings: Record<number, KGNode[]> = { 0: [], 1: [], 2: [], 3: [] };
-  const CX = WIDTH / 2;
+  const CX = width / 2;
   const CY = height / 2;
 
   for (const node of nodes) {
@@ -117,9 +114,12 @@ export const MemoryManager = () => {
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [containerHeight, setContainerHeight] = useState(500);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 760, height: 500 });
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Search & Filtering
   const [searchQuery, setSearchQuery] = useState('');
+  const [listSearchQuery, setListSearchQuery] = useState('');
 
   // Personal KG raw state
   const [kgNodes, setKgNodes] = useState<KGNode[]>([]);
@@ -143,14 +143,44 @@ export const MemoryManager = () => {
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
 
   const activeHeight = isFullscreen ? (typeof window !== 'undefined' ? window.innerHeight - 150 : 700) : containerHeight;
-  const CX = WIDTH / 2;
-  const CY = activeHeight / 2;
+  const CX = dimensions.width / 2;
+  const CY = dimensions.height / 2;
+
+  // Escape key handler to close fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  // ResizeObserver for dynamic canvas sizing
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width } = entries[0].contentRect;
+      setDimensions({
+        width: Math.max(300, width),
+        height: activeHeight,
+      });
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef.current, activeHeight]);
 
   // Initialize and update simulation nodes
   useEffect(() => {
     if (kgNodes.length === 0) return;
 
-    const initialCoords = getInitialCoords(kgNodes, activeHeight);
+    const initialCoords = getInitialCoords(kgNodes, dimensions.width, dimensions.height);
     const existing = new Map(simNodesRef.current.map(n => [n.id, n]));
 
     simNodesRef.current = kgNodes.map(node => {
@@ -167,7 +197,7 @@ export const MemoryManager = () => {
         vy: 0,
       };
     });
-  }, [kgNodes, activeHeight]);
+  }, [kgNodes, dimensions.width, dimensions.height]);
 
   // Main Force Simulation Loop
   useEffect(() => {
@@ -254,7 +284,7 @@ export const MemoryManager = () => {
 
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [viewMode, kgNodes, kgEdges, activeHeight]);
+  }, [viewMode, kgNodes, kgEdges, dimensions.width, dimensions.height]);
 
   const refresh = async () => {
     setLoading(true);
@@ -390,6 +420,42 @@ export const MemoryManager = () => {
     return node.label.toLowerCase().includes(searchQuery.toLowerCase()) || node.type.toLowerCase().includes(searchQuery.toLowerCase());
   };
 
+  const getRadiusForType = (type: string) => {
+    return (NODE_CONFIG[type] ?? DEFAULT_NODE).r;
+  };
+
+  const getPathData = (
+    sourceId: string,
+    targetId: string,
+    s: { x: number; y: number },
+    t: { x: number; y: number }
+  ) => {
+    const sourceNode = kgNodes.find(n => n.id === sourceId);
+    const targetNode = kgNodes.find(n => n.id === targetId);
+    const rSource = sourceNode ? getRadiusForType(sourceNode.type) : 15;
+    const rTarget = targetNode ? getRadiusForType(targetNode.type) : 15;
+
+    const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
+    const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
+
+    // Vector from S to M
+    const dx1 = mx - s.x;
+    const dy1 = my - s.y;
+    const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) || 0.1;
+    const x1 = s.x + (dx1 / dist1) * rSource;
+    const y1 = s.y + (dy1 / dist1) * rSource;
+
+    // Vector from T to M
+    const dx2 = mx - t.x;
+    const dy2 = my - t.y;
+    const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 0.1;
+    // Offset by rTarget + 2 to align marker arrowhead touching the node border
+    const x2 = t.x + (dx2 / dist2) * (rTarget + 2);
+    const y2 = t.y + (dy2 / dist2) * (rTarget + 2);
+
+    return `M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
+  };
+
   const renderGraph = () => {
     return (
       <div className="space-y-3">
@@ -424,6 +490,7 @@ export const MemoryManager = () => {
 
         {/* Graph SVG canvas with absolute panels overlay */}
         <div
+          ref={containerRef}
           className="rounded-xl border border-border bg-zinc-950 overflow-hidden relative"
           style={{ height: activeHeight }}
         >
@@ -444,7 +511,7 @@ export const MemoryManager = () => {
                 ref={svgRef}
                 width="100%"
                 height="100%"
-                viewBox={`0 0 ${WIDTH} ${activeHeight}`}
+                viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
                 className="block touch-none select-none"
                 style={{ cursor: dragRef.current ? 'grabbing' : activeDraggedNodeRef.current ? 'grabbing' : 'grab' }}
                 onPointerDown={(e) => {
@@ -486,8 +553,16 @@ export const MemoryManager = () => {
                 }}
               >
                 <defs>
-                  <marker id="arrow" markerWidth="6" markerHeight="6" refX="10" refY="3" orient="auto">
-                    <path d="M0,0 L0,6 L6,3 z" fill="hsl(var(--border))" />
+                  <marker
+                    id="arrow"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6"
+                    refY="3"
+                    orient="auto"
+                    markerUnits="userSpaceOnUse"
+                  >
+                    <path d="M0,0 L0,6 L6,3 z" fill="currentColor" />
                   </marker>
                 </defs>
 
@@ -519,24 +594,29 @@ export const MemoryManager = () => {
                         selectedNode.id !== edge.target;
                     }
 
+                    const pathString = getPathData(edge.source, edge.target, s, t);
                     const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
                     const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
 
                     return (
-                      <g key={`e-${i}`} style={{ opacity: isDimmed ? 0.08 : 0.65, transition: 'opacity 0.2s' }}>
+                      <g
+                        key={`e-${i}`}
+                        style={{ transition: 'opacity 0.2s, color 0.2s' }}
+                        color={isDimmed ? 'hsl(var(--border) / 0.15)' : 'hsl(var(--ojas) / 0.7)'}
+                      >
                         <path
-                          d={`M${s.x},${s.y} Q${mx},${my} ${t.x},${t.y}`}
+                          d={pathString}
                           fill="none"
-                          stroke={isDimmed ? 'hsl(var(--border))' : 'hsl(var(--ojas) / 0.45)'}
-                          strokeWidth={isDimmed ? 1.0 : 1.5}
+                          stroke="currentColor"
+                          strokeWidth={isDimmed ? 1.0 : 1.75}
                           markerEnd="url(#arrow)"
                         />
                         {edge.label && !isDimmed && (
                           <text
                             x={mx} y={my}
                             textAnchor="middle"
-                            className="fill-muted-foreground"
-                            style={{ fontSize: 6.5, pointerEvents: 'none' }}
+                            className="fill-muted-foreground font-semibold"
+                            style={{ fontSize: 7.5, pointerEvents: 'none' }}
                           >
                             {edge.label}
                           </text>
@@ -658,37 +738,61 @@ export const MemoryManager = () => {
                     initial={{ x: '100%' }}
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
-                    transition={{ type: 'spring', damping: 20 }}
-                    className="absolute right-0 top-0 h-full w-72 bg-zinc-900/95 border-l border-border backdrop-blur-md p-4 shadow-2xl overflow-y-auto flex flex-col z-20"
+                    transition={{ type: 'spring', damping: 22, stiffness: 120 }}
+                    className="absolute right-0 top-0 h-full w-80 sm:w-96 bg-zinc-950/85 border-l border-zinc-800/80 backdrop-blur-lg p-5 shadow-[-10px_0_35px_-5px_rgba(0,0,0,0.6)] overflow-y-auto flex flex-col z-20 relative"
                   >
-                    <div className="flex items-start justify-between border-b border-border pb-2.5 mb-3.5">
+                    {/* Dynamic top gradient line matching node type */}
+                    <div
+                      className="absolute top-0 left-0 right-0 h-1.5"
+                      style={{
+                        background: `linear-gradient(90deg, ${(NODE_CONFIG[selectedNode.type] ?? DEFAULT_NODE).color}, transparent)`,
+                      }}
+                    />
+
+                    <div className="flex items-start justify-between border-b border-zinc-800/60 pb-3 mb-4 mt-2">
                       <div>
-                        <Badge className="mb-1 text-[10px]" style={{ background: (NODE_CONFIG[selectedNode.type] ?? DEFAULT_NODE).color }}>
+                        <Badge
+                          className="mb-1.5 text-[9px] uppercase tracking-wider font-semibold"
+                          style={{ background: (NODE_CONFIG[selectedNode.type] ?? DEFAULT_NODE).color }}
+                        >
                           {selectedNode.type}
                         </Badge>
-                        <h4 className="text-sm font-semibold text-white truncate max-w-[200px]">
+                        <h4 className="text-base font-bold text-white tracking-tight truncate max-w-[200px] sm:max-w-[260px]">
                           {selectedNode.type === 'User' ? 'Your Memory Profile' : selectedNode.label}
                         </h4>
                       </div>
-                      <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-white p-1 rounded-md">
+                      <button
+                        onClick={() => setSelectedNode(null)}
+                        className="text-muted-foreground hover:text-white hover:bg-zinc-900 p-1.5 rounded-lg transition-colors"
+                      >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
 
                     <div className="flex-1 space-y-4 text-xs">
                       {/* Node attributes */}
-                      <div className="space-y-1 bg-zinc-950/40 p-2.5 rounded-lg border border-border/40">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Node Details</p>
-                        <p className="text-foreground leading-relaxed">{selectedNode.label}</p>
-                      </div>
+                      {selectedNode.type === 'Memory' ? (
+                        <div className="space-y-1 bg-zinc-900/40 p-4 rounded-xl border border-white/5 relative overflow-hidden group">
+                          <div className="absolute -top-1 -right-1 text-white/5 font-serif text-6xl pointer-events-none select-none group-hover:text-white/10 transition-colors">“</div>
+                          <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Memory Content</p>
+                          <p className="text-foreground leading-relaxed italic text-sm font-serif pr-4">"{selectedNode.label}"</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 bg-zinc-900/40 p-3.5 rounded-xl border border-white/5">
+                          <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Entity Name</p>
+                          <p className="text-foreground leading-relaxed text-sm font-medium">{selectedNode.label}</p>
+                        </div>
+                      )}
 
                       {/* Connections section */}
                       <div className="space-y-2">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Connections</p>
+                        <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1">
+                          <Network className="w-3 h-3 text-ojas" /> Connections
+                        </p>
                         {kgEdges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).length === 0 ? (
-                          <p className="text-muted-foreground italic">No direct connections.</p>
+                          <p className="text-muted-foreground italic pl-1">No direct connections.</p>
                         ) : (
-                          <div className="space-y-1.5">
+                          <div className="space-y-2">
                             {kgEdges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).map((e, idx) => {
                               const neighborId = e.source === selectedNode.id ? e.target : e.source;
                               const neighbor = kgNodes.find(n => n.id === neighborId);
@@ -697,10 +801,15 @@ export const MemoryManager = () => {
                                 <button
                                   key={idx}
                                   onClick={() => setSelectedNode(neighbor)}
-                                  className="w-full text-left p-2 rounded border border-border/40 bg-zinc-950/20 hover:bg-zinc-800 flex items-center justify-between"
+                                  className="w-full text-left p-2.5 rounded-lg border border-zinc-800/60 bg-zinc-900/20 hover:bg-zinc-900 hover:border-zinc-700/80 flex items-center justify-between transition-all group hover:scale-[1.01]"
                                 >
-                                  <span className="truncate text-foreground font-medium max-w-[150px]">{neighbor.label}</span>
-                                  <Badge className="scale-75 origin-right" style={{ background: (NODE_CONFIG[neighbor.type] ?? DEFAULT_NODE).color }}>
+                                  <span className="truncate text-foreground font-medium max-w-[180px] sm:max-w-[220px] group-hover:text-white transition-colors">
+                                    {neighbor.label}
+                                  </span>
+                                  <Badge
+                                    className="scale-75 origin-right uppercase text-[8px]"
+                                    style={{ background: (NODE_CONFIG[neighbor.type] ?? DEFAULT_NODE).color }}
+                                  >
                                     {neighbor.type}
                                   </Badge>
                                 </button>
@@ -811,8 +920,65 @@ export const MemoryManager = () => {
     );
   }
 
+  const filteredMemories = memories.filter((m) =>
+    m.content.toLowerCase().includes(listSearchQuery.toLowerCase())
+  );
+
   return (
-    <div className={`space-y-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background/98 overflow-y-auto p-6 md:p-10' : ''}`}>
+    <div className={`space-y-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-zinc-950/98 overflow-y-auto p-6 md:p-10' : ''}`}>
+      {/* Floating close button in fullscreen */}
+      {isFullscreen && (
+        <button
+          onClick={() => setIsFullscreen(false)}
+          className="fixed top-6 right-6 z-50 p-3 rounded-full border border-white/10 bg-zinc-900/60 text-muted-foreground hover:text-white hover:border-white/20 transition-all hover:scale-105 backdrop-blur-md shadow-xl group"
+          title="Exit Fullscreen (Esc)"
+        >
+          <X className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" />
+        </button>
+      )}
+
+      {/* ── Statistics Bento Dashboard ─────────────────────────────────── */}
+      {!isFullscreen && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 bg-ojas/10 rounded-lg text-ojas"><Brain className="w-4 h-4" /></div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Memories</p>
+                <p className="text-lg font-bold text-white mt-0.5">{memories.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 bg-prana/10 rounded-lg text-prana"><Sparkles className="w-4 h-4" /></div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Core Status</p>
+                <p className="text-xs font-bold text-white mt-1">{coreText.trim() ? "Active" : "Unset"}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Network className="w-4 h-4" /></div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">KG Nodes</p>
+                <p className="text-lg font-bold text-white mt-0.5">{kgNodes.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-zinc-900/40 border-zinc-800/80 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><BookText className="w-4 h-4" /></div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Reflections</p>
+                <p className="text-lg font-bold text-white mt-0.5">{summaries.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ── Core Memory Editor ─────────────────────────────────────────── */}
       {!isFullscreen && (
         <Card>
@@ -926,92 +1092,118 @@ export const MemoryManager = () => {
             </div>
           )}
 
-          {viewMode === 'graph' ? renderGraph() : memories.length === 0 ? (
-
-            <div className="text-center py-8 space-y-2">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                <Brain className="w-6 h-6" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                No memories yet. Continue your conversations and the guru will
-                gradually learn what matters to you.
-              </p>
-            </div>
+          {viewMode === 'graph' ? (
+            renderGraph()
           ) : (
-            <ul className="space-y-2">
-              <AnimatePresence initial={false}>
-                {memories.map((m) => (
-                  <motion.li
-                    key={m.id}
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex gap-3 p-3 rounded-lg bg-ojas/5 border border-ojas/10 items-start"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground/90 leading-relaxed">
-                        {m.content}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(m.created_at)}
-                        </span>
-                        {m.source === 'explicit' ? (
-                          <Badge variant="outline" className="text-xs">
-                            You added
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            Auto-extracted
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                          disabled={forgettingId === m.id}
-                          aria-label="Forget this memory"
-                        >
-                          {forgettingId === m.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Forget this memory?</AlertDialogTitle>
-                          <AlertDialogDescription>
+            <div className="space-y-4">
+              {/* Memories List Search */}
+              {memories.length > 0 && (
+                <div className="relative w-full max-w-[320px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search memories..."
+                    value={listSearchQuery}
+                    onChange={(e) => setListSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-7 py-1.5 rounded-md border border-zinc-800 bg-zinc-950 text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+                  />
+                  {listSearchQuery && (
+                    <button
+                      onClick={() => setListSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {filteredMemories.length === 0 ? (
+                <div className="text-center py-8 space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+                    <Brain className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {listSearchQuery ? 'No matching memories found.' : 'No memories yet.'}
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  <AnimatePresence initial={false}>
+                    {filteredMemories.map((m) => (
+                      <motion.li
+                        key={m.id}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex gap-3 p-3 rounded-lg bg-ojas/5 border border-ojas/10 items-start"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground/90 leading-relaxed font-serif">
                             "{m.content}"
-                            <br />
-                            <br />
-                            The guru will no longer reference this in future
-                            conversations. This cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Keep</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleForget(m.id)}>
-                            Forget
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </ul>
+                          </p>
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(m.created_at)}
+                            </span>
+                            {m.source === 'explicit' ? (
+                              <Badge variant="outline" className="text-xs bg-zinc-900 border-zinc-800">
+                                You added
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs bg-zinc-800/50">
+                                Auto-extracted
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-muted-foreground hover:text-destructive"
+                              disabled={forgettingId === m.id}
+                              aria-label="Forget this memory"
+                            >
+                              {forgettingId === m.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Forget this memory?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                "{m.content}"
+                                <br />
+                                <br />
+                                The guru will no longer reference this in future
+                                conversations. This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Keep</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleForget(m.id)}>
+                                Forget
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* ── Session Summaries ──────────────────────────────────────────── */}
-      {summaries.length > 0 && (
+      {summaries.length > 0 && !isFullscreen && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

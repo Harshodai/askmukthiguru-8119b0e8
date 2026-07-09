@@ -542,6 +542,7 @@ class MemoryServiceV2(MemoryService):
                     with driver.session() as session:
                         memories = []
                         ontology = []
+                        ontology_edges = []
                         try:
                             # Get user + memories
                             res1 = session.run(
@@ -558,11 +559,21 @@ class MemoryServiceV2(MemoryService):
                                 "LIMIT 50"
                             )
                             ontology = [r.data() for r in res2 if r.get("eid")]
+
+                            # Get relationships between ontology concepts
+                            res3 = session.run(
+                                "MATCH (c1)-[r]->(c2) "
+                                "WHERE (c1:Concept OR c1:Teacher OR c1:Practice) "
+                                "  AND (c2:Concept OR c2:Teacher OR c2:Practice) "
+                                "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
+                                "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type"
+                            )
+                            ontology_edges = [r.data() for r in res3 if r.get("source") and r.get("target")]
                         except Exception:
                             pass
-                        return memories, ontology
+                        return memories, ontology, ontology_edges
 
-                neo4j_memories, ontology = await asyncio.to_thread(_query_neo4j)
+                neo4j_memories, ontology, ontology_edges = await asyncio.to_thread(_query_neo4j)
 
                 # Add ontology concept nodes
                 concept_keywords: dict[str, str] = {}
@@ -576,6 +587,13 @@ class MemoryServiceV2(MemoryService):
                     _add_node(f"concept:{eid}", eid, ntype, teacher)
                     concept_keywords[eid.lower()] = eid
 
+                # Add ontology concept edges
+                for edge in ontology_edges:
+                    src = f"concept:{edge['source']}"
+                    dst = f"concept:{edge['target']}"
+                    if src in nodes and dst in nodes:
+                        _add_edge(src, dst, edge['rel_type'])
+
                 # Add memory nodes and link to user
                 for m in neo4j_memories:
                     mid = m["mid"]
@@ -588,6 +606,7 @@ class MemoryServiceV2(MemoryService):
                     for keyword, concept_id in concept_keywords.items():
                         if keyword in content_lower:
                             _add_edge(f"memory:{mid}", f"concept:{concept_id}", "RELATES_TO")
+
 
         except Exception as exc:
             logger.warning(f"build_personal_knowledge_graph neo4j failed: {exc}")

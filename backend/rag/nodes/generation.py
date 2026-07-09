@@ -1283,6 +1283,8 @@ def _clean_inline_citations(text: str) -> str:
     import re
     # Remove bracketed source citations like [Source: ... | URL: ...] or [Source: ...]
     text = re.sub(r'\[Source:\s*[^\]]+\]', '', text)
+    # Remove RAPTOR ingestion headers: [RAPTOR Level: N | Topic: ...]
+    text = re.sub(r'\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]', '', text)
     # Remove markdown link syntax: [link text](url) where url is http
     text = re.sub(r'\[[^\]]*\]\(\s*https?://[^\)]+\)', '', text)
     # Remove parenthesis containing URLs
