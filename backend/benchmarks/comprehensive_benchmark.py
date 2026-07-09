@@ -657,5 +657,200 @@ def print_summary():
         print(f"      Intent: {b.expected_intent} | Blocked: {'YES' if b.expect_blocked else 'no'}")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# HTTP RUNNER
+# ═══════════════════════════════════════════════════════════════════════════
+
+import argparse
+import asyncio
+import json
+import os
+import time
+import uuid
+from pathlib import Path
+
+try:
+    import httpx
+except ImportError:
+    print("ERROR: pip install httpx")
+    sys.exit(1)
+
+REPORT_DIR = Path(__file__).resolve().parent / "reports"
+
+
+@dataclass
+class CompResult:
+    query: str
+    category: str
+    difficulty: str
+    expected_intent: str
+    expect_blocked: bool
+    latency_ms: float
+    status: int
+    actual_intent: str
+    response: str
+    citations: list[str]
+    error: str
+    keyword_score: float
+    intent_match: bool
+    blocked_correctly: bool
+    passed: bool
+
+
+async def _post(
+    client: httpx.AsyncClient, base_url: str, query: str, test_key: str | None, timeout: float
+) -> dict:
+    payload = {
+        "messages": [{"role": "user", "content": query}],
+        "user_message": query,
+        "session_id": str(uuid.uuid4()),
+        "meditation_step": 0,
+    }
+    headers = {"X-Test-Key": test_key} if test_key else {}
+    t0 = time.perf_counter()
+    try:
+        r = await client.post(f"{base_url}/api/chat", json=payload, headers=headers, timeout=timeout)
+        lat = (time.perf_counter() - t0) * 1000
+        if r.status_code == 200:
+            data = r.json()
+            return {"ok": True, "status": 200, "data": data, "error": "", "latency_ms": lat}
+        return {"ok": False, "status": r.status_code, "data": {}, "error": f"HTTP {r.status_code}: {r.text[:200]}", "latency_ms": lat}
+    except (httpx.RequestError, httpx.TimeoutException) as e:
+        lat = (time.perf_counter() - t0) * 1000
+        return {"ok": False, "status": 0, "data": {}, "error": str(e), "latency_ms": lat}
+
+
+def _kw_score(text: str, keywords: list[str]) -> float:
+    if not keywords:
+        return 1.0
+    text = text.lower()
+    matches = sum(1 for k in keywords if k.lower() in text)
+    return matches / len(keywords)
+
+
+async def run_comprehensive(
+    base_url: str, test_key: str | None, concurrency: int, timeout: float, dry_run: bool
+) -> list[CompResult]:
+    cases = ALL_BENCHMARKS if not dry_run else ALL_BENCHMARKS[:3]
+    results: list[CompResult] = []
+
+    async def process(b: BenchmarkCase) -> CompResult:
+        res = await _post(client, base_url, b.query, test_key, timeout)
+        lat = res["latency_ms"]
+        status = res["status"]
+        resp = res["data"].get("response", "") if res["ok"] else ""
+        intent = res["data"].get("intent", "UNKNOWN") if res["ok"] else "UNKNOWN"
+        cites = res["data"].get("citations", []) if res["ok"] else []
+        err = res["error"]
+
+        kw = _kw_score(resp, b.ground_truth_keywords or [])
+        intent_match = intent == b.expected_intent
+        blocked = intent in ("CASUAL", "OFF_TOPIC") or status == 403
+        blocked_correctly = blocked == b.expect_blocked
+
+        passed = res["ok"] and kw >= 0.4 and intent_match and blocked_correctly and bool(resp.strip())
+
+        return CompResult(
+            query=b.query,
+            category=b.category.value,
+            difficulty=b.difficulty.value,
+            expected_intent=b.expected_intent,
+            expect_blocked=b.expect_blocked,
+            latency_ms=lat,
+            status=status,
+            actual_intent=intent,
+            response=resp,
+            citations=cites,
+            error=err,
+            keyword_score=kw,
+            intent_match=intent_match,
+            blocked_correctly=blocked_correctly,
+            passed=passed,
+        )
+
+    limits = httpx.Limits(max_connections=max(10, concurrency * 2))
+    async with httpx.AsyncClient(limits=limits) as client:
+        if concurrency > 1:
+            print(f"  Running {len(cases)} queries with concurrency={concurrency}...")
+            results = await asyncio.gather(*[process(b) for b in cases])
+        else:
+            for b in cases:
+                print(f"  [{b.category.value}] {b.query[:50]}...")
+                results.append(await process(b))
+    return results
+
+
+def print_results(results: list[CompResult]):
+    passed = sum(1 for r in results if r.passed)
+    total = len(results)
+    print(f"\n{'=' * 60}")
+    print(f"  COMPREHENSIVE BENCHMARK RESULTS")
+    print(f"{'=' * 60}")
+    print(f"  Passed: {passed}/{total} ({passed / total:.0%})")
+    for r in results:
+        sym = "✅" if r.passed else "❌"
+        print(f"\n  {sym} [{r.category}] {r.query[:60]}")
+        print(f"      Intent: {r.actual_intent} (expected: {r.expected_intent}) | Latency: {r.latency_ms:.0f}ms | KW: {r.keyword_score:.2f}")
+        if r.error:
+            print(f"      Error: {r.error}")
+        if not r.intent_match:
+            print(f"      ⚠️  Intent mismatch")
+        if not r.blocked_correctly:
+            print(f"      ⚠️  Blocked={r.expect_blocked} but got block_status={r.actual_intent}")
+
+
+def save_report(results: list[CompResult]):
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    report = {
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "total": len(results),
+        "passed": sum(1 for r in results if r.passed),
+        "failed": sum(1 for r in results if not r.passed),
+        "results": [
+            {
+                "query": r.query,
+                "category": r.category,
+                "difficulty": r.difficulty,
+                "latency_ms": r.latency_ms,
+                "status": r.status,
+                "intent": r.actual_intent,
+                "intent_match": r.intent_match,
+                "keyword_score": r.keyword_score,
+                "blocked_correctly": r.blocked_correctly,
+                "passed": r.passed,
+                "error": r.error,
+                "citations": r.citations,
+                "response": r.response,
+            }
+            for r in results
+        ],
+    }
+    path = REPORT_DIR / "comprehensive_report.json"
+    path.write_text(json.dumps(report, indent=2))
+    print(f"\n  💾 Report saved to: {path}")
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="Comprehensive benchmark runner for AskMukthiGuru")
+    parser.add_argument("--base-url", default="http://localhost:8000")
+    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET"))
+    parser.add_argument("--concurrency", type=int, default=1)
+    parser.add_argument("--timeout", type=float, default=180.0)
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    print("🚀 Running comprehensive benchmarks...")
+    print(f"   Target: {args.base_url}")
+    print(f"   Concurrency: {args.concurrency}")
+    print(f"   Queries: {3 if args.dry_run else len(ALL_BENCHMARKS)}")
+
+    results = await run_comprehensive(args.base_url, args.test_key, args.concurrency, args.timeout, args.dry_run)
+    print_results(results)
+    save_report(results)
+
+    failed = sum(1 for r in results if not r.passed)
+    return 1 if failed > 0 else 0
+
+
 if __name__ == "__main__":
-    print_summary()
+    sys.exit(asyncio.run(main()))

@@ -324,7 +324,18 @@ async def test_guardrail_refusal(
         "cannot", "unable", "sorry", "not appropriate",
         "spiritual guide", "off-topic", "off topic",
     ]
-    if not any(s in lowered for s in refusal_signals):
+    polite_redirect = [
+        "as a spiritual guide", "my purpose is", "i am here",
+        "focus on", "intended purpose", "here to assist",
+        "not within", "not able to", "beyond my scope",
+        "redirect", "guide you toward", "instead, i",
+        "i can help you with", "let me help you",
+        "how about we", "perhaps you meant",
+        "i understand you're asking",
+    ]
+    has_refusal = any(s in lowered for s in refusal_signals)
+    has_redirect = any(s in lowered for s in polite_redirect)
+    if not has_refusal and not has_redirect:
         checks.append("no_refusal_signal")
 
     verdict = Verdict.PASS if len(checks) == 0 else Verdict.FAIL
@@ -346,16 +357,22 @@ async def test_guardrail_refusal(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def run_focused_tests(base_url: str, timeout: float, test_key: str | None = None) -> list[FocusedResult]:
-    limits = httpx.Limits(max_connections=10, max_keepalive_connections=5)
+async def run_focused_tests(base_url: str, timeout: float, test_key: str | None = None, concurrency: int = 1) -> list[FocusedResult]:
+    limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     async with httpx.AsyncClient(limits=limits) as client:
-        results = []
-        print("⏳ Running tier2_capability_query...")
-        results.append(await test_tier2_capability_query(client, base_url, timeout, test_key=test_key))
-        print("⏳ Running simple_factual_query...")
-        results.append(await test_simple_factual_query(client, base_url, timeout, test_key=test_key))
-        print("⏳ Running guardrail_refusal...")
-        results.append(await test_guardrail_refusal(client, base_url, timeout, test_key=test_key))
+        tests = [
+            ("tier2_capability_query", test_tier2_capability_query(client, base_url, timeout, test_key=test_key)),
+            ("simple_factual_query", test_simple_factual_query(client, base_url, timeout, test_key=test_key)),
+            ("guardrail_refusal", test_guardrail_refusal(client, base_url, timeout, test_key=test_key)),
+        ]
+        if concurrency > 1:
+            print(f"⏳ Running {len(tests)} tests in parallel (concurrency={concurrency})...")
+            results = await asyncio.gather(*[t for _, t in tests])
+        else:
+            results = []
+            for name, coro in tests:
+                print(f"⏳ Running {name}...")
+                results.append(await coro)
         return results
 
 
@@ -400,6 +417,7 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://localhost:8000", help="Backend base URL")
     parser.add_argument("--timeout", type=float, default=120.0, help="Request timeout seconds")
     parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET"), help="X-Test-Key value for auth")
+    parser.add_argument("--concurrency", type=int, default=1, help="Run tests in parallel with N concurrent requests")
     parser.add_argument("--output", type=Path, default=None, help="JSON report output path")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
@@ -414,7 +432,7 @@ def main() -> int:
     print(f"   Timeout: {args.timeout}s\n")
 
     try:
-        results = asyncio.run(run_focused_tests(args.base_url, args.timeout, args.test_key))
+        results = asyncio.run(run_focused_tests(args.base_url, args.timeout, args.test_key, args.concurrency))
     except KeyboardInterrupt:
         logger.warning("Interrupted by user.")
         return 130

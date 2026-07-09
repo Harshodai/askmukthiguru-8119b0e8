@@ -18,8 +18,10 @@ set -a
 [ -f "benchmarks/.env.benchmark" ] && source "benchmarks/.env.benchmark"
 set +a
 
-echo "=== 0. flush caches ==="
-$PY ../scripts/ops/flush_cache.py
+echo "=== 0. flush caches (via docker exec — flush_cache.py needs Docker hostnames) ==="
+docker compose exec -T backend python3 /app/scripts/ops/flush_cache.py 2>/dev/null \
+  || (echo "  ⚠️ docker exec failed; trying host-side flush..." && $PY ../scripts/ops/flush_cache.py) \
+  || echo "  ⚠️ Cache flush failed — caches may be warm."
 
 echo "=== 1. smoke (retrieval sanity, ~1min) ==="
 $PY benchmarks/smoke_doctrine.py

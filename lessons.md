@@ -1,5 +1,25 @@
 # Agentic Lessons & Memory
 
+## Jul 10, 2026 — Full Benchmark Ladder + Guardrail Fix + Dashboard
+
+### Guardrail refusal detection needs polite redirect patterns
+- **Problem**: The `focused_fix_test.py` guardrail check only matched exact refusal keywords (`cannot`, `unable`, `sorry`). The model politely redirects without those words (e.g., "As a spiritual guide, my purpose is to... let me help you with something else").
+- **Fix**: Added `polite_redirect` patterns (`"my purpose is"`, `"i am here"`, `"redirect"`, `"guide you toward"`, etc.) alongside the original `refusal_signals`. Test passes if either set matches.
+- **Pattern**: Guardrail checks in benchmarks must account for polite redirection, not just explicit refusals.
+
+### Concurrent benchmark load with 2 gunicorn workers leads to queueing
+- **Problem**: Backend runs gunicorn with 2 workers and `--preload`. Under concurrent load (3+ clients), requests queue behind active ones. A single request can take 60-120s (OpenRouter model inference), so queued requests hit 180-360s timeouts.
+- **Fix**: Set benchmark concurrency to 1 (sequential) or 2 (matching worker count). For accurate throughput testing, increase gunicorn workers.
+- **Pattern**: Benchmark concurrency should never exceed gunicorn worker count. Otherwise latency measurements reflect queue wait, not pipeline performance.
+
+### Host-side benchmark scripts cannot reach Docker-internal hostnames
+- **Problem**: `flush_cache.py` hardcodes `qdrant:6333` and `redis://redis:6379/0` — Docker internal hostnames unreachable from host. The script fails with DNS resolution errors.
+- **Fix**: Replace with `docker compose exec -T backend python3 scripts/ops/flush_cache.py` (runs inside the container where Docker DNS works). Also, `ruthless_benchmark.py` has its own flush via socket + docker exec for the same reason.
+- **Pattern**: Any script that connects to infrastructure services (Qdrant, Redis) must either run inside the Docker container or use host-accessible localhost ports. The `docker compose exec` pattern is the cleanest fallback.
+
+### OpenRouter `meta-llama/llama-3.1-8b-instruct` is slow but reliable
+- **Observation**: Each query takes 5-120s depending on complexity. Simple factual queries: ~5-6s. Complex/multi-hop: 60-120s. The model never returned gibberish or empty responses — just slow. Timeout of 120s is too low for complex queries; use 300s+ for benchmark timeouts.
+
 ## Jul 7, 2026 — Chat UI Composer, Language Popover & Overlap Audit
 
 ### Shift user copy/edit buttons outside message bubble
