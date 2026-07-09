@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from app.config import settings
 from services.llm.base import LLMProvider
+from services.llm.ollama_provider import OllamaProvider
 from services.llm.sarvam_provider import SarvamProvider
+from services.llm.openrouter_provider import OpenRouterProvider
 from services.llm.nim_provider import NimProvider
 from services.llm_factory import LLMServiceFactory
 
@@ -17,10 +19,15 @@ class LLMProviderFactory:
         """Create and return an LLMProvider instance based on configuration."""
         name = (provider_name or settings.llm_provider or "sarvam_cloud").lower()
 
+        # Use the existing LLMServiceFactory to create the underlying service
         underlying_service = LLMServiceFactory.create(name)
 
-        if name in ("sarvam", "sarvam_cloud"):
+        if name == "ollama":
+            return OllamaProvider(underlying_service)
+        elif name in ("sarvam", "sarvam_cloud"):
             return SarvamProvider(underlying_service)
+        elif name == "openrouter":
+            return OpenRouterProvider(underlying_service)
         elif name == "nim":
             return NimProvider(underlying_service)
         else:
