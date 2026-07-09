@@ -13,6 +13,7 @@ DASHBOARD_PATH = REPORT_DIR / "dashboard.html"
 def load_reports():
     ruthless_data = {}
     native_data = []
+    comprehensive_data = {}
     
     ruthless_path = REPORT_DIR / "ruthless_report.json"
     if ruthless_path.exists():
@@ -29,10 +30,38 @@ def load_reports():
                 native_data = json.load(f)
         except Exception as e:
             print(f"⚠️ Error loading native eval report: {e}")
-            
-    return ruthless_data, native_data
 
-def build_html(ruthless, native):
+    comp_path = REPORT_DIR / "comprehensive_report.json"
+    if comp_path.exists():
+        try:
+            with open(comp_path) as f:
+                comprehensive_data = json.load(f)
+        except Exception as e:
+            print(f"⚠️ Error loading comprehensive report: {e}")
+            
+    return ruthless_data, native_data, comprehensive_data
+
+
+def collect_docker_logs() -> dict[str, str]:
+    """Collect docker compose logs for each service. Best-effort — returns empty on failure."""
+    import subprocess
+    services = ["backend", "celery-worker", "qdrant", "redis", "neo4j"]
+    logs = {}
+    for svc in services:
+        try:
+            ret = subprocess.run(
+                ["docker", "compose", "logs", "--tail", "200", svc],
+                capture_output=True, text=True, timeout=30,
+            )
+            if ret.returncode == 0 and ret.stdout.strip():
+                logs[svc] = ret.stdout[-10000:]  # cap at ~10k chars
+            else:
+                logs[svc] = f"(no output or service not found: {ret.stderr[:200]})"
+        except Exception as e:
+            logs[svc] = f"(collection failed: {e})"
+    return logs
+
+def build_html(ruthless, native, comprehensive, docker_logs):
     # Overall Score calculations
     score = ruthless.get("production_readiness_score", 0.0)
     verdict = ruthless.get("verdict", "FAIL")
@@ -140,11 +169,23 @@ def build_html(ruthless, native):
             </div>
             """
             
+        trace_id = r.get("trace_id", "")
+        error_str = r.get("error", "")
+        backend_logs = r.get("backend_logs", "")
+
         node_timings = r.get("node_timings", {})
         timings_html = ""
         if node_timings:
             timings_items = "".join(f'<span class="timing-chip">{k}: {v:.0f}ms</span>' for k, v in node_timings.items())
             timings_html = f'<div class="timings-container">{timings_items}</div>'
+
+        trace_html = ""
+        if trace_id:
+            trace_html = f'<div class="trace-info">🔗 Trace: <a href="http://localhost:16686/trace/{trace_id}" target="_blank" class="trace-link">{trace_id[:16]}</a></div>'
+
+        error_html = ""
+        if error_str:
+            error_html = f'<div class="error-stack-box"><strong>Error:</strong><pre>{error_str}</pre></div>'
             
         fail_reason = ""
         if failure_type:
@@ -186,6 +227,8 @@ def build_html(ruthless, native):
                 {original_q_html}
                 {fail_reason}
                 {metrics_grid}
+                {error_html}
+                {trace_html}
                 <div class="response-box">
                     <strong>Model Response:</strong>
                     <p>{response}</p>
@@ -194,7 +237,7 @@ def build_html(ruthless, native):
                 {timings_html}
                 <div class="debug-details">
                     <span>Intent: {r.get("intent", "N/A")}</span> | 
-                    <span>Trace ID: {r.get("trace_id", "N/A")}</span> | 
+                    <span>Trace: {trace_id[:24] if trace_id else "N/A"}</span> | 
                     <span>Layer: {r.get("layer_tested", "N/A")}</span>
                 </div>
             </div>
@@ -227,6 +270,87 @@ def build_html(ruthless, native):
             </div>
             """
             
+    # Latency Distribution Chart (SVG bar chart)
+    latency_buckets = {"<1s": 0, "1-3s": 0, "3-5s": 0, "5-10s": 0, "10-30s": 0, ">30s": 0}
+    for r in results:
+        lat = r.get("latency_ms", 0) / 1000
+        if lat < 1: latency_buckets["<1s"] += 1
+        elif lat < 3: latency_buckets["1-3s"] += 1
+        elif lat < 5: latency_buckets["3-5s"] += 1
+        elif lat < 10: latency_buckets["5-10s"] += 1
+        elif lat < 30: latency_buckets["10-30s"] += 1
+        else: latency_buckets[">30s"] += 1
+    max_bucket = max(latency_buckets.values()) or 1
+    bar_height = 140
+    bar_width = 55
+    bars_svg = ""
+    x = 10
+    for label, count in latency_buckets.items():
+        h = (count / max_bucket) * bar_height
+        y = bar_height - h
+        bars_svg += f'<rect x="{x}" y="{y}" width="{bar_width-10}" height="{max(h, 2)}" rx="3" fill="var(--primary)" opacity="0.8"><title>{count} queries ({label})</title></rect>'
+        bars_svg += f'<text x="{x + (bar_width-10)/2}" y="{bar_height + 14}" text-anchor="middle" font-size="10" fill="var(--text-muted)">{label}</text>'
+        bars_svg += f'<text x="{x + (bar_width-10)/2}" y="{y - 6}" text-anchor="middle" font-size="11" fill="var(--text-color)" font-weight="600">{count}</text>'
+        x += bar_width
+    chart_svg_width = x + 10
+
+    # Docker logs section
+    docker_logs_html = ""
+    for svc in ["backend", "celery-worker", "qdrant", "redis", "neo4j"]:
+        log_content = docker_logs.get(svc, "(no logs collected)")
+        log_id = f"logs-{svc}"
+        docker_logs_html += f"""
+        <div class="docker-log-card">
+            <div class="docker-log-header" onclick="toggleDetails(this)">
+                <span class="docker-log-service">🐳 {svc}</span>
+                <span class="docker-log-toggle">▼</span>
+            </div>
+            <div class="docker-log-body" id="{log_id}">
+                <pre>{log_content[:8000]}</pre>
+            </div>
+        </div>"""
+
+    # Comprehensive section
+    comp_html = ""
+    if comprehensive and comprehensive.get("results"):
+        comp_total = comprehensive.get("total", 0)
+        comp_passed = comprehensive.get("passed", 0)
+        comp_rate = comp_passed / comp_total if comp_total else 0
+        comp_rows = ""
+        for cr in comprehensive["results"]:
+            c_sym = "✅" if cr.get("passed") else "❌"
+            c_q = cr.get("query", "")[:60]
+            comp_rows += f"""
+            <div class="test-card {'row-pass' if cr.get('passed') else 'row-fail'}">
+                <div class="test-card-summary" onclick="toggleDetails(this)">
+                    <div class="test-meta">
+                        <span class="badge status-{'pass' if cr.get('passed') else 'fail'}">{'PASS' if cr.get('passed') else 'FAIL'}</span>
+                        <span class="test-category-badge">{cr.get('category', '')}</span>
+                        <span class="test-latency">{cr.get('latency_ms', 0):.0f}ms</span>
+                    </div>
+                    <div class="test-query-summary">{c_q}</div>
+                </div>
+                <div class="test-card-details">
+                    <div class="metrics-grid">
+                        <div class="metric-item"><span class="m-label">KW Score</span><span class="m-val">{cr.get('keyword_score', 0):.2f}</span></div>
+                        <div class="metric-item"><span class="m-label">Intent</span><span class="m-val">{cr.get('intent', 'N/A')}</span></div>
+                        <div class="metric-item"><span class="m-label">Intent Match</span><span class="m-val">{'✅' if cr.get('intent_match') else '❌'}</span></div>
+                        <div class="metric-item"><span class="m-label">Difficulty</span><span class="m-val">{cr.get('difficulty', '')}</span></div>
+                    </div>
+                    {('<div class="fail-reason-box">Error: ' + cr.get('error', '') + '</div>') if cr.get('error') else ''}
+                    <div class="response-box"><strong>Response:</strong><p>{cr.get('response', '')[:600]}</p></div>
+                    {('<div class="citations-container"><strong>Citations:</strong><ul>' + ''.join(f'<li>{c}</li>' for c in cr.get('citations', [])) + '</ul></div>') if cr.get('citations') else ''}
+                </div>
+            </div>"""
+        comp_html = f"""
+        <div class="metrics-cards-row">
+            <div class="metric-card"><span class="label">Tiered Tests</span><span class="value">{comp_total}</span></div>
+            <div class="metric-card"><span class="label">Pass Rate</span><span class="value" style="color:var(--success)">{comp_rate:.0%}</span></div>
+            <div class="metric-card"><span class="label">Failed</span><span class="value">{comp_total - comp_passed}</span></div>
+            <div class="metric-card"><span class="label">5 Tiers</span><span class="value">Simple→Edge</span></div>
+        </div>
+        <div class="test-list">{comp_rows}</div>"""
+
         native_eval_html = f"""
         <div class="native-eval-section">
             <h2 class="section-title">🔬 Native RAGAS Metrics (LLM Evaluators)</h2>
@@ -949,6 +1073,84 @@ def build_html(ruthless, native):
             padding-top: 0.75rem;
         }}
 
+        /* Latency Panel */
+        .latency-panel {{
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            text-align: center;
+        }}
+
+        /* Trace link */
+        .trace-info {{
+            margin-top: 0.75rem;
+            font-family: monospace;
+            font-size: 0.8125rem;
+        }}
+        .trace-link {{
+            color: var(--primary);
+            text-decoration: none;
+        }}
+        .trace-link:hover {{
+            text-decoration: underline;
+        }}
+
+        /* Error stack */
+        .error-stack-box {{
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-top: 1rem;
+        }}
+        .error-stack-box pre {{
+            white-space: pre-wrap;
+            font-size: 0.8125rem;
+            color: #fca5a5;
+            margin-top: 0.5rem;
+        }}
+
+        /* Docker log cards */
+        .docker-log-card {{
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }}
+        .docker-log-header {{
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+        }}
+        .docker-log-service {{
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }}
+        .docker-log-toggle {{
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }}
+        .docker-log-body {{
+            display: none;
+            padding: 1rem;
+            background: rgba(0,0,0,0.3);
+        }}
+        .docker-log-body pre {{
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            line-height: 1.4;
+            max-height: 400px;
+            overflow-y: auto;
+        }}
+
         /* Native Evaluator styles */
         .native-eval-section {{
             background: var(--panel-bg);
@@ -1090,8 +1292,10 @@ def build_html(ruthless, native):
 
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab(event, 'orchestrator-tab')">Orchestration & API Suite</button>
+        <button class="tab-btn" onclick="switchTab(event, 'comprehensive-tab')">5-Tier Comprehensive</button>
         <button class="tab-btn" onclick="switchTab(event, 'native-ragas-tab')">Native RAGAS Evals</button>
         <button class="tab-btn" onclick="switchTab(event, 'system-infra-tab')">System & Infra Health</button>
+        <button class="tab-btn" onclick="switchTab(event, 'docker-logs-tab')">🐳 Docker Logs</button>
     </div>
 
     <!-- Orchestrator Tab -->
@@ -1128,6 +1332,13 @@ def build_html(ruthless, native):
                     </div>
                     <div class="score-label">Readiness Index</div>
                     <div class="score-meta">Required score to release is 95%</div>
+                </div>
+
+                <div class="latency-panel">
+                    <h3 style="font-family: 'Outfit'; font-size: 1.1rem; margin-bottom: 0.75rem;">⏱ Latency Distribution</h3>
+                    <svg width="{chart_svg_width}" height="{bar_height + 30}" viewBox="0 0 {chart_svg_width} {bar_height + 30}">
+                        {bars_svg}
+                    </svg>
                 </div>
 
                 <div class="categories-list">
@@ -1170,6 +1381,20 @@ def build_html(ruthless, native):
     <!-- Native Ragas Tab -->
     <div id="native-ragas-tab" class="tab-content">
         {native_eval_html}
+    </div>
+
+    <!-- Comprehensive Tab -->
+    <div id="comprehensive-tab" class="tab-content">
+        <h2 class="section-title">📋 5-Tier Comprehensive Benchmark</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Tier 1: Simple Factual · Tier 2: Complex/Reasoning · Tier 3: Distress · Tier 4: Guardrail · Tier 5: Edge</p>
+        {comp_html if comp_html else '<div class="empty-state">⚠️ No comprehensive benchmark data found. Run comprehensive_benchmark.py first.</div>'}
+    </div>
+
+    <!-- Docker Logs Tab -->
+    <div id="docker-logs-tab" class="tab-content">
+        <h2 class="section-title">🐳 Docker Container Logs</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Last 200 lines per service, collected at report generation time.</p>
+        {docker_logs_html if docker_logs_html else '<div class="empty-state">⚠️ No docker logs collected. Ensure Docker is running.</div>'}
     </div>
 
     <!-- System & Infra Health Tab -->
@@ -1269,13 +1494,16 @@ def build_html(ruthless, native):
 
 def main():
     print("🚀 Generating dashboard.html...")
-    ruthless, native = load_reports()
+    ruthless, native, comprehensive = load_reports()
     
-    if not ruthless and not native:
+    if not ruthless and not native and not comprehensive:
         print("⚠️ No data reports found. Cannot generate dashboard.")
         sys.exit(1)
+    
+    print("  📡 Collecting docker logs...")
+    docker_logs = collect_docker_logs()
         
-    html = build_html(ruthless, native)
+    html = build_html(ruthless, native, comprehensive, docker_logs)
     
     os.makedirs(REPORT_DIR, exist_ok=True)
     with open(DASHBOARD_PATH, "w") as f:
