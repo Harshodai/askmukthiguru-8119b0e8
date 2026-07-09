@@ -22,8 +22,8 @@ print("sentence_transformers cache populated")
 # snapshot_download("BAAI/bge-m3")
 # print("huggingface hub cache populated")
 
-# 3. CrossEncoder cache (for reranker API)
+# 3. BGE Reranker cache (for reranker API — used via CrossEncoder API)
 from sentence_transformers import CrossEncoder
-CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-print("cross-encoder cache populated")
+CrossEncoder("BAAI/bge-reranker-v2-m3")
+print("bge-reranker cache populated")
 
