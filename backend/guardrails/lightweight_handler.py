@@ -30,25 +30,45 @@ _SARVAM_BEARER_PLACEHOLDER = "unused-bearer-placeholder"
 
 # ===================================================================
 # Harmful patterns that should always be blocked
+# (medical keywords are handled by the medical_prescription topic block,
+#  not here — a cold refusal here would shadow the self_harm helpline path.)
 # ===================================================================
 _HARMFUL_PATTERNS = [
     r"ignore previous instructions",
     r"ignore all previous",
     r"forget previous instructions",
     r"system prompt",
-    r"you are a (?!spiritual)",
     r"hack (a )?compu",
     r"sql injection",
     r"insult the user",
     r"translate to.*stupid",
-    r"bipolar disorder",
-    r"lithium",
-    r"stop.*medication",
-    r"prescribe",
 ]
 
 # Topics that should be blocked (from topics.co patterns)
+# Ordering is LOAD-BEARING: crisis topics (self_harm, substance_abuse, violence)
+# must precede medical_prescription — see
+# test_guardrail_self_harm_priority.test_crisis_topics_precede_medical_in_blocked_topics
 _BLOCKED_TOPICS = {
+    "self_harm": [
+        r"\b(kill|hurt|harm)(?:ing|s|ed)?\s+(?:my\s*)?self\b",
+        r"\bsuicid(?:e|al)\b",
+        r"\bself[- ]?harm\b",
+        r"\bcut(?:ting)?\s+(?:my)?self\b",
+        r"\bwant\s+to\s+die\b",
+        r"\bend\s+(?:my\s+)?life\b",
+        r"\bnot\s+worth\s+living\b",
+        r"\bno\s+reason\s+to\s+live\b",
+        r"\b(how|way)\s+to\s+die\b",
+    ],
+    "substance_abuse": [
+        r"\b(buy|get|find)\s+(drugs?|weed|cocaine|heroin|meth)\b",
+        r"\bhow\s+to\s+(use|take|smoke)\s+(drugs?|weed|cocaine)\b",
+        r"\brecreational\s+drugs?\b",
+    ],
+    "violence": [
+        r"\bhow\s+to\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
+        r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
+    ],
     "cryptocurrency": [
         r"\bcrypto\b",
         r"\bbitcoin\b",
@@ -89,22 +109,6 @@ _BLOCKED_TOPICS = {
         r"\btax\b.*\b(save|plan|evade)\b",
         r"\bloan\b.*\bapply\b",
     ],
-    "self_harm": [
-        r"\b(kill|hurt|harm)(?:ing|s|ed)?\s+(?:my\s*)?self\b",
-        r"\bsuicid(?:e|al)\b",
-        r"\bself[- ]?harm\b",
-        r"\bcut(?:ting)?\s+(?:my)?self\b",
-        r"\bwant\s+to\s+die\b",
-        r"\bend\s+(?:my\s+)?life\b",
-        r"\bnot\s+worth\s+living\b",
-        r"\bno\s+reason\s+to\s+live\b",
-        r"\b(how|way)\s+to\s+die\b",
-    ],
-    "substance_abuse": [
-        r"\b(buy|get|find)\s+(drugs?|weed|cocaine|heroin|meth)\b",
-        r"\bhow\s+to\s+(use|take|smoke)\s+(drugs?|weed|cocaine)\b",
-        r"\brecreational\s+drugs?\b",
-    ],
     "manipulation": [
         r"\bhow\s+to\s+(manipulate|deceive|trick|scam)\b",
         r"\bmake\s+(someone|them|her|him)\s+(obey|submit|fear)\b",
@@ -126,10 +130,6 @@ _BLOCKED_TOPICS = {
         r"\bhow\s+to\s+(cure|heal|treat|fix)\b.*\b(disease|illness|infection|cancer|diabetes|heart|depression)\b",
         r"\bwhat\s+(medicine|drug|pill|supplement)\b.*\bshould\s+(i|I)\b",
         r"\bsymptoms?\s+of\b.*\b(disease|cancer|diabetes|infection)\b",
-    ],
-    "violence": [
-        r"\bhow\s+to\s+(make|build|create)\b.*\b(bomb|weapon|gun|explosive)\b",
-        r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
     ],
 }
 
@@ -278,30 +278,11 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
 
         message_lower = text.lower()
 
-        # Check harmful patterns FIRST (finding #7 — spiritual terms must not bypass self-harm detection)
-        for pattern in _HARMFUL_PATTERNS:
-            if re.search(pattern, message_lower):
-                logger.info(f"Lightweight guardrail handler hard rejection: {pattern}")
-
-                # Medical advice specific refusal
-                if any(kw in pattern for kw in ["bipolar", "lithium", "medication", "prescribe"]):
-                    return {
-                        "blocked": True,
-                        "reason": "Medical advice requested",
-                        "response": "I cannot provide medical advice. Please consult a qualified healthcare professional.",
-                        "redirect_to": None,
-                    }
-
-                return {
-                    "blocked": True,
-                    "reason": "Harmful pattern detected",
-                    "response": "I cannot fulfill this request. I am here to share spiritual wisdom.",
-                    "redirect_to": None,
-                }
-
-        # Check blocked topics next. Crisis/self-harm/medical/violence/prompt-injection
-        # must run before the spiritual-domain allowlist — the allowlist may only skip
-        # *topic* checks, never safety checks (finding S1).
+        # Check blocked topics FIRST. Crisis/self-harm/medical/violence/prompt-injection
+        # must run before the harmful-pattern hard-block and the spiritual-domain
+        # allowlist — the allowlist may only skip *topic* checks, never safety checks.
+        # Ordering rationale: a self-harm message that also mentions medication must
+        # hit the self_harm topic (helplines), NOT a medical cold-refusal (finding S1).
         for topic, patterns in _BLOCKED_TOPICS.items():
             for pattern in patterns:
                 if re.search(pattern, message_lower):
@@ -315,6 +296,19 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                         ),
                         "redirect_to": redirect,
                     }
+
+        # Then check remaining harmful patterns (prompt-injection/hack/sql/insult/
+        # translate). These fire AFTER topic checks so they never shadow the
+        # self_harm/medical_prescription helpline-aware blocks above.
+        for pattern in _HARMFUL_PATTERNS:
+            if re.search(pattern, message_lower):
+                logger.info(f"Lightweight guardrail handler hard rejection: {pattern}")
+                return {
+                    "blocked": True,
+                    "reason": "Harmful pattern detected",
+                    "response": "I cannot fulfill this request. I am here to share spiritual wisdom.",
+                    "redirect_to": None,
+                }
 
         # Spiritual domain allowlist: only bypasses remaining topic checks.
         # It must NOT short-circuit crisis/self-harm/medical/prompt-injection checks above.
@@ -344,10 +338,6 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     ),
                     "redirect_to": "serene_mind",
                 }
-
-        # Blocked topics (crisis/self-harm/medical/violence/prompt-injection) were already
-        # evaluated above before the spiritual-domain allowlist. The allowlist may only
-        # bypass remaining topic checks, never safety checks (finding S1).
 
         # LLM Guard via Instructor
         if getattr(settings, "guardrails_llm_enabled", False):

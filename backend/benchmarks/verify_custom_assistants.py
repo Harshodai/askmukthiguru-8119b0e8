@@ -23,7 +23,7 @@ def build_config(args: argparse.Namespace) -> dict:
     """Return runtime configuration from CLI args and environment."""
     return {
         "base_url": args.backend_url or os.getenv("BACKEND_URL", "http://localhost:8000"),
-        "jwt_secret": args.jwt_secret or os.getenv("JWT_SECRET", settings.jwt_secret),
+        "jwt_secret": args.jwt_secret or os.getenv("BENCHMARK_SECRET") or os.getenv("JWT_SECRET", settings.jwt_secret),
         "db_container": args.db_container or os.getenv("SUPABASE_DB_CONTAINER", "supabase_db"),
         "wait_telemetry": args.wait_telemetry,
     }
@@ -75,7 +75,7 @@ async def main():
     parser = argparse.ArgumentParser(description="E2E validation for Custom Assistants.")
     parser.add_argument("--backend-url", default=None, help="Backend base URL (default: $BACKEND_URL or http://localhost:8000)")
     parser.add_argument("--db-container", default=None, help="Docker container name for Supabase Postgres (default: $SUPABASE_DB_CONTAINER or supabase_db)")
-    parser.add_argument("--jwt-secret", default=None, help="JWT/test secret (default: $JWT_SECRET or settings.jwt_secret)")
+    parser.add_argument("--jwt-secret", default=None, help="JWT/test secret (default: $BENCHMARK_SECRET or $JWT_SECRET or settings.jwt_secret)")
     parser.add_argument("--wait-telemetry", type=float, default=2.0, help="Seconds to wait for telemetry sink (default: 2)")
     args = parser.parse_args()
 

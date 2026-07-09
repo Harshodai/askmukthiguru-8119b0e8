@@ -15,7 +15,6 @@ from rag.prompts import (
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.doc_utils import doc_text
-from rag.nodes.keyword_injection import apply_factual_slots
 from services.cache_service import InMemoryCacheAdapter
 from services.language_router import LanguageCode, LanguageRouter
 
@@ -32,15 +31,7 @@ from .utils import (
     settings,
     strip_cot,
 )
-
 logger = logging.getLogger(__name__)
-
-# LRU cache for system prompts per session
-from collections import OrderedDict as _OrderedDict
-import time as _time
-_system_prompt_cache: _OrderedDict = _OrderedDict()
-_SYSTEM_PROMPT_CACHE_MAX = 500
-_SYSTEM_PROMPT_CACHE_TTL = 3600
 
 
 def _compute_context_budget(
@@ -501,14 +492,6 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     _cs = state.get("complexity_score", 0.5)
     question = state.get("rewritten_query") or state["question"]
     relevant_docs = state["relevant_docs"]
-    if getattr(settings, "rag_cache_alignment_enabled", True) and relevant_docs:
-        relevant_docs = sorted(
-            relevant_docs,
-            key=lambda d: (
-                str(d.get("source_url", "") or d.get("title", "") or ""),
-                int(d.get("chunk_index", 0) or 0)
-            )
-        )
     chat_history = state.get("chat_history", [])
     lang = state.get("detected_language", "en")
     ollama = _services._ollama
@@ -754,18 +737,6 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         user_prompt = f"Question: {question}"
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
-
-    session_id = config.get("configurable", {}).get("session_id", "") if config else ""
-    cache_key = f"{session_id}:{state.get('assistant_slug', 'default')}:{state.get('detected_language', 'en')}"
-    if cache_key in _system_prompt_cache:
-        cached_entry = _system_prompt_cache[cache_key]
-        if _time.time() - cached_entry["ts"] < _SYSTEM_PROMPT_CACHE_TTL:
-            system_prompt = cached_entry["prompt"]
-            _system_prompt_cache.move_to_end(cache_key)
-    else:
-        _system_prompt_cache[cache_key] = {"prompt": system_prompt, "ts": _time.time()}
-        if len(_system_prompt_cache) > _SYSTEM_PROMPT_CACHE_MAX:
-            _system_prompt_cache.popitem(last=False)
 
     retry_count = state.get("retry_count", 0)
     if retry_count > 0:
@@ -1121,11 +1092,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # tier3_complex / deep queries never leak the raw CCR tag to the user.
     answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
 
-    # Step 1 — Intent-gated factual slot corrections (NEC-style, runs on raw answer
-    # BEFORE keyword footers are appended so corrections can't be masked by footnotes)
-    answer = apply_factual_slots(answer, question)
-    # Step 2 — Append missing doctrine keywords as footnotes
-    answer = _ensure_keywords_in_answer(answer, question)
+    # Step 1 — Intent-gated factual slot corrections (NEC-style, removed per P1-10)
+    # Step 2 — Append missing doctrine keywords as footnotes (removed per P1-10)
 
     # 1.10 Citation-by-Sentence — attach per-sentence inline citations
     if getattr(settings, "citation_by_sentence", True) and relevant_docs:
@@ -1557,26 +1525,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass
 
-    # Generate follow-up suggestions concurrently (non-blocking, best-effort)
-    question = state.get("question", "")
+    # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []
-    if (answer and question and intent not in ("DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL")
-            and state.get("query_tier") not in ("tier3_complex", "deep")):
-        try:
-            follow_up_suggestions = await asyncio.wait_for(
-                _generate_follow_up_suggestions(
-                    question, 
-                    answer, 
-                    intent, 
-                    memory_context=state.get("memory_context", ""),
-                    chat_history=state.get("chat_history", [])
-                ),
-                timeout=8.0,
-            )
-        except asyncio.TimeoutError:
-            logger.debug("Follow-up suggestions timed out — returning empty list")
-        except Exception as exc:
-            logger.debug(f"Follow-up suggestions skipped: {exc}")
 
     faithfulness_score = state.get("faithfulness_score")
     if faithfulness_score is None:
