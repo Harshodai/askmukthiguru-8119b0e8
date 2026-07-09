@@ -536,6 +536,108 @@ async def check_infra(base_url: str) -> list[InfraResult]:
     return results
 
 
+async def flush_caches(base_url: str, skip: bool = False) -> None:
+    """Flush Redis + Qdrant semantic cache before running benchmarks.
+
+    Ensures every benchmark run starts with cold caches so latency
+    measurements reflect the real pipeline, not cached hits. Best-effort:
+    failures are logged but never block the benchmark from running.
+    """
+    if skip:
+        print("  ⏭️  Cache flush skipped (--no-flush)")
+        return
+
+    SEPARATOR_FLUSH = "═" * 55
+    print("\n" + SEPARATOR_FLUSH)
+    print("  🧹  Flushing caches before benchmark (cold-cache run)")
+    print(SEPARATOR_FLUSH)
+
+    flushed_any = False
+
+    # 1. Redis flush via redis-cli inside the backend container (host may not have redis-cli)
+    try:
+        redis_pass = os.getenv("REDIS_PASSWORD", "")
+        async with httpx.AsyncClient() as c:
+            r = await c.post(
+                f"{base_url}/api/chat",
+                json={"messages": [], "user_message": ""},
+                timeout=2.0,
+            )
+    except Exception:
+        pass
+
+    # Use direct socket to Redis if reachable (mirrors check_infra pattern)
+    parsed = httpx.URL(base_url)
+    host = parsed.host or "localhost"
+    try:
+        import socket as _socket
+        s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+        s.settimeout(5.0)
+        s.connect((host, 6379))
+        s.close()
+        # Redis is reachable — try redis-cli fallback (works on host if installed)
+        import subprocess
+        redis_pass = os.getenv("REDIS_PASSWORD", "")
+        cmd = f"redis-cli -h {host} -p 6379"
+        if redis_pass:
+            cmd += f" -a '{redis_pass}'"
+        cmd += " flushall"
+        ret = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+        if ret.returncode == 0:
+            print("  ✅ Redis flushed (all keys removed).")
+            flushed_any = True
+        else:
+            # Try via Docker exec on the redis container (host doesn't have redis-cli)
+            redis_pass_arg = f"-a '{redis_pass}'" if redis_pass else ""
+            ret2 = subprocess.run(
+                f"docker exec mukthiguru-redis redis-cli {redis_pass_arg} flushall",
+                shell=True, capture_output=True, text=True, timeout=10,
+            )
+            if ret2.returncode == 0:
+                print("  ✅ Redis flushed via docker exec (all keys removed).")
+                flushed_any = True
+            else:
+                print(f"  ⚠️  redis-cli not available on host and docker exec failed: {ret2.stderr.strip()[:80]}")
+    except Exception as e:
+        print(f"  ⚠️  Redis flush skipped (not reachable on host: {str(e)[:60]})")
+
+    # 2. Qdrant semantic cache collection delete+recreate via HTTP API
+    try:
+        qdrant_host = host
+        collection = "semantic_query_cache"
+        async with httpx.AsyncClient() as c:
+            r = await c.delete(
+                f"http://{qdrant_host}:6333/collections/{collection}", timeout=10.0
+            )
+            if r.status_code in (200, 202):
+                print(f"  ✅ Qdrant collection '{collection}' deleted.")
+                # Recreate empty collection so app can write immediately
+                from qdrant_client.http.models import Distance, VectorParams  # noqa
+                try:
+                    import qdrant_client
+                    client = qdrant_client.QdrantClient(url=f"http://{qdrant_host}:6333", timeout=10)
+                    client.create_collection(
+                        collection_name=collection,
+                        vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+                    )
+                    print(f"  ✅ Qdrant collection '{collection}' recreated (empty).")
+                    flushed_any = True
+                except ImportError:
+                    print(f"  ℹ️  qdrant_client not installed on host — collection deleted, app will recreate on next cache write.")
+                    flushed_any = True
+            elif r.status_code == 404:
+                print(f"  ℹ️  Qdrant collection '{collection}' does not exist (already clean).")
+            else:
+                print(f"  ⚠️  Qdrant delete returned HTTP {r.status_code}.")
+    except Exception as e:
+        print(f"  ⚠️  Qdrant flush skipped (not reachable on host: {str(e)[:60]})")
+
+    if flushed_any:
+        print("  ✨  Cache flush complete — benchmark will run on cold caches.\n")
+    else:
+        print("  ⚠️  No caches flushed — benchmark may hit cached results.\n")
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # DYNAMIC QUERY REWRITING & DIVERSE VARIANTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1655,10 +1757,17 @@ async def main():
         choices=["fast", "standard", "deep"],
         help="Filter report to only show results that used the specified graph variant.",
     )
+    parser.add_argument(
+        "--no-flush",
+        action="store_true",
+        help="Skip the automatic cache flush before running (default: flush Redis + Qdrant semantic cache for cold-cache measurements).",
+    )
     args = parser.parse_args()
 
     print(f"Checking infrastructure on {args.endpoint}...")
     infra = await check_infra(args.endpoint)
+
+    await flush_caches(args.endpoint, skip=args.no_flush)
 
     # Initialize RPM-aware rate limiter and concurrency semaphore
     global _rate_limiter, _semaphore
