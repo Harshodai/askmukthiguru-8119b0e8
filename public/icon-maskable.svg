@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Full safe-zone background: fills the entire 1024x1024 canvas with gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+  </defs>
+  <!-- Solid filled background rect (maskable requires full bleed, no padding) -->
+  <rect width="1024" height="1024" fill="url(#bg)" />
+  <!-- Emoji scaled down to ~40% of canvas to stay within Android safe zone (80% of 512px = 410px padding from edges) -->
+  <text x="512" y="580" font-size="400" text-anchor="middle" dominant-baseline="middle" fill="white">🙏</text>
+</svg>
