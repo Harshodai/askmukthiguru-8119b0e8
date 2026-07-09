@@ -135,6 +135,7 @@
       "Bash(git ls-remote *)",
       "Bash(mkdir -p __TRACKED_VAR__/test)",
       "Bash(touch __TRACKED_VAR__/test/file)",
+<<<<<<< Updated upstream
       "WebFetch(domain:codeload.github.com)",
       "Bash(ollama list *)",
       "Bash(rtk ps *)",
@@ -181,8 +182,8 @@
       "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"Compare and contrast how Sri Preethaji and Sri Krishnaji approach the relationship between mind, consciousness, suffering, and the beautiful state. What are the key differences in their teachings and how do they complement each other?\"}')",
       "Bash(time curl -s -m 180 -X POST http://localhost:8000/api/chat -H \"Content-Type: application/json\" -H \"X-Test-Key: super-secret-jwt-token-with-at-least-32-characters-long\" -d '{\"messages\":[],\"user_message\":\"What is the relationship between the beautiful state and deeksha?\"}')",
       "mcp__codegraph__codegraph_explore",
-      "Bash(.venv/bin/pytest tests/ -q)"
-    ]
+ "Bash(.venv/bin/pytest tests/ -q)"
+   ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
