@@ -9,6 +9,7 @@ from guardrails.disabled_handler import DisabledGuardrailHandler
 from guardrails.lightweight_handler import LightweightGuardrailHandler
 from guardrails.llama_guard_handler import LlamaGuardHandler
 from guardrails.nemo_handler import NeMoGuardrailHandler
+from guardrails.rejection_handler import RejectionClassifierHandler
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +33,43 @@ class GuardrailsChain:
         elif provider == "llama_guard":
             lightweight = LightweightGuardrailHandler()
             llama = LlamaGuardHandler()
+            rejection = RejectionClassifierHandler()
             nemo = NeMoGuardrailHandler()
 
-            if llama.is_available:
-                lightweight.set_next(llama)
-                self._provider_name = "llama_guard"
-                logger.info("Guardrails Chain: [Lightweight] -> [LlamaGuard] configured and active")
+            if not llama.is_available and not rejection.is_available:
+                self._provider_name = "lightweight"
+                logger.info("Neither LlamaGuard nor RejectionClassifier available -> falling back to [Lightweight] only")
+                self._head = lightweight
+            else:
+                current = lightweight
+                if llama.is_available:
+                    current.set_next(llama)
+                    current = llama
+                    logger.info("LlamaGuard available — adding to chain")
+                if rejection.is_available:
+                    current.set_next(rejection)
+                    current = rejection
+                    logger.info("RejectionClassifier available — adding to chain")
                 if nemo.is_available:
-                    llama.set_next(nemo)
-                    logger.info("NeMo also available — chain: [Lightweight] -> [LlamaGuard] -> [NeMo]")
+                    current.set_next(nemo)
+                    logger.info("NeMo also available — chain extended")
+                self._provider_name = "llama_guard"
+                self._head = lightweight
+        elif provider == "rejection_classifier":
+            lightweight = LightweightGuardrailHandler()
+            rejection = RejectionClassifierHandler()
+            nemo = NeMoGuardrailHandler()
+
+            if rejection.is_available:
+                lightweight.set_next(rejection)
+                self._provider_name = "rejection_classifier"
+                logger.info("Guardrails Chain: [Lightweight] -> [RejectionClassifier] active")
+                if nemo.is_available:
+                    rejection.set_next(nemo)
+                    logger.info("NeMo also available — chain: [Lightweight] -> [RejectionClassifier] -> [NeMo]")
             else:
                 self._provider_name = "lightweight"
-                logger.info("Llama Guard unavailable -> falling back to [Lightweight] only")
+                logger.info("RejectionClassifier unavailable -> falling back to [Lightweight] only")
 
             self._head = lightweight
         elif provider == "nemo":

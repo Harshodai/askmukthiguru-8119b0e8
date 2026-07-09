@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     max_input_length: int = 2000  # Max user message length in characters
 
     # --- Guardrails ---
-    # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B), "disabled"
+    # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B + Rejection Classifier), "rejection_classifier", "disabled"
     guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
     guardrails_audit_enabled: bool = True  # Structured audit logging for blocked requests
 
