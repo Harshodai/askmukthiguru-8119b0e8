@@ -51,6 +51,8 @@ data/ingest_checkpoint.json
 hf_model_cache/
 data/gptcache/
 data/lightrag/kv_store_*.json
+backend/data/feedback.jsonl
+backend/data/lightrag/kv_store_*.json
 
 # OS
 Thumbs.db

@@ -276,7 +276,7 @@ class Settings(BaseSettings):
     raptor_parent_summaries_enabled: bool = True
     use_markitdown_parser: bool = True
     rag_compression_similarity_threshold: float = 0.50
-    rag_context_compression_enabled: bool = True
+    rag_context_compression_enabled: bool = False
     rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)
     rag_okf_auto_extract_enabled: bool = True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
 
@@ -665,14 +665,16 @@ settings = get_settings()
 # Transparent HTTPX API Key Rotator (Monkey-patching httpx.AsyncClient.send)
 # ------------------------------------------------------------------
 def _init_api_key_rotator():
-    import httpx
-    import os
     import logging
+    import os
+
+    import httpx
+
     from app.constants import (
+        KRUTRIM_API_KEY_ENV,
         NIM_API_KEY_ENV,
         OPENROUTER_API_KEY_ENV,
         SARVAM_API_KEY_ENV,
-        KRUTRIM_API_KEY_ENV,
     )
 
     logger = logging.getLogger("app.config.rotator")

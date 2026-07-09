@@ -122,8 +122,6 @@ services:
     env_file:
       - ../.env
     environment: &backend-env
-      - IS_PRODUCTION=false
-      - ENABLE_TEST_AUTH=true
       - HF_HUB_OFFLINE=1  # Prevent huggingface_hub SSL failures on Docker Desktop gRPC-FUSE
       # === LLM Provider ===
       # "sarvam_cloud" (default) or "ollama" (requires Ollama on host)

@@ -146,6 +146,7 @@ class TitleRequest(BaseModel):
 async def generate_title_endpoint(
     request: Request,
     body: TitleRequest,
+    user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ):
     """

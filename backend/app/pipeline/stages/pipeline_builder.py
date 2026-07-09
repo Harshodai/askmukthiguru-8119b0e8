@@ -41,8 +41,8 @@ def build_default_pipeline() -> list[Stage]:
         GraphStage(),
         MeditationGenStage(),
         TranslationStage(),
-        MemoryStage(),
         OutputGuardrailStage(),
+        MemoryStage(),
         CacheUpdateStage(),
         ResultAssemblyStage(),
     ]
