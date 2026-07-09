@@ -28,12 +28,26 @@ function hsla(hsl: string, a: number): string {
 }
 
 export const BackgroundParticles = ({
-  count = 80,
+  count,
   primaryColor = 'hsl(43 96% 56%)',
   secondaryColor = 'hsl(45 100% 70%)',
   className = 'absolute inset-0 overflow-hidden pointer-events-none z-0',
 }: BackgroundParticlesProps) => {
-  const heightRef = useRef(window.innerHeight);
+  // Detect low-power devices, reduced motion, and small viewports.
+  // Heavy particle counts with large box-shadow glows were causing scroll
+  // jank and full-page blackouts on mobile (GPU compositor OOM). We now
+  // cap counts aggressively and remove the outer glow ring on mobile.
+  const { effectiveCount, isMobile, prefersReducedMotion } = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return { effectiveCount: count ?? 40, isMobile: false, prefersReducedMotion: false };
+    }
+    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const base = count ?? (mobile ? 14 : 40);
+    return { effectiveCount: reduced ? 0 : base, isMobile: mobile, prefersReducedMotion: reduced };
+  }, [count]);
+
+  const heightRef = useRef(typeof window !== 'undefined' ? window.innerHeight : 800);
 
   useEffect(() => {
     const onResize = () => { heightRef.current = window.innerHeight; };
@@ -42,21 +56,26 @@ export const BackgroundParticles = ({
   }, []);
 
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: count }, (_, i) => ({
+    return Array.from({ length: effectiveCount }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 110 - 10,
       delay: Math.random() * 6,
       duration: 16 + Math.random() * 18,
-      size: 6 + Math.random() * 14,
-      opacity: 0.7 + Math.random() * 0.3,
+      size: (isMobile ? 4 : 6) + Math.random() * (isMobile ? 6 : 12),
+      opacity: 0.6 + Math.random() * 0.3,
     }));
-  }, [count]);
+  }, [effectiveCount, isMobile]);
+
+  if (prefersReducedMotion || effectiveCount === 0) return null;
 
   return (
     <div className={className}>
       {particles.map((particle) => {
         const o = particle.opacity;
+        const glow = isMobile
+          ? `0 0 ${particle.size * 2}px ${hsla(primaryColor, o * 0.5)}`
+          : `0 0 ${particle.size * 4}px ${hsla(primaryColor, o * 0.7)}, 0 0 ${particle.size * 8}px ${hsla(primaryColor, o * 0.2)}`;
         return (
           <motion.div
             key={particle.id}
@@ -67,7 +86,8 @@ export const BackgroundParticles = ({
               width: particle.size,
               height: particle.size,
               background: `radial-gradient(circle, ${hsla(primaryColor, o)}, ${hsla(secondaryColor, o * 0.5)})`,
-              boxShadow: `0 0 ${particle.size * 5}px ${hsla(primaryColor, o * 0.8)}, 0 0 ${particle.size * 10}px ${hsla(primaryColor, o * 0.25)}`,
+              boxShadow: glow,
+              willChange: 'transform, opacity',
             }}
             initial={{ opacity: 0, y: 0 }}
             animate={{
