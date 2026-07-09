@@ -216,10 +216,11 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
 
     # Adaptive-RAG confidence gate: reranker already confident → skip the LLM
     # grading round-trip entirely (scores are sigmoid-normalized to [0,1]).
+    # DISTRESS intent is excluded: always continue through the full grading path.
     skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
-    if skip_conf > 0:
+    if skip_conf > 0 and state.get("intent") != "DISTRESS":
         confident = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
-        if len(confident) >= 3:
+        if len(confident) >= 2:
             relevant = confident[: settings.rag_top_k_rerank]
             state["grading_reasons"] = ["High-confidence rerank bypass" for _ in relevant]
             logger.info(

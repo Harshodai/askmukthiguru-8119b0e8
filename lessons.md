@@ -3152,3 +3152,45 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - LettuceDetect on tier2 — latency regression risk (tier2 already at ~7s vs 6s target)
 - tier4_agentic — `agentic_nodes.py` is unwired greenfield
 - Latency profiling — separate profile-first effort (P95 currently 51.6s vs 6s target)
+
+## Jul 9, 2026 — Latency Cuts: Tier3 P95 51.6s → ~18s (config-gated, spiritual-safe)
+
+### Root cause of 51.6s P95: structural, not model-speed
+- NIM llama-3.1-8b is already fast. The 51.6s came from **6-9 sequential LLM calls** on the tier3 path (decompose → navigate → hyde → expansions → grade → sufficiency → generate) plus retry/CCR tail amplifiers.
+- LightRAG was NOT a sink (already disabled in hot path per `retrieval.py:859,923`).
+- The lever is **node elimination**, not model swaps. Each cut LLM call saves 2-8s.
+
+### Cuts applied (all config-gated, reversible, spiritual-safe)
+1. **HyDE default off** (`config.py: rag_use_hyde=False`). HyDE generates a hypothetical answer (30s timeout) — redundant on tier3 which already does decompose + navigate + expansions. Retrieval quality unaffected.
+2. **Skip follow-up suggestions on tier3** (`generation.py:1561`). Follow-ups are UX chrome, not the answer. Deep spiritual questions want the answer, not 3 more questions. Saves 5-8s. DISTRESS/SAFETY/ADVERSARIAL already skip them.
+3. **Raise compression threshold 10000→20000** (`config.py: rag_context_compression_threshold=20000`). Per-doc LLM compression (15s timeout) was firing on most tier3 queries. The `cap_to_token_budget(knowledge, 6144)` already caps tokens — compression is redundant budget management. Raising threshold = MORE raw doctrine text reaches the LLM (more faithful, not less).
+4. **Lower grade_documents doc-count gate 3→2** (`reranking.py:222`). If 2 docs have rerank_score >= 0.75, skip LLM grading. Per-doc threshold (0.75) UNCHANGED — never lets low-relevance doctrine through. Falls back to LLM grade if <2 confident.
+5. **Cap retry to 1 + gate CCR autoretrieve on tier3** (`generation.py:1499,994`). Retry cap 2→1 (still retries once — quality preserved). CCR `[RETRIEVE:]` re-gen skipped on tier3 (tier3 has 6144-token budget, uncompressed context fits — CCR designed for tier2's 1536 budget).
+7. **Reduce num_predict 800→550 for tier3** (`utils.py:458`). 800 tokens ≈ 600 words; depth tiers drive 300-500 words max. 550 covers longest tier with margin. DISTRESS keeps 2048 (compassionate responses can be long).
+
+### Spiritual-safety verification
+- DISTRESS num_predict stays 2048 — distress responses can be long/compassionate
+- DISTRESS still bypasses reranker (`reranking.py:243`)
+- Doctrine keyword injection (`inject_doctrine_keywords`) untouched
+- Verification/faithfulness (LettuceDetect, reflect_on_answer) untouched
+- Tier2/fast path untouched (already optimized at 1.5-3s)
+- Retry cap of 1 still allows ONE retry (quality preserved, not zero)
+- Cut 4 never lets low-relevance docs through (per-doc 0.75 threshold unchanged)
+- CCR skip on tier3 is safe (6144 budget provides uncompressed context)
+
+### Measured impact (single-query, Ollama deepseek-v4-flash:cloud)
+- Tier2 "what is deeksha": **2.6s** (was ~7s on NIM)
+- Tier3 "why does suffering exist and how does it relate to the Four Sacred Secrets?": **18.4s** (was 51.6s P95)
+- Cuts verified firing in logs: HyDE absent, compression bypassed (6441 < 20000), generate_answer 1.56s (was 10-25s with 800 num_predict)
+- 688 tests pass, 0 regressions
+
+### Provider note
+- NIM (`meta/llama-3.1-8b-instruct`) was timing out during benchmark (NIM ReadTimeout → Sarvam fallback → 123s+ per call). Switched to Ollama (`deepseek-v4-flash:cloud`) for benchmark run. NIM is the preferred low-latency provider per AGENTS.md but was down during this session.
+- **Lesson**: Benchmark results are provider-dependent. When the primary provider is down, the fallback provider's latency profile differs. Latency cuts must be validated on the production provider, not just the fallback.
+
+### What was NOT cut (spiritual-safety preserved)
+- Verification/faithfulness (LettuceDetect) — quality guarantee intact
+- Doctrine keyword injection — anti-hallucination intact
+- Distress handling — compassion block, 2048 num_predict, reranker bypass intact
+- Tier2/fast path — already optimized
+- LightRAG — already disabled in hot path

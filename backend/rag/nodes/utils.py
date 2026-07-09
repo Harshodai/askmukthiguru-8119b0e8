@@ -455,7 +455,7 @@ def _generation_kwargs(state: GraphState) -> dict:
     elif query_tier in ("fast", "tier2_simple"):
         base["num_predict"] = 150   # 1.7: aggressive cap for fast path
     elif query_tier in ("deep", "tier3_complex"):
-        base["num_predict"] = 800   # 1.7: cap for deep path
+        base["num_predict"] = 550   # 1.7: cap for deep path
     elif intent in {"FACTUAL", "QUERY"}:
         base["num_predict"] = 400   # 1.7: standard path cap
     elif intent in {"RELATIONAL", "ADVERSARIAL"}:
