@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from typing import Optional
+import logging
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from services.user_profile_service import LanguagePreference, SpiritualLevel
+
+logger = logging.getLogger(__name__)
+
+_ALLOWED_ROLES = frozenset({"user", "assistant"})
 
 
 class MessagePayload(BaseModel):
@@ -12,6 +17,16 @@ class MessagePayload(BaseModel):
 
     role: str = Field(..., description="'user' or 'assistant'")
     content: str = Field(..., description="Message text")
+
+    @field_validator("role")
+    @classmethod
+    def _normalize_role(cls, v: str) -> str:
+        normalized = v.strip().lower()
+        if normalized not in _ALLOWED_ROLES:
+            raise ValueError(
+                f"role must be one of {sorted(_ALLOWED_ROLES)}, got {v!r}"
+            )
+        return normalized
 
 
 class AssistantContext(BaseModel):
@@ -38,6 +53,30 @@ class ChatRequest(BaseModel):
         default=None,
         description="Optional assistant context to scope persona and retrieval",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_client_system_messages(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        messages = data.get("messages")
+        if not isinstance(messages, list):
+            return data
+        kept: list[Any] = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                role = str(msg.get("role", "")).strip().lower()
+                if role not in _ALLOWED_ROLES:
+                    logger.warning(
+                        "Dropping client message with disallowed role=%r; only user/assistant "
+                        "roles are forwarded to generation. content prefix=%r",
+                        msg.get("role"),
+                        str(msg.get("content", ""))[:60],
+                    )
+                    continue
+            kept.append(msg)
+        data["messages"] = kept
+        return data
 
 
 class ProfileUpdate(BaseModel):
