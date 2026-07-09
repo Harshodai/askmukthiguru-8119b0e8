@@ -32,15 +32,7 @@ from .utils import (
     settings,
     strip_cot,
 )
-
 logger = logging.getLogger(__name__)
-
-# LRU cache for system prompts per session
-from collections import OrderedDict as _OrderedDict
-import time as _time
-_system_prompt_cache: _OrderedDict = _OrderedDict()
-_SYSTEM_PROMPT_CACHE_MAX = 500
-_SYSTEM_PROMPT_CACHE_TTL = 3600
 
 
 def _compute_context_budget(
@@ -754,18 +746,6 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         user_prompt = f"Question: {question}"
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
-
-    session_id = config.get("configurable", {}).get("session_id", "") if config else ""
-    cache_key = f"{session_id}:{state.get('assistant_slug', 'default')}:{state.get('detected_language', 'en')}"
-    if cache_key in _system_prompt_cache:
-        cached_entry = _system_prompt_cache[cache_key]
-        if _time.time() - cached_entry["ts"] < _SYSTEM_PROMPT_CACHE_TTL:
-            system_prompt = cached_entry["prompt"]
-            _system_prompt_cache.move_to_end(cache_key)
-    else:
-        _system_prompt_cache[cache_key] = {"prompt": system_prompt, "ts": _time.time()}
-        if len(_system_prompt_cache) > _SYSTEM_PROMPT_CACHE_MAX:
-            _system_prompt_cache.popitem(last=False)
 
     retry_count = state.get("retry_count", 0)
     if retry_count > 0:
