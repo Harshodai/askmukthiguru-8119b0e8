@@ -7,7 +7,7 @@ import os
 import time
 from typing import Optional
 
-from lightrag import LightRAG
+from lightrag.lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
 from tenacity import retry, stop_after_attempt, wait_exponential
 
