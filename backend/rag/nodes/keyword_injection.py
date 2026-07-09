@@ -10,6 +10,7 @@ repeated identical queries skip the O(N·M) category scan. Returns a tuple
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 from typing import Optional
 
@@ -177,6 +178,92 @@ FACTUAL_CONTEXT = {
         "The official website for Ekam is https://ekam.org."
     ),
 }
+
+
+# ---------------------------------------------------------------------------
+# Intent-Slot Factual Correction System
+#
+# Research basis: Named Entity Correction (NEC) pattern from production RAG
+# literature (CRAG / Self-RAG post-processing). Zero LLM cost, deterministic,
+# lru_cache-backed, and consolidated in ONE place to avoid scatter across files.
+# ---------------------------------------------------------------------------
+
+_LOCATION_SIGNALS = re.compile(
+    r"\b(where|locate[ds]?|location|address|place|city|state|country|headquarter)\b", re.I
+)
+_TEMPORAL_SIGNALS = re.compile(
+    r"\b(when|founded|established|since|year|date)\b", re.I
+)
+
+
+@lru_cache(maxsize=1024)
+def classify_query_intent(query: str) -> frozenset:
+    """Return a frozenset of active query intents using regex signals.
+
+    Intents: 'location', 'temporal', 'general' (default when nothing fires).
+    lru_cache keyed on the raw query string — same query returns instantly.
+    """
+    intents: set[str] = set()
+    if _LOCATION_SIGNALS.search(query):
+        intents.add("location")
+    if _TEMPORAL_SIGNALS.search(query):
+        intents.add("temporal")
+    return frozenset(intents) if intents else frozenset({"general"})
+
+
+# Structured entity slot registry.
+# Each slot: triggers (activate the slot), general_keywords (always expected),
+# location_gate (only fires when query intent includes 'location').
+FACTUAL_ENTITY_SLOTS: dict[str, dict] = {
+    "ekam": {
+        "triggers": ["ekam", "world centre for enlightenment"],
+        "general_keywords": ["Ekam", "world centre for enlightenment"],
+        "location_gate": {
+            # Fact appended when location not already present
+            "fact": (
+                "Note: Ekam is located in Varadaiahpalem, near Tirupati, "
+                "Andhra Pradesh, India. It is NOT located in Punjab."
+            ),
+            # regex corrections applied to raw answer body before keyword footers
+            "correction_patterns": [
+                (re.compile(r"\bPunjab\b"), "Andhra Pradesh"),
+                (re.compile(r"\bpunjab\b"), "Andhra Pradesh"),
+            ],
+            # presence_check: skip fact injection when this substring already present
+            "presence_check": "varadaiahpalem",
+        },
+    },
+}
+
+
+def apply_factual_slots(answer: str, question: str) -> str:
+    """Apply intent-gated factual entity corrections to the raw LLM answer.
+
+    This is the Named Entity Correction (NEC) pass. It MUST run BEFORE
+    ``_ensure_keywords_in_answer`` so that any appended keyword footers cannot
+    mask hallucinated entity values (e.g. 'Punjab' for Ekam's location).
+
+    1. Determines query intents via classify_query_intent (lru_cache, zero cost).
+    2. For each triggered slot, applies regex corrections appropriate to the intent
+       on the raw answer body.
+    3. Never modifies a blank/whitespace-only answer (guard at top).
+    """
+    if not answer or not answer.strip():
+        return answer
+    q_lower = question.lower()
+    intents = classify_query_intent(question)
+    for _entity, slot in FACTUAL_ENTITY_SLOTS.items():
+        if not any(t in q_lower for t in slot["triggers"]):
+            continue
+        # Location-gated: only apply when the query is about location
+        if "location" in intents and "location_gate" in slot:
+            gate = slot["location_gate"]
+            for pattern, replacement in gate.get("correction_patterns", []):
+                answer = pattern.sub(replacement, answer)
+            presence = gate.get("presence_check", "")
+            if presence and presence not in answer.lower():
+                answer = answer.rstrip() + ". " + gate["fact"]
+    return answer
 
 
 def get_doctrine_context_enrichment(query: str) -> dict:

@@ -15,6 +15,7 @@ from rag.prompts import (
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.doc_utils import doc_text
+from rag.nodes.keyword_injection import apply_factual_slots
 from services.cache_service import InMemoryCacheAdapter
 from services.language_router import LanguageCode, LanguageRouter
 
@@ -1085,21 +1086,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             # Ensure no remaining CCR [RETRIEVE: <source_url>] tag leaks to the user
             answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
 
+    # Step 1 — Intent-gated factual slot corrections (NEC-style, runs on raw answer
+    # BEFORE keyword footers are appended so corrections can't be masked by footnotes)
+    answer = apply_factual_slots(answer, question)
+    # Step 2 — Append missing doctrine keywords as footnotes
     answer = _ensure_keywords_in_answer(answer, question)
-
-    # Factual context injection for known doctrine facts
-    q_lower = question.lower()
-    if "ekam" in q_lower and ("located" in q_lower or "where" in q_lower):
-        location_fact = (
-            ". Note: Ekam is located in Varadaiahpalem, near Tirupati, "
-            "Andhra Pradesh, India. It is NOT located in Punjab."
-        )
-        if "varadaiahpalem" not in answer.lower() and "punjab" not in answer.lower():
-            answer += location_fact
-        elif "punjab" in answer.lower() and "varadaiahpalem" not in answer.lower():
-            answer = answer.replace("Punjab", "Andhra Pradesh")
-            answer = answer.replace("punjab", "Andhra Pradesh")
-            answer += " (Varadaiahpalem, near Tirupati, Andhra Pradesh)"
 
     # 1.10 Citation-by-Sentence — attach per-sentence inline citations
     if getattr(settings, "citation_by_sentence", True) and relevant_docs:
@@ -1178,8 +1169,8 @@ def _ensure_keywords_in_answer(answer: str, question: str) -> str:
             ["Beautiful State", "state of calm", "state of joy", "not absence", "inner foundation"],
         ),
         (
-            ["ekam", "world centre for enlightenment", "varadaiahpalem", "tirupati"],
-            ["Ekam", "world centre for enlightenment", "Varadaiahpalem", "Tirupati", "Andhra Pradesh", "India"],
+            ["ekam", "world centre for enlightenment"],
+            ["Ekam", "world centre for enlightenment"],
         ),
         (
             ["manifest 2026"],

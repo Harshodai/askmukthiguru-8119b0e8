@@ -46,6 +46,11 @@ from services.turboquant_cache import TurboQuantCache
 logger = logging.getLogger(__name__)
 
 
+def _query_token(query: str) -> str:
+    """Non-reversible 8-char token for log correlation — never logs raw user content."""
+    return hashlib.sha256(query.encode()).hexdigest()[:8]
+
+
 class PipelineCoordinator:
     """Core pipeline shared between sync and streaming orchestrators."""
 
@@ -116,8 +121,8 @@ class PipelineCoordinator:
             )
         except asyncio.TimeoutError:
             logger.error(
-                "Pipeline timed out for user %s: message='%s' trace='%s'",
-                user_id, user_msg[:60], trace_id,
+                "Pipeline timed out for user %s: query_token='%s' trace='%s'",
+                user_id, _query_token(user_msg), trace_id,
             )
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(
@@ -127,8 +132,8 @@ class PipelineCoordinator:
             )
         except Exception:
             logger.exception(
-                "Pipeline crashed for user %s: message='%s' trace='%s'",
-                user_id, user_msg[:60], trace_id,
+                "Pipeline crashed for user %s: query_token='%s' trace='%s'",
+                user_id, _query_token(user_msg), trace_id,
             )
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(

@@ -310,6 +310,19 @@ export const MemoryManager = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Native wheel listener with passive:false so preventDefault() actually works
+  // and suppresses page scroll while zooming the graph.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || viewMode !== 'graph' || kgNodes.length === 0) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom((z) => Math.min(4, Math.max(0.2, z - e.deltaY * 0.001)));
+    };
+    svg.addEventListener('wheel', handleWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', handleWheel);
+  }, [viewMode, kgNodes.length]);
+
   const handleSaveCore = async () => {
     if (coreSaving) return;
     setCoreSaving(true);
@@ -434,10 +447,6 @@ export const MemoryManager = () => {
                 viewBox={`0 0 ${WIDTH} ${activeHeight}`}
                 className="block touch-none select-none"
                 style={{ cursor: dragRef.current ? 'grabbing' : activeDraggedNodeRef.current ? 'grabbing' : 'grab' }}
-                onWheel={(e) => {
-                  e.preventDefault();
-                  setZoom((z) => Math.min(4, Math.max(0.2, z - e.deltaY * 0.001)));
-                }}
                 onPointerDown={(e) => {
                   // Pan start
                   if (activeDraggedNodeRef.current) return;

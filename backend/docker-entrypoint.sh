@@ -47,7 +47,8 @@ if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
             --keep-alive 300 \
             --max-requests 1000 \
             --max-requests-jitter 100 \
-            --graceful-timeout 60
+            --graceful-timeout 60 \
+            --preload
     else
         exec gosu appuser python -m uvicorn app.main:app \
             --host 0.0.0.0 \

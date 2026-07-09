@@ -351,5 +351,10 @@ PORT=8000
 ### WAF Bypass Testing
 After enabling WAF, run:
 ```bash
-while true; do curl -s -o /dev/null -w "%{http_code}\n" https://yourdomain.com/api/health && break; done
+while true; do
+  status=$(curl -s -o /dev/null -w "%{http_code}" https://yourdomain.com/api/health)
+  echo "HTTP $status"
+  [ "$status" -eq 200 ] && break
+  sleep 1
+done
 ```
