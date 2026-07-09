@@ -1,6 +1,6 @@
 """
 Unit tests for LangGraph node functions in nodes.py, specifically verifying
-reflect_on_answer, verify_answer, and explain_retrieval.
+reflect_on_answer and verify_answer.
 """
 
 from unittest.mock import AsyncMock, MagicMock
@@ -297,63 +297,6 @@ async def test_verify_answer_tier3_complex_fast_exit_rejects_low_faithfulness(mo
     assert result["is_faithful"] is False
     assert result["verification"]["passed"] is False
     assert result["faithfulness_score"] == 0.1
-
-
-@pytest.mark.asyncio
-async def test_explain_retrieval_node(mock_services):
-    mock_ollama, mock_ld = mock_services
-
-    # Configure mock Ollama generate method
-    mock_ollama.generate.return_value = "This document describes the Beautiful State."
-
-    state = GraphState(
-        question="What is the Beautiful State?",
-        chat_history=[],
-        request_id="test-req-123",
-        intent="FACTUAL",
-        documents=[],
-        reranked_docs=[],
-        hyde_text=None,
-        relevant_docs=[
-            {"text": "Doc 1 text...", "source_url": "url1"},
-            {"text": "Doc 2 text...", "source_url": "url2"},
-        ],
-        grading_reasons=[],
-        rewrite_count=0,
-        rewritten_query=None,
-        sub_queries=["What is the Beautiful State?"],
-        is_complex=False,
-        selected_clusters=[],
-        hints=[],
-        answer=None,
-        citations=[],
-        is_faithful=None,
-        needs_correction=False,
-        reflection_feedback=None,
-        verification=None,
-        confidence_score=None,
-        input_blocked=False,
-        output_blocked=False,
-        block_reason=None,
-        meditation_step=0,
-        meditation_response=None,
-        final_answer=None,
-        error=None,
-        context_layers=None,
-        citation_reasoning={},
-        metrics={},
-        user_id=None,
-        detected_language="en",
-        memory_context="",
-        ab_model="primary",
-    )
-
-    result = await nodes.explain_retrieval(state)
-
-    assert "url1" in result["citation_reasoning"]
-    assert "url2" in result["citation_reasoning"]
-    assert result["citation_reasoning"]["url1"] == "This document describes the Beautiful State."
-    assert mock_ollama.generate.call_count == 2
 
 
 @pytest.mark.asyncio

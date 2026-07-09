@@ -19,9 +19,7 @@ NODE_TIMEOUTS = {
     "reflect_on_answer": 45.0,
     "navigate_knowledge_tree": 15.0,
     "generate_hyde": 20.0,
-    "check_context_sufficiency": 15.0,
-    "check_contradiction": 15.0,
-    "explain_retrieval": 30.0,
+
     "default_fast": 25.0,      # LightRAG graph queries need 15-25s under concurrent load
     "default_main": 60.0,
     "default_embedding": 15.0,
@@ -52,7 +50,7 @@ class TimeoutBudget:
         # since reasoning can take much longer (e.g., 30-45s).
         # We only scale up answer generation nodes; classifier nodes are routed to fast models and should not scale up.
         if settings.is_sarvam_cloud or settings.llm_provider.lower() in ("openrouter", "nim"):
-            if node_name in ["generate_answer", "explain_retrieval"]:
+            if node_name in ["generate_answer"]:
                 default_timeout = max(default_timeout, 90.0)
 
         return min(default_timeout, available)

@@ -253,52 +253,6 @@ async def select_graph_for_query(
         pass
     return "standard"
 
-    # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
-    # even with doctrine keywords (avoids "What is deeksha and how do I practice it?")
-    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
-
-    # Determine heuristic tier
-    heuristic_tier = "standard"
-
-    # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
-    if detected_intent in ("FACTUAL", "QUERY"):
-        if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
-            if len(tokens) <= 25:
-                heuristic_tier = "fast"
-        elif len(tokens) <= 20:
-            heuristic_tier = "fast"
-
-    # Regex-based simple query detection (heuristic set — distinct from
-    # intent.py's doctrine-bound set; both live in rag.query_patterns).
-    for pattern in _SIMPLE_QUERY_PATTERNS:
-        if re.search(pattern, q) and len(tokens) <= 15:
-            heuristic_tier = "fast"
-
-    # Broader regex-based simple query detection (expanded thresholds)
-    for pattern in HEURISTIC_BROAD_SIMPLE_PATTERNS:
-        if re.search(pattern, q) and len(tokens) <= 15:
-            heuristic_tier = "fast"
-
-    # Final catch-all: short greetings and statements
-    if len(tokens) <= 4 and detected_intent in ("CASUAL", "GREETING"):
-        heuristic_tier = "fast"
-
-    # Log heuristic decision (fire-and-forget)
-    try:
-        asyncio.create_task(
-            log_router_decision(
-                query=query,
-                tier=heuristic_tier,
-                confidence=1.0,
-                method="heuristic",
-                shadow_tier=semantic_tier if shadow_mode else None,
-            )
-        )
-    except Exception:
-        pass
-
-    return heuristic_tier
-
 
 def should_skip_verification(query_tier: str, detected_intent: str) -> bool:
     """Determine if verification nodes can be skipped.

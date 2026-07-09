@@ -146,19 +146,6 @@ async def test_grade_documents_bypass(mock_services):
 
 
 @pytest.mark.asyncio
-async def test_check_sufficiency_bypass(mock_services):
-    state = GraphState(
-        question="What is meditation?",
-        chat_history=[],
-        request_id="test-8",
-        query_tier="tier2_simple",
-        relevant_docs=[{"text": "some teaching"}],
-    )
-    res = await nodes.check_context_sufficiency(state)
-    assert "selected_clusters" not in res
-
-
-@pytest.mark.asyncio
 async def test_enrich_context_bypass(mock_services):
     docs = [{"text": "some teaching"}]
     state = GraphState(
@@ -196,13 +183,6 @@ async def test_quality_checks_bypass(mock_services):
     assert res_verify["confidence_score"] == 8.0
     assert res_verify["faithfulness_score"] == 1.0
 
-    # check_contradiction bypass
-    res_contradiction = await nodes.check_contradiction(state)
-    assert "answer" not in res_contradiction
-
-    # explain_retrieval bypass
-    res_explain = await nodes.explain_retrieval(state)
-    assert res_explain["citation_reasoning"] == {}
 
 
 @pytest.mark.asyncio
