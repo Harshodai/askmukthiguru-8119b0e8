@@ -120,7 +120,8 @@ services:
     env_file:
       - ../.env
     environment: &backend-env
-      - HF_HUB_OFFLINE=1  # Prevent huggingface_hub SSL failures on Docker Desktop gRPC-FUSE
+      # HF_HUB_OFFLINE removed — Llama Guard needs runtime download; embedding
+      # models are pre-cached at build time so they load without network.
       # === LLM Provider ===
       # "sarvam_cloud" (default) or "ollama" (requires Ollama on host)
       - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
@@ -152,6 +153,7 @@ services:
       - NIM_RPM_LIMIT=${NIM_RPM_LIMIT:-30}
       # --- Guardrails ---
       - GUARDRAILS_PROVIDER=${GUARDRAILS_PROVIDER:-nemo}
+      - HF_TOKEN=${HF_TOKEN:-}
       # --- Retrieval Quality ---
       - RERANK_MIN_SCORE=${RERANK_MIN_SCORE:-0.15}
       - SEMANTIC_CACHE_ENABLED=${SEMANTIC_CACHE_ENABLED:-true}

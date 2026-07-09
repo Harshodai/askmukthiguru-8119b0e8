@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -40,8 +41,13 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
                 self._device
             )
             self._model.eval()
+            label2id = getattr(self._model.config, "label2id", None) or {}
+            self._rejection_idx = int(label2id.get("REJECTION", 1))
             self._available = True
-            logger.info("Rejection Classifier loaded successfully on %s", self._device)
+            logger.info(
+                "Rejection Classifier loaded successfully on %s (rejection_idx=%d)",
+                self._device, self._rejection_idx,
+            )
         except ImportError as e:
             logger.warning("transformers/torch not available: %s. Rejection classifier disabled.", e)
         except OSError as e:
@@ -57,19 +63,20 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
         if not self._available:
             return False, 0.0
 
-        inputs = self._tokenizer(
-            [text],
-            return_tensors="pt",
-            truncation=True,
-            max_length=512,
-        ).to(self._device)
+        def _infer(t: str) -> tuple[bool, float]:
+            inputs = self._tokenizer(
+                [t],
+                return_tensors="pt",
+                truncation=True,
+                max_length=512,
+            ).to(self._device)
+            with torch.no_grad():
+                outputs = self._model(**inputs)
+                probs = torch.softmax(outputs.logits, dim=-1)
+                score = probs[0][self._rejection_idx].item()
+            return score >= REJECTION_THRESHOLD, score
 
-        with torch.no_grad():
-            outputs = self._model(**inputs)
-            probs = torch.softmax(outputs.logits, dim=-1)
-            score = probs[0][1].item()
-
-        return score >= REJECTION_THRESHOLD, score
+        return await asyncio.to_thread(_infer, text)
 
     async def _handle_input(self, text: str, **kwargs: Any) -> dict[str, Any]:
         if not self._available:

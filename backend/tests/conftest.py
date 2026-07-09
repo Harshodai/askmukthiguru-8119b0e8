@@ -2,8 +2,22 @@ import os
 import sys
 import warnings
 
-# Suppress all warnings ruthlessly during testing
+# Suppress all warnings ruthlessly during testing — must be set BEFORE any
+# third-party imports to catch import-time warnings.
 warnings.filterwarnings("ignore")
+
+# The LangChainPendingDeprecationWarning (langchain_core bug) has a mismatch
+# between its instance class and the category argument passed to warnings.warn,
+# so filterwarnings("ignore") doesn't suppress it. Catch it with a static filter
+# before any third-party import triggers it.
+_orig_warn_fn = warnings.warn
+
+def _suppress_langchain_warn(*args, **kwargs):
+    if args and "allowed_objects" in str(args[0]):
+        return
+    return _orig_warn_fn(*args, **kwargs)
+
+warnings.warn = _suppress_langchain_warn
 
 # Add backend/ to sys.path first so that 'app' and 'services' imports resolve
 # regardless of whether pytest is invoked from the repo root or backend/.
