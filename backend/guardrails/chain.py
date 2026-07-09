@@ -53,7 +53,12 @@ class GuardrailsChain:
                 if nemo.is_available:
                     current.set_next(nemo)
                     logger.info("NeMo also available — chain extended")
-                self._provider_name = "llama_guard"
+                if llama.is_available:
+                    self._provider_name = "llama_guard"
+                elif rejection.is_available:
+                    self._provider_name = "rejection_classifier"
+                else:
+                    self._provider_name = "lightweight"
                 self._head = lightweight
         elif provider == "rejection_classifier":
             lightweight = LightweightGuardrailHandler()
