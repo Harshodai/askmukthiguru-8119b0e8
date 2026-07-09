@@ -35,9 +35,10 @@ _CLASS_KEYWORDS: dict[str, list[str]] = {
     "DISTRESS": [
         "sad", "depressed", "lonely", "anxious", "worried", "afraid", "fear", "scared",
         "grief", "loss", "cry", "crying", "empty", "hopeless", "miserable", "suffering",
-        "pain", "hurt", "broken", "dying", "death", "suicide", "kill", "end it all",
+        "pain", "hurt", "broken", "dying", "death", "die", "suicide", "kill", "end it all",
         "life sucks", "don't want to live", "give up", "lost will", "no reason to live",
         "helpless", "wounded", "abuse", "trauma", "panic", "stress", "overwhelmed",
+        "want to die", "i want to die",
     ],
     "MEDITATION": [
         "meditate", "meditation", "breathing", "breathe", "mindfulness", "serene mind",

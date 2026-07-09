@@ -82,6 +82,7 @@ from app.api.feedback import router as feedback_router
 from app.api.health import router as health_router
 from app.core.limiter import limiter
 
+from app.api.support import router as support_router
 from app.api.waitlist import router as waitlist_router
 
 # Newly-extracted route groups
@@ -602,6 +603,7 @@ app.include_router(speech_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
 app.include_router(teachings_router, prefix="/api")
+app.include_router(support_router, prefix="/api")
 app.include_router(waitlist_router, prefix="/api")
 app.include_router(notebooks_router, prefix="/api")
 from app.api.kg import router as kg_router

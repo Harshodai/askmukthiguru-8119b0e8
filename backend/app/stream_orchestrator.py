@@ -22,6 +22,7 @@ from app.pipeline import PipelineCoordinator
 from app.schemas import ChatRequest
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.memory import normalize_session_id
+from rag.nodes.generation import _clean_inline_citations
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +143,11 @@ class ChatStreamRequestOrchestrator:
                             except Exception:
                                 pass
                             _ttft_recorded = True
-                        tokens_streamed += len(item)
-                        escaped = item.replace("\n", "\\n")
+                        cleaned = _clean_inline_citations(item)
+                        if not cleaned:
+                            continue
+                        tokens_streamed += len(cleaned)
+                        escaped = cleaned.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
 
                 # Pipeline task completed
