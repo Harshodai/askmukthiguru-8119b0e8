@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.tracing import rag_span
 from guardrails.base import BaseGuardrailHandler
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,11 @@ class LlamaGuardHandler(BaseGuardrailHandler):
             return {"blocked": False, "reason": None, "response": None}
 
         try:
-            unsafe, categories = await self._classify(text)
+            async with rag_span("llama_guard_input", input_len=len(text)) as span:
+                unsafe, categories = await self._classify(text)
+                if unsafe:
+                    span.set_attribute("llama_guard.unsafe", True)
+                    span.set_attribute("llama_guard.categories", str(categories))
             if not unsafe:
                 return {"blocked": False, "reason": None, "response": None}
 
@@ -171,7 +176,11 @@ class LlamaGuardHandler(BaseGuardrailHandler):
             return {"blocked": False, "reason": None, "moderated_response": None}
 
         try:
-            unsafe, categories = await self._classify(text)
+            async with rag_span("llama_guard_output", output_len=len(text)) as span:
+                unsafe, categories = await self._classify(text)
+                if unsafe:
+                    span.set_attribute("llama_guard.unsafe", True)
+                    span.set_attribute("llama_guard.categories", str(categories))
             if not unsafe:
                 return {"blocked": False, "reason": None, "moderated_response": None}
 

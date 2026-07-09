@@ -1,9 +1,8 @@
 # ============================================================
 # Mukthi Guru — Full Stack Docker Compose
 #
-# Profiles:
-#   (default)  serve — backend, qdrant, redis, frontend, celery-worker, gptcache-server
-#   ops        — neo4j, jaeger, prometheus, grafana (observability + graph DB)
+# All services start by default. For resource-constrained environments,
+# you can create a docker-compose.override.yml to exclude ops services.
 #
 # Ollama runs on the HOST machine (not in Docker) because:
 #   - Windows Docker doesn't support GPU passthrough easily
@@ -11,17 +10,14 @@
 #   - The backend connects to Ollama via host.docker.internal
 #
 # Usage:
-#   docker compose up -d                        # Serve only (default)
-#   docker compose --profile ops up -d          # Ops only
-#   docker compose --profile '*' up -d          # Everything
-#   docker compose logs -f                      # Watch logs
-#   docker compose down                         # Stop all services
+#   docker compose up -d          # Start all services
+#   docker compose logs -f        # Watch logs
+#   docker compose down           # Stop all services
 # ============================================================
 
 services:
   # --- Neo4j Database ---
   neo4j:
-    profiles: ["ops"]
     image: neo4j:5.17.0
     container_name: mukthiguru-neo4j
     ports:
@@ -75,7 +71,6 @@ services:
 
   # --- Observability / Tracing ---
   jaeger:
-    profiles: ["ops"]
     image: jaegertracing/all-in-one:1.76.0
     container_name: mukthiguru-jaeger
     restart: unless-stopped
@@ -222,6 +217,10 @@ services:
       # Development only. In production, set this to allowed origins (e.g. https://myapp.com)
       - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS must be set to allowed origins}
     depends_on:
+      jaeger:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
       qdrant:
         condition: service_healthy
       redis:
@@ -286,6 +285,8 @@ services:
       redis:
         condition: service_healthy
       qdrant:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
     deploy:
       resources:
@@ -357,7 +358,6 @@ services:
 
   # --- Prometheus Monitoring Scraper ---
   prometheus:
-    profiles: ["ops"]
     image: prom/prometheus:v2.51.0
     container_name: mukthiguru-prometheus
     ports:
@@ -382,7 +382,6 @@ services:
 
   # --- Grafana Analytics Dashboard ---
   grafana:
-    profiles: ["ops"]
     image: grafana/grafana:10.4.1
     container_name: mukthiguru-grafana
     ports:

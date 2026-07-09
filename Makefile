@@ -62,8 +62,13 @@ DOCKER_BIN = /Users/harshodaikolluru/.docker/bin
 # Docker Desktop's macOS keychain "The user name or passphrase you entered is
 # not correct. (-25293)" error during image pulls.
 
+docker-pull-models: ## Pre-download embedding + reranker models to local cache before Docker build
+	@echo "${GREEN}Pre-downloading ML models to build cache...${NC}"
+	@cd backend && $(PYTHON) scripts/download_models.py
+	@echo "${GREEN}Models downloaded.${NC}"
+
 docker-up: ## Build and start the full Docker stack in detached mode
-	@echo "${GREEN}Starting full Docker stack...${NC}"
+	@echo "${GREEN}Starting full Docker stack (all services)...${NC}"
 	@cd backend && bash ../scripts/docker-safe.sh docker compose up -d --build
 
 docker-rebuild: ## Rebuild without cache and restart Docker (automatically backs up and restores data!)
