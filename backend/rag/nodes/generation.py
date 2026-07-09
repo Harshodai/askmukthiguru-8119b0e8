@@ -991,7 +991,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # ---- headroom CCR (Reversible Context Compression) Interception ----
     import re
     retrieve_match = re.search(r"\[RETRIEVE:\s*([^\]]+)\]", answer)
-    if retrieve_match:
+    if retrieve_match and state.get("query_tier") not in ("tier3_complex", "deep"):
         target = retrieve_match.group(1).strip()
         logger.info(f"headroom CCR: LLM requested uncompressed context for: '{target}'")
         raw_docs = state.get("raw_documents", [])
@@ -1116,8 +1116,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             if answer is None:
                 answer = ""
             answer = strip_cot(answer)
-            # Ensure no remaining CCR [RETRIEVE: <source_url>] tag leaks to the user
-            answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
+
+    # Always strip any remaining [RETRIEVE: ...] tags — runs unconditionally so
+    # tier3_complex / deep queries never leak the raw CCR tag to the user.
+    answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
 
     # Step 1 — Intent-gated factual slot corrections (NEC-style, runs on raw answer
     # BEFORE keyword footers are appended so corrections can't be masked by footnotes)
@@ -1496,7 +1498,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             f"citations={len(citations)}, answer_len={len(answer) if answer else 0})"
         )
         retry_count = state.get("retry_count", 0)
-        if retry_count < 2:
+        if retry_count < 1:
             logger.info(
                 f"Final: Answer rejected, retrying (retry_count={retry_count})"
             )
@@ -1558,7 +1560,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     # Generate follow-up suggestions concurrently (non-blocking, best-effort)
     question = state.get("question", "")
     follow_up_suggestions: list[str] = []
-    if answer and question and intent not in ("DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL"):
+    if (answer and question and intent not in ("DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL")
+            and state.get("query_tier") not in ("tier3_complex", "deep")):
         try:
             follow_up_suggestions = await asyncio.wait_for(
                 _generate_follow_up_suggestions(

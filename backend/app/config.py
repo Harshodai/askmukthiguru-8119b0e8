@@ -254,12 +254,12 @@ class Settings(BaseSettings):
     rag_max_rewrites: int = 1
     rag_chunk_size: int = 1500
     rag_chunk_overlap: int = 200
-    rag_use_hyde: bool = True
+    rag_use_hyde: bool = False
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
     rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = (
-        10000  # Only compress context if character length exceeds this threshold
+        20000  # Only compress context if character length exceeds this threshold
     )
     # MMR (Maximal Marginal Relevance) diversity re-ranking
     rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
