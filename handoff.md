@@ -10,11 +10,11 @@ Execute the **Ruthless Review** (`RUTHLESS_REVIEW.md`) — cut latency, remove d
 
 ## 2. Current State of Code
 
-### Branch: `main` — ahead of `origin/main` by 2 commits, working tree clean
+### Branch: `main` — up to date with `origin/main`, working tree clean
 
 **P0-P1 (previous session):** 14 fixes.
 
-**P2 (through this session):** 9 items + tech debt:
+**P2 (through this session):** 8 items + tech debt:
 
 | Item | Lines | Files |
 |------|-------|-------|
@@ -24,17 +24,16 @@ Execute the **Ruthless Review** (`RUTHLESS_REVIEW.md`) — cut latency, remove d
 | Duplicate `_prepare_user_memory` | −64 | `chat.py` |
 | httpx monkey-patch | −121 | `config.py` |
 | Dead generation functions | −223 | `generation.py` |
-| Stale audit docs | 4 files | root `ARCHITECTURE_AUDIT*`, `HARDCODING*`, `RUTHLESS_AUDIT*` |
+| Stale audit docs | 4 files | root docs |
 | **Remove `backend/repos/` (624 MB)** | −1 tracked | `backend/repos/RAG-Anything` |
-| **Collapse providers (7 → 2)** | −226 | `OllamaProvider`, `OpenRouterProvider`, factory, registry, tests |
 | **Key rotation in SarvamHTTPGateway** | +43 | comma-separated keys, 429 rotation |
 
-**Total:** ~2,522 lines removed, 56 added across 29 files.
+**Total:** ~2,450 lines removed, 56 added across 29 files.
+- Provider collapse attempted but reverted — Ollama and OpenRouter still actively needed.
 
 ### Test Suite
-- **715 passed, 5 skipped (infra), 1 warning (pre-existing)** — 0 failures
-- Tests adapted for collapsed provider set (factory listing, token budget, OpenRouter)
-- 715 vs previous 717 = 3 tests removed for dead nodes + OllamaProvider/OpenRouterProvider provider tests; net -2 tests (some added for new provider test coverage) — wait, let me recalculate: previous was 717 passed (commit 32b1f071), today we have 715 passed. The difference: -2 tests from test_token_budget_guard (OpenRouter) and test_openrouter (OpenRouterProvider) were removed. That accounts for the delta.
+- **717 passed, 5 skipped (infra), 1 warning (pre-existing)** — 0 failures
+- All provider tests restored after revert
 
 ### Running Services
 - Backend: `http://localhost:8000`
@@ -134,8 +133,9 @@ All changes committed to `main`. New additions since previous handoff marked **N
 
 ### ✅ Completed (this session)
 1. **Remove `backend/repos/`** (624 MB vendored) — `git rm -r --cached`, already in `.gitignore`.
-2. **Collapse providers (7 → 2)** — Sarvam + NIM only. Deleted `OllamaProvider`, `OpenRouterProvider` wrappers. Simplified factory/registry/dependencies.
-3. **API key rotation** — in `SarvamHTTPGateway`: comma-separated keys, rotates on 429 with immediate retry (same self-healing pattern as 400 tier limit).
+2. **API key rotation** — in `SarvamHTTPGateway`: comma-separated keys, rotates on 429 with immediate retry (same self-healing pattern as 400 tier limit).
+
+⚠️ **Provider collapse attempted but reverted.** All 4 providers (sarvam_cloud, nim, ollama, openrouter) remain registered. The OllamaProvider and OpenRouterProvider wrappers and factory entries were restored.
 
 ### Up next (choose your priority)
 
