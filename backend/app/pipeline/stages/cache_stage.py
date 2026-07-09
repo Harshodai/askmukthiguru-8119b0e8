@@ -169,6 +169,10 @@ class CacheUpdateStage(Stage):
             logger.info(f"Skipping cache update: intent '{intent}' is not cacheable.")
             return None
 
+        if not isinstance(final_answer, str):
+            logger.warning("Skipping cache update: final_answer is %s, not str", type(final_answer).__name__)
+            return None
+
         refusal_indicators = [
             "i don't have that specific teaching",
             "please try asking another question",

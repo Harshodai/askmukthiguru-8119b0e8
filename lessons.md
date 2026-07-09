@@ -3194,3 +3194,40 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - Distress handling — compassion block, 2048 num_predict, reranker bypass intact
 - Tier2/fast path — already optimized
 - LightRAG — already disabled in hot path
+
+## Jul 9, 2026 — Ruthless Review P0-P1 Execution
+
+### Pipeline stage ordering matters for correctness (P0-8)
+- **Problem**: `MemoryStage` ran before `OutputGuardrailStage`, so guardrail-truncated answers were never saved to memory (user had to re-ask).
+- **Fix**: Swapped `MemoryStage` after `OutputGuardrailStage` in `pipeline_builder.py`.
+- **Pattern**: Any stage that modifies the answer (guardrails, rewrites) must precede the stage that persists it.
+
+### Add auth to new endpoints immediately (P0-9)
+- **Problem**: `POST /api/chat/title` was unauthenticated (no `get_current_user_from_supabase` dependency), leaking title generation to anonymous callers.
+- **Fix**: Added `user: dict = Depends(get_current_user_from_supabase)` parameter.
+- **Pattern**: Every endpoint that calls a protected path or costs LLM tokens must carry auth from the start. Omitting it is a P0 vulnerability.
+
+### Keyword footers suppressed user experience improvements (P1-10)
+- **Problem**: Every answer had a `*(Teachings referenced: meditation)*` type suffix appended by `_ensure_keywords_in_answer`, duplicating the reference list already shown in the UI. Also, `apply_factual_slots` rewrote the answer with generic replacements.
+- **Fix**: Removed both call sites from `generation.py`.
+- **Pattern**: LLM should generate the answer once. Post-generation rewrites that alter content (not formatting) risk breaking the user promise without adding value.
+
+### Follow-up suggestions were an LLM call per turn with no UI consumption (P1-11)
+- **Problem**: Every response triggered an extra LLM call via `_generate_follow_up_suggestions` to produce 3 suggestions, but the frontend never rendered them.
+- **Fix**: Replaced with `follow_up_suggestions: list[str] = []`.
+- **Pattern**: Any feature branch that ships backend work without frontend consumption wastes LLM tokens and adds latency. Gate backend-only features behind a flag or feature switch.
+
+### Coalescer must be a real instance on mock containers (P1-12)
+- **Problem**: Tests used `MagicMock(spec=ServiceContainer)` which didn't have a `coalescer` attribute, causing `AttributeError`. When given a bare `AsyncMock().get_or_run`, it didn't invoke the coroutine, returning a coroutine object instead of a string.
+- **Fix**: Added `coalescer` to `ServiceContainer` at build time, wired via `PipelineCoordinator.__init__`. Tests now use `_InMemoryCoalescer` for mock containers.
+- **Pattern**: Mock coalescers must be real instances with working `.get_or_run` that actually invokes the coroutine, not `AsyncMock`.
+
+### Context compression adds latency without benefit (P1-13)
+- **Problem**: `rag_context_compression_enabled=True` (default) ran an LLM call per query to compress retrieved context, but the retrieval budget (top_k=3) already gave minimal context.
+- **Fix**: Changed default to `False`.
+- **Pattern**: Compression and summarization should be measured against the scale they act on. Compressing 3 docs via LLM is pure overhead.
+
+### Removing spec from MagicMock in tests (P1-12)
+- **Problem**: `MagicMock(spec=ServiceContainer)` prevents setting `coalescer` attribute because it's not declared as a class attribute.
+- **Fix**: Changed to `MagicMock()` (no spec) in test helpers. The trade-off (losing spec enforcement) is acceptable for pragmatic testability.
+- **Pattern**: Use `MagicMock()` without `spec=` when the object under test expects runtime-injected attributes that aren't on the class itself.

@@ -638,7 +638,7 @@ def main() -> int:
     parser.add_argument("--category", nargs="+", default=None, help="Filter by category names")
     parser.add_argument("--limit", type=int, default=None, help="Limit queries per category")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Report output directory")
-    parser.add_argument("--test-key", default=os.environ.get("JWT_SECRET"), help="X-Test-Key value for auth")
+    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET"), help="X-Test-Key value for auth")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
 

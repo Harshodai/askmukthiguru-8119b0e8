@@ -3,9 +3,13 @@ from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.dependencies import get_container
+from services.auth_service import get_current_user_from_supabase
 
 # Create client without entering context manager to bypass lifespan qdrant startup
 client = TestClient(app)
+
+def _override_title_auth():
+    return {"id": "test-user", "email": "test@example.com"}
 
 def test_generate_title_endpoint_success(monkeypatch):
     mock_container = MagicMock()
@@ -13,6 +17,7 @@ def test_generate_title_endpoint_success(monkeypatch):
     mock_container.ollama.generate.return_value = "Spiritual Healing Process"
     
     app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_user_from_supabase] = _override_title_auth
     
     response = client.post(
         "/api/chat/title",
@@ -36,6 +41,7 @@ def test_generate_title_endpoint_fallback(monkeypatch):
     mock_container.ollama.generate.side_effect = Exception("LLM connection timed out")
     
     app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_user_from_supabase] = _override_title_auth
     
     first_msg = "Short query"
     response = client.post(
