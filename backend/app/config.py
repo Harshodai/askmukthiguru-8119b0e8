@@ -315,7 +315,6 @@ class Settings(BaseSettings):
     semantic_cache_similarity: float = 0.90  # E3.4: lowered from 0.87/0.92 to improve hit rate
     intent_prerouter_cache_hint_enabled: bool = True  # E3.1: hint cache-first for FACTUAL/CASUAL
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
-    rag_cache_alignment_enabled: bool = True
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
 
     # Qdrant-backed semantic cache (Phase 1.2)
