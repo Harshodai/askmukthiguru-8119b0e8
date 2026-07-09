@@ -255,7 +255,9 @@ services:
       - ../scripts:/app/scripts
       - ../results:/app/results
       - ../memory:/app/memory
-      - ./repos/LightRAG/lightrag:/usr/local/lib/python3.12/site-packages/lightrag
+      # NOTE: the ./repos/LightRAG/lightrag override mount was removed — backend/repos/
+      # was deleted (P2 cleanup) and the empty host dir shadowed the pip-installed
+      # lightrag-hku, causing "cannot import name 'LightRAG'" boot crash-loops.
     # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:
       - "host.docker.internal:host-gateway"
