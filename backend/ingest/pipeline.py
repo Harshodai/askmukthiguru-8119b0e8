@@ -1148,8 +1148,15 @@ class IngestionPipeline:
         }
 
     async def _extract_topics(self, text: str) -> list[str]:
-        """Extract top 3-5 spiritual topics from text using LLM."""
-        prompt = "Analyze this spiritual teaching and list the top 3-5 distinct topics discussed (e.g., 'Nature of Suffering', 'Power of Observation', 'Relationship with EGO'). Return as a comma-separated list."
+        """Extract top 3-5 spiritual topics from text using LLM.
+
+        Strips LLM reasoning artifacts to keep only clean topic labels.
+        """
+        prompt = (
+            "Analyze this spiritual teaching and list the top 3-5 distinct topics discussed. "
+            "Return ONLY a JSON array of strings, e.g. [\"Nature of Suffering\", \"Power of Observation\", \"Relationship with EGO\"]. "
+            "Do NOT include reasoning, analysis, brainstorming, or any text outside the JSON array."
+        )
         try:
             response = await self._llm.generate(
                 prompt,
@@ -1161,7 +1168,53 @@ class IngestionPipeline:
             )
             if not response or not response.strip():
                 return ["Spiritual"]
-            return [t.strip() for t in response.split(",") if t.strip()]
+
+            import json
+            import re
+
+            cleaned = response.strip()
+            # Strip code fences
+            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+            cleaned = re.sub(r"\s*```$", "", cleaned)
+            # Find the first [ ... ] array
+            array_match = re.search(r"\[.*?\]", cleaned, re.DOTALL)
+            if array_match:
+                try:
+                    topics = json.loads(array_match.group(0))
+                    if isinstance(topics, list) and topics:
+                        return [str(t).strip() for t in topics if str(t).strip()]
+                except json.JSONDecodeError:
+                    pass
+
+            # Fallback: comma-split but strip reasoning lines
+            lines = cleaned.split("\n")
+            topic_lines = []
+            for line in lines:
+                line = line.strip().strip('"').strip("'")
+                # Skip lines that are LLM reasoning artifacts
+                if any(skip in line.lower() for skip in [
+                    "brainstorm", "topic ideas", "select the top", "synthesize",
+                    "deconstruction", "refine", "group the idea", "i have", "let's",
+                    "call it", "potential topic", "candidate", "this is a",
+                    "i need to", "good.", "perfect", "these are", "the user",
+                    "**topic", "paragraph", "sentence", "now i have"
+                ]):
+                    continue
+                # Skip empty or very long lines
+                if not line or len(line) > 100:
+                    continue
+                topic_lines.append(line)
+
+            if topic_lines:
+                topics = []
+                for t in topic_lines:
+                    t = t.strip().strip(",").strip()
+                    if t and t not in topics and t != "Spiritual":
+                        topics.append(t)
+                return topics[:5] if topics else ["Spiritual"]
+
+            return ["Spiritual"]
+
         except Exception as e:
             logger.error(f"Error in _extract_topics: {e}. Falling back to ['Spiritual']")
             return ["Spiritual"]

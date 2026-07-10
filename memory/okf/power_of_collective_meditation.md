@@ -6,10 +6,6 @@ video_id: AyUE-2Uh5Vg
 tags: [meditation, collective consciousness, beautiful state, jnana]
 ---
 
-# Power of Collective Meditation
-
-# Power of Collective Meditation
-
 ## Summary
 This teaching explores the profound spiritual impact of meditating together as a collective. When individuals unite in meditation, their consciousness transcends individual limitations, creating a powerful field of shared awareness that can transform not only participants but also the broader environment. The practice leverages the concept that when hearts and minds align in stillness, a ripple effect of peace and clarity extends outward.
 

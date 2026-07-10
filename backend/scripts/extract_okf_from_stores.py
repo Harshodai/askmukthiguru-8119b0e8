@@ -40,9 +40,8 @@ _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
 # ── doctrine tags (inlined to avoid ingest.pipeline import → ContainerBuilder OOM) ──
 
 _DOCTRINE_SYNONYMS: dict[str, list[str]] = {
-    # Core teachings
-    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy"],
-    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain"],
+    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy", "no-stress state"],
+    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain", "stressful state"],
     "surrender": ["surrender", "letting go", "giving up control", "relinquishing", "total surrender"],
     "oneness": ["oneness", "unity", "non-duality", "non-dual", "advaita", "non separation"],
     "consciousness": ["consciousness", "awareness", "higher consciousness", "divine consciousness", "universal consciousness"],
@@ -75,6 +74,31 @@ _DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     "jeevan mukta": ["jeevan mukta", "jeevanmukta", "liberated while living", "living liberated one"],
     "paramatma": ["paramatma", "paramatman", "supreme soul", "universal soul", "supreme self"],
     "prarabdha": ["prarabdha", "prarabdha karma", "matured karma", "destined karma", "fruit of past actions"],
+    "universal intelligence": ["universal intelligence", "divine field", "cosmic consciousness", "divine intelligence", "universal consciousness field"],
+    "inner stillness": ["inner stillness", "stillness", "inner quiet", "quiet presence", "inner calm"],
+    "warring self": ["warring self", "divided self", "conflicted self", "inner conflict"],
+    "self-centric thinking": ["self-centric thinking", "self-centered thinking", "self-preoccupation", "obsessive thinking", "ego-centric thinking"],
+    "heart awakening": ["heart awakening", "heart opening", "open heart", "awakening of the heart", "heart center opening"],
+    "compassion": ["compassion", "loving kindness", "kindness", "karuna", "empathy"],
+    "intuition": ["intuition", "intuitive knowing", "inner knowing", "heart knowledge"],
+    "awakening": ["awakening", "spiritual awakening", "inner awakening", "transformation", "consciousness shift"],
+    "grace": ["grace", "divine grace", "blessing", "divine favor", "anugraha"],
+    "presence": ["presence", "being present", "present moment", "now", "mindfulness"],
+    "inner truth": ["inner truth", "truth within", "deep truth", "essential truth", "core truth"],
+    "collective meditation": ["collective meditation", "group meditation", "community meditation"],
+    "divine manifest": ["divine manifest", "manifest divine", "creator manifest", "god with form"],
+    "divine unmanifest": ["divine unmanifest", "unmanifest divine", "formless divine", "god without form"],
+    "synchronicity": ["synchronicity", "meaningful coincidence", "divine timing", "cosmic alignment"],
+    "prosperity": ["prosperity", "abundance", "flourishing", "well-being", "wealth"],
+    "karmic clearing": ["karmic clearing", "karma clearing", "karmic release", "karmic debt clearing"],
+    "spiritual vision": ["spiritual vision", "divine vision", "higher vision", "sacred vision", "purpose"],
+    "science of purification": ["science of purification", "purification process", "inner purification"],
+    "truth of suffering": ["truth of suffering", "seeing suffering", "nature of suffering", "root of suffering"],
+    "dissolving into the beautiful state": ["dissolving", "dissolving into", "merging with beautiful state", "dissolving suffering"],
+    "sadhguru": ["sadhguru", "jaggi vasudev", "isha foundation"],
+    "amma bhagavan": ["amma bhagavan", "sri amma bhagavan", "oneness movement"],
+    "oo academy": ["o and o academy", "oo academy", "o&o academy"],
+    "heart explosion": ["heart explosion", "explosion of the heart", "heart burst", "sudden heart opening"],
 }
 
 

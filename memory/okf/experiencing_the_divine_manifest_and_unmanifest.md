@@ -6,10 +6,6 @@ video_id: -yGLiryVQoQ
 tags: [divine-experience, universal-intelligence, manifest, unmanifest, spiritual-perception]
 ---
 
-# Experiencing the Divine: Manifest and Unmanifest
-
-# Experiencing the Divine: Manifest and Unmanifest
-
 ## Summary
 
 This teaching presents two fundamental ways to experience the divine. The first way is as the "manifest" — perceiving universal intelligence as the various gods and sages of one's mystic tradition. The second way is as the "unmanifest" — experiencing the divine as a field of universal intelligence that is everywhere and is everything. Both paths are valid approaches to connecting with the divine.

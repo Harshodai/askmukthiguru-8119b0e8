@@ -34,12 +34,25 @@ except Exception:  # pragma: no cover — defensive at import time
 # cross-module import cycle; seed_ontology.py is a runner, not a lib.
 _SEEDED_CONCEPTS = [
     "Karma", "Dharma", "Consciousness", "Beautiful State", "Suffering",
+    "Suffering State", "Moksha", "Universal Intelligence", "Inner Stillness",
+    "Self-Centric Thinking", "Warring Self", "Shrinking Self", "Destructive Self",
+    "Inert Self", "Deeksha", "Ekam", "Oneness", "Four Sacred Secrets",
+    "Spiritual Vision", "Science of Purification", "Truth of Suffering",
+    "Dissolving into the Beautiful State", "Heart Awakening", "Heart Explosion",
+    "Compassion", "Intuition", "Awakening", "Grace", "Surrender",
+    "Presence", "Inner Truth", "Collective Meditation", "Divine Manifest",
+    "Divine Unmanifest", "Synchronicity", "Prosperity", "Karmic Clearing",
+    "Serene Mind", "Soul Sync", "Three Questions", "Serene Mind Flame",
 ]
 _SEEDED_PRACTICES = [
     "Meditation", "Yoga", "Serene Mind", "Soul Sync",
+    "Three Question Meditation", "Inner Stillness Practice",
+    "Collective Meditation Practice", "Kriya Practice",
+    "Heart Awakening Practice", "Four Sacred Secrets Practice",
 ]
 _SEEDED_TEACHERS = [
     "Sadhguru", "Sri Amma Bhagavan", "ISKCON", "Sri Preethaji", "Sri Krishnaji",
+    "Ekam", "O&O Academy", "Mukthi Guru",
 ]
 
 # Ponytail: one Cypher query. Traverses any relationship type out of the

@@ -6,10 +6,6 @@ video_id: 8Xy8xsLIgAU
 tags: [oneness, yoga, universal-intelligence]
 ---
 
-# Universal Intelligence
-
-# Universal Intelligence
-
 ## Summary
 This teaching explores the concept of Universal Intelligence through the lens of oneness, delivered during International Yoga Day. The Sun God (Surya) narrates an ancient Hindu mythological legend involving Hanuman and the Sun God, using this story to illuminate the spiritual principle that the spirit of yoga is fundamentally about oneness.
 

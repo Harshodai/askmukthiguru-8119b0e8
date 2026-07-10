@@ -6,10 +6,6 @@ video_id: UgQV_5FjPNk
 tags: [guru, moksha, spiritual-teaching]
 ---
 
-# Feeling One with Universal Intelligence
-
-# Feeling One with Universal Intelligence
-
 ## Summary
 This teaching from the Mukthi Guru platform explores the concept of unity with universal intelligence. A Mukthi Guru serves as a teacher of liberation and enlightenment, guiding seekers toward experiencing oneness with the universal consciousness that transcends individual limitation.
 

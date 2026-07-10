@@ -6,10 +6,6 @@ video_id: x-mTRlE0TC4
 tags: [compassion, awakening, spiritual-state, consciousness, moksha]
 ---
 
-# Awakening to Compassion
-
-# Awakening to Compassion
-
 ## Summary
 This teaching explores the journey from experiencing states of calmness and presence to awakening to compassion and feeling deeply connected to others. It describes how universal intelligence can flow into a person when they allow themselves to be in a state of inner stillness, leading to a transformative experience of compassion and connection.
 

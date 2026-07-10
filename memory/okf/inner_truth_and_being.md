@@ -6,10 +6,6 @@ video_id: -4wCvcPrX-E
 tags: [mantra, inner-truth, being, identity, authenticity]
 ---
 
-# Inner Truth and Being
-
-# Inner Truth and Being
-
 ## Summary
 This teaching explores the affirmation "Your truth is a statement of truth" as a powerful mantra for embracing one's authentic self. The core wisdom emphasizes that the inner voice or sense of self is not merely a label but an expression of fundamental truth that resides within each individual. By internalizing this affirmation, one can transcend doubt and fully embody the authenticity of their being.
 

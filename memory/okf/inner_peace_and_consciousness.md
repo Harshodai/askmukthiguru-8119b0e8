@@ -6,10 +6,6 @@ video_id: pmSPHJfg3AU
 tags: [peace, consciousness, meditation, beautiful state, inner stillness]
 ---
 
-# Inner Peace and Consciousness
-
-# Inner Peace and Consciousness
-
 ## Summary
 This teaching explores the nature of inner peace as a fundamental aspect of spiritual consciousness, drawing from the O&O Academy's teachings on achieving a Beautiful State through the power of consciousness. Sri Preethaji and Sri Krishnaji guide seekers toward understanding peace not merely as an emotional state but as a profound connection to one's true nature (Atma).
 

@@ -6,10 +6,6 @@ video_id: -yGLiryVQoQ
 tags: [beautiful state, meditation, inner guidance, kriya]
 ---
 
-# The Voice That Speaks to You and Guides You
-
-# The Voice That Speaks to You and Guides You
-
 ## Summary
 This teaching explores the nature of inner guidance and the voice that directs individuals toward their highest good. Grounded in the O&O Academy's framework of the Beautiful State, the teaching emphasizes that accessing this guiding voice requires entering a state of deep stillness and connection beyond ordinary consciousness.
 

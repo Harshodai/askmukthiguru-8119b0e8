@@ -156,8 +156,8 @@ _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
 # -----------------------------------------------------------------------
 DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     # Core teachings
-    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy"],
-    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain"],
+    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy", "no-stress state"],
+    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain", "stressful state"],
     "surrender": ["surrender", "letting go", "giving up control", "relinquishing", "total surrender"],
     "oneness": ["oneness", "unity", "non-duality", "non-dual", "advaita", "non separation"],
     "consciousness": ["consciousness", "awareness", "higher consciousness", "divine consciousness", "universal consciousness"],
@@ -190,6 +190,37 @@ DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     "jeevan mukta": ["jeevan mukta", "jeevanmukta", "liberated while living", "living liberated one"],
     "paramatma": ["paramatma", "paramatman", "supreme soul", "universal soul", "supreme self"],
     "prarabdha": ["prarabdha", "prarabdha karma", "matured karma", "destined karma", "fruit of past actions"],
+    # Mukthi Guru expanded concepts
+    "universal intelligence": ["universal intelligence", "divine field", "cosmic consciousness", "divine intelligence", "universal consciousness field"],
+    "inner stillness": ["inner stillness", "stillness", "inner quiet", "quiet presence", "inner calm", "tranquility"],
+    "warring self": ["warring self", "divided self", "conflicted self", "inner conflict"],
+    "self-centric thinking": ["self-centric thinking", "self-centered thinking", "self-preoccupation", "obsessive thinking", "ego-centric thinking"],
+    "heart awakening": ["heart awakening", "heart opening", "open heart", "awakening of the heart", "heart center opening"],
+    "heart explosion": ["heart explosion", "explosion of the heart", "sudden opening", "heart burst"],
+    "compassion": ["compassion", "loving kindness", "kindness", "karuna", "empathy"],
+    "intuition": ["intuition", "intuitive knowing", "inner knowing", "heart knowledge", "gut feeling"],
+    "awakening": ["awakening", "spiritual awakening", "inner awakening", "transformation", "consciousness shift"],
+    "grace": ["grace", "divine grace", "blessing", "divine favor", "anugraha"],
+    "presence": ["presence", "being present", "present moment", "now", "mindfulness"],
+    "inner truth": ["inner truth", "truth within", "deep truth", "essential truth", "core truth"],
+    "collective meditation": ["collective meditation", "group meditation", "community meditation", "satsang meditation"],
+    "divine manifest": ["divine manifest", "manifest divine", "creator manifest", "god with form", "saguna brahman"],
+    "divine unmanifest": ["divine unmanifest", "unmanifest divine", "formless divine", "god without form", "nirguna brahman"],
+    "synchronicity": ["synchronicity", "meaningful coincidence", "divine timing", "cosmic alignment"],
+    "prosperity": ["prosperity", "abundance", "flourishing", "well-being", "material and spiritual wealth"],
+    "karmic clearing": ["karmic clearing", "karma clearing", "karmic release", "karmic debt clearing", "purification of karma"],
+    "spiritual vision": ["spiritual vision", "divine vision", "higher vision", "sacred vision", "purpose driven living"],
+    "science of purification": ["science of purification", "purification process", "inner purification", "cleansing practice"],
+    "truth of suffering": ["truth of suffering", "seeing suffering", "nature of suffering", "understanding suffering"],
+    "dissolving into the beautiful state": ["dissolving", "dissolving into", "merging with the beautiful state", "dissolving suffering"],
+    "serene mind": ["serene mind", "serene mind practice", "calm mind", "peaceful mind", "tranquil mind"],
+    "three questions": ["three questions", "three question meditation", "what is my state", "who am i inquiry"],
+    "sadhguru": ["sadhguru", "jaggi vasudev", "isha foundation", "yogi mystic"],
+    "amma bhagavan": ["amma bhagavan", "sri amma bhagavan", "oneness movement", "kalki"],
+    "iskcon": ["iskcon", "hare krishna", "prabhupada", "krishna consciousness"],
+    "oo academy": ["o and o academy", "oo academy", "o&o academy", "oando academy"],
+    "mukthi guru": ["mukthi guru", "mukthi guru platform", "mukthiguru", "mukti"],
+    "soul sync": ["soul sync", "soul synchronization", "breath meditation", "breath awareness meditation", "soulsync"],
 }
 
 
