@@ -143,11 +143,14 @@ class ChatStreamRequestOrchestrator:
                             except Exception:
                                 pass
                             _ttft_recorded = True
-                        cleaned = _clean_inline_citations(item)
-                        if not cleaned:
+                        # Emit raw token as-is: whitespace and newlines are
+                        # significant for readability during streaming.
+                        # Final answer cleanup runs on the assembled text
+                        # in generation.py (_clean_inline_citations there).
+                        if not item:
                             continue
-                        tokens_streamed += len(cleaned)
-                        escaped = cleaned.replace("\n", "\\n")
+                        tokens_streamed += len(item)
+                        escaped = item.replace("\n", "\\n")
                         yield f"event: token\ndata: {escaped}\n\n"
 
                 # Pipeline task completed
