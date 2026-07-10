@@ -159,9 +159,12 @@ class RerankerService:
             elif torch.backends.mps.is_available():
                 device = "mps"
 
-            logger.info(f"Loading fallback reranker: {settings.reranker_model} on device: {device}")
+            # On CPU, bge-reranker-v2-m3 costs ~4s/doc (88s for 19 docs, verified in
+            # docker logs). Use the light CPU model there; reserve the heavy
+            # multilingual reranker for GPU/MPS where it is affordable.
+            model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+            logger.info(f"Loading fallback reranker: {model_id} on device: {device}")
             start_time = time.perf_counter()
-            model_id = settings.reranker_model
             try:
                 self._fallback_reranker = CrossEncoder(model_id, device=device)
             except json.JSONDecodeError as e:

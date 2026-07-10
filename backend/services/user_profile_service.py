@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import time
+import uuid
 from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
@@ -15,6 +16,24 @@ logger = logging.getLogger(__name__)
 # upserts against this id trigger a Postgres FK warning (the id is not in the
 # users table). In test mode we skip the DB write to keep logs clean.
 _TEST_BACKDOOR_USER_ID = "00000000-0000-0000-0000-000000000000"
+
+
+def _is_persistable_user_id(user_id: Optional[str]) -> bool:
+    """True only for a real Supabase-persistable user_id (a valid UUID).
+
+    Anonymous/dev-mode requests carry user_id="anonymous", which the UUID
+    ``conversation_memories.user_id`` column rejects with Postgres 22P02 — the
+    docker logs showed 77 such "Supabase memory save failed" warnings in a 2h
+    window. Skip the DB round-trip for those (and the test backdoor); the
+    in-memory cache already serves the session either way.
+    """
+    if not user_id or user_id == _TEST_BACKDOOR_USER_ID:
+        return False
+    try:
+        uuid.UUID(str(user_id))
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 class SpiritualLevel(str, Enum):
@@ -145,7 +164,7 @@ class UserProfileService:
 
     async def save_conversation_memory(self, memory: ConversationMemory) -> None:
         """Save conversation for multi-session continuity."""
-        if self._supabase:
+        if self._supabase and _is_persistable_user_id(memory.user_id):
             try:
                 await asyncio.to_thread(
                     self._supabase.table("conversation_memories").upsert(
@@ -166,7 +185,7 @@ class UserProfileService:
 
     async def get_recent_memories(self, user_id: str, limit: int = 3) -> list[ConversationMemory]:
         """Get recent conversation summaries for context."""
-        if self._supabase:
+        if self._supabase and _is_persistable_user_id(user_id):
             try:
                 result = await asyncio.to_thread(
                     self._supabase.table("conversation_memories")

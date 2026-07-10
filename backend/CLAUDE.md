@@ -49,7 +49,7 @@ CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCa
 
 `memory/okf/` lives at the **repo root**, not under `backend/`. Import `OKF_DIR` / `STAGING_DIR` from `services/memory/okf_store.py` — never re-derive the path. Inside the image `backend/` *is* `/app`, so `Path(__file__).parents[3]` and `_BACKEND.parent` both resolve to `/`; that is how `compiler.py` and the extractor each ended up writing to `/memory/okf/` while retrieval read `/app/memory/okf/`.
 
-`OKFStore.list_entries()` deliberately uses a non-recursive `glob`: `staging/` holds unreviewed, LLM-generated doctrine that `extract_okf(auto_approve=False)` writes after every ingested video. `rglob` promotes it straight into `compiled.json`, defeating the review gate. See `tests/test_okf_pipeline_integrity.py`.
+`OKFStore.list_entries()` uses `rglob` — the teacher-subdir layout (`sri-preethaji/`, `sri-krishnaji/`, `shared/`) requires recursion — and keeps `staging/` and `_scripts/` out with an explicit `_excluded_parts` filter (`okf_store.py`). The **filter, not glob depth, is the review gate**: `staging/` holds unreviewed, LLM-generated doctrine that `extract_okf(auto_approve=False)` writes after every ingested video, and it must never reach `compiled.json`. Never remove that filter; and never revert to a non-recursive `glob` (it would silently drop every teacher-subdir teaching). See `tests/test_okf_pipeline_integrity.py`.
 
 One extractor only: `backend/scripts/extract_okf_from_stores.py` (imported by `ingest/pipeline.py:244`, `tasks/okf_extract_tasks.py:43`, `app/api/admin.py:699`). Its LLM chain must keep all three fallbacks — multi-provider → OpenRouter → Ollama — or extraction raises under `LLM_PROVIDER=ollama`.
 

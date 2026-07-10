@@ -155,6 +155,13 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    # CPU-only deployments (the free-tier target) must NOT run bge-reranker-v2-m3:
+    # 568M params on CPU costs ~4s/doc → 88s for 19 docs (verified in docker logs),
+    # which blew the 300s pipeline ceiling and is the "why >30s" cause. On CPU use a
+    # light cross-encoder (~22M) that reranks the same batch in ~2-4s. GPU/MPS still
+    # use `reranker_model` above. Swap to "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    # if native-language (Hindi/Tamil/…) rerank quality matters more than raw speed.
+    reranker_model_cpu: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # --- Whisper / Transcription ---
     whisper_model: str = "large-v3"  # Whisper model size

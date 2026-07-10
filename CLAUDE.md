@@ -445,7 +445,7 @@ All backend config lives in `backend/.env` (copy from `backend/.env.example`). O
 - `QDRANT_LOCAL_PATH` — set for local (no-Docker) Qdrant mode
 - `WHISPER_MODEL` — `large-v3` (uses `faster-whisper` backend by default)
 - `WHISPER_COMPUTE_TYPE` — `float16` for GPU, `int8` or `float32` for CPU
-- `KNOWLEDGE_GRAPH_QUERY_ENABLED` — default `false`. Gates per-query LightRAG/Neo4j traversal in `rag/nodes/retrieval.py`. The traversal sits inside the retrieval `asyncio.gather`, so every RELATIONAL/FACTUAL/QUERY waits on it (up to `LIGHTRAG_RETRIEVAL_TIMEOUT`) while Qdrant returns in ~150ms. With ~5 edges in the graph that is a pure latency tax. Re-enable once the graph holds >1,000 edges. Ingestion and the ontology seeder are unaffected.
+- `KNOWLEDGE_GRAPH_QUERY_ENABLED` — default `true` (config.py:397). Gates per-query LightRAG/Neo4j traversal in `rag/nodes/retrieval.py`. The traversal sits inside the retrieval `asyncio.gather`, so every RELATIONAL/FACTUAL/QUERY waits on it (up to `LIGHTRAG_RETRIEVAL_TIMEOUT`) while Qdrant returns in ~150ms. It was off historically when the graph held ~5 edges (pure latency tax), but the ontology expansion (commit e84cfed9) grew Neo4j to **11,136 relationships / 7,512 nodes** (verified 2026-07-10), well past the 1,000-edge threshold, so the traversal now adds real retrieval signal and is enabled. Disable again only if a measured latency regression outweighs the retrieval lift. Ingestion and the ontology seeder are unaffected either way.
 
 ## Caching invariants
 
@@ -493,7 +493,7 @@ ingestion (per video)                     rag_okf_auto_extract_enabled — defau
 So **ingestion appends to OKF** — it never overwrites live entries — but only into `staging/`. Nothing reaches an answer until it is approved and recompiled. Auto-extracted entries are *unreviewed by definition*; treat approval as an editorial act, not a formality.
 
 Rules:
-- **Never `rglob` the OKF dir.** `OKFStore.list_entries()` uses a non-recursive `glob` on purpose: `staging/` holds unreviewed, LLM-generated doctrine. Recursing promotes it into `compiled.json` and the review gate becomes a no-op. Guarded by `backend/tests/test_okf_pipeline_integrity.py`.
+- **Never remove the OKF `_excluded_parts` staging filter.** `OKFStore.list_entries()` uses `rglob` (the teacher-subdir layout `sri-preethaji/`/`sri-krishnaji/`/`shared/` requires recursion) and keeps `staging/` and `_scripts/` out via an explicit `_excluded_parts={"staging","_scripts"}` filter — **the filter, not glob depth, is the review gate.** `staging/` holds unreviewed, LLM-generated doctrine; drop the filter and it reaches `compiled.json`, making the review gate a no-op. Reverting to a non-recursive `glob` (the old, wrong "fix") instead silently drops every teacher-subdir teaching from the index. Both failure modes are guarded by `backend/tests/test_okf_pipeline_integrity.py`.
 - **Never put non-teaching content in `memory/okf/`.** See the three invariants above. `docs/engineering-notes/` is where RAG/config notes belong.
 - **Never re-derive the OKF directory.** `services/memory/okf_store.py` exports `OKF_DIR` / `STAGING_DIR`, which handle both the repo layout and the image layout (inside the image `backend/` *is* `/app`, so `parents[3]` and `_BACKEND.parent` both land on `/`). `compiler.py` and `scripts/extract_okf_from_stores.py` import them.
 - `_OKF_CACHE` in `rag/nodes/retrieval.py` is a per-process cache: new entries need a **recompile plus a backend restart** to appear.
