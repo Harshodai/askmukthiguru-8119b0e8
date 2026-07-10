@@ -39,11 +39,11 @@ try:
 except Exception as e:
     print(f"llama-guard download skipped: {e}")
 
-# 6. NeMo Guardrails / Rejection Classifier (optional)
+# 6. Rejection Classifier (optional) — used by RejectionClassifierHandler
 try:
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
-    AutoTokenizer.from_pretrained("meta-llama/Llama-Guard-3-1B")
-    AutoModelForSequenceClassification.from_pretrained("meta-llama/Llama-Guard-3-1B")
+    AutoTokenizer.from_pretrained("protectai/distilroberta-base-rejection-v1")
+    AutoModelForSequenceClassification.from_pretrained("protectai/distilroberta-base-rejection-v1")
     print("rejection classifier cache populated")
 except Exception as e:
     print(f"rejection classifier download skipped: {e}")

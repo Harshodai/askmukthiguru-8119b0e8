@@ -5,11 +5,14 @@ description: "The divine can be met in two ways — as the gods and sages of you
 source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)"
 video_id: -yGLiryVQoQ
 tags: [divine-experience, manifest, unmanifest, universal-intelligence, spiritual-perception]
+teacher: "sri-preethaji"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
 ---
 
 # Experiencing the Divine — Manifest and Unmanifest
 
-Sri Preethaji teaches that there are two fundamental ways to experience the divine. Neither is superior. Neither is incomplete. They are two doors into the same infinite reality.
+Sri Preethaji [[sri-preethaji]] teaches that there are two fundamental ways to experience the divine. Neither is superior. Neither is incomplete. They are two doors into the same infinite reality.
 
 ## The Manifest Path
 
@@ -32,5 +35,5 @@ You do not need to choose. The same intelligence that takes form as a beloved de
 In meditation, you may experience the divine in whatever way arises naturally. Do not compare your experience to others'. If you meet a form, love it fully. If you meet formlessness, rest in it fully. Both are the same intelligence meeting you where you are.
 
 ## Related Concepts
-- **Universal Intelligence**: The underlying reality that can be perceived either as manifest forms or as unmanifest field
+- **Universal Intelligence** ([[shared/universal_intelligence]]): The underlying reality that can be perceived either as manifest forms or as unmanifest field
 - **Spiritual Perception**: The capacity to see beyond the physical — the sense by which the manifest and unmanifest are known

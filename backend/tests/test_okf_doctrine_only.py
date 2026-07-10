@@ -37,7 +37,12 @@ _ARTIFACT_RE = re.compile(
     re.IGNORECASE,
 )
 
-_CONCEPT_FILES = sorted(p for p in OKF_DIR.glob("*.md") if p.name not in RESERVED_FILENAMES)
+_EXCLUDED_DIRS = frozenset({"staging", "_scripts"})
+_CONCEPT_FILES = sorted(
+    p for p in OKF_DIR.glob("**/*.md")
+    if p.name not in RESERVED_FILENAMES
+    and not any(part in p.parts for part in _EXCLUDED_DIRS)
+)
 
 
 def test_bundle_is_not_empty():

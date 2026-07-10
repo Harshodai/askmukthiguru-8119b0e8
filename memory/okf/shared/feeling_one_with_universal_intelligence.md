@@ -5,13 +5,16 @@ description: "Every division and every separation in this world is created by us
 source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=UgQV_5FjPNk)"
 video_id: UgQV_5FjPNk
 tags: [oneness, universal-intelligence, awakening, moksha, suffering]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=UgQV_5FjPNk"
 ---
 
 # Feeling One with Universal Intelligence
 
 We all need to become awakened human beings. Enlightenment is the highest state a human being can attain. If the outer world's highest goal is to reach Mars, the inner world's highest goal is to reach an enlightened state — which means we have to learn to be free of suffering.
 
-Sri Preethaji and Sri Krishnaji teach that an awakened person lives in beautiful, powerful, transcendental states where they feel completely one with everything — one with universal intelligence. Separation is gone. Division has ended. There is only oneness.
+Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] teach that an awakened person lives in beautiful, powerful, transcendental states where they feel completely one with everything — one with universal intelligence. Separation is gone. Division has ended. There is only oneness.
 
 ## Who Creates Division
 
@@ -31,5 +34,5 @@ The path to feeling one with universal intelligence begins not with grand spirit
 
 ## Related Concepts
 - **Moksha**: Liberation — the end of the illusion of separation
-- **Beautiful State**: The inner condition from which oneness is naturally experienced
-- **Universal Intelligence**: The field of consciousness that we are never separate from — only unaware of
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The inner condition from which oneness is naturally experienced
+- **Universal Intelligence** ([[shared/universal_intelligence]]): The field of consciousness that we are never separate from — only unaware of

@@ -5,11 +5,14 @@ description: "Spiritual transformation is not something that happens to you — 
 source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=b-MkLkpTeVY)"
 video_id: b-MkLkpTeVY
 tags: [inner-state, claiming, proclamation, beautiful-state, transformation]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=b-MkLkpTeVY"
 ---
 
 # Claiming the Inner State
 
-Sri Preethaji and Sri Krishnaji draw a sharp distinction that most spiritual teachings miss: the difference between *experiencing* a beautiful state and *claiming* it as your own.
+Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] draw a sharp distinction that most spiritual teachings miss: the difference between *experiencing* a beautiful state and *claiming* it as your own.
 
 ## The Goal Is to Claim
 
@@ -34,6 +37,6 @@ This is not about pretending to be peaceful when you are not. Claiming is not af
 At the end of each meditation or practice session, pause before opening your eyes. In that moment, say silently to yourself: *I claim this state as my own.* Not as a hope — as a statement of fact. Then carry it into your day.
 
 ## Related Concepts
-- **Beautiful State**: The inner condition that is to be claimed — the no-stress state of connection, joy, love, and compassion
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The inner condition that is to be claimed — the no-stress state of connection, joy, love, and compassion
 - **Meditation**: The practice that cultivates access to the inner state
 - **Transformed Consciousness**: The permanent shift that occurs when the claimed state becomes your ground state

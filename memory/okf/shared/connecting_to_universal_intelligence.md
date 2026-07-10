@@ -5,9 +5,14 @@ description: "Universal intelligence responds not to what you do or say, but to 
 source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
 video_id: 8Xy8xsLIgAU
 tags: [universal-intelligence, state-of-being, oneness, connection, yoga]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=8Xy8xsLIgAU"
 ---
 
 # Connecting to Universal Intelligence
+
+*Teacher: [[sri-preethaji]] • [[sri-krishnaji]]*
 
 The legend of Surya Namaskar begins with Hanuman asking the Sun God to teach him spiritual wisdom. The Sun God agrees on one condition: Hanuman must keep pace with him, because the Sun never stops moving.
 
@@ -40,6 +45,6 @@ This is not about "positive thinking" or manifesting desired outcomes through wi
 Before any important conversation, decision, or action, check your state. If you are in stress, do not act from that place. Take three minutes for the serene mind practice. Return to the beautiful state. Then act. The action that comes from the right state carries a power that no action from the wrong state can match.
 
 ## Related Concepts
-- **Universal Intelligence**: The soul or being of the universe — the field that permeates all existence and responds to your state
-- **Beautiful State**: The condition of connection, peace, and inner joy through which universal intelligence becomes accessible
+- **Universal Intelligence** ([[shared/universal_intelligence]]): The soul or being of the universe — the field that permeates all existence and responds to your state
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The condition of connection, peace, and inner joy through which universal intelligence becomes accessible
 - **Surya Namaskar**: The sun salutation — a spontaneous expression of gratitude from one who has connected to universal intelligence

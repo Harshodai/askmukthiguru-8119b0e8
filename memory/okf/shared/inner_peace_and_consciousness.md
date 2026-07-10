@@ -5,11 +5,14 @@ description: "Peace is not a break between crises. It is the native quality of c
 source: "YouTube — Peace Festival (https://www.youtube.com/watch?v=pmSPHJfg3AU)"
 video_id: pmSPHJfg3AU
 tags: [peace, consciousness, oneness, universal-intelligence, awakening]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=pmSPHJfg3AU"
 ---
 
 # Inner Peace and Consciousness
 
-Peace is not the brief respite between two chaotic events in life. Sri Preethaji and Sri Krishnaji teach that this misunderstanding — treating peace as a gap between storms — is the very reason peace never lasts.
+Peace is not the brief respite between two chaotic events in life. Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] teach that this misunderstanding — treating peace as a gap between storms — is the very reason peace never lasts.
 
 ## The Field
 
@@ -32,6 +35,6 @@ When many people come together with shared intention — infusing the field with
 What do you feed the field? Watch your inner state throughout the day. Every moment of peace you cultivate is not just for you — it enters the field and adds to the coherence available to all.
 
 ## Related Concepts
-- **Beautiful State**: The coherent signal that feeds the field with peace
-- **Universal Intelligence**: The field itself — the responsive substrate of all existence
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The coherent signal that feeds the field with peace
+- **Universal Intelligence** ([[shared/universal_intelligence]]): The field itself — the responsive substrate of all existence
 - **Oneness**: The recognition that we are not separate blocks of matter but one consciousness

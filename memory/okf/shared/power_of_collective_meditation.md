@@ -5,6 +5,9 @@ description: "When millions move from separation-driven consciousness to oneness
 source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)"
 video_id: AyUE-2Uh5Vg
 tags: [collective-meditation, oneness, field, peace, transformation]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=AyUE-2Uh5Vg"
 ---
 
 # Power of Collective Meditation
@@ -19,7 +22,7 @@ This is why collective practice has always been at the heart of spiritual tradit
 
 ## The Critical Mass
 
-The question is always: how many does it take? Sri Preethaji and Sri Krishnaji teach that the number is smaller than we think. A relatively small number of people, consistently meditating from a beautiful state, can shift the quality of the field for an entire community, even an entire planet.
+The question is always: how many does it take? Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] teach that the number is smaller than we think. A relatively small number of people, consistently meditating from a beautiful state, can shift the quality of the field for an entire community, even an entire planet.
 
 This is not wishful thinking. It is the same principle as the hundredth monkey: when enough individuals embody a new pattern, the pattern becomes accessible to all.
 
@@ -32,6 +35,6 @@ Collective meditation is not a way to "fix" others or impose peace on them. It i
 Whenever you meditate alone, know that you are not meditating only for yourself. Your coherence enters the field. When you have the opportunity to meditate with others, take it. The amplification is real. The peace you cultivate is never private.
 
 ## Related Concepts
-- **Beautiful State**: The coherent signal that each individual contributes to the collective field
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The coherent signal that each individual contributes to the collective field
 - **Oneness**: The recognition that individual and collective transformation are not separate
 - **Field**: The responsive substrate of consciousness that mirrors the state of all who participate in it

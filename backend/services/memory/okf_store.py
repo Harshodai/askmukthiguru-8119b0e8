@@ -77,6 +77,10 @@ class OKFEntry:
         return self.meta.get("source", "")
 
     @property
+    def teacher(self) -> str:
+        return self.meta.get("teacher", "both")
+
+    @property
     def description(self) -> str:
         """OKF-recommended one-sentence summary; derived from the body when absent.
 
@@ -129,10 +133,12 @@ class OKFStore:
         if not self.dir.exists():
             logger.warning("OKF directory not found: %s", self.dir)
             return entries
-        # glob, not rglob: `staging/` holds LLM-extracted entries awaiting review
-        # (extract_okf writes there when auto_approve=False). Recursing swept them
-        # into compiled.json on the next compile, so the review gate never held.
-        for p in sorted(self.dir.glob("*.md")):
+        # **/*.md recurses into sri-preethaji/, sri-krishnaji/, shared/.
+        # Exclude staging/ (unreviewed LLM output) and _scripts/ (tooling).
+        _excluded_parts = frozenset({"staging", "_scripts"})
+        for p in sorted(self.dir.rglob("*.md")):
+            if any(part in p.parts for part in _excluded_parts):
+                continue
             if p.name in RESERVED_FILENAMES:
                 continue  # OKF v0.1: index.md / log.md are not concept documents
             try:

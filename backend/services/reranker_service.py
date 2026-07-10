@@ -11,7 +11,9 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 import platform
 import time
 from typing import Any, Optional
@@ -122,6 +124,29 @@ class RerankerService:
                 )
                 self._load_fallback()
 
+    @staticmethod
+    def _clear_hf_cache_for(model_id: str) -> None:
+        """Remove cached files for a model from HuggingFace cache directories."""
+        import glob
+        import shutil
+        cache_dirs = [
+            os.environ.get("SENTENCE_TRANSFORMERS_HOME", ""),
+            os.environ.get("HF_HOME", ""),
+            os.environ.get("TRANSFORMERS_CACHE", ""),
+        ]
+        cache_dirs = [d for d in cache_dirs if d]
+        hf_home = os.environ.get("HF_HOME", "")
+        if hf_home:
+            cache_dirs.append(os.path.join(hf_home, "sentence_transformers"))
+        safe_name = model_id.replace("/", "--")
+        for cache_dir in cache_dirs:
+            for pattern in (f"models--{safe_name}", f"*{safe_name}*", model_id.replace("/", "_")):
+                matches = glob.glob(os.path.join(cache_dir, "**", pattern), recursive=True)
+                for match in matches:
+                    if os.path.isdir(match):
+                        shutil.rmtree(match, ignore_errors=True)
+                        logger.info(f"Cleared HF cache: {match}")
+
     def _load_fallback(self) -> None:
         """Load the fallback sentence-transformers CrossEncoder."""
         try:
@@ -136,10 +161,13 @@ class RerankerService:
 
             logger.info(f"Loading fallback reranker: {settings.reranker_model} on device: {device}")
             start_time = time.perf_counter()
-            self._fallback_reranker = CrossEncoder(
-                settings.reranker_model,
-                device=device,
-            )
+            model_id = settings.reranker_model
+            try:
+                self._fallback_reranker = CrossEncoder(model_id, device=device)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Corrupted HF cache for {model_id}, clearing and retrying: {e}")
+                self._clear_hf_cache_for(model_id)
+                self._fallback_reranker = CrossEncoder(model_id, device=device)
             duration = time.perf_counter() - start_time
             logger.info(f"Fallback CrossEncoder loaded successfully in {duration:.4f}s")
             self._is_fallback = True

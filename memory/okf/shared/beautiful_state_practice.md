@@ -5,6 +5,9 @@ description: "The beautiful state is not a reward for good behaviour — it is t
 source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=0ypG1mlekNY)"
 video_id: 0ypG1mlekNY
 tags: [beautiful-state, synchronicity, universal-intelligence, practice, transformation]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=0ypG1mlekNY"
 ---
 
 # Beautiful State Practice
@@ -15,7 +18,7 @@ Seven years later, the Mongols tried again. A typhoon, completely out of season,
 
 Coincidence? Miracle? Luck?
 
-Sri Preethaji and Sri Krishnaji call it something else: synchronicity.
+Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] call it something else: synchronicity.
 
 ## The Science of Synchronicity
 
@@ -44,6 +47,6 @@ This is not a formula for manipulating the universe to get what you want. The be
 The practice is simple but not easy: live in the beautiful state and relate to universal intelligence as a presence. Do this not to get things, but because this is what life is when lived at its full depth. The synchronicities will come — not as rewards, but as the natural expression of a life in alignment.
 
 ## Related Concepts
-- **Beautiful State**: The signal — the inner condition that determines what the field returns
-- **Universal Intelligence**: The field of divine consciousness that permeates all existence and can be related to as a personal presence
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The signal — the inner condition that determines what the field returns
+- **Universal Intelligence** ([[shared/universal_intelligence]]): The field of divine consciousness that permeates all existence and can be related to as a personal presence
 - **Synchronicity**: Meaningful coincidence — the visible signature of a life in alignment with universal intelligence

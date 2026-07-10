@@ -61,13 +61,13 @@ def seed_spiritual_ontology():
 
             for entity_id, entity_type, teacher_id, bio in teachers:
                 label_type = "person" if entity_type == "person" else "organization"
-                tx.run("""
-                    MERGE (t:base {entity_id: $entity_id})
-                    SET t:Teacher:$label_type, t.name = $entity_id,
+                tx.run(f"""
+                    MERGE (t:base {{entity_id: $entity_id}})
+                    SET t:Teacher:{label_type}, t.name = $entity_id,
                         t.bio = $bio,
                         t.entity_type = $entity_type,
                         t.teacher_id = $teacher_id
-                """, entity_id=entity_id, label_type=label_type,
+                """, entity_id=entity_id,
                      bio=bio, entity_type=entity_type, teacher_id=teacher_id)
 
             # 3. Seed Concepts — Core Teachings

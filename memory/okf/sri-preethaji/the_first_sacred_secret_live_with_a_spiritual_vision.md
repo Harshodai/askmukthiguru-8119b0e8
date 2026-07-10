@@ -5,11 +5,14 @@ description: "Which state of being is carrying you determines the quality of you
 source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=0z-IZ2ar4eA)"
 video_id: 0z-IZ2ar4eA
 tags: [four-sacred-secrets, spiritual-vision, consciousness, transformation, prosperity]
+teacher: "sri-preethaji"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=0z-IZ2ar4eA"
 ---
 
 # The First Sacred Secret — Live with a Spiritual Vision
 
-Sri Preethaji opens the first of the Four Sacred Secrets with a teaching that sits at the foundation of all transformation: which state of being is carrying you determines the quality of your life.
+Sri Preethaji [[sri-preethaji]] opens the first of the Four Sacred Secrets with a teaching that sits at the foundation of all transformation: which state of being is carrying you determines the quality of your life.
 
 ## State Determines Flow
 
@@ -30,6 +33,6 @@ The four sacred secrets are not techniques to be applied. They are attunements t
 Read one section of the Four Sacred Secrets each day as part of your meditation practice. Do not analyse it. Do not try to apply it. Simply absorb it. Let the shift in consciousness occur on its own.
 
 ## Related Concepts
-- **Beautiful State**: The foundation from which the sacred secrets operate — without it, the secrets remain concepts
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The foundation from which the sacred secrets operate — without it, the secrets remain concepts
 - **Transformed Consciousness**: The permanent shift that occurs when spiritual vision replaces stress-driven reaction
 - **Four Sacred Secrets**: The book containing these teachings, designed as a meditation guide for consciousness transformation

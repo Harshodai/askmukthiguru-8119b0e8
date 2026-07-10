@@ -1,15 +1,18 @@
 ---
 type: teaching
-title: The Beautiful State
+title: "The Beautiful State"
 description: "Sri Preethaji's teaching that human beings live in only two states — a stressful state and the no-stress beautiful state of connection, joy and compassion."
 source: "Beautiful State — Sri Preethaji (YouTube https://www.youtube.com/watch?v=TqxxCYnAxo8)"
 video_id: TqxxCYnAxo8
 tags: [beautiful-state, stress, connection, presence]
+teacher: "sri-preethaji"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=TqxxCYnAxo8"
 ---
 
 # The Beautiful State
 
-Sri Preethaji teaches that every human being lives in only two states: a
+Sri Preethaji [[sri-preethaji]] teaches that every human being lives in only two states: a
 **stressful state** and a **no-stress state**. The no-stress state is called
 the *beautiful state*, because that is how life feels when lived free of
 stress.

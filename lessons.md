@@ -1,5 +1,22 @@
 # Agentic Lessons & Memory
 
+## Jul 10, 2026 — OKF Teacher Subdirectory Restructure + API Routing
+
+### OKF `rglob` must exclude staging/ explicitly
+- **Change**: Switched `OKFStore.list_entries()` from `glob("*.md")` to `rglob("*.md")` to discover files in teacher subdirectories (`sri-preethaji/`, `sri-krishnaji/`, `shared/`).
+- **Risk**: `rglob` also sweeps `staging/` and `_scripts/`. The old non-recursive `glob` was the *only* safeguard keeping unreviewed LLM entries out of `compiled.json`. Must add an exclusion list: `_excluded_parts = frozenset({"staging", "_scripts"})` before the iteration.
+- **Pattern**: Whenever changing from non-recursive to recursive file walking in a reviewed-content directory, explicitly exclude unreviewed/staging/tooling paths. Review the test `test_staged_entries_never_enter_the_compiled_index` that guards this invariant.
+
+### Sync `scripts/` copy when editing `backend/scripts/`
+- **Problem**: `scripts/extract_okf_from_stores.py` is a copy of `backend/scripts/extract_okf_from_stores.py`. The pipeline integrity test (`test_extractor_copies_are_identical`) asserts they are byte-identical. Editing only the backend copy causes a test failure.
+- **Fix**: After editing `backend/scripts/extract_okf_from_stores.py`, immediately sync: `cp backend/scripts/extract_okf_from_stores.py scripts/extract_okf_from_stores.py`.
+- **Pattern**: Before checking in any change to `backend/scripts/`, check if there's a sibling file in `scripts/` and sync them.
+
+### Teacher routing: query-time heuristic is pragmatic, not architectural
+- **Approach**: Guru detection via substring matching on `base_question.lower()` at retrieval time (`if "krishnaji" in query: teacher="sri-krishnaji"`). This avoids adding a graph state field or routing stage — the simplest diff that works.
+- **Trade-off**: Only catches explicit guru name mentions. A question like "tell me about serene mind" without naming Krishnaji returns both-teacher results. This is acceptable because content attribution still happens through the `teacher` field in answer metadata.
+- **Pattern**: For content routing where the routing signal is often implicit, start with query-time heuristic detection. Add explicit routing state only when the heuristic proves insufficient.
+
 ## Jul 10, 2026 — Consciousness Map UI, Google Fonts Integration, and Vite ELOOP Fix
 
 ### Vite Watcher loop on ELOOP recursive symlinks

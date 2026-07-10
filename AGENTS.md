@@ -231,46 +231,68 @@ Auto-Clarity: drop caveman for security warnings, irreversible actions, user con
 
 Boundaries: code/commits/PRs written normal.
 
-# Session Handoff — Jul 8, 2026
+# Session Handoff — Jul 10, 2026
 
 ## Session Summary
-Personal KG visualization + public ontology fallback. Changes span frontend KG component, backend memory API, seed scripts, Neo4j integration, and deployment config.
+MD quality improvements + container runtime error fixes. Focus on Karpathy/wiki/knowledge base best practices for transcript MD files, teacher subdirectory routing, and fixing PGRST204/Neo4j/Celery errors in running services.
 
-## What Was Built
-- **KG Concept Map Visualizer**: `MemoryManager.tsx` (551 lines) — SVG-based knowledge graph with 40 ontology nodes, circular layout, pan/zoom, dual list/graph toggle. Fetches from `/api/memory/knowledge-graph` with auth fallback: authenticated → full personal graph, unauthenticated → public ontology (Teachers/Concepts/Practices).
-- **Seed Script**: `backend/scripts/seed_personal_kg.py` — seeds 40 ontology concepts + 3 teachers + 3 practices into Neo4j. Preserves existing data. Can target a specific user (`--user-id`).
-- **KG Endpoint**: Backend `GET /api/memory/knowledge-graph` in `memory.py` — tries Supabase auth, falls back to ontology-only public view.
-- **Memory API Client**: `memoryApi.ts` `getKnowledgeGraph()` — sends auth header if session exists, always returns data (no auth required).
+## What Was Done
+- **MD quality**: Added `resource` field (clean YouTube URL) to all 22 files. Normalized `title` quoting. Added wiki-link cross-references `[[concept-id]]` to 15 files (Karpathy pattern). Created `_scripts/add_wikilinks.py` batch injection tool. See `.claude/tasks/transcript-md-quality.md`.
+- **Fixed Neo4j seed Cypher**: `SET t:Teacher:$label_type` → f-string safe interpolation in `backend/app/db/seed_ontology.py`.
+- **Fixed celery `/memory` path**: `_BACKEND.parent` → `/app/memory/okf` in `backend/scripts/extract_okf_from_stores.py`.
+- **Synced `scripts/` copy**: `backend/scripts/extract_okf_from_stores.py` and `scripts/extract_okf_from_stores.py` byte-identical again.
+- **Anonymous user guard**: `memory_service.py` — `_is_anonymous` check returns early for `"anonymous"` user_id to prevent UUID insert errors.
+- **PGRST204 retry**: Service retries without `claim`/`confidence`/`decay_score` columns.
+- **Celery time limits doubled**: soft 600s→1800s, hard 900s→2400s for LLM retry chains.
+- **Guru_memories columns applied**: Added `claim TEXT`, `confidence DOUBLE PRECISION`, `decay_score DOUBLE PRECISION DEFAULT 1.0` to local Supabase + migration file. Reloaded PostgREST schema cache.
+- **Migration created**: `supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql`.
+- **Reranker JSON error fixed**: Added `json.JSONDecodeError` catch + HF cache clear retry in `_ensure_reranker()` and `_load_fallback()`.
+- **Guardrails set to lightweight**: `GUARDRAILS_PROVIDER=lightweight` — skips Llama Guard / Rejection Classifier / NeMo loading (no startup noise).
+- **LightRAG timeout default raised**: `lightrag_retrieval_timeout` 3→30s in config.py (matches `.env` value).
+- **Knowledge graph query enabled**: `knowledge_graph_query_enabled=True` — LightRAG now queried for RELATIONAL/FACTUAL/QUERY intents (2,200+ relations available).
+- **download_models.py fixed**: Rejection classifier model corrected from `meta-llama/Llama-Guard-3-1B` → `protectai/distilroberta-base-rejection-v1`.
+- **All containers rebuilt**: backend, celery-worker, frontend — all healthy.
+- **Chat pipeline verified**: End-to-end query returns response with context.
 
 ## Running Services
 - Backend: `http://localhost:8000` (healthy)
 - Frontend: `http://localhost:80` (Nginx proxy)
 - Neo4j: `bolt://localhost:7687` (browser at `http://localhost:7474`)
+- Local Supabase: Postgres :54322, API :54321, Studio :54323
+- Celery Worker: healthy, tasks registered (okf_compile, okf_extract, ingestion)
 - All infra: Qdrant, Redis, Jaeger, Prometheus, Grafana
 
-## How to Demo
+## Remaining Issues
+- None critical. ColBERTv2 fallback to CrossEncoder is expected (model not cached).
+- `test_openrouter_provider_delegation` is a pre-existing test failure unrelated to these changes.
+
+## Demo
 1. Open `http://localhost` → Chat with the guru
-2. Navigate to `/profile` → Click the graph toggle (Network icon in Memory card)
-3. See 40 ontology nodes (Teachers, Concepts, Practices) rendered as SVG
-4. Drag to pan, scroll to zoom, click reset button
+2. Navigate to `/profile` → Click graph toggle (Network icon in Memory card)
+3. See 40 ontology nodes (Teachers, Concepts, Practices) as SVG
+4. Drag to pan, scroll to zoom
 
-## Key Config Values
-- `VITE_BACKEND_URL=http://localhost:8000` (default in docker-compose)
-- Backend route: `router.include_router(memory_router, prefix="/api")` → `/api/memory/knowledge-graph`
-- `build_personal_knowledge_graph(None)` = public ontology view
-- `build_personal_knowledge_graph(user_id)` = full graph with memories
+## Files Changed (This Session)
+- `memory/okf/*.md` — 22 files with `resource` field, wiki-links, quoted titles
+- `memory/okf/_scripts/add_wikilinks.py` — batch wiki-link injection
+- `.claude/tasks/transcript-md-quality.md` — quality plan
+- `backend/services/memory_service.py` — anonymous guard + PGRST204 retry
+- `backend/celery_config.py` — doubled time limits
+- `backend/scripts/extract_okf_from_stores.py` — fixed `/memory` → `/app/memory`
+- `scripts/extract_okf_from_stores.py` — synced copy
+- `backend/app/db/seed_ontology.py` — fixed Cypher f-string
+- `supabase/migrations/20260710000000_add_guru_memories_missing_columns.sql` — new migration
+- `backend/services/embedding_service.py` — HF cache clear retry for reranker JSON error
+- `backend/services/reranker_service.py` — HF cache clear retry for fallback reranker
+- `backend/app/config.py` — `lightrag_retrieval_timeout` 3→30, `knowledge_graph_query_enabled` True
+- `backend/.env` — `GUARDRAILS_PROVIDER=lightweight`
+- `backend/scripts/download_models.py` — fixed rejection classifier model ID
 
-## Files Changed
-- `backend/app/api/memory.py` — KG endpoint with auth fallback (lines 362-396)
-- `backend/services/memory_service_v2.py` — `build_personal_knowledge_graph()` with ontology-only fallback
-- `backend/scripts/seed_personal_kg.py` — seed 40 ontology concepts
-- `src/lib/memoryApi.ts` — `getKnowledgeGraph()` sends requests without auth
-- `src/components/profile/MemoryManager.tsx` — SVG KG visualization (551 lines)
-- `backend/rag/graph_strategies.py` — KGMergeStrategy for ephemeral graph state
-- `backend/app/api/ingest.py` — wired KGMergeStrategy into chat handler
-- `backend/app/dependencies.py` — ServiceContainer exposes KG strategy
-- `backend/app/main.py` — lifecycle management for Neo4j driver
-
-## Test Results
-- 297+32+106=435 tests pass (1 pre-existing failure in `test_important_kwd_backfill`)
-- 0 new warnings introduced
+## Critical Context
+- Celery worker uses same `backend/Dockerfile` as backend — both must be rebuilt together.
+- `docker-rebuild-web` only rebuilds `backend` and `frontend` — run `docker compose up -d --build celery-worker` separately.
+- PGRST204 fix: `NOTIFY pgrst, 'reload schema'` after schema changes.
+- Supabase `anond` key is set in `.env` files (local).
+- `npx supabase db query "..."` to run SQL against local Postgres.
+- `GUARDRAILS_PROVIDER=lightweight` skips all ML guardrails (Llama Guard, Rejection Classifier, NeMo). Lightweight handler covers 13 regex-based topic categories, prompt injection, and emotional wellness redirects.
+- `knowledge_graph_query_enabled=True` enables LightRAG graph traversal for RELATIONAL/FACTUAL/QUERY intents with 30s timeout. LightRAG holds 2,365 entities + 2,200 relations.

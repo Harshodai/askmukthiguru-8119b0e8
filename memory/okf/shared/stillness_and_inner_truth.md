@@ -5,9 +5,14 @@ description: "Each moment of stillness reveals the truth within. Not because tru
 source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=tDcy09esbe8)"
 video_id: tDcy09esbe8
 tags: [stillness, inner-truth, meditation, interconnectedness, unity]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=tDcy09esbe8"
 ---
 
 # Stillness and Inner Truth
+
+*Teacher: [[sri-preethaji]] • [[sri-krishnaji]]*
 
 The simplest statement of this teaching is also its deepest: *Each moment of stillness reveals the truth within.*
 
@@ -32,6 +37,6 @@ Stillness is not blankness. It is not about emptying the mind into a dull stupor
 Do not try to achieve stillness by force. Simply stop adding. When you notice yourself constructing thoughts about past or future, gently discontinue the construction. Rest in the gap. Each gap, each moment of genuine stillness, reveals something that effort could never produce.
 
 ## Related Concepts
-- **Inner Truth**: That which is always present in you, independent of thought — revealed when thinking subsides
+- **Inner Truth** ([[shared/inner_truth_and_being]]): That which is always present in you, independent of thought — revealed when thinking subsides
 - **Meditation**: The practice of discontinuing unnecessary mental construction
 - **Interconnectedness**: What becomes self-evident when the illusion of separateness dissolves in stillness

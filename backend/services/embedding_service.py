@@ -23,6 +23,7 @@ Async API (GIL escape via asyncio.to_thread):
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -247,6 +248,28 @@ class EmbeddingService:
             )
             raise last_error
 
+    def _clear_hf_cache_for(self, model_id: str) -> None:
+        """Remove cached files for a model from HuggingFace cache directories."""
+        import glob
+        import shutil
+        cache_dirs = [
+            os.environ.get("SENTENCE_TRANSFORMERS_HOME", ""),
+            os.environ.get("HF_HOME", ""),
+            os.environ.get("TRANSFORMERS_CACHE", ""),
+        ]
+        cache_dirs = [d for d in cache_dirs if d]
+        hf_home = os.environ.get("HF_HOME", "")
+        if hf_home:
+            cache_dirs.append(os.path.join(hf_home, "sentence_transformers"))
+        safe_name = model_id.replace("/", "--")
+        for cache_dir in cache_dirs:
+            for pattern in (f"models--{safe_name}", f"*{safe_name}*", model_id.replace("/", "_")):
+                matches = glob.glob(os.path.join(cache_dir, "**", pattern), recursive=True)
+                for match in matches:
+                    if os.path.isdir(match):
+                        shutil.rmtree(match, ignore_errors=True)
+                        logger.info(f"Cleared HF cache: {match}")
+
     def _ensure_reranker(self) -> None:
         """Lazy-load the reranker model."""
         if self._reranker is not None:
@@ -259,10 +282,13 @@ class EmbeddingService:
             from sentence_transformers import CrossEncoder
 
             logger.info(f"Loading reranker: {settings.reranker_model} on device: {device}")
-            self._reranker = CrossEncoder(
-                settings.reranker_model,
-                device=device,
-            )
+            model_id = settings.reranker_model
+            try:
+                self._reranker = CrossEncoder(model_id, device=device)
+            except json.JSONDecodeError as e:
+                logger.warning(f"Corrupted HF cache for {model_id}, clearing and retrying: {e}")
+                self._clear_hf_cache_for(model_id)
+                self._reranker = CrossEncoder(model_id, device=device)
             model_name = (settings.reranker_model or "").lower()
             if "jina" in model_name or "jina-reranker" in model_name:
                 self._reranker_outputs_probs = True

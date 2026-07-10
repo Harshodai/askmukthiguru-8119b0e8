@@ -33,7 +33,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_OKF_DIR = _BACKEND.parent / "memory" / "okf"
+# Inside Docker _BACKEND=/app so parent=/ — correct to /app/
+_okf_base = _BACKEND.parent / "memory" / "okf"
+if _BACKEND == Path("/app"):
+    _okf_base = _BACKEND / "memory" / "okf"
+_OKF_DIR = _okf_base
 _STAGING_DIR = _OKF_DIR / "staging"
 _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
 
@@ -133,6 +137,7 @@ def _write_okf_entry(
     source: str | None = None,
     video_id: str | None = None,
     tags: list[str] | None = None,
+    teacher: str = "both",
     directory: Path | None = None,
 ) -> Path:
     """Write an OKF markdown entry to the given directory."""
@@ -151,6 +156,7 @@ def _write_okf_entry(
         fm.append(f"video_id: {video_id}")
     if tags:
         fm.append(f"tags: [{', '.join(tags)}]")
+    fm.append(f'teacher: "{teacher}"')
     fm.append("---")
     content = "\n".join(fm) + "\n\n# " + title + "\n\n" + body.strip() + "\n"
 
@@ -397,6 +403,7 @@ def _build_okf_prompt(cluster: dict[str, Any]) -> tuple[str, str]:
         'title: "Title Here"\n'
         'source: "YouTube https://www.youtube.com/watch?v=VIDEO_ID"\n'
         'tags: [tag1, tag2]\n'
+        'teacher: "Sri Preethaji"  # or Sri Krishnaji, or "both" for joint teachings\n'
         "---\n\n"
         "# Title\n\n"
         "## Summary\n"
@@ -542,11 +549,23 @@ def _parse_okf_response(raw: str) -> dict[str, Any] | None:
         )
         frontmatter["type"] = "teaching"
 
+    # Normalise teacher value
+    teacher_raw = frontmatter.get("teacher", "")
+    if not teacher_raw or teacher_raw in ("Mukthi Guru", "both"):
+        teacher = "both"
+    elif "preethaji" in teacher_raw.lower():
+        teacher = "sri-preethaji"
+    elif "krishnaji" in teacher_raw.lower():
+        teacher = "sri-krishnaji"
+    else:
+        teacher = "both"
+
     return {
         "title": frontmatter["title"],
         "type": frontmatter["type"],
         "source": frontmatter.get("source", ""),
         "tags": frontmatter.get("tags", []),
+        "teacher": teacher,
         "body": body,
     }
 
@@ -627,6 +646,7 @@ async def extract_okf(
                 source=parsed.get("source") or source_url,
                 video_id=video_id,
                 tags=parsed.get("tags", cluster.get("tags", [])),
+                teacher=parsed.get("teacher", "both"),
                 directory=target_dir,
             )
             written.append(path)
