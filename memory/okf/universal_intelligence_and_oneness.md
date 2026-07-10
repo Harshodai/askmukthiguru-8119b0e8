@@ -1,23 +1,41 @@
 ---
 type: teaching
 title: "Universal Intelligence and Oneness"
-source: "YouTube https://www.youtube.com/watch?v=8Xy8xsLIgAU"
+description: "The spirit of yoga is oneness — the oneness of humanity and the oneness of all life. Universal intelligence is the ground of that oneness."
+source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
 video_id: 8Xy8xsLIgAU
-tags: [atma, oneness, universal-intelligence, yoga]
+tags: [oneness, universal-intelligence, yoga, atma, humanity]
 ---
 
-## Summary
-Universal Intelligence refers to the soul or being of the universe—an innate, divine field of intelligence present in every sentient being and pervading all aspects of existence. This concept is celebrated during International Yoga Day, which honors this universal spirit that connects all of humanity and life. The practice of yoga embodies oneness, recognizing the fundamental interconnectedness among all beings.
+# Universal Intelligence and Oneness
 
-## Key Teachings
-- Universal Intelligence is the soul or being of the universe, innate in every sentient being — The Sun God teaches that this divine intelligence pervades all aspects of existence.
-- Yoga embodies oneness — The celebration of International Yoga Day demonstrates how yoga practice recognizes the interconnectedness of all humanity and life.
-- Universal Intelligence responds to one's state — The transcript indicates that this field of divine intelligence responds to the practitioner's condition or consciousness.
+The celebration of International Yoga Day is not merely a cultural event. It is a recognition of something fundamental: universal intelligence, the soul or being of the universe, is the ground in which all of existence is rooted.
 
-## Quotes
-> "International Yoga Day celebrates the Universal Intelligence, the soul or being of the universe." — The Sun God
+## The Spirit of Yoga
+
+The Sun God declares: the spirit of yoga is oneness. This includes:
+
+- The oneness of humanity — every person, regardless of nationality, religion, or background, participates in the same consciousness
+- The oneness of all life — not just humans, but animals, plants, the earth itself
+
+This is not a philosophical position. It is a description of reality that yoga, at its deepest level, reveals through direct experience.
+
+## Atma and Universal Intelligence
+
+The individual soul — Atma — is not separate from universal intelligence. The relationship is not one of part to whole in the ordinary sense. It is more like a wave to the ocean: the wave appears distinct, but it has never left the water. It *is* the water, taking a temporary form.
+
+When a practitioner realises this directly, the sense of being a separate self fighting against a hostile universe dissolves. What remains is the recognition: *I am that.*
+
+## What This Teaching Does Not Say
+
+Oneness is not sameness. Recognising universal intelligence in all beings does not mean that all beings are identical. The wave is distinct from other waves; its form matters. Oneness is the ground, not the erasure of difference. The diversity of life is the play of the one intelligence expressing itself in infinite forms.
+
+## Application
+
+In your meditation, when you feel the sense of separate self dissolve — even for a moment — recognise that moment as a glimpse of oneness. Do not cling to it, but do not dismiss it. It is a direct taste of what the Sun God taught. Let it inform your day.
 
 ## Related Concepts
-- Atma: The individual soul, connected to the universal intelligence that pervades all existence
-- Oneness: The spiritual principle recognizing the interconnectedness of all humanity and life, embodied in yoga practice
-- Humanity: The collective consciousness that participates in Universal Intelligence and the celebration of oneness
+- **Universal Intelligence**: The soul of the universe — the one ground of all existence
+- **Atma**: The individual consciousness that, when seen clearly, is recognised as identical with universal intelligence
+- **Yoga**: The path of union — the practical means by which the realisation of oneness is attained
+- **Humanity**: The collective expression of universal intelligence in human form

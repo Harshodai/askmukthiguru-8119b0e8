@@ -1,34 +1,36 @@
 ---
 type: teaching
-title: "Experiencing the Divine: Manifest and Unmanifest"
-source: "YouTube https://www.youtube.com/watch?v=-yGLiryVQoQ"
+title: "Experiencing the Divine — Manifest and Unmanifest"
+description: "The divine can be met in two ways — as the gods and sages of your tradition, or as a formless field of universal intelligence everywhere present. Both are valid."
+source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)"
 video_id: -yGLiryVQoQ
-tags: [divine-experience, universal-intelligence, manifest, unmanifest, spiritual-perception]
+tags: [divine-experience, manifest, unmanifest, universal-intelligence, spiritual-perception]
 ---
 
-## Summary
+# Experiencing the Divine — Manifest and Unmanifest
 
-This teaching presents two fundamental ways to experience the divine. The first way is as the "manifest" — perceiving universal intelligence as the various gods and sages of one's mystic tradition. The second way is as the "unmanifest" — experiencing the divine as a field of universal intelligence that is everywhere and is everything. Both paths are valid approaches to connecting with the divine.
+Sri Preethaji teaches that there are two fundamental ways to experience the divine. Neither is superior. Neither is incomplete. They are two doors into the same infinite reality.
 
-## Key Teachings
+## The Manifest Path
 
-- There are two ways to experience the divine, and both are valid paths to understanding universal intelligence.
-- When experiencing the divine as the manifest, you perceive universal intelligence as the various gods and the sages of your mystic tradition.
-- When experiencing the divine as the unmanifest, you see it as a field of universal intelligence.
-- This intelligence is everywhere and is everything — it pervades all of existence.
+When you experience the divine as the *manifest*, you perceive universal intelligence as the gods and sages of your mystic tradition. The forms are real because the consciousness behind them is real. For a Hindu, this might be Surya, Hanuman, or Krishna. For a Christian, it might be the presence of Christ or the saints. The forms differ; the intelligence that takes those forms is the same.
 
-## Quotes
+This path is intimate, personal, relational. You can speak to the divine, love the divine, be loved by the divine. The relationship becomes a living bridge between your limited self and the infinite.
 
-> "You can experience the divine in two ways." — Sri Preethaji
+## The Unmanifest Path
 
-> "You can experience the divine either as the manifest or the unmanifest." — Sri Preethaji
+When you experience the divine as the *unmanifest*, you see it as a field of universal intelligence — everywhere present, everything pervading. There are no forms, no names, no stories. There is only an infinite, conscious, intelligent presence that is the substance of all that is.
 
-> "This intelligence is everywhere, is everything." — Sri Preethaji
+This path is vast, impersonal, transcendent. It dissolves the sense of a separate self not through relationship but through identity: you are not in the field — you *are* the field.
 
-> "Now, when you experience the divine as the unmanifest, you see it as a field of universal intelligence." — Sri Preethaji
+## Both Are Valid
+
+You do not need to choose. The same intelligence that takes form as a beloved deity is the same intelligence that exists as formless awareness. Different temperaments, different stages of the journey, and different contexts call for different doors. The manifest is not less true than the unmanifest; the unmanifest is not more advanced than the manifest.
+
+## Application
+
+In meditation, you may experience the divine in whatever way arises naturally. Do not compare your experience to others'. If you meet a form, love it fully. If you meet formlessness, rest in it fully. Both are the same intelligence meeting you where you are.
 
 ## Related Concepts
-
-- **Manifest Divine**: The aspect of divine intelligence perceived through the forms of gods and sages within one's spiritual tradition.
-- **Unmanifest Divine**: The formless aspect of divine intelligence experienced as a pervasive field of universal consciousness.
-- **Universal Intelligence**: The underlying intelligence that exists everywhere and is everything, accessible through both manifest and unmanifest perceptions.
+- **Universal Intelligence**: The underlying reality that can be perceived either as manifest forms or as unmanifest field
+- **Spiritual Perception**: The capacity to see beyond the physical — the sense by which the manifest and unmanifest are known

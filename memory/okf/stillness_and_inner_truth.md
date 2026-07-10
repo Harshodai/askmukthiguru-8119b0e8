@@ -1,24 +1,37 @@
 ---
 type: teaching
 title: "Stillness and Inner Truth"
-source: "YouTube https://www.youtube.com/watch?v=tDcy09esbe8"
+description: "Each moment of stillness reveals the truth within. Not because truth arrives in stillness — but because the noise that was hiding it falls away."
+source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=tDcy09esbe8)"
 video_id: tDcy09esbe8
-tags: [meditation, stillness, inner truth, interconnectedness, unity]
+tags: [stillness, inner-truth, meditation, interconnectedness, unity]
 ---
 
-## Summary
-This teaching explores the connection between stillness and the discovery of inner truth, within the context of interconnectedness and unity. The core idea is that moments of stillness reveal a deeper understanding of oneself and one's place within the larger whole.
+# Stillness and Inner Truth
 
-## Key Teachings
-- "Stillness and Inner Truth" is a direct summary of the core teaching. (Sri Preethaji & Sri Krishnaji says...)
-- The teaching highlights that stillness leads to the revelation of truth within. (Sri Preethaji & Sri Krishnaji says...)
-- The source topic of interconnectedness and unity provides the context for this teaching. (Sri Preethaji & Sri Krishnaji says...)
+The simplest statement of this teaching is also its deepest: *Each moment of stillness reveals the truth within.*
 
-## Quotes
-> "Each moment of stillness reveals the truth within." — Sri Preethaji & Sri Krishnaji
+Truth is not something you find in stillness — it is something that is always present but obscured by the constant activity of the mind. Stillness does not produce truth; it removes the obstruction that prevents truth from being seen.
+
+## Stillness as Removal
+
+When you sit in meditation, you are not building something new. You are stopping the construction of noise. The mind, left to itself, builds elaborate structures of past and future — regret, anticipation, planning, worry. These structures are not evil; they are just dense. They block the light.
+
+Stillness is the pause in construction. In that pause, what has always been there becomes visible. Not a new truth — the same truth you have been carrying since before you learned to think.
+
+## The Context of Unity
+
+This teaching is delivered within the context of interconnectedness and unity. The truth revealed in stillness is not a personal truth about your individual story. It is the truth of what you are beneath the story: consciousness that is not separate from all consciousness, being that is not separate from all being.
+
+## What This Teaching Does Not Say
+
+Stillness is not blankness. It is not about emptying the mind into a dull stupor. Real stillness is alert, awake, and vibrant. The difference between drowsy blankness and true stillness is the quality of awareness present. In true stillness, awareness is sharp — it is just no longer caught in content.
+
+## Application
+
+Do not try to achieve stillness by force. Simply stop adding. When you notice yourself constructing thoughts about past or future, gently discontinue the construction. Rest in the gap. Each gap, each moment of genuine stillness, reveals something that effort could never produce.
 
 ## Related Concepts
-- **Stillness:** Refers to meditation, mindfulness, quiet introspection.
-- **Inner Truth:** Represents inner wisdom, self-realization, the inner self, soul, or consciousness.
-- **Interconnectedness:** How everything is linked.
-- **Unity:** The state of being one, a whole.
+- **Inner Truth**: That which is always present in you, independent of thought — revealed when thinking subsides
+- **Meditation**: The practice of discontinuing unnecessary mental construction
+- **Interconnectedness**: What becomes self-evident when the illusion of separateness dissolves in stillness
