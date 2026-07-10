@@ -107,6 +107,31 @@ def seed_spiritual_ontology():
                     c.description = 'A contracted state of division, fear, and ego-centric existence.',
                     c.entity_type = 'concept'
             """)
+            tx.run("""
+                MERGE (c:base {entity_id: 'Suffering State'})
+                SET c:Concept, c.name = 'Suffering State',
+                    c.description = 'A contracted state of division, fear, and ego-centric existence.',
+                    c.entity_type = 'concept'
+            """)
+            tx.run("""
+                MERGE (c:base {entity_id: 'Shrinking Self'})
+                SET c:Concept, c.name = 'Shrinking Self',
+                    c.description = 'An expression of the warring self characterized by comparison, inadequacy, and low self-esteem.',
+                    c.entity_type = 'concept'
+            """)
+            tx.run("""
+                MERGE (c:base {entity_id: 'Destructive Self'})
+                SET c:Concept, c.name = 'Destructive Self',
+                    c.description = 'An expression of the warring self characterized by anger, blame, aggression, and perfectionism.',
+                    c.entity_type = 'concept'
+            """)
+            tx.run("""
+                MERGE (c:base {entity_id: 'Inert Self'})
+                SET c:Concept, c.name = 'Inert Self',
+                    c.description = 'An expression of the warring self characterized by laziness, procrastination, and giving up.',
+                    c.entity_type = 'concept'
+            """)
+
 
             # 4. Seed Practices
             tx.run("""

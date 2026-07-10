@@ -72,6 +72,196 @@ class MemoryServiceV2(MemoryService):
             return GLOBAL_MEMORY_COLLECTION
         return f"{guru_slug or self.guru_slug}_memory"
 
+    async def classify_memory_content(self, content: str) -> dict[str, Any]:
+        """Classify user reflection/memory to extract insight, state category, and related concepts."""
+        try:
+            import json as _json
+            from openai import AsyncOpenAI
+
+            # Build client based on active LLM provider
+            if settings.is_sarvam_cloud:
+                client = AsyncOpenAI(
+                    base_url=settings.sarvam_base_url,
+                    api_key="api-key-not-used-by-bearer",
+                    default_headers={"api-subscription-key": settings.sarvam_api_key},
+                )
+                model_name = settings.sarvam_cloud_classify_model or "sarvam-30b"
+            elif settings.llm_provider.lower() == "openrouter":
+                client = AsyncOpenAI(
+                    base_url=settings.openrouter_base_url,
+                    api_key=settings.openrouter_api_key,
+                )
+                model_name = settings.model_for_classification
+            elif settings.llm_provider.lower() == "nim":
+                client = AsyncOpenAI(
+                    base_url=settings.nim_base_url,
+                    api_key=settings.nim_api_key,
+                )
+                model_name = settings.nim_classify_model
+            elif settings.llm_provider.lower() == "ollama":
+                client = AsyncOpenAI(
+                    base_url=settings.ollama_base_url,
+                    api_key="ollama",
+                )
+                model_name = settings.model_for_classification
+            else:
+                return {}
+
+            system_msg = (
+                "You are an expert spiritual counselor trained in Ekam teachings. "
+                "Analyze the user's reflection or memory and classify it. "
+                "Return ONLY a valid JSON object."
+            )
+            user_msg = (
+                f"Analyze this personal reflection: \"{content}\"\n\n"
+                f"Classify and extract:\n"
+                f"1. insight: A concise 3-6 word summary (e.g. 'Work Stress Anxiety', 'Daily Chanting Practice', 'Gratitude for Family'). Do NOT use 'User asked X'. Write as a short noun phrase in first person representing their state.\n"
+                f"2. state_category: Categorize into one of these exact states: 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'.\n"
+                f"3. related_concepts: List of concept names this relates to (e.g. 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection').\n\n"
+                f"Return ONLY this JSON:\n"
+                f'{{"insight": "...", "state_category": "...", "related_concepts": []}}'
+            )
+
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg},
+                    ],
+                    temperature=0.0,
+                    max_tokens=256,
+                ),
+                timeout=15.0,
+            )
+            raw_content = (response.choices[0].message.content or "").strip()
+            if raw_content.startswith("```"):
+                import re as _re
+                raw_content = _re.sub(r"^```(?:json)?\n?(.*?)\n?```$", r"\1", raw_content, flags=_re.DOTALL).strip()
+            first_brace = raw_content.find("{")
+            last_brace = raw_content.rfind("}")
+            if first_brace != -1 and last_brace != -1:
+                return _json.loads(raw_content[first_brace : last_brace + 1])
+        except Exception as e:
+            logger.warning(f"classify_memory_content failed: {e}")
+        return {}
+
+    async def add_explicit(
+        self,
+        user_id: str,
+        content: str,
+        is_core: bool = False,
+        source: str = "explicit",
+        run_compaction: bool = True,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Manually add a memory, and write it to both Supabase and Neo4j."""
+        # Step 1: Classify if metadata not provided
+        classified = metadata
+        if not is_core:
+            if not classified:
+                classified = await self.classify_memory_content(content)
+            
+            # Ensure classification results exist
+            if not classified:
+                classified = {
+                    "insight": content[:30],
+                    "state_category": "Neutral",
+                    "related_concepts": []
+                }
+            else:
+                if "insight" not in classified:
+                    classified["insight"] = content[:30]
+                if "state_category" not in classified:
+                    classified["state_category"] = "Neutral"
+                if "related_concepts" not in classified:
+                    classified["related_concepts"] = []
+
+        # Step 2: Save to Supabase (using updated base implementation)
+        res = await super().add_explicit(user_id, content, is_core, source, run_compaction, classified)
+
+        # Step 3: Write to Neo4j
+        if not is_core and res and "id" in res:
+            try:
+                driver = await asyncio.to_thread(self._get_neo4j)
+                if driver:
+                    from services.tenant_context import TenantContext
+                    tenant_id = TenantContext.get()
+                    mem_id = str(res["id"])
+                    insight = classified.get("insight") or content[:30]
+                    state_cat = classified.get("state_category") or "Neutral"
+                    rel_concepts = classified.get("related_concepts") or []
+
+                    def _write_neo4j():
+                        with driver.session() as session:
+                            # 1. Create/merge User and Memory nodes
+                            session.run(
+                                """
+                                MERGE (u:User {id: $user_id})
+                                SET u.tenant_id = $tenant_id
+                                MERGE (m:GlobalMemory {id: $memory_id})
+                                SET m.content = $content,
+                                    m.insight = $insight,
+                                    m.state_category = $state_category,
+                                    m.created_at = timestamp(),
+                                    m.tenant_id = $tenant_id
+                                MERGE (u)-[:HAS_MEMORY]->(m)
+                                """,
+                                user_id=user_id,
+                                memory_id=mem_id,
+                                content=content,
+                                insight=insight,
+                                state_category=state_cat,
+                                tenant_id=tenant_id,
+                            )
+
+                            # 2. Relate to state category if it's a known ontology node
+                            session.run(
+                                """
+                                MATCH (m:GlobalMemory {id: $memory_id})
+                                MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($state_cat)
+                                MERGE (m)-[:RELATES_TO]->(c)
+                                """,
+                                memory_id=mem_id,
+                                state_cat=state_cat
+                            )
+
+                            # 3. Relate to concepts
+                            for concept in rel_concepts:
+                                session.run(
+                                    """
+                                    MATCH (m:GlobalMemory {id: $memory_id})
+                                    MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($concept)
+                                    MERGE (m)-[:RELATES_TO]->(c)
+                                    """,
+                                    memory_id=mem_id,
+                                    concept=concept,
+                                )
+
+                    await asyncio.to_thread(_write_neo4j)
+            except Exception as e:
+                logger.warning(f"Neo4j memory write failed (non-fatal): {e}")
+
+        return res
+
+    async def forget(self, user_id: str, memory_id: str) -> bool:
+        """Forget memory: delete from Supabase PG and Neo4j graph."""
+        res = await super().forget(user_id, memory_id)
+        if res:
+            try:
+                driver = await asyncio.to_thread(self._get_neo4j)
+                if driver:
+                    def _delete():
+                        with driver.session() as session:
+                            session.run(
+                                "MATCH (m:GlobalMemory {id: $memory_id}) DETACH DELETE m",
+                                memory_id=memory_id
+                            )
+                    await asyncio.to_thread(_delete)
+            except Exception as e:
+                logger.warning(f"Neo4j forget failed (non-fatal): {e}")
+        return res
+
     # ---- Tier 1: Ephemeral (Redis) ----
 
     async def _get_redis(self) -> Optional[aioredis.Redis]:
@@ -509,128 +699,213 @@ class MemoryServiceV2(MemoryService):
 
     # ---- Personal Knowledge Graph ----
 
-    async def build_personal_knowledge_graph(self, user_id: str) -> dict[str, list[dict]]:
-        """Build a {nodes, edges} personal knowledge graph for the user.
+    async def build_personal_knowledge_graph(self, user_id: Optional[str], view: str = "personal") -> dict[str, list[dict]]:
+        """Build a {nodes, edges} knowledge graph for the user.
 
-        Merges three data sources:
-          1. Neo4j: :User node, :GlobalMemory nodes, ontology (:Concept/:Teacher/:Practice)
-          2. Supabase guru_memories (text-based episodic memories)
-          3. Keywords: memories → ontology concept cross-reference via content overlap
-
-        Returns shape matching /kg/subgraph: {nodes: [{id, label, type, teacher}], edges: [{source, target, label}]}
-        Never raises — degrades to empty on failure.
+        If view == "ontology" or user_id is None:
+          Returns public teachings ontology only (limit 50).
+        If view == "personal" and user_id is provided:
+          Returns personalized consciousness map. Empty if 0 memories.
         """
         nodes: dict[str, dict] = {}
         edges: list[dict] = []
 
-        # Helpers
-        def _add_node(uid: str, label: str, ntype: str, teacher: str | None = None) -> None:
+        def _add_node(uid: str, label: str, ntype: str, teacher: str | None = None,
+                      state_category: str | None = None, content: str | None = None) -> None:
             if uid not in nodes:
-                nodes[uid] = {"id": uid, "label": label, "type": ntype, "teacher": teacher}
+                nodes[uid] = {
+                    "id": uid,
+                    "label": label,
+                    "type": ntype,
+                    "teacher": teacher,
+                    "state_category": state_category,
+                    "content": content
+                }
 
         def _add_edge(src: str, dst: str, label: str | None = None) -> None:
-            edges.append({"source": src, "target": dst, "label": label})
+            edge = {"source": src, "target": dst, "label": label}
+            if edge not in edges:
+                edges.append(edge)
 
-        # Always add the user node (if user_id available)
-        if user_id:
-            _add_node(f"user:{user_id}", "You", "User")
-
-        try:
-            driver = await asyncio.to_thread(self._get_neo4j)
-            if driver is not None:
-                def _query_neo4j():
-                    with driver.session() as session:
-                        memories = []
-                        ontology = []
-                        ontology_edges = []
-                        try:
-                            # Get user + memories
+        # 1. Public Ontology View
+        if view == "ontology" or not user_id:
+            try:
+                driver = await asyncio.to_thread(self._get_neo4j)
+                if driver is not None:
+                    def _query_ontology():
+                        with driver.session() as session:
                             res1 = session.run(
-                                "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
-                                "RETURN m.id AS mid, m.content AS content, m.created_at AS created",
-                                uid=user_id,
-                            )
-                            memories = [r.data() for r in res1 if r.get("mid")]
-
-                            # Get all ontology nodes
-                            res2 = session.run(
                                 "MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice "
                                 "RETURN c.entity_id AS eid, labels(c) AS labels "
                                 "LIMIT 50"
                             )
-                            ontology = [r.data() for r in res2 if r.get("eid")]
+                            ontology = [r.data() for r in res1 if r.get("eid")]
 
-                            # Get relationships between ontology concepts
-                            res3 = session.run(
+                            res2 = session.run(
                                 "MATCH (c1)-[r]->(c2) "
                                 "WHERE (c1:Concept OR c1:Teacher OR c1:Practice) "
                                 "  AND (c2:Concept OR c2:Teacher OR c2:Practice) "
                                 "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
                                 "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type"
                             )
-                            ontology_edges = [r.data() for r in res3 if r.get("source") and r.get("target")]
-                        except Exception:
-                            pass
-                        return memories, ontology, ontology_edges
+                            edges_data = [r.data() for r in res2 if r.get("source") and r.get("target")]
+                            return ontology, edges_data
+                    
+                    ontology, edges_data = await asyncio.to_thread(_query_ontology)
+                    for c in ontology:
+                        eid = c["eid"]
+                        labels = c.get("labels", ["Concept"])
+                        ntype = next((lbl for lbl in labels if lbl in ("Concept", "Teacher", "Practice")), "Concept")
+                        _add_node(f"concept:{eid}", eid, ntype, eid if ntype == "Teacher" else None)
+                    for edge in edges_data:
+                        _add_edge(f"concept:{edge['source']}", f"concept:{edge['target']}", edge['rel_type'])
+            except Exception as e:
+                logger.warning(f"build_personal_knowledge_graph ontology view failed: {e}")
+            return {"nodes": list(nodes.values()), "edges": edges}
 
-                neo4j_memories, ontology, ontology_edges = await asyncio.to_thread(_query_neo4j)
+        # 2. Personal View
+        # Check memories count from both Neo4j and Supabase
+        neo4j_mems = []
+        supabase_mems = []
 
-                # Add ontology concept nodes
-                concept_keywords: dict[str, str] = {}
-                for c in ontology:
-                    eid = c["eid"]
-                    labels = c.get("labels", ["Concept"])
-                    ntype = next((lbl for lbl in labels if lbl in ("Concept", "Teacher", "Practice")), "Concept")
-                    teacher = None
-                    if ntype == "Teacher":
-                        teacher = eid
-                    _add_node(f"concept:{eid}", eid, ntype, teacher)
-                    concept_keywords[eid.lower()] = eid
+        try:
+            driver = await asyncio.to_thread(self._get_neo4j)
+            if driver is not None:
+                def _query_memories():
+                    with driver.session() as session:
+                        res = session.run(
+                            "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
+                            "RETURN m.id AS id, m.content AS content, m.insight AS insight, m.state_category AS state_category, m.created_at AS created_at",
+                            uid=user_id
+                        )
+                        return [r.data() for r in res]
+                neo4j_mems = await asyncio.to_thread(_query_memories)
+        except Exception as e:
+            logger.warning(f"Failed to query Neo4j memories: {e}")
 
-                # Add ontology concept edges
-                for edge in ontology_edges:
-                    src = f"concept:{edge['source']}"
-                    dst = f"concept:{edge['target']}"
-                    if src in nodes and dst in nodes:
-                        _add_edge(src, dst, edge['rel_type'])
+        try:
+            mems_res = await self.list_memories(user_id, page=1, page_size=50)
+            supabase_mems = mems_res.get("memories", [])
+        except Exception as e:
+            logger.warning(f"Failed to query Supabase memories: {e}")
 
-                # Add memory nodes and link to user
-                for m in neo4j_memories:
-                    mid = m["mid"]
-                    content = m.get("content", "") or ""
-                    _add_node(f"memory:{mid}", content[:60], "Memory")
-                    _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
+        # If absolutely no memories, return empty graph to trigger empty state in UI
+        if not neo4j_mems and not supabase_mems:
+            return {"nodes": [], "edges": []}
 
-                    # Cross-reference memory content to ontology concepts via keyword match
-                    content_lower = content.lower()
-                    for keyword, concept_id in concept_keywords.items():
-                        if keyword in content_lower:
-                            _add_edge(f"memory:{mid}", f"concept:{concept_id}", "RELATES_TO")
+        # User is authenticated and has memories. Build the personalized Consciousness Map!
+        _add_node(f"user:{user_id}", "You", "User")
 
+        # Set up state categories as base concepts so they exist in our graph
+        state_categories = ["Beautiful State", "Suffering State", "Shrinking Self", "Destructive Self", "Inert Self"]
+        for sc in state_categories:
+            _add_node(f"concept:{sc}", sc, "Concept")
 
-        except Exception as exc:
-            logger.warning(f"build_personal_knowledge_graph neo4j failed: {exc}")
+        concept_ids_in_graph = set(state_categories)
 
-        # Also fetch from Supabase guru_memories (secondary source)
-        if user_id:
+        # Track memories we've processed
+        processed_memory_ids = set()
+
+        # Add Neo4j memories
+        for m in neo4j_mems:
+            mid = m["id"]
+            content = m.get("content", "")
+            insight = m.get("insight") or content[:30]
+            state_cat = m.get("state_category") or "Neutral"
+            processed_memory_ids.add(mid)
+
+            _add_node(f"memory:{mid}", insight, "Memory", state_category=state_cat, content=content)
+            _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
+
+            if state_cat in state_categories:
+                _add_edge(f"memory:{mid}", f"concept:{state_cat}", "IN_STATE")
+
+        # Add Supabase memories if not already processed
+        for m in supabase_mems:
+            mid = str(m.get("id", ""))
+            if not mid or mid in processed_memory_ids:
+                continue
+            content = m.get("content", "")
+            claim = m.get("claim") or content[:30]
+            
+            # Extract state category if possible
+            state_cat = "Neutral"
+            _add_node(f"memory:{mid}", claim, "Memory", state_category=state_cat, content=content)
+            _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
+
+        # Now, query relationships between the memories and ontology concepts from Neo4j
+        referenced_concept_ids = set()
+        if neo4j_mems:
             try:
-                mems = await self.list_memories(user_id, page=1, page_size=50)
-                for m in mems.get("memories", []):
-                    mid = m.get("id", "")
-                    content = m.get("content", "") or ""
-                    if not mid:
-                        continue
-                    mem_node_id = f"memory:{mid}"
-                    if mem_node_id not in nodes:
-                        _add_node(mem_node_id, content[:60], "Memory")
-                        _add_edge(f"user:{user_id}", mem_node_id, "HAS_MEMORY")
-            except Exception as exc:
-                logger.warning(f"build_personal_knowledge_graph supabase failed: {exc}")
+                def _query_memory_ontology_rels():
+                    with driver.session() as session:
+                        res = session.run(
+                            "MATCH (m:GlobalMemory)-[r:RELATES_TO]->(c) "
+                            "WHERE m.id IN $mids AND (c:Concept OR c:Teacher OR c:Practice) "
+                            "RETURN m.id AS mid, c.entity_id AS cid, labels(c)[0] AS clabel",
+                            mids=list(processed_memory_ids)
+                        )
+                        return [r.data() for r in res]
+                rels = await asyncio.to_thread(_query_memory_ontology_rels)
+                for r in rels:
+                    mid = r["mid"]
+                    cid = r["cid"]
+                    clabel = r["clabel"] or "Concept"
+                    _add_node(f"concept:{cid}", cid, clabel, cid if clabel == "Teacher" else None)
+                    _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
+                    concept_ids_in_graph.add(cid)
+                    referenced_concept_ids.add(cid)
+            except Exception as e:
+                logger.warning(f"Failed to query memory ontology rels: {e}")
+
+        # For any memories that were not in Neo4j, do keyword matching fallback
+        concept_keywords = {sc.lower(): sc for sc in state_categories}
+        try:
+            def _get_all_concepts():
+                with driver.session() as session:
+                    res = session.run("MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice RETURN c.entity_id AS eid")
+                    return [r["eid"] for r in res]
+            all_concepts = await asyncio.to_thread(_get_all_concepts)
+            for cid in all_concepts:
+                concept_keywords[cid.lower()] = cid
+        except Exception:
+            pass
+
+        for m in supabase_mems:
+            mid = str(m.get("id", ""))
+            if mid in processed_memory_ids:
+                continue
+            content = m.get("content", "").lower()
+            for kw, cid in concept_keywords.items():
+                if kw in content:
+                    _add_node(f"concept:{cid}", cid, "Concept")
+                    _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
+                    concept_ids_in_graph.add(cid)
+
+        # Query and add relationships between the matched ontology concepts
+        if concept_ids_in_graph:
+            try:
+                def _query_concept_rels():
+                    with driver.session() as session:
+                        res = session.run(
+                            "MATCH (c1)-[r]->(c2) "
+                            "WHERE (c1:Concept OR c1:Teacher OR c1:Practice) "
+                            "  AND (c2:Concept OR c2:Teacher OR c2:Practice) "
+                            "  AND c1.entity_id IN $cids AND c2.entity_id IN $cids "
+                            "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
+                            "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type",
+                            cids=list(concept_ids_in_graph)
+                        )
+                        return [r.data() for r in res]
+                concept_rels = await asyncio.to_thread(_query_concept_rels)
+                for r in concept_rels:
+                    _add_edge(f"concept:{r['source']}", f"concept:{r['target']}", r['rel_type'])
+            except Exception as e:
+                logger.warning(f"Failed to query concept rels: {e}")
 
         return {"nodes": list(nodes.values()), "edges": edges}
 
     # ---- LRU fallback helpers ----
-
     def _lru_set(self, key: str, value: str) -> None:
         """Set value in in-memory LRU cache (bounded)."""
         self._lru_fallback[key] = value

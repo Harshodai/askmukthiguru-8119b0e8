@@ -229,7 +229,14 @@ async def test_memory_service_extract_and_write(monkeypatch):
 
     # Verify calls
     add_explicit_mock.assert_any_call("user123", "User name is Harshodai", is_core=True)
-    add_explicit_mock.assert_any_call("user123", "User is feeling anxious", is_core=False, source="extracted", run_compaction=False)
+    add_explicit_mock.assert_any_call(
+        "user123",
+        "User is feeling anxious",
+        is_core=False,
+        source="extracted",
+        run_compaction=False,
+        metadata={"insight": "User is feeling anxious", "state_category": "Neutral", "related_concepts": []}
+    )
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.insert.assert_called_with({
         "user_id": "user123",

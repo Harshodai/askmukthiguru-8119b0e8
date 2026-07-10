@@ -52,6 +52,18 @@ const NODE_CONFIG: Record<string, { color: string; stroke: string; r: number; ri
 
 const DEFAULT_NODE = { color: 'hsl(220 40% 50%)', stroke: 'hsl(220 40% 30%)', r: 15, ring: 2 };
 
+const getCfgForNode = (node: KGNode) => {
+  if (node.type === 'Memory' && node.state_category) {
+    const cat = node.state_category;
+    if (cat === 'Beautiful State') return { color: 'hsl(142 65% 45%)', stroke: 'hsl(142 65% 28%)', r: 14, ring: 3 };
+    if (cat === 'Suffering State' || cat === 'Suffering') return { color: 'hsl(350 70% 55%)', stroke: 'hsl(350 70% 35%)', r: 14, ring: 3 };
+    if (cat === 'Shrinking Self') return { color: 'hsl(25 80% 55%)', stroke: 'hsl(25 80% 35%)', r: 14, ring: 3 };
+    if (cat === 'Destructive Self') return { color: 'hsl(0 75% 50%)', stroke: 'hsl(0 75% 30%)', r: 14, ring: 3 };
+    if (cat === 'Inert Self') return { color: 'hsl(275 60% 55%)', stroke: 'hsl(275 60% 35%)', r: 14, ring: 3 };
+  }
+  return (NODE_CONFIG[node.type] ?? DEFAULT_NODE) as { color: string; stroke: string; r: number; ring: number };
+};
+
 /** Initial ring layout for coordinate seeding */
 const getInitialCoords = (nodes: KGNode[], width: number, height: number) => {
   const coords = new Map<string, { x: number; y: number }>();
@@ -60,7 +72,7 @@ const getInitialCoords = (nodes: KGNode[], width: number, height: number) => {
   const CY = height / 2;
 
   for (const node of nodes) {
-    const ring = (NODE_CONFIG[node.type] ?? DEFAULT_NODE).ring;
+    const ring = getCfgForNode(node).ring;
     rings[ring].push(node);
   }
 
@@ -125,6 +137,7 @@ export const MemoryManager = () => {
   const [kgNodes, setKgNodes] = useState<KGNode[]>([]);
   const [kgEdges, setKgEdges] = useState<KGEdge[]>([]);
   const [kgLoading, setKgLoading] = useState(false);
+  const [graphView, setGraphView] = useState<'personal' | 'ontology'>('personal');
 
   // UI Interactive States
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -316,10 +329,10 @@ export const MemoryManager = () => {
     }
   };
 
-  const loadKg = async () => {
+  const loadKg = async (view: 'personal' | 'ontology' = graphView) => {
     setKgLoading(true);
     try {
-      const kg = await memoryApi.getKnowledgeGraph();
+      const kg = await memoryApi.getKnowledgeGraph(view);
       setKgNodes(kg.nodes);
       setKgEdges(kg.edges);
     } catch {
@@ -330,10 +343,10 @@ export const MemoryManager = () => {
   };
 
   useEffect(() => {
-    if (viewMode === 'graph' && kgNodes.length === 0 && !kgLoading) {
-      loadKg();
+    if (viewMode === 'graph') {
+      loadKg(graphView);
     }
-  }, [viewMode]);
+  }, [viewMode, graphView]);
 
   useEffect(() => {
     refresh();
@@ -420,8 +433,8 @@ export const MemoryManager = () => {
     return node.label.toLowerCase().includes(searchQuery.toLowerCase()) || node.type.toLowerCase().includes(searchQuery.toLowerCase());
   };
 
-  const getRadiusForType = (type: string) => {
-    return (NODE_CONFIG[type] ?? DEFAULT_NODE).r;
+  const getRadiusForNode = (node?: KGNode) => {
+    return node ? getCfgForNode(node).r : 15;
   };
 
   const getPathData = (
@@ -432,8 +445,8 @@ export const MemoryManager = () => {
   ) => {
     const sourceNode = kgNodes.find(n => n.id === sourceId);
     const targetNode = kgNodes.find(n => n.id === targetId);
-    const rSource = sourceNode ? getRadiusForType(sourceNode.type) : 15;
-    const rTarget = targetNode ? getRadiusForType(targetNode.type) : 15;
+    const rSource = getRadiusForNode(sourceNode);
+    const rTarget = getRadiusForNode(targetNode);
 
     const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
     const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
@@ -461,14 +474,38 @@ export const MemoryManager = () => {
       <div className="space-y-3">
         {/* Graph controls & Search bar */}
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* View Toggle */}
+            <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 mr-2">
+              <button
+                onClick={() => setGraphView('personal')}
+                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all duration-200 ${
+                  graphView === 'personal'
+                    ? 'bg-zinc-800 text-white shadow-sm'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                My Consciousness Map
+              </button>
+              <button
+                onClick={() => setGraphView('ontology')}
+                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all duration-200 ${
+                  graphView === 'ontology'
+                    ? 'bg-zinc-800 text-white shadow-sm'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                Teachings Ontology
+              </button>
+            </div>
+
             <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title="Reset view"><RotateCcw className="w-3.5 h-3.5" /></button>
-            <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 rounded border border-border hover:bg-muted ml-2" title="Toggle Fullscreen">
+            <button onClick={() => setIsFullscreen(!isFullscreen)} className="p-1.5 rounded border border-border hover:bg-muted" title="Toggle Fullscreen">
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
             </button>
-            <span className="ml-2 hidden sm:inline">Drag to pan · Scroll to zoom</span>
+            <span className="ml-2 hidden lg:inline">Drag to pan · Scroll to zoom</span>
           </div>
 
           <div className="relative flex-1 max-w-[280px]">
@@ -499,11 +536,47 @@ export const MemoryManager = () => {
               <Loader2 className="w-6 h-6 text-ojas animate-spin" />
             </div>
           ) : kgNodes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 h-full">
-              <Network className="w-10 h-10 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground text-center max-w-xs">
-                No knowledge graph yet. Chat with the guru to build your personal ontology.
-              </p>
+            <div className="flex flex-col items-center justify-center p-8 text-center h-full max-w-lg mx-auto space-y-6 relative z-10 select-none">
+              {/* Background ambient glowing gradient */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-ojas/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative p-6 rounded-2xl border border-zinc-800/80 bg-zinc-950/70 backdrop-blur-xl shadow-2xl space-y-5">
+                <div className="mx-auto w-12 h-12 rounded-full bg-ojas/10 flex items-center justify-center border border-ojas/30">
+                  <Brain className="w-6 h-6 text-ojas animate-pulse" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-white tracking-tight">Your Consciousness Map</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Every dialogue, reflection, and question you share with Mukthi Guru is processed to map your states of consciousness. Start chatting to see your feelings of connection (<span className="text-emerald-400 font-medium">Beautiful State</span>) and expressions of inner conflict (<span className="text-rose-400 font-medium">Shrinking, Destructive, or Inert Self</span>) visualised dynamically.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-2 text-left border-t border-zinc-900/60">
+                  <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Share your first reflection to seed your map</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. I feel overwhelmed by comparison at work and lose focus..."
+                      value={newText}
+                      onChange={(e) => setNewText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+                    />
+                    <Button
+                      onClick={handleAdd}
+                      disabled={adding || !newText.trim()}
+                      className="px-3.5 bg-ojas text-white hover:bg-ojas/90 text-xs font-semibold rounded-lg h-auto flex items-center justify-center"
+                    >
+                      {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Seed Map'}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1">
+                    <Sparkles className="w-3 h-3 text-ojas" />
+                    <span>Try typing a moment of gratitude or a mental challenge.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <>
@@ -630,7 +703,7 @@ export const MemoryManager = () => {
                     const pos = positions.get(node.id);
                     if (!pos) return null;
 
-                    const cfg = NODE_CONFIG[node.type] ?? DEFAULT_NODE;
+                    const cfg = getCfgForNode(node);
                     const isUser = node.type === 'User';
                     const isHovered = hoveredNode?.id === node.id;
                     const isSelected = selectedNode?.id === node.id;
@@ -745,7 +818,7 @@ export const MemoryManager = () => {
                     <div
                       className="absolute top-0 left-0 right-0 h-1.5"
                       style={{
-                        background: `linear-gradient(90deg, ${(NODE_CONFIG[selectedNode.type] ?? DEFAULT_NODE).color}, transparent)`,
+                        background: `linear-gradient(90deg, ${getCfgForNode(selectedNode).color}, transparent)`,
                       }}
                     />
 
@@ -753,7 +826,7 @@ export const MemoryManager = () => {
                       <div>
                         <Badge
                           className="mb-1.5 text-[9px] uppercase tracking-wider font-semibold"
-                          style={{ background: (NODE_CONFIG[selectedNode.type] ?? DEFAULT_NODE).color }}
+                          style={{ background: getCfgForNode(selectedNode).color }}
                         >
                           {selectedNode.type}
                         </Badge>
@@ -772,10 +845,18 @@ export const MemoryManager = () => {
                     <div className="flex-1 space-y-4 text-xs">
                       {/* Node attributes */}
                       {selectedNode.type === 'Memory' ? (
-                        <div className="space-y-1 bg-zinc-900/40 p-4 rounded-xl border border-white/5 relative overflow-hidden group">
+                        <div className="space-y-1.5 bg-zinc-900/40 p-4 rounded-xl border border-white/5 relative overflow-hidden group">
                           <div className="absolute -top-1 -right-1 text-white/5 font-serif text-6xl pointer-events-none select-none group-hover:text-white/10 transition-colors">“</div>
+                          {selectedNode.state_category && (
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">State Category:</span>
+                              <Badge className="text-[8px] uppercase tracking-wide px-1.5 py-0" style={{ background: getCfgForNode(selectedNode).color }}>
+                                {selectedNode.state_category}
+                              </Badge>
+                            </div>
+                          )}
                           <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Memory Content</p>
-                          <p className="text-foreground leading-relaxed italic text-sm font-serif pr-4">"{selectedNode.label}"</p>
+                          <p className="text-foreground leading-relaxed italic text-sm font-serif pr-4">"{selectedNode.content || selectedNode.label}"</p>
                         </div>
                       ) : (
                         <div className="space-y-1 bg-zinc-900/40 p-3.5 rounded-xl border border-white/5">
@@ -808,7 +889,7 @@ export const MemoryManager = () => {
                                   </span>
                                   <Badge
                                     className="scale-75 origin-right uppercase text-[8px]"
-                                    style={{ background: (NODE_CONFIG[neighbor.type] ?? DEFAULT_NODE).color }}
+                                    style={{ background: getCfgForNode(neighbor).color }}
                                   >
                                     {neighbor.type}
                                   </Badge>
@@ -854,13 +935,42 @@ export const MemoryManager = () => {
               </AnimatePresence>
 
               {/* Legend overlay */}
-              <div className="absolute bottom-3 left-3 bg-zinc-900/60 backdrop-blur-sm border border-border/40 px-2 py-1 rounded-md flex gap-2.5 flex-wrap">
-                {Object.entries(NODE_CONFIG).map(([type, cfg]) => (
-                  <div key={type} className="flex items-center gap-1">
-                    <div className="rounded-full w-2 h-2" style={{ background: cfg.color }} />
-                    <span className="text-[9px] text-muted-foreground">{type}</span>
-                  </div>
-                ))}
+              <div className="absolute bottom-3 left-3 bg-zinc-900/60 backdrop-blur-sm border border-border/40 px-2.5 py-1 rounded-lg flex gap-3 flex-wrap max-w-[90%] select-none pointer-events-none">
+                {graphView === 'personal' ? (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(142 65% 45%)' }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">Beautiful State</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(350 70% 55%)' }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">Suffering State</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(25 80% 55%)' }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">Shrinking Self</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(0 75% 50%)' }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">Destructive Self</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(275 60% 55%)' }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">Inert Self</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(340 55% 55%)' }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">Neutral</span>
+                    </div>
+                  </>
+                ) : (
+                  Object.entries(NODE_CONFIG).map(([type, cfg]) => (
+                    <div key={type} className="flex items-center gap-1">
+                      <div className="rounded-full w-2 h-2" style={{ background: cfg.color }} />
+                      <span className="text-[9px] text-muted-foreground font-semibold">{type}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </>
           )}
