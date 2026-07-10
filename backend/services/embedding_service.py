@@ -281,15 +281,17 @@ class EmbeddingService:
             device = self._get_device()
             from sentence_transformers import CrossEncoder
 
-            logger.info(f"Loading reranker: {settings.reranker_model} on device: {device}")
-            model_id = settings.reranker_model
+            # CPU can't afford bge-reranker-v2-m3 (~4s/doc → 88s for 19 docs). Use the
+            # light CPU model there; heavy multilingual reranker only on GPU/MPS.
+            model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
+            logger.info(f"Loading reranker: {model_id} on device: {device}")
             try:
                 self._reranker = CrossEncoder(model_id, device=device)
             except json.JSONDecodeError as e:
                 logger.warning(f"Corrupted HF cache for {model_id}, clearing and retrying: {e}")
                 self._clear_hf_cache_for(model_id)
                 self._reranker = CrossEncoder(model_id, device=device)
-            model_name = (settings.reranker_model or "").lower()
+            model_name = (model_id or "").lower()
             if "jina" in model_name or "jina-reranker" in model_name:
                 self._reranker_outputs_probs = True
                 logger.info(

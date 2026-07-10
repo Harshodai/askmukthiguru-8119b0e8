@@ -13,21 +13,18 @@ if [ "$MODE" != "quick" ] && [ "$MODE" != "full" ]; then
   exit 1
 fi
 
-# Benchmark-local endpoint overrides (host runs scripts, Docker uses internal hostnames).
-set -a
-[ -f "benchmarks/.env.benchmark" ] && source "benchmarks/.env.benchmark"
-# Source main .env for BENCHMARK_SECRET (needed for X-Test-Key queue bypass)
+# Source main .env first (BENCHMARK_SECRET, etc), then override with host-local endpoints.
 set -o allexport
 if [ -f ".env" ]; then
   while IFS='=' read -r key val; do
-    # Skip comments, empty lines, and lines without =
     [[ "$key" =~ ^#.*$ || -z "$key" || -z "$val" ]] && continue
-    # Strip quotes
     val="${val#\"}"; val="${val%\"}"
     val="${val#\'}"; val="${val%\'}"
     export "$key=$val"
   done < ".env"
 fi
+# Benchmark-local overrides: talk to localhost instead of Docker hostnames
+[ -f "benchmarks/.env.benchmark" ] && source "benchmarks/.env.benchmark"
 set +o allexport
 
 echo "=== 0. flush caches (via docker exec — flush_cache.py needs Docker hostnames) ==="
