@@ -136,7 +136,7 @@ const ProfilePage = () => {
   const [dirty, setDirty] = useState(false);
 
   // Support form state
-  const [supportForm, setSupportForm] = useState({ name: '', email: profile.email || '', subject: '', message: '', category: 'Feedback' });
+  const [supportForm, setSupportForm] = useState({ name: '', email: '', subject: '', message: '', category: 'Feedback' });
   const [supportFiles, setSupportFiles] = useState<File[]>([]);
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportSent, setSupportSent] = useState(false);
@@ -271,7 +271,7 @@ const ProfilePage = () => {
         attachments: supportFiles,
       });
       setSupportSent(true);
-      setSupportForm({ name: '', email: profile.email || '', subject: '', message: '', category: 'Feedback' });
+      setSupportForm({ name: '', email: '', subject: '', message: '', category: 'Feedback' });
       setSupportFiles([]);
       toast({ title: 'Message sent', description: 'We will get back to you within 24-48 hours.' });
     } catch (err) {
