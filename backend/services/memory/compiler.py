@@ -16,7 +16,11 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_OKF_DIR = Path(__file__).resolve().parents[3] / "memory" / "okf"
+# parents[3] resolved to `/memory/okf` inside the image (backend/ IS /app there, so
+# the fourth parent is `/`), so POST /admin/okf/compile wrote where retrieval never
+# reads. okf_store owns the one resolver that handles both layouts.
+from services.memory.okf_store import OKF_DIR as _OKF_DIR
+
 _COMPILED_PATH = _OKF_DIR / "compiled.json"
 
 
@@ -28,6 +32,8 @@ def _load_okf_entries() -> list[dict[str, Any]]:
             "path": str(e.path),
             "type": e.type,
             "title": e.title,
+            "description": e.description,  # OKF v0.1 recommended field
+            "embed_text": e.embed_text,
             "tags": e.tags,
             "source": e.source,
             "body": e.body,
@@ -53,8 +59,11 @@ def compile_okf() -> Path:
         return _COMPILED_PATH
 
     logger.info("Compiling %d OKF entries", len(entries))
-    titles = [e["title"] for e in entries]
-    embeddings = _embed_texts(titles)
+    # Embed title + description, not the bare title. A seeker asks "why do I keep
+    # suffering?"; matching that against the string "Inner Truth" is close to noise.
+    # Fall back to the title when a producer supplies neither (OKF: description is
+    # recommended, not required).
+    embeddings = _embed_texts([e.get("embed_text") or e["title"] for e in entries])
 
     # ponytail: guard against silent EmbeddingService failure —
     # compiled.json had empty embeddings despite this code looking correct.
@@ -74,6 +83,7 @@ def compile_okf() -> Path:
             "path": e["path"],
             "type": e["type"],
             "title": e["title"],
+            "description": e.get("description", ""),
             "tags": e["tags"],
             "source": e["source"],
             "body": e["body"][:2000],  # truncate for size

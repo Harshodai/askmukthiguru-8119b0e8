@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
       host: "::",
       port: 8080,
       hmr: { overlay: false },
+      watch: {
+        ignored: ["**/.docker_clean/**"],
+      },
       // Proxy /api in dev so the FastAPI backend handles chat/memory requests
       // instead of Vite returning index.html (which silently breaks streaming).
       proxy: {

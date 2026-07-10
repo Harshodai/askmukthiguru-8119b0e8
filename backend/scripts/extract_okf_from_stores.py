@@ -33,8 +33,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_OKF_DIR = _BACKEND.parent / "memory" / "okf"
-_STAGING_DIR = _OKF_DIR / "staging"
+# _BACKEND.parent resolved to `/` inside the image (backend/ IS /app there), so
+# entries landed in /memory/okf/. okf_store owns the one resolver for both layouts.
+from services.memory.okf_store import OKF_DIR as _OKF_DIR  # noqa: E402
+from services.memory.okf_store import STAGING_DIR as _STAGING_DIR  # noqa: E402
+
 _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
 
 # ── doctrine tags (inlined to avoid ingest.pipeline import → ContainerBuilder OOM) ──
@@ -443,7 +446,27 @@ async def _call_llm(system: str, user: str) -> str:
             logger.info("LLM: generated %d chars via OpenRouter", len(text))
             return text.strip()
     except Exception as exc:
-        logger.warning("OpenRouter LLM failed: %s", exc)
+        logger.warning("OpenRouter LLM failed: %s — trying Ollama", exc)
+
+    # Final fallback: Ollama (local — always available if `ollama serve` is running).
+    # The repo-root copy of this script had it, this one didn't, and this is the copy
+    # ingestion/Celery/admin actually import. With LLM_PROVIDER=ollama that meant OKF
+    # extraction raised instead of falling back.
+    try:
+        from services.ollama_service import OllamaService
+
+        ollama = OllamaService()
+        text = await ollama.generate(
+            system_prompt=system,
+            user_prompt=user,
+            temperature=0.3,
+            operation="okf_extraction",
+        )
+        if text:
+            logger.info("LLM: generated %d chars via Ollama", len(text))
+            return text.strip()
+    except Exception as exc:
+        logger.warning("Ollama LLM failed: %s", exc)
 
     raise RuntimeError("No LLM provider available — ensure llm_provider is configured")
 

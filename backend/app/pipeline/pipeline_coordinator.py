@@ -41,7 +41,7 @@ from app.telemetry.publisher import TelemetryPublisher
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.hot_cache import hot_cache
-from services.turboquant_cache import TurboQuantCache
+from services.turboquant_cache import TurboQuantCache, get_shared_vector_cache
 
 logger = logging.getLogger(__name__)
 
@@ -184,12 +184,9 @@ class PipelineCoordinator:
     # ------------------------------------------------------------------
 
     def _ensure_vector_cache(self) -> TurboQuantCache:
-        """Lazy-init TurboQuantCache."""
+        """Bind the process-wide vector cache (this coordinator is rebuilt per request)."""
         if self._vector_cache is None:
-            self._vector_cache = TurboQuantCache(
-                dimension=settings.embedding_dimension,
-                max_size=settings.faiss_cache_size,
-            )
+            self._vector_cache = get_shared_vector_cache()
         return self._vector_cache
 
     async def _check_vector_cache(

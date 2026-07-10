@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from functools import lru_cache
 from typing import Any, Optional
 
 import numpy as np
@@ -283,3 +284,20 @@ class TurboQuantCache:
             self._prepared = False
         self._metadata.clear()
         self._id_counter = 0
+
+
+@lru_cache(maxsize=1)
+def get_shared_vector_cache() -> TurboQuantCache:
+    """Process-wide P90 vector cache.
+
+    PipelineCoordinator is constructed per request (``app/api/chat.py``), so a
+    per-coordinator cache is written at the end of one request and then discarded —
+    every later lookup sees ``size == 0`` and falls through to Qdrant. Entries have
+    to outlive the request. Safe to share: ``put``/``search`` hold ``self._lock``.
+
+    Tests reset it with ``get_shared_vector_cache.cache_clear()``.
+    """
+    return TurboQuantCache(
+        dimension=settings.embedding_dimension,
+        max_size=settings.faiss_cache_size,
+    )

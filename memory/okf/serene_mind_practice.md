@@ -1,6 +1,7 @@
 ---
 type: practice
 title: Serene Mind — 3-Minute Practice
+description: "Sri Krishnaji's three-minute Serene Mind practice for returning to calm whenever you are distracted, disturbed, or preoccupied with past or future."
 source: "Serene Mind — Sri Krishnaji (YouTube https://www.youtube.com/watch?v=igSp4H0OWLE)"
 video_id: igSp4H0OWLE
 tags: [meditation, serene-mind, breath, presence]

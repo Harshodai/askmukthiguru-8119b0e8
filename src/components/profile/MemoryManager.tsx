@@ -137,7 +137,8 @@ export const MemoryManager = () => {
   const [kgNodes, setKgNodes] = useState<KGNode[]>([]);
   const [kgEdges, setKgEdges] = useState<KGEdge[]>([]);
   const [kgLoading, setKgLoading] = useState(false);
-  const [graphView, setGraphView] = useState<'personal' | 'ontology'>('personal');
+  const [graphView, setGraphView] = useState<'personal'>('personal');
+  const [showInsightsPanel, setShowInsightsPanel] = useState(false);
 
   // UI Interactive States
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -329,12 +330,12 @@ export const MemoryManager = () => {
     }
   };
 
-  const loadKg = async (view: 'personal' | 'ontology' = graphView) => {
+  const loadKg = async (view: 'personal' = 'personal') => {
     setKgLoading(true);
     try {
       const kg = await memoryApi.getKnowledgeGraph(view);
-      setKgNodes(kg.nodes);
-      setKgEdges(kg.edges);
+      setKgNodes(kg?.nodes || []);
+      setKgEdges(kg?.edges || []);
     } catch {
       // silently degrade
     } finally {
@@ -347,6 +348,17 @@ export const MemoryManager = () => {
       loadKg(graphView);
     }
   }, [viewMode, graphView]);
+
+  const focusNode = (node: KGNode) => {
+    setSelectedNode(node);
+    const pos = positions.get(node.id);
+    if (pos && dimensions.width && dimensions.height) {
+      setPan({
+        x: dimensions.width / 2 - pos.x * zoom,
+        y: dimensions.height / 2 - pos.y * zoom
+      });
+    }
+  };
 
   useEffect(() => {
     refresh();
@@ -475,29 +487,26 @@ export const MemoryManager = () => {
         {/* Graph controls & Search bar */}
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {/* View Toggle */}
-            <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 mr-2">
-              <button
-                onClick={() => setGraphView('personal')}
-                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all duration-200 ${
-                  graphView === 'personal'
-                    ? 'bg-zinc-800 text-white shadow-sm'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                My Consciousness Map
-              </button>
-              <button
-                onClick={() => setGraphView('ontology')}
-                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all duration-200 ${
-                  graphView === 'ontology'
-                    ? 'bg-zinc-800 text-white shadow-sm'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                Teachings Ontology
-              </button>
+            {/* Title Badge */}
+            <div className="flex items-center gap-2 mr-3 px-3 py-1 bg-zinc-900/50 border border-zinc-800/80 rounded-full select-none pointer-events-none">
+              <div className="w-1.5 h-1.5 rounded-full bg-ojas animate-pulse" />
+              <span className="text-[10px] font-display font-semibold tracking-wider uppercase text-ojas-light">Consciousness Map</span>
             </div>
+
+            {kgNodes.length > 0 && (
+              <button
+                onClick={() => setShowInsightsPanel(!showInsightsPanel)}
+                className={`p-1.5 px-3 rounded-lg border flex items-center gap-1.5 transition-all text-[11px] font-display font-medium shadow-sm ${
+                  showInsightsPanel
+                    ? 'bg-ojas/20 border-ojas text-white'
+                    : 'border-border bg-background text-muted-foreground hover:text-white hover:bg-muted'
+                }`}
+                title="Toggle Consciousness Insights"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-ojas" />
+                <span>State Insights</span>
+              </button>
+            )}
 
             <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
@@ -546,14 +555,14 @@ export const MemoryManager = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-white tracking-tight">Your Consciousness Map</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Every dialogue, reflection, and question you share with Mukthi Guru is processed to map your states of consciousness. Start chatting to see your feelings of connection (<span className="text-emerald-400 font-medium">Beautiful State</span>) and expressions of inner conflict (<span className="text-rose-400 font-medium">Shrinking, Destructive, or Inert Self</span>) visualised dynamically.
+                  <h4 className="text-xl font-serif italic text-white tracking-tight">Your Consciousness Map</h4>
+                  <p className="text-xs font-sans text-muted-foreground leading-relaxed">
+                    Every dialogue, reflection, and question you share with Mukthi Guru is processed to map your states of consciousness. Start chatting to see your feelings of connection (<span className="text-emerald-400 font-medium font-display">Beautiful State</span>) and expressions of inner conflict (<span className="text-rose-400 font-medium font-display">Shrinking, Destructive, or Inert Self</span>) visualised dynamically.
                   </p>
                 </div>
 
                 <div className="space-y-3 pt-2 text-left border-t border-zinc-900/60">
-                  <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Share your first reflection to seed your map</label>
+                  <label className="text-[10px] font-display text-muted-foreground uppercase font-semibold tracking-wider">Share your first reflection to seed your map</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -561,17 +570,17 @@ export const MemoryManager = () => {
                       value={newText}
                       onChange={(e) => setNewText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas font-sans"
                     />
                     <Button
                       onClick={handleAdd}
                       disabled={adding || !newText.trim()}
-                      className="px-3.5 bg-ojas text-white hover:bg-ojas/90 text-xs font-semibold rounded-lg h-auto flex items-center justify-center"
+                      className="px-3.5 bg-ojas text-white hover:bg-ojas/90 text-xs font-display font-semibold rounded-lg h-auto flex items-center justify-center"
                     >
                       {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Seed Map'}
                     </Button>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-sans text-muted-foreground mt-1">
                     <Sparkles className="w-3 h-3 text-ojas" />
                     <span>Try typing a moment of gratitude or a mental challenge.</span>
                   </div>
@@ -773,26 +782,26 @@ export const MemoryManager = () => {
                           <text
                             textAnchor="middle"
                             dy="0.3em"
+                            className="font-display fill-white"
                             style={{
                               fontSize: isUser ? 10 : 8.5,
                               fontWeight: isUser ? 700 : 600,
                               pointerEvents: 'none',
-                              fill: 'white',
                             }}
                           >
                             {isUser ? 'You' : displayLabel}
                           </text>
                         )}
 
-                        {cfg.r < 18 && (
+                        {cfg.r < 18 && (isHovered || isSelected || searchQuery) && (
                           <text
                             textAnchor="middle"
                             y={cfg.r + 10}
+                            className="font-sans fill-white/90"
                             style={{
                               fontSize: 7.5,
                               fontWeight: 500,
                               pointerEvents: 'none',
-                              fill: 'white',
                             }}
                           >
                             {displayLabel}
@@ -812,7 +821,7 @@ export const MemoryManager = () => {
                     animate={{ x: 0 }}
                     exit={{ x: '100%' }}
                     transition={{ type: 'spring', damping: 22, stiffness: 120 }}
-                    className="absolute right-0 top-0 h-full w-80 sm:w-96 bg-zinc-950/85 border-l border-zinc-800/80 backdrop-blur-lg p-5 shadow-[-10px_0_35px_-5px_rgba(0,0,0,0.6)] overflow-y-auto flex flex-col z-20 relative"
+                    className="absolute right-0 top-0 h-full w-80 sm:w-96 bg-zinc-950/85 border-l border-zinc-800/80 backdrop-blur-lg p-5 shadow-[-10px_0_35px_-5px_rgba(0,0,0,0.6)] overflow-y-auto flex flex-col z-20"
                   >
                     {/* Dynamic top gradient line matching node type */}
                     <div
@@ -830,7 +839,7 @@ export const MemoryManager = () => {
                         >
                           {selectedNode.type}
                         </Badge>
-                        <h4 className="text-base font-bold text-white tracking-tight truncate max-w-[200px] sm:max-w-[260px]">
+                        <h4 className="text-base font-display font-bold text-white tracking-tight truncate max-w-[200px] sm:max-w-[260px]">
                           {selectedNode.type === 'User' ? 'Your Memory Profile' : selectedNode.label}
                         </h4>
                       </div>
@@ -934,43 +943,132 @@ export const MemoryManager = () => {
                 )}
               </AnimatePresence>
 
-              {/* Legend overlay */}
-              <div className="absolute bottom-3 left-3 bg-zinc-900/60 backdrop-blur-sm border border-border/40 px-2.5 py-1 rounded-lg flex gap-3 flex-wrap max-w-[90%] select-none pointer-events-none">
-                {graphView === 'personal' ? (
-                  <>
-                    <div className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(142 65% 45%)' }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">Beautiful State</span>
+              {/* Consciousness Insights Sidebar */}
+              <AnimatePresence>
+                {showInsightsPanel && (
+                  <motion.div
+                    initial={{ x: '-100%' }}
+                    animate={{ x: 0 }}
+                    exit={{ x: '-100%' }}
+                    transition={{ type: 'spring', damping: 22, stiffness: 120 }}
+                    className="absolute left-0 top-0 h-full w-64 bg-zinc-950/90 border-r border-zinc-800/80 backdrop-blur-lg p-4 shadow-[10px_0_35px_-5px_rgba(0,0,0,0.6)] overflow-y-auto flex flex-col z-20"
+                  >
+                    <div className="flex items-center justify-between border-b border-zinc-800/60 pb-2.5 mb-3 font-display">
+                      <div className="flex items-center gap-1.5 text-white">
+                        <Sparkles className="w-3.5 h-3.5 text-ojas" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Consciousness States</span>
+                      </div>
+                      <button
+                        onClick={() => setShowInsightsPanel(false)}
+                        className="text-muted-foreground hover:text-white p-1 rounded hover:bg-zinc-900"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(350 70% 55%)' }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">Suffering State</span>
+
+                    <div className="space-y-4 text-[11px] text-muted-foreground select-none">
+                      {/* Summary statistic */}
+                      <div className="bg-zinc-900/30 p-2.5 rounded-lg border border-white/5 space-y-1">
+                        <div className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Mapped Reflections</div>
+                        <div className="text-sm font-bold text-white font-serif">
+                          {kgNodes.filter(n => n.type === 'Memory').length} total
+                        </div>
+                      </div>
+
+                      {/* Grouped state counts */}
+                      <div className="space-y-2">
+                        <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">States Identified</span>
+                        
+                        {(() => {
+                          const stateGroups = ['Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self'];
+                          const memories = kgNodes.filter(n => n.type === 'Memory');
+                          
+                          return stateGroups.map(state => {
+                            const matchingNodes = memories.filter(n => n.state_category === state);
+                            if (matchingNodes.length === 0) return null;
+                            
+                            return (
+                              <div key={state} className="space-y-1 bg-zinc-950/40 p-2 rounded-lg border border-zinc-900">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold text-white">{state}</span>
+                                  <Badge className="text-[8px] scale-75 origin-right px-1.5 py-0" style={{ background: getCfgForNode({ type: 'Memory', state_category: state } as any).color }}>
+                                    {matchingNodes.length}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1 pl-1.5 border-l border-zinc-800 mt-1">
+                                  {matchingNodes.map(node => (
+                                    <button
+                                      key={node.id}
+                                      onClick={() => focusNode(node)}
+                                      className="w-full text-left text-muted-foreground hover:text-white truncate block py-0.5"
+                                      title={node.label}
+                                    >
+                                      • {node.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+
+                      {/* Associated teachings */}
+                      <div className="space-y-2">
+                        <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">Top Concepts Mapped</span>
+                        <div className="flex flex-wrap gap-1">
+                          {kgNodes
+                            .filter(n => n.type === 'Concept' && !['Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self'].includes(n.label))
+                            .map(concept => {
+                              const connectionCount = kgEdges.filter(
+                                e => (e.source === concept.id || e.target === concept.id)
+                              ).length;
+                              if (connectionCount === 0) return null;
+
+                              return (
+                                <button
+                                  key={concept.id}
+                                  onClick={() => focusNode(concept)}
+                                  className="px-2 py-0.5 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 text-muted-foreground hover:text-white text-[10px] flex items-center gap-1 transition-all"
+                                >
+                                  <span>{concept.label}</span>
+                                  <span className="text-[8px] text-muted-foreground">({connectionCount})</span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(25 80% 55%)' }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">Shrinking Self</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(0 75% 50%)' }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">Destructive Self</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(275 60% 55%)' }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">Inert Self</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: 'hsl(340 55% 55%)' }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">Neutral</span>
-                    </div>
-                  </>
-                ) : (
-                  Object.entries(NODE_CONFIG).map(([type, cfg]) => (
-                    <div key={type} className="flex items-center gap-1">
-                      <div className="rounded-full w-2 h-2" style={{ background: cfg.color }} />
-                      <span className="text-[9px] text-muted-foreground font-semibold">{type}</span>
-                    </div>
-                  ))
+                  </motion.div>
                 )}
+              </AnimatePresence>
+
+              {/* Legend overlay */}
+              <div className="absolute bottom-3 left-3 bg-zinc-900/60 backdrop-blur-sm border border-border/40 px-2.5 py-1 rounded-lg flex gap-3 flex-wrap max-w-[90%] select-none pointer-events-none font-display">
+                <div className="flex items-center gap-1">
+                  <div className="rounded-full w-2 h-2" style={{ background: 'hsl(142 65% 45%)' }} />
+                  <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Beautiful State</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="rounded-full w-2 h-2" style={{ background: 'hsl(350 70% 55%)' }} />
+                  <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Suffering State</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="rounded-full w-2 h-2" style={{ background: 'hsl(25 80% 55%)' }} />
+                  <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Shrinking Self</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="rounded-full w-2 h-2" style={{ background: 'hsl(0 75% 50%)' }} />
+                  <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Destructive Self</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="rounded-full w-2 h-2" style={{ background: 'hsl(275 60% 55%)' }} />
+                  <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Inert Self</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="rounded-full w-2 h-2" style={{ background: 'hsl(340 55% 55%)' }} />
+                  <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Neutral</span>
+                </div>
               </div>
             </>
           )}
@@ -1136,9 +1234,9 @@ export const MemoryManager = () => {
       <Card className={isFullscreen ? 'border-none bg-transparent shadow-none' : ''}>
         <CardHeader className={isFullscreen ? 'px-0 pt-0' : ''}>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Brain className="w-5 h-5 text-ojas" /> {isFullscreen ? 'Ontology Knowledge Graph' : 'Memories'}
-              <Badge variant="secondary" className="ml-2">
+            <CardTitle className="text-lg flex items-center gap-2 font-display font-semibold tracking-tight text-white">
+              <Brain className="w-5 h-5 text-ojas" /> {isFullscreen ? 'My Consciousness Map' : 'Memories'}
+              <Badge variant="secondary" className="ml-2 font-display">
                 {memories.length}
               </Badge>
             </CardTitle>
@@ -1148,7 +1246,7 @@ export const MemoryManager = () => {
                   variant={viewMode === 'list' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('list')}
-                  className="h-8 px-2"
+                  className="h-8 px-2 font-display"
                   title="List view"
                 >
                   <List className="w-4 h-4" />
@@ -1158,17 +1256,17 @@ export const MemoryManager = () => {
                 variant={viewMode === 'graph' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setViewMode('graph')}
-                className="h-8 px-2"
+                className="h-8 px-2 font-display"
                 title="Graph view"
               >
                 <Network className="w-4 h-4" />
               </Button>
             </div>
           </div>
-          <CardDescription>
+          <CardDescription className="font-sans text-xs">
             {isFullscreen
-              ? 'Fullscreen view of your interactive personal knowledge graph. Drag nodes to move, drag background to pan, scroll to zoom.'
-              : 'Add a fact you\'d like remembered, or release one that no longer fits. The guru also auto-extracts memories.'}
+              ? 'Fullscreen view of your interactive personal consciousness map. Drag nodes to move, drag background to pan, scroll to zoom.'
+              : 'Interactive map of your spiritual states, derived from your conversations. Switch to graph view to explore connections.'}
           </CardDescription>
         </CardHeader>
         <CardContent className={isFullscreen ? 'px-0 space-y-6' : 'space-y-6'}>

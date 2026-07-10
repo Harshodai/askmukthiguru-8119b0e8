@@ -1,5 +1,78 @@
 # Agentic Lessons & Memory
 
+## Jul 10, 2026 — Consciousness Map UI, Google Fonts Integration, and Vite ELOOP Fix
+
+### Vite Watcher loop on ELOOP recursive symlinks
+- **Problem**: When Vite's file watcher scans the workspace root, it traverses hidden folder `.docker_clean/contexts` which may contain recursive symlinks. This crashes Vite with `Error: ELOOP: too many symbolic links encountered`.
+- **Fix**: Ignore `.docker_clean` in the Vite watcher configuration inside `vite.config.ts` under `server.watch.ignored: ["**/.docker_clean/**"]`.
+- **Pattern**: If the development server crashes on ELOOP errors, check for local build cache or docker folders and add them to the watch ignore list in `vite.config.ts`.
+
+### Combining absolute and relative styling on animated sliding panels
+- **Problem**: Animating elements with framer-motion that are absolutely positioned (`absolute right-0 top-0`) can be broken if a Tailwind `relative` class is accidentally appended at the end of the `className`. The `relative` style overrides the absolute placement, causing the drawer to display inline or be completely hidden.
+- **Fix**: Remove `relative` from absolutely positioned animated drawers.
+
+## Jul 10, 2026 — Ruthless Audit of `report (2).md` + OKF Hardening (tried & failed)
+
+### Grepping a facade instead of the implementation produces confident wrong verdicts
+- **Problem**: I twice reported a feature "missing" after grepping only the re-export. (a) Qdrant scalar quantization / native `Prefetch` + `FusionQuery(RRF)` / `create_payload_index` all exist — in `services/qdrant/{client,searcher,mmr}.py`, not in the `services/qdrant_service.py` facade I searched. (b) Document-level ingestion dedup exists at `ingest/pipeline.py:1752` (`check_source_exists` → `delete_by_source`); the call I found at `:1733` is a *separate* intra-batch MinHash pass. Both verdicts reached a handoff before I caught them.
+- **Fix**: Re-grep the implementation package, then correct the record explicitly.
+- **Pattern**: When a module is a thin delegating facade (`self._indexer.…`, `self._searcher.…`), grep the package it delegates to. A negative grep on a facade proves nothing. The third-party audit report made this exact error — most of its "missing" features exist one directory down.
+
+### Simulating path logic instead of executing it
+- **Problem**: I transcribed `okf_store.py`'s directory resolution into a `python -c` snippet, silently dropping its `while _base_path.name != "backend"` loop, and concluded `_OKF_DIR` pointed at a nonexistent `backend/services/memory/okf`. The file was correct all along.
+- **Fix**: Import the real symbol and print it: `from services.memory.okf_store import _OKF_DIR; print(_OKF_DIR, _OKF_DIR.exists())`.
+- **Pattern**: Never re-implement the logic you are testing. Import and execute the actual code. A retyped version is a new bug, not a measurement.
+
+### Asserting against a function name you never verified
+- **Problem**: A verification script asserted `'OllamaService' in inspect.getsource(ex._llm_generate)` and died with `AttributeError`. The extractor's LLM function is `_call_llm`.
+- **Fix**: `grep -n "^async def \|^def "` the module first.
+- **Pattern**: Confirm the symbol exists before writing the assertion. A failed assertion on a wrong name looks like a real failure and wastes a cycle.
+
+### Heuristics on doctrine text produce garbage summaries
+- **Problem**: To avoid editing nine files, I derived the OKF `description` field from the first non-heading body line. It yielded fragments: the glossary got *"compassion, vitality, and passion."*; `inner_truth` got a mid-definition clause. These would have been embedded and matched against seekers' questions.
+- **Fix**: Hand-wrote faithful one-sentence `description:` frontmatter for all five clean entries — which is what the OKF v0.1 spec recommends anyway. The heuristic survives only as a fallback for producers who omit the field.
+- **Pattern**: Laziness is for code, not for content that gets quoted to a user as scripture. Never let a regex summarize doctrine.
+
+### Tightening a validator breaks the fixtures that never carried the new field
+- **Problem**: Making `source` mandatory in `OKFQualityFilter.validate_entry()` broke `tests/test_quality_gate.py`, whose "valid entry" fixture had no `source`.
+- **Fix**: Fixed the fixture (its intent — "this entry is valid" — was still right) and added two new cases covering the uncitable and prompt-leakage rejections.
+- **Pattern**: When you add a required field, grep every construction site of that dict, including test fixtures. A broken test after a deliberate tightening is signal, not noise — read it before "fixing" it.
+
+### Fix the code, not the test, when a monkeypatch exposes a real assumption
+- **Problem**: Embedding `title + description` meant `compile_okf()` read `e["embed_text"]`, which raised `KeyError` under `test_okf_compiler.py` — it monkeypatches `_load_okf_entries` with a minimal dict.
+- **Fix**: `e.get("embed_text") or e["title"]` in the compiler. OKF says `description` is *recommended*, not required, so an external producer may legitimately omit it. The test was right; the compiler was brittle.
+- **Pattern**: A test that fails because your code assumed an optional key is telling you the code is wrong. Loosen the consumer, don't tighten the fixture.
+
+### The Bash tool's working directory persists across calls
+- **Problem**: An earlier `cd backend && pytest` silently changed cwd for every subsequent call. Repo-root greps returned "no matches" and `sed` reported "No such file or directory" — which I read as "the code doesn't exist" rather than "I'm in the wrong directory."
+- **Fix**: Prefix each command with an absolute `cd /path/to/repo`, or use absolute paths throughout.
+- **Pattern**: A grep returning nothing is ambiguous between "absent" and "wrong cwd". Print `pwd` when a search unexpectedly comes back empty.
+
+### A per-request object cannot hold a cache
+- **Problem**: `CacheUpdateStage` wrote to `PipelineCoordinator._vector_cache`, and a prior audit noted the write existed and declared the P90 cache "fixed". But `ChatRequestOrchestrator(container)` is constructed *inside* the route handler (`app/api/chat.py:176,230`), so each request built a fresh coordinator; entries were written and then garbage-collected. `_check_vector_cache` saw `size == 0` on every request, forever.
+- **Fix**: `@lru_cache(maxsize=1) def get_shared_vector_cache()` in `services/turboquant_cache.py`. Safe to share — `TurboQuantCache` already holds an `RLock`.
+- **Pattern**: Before trusting "the cache is written", check the *lifetime of the object that owns it*. A write into a per-request instance is a no-op with extra steps.
+
+### A shared cache key plus per-user prompt personalization is a data leak
+- **Problem**: `cache_key = cache_language_key(msg, lang)` → `"{lang}:{message}"`, carrying no `user_id` and no `tenant_id`, while `prepare_user_memory()` → `graph_stage.py:64` → `generation.py:213` injects the signed-in user's `memory_context` (core facts + recent turns) into the prompt. The personalized answer was written to the process-wide hot cache and to Redis exact/semantic caches, then replayed verbatim to the next person asking the same question. Not in the audit report.
+- **Fix**: One guard in `CacheUpdateStage` — skip the write when `ctx.state["memory_context"]` is non-empty. All four tiers share that write path. Regression test: `tests/test_cache_personalization_leak.py`.
+- **Pattern**: For every cache, ask what varies the *value* and confirm all of it is in the *key*. Trace the prompt back to its inputs, not just the request fields.
+
+### An LLM knowledge layer will happily serve you its own prompt
+- **Problem**: Four live `type: teaching` OKF entries were extraction artifacts. `sacred_secrets.md` contained *"The user wants me to analyze a spiritual teaching and list the top 3-5 distinct topics discussed."* `universal_intelligence.md` started mid-sentence and ended `_(Source: unknown)_`; `inner_truth.md` carried `> [RAPTOR Level: 1]`. Two had no `source`, so nothing could cite them. All were embedded and injected verbatim into answers — while `generation.py` rule 6 explicitly forbids the model from exposing that exact class of text.
+- **Fix**: Wired the previously-dead `OKFQualityFilter` into `OKFStore.list_entries()` (the one chokepoint the compiler and admin API both route through), rejecting non-doctrine `type`s, empty `source`, and leakage patterns. Quarantined the four to `memory/okf/staging/`. Bundle went 9 → 5 clean entries.
+- **Pattern**: Auto-extracted knowledge is unreviewed by definition. Gate it on *provenance* and *artifact patterns* at load time, not only at write time — and never let `rglob` sweep a `staging/` directory into a compiled index.
+
+### Verify a third-party audit before applying it; its most confident claims fail first
+- **Problem**: Of ~40 claims in `report (2).md`, roughly 20 were stale or simply false, several rated P0: prompt-cache poisoning (no such code), alphabetical sort before truncation (doesn't exist), blocking `semantic_cache.get()` in `retrieval.py` (no such call), six "dead" graph nodes (deliberately removed), missing `k8s/nginx/nginx.conf` (exists, 849 B), no healthcheck grace period (`--start-period=420s`), no memory compaction (`compact_memories()` at `memory_service.py:262`), and "still accumulates the full response before streaming" (`streaming_generator.py` does `async for line in response.aiter_lines(): yield content` — true token streaming has been live since `9dcbd244`).
+- **Fix**: Read the code for every claim before touching anything. Nine *real* bugs were found; four of them the report never mentioned.
+- **Pattern**: A static-analysis report is a list of hypotheses, not a task list. Blind-applying its diffs would have deleted working code and left the actual leak in place.
+
+### Skill text pasted into CLAUDE.md costs tokens on every single session
+- **Problem**: The entire `boris` skill (~28k tokens) had been pasted verbatim into all three CLAUDE.md files. The chain measured ~99,628 tokens; real project content was ~13k.
+- **Fix**: Truncated all three back to real content (−86,401 tokens/session). The skill still loads on demand via `/boris`.
+- **Pattern**: CLAUDE.md is injected into every session; skills load on demand. Never inline a skill into CLAUDE.md — and audit the chain's size (`wc -c` ÷ 4) when sessions feel heavy. This dwarfed every MCP schema combined.
+
 ## Jul 10, 2026 — Full Benchmark Ladder + Guardrail Fix + Dashboard
 
 ### Guardrail refusal detection needs polite redirect patterns

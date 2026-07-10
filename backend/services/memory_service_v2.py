@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from redis import asyncio as aioredis
 
+from app.metrics import MEMORY_LRU_EVICTIONS
 from services.memory_service import MemoryService
 from services.tenant_context import TenantContext
 
@@ -913,6 +914,7 @@ class MemoryServiceV2(MemoryService):
         # Evict oldest entries if over cap
         while len(self._lru_fallback) > _LRU_MAX_SIZE:
             self._lru_fallback.popitem(last=False)
+            MEMORY_LRU_EVICTIONS.inc()
 
     def _lru_get(self, key: str) -> Optional[str]:
         """Get value from in-memory LRU cache."""

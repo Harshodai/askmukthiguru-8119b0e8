@@ -21,6 +21,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app code
 COPY backend/ .
 
+# OKF compiled index lives at the repo root, not under backend/; retrieval.py
+# resolves it to /app/memory/okf/compiled.json inside the image. See backend/Dockerfile.
+COPY memory/ ./memory/
+
 # Production environment flags
 ENV ENV=production \
     IS_PRODUCTION=true \
