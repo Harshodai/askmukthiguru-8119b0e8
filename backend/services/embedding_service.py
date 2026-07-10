@@ -73,7 +73,7 @@ class EmbeddingService:
     """
 
     def __init__(self) -> None:
-        """Initialize with None models — will be loaded on first use."""
+        """Initialize with None models — will be loaded on first use or warm_up()."""
         import threading
 
         self._encoder = None
@@ -90,6 +90,14 @@ class EmbeddingService:
         self._embed_cache = EmbeddingCache(max_size=settings.embedding_cache_size)
         EMBEDDING_CACHE_SIZE.set(self._embed_cache.max_size)
         logger.info("Embedding service initialized (lazy load)")
+
+    def warm_up(self) -> None:
+        """Eagerly load all models at startup to avoid latency spikes on first request."""
+        logger.info("Warming up embedding service — loading all models...")
+        self._ensure_encoder()
+        self._ensure_reranker()
+        self._ensure_colbert()
+        logger.info("Embedding service warm-up complete")
 
     def _thread_setup(self) -> None:
         """Common PyTorch/CPU thread setup to keep memory low."""
