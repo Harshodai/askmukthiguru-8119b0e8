@@ -837,6 +837,27 @@ Before reporting issues, always verify all of these:
 - **Observation**: 8 teachers × 61 concepts × 10 practices × 2 directions = ~10K relationships generated in 2 Cypher UNWIND queries (< 1s). Direct Cypher is fast enough that batching within the query (UNWIND + MERGE) is sufficient — no need for external batching.
 - **Pattern**: For fully-connected bipartite graphs, Cypher UNWIND with parameter arrays is faster and simpler than Python loops with individual MERGE calls.
 
+## Jul 10, 2026 — OKF Markdown Quality Upgrade (17 files rewritten to match seed-file standard)
+
+### OKF template for teaching files: narrative hook, precise attribution, contrast, application
+- **Problem**: The 17 auto-extracted OKF entries used a templated "Summary → Key Teachings → Quotes → Related Concepts" structure. Summaries were shallow paraphrases, quotes had generic attribution ("Sri Preethaji & Sri Krishnaji"), and there was no application guidance or misinterpretation guardrail.
+- **Standard** (from seed files `beautiful_state.md`, `inner_truth_of_suffering.md`): Each file has a unique structure tailored to its content — opens with a story or direct insight, uses specific examples (Yesmi & Nomi, Big Bear Lake, Kublai Khan), distinguishes trigger from root cause, and closes with application.
+- **Applied**: Removed the templated "Summary" section from all files. Each now opens with a narrative hook grounded in the teaching's actual content. Added "What This Teaching Does Not Say" sections to prevent misinterpretation. Added "Application" sections for seekers. Fixed speaker attribution to match the actual teacher from the video. Tightened tag vocabulary to hyphenated multi-word format.
+
+### Every OKF entry must have a "What This Does Not Mean" guardrail
+- **Rationale**: Spiritual teachings are easily misinterpreted — "the beautiful state brings synchronicities" can sound like a prosperity gospel; "compassion awakens in stillness" can sound like withdrawal from the world. A dedicated contrast section prevents the RAG system from citing these entries in misleading contexts.
+- **Pattern**: Every teaching file should preview the most likely misinterpretation and explicitly refute it, ideally in a callout section near the end.
+
+### Speaker attribution must match the actual video, not generic defaults
+- **Problem**: Many auto-extracted files attributed quotes to "Sri Preethaji & Sri Krishnaji" or "O&O Academy" even when only one teacher spoke in the video. `experiencing_the_divine_manifest_and_unmanifest.md` had all quotes from Sri Preethaji but generic attribution.
+- **Fix**: Read the video transcript or source metadata to determine the actual speaker. Only use joint attribution when both teachers are speaking. Use specific context (e.g., "The Sun God teaches" for the yoga day discourse).
+- **Pattern**: Generic attribution in knowledge-base entries degrades citation trust. If the RAG system cites "Sri Krishnaji" for a teaching that was actually delivered by a guest speaker, that is a citation error.
+
+### Controlled tag vocabulary prevents retrieval fragmentation
+- **Problem**: Tags were inconsistent across files — some used hyphenated (`universal-intelligence`), some single-word (`yoga`), some had typos or synonyms (`awakening` vs `awake`). This fragments semantic retrieval because the tag field is a keyword index, not an embedding.
+- **Fix**: Standardised to hyphenated multi-word tags (`beautiful-state`, `universal-intelligence`, `self-realization`). Avoided single-word tags except for broad categories (`yoga`, `mantra`). Ensured every concept tag matches a defined concept in the ontology.
+- **Pattern**: OKF entries should pull tags from a controlled vocabulary defined in the ontology. If a tag doesn't exist as a concept in Neo4j, consider whether it should.
+
 ## Architectural Audit & Structural Knowledge (May 2026)
 
 Integrated the `code-review-graph` methodology to perform a deep-dive structural analysis of the Mukthi Guru codebase.

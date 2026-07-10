@@ -1,39 +1,45 @@
 ---
 type: teaching
 title: "Connecting to Universal Intelligence"
-source: "YouTube https://www.youtube.com/watch?v=8Xy8xsLIgAU"
+description: "Universal intelligence responds not to what you do or say, but to your state of being. The connection is forged in the quality of your inner condition."
+source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
 video_id: 8Xy8xsLIgAU
-tags: [universal-intelligence, suffering, bliss, connection, awakening]
+tags: [universal-intelligence, state-of-being, oneness, connection, yoga]
 ---
 
-## Summary
+# Connecting to Universal Intelligence
 
-Human beings possess limited powers and often live in suffering, which disconnects them from a higher reality. The human journey is to move from this suffering towards a state of bliss and connection. This transformation is possible only through cultivating a beautiful state of being, which serves as the gateway to accessing the power of universal intelligence. By establishing this connection, an individual unlocks greater potential, becoming free from the constraints of limited human understanding.
+The legend of Surya Namaskar begins with Hanuman asking the Sun God to teach him spiritual wisdom. The Sun God agrees on one condition: Hanuman must keep pace with him, because the Sun never stops moving.
 
-## Key Teachings
+Hanuman keeps his promise — agile, brilliant, mastering everything taught. When the learning is complete, he spontaneously performs the Surya Namaskar, chanting the Sun's twelve names, in love and gratitude to his teacher.
 
-- **The Human Condition of Limitation**: Human beings possess limited powers and often live in suffering, which disconnects them from a higher reality. The Sun God teaches that this disconnection is the fundamental challenge of human existence.
+In his ordinary state, Hanuman is small, with limited powers, like anyone else. But when he connects to universal intelligence and draws power from it, he becomes fearless, gigantic, capable of the impossible.
 
-- **The Journey from Suffering to Bliss**: The human journey is to move from suffering towards a state of bliss and connection. This is not merely an abstract concept but an actual transformation available to each person.
+## The Law of Connection
 
-- **Beautiful State of Being as Gateway**: This connection to universal intelligence is possible only through a beautiful state of being. The quality of one's inner state determines one's access to higher intelligence.
+The Sun God teaches: universal intelligence responds to you — not to your words, not to your actions — but to your **state of being**.
 
-- **Unlocking Greater Potential**: By connecting to universal intelligence, an individual unlocks greater potential, becoming free from the limitations that bind ordinary human consciousness.
+You can connect to universal intelligence and access its immense power only when you move into a beautiful state: love, peace, joy, or compassion. When you live in suffering states — emotionally painful states — you become disconnected from this divine field.
 
-## Quotes
+This is the hinge on which all spiritual practice turns. The question is never "What should I do?" but "What state am I in?"
 
-> "Human beings possess limited powers and often live in suffering, which disconnects them from a higher reality." — The Sun God
+## The Two Journeys
 
-> "The human journey is to move from this suffering towards a state of bliss and connection." — The Sun God
+Every human being's journey is to move:
+- From suffering states to bliss
+- From separation to connection
 
-> "This connection is possible only through a beautiful state of being, which allows one to access the power of the universal intelligence." — The Sun God
+These are not two journeys — they are the same movement seen from different angles. When suffering ends, connection naturally arises. When separation dissolves, bliss is what remains.
+
+## What This Teaching Does Not Say
+
+This is not about "positive thinking" or manifesting desired outcomes through willpower. The connection to universal intelligence is not earned by right behaviour or correct belief. It is a function of state, not of action. A person in a beautiful state who does nothing is more connected than a person in a stressed state who does everything "right."
+
+## Application
+
+Before any important conversation, decision, or action, check your state. If you are in stress, do not act from that place. Take three minutes for the serene mind practice. Return to the beautiful state. Then act. The action that comes from the right state carries a power that no action from the wrong state can match.
 
 ## Related Concepts
-
-- **Inner Stillness**: A state of being that supports the connection to universal intelligence by quieting the noise of ordinary mind.
-
-- **Strategies for Awakening**: Methods and disciplines pursued by humans to achieve a more beautiful existence and connection to higher reality.
-
-- **Prosperity and Love**: The desired outcomes that emerge when one awakens to greater power beyond techniques and connects to universal intelligence.
-
-- **Tactical Approach**: Short-term strategies that yield temporary results but are insufficient for the deep transformation required to access universal intelligence.
+- **Universal Intelligence**: The soul or being of the universe — the field that permeates all existence and responds to your state
+- **Beautiful State**: The condition of connection, peace, and inner joy through which universal intelligence becomes accessible
+- **Surya Namaskar**: The sun salutation — a spontaneous expression of gratitude from one who has connected to universal intelligence

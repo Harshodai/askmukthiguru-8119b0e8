@@ -1,23 +1,37 @@
 ---
 type: teaching
 title: "Power of Collective Meditation"
-source: "YouTube https://www.youtube.com/watch?v=AyUE-2Uh5Vg"
+description: "When millions move from separation-driven consciousness to oneness consciousness, the field shifts. Individual peace becomes collective transformation."
+source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)"
 video_id: AyUE-2Uh5Vg
-tags: [meditation, collective consciousness, beautiful state, jnana]
+tags: [collective-meditation, oneness, field, peace, transformation]
 ---
 
-## Summary
-This teaching explores the profound spiritual impact of meditating together as a collective. When individuals unite in meditation, their consciousness transcends individual limitations, creating a powerful field of shared awareness that can transform not only participants but also the broader environment. The practice leverages the concept that when hearts and minds align in stillness, a ripple effect of peace and clarity extends outward.
+# Power of Collective Meditation
 
-## Key Teachings
-- Collective meditation creates a unified field of consciousness that amplifies individual spiritual experiences (Sri Krishnaji teaches...)
-- The practice awakens intuition and connects participants to deeper truths beyond individual perception
-- When groups meditate together, they access a state of oneness that transcends the ego and personal boundaries
+When many people come together with a shared intention — infusing the field with dreams, hearts' desires, and the highest possibility of peace — they are not just adding their individual peace. They are transforming the field itself.
 
-## Quotes
-> "When we meditate together, we don't just add our individual peace—we multiply it, creating something far greater than the sum of its parts." — Sri Krishnaji
+## The Field Responds to Numbers
+
+One person in a beautiful state sends a coherent signal. Two people in a beautiful state, together, send a signal that is not double but exponential. The field is not linear. When enough individuals reach a critical mass of coherence, the field itself reorganises around that frequency.
+
+This is why collective practice has always been at the heart of spiritual traditions — not because numbers impress the divine, but because the field responds to the density of coherent consciousness.
+
+## The Critical Mass
+
+The question is always: how many does it take? Sri Preethaji and Sri Krishnaji teach that the number is smaller than we think. A relatively small number of people, consistently meditating from a beautiful state, can shift the quality of the field for an entire community, even an entire planet.
+
+This is not wishful thinking. It is the same principle as the hundredth monkey: when enough individuals embody a new pattern, the pattern becomes accessible to all.
+
+## What This Teaching Does Not Say
+
+Collective meditation is not a way to "fix" others or impose peace on them. It is not about gathering to pray for the world from a state of fear about the world. The shift must happen in the meditators first. The field only mirrors what is actually present — not what we wish were present.
+
+## Application
+
+Whenever you meditate alone, know that you are not meditating only for yourself. Your coherence enters the field. When you have the opportunity to meditate with others, take it. The amplification is real. The peace you cultivate is never private.
 
 ## Related Concepts
-- **Beautiful State**: A state of connection, peace, and inner joy free from suffering, often accessed through collective meditation
-- **Awake Intuition**: The intuitive knowing that emerges when consciousness is transformed through unified practice
-- **Inner Stillness**: The foundational stillness cultivated individually and amplified collectively
+- **Beautiful State**: The coherent signal that each individual contributes to the collective field
+- **Oneness**: The recognition that individual and collective transformation are not separate
+- **Field**: The responsive substrate of consciousness that mirrors the state of all who participate in it

@@ -1,23 +1,37 @@
 ---
 type: teaching
 title: "Inner Peace and Consciousness"
-source: "YouTube https://www.youtube.com/watch?v=pmSPHJfg3AU"
+description: "Peace is not a break between crises. It is the native quality of consciousness when it recognises itself as one field, not many separate fragments."
+source: "YouTube — Peace Festival (https://www.youtube.com/watch?v=pmSPHJfg3AU)"
 video_id: pmSPHJfg3AU
-tags: [peace, consciousness, meditation, beautiful state, inner stillness]
+tags: [peace, consciousness, oneness, universal-intelligence, awakening]
 ---
 
-## Summary
-This teaching explores the nature of inner peace as a fundamental aspect of spiritual consciousness, drawing from the O&O Academy's teachings on achieving a Beautiful State through the power of consciousness. Sri Preethaji and Sri Krishnaji guide seekers toward understanding peace not merely as an emotional state but as a profound connection to one's true nature (Atma).
+# Inner Peace and Consciousness
 
-## Key Teachings
-- Peace as a State of Being: True peace transcends ordinary emotional experiences. Sri Preethaji teaches that lasting peace comes from connecting with the power of consciousness rather than seeking external circumstances to change.
-- The Beautiful State Practice: This teaching emphasizes that inner stillness is the foundation for experiencing peace. Through meditation and kriya practices, practitioners can access deeper levels of consciousness where peace naturally arises.
-- Consciousness as the Source: Sri Krishnaji explains that the power of consciousness is the origin of all positive states, including wisdom, peace, and transformation. Understanding this inner source allows one to tap into unlimited potential for growth.
+Peace is not the brief respite between two chaotic events in life. Sri Preethaji and Sri Krishnaji teach that this misunderstanding — treating peace as a gap between storms — is the very reason peace never lasts.
 
-## Quotes
-> "Peace is not something you achieve; it is something you discover when you connect with the deeper dimensions of your consciousness." — Sri Preethaji
+## The Field
+
+Science is now validating what mystics have always known: we are part of a field — a field of energy, a field of consciousness. The deeper discovery is that we are not merely *in* the field; we *are* the field. Every atom of every molecule of every cell in our bodies is constantly emerging and collapsing into this field.
+
+This changes everything. We can no longer say "the field is out there." We must say "we are the field."
+
+## The Mirror
+
+The field knows only two states: peace-and-coherence, or chaos-and-anger. It mirrors back what we feed it. When we want to bring about change in the world and attempt that change through anger, the field cannot respond with peace. The means must match the end.
+
+This is the deepest law of consciousness: what you feed the field is what the field returns. Not as punishment — as resonance.
+
+## The Next Step in Evolution
+
+When many people come together with shared intention — infusing the field with dreams, hearts' desires, and the highest possibility of peace — something new emerges. This is the next step in human evolution. Not the evolution of the physical body, but the evolution of consciousness itself — the ability to create in the world what we dream from within.
+
+## Application
+
+What do you feed the field? Watch your inner state throughout the day. Every moment of peace you cultivate is not just for you — it enters the field and adds to the coherence available to all.
 
 ## Related Concepts
-- Beautiful State: A state of connection, peace, and inner joy free from suffering, accessible through spiritual practice
-- Inner Stillness: The quiet space within consciousness where true wisdom and peace reside
-- Power of Consciousness: The transformative force that enables alignment with one's highest potential
+- **Beautiful State**: The coherent signal that feeds the field with peace
+- **Universal Intelligence**: The field itself — the responsive substrate of all existence
+- **Oneness**: The recognition that we are not separate blocks of matter but one consciousness
