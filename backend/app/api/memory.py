@@ -345,6 +345,8 @@ class KGNode(BaseModel):
     label: str
     type: str
     teacher: str | None = None
+    state_category: str | None = None
+    content: str | None = None
 
 
 class KGEdge(BaseModel):
@@ -362,13 +364,13 @@ class PersonalKGResponse(BaseModel):
 @router.get("/memory/knowledge-graph", response_model=PersonalKGResponse)
 async def personal_knowledge_graph_endpoint(
     request: Request,
+    view: str = "personal",
     container: ServiceContainer = Depends(get_container),
 ) -> PersonalKGResponse:
     """Return the user's personal knowledge graph.
 
-    With Supabase auth: returns full graph (memories + ontology concepts + edges).
-    Without auth (public): returns ontology concepts only (Teachers, Concepts, Practices).
-    Public view shows the spiritual knowledge base structure even to non-logged-in users.
+    With Supabase auth: returns personal consciousness graph if view == "personal".
+    Supports view="ontology" to get the public teaching ontology.
     """
     svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
     if svc is None:
@@ -388,7 +390,13 @@ async def personal_knowledge_graph_endpoint(
     except Exception:
         pass
 
-    result = await svc.build_personal_knowledge_graph(user_id)
+    # Ensure build_personal_knowledge_graph is called with view param if supported
+    try:
+        result = await svc.build_personal_knowledge_graph(user_id, view=view)
+    except TypeError:
+        # Fallback if old service v1 doesn't support view param
+        result = await svc.build_personal_knowledge_graph(user_id)
+
     return PersonalKGResponse(
         nodes=[KGNode(**n) for n in result["nodes"]],
         edges=[KGEdge(**e) for e in result["edges"]],

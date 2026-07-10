@@ -53,6 +53,7 @@ data/gptcache/
 data/lightrag/kv_store_*.json
 backend/data/feedback.jsonl
 backend/data/lightrag/kv_store_*.json
+data/feedback.jsonl
 
 # OS
 Thumbs.db

@@ -20,7 +20,6 @@ import { chatErrorBus } from '@/lib/chatErrorBus';
 import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
 import { telemetryEvents } from '@/lib/telemetryEvents';
-import { queueMemoryExtraction } from '@/lib/aiService';
 import { ChatErrorBanner } from './ChatErrorBanner';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
@@ -913,14 +912,6 @@ export const ChatInterface = () => {
           setStreamingContent('');
 
           setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
-
-          // ── Memory: fire-and-forget extraction ───────────────────────────
-          // Offload to aiService so ChatInterface stays clean.
-          queueMemoryExtraction({
-            userMessage: userMessage.content,
-            assistantMessage: fullContent,
-            conversationId: currentConversation?.id,
-          });
 
           // Update meditation step from streaming metadata
           if (streamedMedStep !== undefined) {

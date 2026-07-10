@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -9,16 +9,32 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+class EpisodicMemoryDetail(BaseModel):
+    insight: str = Field(
+        description="A concise 3-6 word summary of the user's reflection or situation (e.g. 'Work Stress Anxiety', 'Daily Meditation Practice', 'Gratitude for Family'). Do NOT use 'User asked X'. Write in first person or noun phrase form representing their state."
+    )
+    content: str = Field(
+        description="The full context of the reflection or insight."
+    )
+    state_category: str = Field(
+        description="The state of consciousness this memory belongs to: 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'."
+    )
+    related_concepts: list[str] = Field(
+        description="List of related Ekam concept IDs (e.g., 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection')."
+    )
+
+
 class MemoryExtraction(BaseModel):
     core_memories: list[str] = Field(
         description="A list of 0 or more permanent facts about the user (e.g., name, location, spiritual background, primary life concerns) that were newly revealed in this transcript. Do not duplicate existing knowledge. Return empty list if no new facts are found."
     )
-    episodic_memories: list[str] = Field(
-        description="A list of 0 or more specific episodic insights, reflections, or goals shared by the user in this transcript (e.g., 'User wants to start daily Soul Sync', 'User felt anxious about work'). Return empty list if none."
+    episodic_memories: list[EpisodicMemoryDetail] = Field(
+        description="A list of 0 or more specific episodic insights, reflections, or goals shared by the user in this transcript, with state classifications. Return empty list if none."
     )
     session_summary: str = Field(
         description="A concise 1-2 sentence summary of this conversation session's core topics and user state."
     )
+
 
 
 class MemoryService:
@@ -121,6 +137,7 @@ class MemoryService:
         is_core: bool = False,
         source: str = "explicit",
         run_compaction: bool = True,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Manually add a memory (either core or episodic)."""
         if not self._supabase:
@@ -142,16 +159,25 @@ class MemoryService:
                     self._embedding_service.encode_single_full, content
                 )
                 embedding = emb_dict["dense"]
+                insert_data = {
+                    "user_id": user_id,
+                    "content": content,
+                    "embedding": embedding,
+                    "source": source,
+                }
+                if metadata:
+                    if "claim" in metadata:
+                        insert_data["claim"] = metadata["claim"]
+                    elif "insight" in metadata:
+                        insert_data["claim"] = metadata["insight"]
+                    if "confidence" in metadata:
+                        insert_data["confidence"] = metadata["confidence"]
+                    if "decay_score" in metadata:
+                        insert_data["decay_score"] = metadata["decay_score"]
+
                 result = await asyncio.to_thread(
                     self._supabase.table("guru_memories")
-                    .insert(
-                        {
-                            "user_id": user_id,
-                            "content": content,
-                            "embedding": embedding,
-                            "source": source,
-                        }
-                    )
+                    .insert(insert_data)
                     .execute
                 )
                 res_data = (
@@ -465,12 +491,17 @@ class MemoryService:
                 f"Analyze this conversation transcript between Mukthi Guru and a seeker.\n"
                 f"Extract:\n"
                 f"1. core_memories: List of 0+ permanent facts about the user (name, location, spiritual goals). Leave empty [] if none found.\n"
-                f"2. episodic_memories: List of 0+ specific insights or reflections shared in this session. Leave empty [] if none.\n"
+                f"2. episodic_memories: List of 0+ specific episodic insights or reflections shared in this session.\n"
+                f"   For each episodic memory, provide:\n"
+                f"     - insight: A concise 3-6 word summary (e.g. 'Work Stress Anxiety', 'Daily Chanting Practice'). Do NOT use 'User asked X' or 'Seeker says Y'. Make it a short noun phrase representing their state.\n"
+                f"     - content: The full context/claim of the memory.\n"
+                f"     - state_category: Categorize as 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'.\n"
+                f"     - related_concepts: List of concept names this relates to (e.g., 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection').\n"
                 f"3. session_summary: 1-2 sentence summary of the session topics and user state.\n"
                 f"{dedup_section}\n\n"
                 f"Transcript:\n{transcript}\n\n"
                 f"Return ONLY this JSON (fill in the values):\n"
-                f'{{"core_memories": [], "episodic_memories": [], "session_summary": "..."}}'
+                f'{{"core_memories": [], "episodic_memories": [{{"insight": "...", "content": "...", "state_category": "...", "related_concepts": []}}], "session_summary": "..."}}'
             )
 
             response = await asyncio.wait_for(
@@ -512,14 +543,45 @@ class MemoryService:
             # Validate types — models occasionally return strings instead of lists
             if isinstance(core_mems, str):
                 core_mems = [core_mems] if core_mems.strip() else []
+            
+            validated_episodic = []
             if isinstance(episodic_mems, str):
-                episodic_mems = [episodic_mems] if episodic_mems.strip() else []
+                if episodic_mems.strip():
+                    validated_episodic.append(
+                        EpisodicMemoryDetail(
+                            insight=episodic_mems[:30],
+                            content=episodic_mems,
+                            state_category="Neutral",
+                            related_concepts=[]
+                        )
+                    )
+            elif isinstance(episodic_mems, list):
+                for m in episodic_mems:
+                    if isinstance(m, str):
+                        validated_episodic.append(
+                            EpisodicMemoryDetail(
+                                insight=m[:30],
+                                content=m,
+                                state_category="Neutral",
+                                related_concepts=[]
+                            )
+                        )
+                    elif isinstance(m, dict):
+                        validated_episodic.append(
+                            EpisodicMemoryDetail(
+                                insight=m.get("insight", "")[:40] or m.get("content", "")[:30],
+                                content=m.get("content", ""),
+                                state_category=m.get("state_category", "Neutral"),
+                                related_concepts=m.get("related_concepts", [])
+                            )
+                        )
+
             if not isinstance(session_sum, str):
                 session_sum = "Conversation session completed."
 
             extracted = MemoryExtraction(
                 core_memories=[m for m in core_mems if isinstance(m, str) and m.strip()],
-                episodic_memories=[m for m in episodic_mems if isinstance(m, str) and m.strip()],
+                episodic_memories=validated_episodic,
                 session_summary=session_sum.strip() or "Conversation session completed.",
             )
             logger.info(
@@ -541,14 +603,19 @@ class MemoryService:
                 await self.add_explicit(user_id, content.strip(), is_core=True)
 
         # Write episodic memories to DB
-        for content in extracted.episodic_memories:
-            if content.strip():
+        for mem in extracted.episodic_memories:
+            if mem.content.strip():
                 await self.add_explicit(
                     user_id,
-                    content.strip(),
+                    mem.content.strip(),
                     is_core=False,
                     source="extracted",
                     run_compaction=False,
+                    metadata={
+                        "insight": mem.insight,
+                        "state_category": mem.state_category,
+                        "related_concepts": mem.related_concepts,
+                    }
                 )
 
         # Run memory compaction check

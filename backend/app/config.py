@@ -389,7 +389,7 @@ class Settings(BaseSettings):
     # LightRAG per-call timeout headroom. LightRAG makes internal LLM calls for entity
     # extraction at query time — cap tightly to prevent single-query 30s hangs.
     # For tier2_simple queries, graph_stage.py skips LightRAG entirely.
-    lightrag_retrieval_timeout: int = 8  # reduced from 30 — saves up to 22s per query
+    lightrag_retrieval_timeout: int = 3  # reduced from 8 — KG has ~5 edges, negligible retrieval lift; re-raise once >1,000 edges ingested
 
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces

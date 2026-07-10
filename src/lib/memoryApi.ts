@@ -67,6 +67,8 @@ export interface KGNode {
   label: string;
   type: string;
   teacher?: string | null;
+  state_category?: string | null;
+  content?: string | null;
 }
 
 export interface KGEdge {
@@ -334,7 +336,7 @@ export const memoryApi = {
    *  With auth: full graph (User + Memories + Concepts + edges).
    *  Without auth: public ontology view (Concepts/Teachers/Practices only).
    */
-  async getKnowledgeGraph(): Promise<{ nodes: KGNode[]; edges: KGEdge[] }> {
+  async getKnowledgeGraph(view = 'personal'): Promise<{ nodes: KGNode[]; edges: KGEdge[] }> {
     const BACKEND = import.meta.env.VITE_BACKEND_URL || '';
     if (!BACKEND) return { nodes: [], edges: [] };
 
@@ -345,7 +347,7 @@ export const memoryApi = {
     }
 
     try {
-      const res = await fetch(`${BACKEND}/api/memory/knowledge-graph`, { headers });
+      const res = await fetch(`${BACKEND}/api/memory/knowledge-graph?view=${view}`, { headers });
       if (!res.ok) return { nodes: [], edges: [] };
       return await res.json();
     } catch {
