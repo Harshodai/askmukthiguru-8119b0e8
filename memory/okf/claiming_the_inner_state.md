@@ -6,10 +6,6 @@ video_id: b-MkLkpTeVY
 tags: [inner-state, beautiful-state, compassion, claiming, proclamation]
 ---
 
-# Claiming the Inner State
-
-# Claiming the Inner State
-
 ## Summary
 This teaching explores the fundamental importance of the inner state and the spiritual goal of claiming and proclaiming it. Sri Preethaji and Sri Krishnaji emphasize that the inner state is the foundation of all true transformation, and that practitioners are called to actively claim this state as their own reality.
 

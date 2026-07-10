@@ -807,6 +807,36 @@ Before reporting issues, always verify all of these:
 - **Root Cause**: The background model prewarming thread (`asyncio.to_thread(prewarm_models)`) crashes if `OCR_LANGUAGES` includes incompatible language pairs (e.g., Telugu `te` and Hindi `hi`). EasyOCR raises `Telugu is only compatible with English`.
 - **Action**: Ensure `OCR_LANGUAGES` (in `.env` and `docker-compose.yml`) only contains compatible languages (e.g., `en,hi` or `en,te`). Do not mix incompatible scripts in a single EasyOCR reader instance.
 
+## Jul 10, 2026 — OKF Staging Cleanup, Ontology Expansion, and Quality Research
+
+### LLM reasoning artifacts must be stripped before using output as metadata
+- **Problem**: `_extract_topics` in ingest/pipeline.py used raw LLM output (e.g., "Topic ideas: Brainstorming... Select the Top 3...") as topic labels for Qdrant payloads. ~4,800 Qdrant points had garbage topic strings containing LLM chain-of-thought, planning, and meta-commentary.
+- **Fix**: Parse LLM output as JSON array with `json.loads()`, strip reasoning before the first `[`, and only accept valid strings with `isinstance(v, str) and len(v) < 100`. Fallback to `["General"]` if parsing fails.
+- **Pattern**: Never store raw LLM output directly as user-facing or filterable metadata. Always parse, validate, and sanitize through a typed schema before writing to the vector database.
+
+### Staging directory protects against unreviewed entries contaminating production
+- **Problem**: Entries in `memory/okf/staging/` were swept by `rglob("*")` into the compiled index. Artifacts with LLM meta-commentary (`"The user wants me to...`, `_(Source: unknown)_`), empty `source`, or non-doctrine `type` were published alongside genuine teachings.
+- **Fix**: `OKFStore.list_entries()` uses non-recursive glob (`glob()` not `rglob()`) to exclude staging. Only entries manually moved to `memory/okf/` root are compiled. Rejected entries are deleted, not hidden.
+- **Pattern**: Any "pending review" directory must be excluded from production globs at the filesystem level, not just filtered at parse time. A non-recursive glob is the simplest guard.
+
+### OKF reviewer must inspect the first 3 lines for meta-commentary
+- **Rejection heuristic**: If the first 3 lines of an OKF body contain `"user wants"`, `"you need to"`, `"analyze"`, or `"source: unknown"`, the entry is an extraction artifact, not a teaching. Of 32 staged entries, 16 (50%) were rejected by this rule alone.
+- **Pattern**: 50% rejection rate is expected for auto-extracted content. Budget 2x the desired output count for the extraction pipeline.
+
+### DOCTRINE_SYNONYMS must be synchronized across 3+ files
+- **Problem**: `DOCTRINE_SYNONYMS` (or `_DOCTRINE_SYNONYMS`) is inlined in `rag/nodes/utils.py`, `scripts/extract_okf_from_stores.py`, and `ingest/pipeline.py`. Adding synonyms to one file without updating the others causes inconsistent query expansion and Neo4j entity resolution.
+- **Fix**: After every edit to DOCTRINE_SYNONYMS, grep all 3 files and apply the same diff. Consider extracting to a shared module in the future.
+- **Pattern**: Inlined constants shared across independent modules are a refactor signal. When adding entries to a constant duplicated in N files, update all N in the same session.
+
+### Seed scripts must use direct Cypher, not get_container(), when models are heavy
+- **Problem**: `seed_ontology.py` loaded `ServiceContainer` → `EmbeddingService` → BGE-M3 model (1.4GB RAM) just to run Cypher queries. This caused OOM in the Docker container and failed silently.
+- **Fix**: Use `GraphDatabase.driver()` directly with `session.run()` for pure Cypher operations. Only load ML models when you need embeddings.
+- **Pattern**: When a script's only need is database writes, bypass the service container and use the database driver directly. Loading the full ML stack for a schema seed wastes memory and startup time.
+
+### Neo4j seed with 10K+ relationships must batch Cypher operations
+- **Observation**: 8 teachers × 61 concepts × 10 practices × 2 directions = ~10K relationships generated in 2 Cypher UNWIND queries (< 1s). Direct Cypher is fast enough that batching within the query (UNWIND + MERGE) is sufficient — no need for external batching.
+- **Pattern**: For fully-connected bipartite graphs, Cypher UNWIND with parameter arrays is faster and simpler than Python loops with individual MERGE calls.
+
 ## Architectural Audit & Structural Knowledge (May 2026)
 
 Integrated the `code-review-graph` methodology to perform a deep-dive structural analysis of the Mukthi Guru codebase.

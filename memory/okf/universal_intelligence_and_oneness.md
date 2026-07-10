@@ -6,10 +6,6 @@ video_id: 8Xy8xsLIgAU
 tags: [atma, oneness, universal-intelligence, yoga]
 ---
 
-# Universal Intelligence and Oneness
-
-# Universal Intelligence and Oneness
-
 ## Summary
 Universal Intelligence refers to the soul or being of the universe—an innate, divine field of intelligence present in every sentient being and pervading all aspects of existence. This concept is celebrated during International Yoga Day, which honors this universal spirit that connects all of humanity and life. The practice of yoga embodies oneness, recognizing the fundamental interconnectedness among all beings.
 

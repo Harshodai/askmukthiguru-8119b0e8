@@ -6,10 +6,6 @@ video_id: tDcy09esbe8
 tags: [meditation, stillness, inner truth, interconnectedness, unity]
 ---
 
-# Stillness and Inner Truth
-
-# Stillness and Inner Truth
-
 ## Summary
 This teaching explores the connection between stillness and the discovery of inner truth, within the context of interconnectedness and unity. The core idea is that moments of stillness reveal a deeper understanding of oneself and one's place within the larger whole.
 
