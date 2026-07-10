@@ -36,8 +36,8 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,
     task_track_started=True,
-    task_soft_time_limit=600,
-    task_time_limit=900,
+    task_soft_time_limit=1800,
+    task_time_limit=2400,
     # Exponential backoff on retry: 2^retry_count * base_delay
     task_acks_on_failure_or_timeout=True,
 )

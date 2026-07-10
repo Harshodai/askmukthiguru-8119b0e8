@@ -5,11 +5,14 @@ description: "When the body faces crisis, the state of consciousness determines 
 source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=pPHQMD3w9-s)"
 video_id: pPHQMD3w9-s
 tags: [beautiful-state, health, crisis, consciousness, resilience]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=pPHQMD3w9-s"
 ---
 
 # Beautiful State and Health Challenges
 
-Every human being sends out a signal through their state of being. That signal — not their words, not their actions — is what the universe responds to. Sri Preethaji and Sri Krishnaji teach that this is the deepest truth about how life meets us: we broadcast our inner condition constantly, and reality arranges itself around the broadcast.
+Every human being sends out a signal through their state of being. That signal — not their words, not their actions — is what the universe responds to. Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] teach that this is the deepest truth about how life meets us: we broadcast our inner condition constantly, and reality arranges itself around the broadcast.
 
 ## The Signal
 
@@ -39,6 +42,6 @@ When facing a health challenge:
 3. From that place, ask: what is needed now? The answer will come — not as anxious planning but as calm intuition.
 
 ## Related Concepts
-- **Beautiful State**: The state of connection, peace, and inner joy from which one meets all of life's challenges
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The state of connection, peace, and inner joy from which one meets all of life's challenges
 - **Inner Stillness**: The unshakeable ground that remains steady even when the body is in crisis
 - **Awake Intuition**: The inner knowing that emerges when the mind is quiet, often the first guidance received

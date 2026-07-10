@@ -5,9 +5,14 @@ description: "The spirit of yoga is oneness — the oneness of humanity and the 
 source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
 video_id: 8Xy8xsLIgAU
 tags: [oneness, universal-intelligence, yoga, atma, humanity]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=8Xy8xsLIgAU"
 ---
 
 # Universal Intelligence and Oneness
+
+*Teacher: [[sri-preethaji]] • [[sri-krishnaji]]*
 
 The celebration of International Yoga Day is not merely a cultural event. It is a recognition of something fundamental: universal intelligence, the soul or being of the universe, is the ground in which all of existence is rooted.
 
@@ -35,7 +40,7 @@ Oneness is not sameness. Recognising universal intelligence in all beings does n
 In your meditation, when you feel the sense of separate self dissolve — even for a moment — recognise that moment as a glimpse of oneness. Do not cling to it, but do not dismiss it. It is a direct taste of what the Sun God taught. Let it inform your day.
 
 ## Related Concepts
-- **Universal Intelligence**: The soul of the universe — the one ground of all existence
+- **Universal Intelligence** ([[shared/universal_intelligence]]): The soul of the universe — the one ground of all existence
 - **Atma**: The individual consciousness that, when seen clearly, is recognised as identical with universal intelligence
 - **Yoga**: The path of union — the practical means by which the realisation of oneness is attained
 - **Humanity**: The collective expression of universal intelligence in human form

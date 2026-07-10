@@ -81,11 +81,24 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
-def _okf_match(query: str, limit: int = 3) -> list[dict]:
-    """Semantic match via cosine similarity on title embeddings; keyword fallback."""
+def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
+    """Semantic match via cosine similarity on title embeddings; keyword fallback.
+
+    When *teacher* is provided (``sri-preethaji`` | ``sri-krishnaji``), only entries
+    whose frontmatter ``teacher`` field matches — or is ``"both"`` — are returned.
+    """
     entries = _load_okf_entries()
     if not entries:
         return []
+
+    # Teacher filter — narrow to entries matching the requested guru
+    if teacher:
+        entries = [
+            e for e in entries
+            if e.get("teacher") in (teacher, "both")
+        ]
+        if not entries:
+            return []
 
     # Try semantic matching first
     try:
@@ -107,11 +120,12 @@ def _okf_match(query: str, limit: int = 3) -> list[dict]:
                         "source": e.get("source", "OKF"),
                         "title": e["title"],
                         "type": e.get("type", "okf"),
+                        "teacher": e.get("teacher", "both"),
                     },
                 })
             return docs
     except Exception:
-        pass  # ponytail: non-fatal; fall back to keyword
+        pass
 
     # Keyword fallback — naive word overlap when EmbeddingService unavailable
     import re as _re
@@ -132,6 +146,7 @@ def _okf_match(query: str, limit: int = 3) -> list[dict]:
                 "source": e.get("source", "OKF"),
                 "title": e["title"],
                 "type": e.get("type", "okf"),
+                "teacher": e.get("teacher", "both"),
             },
         })
     return docs
@@ -1095,7 +1110,14 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         and intent not in ("CASUAL", "GREETING")
     ):
         try:
-            okf_docs = _okf_match(base_question, limit=3)
+            # Teacher routing: detect guru mention in query for OKF filtering
+            _ql = base_question.lower()
+            _teacher = None
+            if "sri preethaji" in _ql or "preethaji" in _ql:
+                _teacher = "sri-preethaji"
+            elif "sri krishnaji" in _ql or "krishnaji" in _ql:
+                _teacher = "sri-krishnaji"
+            okf_docs = _okf_match(base_question, limit=3, teacher=_teacher)
             if okf_docs:
                 logger.info("OKF injection: adding %d curated entries", len(okf_docs))
                 all_docs = okf_docs + all_docs

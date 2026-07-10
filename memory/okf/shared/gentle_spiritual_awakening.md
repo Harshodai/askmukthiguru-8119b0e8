@@ -5,11 +5,14 @@ description: "Awakening need not be violent or dramatic. The Kundalini rises as 
 source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=LrMyaDh_MSo)"
 video_id: LrMyaDh_MSo
 tags: [awakening, kundalini, gentle, consciousness, spiritual-experience]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=LrMyaDh_MSo"
 ---
 
 # Gentle Spiritual Awakening
 
-The popular image of spiritual awakening is dramatic — lightning bolts, cosmic visions, the shattering of the old self. But Sri Preethaji and Sri Krishnaji teach that awakening can arrive gently, as naturally as dawn, without violence or disruption.
+The popular image of spiritual awakening is dramatic — lightning bolts, cosmic visions, the shattering of the old self. But Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] teach that awakening can arrive gently, as naturally as dawn, without violence or disruption.
 
 ## The Many Faces of Kundalini
 
@@ -37,6 +40,6 @@ A gentle awakening is not less real than a dramatic one. Intensity is not a meas
 Do not chase experiences. Do not measure your progress by the intensity of your meditations. Simply practice with consistency and sincerity. The awakening will come in whatever form is right for you — and it may be so gentle that you almost miss it. That is fine. The important thing is that it comes.
 
 ## Related Concepts
-- **Beautiful State**: The native condition that awakening reveals — not as a foreign achievement but as a homecoming
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The native condition that awakening reveals — not as a foreign achievement but as a homecoming
 - **Kundalini**: The dormant spiritual energy whose awakening often accompanies the deepening of consciousness
 - **Meditation**: The steady practice that prepares the ground for awakening, whether gentle or dramatic

@@ -32,10 +32,11 @@ def _load_okf_entries() -> list[dict[str, Any]]:
             "path": str(e.path),
             "type": e.type,
             "title": e.title,
-            "description": e.description,  # OKF v0.1 recommended field
+            "description": e.description,
             "embed_text": e.embed_text,
             "tags": e.tags,
             "source": e.source,
+            "teacher": e.teacher,
             "body": e.body,
         }
         for e in store.list_entries()
@@ -86,7 +87,8 @@ def compile_okf() -> Path:
             "description": e.get("description", ""),
             "tags": e["tags"],
             "source": e["source"],
-            "body": e["body"][:2000],  # truncate for size
+            "teacher": e.get("teacher", "both"),
+            "body": e["body"][:2000],
             "embedding": emb if embed_ok else [],
         })
 

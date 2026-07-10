@@ -55,9 +55,13 @@ class MemoryService:
         self._search_failures = 0
         self._search_disabled = False
 
+    @staticmethod
+    def _is_anonymous(user_id: str | None) -> bool:
+        return not user_id or user_id == "anonymous"
+
     async def get_core(self, user_id: str) -> list[dict[str, Any]]:
         """Retrieve core memories for a user."""
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return []
         try:
             result = await asyncio.to_thread(
@@ -76,7 +80,7 @@ class MemoryService:
         self, user_id: str, query: str, limit: int = 5, min_similarity: float = 0.6
     ) -> list[dict[str, Any]]:
         """Search episodic memories using semantic vector search via the match_user_memories_by_user RPC."""
-        if not self._supabase or not self._embedding_service or self._search_disabled:
+        if not self._supabase or not self._embedding_service or self._search_disabled or self._is_anonymous(user_id):
             return []
         try:
             # Generate query embedding
@@ -114,7 +118,7 @@ class MemoryService:
 
     async def recent_summaries(self, user_id: str, limit: int = 3) -> list[dict[str, Any]]:
         """Retrieve recent session summaries for a user."""
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return []
         try:
             result = await asyncio.to_thread(
@@ -140,7 +144,7 @@ class MemoryService:
         metadata: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Manually add a memory (either core or episodic)."""
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return {}
         try:
             if is_core:
@@ -175,11 +179,25 @@ class MemoryService:
                     if "decay_score" in metadata:
                         insert_data["decay_score"] = metadata["decay_score"]
 
-                result = await asyncio.to_thread(
-                    self._supabase.table("guru_memories")
-                    .insert(insert_data)
-                    .execute
-                )
+                try:
+                    result = await asyncio.to_thread(
+                        self._supabase.table("guru_memories")
+                        .insert(insert_data)
+                        .execute
+                    )
+                except Exception as insert_err:
+                    err_str = str(insert_err)
+                    # PostgREST schema cache may lack new columns — retry without claim/confidence/decay
+                    if "PGRST204" in err_str or "Could not find" in err_str:
+                        for col in ("claim", "confidence", "decay_score"):
+                            insert_data.pop(col, None)
+                        result = await asyncio.to_thread(
+                            self._supabase.table("guru_memories")
+                            .insert(insert_data)
+                            .execute
+                        )
+                    else:
+                        raise
                 res_data = (
                     result.data[0] if result and hasattr(result, "data") and result.data else {}
                 )
@@ -194,7 +212,7 @@ class MemoryService:
         self, user_id: str, page: int = 1, page_size: int = 50
     ) -> dict[str, Any]:
         """List episodic memories for a user, paginated."""
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return {"memories": [], "total": 0}
         try:
             # Get total count first
@@ -229,7 +247,7 @@ class MemoryService:
 
     async def forget(self, user_id: str, memory_id: str) -> bool:
         """Forget/delete a memory by its ID (checks both core and episodic)."""
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return False
         try:
             # Try core memory first
@@ -264,7 +282,7 @@ class MemoryService:
         Check the total count of episodic memories for a user.
         If it exceeds 15, consolidate them using LLM into at most 8 high-quality memories.
         """
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return
 
         try:
@@ -421,7 +439,7 @@ class MemoryService:
         Extract core memories, episodic memories, and session summaries from a conversation transcript,
         then persist them to the database.
         """
-        if not self._supabase:
+        if not self._supabase or self._is_anonymous(user_id):
             return
 
         # Prepare conversation transcript string

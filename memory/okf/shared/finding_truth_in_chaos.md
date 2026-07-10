@@ -5,11 +5,14 @@ description: "The truth is that we are the true Self, distinct from the experien
 source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)"
 video_id: AyUE-2Uh5Vg
 tags: [self-realization, atma, moksha, truth, consciousness, separation]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=AyUE-2Uh5Vg"
 ---
 
 # Finding Truth in Chaos
 
-Peace is not the brief respite between two chaotic events in life. Sri Preethaji and Sri Krishnaji open this teaching with a stark diagnosis: humanity faces a fourth destiny. On one side is the written-down abysmal depth of global crisis — mental health, economic collapse, pandemic, climate destruction. On the other side is a possibility that depends entirely on whether millions of us move from separation-driven consciousness to oneness consciousness.
+Peace is not the brief respite between two chaotic events in life. Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] open this teaching with a stark diagnosis: humanity faces a fourth destiny. On one side is the written-down abysmal depth of global crisis — mental health, economic collapse, pandemic, climate destruction. On the other side is a possibility that depends entirely on whether millions of us move from separation-driven consciousness to oneness consciousness.
 
 ## The Revolution Called Awakening
 

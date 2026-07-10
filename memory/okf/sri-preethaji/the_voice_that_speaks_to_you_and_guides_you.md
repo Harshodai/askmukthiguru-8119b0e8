@@ -5,11 +5,14 @@ description: "There is a voice within that always knows. It is not drowned out �
 source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)"
 video_id: -yGLiryVQoQ
 tags: [inner-guidance, intuition, stillness, beautiful-state, practice]
+teacher: "sri-preethaji"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
 ---
 
 # The Voice That Speaks to You and Guides You
 
-Sri Preethaji teaches that there is a voice within every person that speaks truth and offers guidance. This is not the voice of conscience in the moral sense. It is not the internalised voice of parents or society. It is something more fundamental — an intelligence that knows what is needed, not what is expected.
+Sri Preethaji [[sri-preethaji]] teaches that there is a voice within every person that speaks truth and offers guidance. This is not the voice of conscience in the moral sense. It is not the internalised voice of parents or society. It is something more fundamental — an intelligence that knows what is needed, not what is expected.
 
 ## Why You Cannot Hear It
 
@@ -32,7 +35,7 @@ When you consistently dwell in the beautiful state, intuition awakens. This is n
 When you face a decision, do not immediately consult your analytical mind. First, return to the beautiful state. From that place, ask the question silently. Notice what arises — not what you *think* you should do, but what you *know*. The answer may arrive immediately, or it may take time. Trust the process.
 
 ## Related Concepts
-- **Beautiful State**: The receptive condition in which inner guidance becomes audible
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The receptive condition in which inner guidance becomes audible
 - **Inner Stillness**: The quiet ground from which the voice can be perceived clearly
 - **Awake Intuition**: The developed capacity to receive guidance from the voice with reliability
 - **Kriya**: Meditative practices that deepen the stillness necessary for hearing

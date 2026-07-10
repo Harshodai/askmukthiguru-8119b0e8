@@ -5,11 +5,14 @@ description: "Your truth is a statement of truth. The self is not a label — it
 source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=-4wCvcPrX-E)"
 video_id: -4wCvcPrX-E
 tags: [mantra, inner-truth, being, authenticity, identity]
+teacher: "both"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=-4wCvcPrX-E"
 ---
 
 # Inner Truth and Being
 
-Sri Preethaji and Sri Krishnaji offer a simple statement that contains the whole of their teaching:
+Sri Preethaji [[sri-preethaji]] and Sri Krishnaji [[sri-krishnaji]] offer a simple statement that contains the whole of their teaching:
 
 *"Your truth is a statement of truth."*
 
@@ -37,5 +40,5 @@ Whenever doubt arises — about yourself, your path, your spiritual progress —
 
 ## Related Concepts
 - **Mantra**: A sound, word, or phrase used to focus the mind and pierce through layers of conditioned thinking
-- **Inner Truth**: The direct recognition of one's own being as real, prior to all labels and concepts
+- **Inner Truth** ([[shared/inner_truth_and_being]]): The direct recognition of one's own being as real, prior to all labels and concepts
 - **Authenticity**: The quality of living from this recognised truth rather than from external validation

@@ -5,11 +5,14 @@ description: "Compassion is not cultivated — it is what remains when the self-
 source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=x-mTRlE0TC4)"
 video_id: x-mTRlE0TC4
 tags: [compassion, awakening, beautiful-state, stillness, moksha]
+teacher: "sri-krishnaji"
+updated: "2026-07-10"
+resource: "https://www.youtube.com/watch?v=x-mTRlE0TC4"
 ---
 
 # Awakening to Compassion
 
-A person can spend years practising calmness, learning to be present, building the capacity for inner stillness. These are not the goal. They are the ground preparation. Sri Krishnaji teaches that when the ground is ready, something moves through it that was never produced by effort: compassion arises on its own.
+A person can spend years practising calmness, learning to be present, building the capacity for inner stillness. These are not the goal. They are the ground preparation. Sri Krishnaji [[sri-krishnaji]] teaches that when the ground is ready, something moves through it that was never produced by effort: compassion arises on its own.
 
 ## The Sequence
 
@@ -34,6 +37,6 @@ This teaching is not about becoming "more compassionate" through effort. It is n
 Do not ask "How can I be more compassionate?" Ask "Am I willing to sit in stillness long enough for the shell of self-concern to crack?" The practice is not compassion — the practice is stillness. Compassion will meet you there.
 
 ## Related Concepts
-- **Beautiful State**: The no-stress state where compassion arises naturally because self-centric thinking has subsided
+- **Beautiful State** ([[sri-preethaji/beautiful_state]]): The no-stress state where compassion arises naturally because self-centric thinking has subsided
 - **Inner Stillness**: The third layer of spiritual practice — beyond calmness and presence — where the separate self dissolves
 - **Moksha**: Liberation — the full awakening where separation from others ends completely
