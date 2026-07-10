@@ -61,6 +61,12 @@ RUN mkdir -p /app/model_cache && python3 /app/scripts/download_models.py
 # Copy application code
 COPY backend/ .
 
+# The OKF compiled index lives at the repo root, not under backend/, but
+# rag/nodes/retrieval.py resolves it to /app/memory/okf/compiled.json inside the
+# image. Without this the loader caches an empty index and OKF injection
+# (rag_okf_injection_enabled, default True) contributes nothing.
+COPY memory/ ./memory/
+
 # Copy the entrypoint script
 COPY backend/docker-entrypoint.sh /app/docker-entrypoint.sh
 

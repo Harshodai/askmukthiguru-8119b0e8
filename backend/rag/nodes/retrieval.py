@@ -54,6 +54,13 @@ def _load_okf_entries() -> list[dict]:
     if _OKF_CACHE is not None:
         return _OKF_CACHE
     if not _OKF_COMPILED_PATH.exists():
+        # Loud on purpose: rag_okf_injection_enabled defaults to True, so an absent
+        # index silently strips the canonical knowledge layer from every answer.
+        logger.warning(
+            "OKF compiled index missing at %s — OKF injection will contribute no documents. "
+            "In Docker this means memory/ was not copied into the image.",
+            _OKF_COMPILED_PATH,
+        )
         _OKF_CACHE = []
         return []
     try:
@@ -547,7 +554,11 @@ async def retrieve_for_single_query(
     tasks = [summary_task, chunk_task]
 
     lightrag_index = -1
-    if lightrag and intent in ["RELATIONAL", "FACTUAL", "QUERY"]:
+    if (
+        getattr(settings, "knowledge_graph_query_enabled", False)
+        and lightrag
+        and intent in ["RELATIONAL", "FACTUAL", "QUERY"]
+    ):
         lightrag_index = len(tasks)
         # Use config-driven timeout (prevents 145s spike — see logs/backend.log line 264)
         t_out = getattr(settings, "lightrag_retrieval_timeout", 30)

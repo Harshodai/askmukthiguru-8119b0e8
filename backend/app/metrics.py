@@ -70,6 +70,14 @@ GUARDRAILS_BLOCKED = Counter(
     ["rail"],  # input / output
 )
 
+# MemoryServiceV2 falls back to a bounded in-memory LRU when Redis is down. Without
+# this counter there is no way to tell thrashing (hot entries evicted before they are
+# read) from a healthy cache, so _LRU_MAX_SIZE can never be tuned on evidence.
+MEMORY_LRU_EVICTIONS = Counter(
+    "memory_lru_evictions_total",
+    "Entries evicted from the MemoryServiceV2 in-memory LRU fallback",
+)
+
 # ===================================================================
 # LLM-Specific Metrics
 # ===================================================================

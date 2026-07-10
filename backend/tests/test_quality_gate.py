@@ -64,14 +64,15 @@ async def test_data_quality_gate_fail_repetition(mock_llm, mock_supabase):
 
 @pytest.mark.asyncio
 async def test_okf_quality_filter():
-    # Valid entry
+    # Valid entry — provenance is mandatory: every OKF claim is cited to the seeker.
     valid, reason = OKFQualityFilter.validate_entry({
         "title": "Beautiful State",
         "type": "concept",
+        "source": "Beautiful State — Sri Preethaji (YouTube TqxxCYnAxo8)",
         "body": "This is a very long body containing teachings of Sri Preethaji that exceeds one hundred characters easily."
     })
-    assert valid is True
-    
+    assert valid is True, reason
+
     # Invalid entry
     invalid, reason = OKFQualityFilter.validate_entry({
         "title": "",
@@ -79,6 +80,23 @@ async def test_okf_quality_filter():
         "body": "Short body"
     })
     assert invalid is False
+
+    # Uncitable entry — no source means format_final_answer cannot attribute it.
+    uncitable, reason = OKFQualityFilter.validate_entry({
+        "title": "Sacred Secrets",
+        "type": "teaching",
+        "body": "A sufficiently long body about the teachings of Sri Preethaji and Sri Krishnaji, well past one hundred characters.",
+    })
+    assert uncitable is False and "source" in reason.lower()
+
+    # Extraction artifact — the LLM's own prompt commentary must never be served as doctrine.
+    leaked, reason = OKFQualityFilter.validate_entry({
+        "title": "Sacred Secrets",
+        "type": "teaching",
+        "source": "auto-extracted from Qdrant (6 chunks)",
+        "body": "The user wants me to analyze a spiritual teaching and list the top 3-5 distinct topics discussed in this long text.",
+    })
+    assert leaked is False and "leakage" in reason.lower()
 
 @pytest.mark.asyncio
 async def test_doctrine_service(mock_supabase):

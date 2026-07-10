@@ -1,6 +1,7 @@
 ---
 type: practice
 title: Three-Question Meditation
+description: "The short three-question meditation Sri Preethaji leads at the close of the Beautiful State teaching, using observation and breath to return to a beautiful state."
 source: "Beautiful State — Sri Preethaji (YouTube https://www.youtube.com/watch?v=TqxxCYnAxo8)"
 video_id: TqxxCYnAxo8
 tags: [meditation, observation, breath, beautiful-state]

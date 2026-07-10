@@ -390,6 +390,13 @@ class Settings(BaseSettings):
     # extraction at query time — cap tightly to prevent single-query 30s hangs.
     # For tier2_simple queries, graph_stage.py skips LightRAG entirely.
     lightrag_retrieval_timeout: int = 3  # reduced from 8 — KG has ~5 edges, negligible retrieval lift; re-raise once >1,000 edges ingested
+    # Per-query graph traversal. The LightRAG task sits inside the retrieval
+    # asyncio.gather, so every RELATIONAL/FACTUAL/QUERY waits on it — up to
+    # lightrag_retrieval_timeout — while Qdrant finishes in ~150ms. With ~5 edges
+    # in the graph that is a pure latency tax. Re-enable once the graph holds
+    # >1,000 edges AND A/B testing shows >5% answer-quality lift. Ingestion and
+    # the ontology seeder are unaffected by this flag.
+    knowledge_graph_query_enabled: bool = False
 
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces

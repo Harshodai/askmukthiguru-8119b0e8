@@ -169,6 +169,15 @@ class CacheUpdateStage(Stage):
             logger.info(f"Skipping cache update: intent '{intent}' is not cacheable.")
             return None
 
+        # cache_key is (language, message) only — no user_id, no tenant_id — and every
+        # tier below (hot, exact, semantic, vector) is process- or Redis-wide. But
+        # context_engineer conditions the answer on this user's memory_context (core
+        # facts + recent turns). Caching such an answer would replay one seeker's
+        # private context to the next person who asks the same question.
+        if ctx.state.get("memory_context"):
+            logger.info("Skipping cache update: response was personalized with user memory_context.")
+            return None
+
         if not isinstance(final_answer, str):
             logger.warning("Skipping cache update: final_answer is %s, not str", type(final_answer).__name__)
             return None
