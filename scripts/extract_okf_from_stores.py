@@ -204,6 +204,19 @@ async def _gather_lightrag_relationships(
     if not queries:
         return results
 
+    # Memory guard: bypass if available memory is too low to prevent SIGKILL
+    try:
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                if "MemAvailable" in line:
+                    avail_mb = int(line.split()[1]) // 1024
+                    if avail_mb < 1500:  # 1.5 GB threshold
+                        logger.warning("Low memory available (%d MB) — bypassing LightRAG queries to prevent SIGKILL", avail_mb)
+                        return results
+                    break
+    except Exception as exc:
+        logger.debug("Memory guard check skipped: %s", exc)
+
     try:
         from services.lightrag_service import LightRAGService
 

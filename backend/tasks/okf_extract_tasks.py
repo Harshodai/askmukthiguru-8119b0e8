@@ -40,6 +40,12 @@ def extract_okf_entries(
         Dict with 'status', 'entries_written', 'paths', 'mode' (staging|approved).
     """
     try:
+        import sys
+        from pathlib import Path
+        _base = Path(__file__).resolve().parent.parent
+        if str(_base) not in sys.path:
+            sys.path.insert(0, str(_base))
+
         from scripts.extract_okf_from_stores import extract_okf
 
         paths = asyncio.run(

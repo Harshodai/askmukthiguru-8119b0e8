@@ -911,19 +911,18 @@ def route_after_grading(state: GraphState) -> str:
     intent = state.get("intent", "FACTUAL")
     context_sufficient = state.get("_context_sufficient", True)
 
+    if intent == "DISTRESS":
+        return "distress"
+
     if intent in ["SAFETY_VIOLATION", "ADVERSARIAL"]:
         return "relevant"
 
     if relevant:
-        if intent == "DISTRESS":
-            return "distress"
         if not context_sufficient and rewrite_count < settings.rag_max_rewrites:
             return "rewrite"
         return "relevant"
     elif rewrite_count < settings.rag_max_rewrites:
         return "rewrite"
     else:
-        if intent == "DISTRESS":
-            return "distress"
         return "fallback"
 
