@@ -252,6 +252,7 @@ services:
       - ./routers:/app/routers
       - ./tests:/app/tests
       - ./benchmarks:/app/benchmarks
+      - ./tasks:/app/tasks
       - ../scripts:/app/scripts
       - ../results:/app/results
       - ../memory:/app/memory

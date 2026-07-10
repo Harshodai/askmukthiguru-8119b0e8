@@ -53,12 +53,34 @@ from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
 
 
-def route_after_intent(state: GraphState) -> str:
-    """Route after intent classification, checking for web search needs."""
+def route_after_intent_fast(state: GraphState) -> str:
+    """Route after intent classification in the fast pipeline (bypasses retrieval for distress)."""
     intent = state.get("intent", "CASUAL")
     needs_web_search = state.get("needs_web_search", False)
     if intent == "DISTRESS":
         return "distress"
+    elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
+        return "meditation"
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR"]:
+        if needs_web_search:
+            return "temporal"
+        return "query"
+    elif intent in ["ERROR"]:
+        return "casual"
+    else:
+        return "casual"
+
+
+def route_after_intent(state: GraphState) -> str:
+    """Route after intent classification, checking for web search needs.
+    
+    Standard strategy routes DISTRESS to the retrieval chain ('query') so we can ground
+    our response in spiritual teachings, rather than bypassing it immediately.
+    """
+    intent = state.get("intent", "CASUAL")
+    needs_web_search = state.get("needs_web_search", False)
+    if intent == "DISTRESS":
+        return "query"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
     elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR"]:
@@ -382,7 +404,7 @@ class FastGraphStrategy(GraphStrategy):
 
         graph.add_conditional_edges(
             "resolve_parallel",
-            route_after_intent,
+            route_after_intent_fast,
             {
                 "distress": "handle_distress",
                 "meditation": "handle_meditation",

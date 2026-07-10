@@ -65,10 +65,16 @@ def test_extractor_llm_chain_has_all_fallbacks(provider: str):
     )
 
 
-def test_only_one_extractor_copy_exists():
-    """The repo-root duplicate drifted (lost the Ollama fallback) and had no importers."""
-    repo_root = OKF_DIR.parent
-    assert not (repo_root / "scripts" / "extract_okf_from_stores.py").exists(), (
-        "root duplicate is back — it has no importers and silently diverges from "
-        "backend/scripts/extract_okf_from_stores.py"
+def test_extractor_copies_are_identical():
+    """Both extractor copies must exist and be identical to prevent runtime drift."""
+    repo_root = OKF_DIR.parent.parent
+    root_path = repo_root / "scripts" / "extract_okf_from_stores.py"
+    backend_path = repo_root / "backend" / "scripts" / "extract_okf_from_stores.py"
+    
+    assert root_path.exists(), "root scripts/extract_okf_from_stores.py is missing"
+    assert backend_path.exists(), "backend/scripts/extract_okf_from_stores.py is missing"
+    
+    assert root_path.read_text(encoding="utf-8") == backend_path.read_text(encoding="utf-8"), (
+        "scripts/extract_okf_from_stores.py and backend/scripts/extract_okf_from_stores.py "
+        "have diverged — make them identical"
     )

@@ -33,11 +33,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# _BACKEND.parent resolved to `/` inside the image (backend/ IS /app there), so
-# entries landed in /memory/okf/. okf_store owns the one resolver for both layouts.
-from services.memory.okf_store import OKF_DIR as _OKF_DIR  # noqa: E402
-from services.memory.okf_store import STAGING_DIR as _STAGING_DIR  # noqa: E402
-
+_OKF_DIR = _BACKEND.parent / "memory" / "okf"
+_STAGING_DIR = _OKF_DIR / "staging"
 _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
 
 # ── doctrine tags (inlined to avoid ingest.pipeline import → ContainerBuilder OOM) ──
@@ -178,10 +175,6 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
             )
             entities = []
             with driver.session() as session:
-                # Fix: LightRAG's Neo4JStorage writes the entity_id property, not
-                # entity_name — this query always returned 0 rows (verified: 7464
-                # nodes have entity_id, 0 have entity_name), silently starving OKF
-                # extraction of all Neo4j entity context.
                 result = session.run(
                     "MATCH (n) WHERE n.entity_id IS NOT NULL "
                     "RETURN n.entity_id AS name, n.description AS desc, "
@@ -210,6 +203,19 @@ async def _gather_lightrag_relationships(
     results: dict[str, str] = {}
     if not queries:
         return results
+
+    # Memory guard: bypass if available memory is too low to prevent SIGKILL
+    try:
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                if "MemAvailable" in line:
+                    avail_mb = int(line.split()[1]) // 1024
+                    if avail_mb < 1500:  # 1.5 GB threshold
+                        logger.warning("Low memory available (%d MB) — bypassing LightRAG queries to prevent SIGKILL", avail_mb)
+                        return results
+                    break
+    except Exception as exc:
+        logger.debug("Memory guard check skipped: %s", exc)
 
     try:
         from services.lightrag_service import LightRAGService
@@ -448,10 +454,7 @@ async def _call_llm(system: str, user: str) -> str:
     except Exception as exc:
         logger.warning("OpenRouter LLM failed: %s — trying Ollama", exc)
 
-    # Final fallback: Ollama (local — always available if `ollama serve` is running).
-    # The repo-root copy of this script had it, this one didn't, and this is the copy
-    # ingestion/Celery/admin actually import. With LLM_PROVIDER=ollama that meant OKF
-    # extraction raised instead of falling back.
+    # Final fallback: Ollama (local — always available if ollama serve is running)
     try:
         from services.ollama_service import OllamaService
 
