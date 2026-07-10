@@ -37,6 +37,12 @@ class RerankerService:
         self._is_fallback = False
         logger.info("FlashRank Reranker service initialized (lazy load)")
 
+    def warm_up(self) -> None:
+        """Eagerly load the reranker model at startup to avoid latency spikes."""
+        logger.info("Warming up reranker service — loading model...")
+        self._ensure_model()
+        logger.info("Reranker service warm-up complete")
+
     def _ensure_model(self) -> None:
         """Ensure that either FlashRank or the fallback CrossEncoder model is loaded."""
         if self._ranker is not None or self._fallback_reranker is not None:
