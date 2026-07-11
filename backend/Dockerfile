@@ -77,7 +77,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=420s --retries=8 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run with entrypoint
+# Drop privileges (entrypoint starts as root for chown, then gosu drops to appuser)
+USER appuser
+
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

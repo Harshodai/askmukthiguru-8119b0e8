@@ -334,7 +334,7 @@ services:
   # to fix the 'AttributeError: module faiss has no attribute index_factory' crash.
   gptcache-server:
     platform: linux/amd64
-    image: zilliz/gptcache:latest
+    image: zilliz/gptcache:0.1.44
     container_name: mukthiguru-gptcache-server
     ports:
       - "8001:8000"
