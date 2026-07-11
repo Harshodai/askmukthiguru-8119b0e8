@@ -8,9 +8,8 @@ import tempfile
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
-from starlette.requests import Request
 
 from app.config import settings
 from app.core.limiter import limiter
