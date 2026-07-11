@@ -4,14 +4,19 @@ set -e
 # Ensure the HuggingFace cache directory exists
 mkdir -p /app/.cache
 
-echo "Running initialization as root..."
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Running initialization as root..."
 
-# Fix permissions for the cache volume (mounted from host)
-chown -R appuser:appuser /app/.cache || echo "Warning: Could not chown /app/.cache"
+    # Fix permissions for the cache volume (mounted from host)
+    chown -R appuser:appuser /app/.cache || echo "Warning: Could not chown /app/.cache"
 
-# Also fix permissions for the SQLite telemetry DB volume if it exists
-mkdir -p /app/data
-chown -R appuser:appuser /app/data || echo "Warning: Could not chown /app/data"
+    # Also fix permissions for the SQLite telemetry DB volume if it exists
+    mkdir -p /app/data
+    chown -R appuser:appuser /app/data || echo "Warning: Could not chown /app/data"
+else
+    echo "Running as non-root user $(id -un); skipping chown operations."
+    mkdir -p /app/data
+fi
 
 # Detect available CPU cores and set worker count
 if [ -n "${UVICORN_WORKERS_OVERRIDE}" ] && [ "${UVICORN_WORKERS_OVERRIDE}" -gt 0 ] 2>/dev/null; then

@@ -64,6 +64,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Get first image tag for scanning
+        id: backend-tag
+        run: |
+          FIRST_TAG=$(echo "${{ steps.meta-backend.outputs.tags }}" | tr ',' '\n' | head -1)
+          echo "image_ref=$FIRST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Scan backend image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.backend-tag.outputs.image_ref }}
+          format: sarif
+          output: trivy-backend.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload trivy backend scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-backend
+          path: trivy-backend.sarif
+          retention-days: 30
+
       - name: Extract frontend metadata
         id: meta-frontend
         uses: docker/metadata-action@v5
@@ -83,3 +106,26 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Get frontend image tag for scanning
+        id: frontend-tag
+        run: |
+          FIRST_TAG=$(echo "${{ steps.meta-frontend.outputs.tags }}" | tr ',' '\n' | head -1)
+          echo "image_ref=$FIRST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Scan frontend image for vulnerabilities
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.frontend-tag.outputs.image_ref }}
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload trivy frontend scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-frontend
+          path: trivy-frontend.sarif
+          retention-days: 30

@@ -62,13 +62,16 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install ruff
+          pip install ruff bandit
 
       - name: Run Ruff linter
         run: ruff check . --output-format=github
 
       - name: Run Ruff formatter check
         run: ruff format --check .
+
+      - name: Run Bandit security scan
+        run: bandit -r . -x tests/,benchmarks/ --severity-level medium --confidence-level medium --quiet || true
 
       - name: Run pytest
         run: pytest tests/ -v --tb=short
