@@ -3485,3 +3485,11 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Problem**: `MagicMock(spec=ServiceContainer)` prevents setting `coalescer` attribute because it's not declared as a class attribute.
 - **Fix**: Changed to `MagicMock()` (no spec) in test helpers. The trade-off (losing spec enforcement) is acceptable for pragmatic testability.
 - **Pattern**: Use `MagicMock()` without `spec=` when the object under test expects runtime-injected attributes that aren't on the class itself.
+
+## Jul 12, 2026 — Railway Deployment Dependency Conflict Resolution
+
+### Unused llama-index dependencies cause build failure on standard pip
+- **Problem**: The `requirements.txt` file declared `llama-index-core>=0.10.0` and `llama-index-vector-stores-qdrant>=0.1.0`. These dependencies were completely unused in the codebase but triggered `ResolutionImpossible` errors in the standard pip environment during Railway deployments.
+- **Fix**: Commented out/removed the unused `llama-index` packages from `requirements.txt`.
+- **Pattern**: Regularly prune unused or legacy dependencies from `requirements.txt` to minimize build failures and image sizes, especially when deploying to environments that perform strict backtracking resolution.
+
