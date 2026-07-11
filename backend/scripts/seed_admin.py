@@ -42,7 +42,7 @@ def seed_admin() -> None:
     print(f"🔗 Connecting to Supabase at {supabase_url}...")
     client = create_client(supabase_url, supabase_key)
 
-    print(f"👤 Checking for admin user: {admin_email}")
+    print(f"👤 Checking for admin user: {admin_email[:3]}***{admin_email.split('@')[-1]}")
     try:
         result = client.auth.admin.list_users(per_page=200)
         users = result if isinstance(result, list) else getattr(result, "users", [])
@@ -50,7 +50,7 @@ def seed_admin() -> None:
 
         if existing:
             user_id = str(existing[0].id)
-            print(f"   ✅ Admin user already exists (id={user_id}) — leaving password untouched")
+            print(f"   ✅ Admin user already exists (id={user_id[:8]}…) — leaving password untouched")
         else:
             result = client.auth.admin.create_user(
                 {
@@ -60,12 +60,12 @@ def seed_admin() -> None:
                 }
             )
             user_id = str(result.user.id)
-            print(f"   ✅ Admin user created (id={user_id})")
+            print(f"   ✅ Admin user created (id={user_id[:8]}…)")
     except Exception as e:
         print(f"   ❌ Failed to get/create admin user: {e}")
         sys.exit(1)
 
-    print(f"🔑 Granting admin role to {admin_email}...")
+    print(f"🔑 Granting admin role to {admin_email[:3]}***{admin_email.split('@')[-1]}...")
     try:
         client.table("user_roles").upsert(
             {"user_id": user_id, "role": "admin"},
@@ -77,8 +77,8 @@ def seed_admin() -> None:
         sys.exit(1)
 
     print("\n🎉 Admin setup complete.")
-    print(f"   Email:   {admin_email}")
-    print(f"   User ID: {user_id}")
+    print(f"   Email:   {admin_email[:3]}***{admin_email.split('@')[-1]}")
+    print(f"   User ID: {user_id[:8]}…")
 
 
 if __name__ == "__main__":
