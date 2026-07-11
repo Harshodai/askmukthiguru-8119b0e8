@@ -16,10 +16,8 @@ def test_health_check():
     assert "total_chunks" in data
 
 
-def test_metrics_unauthenticated():
-    """Verify that the /metrics endpoint is public and accessible without authentication."""
+def test_metrics_admin_only():
+    """Verify that the /metrics endpoint requires admin authentication (gated)."""
     response = client.get("/metrics")
-    assert response.status_code == 200
-    assert "text/plain" in response.headers.get("content-type", "")
-    assert "process_cpu_seconds_total" in response.text or "guru_" in response.text
+    assert response.status_code == 403
 

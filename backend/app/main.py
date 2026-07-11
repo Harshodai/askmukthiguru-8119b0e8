@@ -362,11 +362,19 @@ async def lifespan(app: FastAPI):
 
 # === App Creation ===
 
+# Gate Swagger docs in production to avoid exposing the full API schema.
+_docs_url = "/docs" if (not settings.is_production or settings.show_swagger) else None
+_redoc_url = "/redoc" if (not settings.is_production or settings.show_swagger) else None
+_openapi_url = "/openapi.json" if (not settings.is_production or settings.show_swagger) else None
+
 app = FastAPI(
     title="Mukthi Guru API",
     description="AI Spiritual Guide — Sri Preethaji & Sri Krishnaji's teachings",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
 )
 
 # Trusted Host — validate Host header (only in production)
