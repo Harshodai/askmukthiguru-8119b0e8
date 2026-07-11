@@ -41,6 +41,6 @@ echo "Report generated: $REPORT_FILE"
 echo ""
 
 # Print summary
-total_issues=$(grep -c '⚠️' "$REPORT_FILE" 2>/dev/null || echo 0)
-total_passed=$(grep -c '✅' "$REPORT_FILE" 2>/dev/null || echo 0)
+total_issues=$(grep -o '⚠️' "$REPORT_FILE" 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+total_passed=$(grep -o '✅' "$REPORT_FILE" 2>/dev/null | wc -l | tr -d ' ' || echo 0)
 echo "Report Summary: $total_passed checks passed, $total_issues issues found"
