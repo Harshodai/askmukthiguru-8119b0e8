@@ -265,7 +265,7 @@ class SupabaseAuthStrategy(AuthStrategy):
             logger.warning(f"Invalid Supabase credential: {type(e).__name__}")
             return None
         except Exception as e:
-            logger.error(f"Supabase auth bridge error: {type(e).__name__}: {e}")
+            logger.error(f"Supabase auth bridge error: {type(e).__name__}")
             return None
 
     # Simple TTL cache for admin role lookups

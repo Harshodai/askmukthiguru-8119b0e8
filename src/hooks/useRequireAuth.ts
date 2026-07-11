@@ -17,9 +17,7 @@ export function useRequireAuth() {
 
     const check = async () => {
       try {
-        console.log('[useRequireAuth] localStorage keys:', Object.keys(localStorage));
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('[useRequireAuth] session:', session, 'error:', error);
       } catch (err) {
         console.error('[useRequireAuth] getSession crashed:', err);
       }

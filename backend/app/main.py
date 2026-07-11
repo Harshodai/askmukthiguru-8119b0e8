@@ -172,7 +172,7 @@ def _init_tenant_context_from_request(request: Request) -> None:
         tenant_id = user.get("tenant_id", user.get("id", "default"))
         email = user.get("email", "")
         TenantContext.set(tenant_id, email)
-        logger.debug(f"Initialized TenantContext: tenant_id={tenant_id}, email={email}")
+        logger.debug(f"Initialized TenantContext: tenant_id={tenant_id}")
     except Exception as e:
         logger.warning(f"Failed to initialize TenantContext: {e}")
         TenantContext.set("default", "")

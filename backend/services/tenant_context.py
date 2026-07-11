@@ -129,4 +129,4 @@ async def set_tenant_from_request(request: Request) -> None:
     tenant_id = get_tenant_id_from_user(user)
     email = user.get("email", "")
     TenantContext.set(tenant_id, email)
-    logger.debug(f"TenantContext set: tenant_id={tenant_id}, email={email}")
+    logger.debug(f"TenantContext set: tenant_id={tenant_id}")
