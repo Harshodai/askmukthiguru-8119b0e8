@@ -188,6 +188,8 @@ def transcribe_with_whisper(
         "Eikam": "Ekam",
         "Acom": "Ekam",
         "Acoms": "Ekams",
+        "Akam": "Ekam",
+        "Akham": "Ekam",
         "acom": "ekam",
         "acoms": "ekams",
         "acome": "ekam",
@@ -202,8 +204,20 @@ def transcribe_with_whisper(
         "Diksha": "Deeksha",
     }
 
+    # Root-cause fix: bias Whisper toward the canonical spelling of doctrine proper nouns via
+    # initial_prompt — otherwise it renders them phonetically ("Ekam"→"Akam"/"Acam",
+    # "Preethaji"→"Pretty Ji"). This prevents the error at the source; REPLACEMENTS above and
+    # the ingest corrector's FAST_REPLACEMENTS are the deterministic safety nets downstream.
+    DOCTRINE_GLOSSARY = (
+        "Correct spellings used in this recording: Ekam, Ekam World Centre, Sri Preethaji, "
+        "Sri Krishnaji, Deeksha, Soul Sync, Sadhana, the Beautiful State, Oneness, the Four "
+        "Sacred Secrets, Manifest 2026, Limitless Field."
+    )
+
     try:
-        result = mlx_whisper.transcribe(audio_path, path_or_hf_repo=model, verbose=False)
+        result = mlx_whisper.transcribe(
+            audio_path, path_or_hf_repo=model, verbose=False, initial_prompt=DOCTRINE_GLOSSARY
+        )
         text = result.get("text", "").strip()
 
         if not text:

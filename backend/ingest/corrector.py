@@ -25,7 +25,7 @@ DO NOT retain the original meaning absolutely. DO NOT summarize or rewrite the s
 Important Terms to Correct:
 - "Sri Preethaji" (often misheard as "Sri Pretty Ji", "Preeti Ji")
 - "Sri Krishnaji" (often misheard as "Sri Krishna Ji", "Krishna G")
-- "Ekam" (often misheard as "Acam", "Ecom", "Acom", "acom", "acoms", "acome")
+- "Ekam" (often misheard as "Acam", "Akam", "Akham", "Ecom", "Acom", "acom", "acoms", "acome") — note: the centre is "Ekam"; when capitalised "Akam" refers to it, correct it; lowercase "akam" may be the Tamil word for the inner self, so use context.
 - "Deeksha" (often misheard as "Diksha")
 - "Sadhana"
 - "Limitless Field"
@@ -46,6 +46,10 @@ FAST_REPLACEMENTS = {
     r"\bacome\b": "ekam",
     r"\bAcam\b": "Ekam",
     r"\bacam\b": "ekam",
+    # K-spelling variants (Whisper renders "Ekam" as "Akam" too). Capitalised only —
+    # lowercase "akam" is the Tamil word for the inner self, so it is left untouched.
+    r"\bAkam\b": "Ekam",
+    r"\bAkham\b": "Ekam",
     r"\bSri Pretty Ji\b": "Sri Preethaji",
     r"\bsri pretty ji\b": "sri preethaji",
     r"\bPretty Ji\b": "Preethaji",

@@ -1176,6 +1176,10 @@ def _clean_inline_citations(text: str) -> str:
     # strips above and leave the answer ending on a bare colon. Strip them at line/text end.
     text = re.sub(r'(?im)[ \t]*\b(?:you can\s+)?(?:watch|read|learn|see|find)\s+(?:out\s+)?more\s+here\s*:?[ \t]*(?=\n|$)', '', text)
     text = re.sub(r'(?im)[ \t]*(?:on\s+|visit\s+)?(?:the\s+)?[A-Za-z][\w ]{0,24}?\bwebsite\s*:[ \t]*(?=\n|$)', '', text)
+    # Fix a known transcription artifact: the audio→text pipeline renders the centre "Ekam" as
+    # "Akam". Normalise the capitalised proper-noun form; leave lowercase "akam" (the Tamil word
+    # for the inner self) untouched.
+    text = re.sub(r'\bAkam\b', 'Ekam', text)
     # Collapse multiple spaces
     text = re.sub(r' {2,}', ' ', text)
     # Fix spaces before punctuation
