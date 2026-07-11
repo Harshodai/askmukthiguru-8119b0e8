@@ -93,7 +93,13 @@ class Settings(BaseSettings):
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
     semantic_router_enabled: bool = True        # Toggle between semantic (fast) and LLM-based (slow) routing
     semantic_router_top_k: int = 3              # How many nearest utterances vote on the tier
-    semantic_router_confidence_threshold: float = 0.65  # Max similarity must exceed this to trust the router
+    # Trust the semantic router's tier when its confidence exceeds this; below it,
+    # routing defaults to the expensive "standard" path (orchestrator_utils.py:254).
+    # Lowered 0.65→0.55 so borderline queries use the router's (often "fast") tier
+    # instead of the slow default — the logs showed many 0.5x-confidence queries
+    # falling through to standard. This is a latency/quality knob: validate against
+    # the 255-q benchmark and raise back toward 0.65 if doctrine/quality regresses.
+    semantic_router_confidence_threshold: float = 0.55
     semantic_router_fallback_llm: bool = False  # If True, fall back to LLM classifier when confidence is low
     semantic_router_shadow_mode: bool = False   # If True, run semantic router alongside heuristic but return heuristic result (for A/B comparison)
 
