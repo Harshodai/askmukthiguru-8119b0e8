@@ -9,7 +9,8 @@ import {
 import { fmtDateTime, fmtPct, truncate } from "@/admin/lib/formatters";
 import { EmptyState } from "@/admin/components/EmptyState";
 import { RagasHeatmap } from "@/admin/components/RagasHeatmap";
-import { ThumbsUp, ThumbsDown, AlertTriangle } from "lucide-react";
+import { ThumbsUp, ThumbsDown, AlertTriangle, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function QualityPage() {
   const { data: quality, isLoading: qualityLoading } = useQuality();
@@ -19,7 +20,21 @@ export default function QualityPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Quality</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">Quality</h1>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs p-2">
+                Monitor response quality based on AI Judge (Ragas) evaluation. Inspect disagreement cases where user thumbs-down overrides judge's OK rating, review low confidence outputs, and check safety alerts for prompt injection or PII violations.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <p className="text-sm text-muted-foreground">
           RAGAS scores, judge↔user disagreement, safety events, annotations.
         </p>

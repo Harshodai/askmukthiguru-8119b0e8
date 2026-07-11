@@ -55,7 +55,7 @@ scan_path() {
       unauth=$((unauth + 1))
     fi
   done < <(grep -rnE "$pattern" "$path" --include="*.py" \
-    --exclude-dir=__pycache__ --exclude-dir=.pytest_cache --exclude-dir=.venv \
+    --exclude-dir=__pycache__ --exclude-dir=.pytest_cache --exclude-dir=.venv --exclude-dir=.venv_host \
     2>/dev/null || true)
 }
 

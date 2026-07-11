@@ -20,7 +20,8 @@ import {
 import { fmtDateTime, fmtInt, fmtMs } from "@/admin/lib/formatters";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RefreshCw, Upload, Loader2, CheckCircle2, AlertCircle, Link2 } from "lucide-react";
+import { RefreshCw, Upload, Loader2, CheckCircle2, AlertCircle, Link2, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IngestionJob {
   status: string;
@@ -111,7 +112,21 @@ export default function IngestionPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Ingestion</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">Ingestion</h1>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs p-2">
+                Manage content ingestion. Submit new YouTube videos, playlists, or document URLs. The system automatically downloads, chunks, generates embeddings, and indexes them into the semantic vector DB and graph.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <p className="text-sm text-muted-foreground">
           Ingest YouTube videos, playlists, and documents into the knowledge base.
         </p>

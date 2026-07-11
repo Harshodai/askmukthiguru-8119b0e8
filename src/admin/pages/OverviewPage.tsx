@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/admin/components/KpiCard";
 import { TimeseriesChart } from "@/admin/components/TimeseriesChart";
+import { Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useKpis,
   useTimeseries,
@@ -38,7 +40,21 @@ export default function OverviewPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold">Overview</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">Overview</h1>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="text-muted-foreground hover:text-foreground">
+                    <Info className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs p-2">
+                  Welcome to the AskMukthiGuru Admin Console. Use the date preset buttons in the header to filter all analytics charts. The "Ask the data" panel below allows you to query analytics metrics using natural language.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className="text-sm text-muted-foreground">
             Health & usage of the AskMukthiGuru assistant.
           </p>
