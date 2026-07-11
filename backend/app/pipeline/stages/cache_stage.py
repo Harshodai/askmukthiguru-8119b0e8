@@ -40,6 +40,19 @@ class CacheCheckStage(Stage):
         preferred_lang = ctx.preferred_lang
         container = ctx.container
 
+        # Out-of-corpus logistics queries must bypass the cache entirely. "upcoming programs
+        # from Ekam" and "what is Ekam" embed close, so the semantic cache would otherwise
+        # serve a teaching answer for a logistics question (and vice-versa). Skipping the
+        # cache forces the query to intent_router's deterministic honest short-circuit
+        # (intent.py:_is_logistics_query → _LOGISTICS_ANSWER).
+        try:
+            from rag.nodes.intent import _is_logistics_query
+            if query_text and _is_logistics_query(query_text):
+                logger.info("CacheCheck: logistics query — bypassing cache for the honest short-circuit.")
+                return None
+        except Exception:
+            pass
+
         # Determine query tier and dynamic cache threshold.
         # Store result on ctx so GraphStage can reuse it — avoids redundant LLM classification.
         query_tier = "standard"
@@ -189,6 +202,10 @@ class CacheUpdateStage(Stage):
             "do not have that specific teaching",
             "the guru is unable",
             "sorry, something went wrong",
+            # Deterministic out-of-corpus logistics answer (intent.py:_LOGISTICS_ANSWER).
+            # It is cheap to regenerate and MUST NOT be cached: the semantic cache would
+            # otherwise replay it for teaching queries about Ekam (e.g. "what is Ekam?").
+            "i don't have current schedules",
         ]
         ans_lower = final_answer.lower()
         if not final_answer.strip() or any(indicator in ans_lower for indicator in refusal_indicators):

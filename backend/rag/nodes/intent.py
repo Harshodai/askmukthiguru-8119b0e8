@@ -129,6 +129,34 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
         }
 
 
+# Out-of-corpus logistics queries — schedules, dates, prices, or registration for programs
+# and events — have no answer in the teaching corpus, so the RAG path returns filler (the
+# "upcoming programs from Ekam" failure). Detect them deterministically and short-circuit to a
+# short honest pointer to ekam.org. A query must name an event/program noun AND a logistics cue
+# to qualify, so teaching questions ("what is the beautiful state", "how do I practice soul
+# sync") are never misrouted.
+_LOGISTICS_EVENT_RE = re.compile(
+    r"\b(programs?|events?|retreats?|workshops?|courses?|seminars?|webinars?|sessions?|classes|class)\b",
+    re.I,
+)
+_LOGISTICS_CUE_RE = re.compile(
+    r"\b(upcoming|schedules?|dates?|register|registration|signup|tickets?|price|pricing|cost|fees?|enrol|enroll|calendar)\b"
+    r"|sign\s*up|when\s+(is|are|will)|how\s+much|book\s+a|next\s+\w",
+    re.I,
+)
+_LOGISTICS_ANSWER = (
+    "🙏 I don't have current schedules, dates, or prices for Ekam's programs and events — "
+    "these change often, so I'd rather point you to the official source than guess. You'll "
+    "find the latest on ekam.org. If it helps, I'm happy to share a teaching or practice to "
+    "explore in the meantime."
+)
+
+
+def _is_logistics_query(question: str) -> bool:
+    """True when the query asks about program/event logistics (not the teachings)."""
+    return bool(_LOGISTICS_EVENT_RE.search(question) and _LOGISTICS_CUE_RE.search(question))
+
+
 def _early_filter(
     question: str,
     lower_q: str,
@@ -301,6 +329,27 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     question = state["question"]
     lower_q = question.lower()
     complexity_score = _compute_complexity_score(question, state.get("chat_history", []))
+
+    # Out-of-corpus logistics queries short-circuit BEFORE the pre-classified-intent echo
+    # below: the pipeline coordinator's on-device classifier tags them FACTUAL, which sends
+    # them into RAG and returns filler (the "upcoming programs from Ekam" failure). Return a
+    # deterministic honest pointer to ekam.org instead.
+    if _is_logistics_query(question):
+        logger.info(
+            "Intent Router: logistics/out-of-corpus query — honest pointer to ekam.org: %s",
+            question[:60],
+        )
+        return {
+            "intent": "CASUAL",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+            "complexity_score": complexity_score,
+            "final_answer": _LOGISTICS_ANSWER,
+            "evaluation_trace": _trace_update(
+                state, intent="CASUAL", query_tier="tier2_simple",
+                routing_reason="logistics_out_of_corpus", complexity_score=complexity_score,
+            ),
+        }
 
     # Pre-classified intent: pipeline_coordinator already ran on-device classifier
     pre_intent = state.get("intent")
