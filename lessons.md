@@ -1,5 +1,17 @@
 # Agentic Lessons & Memory
 
+## Jul 11, 2026 — RLS + PGRST202 Schema Cache
+
+### Five public tables had RLS disabled (security hole)
+- **Problem**: `gurus`, `assistant_configurations`, `assistant_doctrines`, `communications`, `digital_employees` had `rowsecurity=false` — fully exposed to anon and authenticated roles via Supabase REST API.
+- **Fix**: Migration `20260711000000_enable_rls_on_all_tables.sql` enables RLS on all 5 with appropriate policies (public read for `gurus`, user-owned for `communications`/`digital_employees`, admin-only via `has_role()` for the rest).
+- **Pattern**: After any migration that creates tables, run `SELECT schemaname, tablename, rowsecurity FROM pg_catalog.pg_tables WHERE schemaname='public' AND rowsecurity=false` to verify no tables are left open.
+
+### PostgREST schema cache goes stale after function changes
+- **Problem**: After `CREATE OR REPLACE FUNCTION` or DROP/CREATE cycles on Supabase RPC functions, PostgREST retains old schema cache — returns PGRST202 even when the DB has the correct function.
+- **Fix**: Always run `NOTIFY pgrst, 'reload schema'` after any function DDL change. This can be included in the migration itself.
+- **Pattern**: Every migration that alters functions should end with `NOTIFY pgrst, 'reload schema'`. If PGRST202 appears despite correct DB signatures, this is the first thing to check.
+
 ## Jul 11, 2026 — Emergent Security Audit Scripts (BSD grep compatibility)
 
 ### Avoid `\-`, `\]`, `\[` inside grep bracket expressions on macOS
