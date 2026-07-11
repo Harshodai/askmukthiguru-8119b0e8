@@ -75,7 +75,7 @@ async def add_item(
     if not svc or not svc.available:
         raise HTTPException(status_code=501, detail="Notebook service not enabled")
     result = await svc.add_item(
-        notebook_id, body.query, body.answer, body.citations, body.source_episode_id
+        user["id"], notebook_id, body.query, body.answer, body.citations, body.source_episode_id
     )
     if not result:
         raise HTTPException(status_code=500, detail="Failed to add item")
@@ -92,4 +92,4 @@ async def list_items(
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
         raise HTTPException(status_code=501, detail="Notebook service not enabled")
-    return await svc.list_items(notebook_id, limit=limit)
+    return await svc.list_items(user["id"], notebook_id, limit=limit)

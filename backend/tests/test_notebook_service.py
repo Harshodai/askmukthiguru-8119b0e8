@@ -102,11 +102,13 @@ def test_add_and_list_items() -> None:
     client = _MockClient()
     svc = NotebookService(supabase_client=client)
 
-    item = asyncio.run(svc.add_item("nb1", "What is oneness?", "It is union.", [{"q": "x"}], "ep1"))
+    asyncio.run(svc.create("u1", "My Notebook"))
+
+    item = asyncio.run(svc.add_item("u1", "nb1", "What is oneness?", "It is union.", [{"q": "x"}], "ep1"))
     assert item is not None
     assert item["id"] == "nb1"
 
-    items = asyncio.run(svc.list_items("nb1"))
+    items = asyncio.run(svc.list_items("u1", "nb1"))
     assert len(items) == 1
 
 
@@ -117,5 +119,5 @@ def test_no_client_degrades_gracefully() -> None:
     assert asyncio.run(svc.create("u1", "t")) is None
     assert asyncio.run(svc.list("u1")) == []
     assert not asyncio.run(svc.delete("u1", "nb1"))
-    assert asyncio.run(svc.add_item("nb1", "q", "a")) is None
-    assert asyncio.run(svc.list_items("nb1")) == []
+    assert asyncio.run(svc.add_item("u1", "nb1", "q", "a")) is None
+    assert asyncio.run(svc.list_items("u1", "nb1")) == []
