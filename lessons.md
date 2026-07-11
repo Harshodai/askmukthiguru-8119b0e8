@@ -12,6 +12,52 @@
 - **Fix**: Always run `NOTIFY pgrst, 'reload schema'` after any function DDL change. This can be included in the migration itself.
 - **Pattern**: Every migration that alters functions should end with `NOTIFY pgrst, 'reload schema'`. If PGRST202 appears despite correct DB signatures, this is the first thing to check.
 
+## Jul 11, 2026 — Full Security Audit (Phase 1-5)
+
+### `.env.example` must not match `.env.*` gitignore pattern
+- **Problem**: `.gitignore` has `.env.*` which matches `.env.example`. The file can't be committed without `-f`.
+- **Fix**: Add `!.env.example` as an exception after the `.env.*` line in `.gitignore`.
+- **Pattern**: When adding tracked example/template files, verify they aren't caught by a broader gitignore pattern.
+
+### Never store secrets in importable config dicts
+- **Problem**: `scripts/check_docker_health.py` stored the Neo4j password in the `SERVICES` config dict at module level (`"password": NEO4J_PASSWORD`). Any import of this module made the password accessible as `SERVICES["neo4j"]["password"]`.
+- **Fix**: Removed `password` from the `SERVICES` dict. The password is now passed as a separate parameter (`password=`) directly to `check_neo4j_health()`.
+- **Pattern**: Config dictionaries at module level are effectively public. Never put secrets in them — pass them as function arguments or use dedicated secret-handling types.
+
+### Per-user rate limiting via TenantContext
+- **Problem**: The `TokenBucketMiddleware` tracked rate limits only by client IP. An authenticated user could share an IP (NAT) or one user could flood from multiple IPs.
+- **Fix**: Modified `get_bucket_key()` to use `TenantContext.get_user_id()` as the primary key when available, falling back to client IP. Key pattern: `rl:chat:{tenant_id}:{user_id_or_ip}`.
+- **Pattern**: Rate limiting should always include the authenticated user context when available. Composite keys (tenant + user) prevent cross-tenant and cross-user rate limit evasion.
+
+### PII in logs — redact emails, IDs, exception details
+- **Problem**: Multiple logger calls included full email addresses, UUIDs, and exception messages that could leak JWT fragments.
+- **Fix**: Replaced emails with `str(user.get("id", "unknown"))[:8]`, removed `email=` from debug logs, removed `{e}` from error logs (exception message can leak tokens).
+- **Pattern**: Never log full emails, full user IDs, or raw exception objects. Truncate IDs to 8 chars. Log exception type only, not `str(e)`.
+
+### Swagger/docs must be gated in production
+- **Problem**: FastAPI's `/docs`, `/redoc`, and `/openapi.json` were fully exposed with no production gating — revealing all API schema, models, and endpoints.
+- **Fix**: Set `docs_url=None, redoc_url=None, openapi_url=None` when `settings.is_production` is True. Added a `show_swagger` config flag for override.
+- **Pattern**: Swagger docs expose the complete API surface. Gate them behind `IS_PRODUCTION` in `main.py` when creating the FastAPI app.
+
+### Metrics endpoint must be admin-only
+- **Problem**: Prometheus `/metrics` endpoint exposed full system metrics (memory, request rates, error counts) to unauthenticated users — intelligence for an attacker.
+- **Fix**: Added `_require_admin` dependency to the metrics route.
+- **Pattern**: Any endpoint that exposes operational data (metrics, traces, health details) beyond a basic alive/dead check should be admin-gated.
+
+### Container security: HEALTHCHECK + non-root user
+- **Problem**: `backend/Dockerfile.railway`, `whatsapp_bot/Dockerfile` ran as root. Others lacked HEALTHCHECK.
+- **Fix**: Added `USER appuser` (or equivalent non-root user) and HEALTHCHECK to every Dockerfile. Made `docker-entrypoint.sh` chown operations conditional on `$(id -u) -eq 0`.
+- **Pattern**: Every Dockerfile should have HEALTHCHECK and run as non-root unless there's an explicit port-binding reason (nginx on 80).
+
+### CI/CD: Trivy + Bandit scanning in workflows
+- **Fix**: Added `trivy-action` to `build-deploy.yml` for container vulnerability scanning (HIGH/CRITICAL), and `bandit` security scan to `lint-test.yml`.
+- **Pattern**: CI/CD should include vulnerability scanning on every build. Trivy for container images, Bandit for Python code.
+
+### IDOR: Always verify user_id param matches authenticated user
+- **Problem**: `POST /notebooks/{notebook_id}/items` and `GET /notebooks/{notebook_id}/items` accepted any `notebook_id` without verifying ownership — User A could read/write User B's notebook.
+- **Fix**: Added `SELECT id FROM study_notebooks WHERE id=? AND user_id=?` check before every notebook item operation.
+- **Pattern**: Every route that accepts a resource ID from the URL must verify the authenticated user owns that resource. A 404 on mismatch (not 403) to avoid confirming the resource exists.
+
 ## Jul 11, 2026 — Emergent Security Audit Scripts (BSD grep compatibility)
 
 ### Avoid `\-`, `\]`, `\[` inside grep bracket expressions on macOS
