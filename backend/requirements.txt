@@ -111,8 +111,6 @@ openinference-instrumentation-langchain>=0.1.33,<1.0
 
 # --- Advanced RAG Optimization & Guardrails (Phase 2 & 3) ---
 dspy-ai>=2.4.0
-llama-index-core>=0.10.0
-llama-index-vector-stores-qdrant>=0.1.0
 llm-guard>=0.3.0
 instructor>=1.0.0
 # guardrails-ai>=0.4.0
