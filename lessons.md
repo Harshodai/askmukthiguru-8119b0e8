@@ -1,5 +1,22 @@
 # Agentic Lessons & Memory
 
+## Jul 11, 2026 — Emergent Security Audit Scripts (BSD grep compatibility)
+
+### Avoid `\-`, `\]`, `\[` inside grep bracket expressions on macOS
+- **Problem**: The password pattern `[A-Za-z0-9...\-=\[\]{}...]{8,}` caused catastrophic backtracking / regex engine hang with BSD grep (macOS default). The `\-`, `\]`, `\[` inside `[]` confuse BSD grep's ERE engine.
+- **Fix**: Simplify the character class — place `-` at the end (literal), remove `$`, `\`, `[`, `]` from the accepted password-char set, and avoid backslash escapes inside bracket expressions.
+- **Pattern**: When writing grep patterns for cross-platform shell scripts, test on BSD grep (macOS). Avoid backslash escapes inside `[]` character classes. Place `-` at the start or end of a bracket expression for literal matching.
+
+### No `grep -P` on macOS (BSD grep)
+- **Problem**: `grep -oP` (Perl-compatible regex) is not available on BSD grep. The endpoint audit script used `-oP` for lookahead/lookbehind assertions which failed with `grep: invalid option -- P`.
+- **Fix**: Replace `grep -oP` with `sed -n 's/.*pattern\(capture_group\).*/\1/p'`.
+- **Pattern**: Use `sed` for extraction, not `grep -oP`. Use `grep -E` (extended regex) instead of `-P`.
+
+### Exclude `venv/`, `dist/`, `build/` from grep scans
+- **Problem**: The PII audit script ran `grep` on `backend/` which includes `backend/venv/` (thousands of vendored `.py` files), causing multi-minute timeouts.
+- **Fix**: Add `--exclude-dir=venv --exclude-dir=dist --exclude-dir=build` to all codebase grep scans.
+- **Pattern**: Always add `--exclude-dir` for virtual environments, build artifacts, and vendored dependencies when grepping source code.
+
 ## Jul 10, 2026 — OKF Teacher Subdirectory Restructure + API Routing
 
 ### OKF `rglob` must exclude staging/ explicitly
