@@ -62,6 +62,7 @@ class NotebookService:
 
     async def add_item(
         self,
+        user_id: str,
         notebook_id: str,
         query: str,
         answer: str,
@@ -71,6 +72,10 @@ class NotebookService:
         if not self.available:
             return None
         try:
+            verify = self._client.table(_TABLE).select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+            if not getattr(verify, "data", None):
+                logger.warning("notebook.add_item: notebook %s not owned by %s", notebook_id, user_id)
+                return None
             resp = self._client.table(_ITEMS).insert({
                 "notebook_id": notebook_id,
                 "query": query,
@@ -84,10 +89,14 @@ class NotebookService:
             logger.warning("notebook.add_item failed: %s", e)
             return None
 
-    async def list_items(self, notebook_id: str, limit: int = 50) -> list[dict]:
+    async def list_items(self, user_id: str, notebook_id: str, limit: int = 50) -> list[dict]:
         if not self.available:
             return []
         try:
+            verify = self._client.table(_TABLE).select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+            if not getattr(verify, "data", None):
+                logger.warning("notebook.list_items: notebook %s not owned by %s", notebook_id, user_id)
+                return []
             resp = self._client.table(_ITEMS).select("*").eq("notebook_id", notebook_id).order("created_at", desc=True).limit(limit).execute()
             return list(getattr(resp, "data", None) or [])
         except Exception as e:
@@ -118,7 +127,7 @@ if __name__ == "__main__":  # ponytail: self-check
         svc = NotebookService(_MockClient())
         assert (await svc.create("u1", "My Notebook"))["id"] == "nb1"
         assert len(await svc.list("u1")) == 1
-        assert (await svc.add_item("nb1", "q", "a"))["id"] == "nb1"
+        assert (await svc.add_item("u1", "nb1", "q", "a"))["id"] == "nb1"
         assert await svc.delete("u1", "nb1")
         print("notebook_service OK")
 
