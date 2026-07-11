@@ -6,7 +6,7 @@ import logging
 import time
 from datetime import timezone
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi import status as http_status
 
@@ -221,7 +221,8 @@ async def debug_headers(
 
 
 @router.get("/metrics")
-async def get_metrics() -> Response:
-    """Prometheus metrics endpoint."""
+async def get_metrics(user: dict = Depends(get_current_user_from_supabase)) -> Response:
+    """Prometheus metrics endpoint. Admin only — may expose system internals."""
+    _require_admin(user)
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)

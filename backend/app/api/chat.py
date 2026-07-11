@@ -20,6 +20,7 @@ from app.sanitization import sanitize_user_input
 from rag.memory import build_memory_context
 from services.auth_service import get_current_user_from_supabase
 from services.cost_tracker import TokenAccumulator, get_cost_tracker, token_accumulator_var
+from app.core.user_usage_monitor import get_user_monitor
 from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,8 @@ def record_token_usage(endpoint: str):
 
             user_id = user.get("id", "anonymous") if isinstance(user, dict) else "anonymous"
             session_id = chat_body.session_id or "" if chat_body else ""
+
+            get_user_monitor().record(user_id)
 
             accumulator = TokenAccumulator()
             token = token_accumulator_var.set(accumulator)
@@ -326,7 +329,9 @@ _DEFAULT_TECHNIQUE_QUERY = "What do Sri Preethaji and Sri Krishnaji teach about 
 
 
 @router.get("/breath-teaching/{technique_id}", tags=["Meditation"])
+@limiter.limit("10/minute")
 async def get_breath_teaching(
+    request: Request,
     technique_id: str,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),

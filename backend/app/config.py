@@ -243,6 +243,8 @@ class Settings(BaseSettings):
     # --- Auth & Rate Limiting ---
     # Default to PRODUCTION (secure-by-default). Override with IS_PRODUCTION=false for local dev only.
     is_production: bool = True
+    # Gate Swagger/OpenAPI docs. Disabled in production to avoid exposing the full API schema.
+    show_swagger: bool = False
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
     enable_test_auth: bool = False
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
