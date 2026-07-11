@@ -216,7 +216,9 @@ services:
       - USE_FLASHRANK=${USE_FLASHRANK:-true}
       # Auth
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
-      # Development only. In production, set this to allowed origins (e.g. https://myapp.com)
+      # ⚠️ PRODUCTION: MUST be set to the actual frontend domain (e.g. https://yourdomain.com).
+      #   Leaving it as localhost origins in production is a security risk.
+      #   Example: CORS_ORIGINS=https://app.yourdomain.com
       - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS must be set to allowed origins}
     depends_on:
       jaeger:
