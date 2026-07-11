@@ -70,8 +70,10 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
 
             from services.tenant_context import TenantContext
             tenant_id = TenantContext.get()
+            user_id = TenantContext.get_user_id()
 
-            subject = request.headers.get("x-user-id") or (request.client.host if request.client else "unknown")
+            host = request.client.host if request.client else "unknown"
+            subject = user_id or request.headers.get("x-user-id") or host
             key = f"rl:chat:{tenant_id}:{subject}"
             allowed, remaining = await self.script(keys=[key], args=[self.capacity, self.refill, time.time(), 1])
             if not int(allowed):

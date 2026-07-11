@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------
 _tenant_id_var: ContextVar[str] = ContextVar("tenant_id", default="default")
 _tenant_email_var: ContextVar[str] = ContextVar("tenant_email", default="")
+_tenant_user_id_var: ContextVar[str] = ContextVar("tenant_user_id", default="")
 
 _LEGACY_TENANT = "default"
 _COLLECTION_SEPARATOR = "__tenant_"
@@ -52,10 +53,16 @@ class TenantContext:
         return _tenant_email_var.get()
 
     @staticmethod
-    def set(tenant_id: str, email: str = "") -> None:
+    def get_user_id() -> str:
+        """Return the user ID of the authenticated user for the current task."""
+        return _tenant_user_id_var.get()
+
+    @staticmethod
+    def set(tenant_id: str, email: str = "", user_id: str = "") -> None:
         """Set the tenant context for the current asyncio task."""
         _tenant_id_var.set(tenant_id)
         _tenant_email_var.set(email)
+        _tenant_user_id_var.set(user_id)
 
     @staticmethod
     def is_legacy() -> bool:
@@ -128,5 +135,6 @@ async def set_tenant_from_request(request: Request) -> None:
     user: dict = getattr(request.state, "user", {}) or {}
     tenant_id = get_tenant_id_from_user(user)
     email = user.get("email", "")
-    TenantContext.set(tenant_id, email)
+    user_id = user.get("id", "")
+    TenantContext.set(tenant_id, email, user_id)
     logger.debug(f"TenantContext set: tenant_id={tenant_id}")
