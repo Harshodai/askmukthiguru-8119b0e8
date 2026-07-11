@@ -748,6 +748,15 @@ Backend tests are in `backend/tests/` with `conftest.py` fixtures:
 
 Frontend tests are in `src/test/` and `src/tests/` using Vitest.
 
+### Security Audit Scripts (`scripts/security/`)
+- `audit_log_pii.sh` — scans for PII in log statements
+- `audit_secrets.sh` — scans for hardcoded secrets
+- `audit_endpoints.sh` — audits API endpoint exposure
+- `audit_cors_headers.sh` — checks CORS and security headers
+- `run_emergent_audit.sh` — runs all above in sequence
+- Report output: `scripts/security/report.md`
+- Programmatic runner: `scripts/security_audit.py`
+
 ## Scripts & Tooling
 
 ### Ingestion Scripts (`scripts/ingestion/`)
