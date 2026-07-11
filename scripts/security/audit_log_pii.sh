@@ -31,7 +31,7 @@ for pattern in "${pii_patterns[@]}"; do
       echo "  $line"
       found=$((found + 1))
     fi
-  done < <(grep -rn "$pattern" "$ROOT_DIR/backend" --include="*.py" --exclude-dir=venv --exclude-dir=.venv --exclude-dir=__pycache__ 2>/dev/null || true)
+  done < <(grep -rn "$pattern" "$ROOT_DIR/backend" --include="*.py" --exclude-dir=venv --exclude-dir=.venv --exclude-dir=.venv_host --exclude-dir=__pycache__ 2>/dev/null || true)
 done
 
 if [ "$found" -eq 0 ]; then

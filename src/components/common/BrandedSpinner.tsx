@@ -11,8 +11,7 @@ export const BrandedSpinner = () => (
   <div className="h-dvh w-full flex flex-col items-center justify-center bg-background gap-4">
     <motion.div
       className="relative flex items-center justify-center"
-      initial={
-      const { t } = useTranslation();{ opacity: 0, scale: 0.8 }}
+      initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >

@@ -19,7 +19,7 @@ patterns=(
   'PASSWORD[[:space:]]*[=:][[:space:]]*['"'"'"]?[A-Za-z0-9!@#%^&*()_+={}|;:,.<>?-]{8,}'
 )
 
-EXCLUDE_DIRS="--exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=dist-ssr --exclude-dir=build --exclude-dir=__pycache__ --exclude-dir=.pytest_cache --exclude-dir=reports --exclude-dir=playwright-report"
+EXCLUDE_DIRS="--exclude-dir=.git --exclude-dir=.venv --exclude-dir=.venv_host --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=dist-ssr --exclude-dir=build --exclude-dir=__pycache__ --exclude-dir=.pytest_cache --exclude-dir=reports --exclude-dir=playwright-report"
 
 echo "Scanning for potential hardcoded secrets..."
 found=0

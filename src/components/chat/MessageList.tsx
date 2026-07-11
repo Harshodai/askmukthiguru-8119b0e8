@@ -88,7 +88,6 @@ const formatDateLabel = (date: Date): string => {
 };
 
 export const MessageList = React.memo(({
-const { t } = useTranslation();
   messages,
   streamingId,
   streamingContent,
@@ -111,6 +110,7 @@ const { t } = useTranslation();
   /** E6.3: when true and there are no messages yet, render shadcn skeletons. */
   loading?: boolean;
 }) => {
+  const { t } = useTranslation();
 
   // E6.3: skeleton placeholder during an async initial load with no messages yet.
   if (loading && messages.length === 0) {

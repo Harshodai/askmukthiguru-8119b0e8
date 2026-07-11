@@ -20,7 +20,8 @@ import { TimeseriesChart } from "@/admin/components/TimeseriesChart";
 import { Link } from "react-router-dom";
 import { EmptyState } from "@/admin/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Server } from "lucide-react";
+import { AlertCircle, Server, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
 export default function RetrievalPage() {
@@ -67,7 +68,21 @@ export default function RetrievalPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Retrieval health</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">Retrieval health</h1>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs p-2">
+                Analyze vector-search performance. Hit rate measures how often the search returned document chunks. Average top score measures the semantic similarity of matches. A low hit rate indicates that you should upload more relevant context in the Ingestion tab.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <p className="text-sm text-muted-foreground">
           Vector-search quality and per-source contribution.
         </p>

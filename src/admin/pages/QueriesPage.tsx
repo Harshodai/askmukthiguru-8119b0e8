@@ -24,7 +24,8 @@ import { useQueries, usePromptVersions, useModels } from "@/admin/hooks/useAdmin
 import { fmtDateTime, fmtMs, truncate } from "@/admin/lib/formatters";
 import { TraceDrawer } from "@/admin/components/TraceDrawer";
 import { EmptyState } from "@/admin/components/EmptyState";
-import { Search, X } from "lucide-react";
+import { Search, X, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface QueryItem {
   id: string;
@@ -34,6 +35,7 @@ interface QueryItem {
   prompt_version_id?: string;
   latency_ms?: number;
   status: string;
+  spans?: any[];
 }
 
 export default function QueriesPage() {
@@ -116,7 +118,21 @@ export default function QueriesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Queries</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold">Queries</h1>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button className="text-muted-foreground hover:text-foreground">
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs p-2">
+                Inspect all chat queries. Use the search input, prompt version select, model dropdown, and judge score slider to filter the traces. Click any row to view the full waterfall timeline of step durations, cost, and safety alerts.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <p className="text-sm text-muted-foreground">
           Inspect every chat query, its retrieval, judge scores, and full trace.
         </p>
@@ -267,8 +283,34 @@ export default function QueriesPage() {
                     <TableCell>{truncate(q.query_text, 60)}</TableCell>
                     <TableCell className="text-xs font-mono">{q.model?.split("/").pop() || "unknown"}</TableCell>
                     <TableCell className="text-xs">{promptLabel(q.prompt_version_id)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-xs">
-                      {fmtMs(q.latency_ms)}
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="tabular-nums text-xs font-mono">{fmtMs(q.latency_ms)}</span>
+                        {q.spans && q.spans.length > 0 && (
+                          <div className="flex h-1.5 w-24 rounded-full overflow-hidden bg-muted">
+                            {q.spans.map((span: any) => {
+                              const colors: Record<string, string> = {
+                                guardrails_in: "bg-slate-400",
+                                embed: "bg-sky-400",
+                                vector_search: "bg-orange-400",
+                                rerank: "bg-violet-500",
+                                llm: "bg-emerald-500",
+                                judge: "bg-amber-500",
+                                guardrails_out: "bg-slate-400",
+                              };
+                              const pct = Math.max(2, (span.duration_ms / (q.latency_ms || 1)) * 100);
+                              return (
+                                <div
+                                  key={span.id}
+                                  className={colors[span.name] || "bg-gray-400"}
+                                  style={{ width: `${pct}%` }}
+                                  title={`${span.name}: ${span.duration_ms}ms`}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {q.status === "ok" ? (

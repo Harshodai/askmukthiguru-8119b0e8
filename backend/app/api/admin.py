@@ -509,21 +509,76 @@ async def ask_admin_question(
     container = get_container()
     llm_service = container.ollama
 
+    # Fetch rich context dynamically to support complex queries
+    from app.telemetry_db import get_kpis, get_node_latencies
+    from services.cost_tracker import get_cost_tracker
+    from datetime import datetime, timedelta, UTC
+
+    dynamic_context = []
+    
+    try:
+        now_dt = datetime.now(UTC)
+        from_date = (now_dt - timedelta(days=30)).isoformat()
+        to_date = now_dt.isoformat()
+        
+        kpis_30d = await get_kpis(from_date=from_date, to_date=to_date)
+        node_latencies = await get_node_latencies(limit=100)
+        
+        tracker = get_cost_tracker()
+        cost_report = tracker.get_usage_report(days=30)
+        
+        dynamic_context.append("--- Detailed Telemetry & Analytics (Last 30 Days) ---")
+        dynamic_context.append("Overall KPIs:")
+        for k, v in (kpis_30d or {}).items():
+            dynamic_context.append(f"  {k}: {v}")
+            
+        dynamic_context.append(f"\nCost & Token Metrics:")
+        dynamic_context.append(f"  Total Cost USD: ${cost_report.total_cost_usd:.6f}")
+        dynamic_context.append(f"  Total Tokens: {cost_report.total_tokens} (Prompt/In: {cost_report.total_tokens_in}, Completion/Out: {cost_report.total_tokens_out})")
+        dynamic_context.append(f"  Unique Users: {cost_report.unique_users}")
+        dynamic_context.append(f"  Unique Sessions: {cost_report.unique_sessions}")
+        
+        if cost_report.by_model:
+            dynamic_context.append("  Usage by Model:")
+            for m, details in cost_report.by_model.items():
+                dynamic_context.append(f"    - {m}: {details}")
+                
+        if cost_report.by_provider:
+            dynamic_context.append("  Usage by Provider:")
+            for prov, details in cost_report.by_provider.items():
+                dynamic_context.append(f"    - {prov}: {details}")
+                
+        if node_latencies:
+            dynamic_context.append("\nAverage Node/Span Latencies:")
+            for nl in node_latencies:
+                dynamic_context.append(f"  - {nl.get('name')}: {nl.get('avg_duration_ms', 0):.2f}ms (count: {nl.get('count', 0)})")
+                
+    except Exception as ctx_err:
+        logger.error(f"Failed to fetch dynamic telemetry context for ask_admin_question: {ctx_err}")
+
+    dynamic_context_str = "\n".join(dynamic_context)
+
     system_prompt = (
         "You are an AI analytics assistant for the AskMukthiGuru admin dashboard. "
-        "Answer questions about platform metrics, query volume, latency, costs, "
-        "hallucination rates and serene mind triggers. Be concise (2-4 sentences). "
-        "If data is unavailable say so — do not fabricate numbers."
+        "Answer questions about platform metrics, query volume, latency, costs, models, "
+        "hallucination rates, serene mind triggers, and provider details. "
+        "Analyze the provided metrics, including model breakdown and step latencies, to answer complex queries. "
+        "Be professional, accurate, and concise (2-4 sentences). If the data is unavailable, state so."
     )
 
-    context_block = f"Current platform metrics:\n{req.kpi_context}\n\n" if req.kpi_context else ""
-    user_message = f"{context_block}{req.question}"
+    context_block = ""
+    if req.kpi_context:
+        context_block += f"Current UI Metrics Context:\n{req.kpi_context}\n\n"
+    if dynamic_context_str:
+        context_block += f"Dynamic DB Telemetry Context:\n{dynamic_context_str}\n\n"
+
+    user_message = f"{context_block}Question: {req.question}"
 
     try:
         answer = await llm_service.generate(
             system_prompt=system_prompt,
             user_prompt=user_message,
-            max_tokens=200,
+            max_tokens=300,
             temperature=0.3,
         )
         if not answer or not answer.strip():

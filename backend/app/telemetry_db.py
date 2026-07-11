@@ -209,10 +209,10 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
         return []
 
     try:
-        # Join chat_queries with chat_responses
+        # Join chat_queries with chat_responses and trace_spans
         response = (
             client.table("chat_queries")
-            .select("*, chat_responses(*)")
+            .select("*, chat_responses(*), trace_spans(*)")
             .order("created_at", desc=True)
             .limit(limit)
             .execute()
@@ -229,6 +229,13 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
                         row[k] = v
                     else:
                         row[f"response_{k}"] = v
+            
+            # Map trace_spans
+            spans = row.pop("trace_spans", [])
+            for span in spans:
+                if "name" not in span and span.get("span_name"):
+                    span["name"] = span["span_name"]
+            row["spans"] = sorted(spans, key=lambda s: s.get("start_ms", 0))
             traces.append(row)
 
         return traces
