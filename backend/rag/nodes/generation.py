@@ -246,13 +246,19 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         "against the Knowledge and state clearly whether it is SUPPORTED or NOT SUPPORTED "
         "by the teachings. Do NOT refuse to verify.\n"
         + _depth_instruction +
-        "11. CANONICAL URLS — When answering questions about where to find more information, "
-        "biography, book purchases, or online resources, you MUST mention the relevant "
-        "official website: ekam.org (for Ekam World Centre and co-founders), "
-        "theonenessmovement.org (for Oneness Movement, Manifest 2026 program), "
-        "simonandschuster.com, or preferably amazon.in (for The Four Sacred Secrets book purchase), "
-        "youtube.com/c/pkconsciousness (for videos and Soul Sync guided sessions). "
-        "Spell these domain names exactly.\n"
+        "11. CANONICAL URLS — When you point the seeker to an external resource (biography, "
+        "book, videos, or where to find more), name the FULL domain inline: ekam.org (Ekam "
+        "World Centre and co-founders), theonenessmovement.org (Oneness Movement, Manifest "
+        "2026), amazon.in or simonandschuster.com (The Four Sacred Secrets book), "
+        "youtube.com/c/pkconsciousness (videos and Soul Sync). Spell them exactly. NEVER write "
+        "a bare 'website:' or 'watch more here:' with no domain after it — give the actual "
+        "domain or drop the phrase entirely.\n"
+        "11b. LOGISTICS — For questions about upcoming programs, schedules, dates, ticket "
+        "prices, or event availability (NOT in the teachings): your ENTIRE reply must be one "
+        "or two sentences that (1) say you don't have current schedules/prices and (2) name "
+        "the site ekam.org. Do NOT add any teaching, practice, reflection, meditation, or "
+        "spiritual commentary — no matter how relevant it feels. Example — \"I don't have "
+        "current schedules or prices for Ekam's programs; you'll find the latest on ekam.org.\"\n"
         "12. For temporal/date questions about Manifest 2026 monthly powers, state the "
         "specific month and power name together (e.g. 'January: Power of Intention').\n"
         "13. REVERSIBLE COMPRESSION — If the Knowledge provided is compressed or missing detail and you need the full uncompressed text of a document to answer accurately, you MUST output exactly '[RETRIEVE: <source_url>]' as your entire response. Do NOT add any other words or explanation."
@@ -1165,6 +1171,11 @@ def _clean_inline_citations(text: str) -> str:
     text = re.sub(r'(?i)(?:watch\s+more\s+here|read\s+more\s+here|source|sources):\s*https?://\S+', '', text)
     # Remove any stray raw URLs
     text = re.sub(r'(?i)\bhttps?://\S+', '', text)
+    # Remove dangling CTA phrases the model appends without an inline URL: the link is emitted
+    # in the citations array, not the text, so "Watch more here:" / "…website:" survive the URL
+    # strips above and leave the answer ending on a bare colon. Strip them at line/text end.
+    text = re.sub(r'(?im)[ \t]*\b(?:you can\s+)?(?:watch|read|learn|see|find)\s+(?:out\s+)?more\s+here\s*:?[ \t]*(?=\n|$)', '', text)
+    text = re.sub(r'(?im)[ \t]*(?:on\s+|visit\s+)?(?:the\s+)?[A-Za-z][\w ]{0,24}?\bwebsite\s*:[ \t]*(?=\n|$)', '', text)
     # Collapse multiple spaces
     text = re.sub(r' {2,}', ' ', text)
     # Fix spaces before punctuation
