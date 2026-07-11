@@ -124,7 +124,7 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
-    openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
+    openrouter_classify_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_rpm_limit: int = 20
 
     # --- Nvidia NIM (hosted API Catalog) ---
