@@ -10,8 +10,10 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
+from starlette.requests import Request
 
 from app.config import settings
+from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
 from services.sarvam_service import SarvamCloudService
@@ -29,7 +31,9 @@ class SpeechTTSRequest(BaseModel):
 
 
 @router.post("/speech/stt")
+@limiter.limit("10/minute")
 async def speech_to_text_endpoint(
+    request: Request,
     file: UploadFile = File(...),
     language_code: Optional[str] = Form(None),
     model: str = Form("saaras:v3"),
@@ -112,7 +116,9 @@ async def speech_to_text_endpoint(
 
 
 @router.post("/speech/tts")
+@limiter.limit("10/minute")
 async def text_to_speech_endpoint(
+    request: Request,
     req: SpeechTTSRequest,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
@@ -195,7 +201,9 @@ class TranslateRequest(BaseModel):
 
 
 @router.post("/translate")
+@limiter.limit("30/minute")
 async def translate_endpoint(
+    request: Request,
     req: TranslateRequest,
     user: dict = Depends(get_current_user_from_supabase),
 ):
