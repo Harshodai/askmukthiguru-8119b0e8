@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -59,6 +60,7 @@ const clearResume = () => {
 };
 
 export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, onComplete }: GuidedMeditationFlowProps) => {
+  const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -273,7 +275,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
           <button
             onClick={() => setReflectionStep(prev => (prev - 1) as 0 | 1 | 2 | 3)}
             className="absolute top-4 left-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
-            aria-label="Back"
+            aria-label={t('common.back')}
           >
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
@@ -291,29 +293,29 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   <div className="w-16 h-16 mx-auto rounded-full bg-ojas/15 flex items-center justify-center">
                     <HandHeart className="w-7 h-7 text-ojas" />
                   </div>
-                  <h2 className="text-xl font-semibold text-foreground">Namaste</h2>
-                  <p className="text-sm text-muted-foreground">How do you feel right now?</p>
+                  <h2 className="text-xl font-semibold text-foreground">{t('meditation.namaste')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('meditation.howDoYouFeel')}</p>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { Icon: Leaf, label: 'Peaceful' },
-                    { Icon: HandHeart, label: 'Grateful' },
-                    { Icon: Feather, label: 'Lighter' },
-                    { Icon: Lightbulb, label: 'Reflective' },
-                    { Icon: Droplet, label: 'Emotional' },
-                    { Icon: Zap, label: 'Energised' },
-                  ].map(({ Icon, label }) => (
+                    { id: 'peaceful', Icon: Leaf, label: 'meditation.peaceful' },
+                    { id: 'grateful', Icon: HandHeart, label: 'meditation.grateful' },
+                    { id: 'lighter', Icon: Feather, label: 'meditation.lighter' },
+                    { id: 'reflective', Icon: Lightbulb, label: 'meditation.reflective' },
+                    { id: 'emotional', Icon: Droplet, label: 'meditation.emotional' },
+                    { id: 'energised', Icon: Zap, label: 'meditation.energised' },
+                  ].map(({ id, Icon, label }) => (
                     <button
-                      key={label}
-                      onClick={() => setSelectedMood(label)}
+                      key={id}
+                      onClick={() => setSelectedMood(id)}
                       className={`flex flex-col items-center gap-1 py-3 rounded-xl border text-xs font-medium transition-all ${
-                        selectedMood === label
+                        selectedMood === id
                           ? 'border-ojas bg-ojas/10 text-ojas'
                           : 'border-border/40 bg-card/60 text-muted-foreground hover:border-ojas/30'
                       }`}
                     >
                       <Icon className="w-5 h-5" />
-                      {label}
+                      {t(label)}
                     </button>
                   ))}
                 </div>
@@ -322,10 +324,10 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   disabled={!selectedMood}
                   className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium disabled:opacity-40 transition-opacity"
                 >
-                  Continue
+                  {t('common.continue')}
                 </button>
                 <button onClick={requestClose} className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  Skip to chat
+                  {t('meditation.skipToChat')}
                 </button>
               </>
             )}
@@ -333,13 +335,13 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {reflectionStep === 1 && (
               <>
                 <div className="text-center space-y-1">
-                  <h2 className="text-lg font-semibold text-foreground">Capture this moment</h2>
-                  <p className="text-sm text-muted-foreground">What insight arose during your meditation?</p>
+                  <h2 className="text-lg font-semibold text-foreground">{t('meditation.captureThisMoment')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('meditation.whatInsightArose')}</p>
                 </div>
                 <textarea
                   value={journalText}
                   onChange={e => setJournalText(e.target.value)}
-                  placeholder="What do you notice in this moment… thoughts, sensations, feelings…"
+                  placeholder={t('meditation.journalPlaceholder')}
                   rows={4}
                   className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
                 />
@@ -347,7 +349,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   onClick={() => setReflectionStep(2)}
                   className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
                 >
-                  {journalText.trim() ? 'Continue' : 'Skip'}
+                  {journalText.trim() ? t('common.continue') : t('common.skip')}
                 </button>
               </>
             )}
@@ -355,13 +357,13 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {reflectionStep === 2 && (
               <>
                 <div className="text-center space-y-1">
-                  <h2 className="text-lg font-semibold text-foreground">One thing of gratitude</h2>
-                  <p className="text-sm text-muted-foreground">Name something you are grateful for right now.</p>
+                  <h2 className="text-lg font-semibold text-foreground">{t('meditation.oneThingOfGratitude')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('meditation.nameSomethingGrateful')}</p>
                 </div>
                 <textarea
                   value={gratitudeText}
                   onChange={e => setGratitudeText(e.target.value)}
-                  placeholder="I am grateful for…"
+                  placeholder={t('meditation.gratitudePlaceholder')}
                   rows={3}
                   className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
                 />
@@ -381,7 +383,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   }}
                   className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
                 >
-                  {gratitudeText.trim() ? 'Complete' : 'Skip'}
+                  {gratitudeText.trim() ? t('common.complete') : t('common.skip')}
                 </button>
               </>
             )}
@@ -391,15 +393,15 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 <div className="w-16 h-16 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
                   <Sparkles className="w-7 h-7 text-green-500" />
                 </div>
-                <h2 className="text-xl font-semibold text-foreground">Beautiful</h2>
+                <h2 className="text-xl font-semibold text-foreground">{t('meditation.beautiful')}</h2>
                 <p className="text-sm text-muted-foreground">
-                  You have completed your practice. Carry this {selectedMood.toLowerCase()} state into your day.
+                  {t('meditation.practiceComplete', { mood: selectedMood })}
                 </p>
                 <button
                   onClick={requestClose}
                   className="px-6 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"
                 >
-                  Return to Chat
+                  {t('meditation.returnToChat')}
                 </button>
               </div>
             )}
@@ -416,7 +418,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {/* Source teaching attribution — only when custom */}
             {sourceTeaching && (
               <p className="text-xs text-muted-foreground/70 italic">
-                Infused from {sourceTeaching}
+                {t('meditation.infusedFromTeaching', { teaching: sourceTeaching })}
               </p>
             )}
 
@@ -455,7 +457,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
 
             {/* Timer */}
             <p className="text-sm text-muted-foreground tabular-nums">
-              {Math.max(0, step.durationSeconds - elapsed)}s remaining
+              {t('meditation.secondsRemaining', { count: Math.max(0, step.durationSeconds - elapsed) })}
             </p>
 
             {/* Controls */}
@@ -469,7 +471,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
               <button
                 onClick={skipStep}
                 className="p-3 rounded-full border border-border hover:border-ojas/40 transition-colors"
-                title="Skip step"
+                title={t('meditation.skipStep')}
               >
                 <SkipForward className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -485,16 +487,15 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
               animate={{ opacity: 1, scale: 1 }}
               className="w-full max-w-sm rounded-2xl border border-ojas/30 bg-card/90 p-6 text-center space-y-4 shadow-xl"
               role="dialog"
-              aria-label="Resume your practice"
+              aria-label={t('meditation.resumeYourPractice')}
             >
               <div className="w-12 h-12 mx-auto rounded-full bg-ojas/15 flex items-center justify-center">
                 <RotateCcw className="w-5 h-5 text-ojas" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold text-foreground">Resume your practice?</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t('meditation.resumeYourPractice')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  You paused at <span className="text-foreground/90 font-medium">{steps[resumeOffer.stepIndex]?.title ?? 'an earlier step'}</span>.
-                  Continue right where you left off.
+                  {t('meditation.youPausedAt', { step: steps[resumeOffer.stepIndex]?.title ?? t('meditation.guidedMeditation') })}
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -503,14 +504,14 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   onClick={discardResume}
                   className="flex-1 py-2.5 rounded-full border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
                 >
-                  Start fresh
+                  {t('meditation.startFresh')}
                 </button>
                 <button
                   type="button"
                   onClick={acceptResume}
                   className="flex-1 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-sm font-semibold"
                 >
-                  Resume
+                  {t('common.resume')}
                 </button>
               </div>
             </motion.div>
@@ -525,11 +526,11 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
               animate={{ opacity: 1, scale: 1 }}
               className="w-full max-w-sm rounded-2xl border border-ojas/30 bg-card/95 p-6 text-center space-y-4 shadow-xl"
               role="alertdialog"
-              aria-label="Pause this practice?"
+              aria-label={t('meditation.pausePractice')}
             >
-              <h3 className="text-lg font-semibold text-foreground">Pause this practice?</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t('meditation.pausePractice')}</h3>
               <p className="text-sm text-muted-foreground">
-                You can continue right where you left off the next time you open Serene Mind.
+                {t('meditation.pauseDesc')}
               </p>
               <div className="flex flex-col gap-2">
                 <button
@@ -537,21 +538,21 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   onClick={() => { setShowCloseConfirm(false); setIsPlaying(true); }}
                   className="w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-sm font-semibold"
                 >
-                  Keep going
+                  {t('meditation.keepGoing')}
                 </button>
                 <button
                   type="button"
                   onClick={confirmPauseAndExit}
                   className="w-full py-2.5 rounded-full border border-border text-sm font-medium text-foreground/85 hover:bg-muted transition-colors"
                 >
-                  Pause &amp; close
+                  {t('meditation.pauseAndClose')}
                 </button>
                 <button
                   type="button"
                   onClick={confirmEndAndExit}
                   className="w-full py-2 text-xs text-muted-foreground/80 hover:text-destructive transition-colors"
                 >
-                  End practice
+                  {t('meditation.endPractice')}
                 </button>
               </div>
             </motion.div>

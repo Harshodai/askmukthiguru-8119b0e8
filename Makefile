@@ -106,11 +106,17 @@ backup: ## Take a comprehensive snapshot of Qdrant, Neo4j, and Supabase data
 restore: ## Restore Qdrant, Neo4j, and Supabase data from snapshots
 	@$(PYTHON) scripts/backup/snapshot_manager.py restore
 
-flush-cache: ## Flush query-side caches (Qdrant semantic cache + Redis) safely without impacting ingestion
-	@echo "${GREEN}Flushing query-side caches (Qdrant semantic cache + Redis)...${NC}"
+flush-cache: ## Flush all four cache layers (Redis + Qdrant semantic + in-process restart + frontend note)
+	@echo "${GREEN}[1-2/4] Flushing Redis + Qdrant semantic cache...${NC}"
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 /app/../scripts/ops/flush_cache.py 2>/dev/null || \
 		 DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose exec -T backend python3 scripts/ops/flush_cache.py 2>/dev/null || \
 		 (echo "⚠️  Could not exec into container, running host-side fallback (Redis only)..." && $(PYTHON) scripts/ops/flush_cache.py)
+	@echo "${GREEN}[3/4] Restarting backend to clear in-process caches (hot / in-mem semantic / TurboQuant vector / doctrine_terms)...${NC}"
+	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose restart backend
+	@echo "${YELLOW}[4/4] Frontend responseCache lives in the browser's localStorage — it cannot be cleared from here.${NC}"
+	@echo "${YELLOW}      Clear it in the app's DevTools console:${NC}"
+	@echo "        Object.keys(localStorage).filter(k=>/cache|response|conversation/i.test(k)).forEach(k=>localStorage.removeItem(k))"
+	@echo "${GREEN}Cache flush complete (3/4 server-side; the frontend layer is a one-line manual step above).${NC}"
 
 logs: ## Tail the logs of all Docker services
 	@cd backend && DOCKER_CONFIG=$(DOCKER_CONFIG_CLEAN) PATH=$(DOCKER_BIN):$$PATH docker compose logs -f

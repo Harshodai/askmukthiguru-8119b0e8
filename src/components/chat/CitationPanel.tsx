@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { X, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +18,8 @@ interface CitationPanelProps {
 }
 
 export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps) {
+  const { t } = useTranslation();
+
   const getDomain = (url: string): string => {
     try {
       return new URL(url).hostname.replace(/^www\./, "");
@@ -42,7 +45,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <LinkIcon className="w-5 h-5 text-ojas" />
-              Sources & References
+              {t('chat.sourcesReferences')}
             </SheetTitle>
           </div>
         </SheetHeader>
@@ -50,7 +53,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
           {citations.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <LinkIcon className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="text-sm">No citations available</p>
+              <p className="text-sm">{t('chat.noCitations')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -79,14 +82,14 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           </blockquote>
                         )}
                         {c.channel_name && (
-                          <p className="text-xs text-muted-foreground mt-1">Channel: {c.channel_name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{t('chat.channelLabel', { channel: c.channel_name })}</p>
                         )}
                         {ytId && (
                           <div className="mt-3 rounded-lg overflow-hidden border">
                             <iframe
                               width="100%"
                               src={`https://www.youtube.com/embed/${ytId}`}
-                              title="YouTube video player"
+                              title={t('chat.youTubePlayer')}
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               className="w-full aspect-video"
                               referrerPolicy="strict-origin-when-cross-origin"

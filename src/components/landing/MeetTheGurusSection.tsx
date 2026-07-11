@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Heart, Sparkles } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 export const MeetTheGurusSection = () => {
+  const { t } = useTranslation();
   return (
     <section id="gurus" className="scroll-mt-28 py-12 sm:py-20 md:py-24 relative overflow-hidden">
       {/* Background */}
@@ -18,12 +20,11 @@ export const MeetTheGurusSection = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="text-foreground">Meet Your</span>{' '}
-            <span className="text-gradient-gold">Spiritual Guides</span>
+            <span className="text-foreground">{t('landing.gurus.heading1')}</span>{' '}
+            <span className="text-gradient-gold">{t('landing.gurus.heading2')}</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            The wisdom of Sri Preethaji & Sri Krishnaji, founders of the Oneness Movement,
-            now accessible through a compassionate AI companion.
+            {t('landing.gurus.subtitle')}
           </p>
         </motion.div>
 
@@ -60,16 +61,13 @@ export const MeetTheGurusSection = () => {
               {/* Content */}
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  Sri Preethaji & Sri Krishnaji
+                  {t('landing.gurus.name')}
                 </h3>
                 <p className="text-ojas font-medium mb-4">
-                  Founders of Ekam & The Oneness Movement
+                  {t('landing.gurus.title')}
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  For over three decades, Sri Preethaji and Sri Krishnaji have guided millions
-                  toward inner transformation. Their teachings focus on moving from a "suffering state"
-                  to a "beautiful state" through consciousness technology that blends ancient yogic
-                  wisdom with modern neuroscience.
+                  {t('landing.gurus.description')}
                 </p>
 
                 {/* Key Teachings */}
@@ -91,8 +89,7 @@ export const MeetTheGurusSection = () => {
               <div className="flex items-start gap-4">
                 <Sparkles className="w-6 h-6 text-ojas flex-shrink-0 mt-1" />
                 <blockquote className="text-lg italic text-foreground">
-                  "When you are in a beautiful state, you become a blessing to everyone around you.
-                  Your very presence heals, your words inspire, and your actions create ripples of transformation."
+                  {t('landing.gurus.quote')}
                 </blockquote>
               </div>
             </div>
@@ -108,7 +105,7 @@ export const MeetTheGurusSection = () => {
           className="text-center mt-8 text-sm text-muted-foreground"
         >
           <Heart className="w-4 h-4 inline mr-2 text-ojas" />
-          Guided by their wisdom, powered by AI
+          {t('landing.gurus.disclosure')}
         </motion.p>
       </div>
     </section>

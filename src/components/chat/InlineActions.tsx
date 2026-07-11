@@ -1,4 +1,4 @@
-import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Lightbulb, Sparkles, User } from 'lucide-react';
 
@@ -7,13 +7,15 @@ interface InlineActionsProps {
   onAction: (query: string) => void;
 }
 
-const ACTIONS = [
-  { label: "Tell me more", icon: Sparkles, getQuery: (content: string) => `Tell me more about this: ${content}` },
-  { label: "Explain simply", icon: Lightbulb, getQuery: (content: string) => `Explain this in simpler terms: ${content}` },
-  { label: "How relates to me", icon: User, getQuery: (content: string) => `How does this relate to my personal journey? ${content}` },
-];
-
 export function InlineActions({ messageContent, onAction }: InlineActionsProps) {
+  const { t } = useTranslation();
+
+  const ACTIONS = [
+    { label: t('chat.tellMeMore'), icon: Sparkles, getQuery: (content: string) => t('chat.tellMeMoreQuery', { content }) },
+    { label: t('chat.explainSimply'), icon: Lightbulb, getQuery: (content: string) => t('chat.explainSimplyQuery', { content }) },
+    { label: t('chat.howRelates'), icon: User, getQuery: (content: string) => t('chat.howRelatesQuery', { content }) },
+  ];
+
   return (
     <div className="flex flex-wrap gap-2 mt-2">
       {ACTIONS.map((action) => (

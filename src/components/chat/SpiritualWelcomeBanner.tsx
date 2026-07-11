@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X } from 'lucide-react';
@@ -12,6 +13,7 @@ interface SpiritualWelcomeBannerProps {
 }
 
 export function SpiritualWelcomeBanner({ onDismiss }: SpiritualWelcomeBannerProps) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [line, setLine] = useState('');
 
@@ -42,7 +44,7 @@ export function SpiritualWelcomeBanner({ onDismiss }: SpiritualWelcomeBannerProp
             type="button"
             onClick={handleDismiss}
             className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
-            aria-label="Dismiss welcome message"
+            aria-label={t('common.dismiss')}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -52,7 +54,7 @@ export function SpiritualWelcomeBanner({ onDismiss }: SpiritualWelcomeBannerProp
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-ojas/80 mb-1">
-                Today's Line
+                {t('chat.todaysLine')}
               </p>
               <p className="text-[15px] font-serif italic leading-relaxed text-foreground/85">
                 &ldquo;{line}&rdquo;
@@ -64,3 +66,4 @@ export function SpiritualWelcomeBanner({ onDismiss }: SpiritualWelcomeBannerProp
     </AnimatePresence>
   );
 }
+

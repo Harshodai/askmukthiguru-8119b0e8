@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAdminFilters, type RangePreset } from "@/admin/lib/filtersStore";
+import { useTranslation } from 'react-i18next';
 
 const PRESETS: { value: RangePreset; label: string }[] = [
   { value: "1h", label: "Last hour" },
@@ -20,6 +21,7 @@ const PRESETS: { value: RangePreset; label: string }[] = [
 ];
 
 export function AdminTopbar() {
+const { t } = useTranslation();
   const { filters, setPreset, setRange, refresh } = useAdminFilters();
   const [open, setOpen] = useState(false);
 

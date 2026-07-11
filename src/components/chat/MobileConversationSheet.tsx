@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Flame, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react';
@@ -28,6 +29,7 @@ export const MobileConversationSheet = ({
   onSelectConversation,
   currentConversationId,
 }: MobileConversationSheetProps) => {
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState<Conversation[]>([]);
 
   useEffect(() => {
@@ -97,8 +99,8 @@ export const MobileConversationSheet = ({
                     />
                   </div>
                   <div>
-                    <h2 className="font-semibold text-foreground">AskMukthiGuru</h2>
-                    <p className="text-xs text-muted-foreground">Your Spiritual Companion</p>
+                    <h2 className="font-semibold text-foreground">{t('nav.appName')}</h2>
+                    <p className="text-xs text-muted-foreground">{t('chat.yourSpiritualCompanion')}</p>
                   </div>
                 </div>
                 <button
@@ -127,8 +129,8 @@ export const MobileConversationSheet = ({
                   <Plus className="w-5 h-5 text-ojas" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-foreground">New Conversation</p>
-                  <p className="text-xs text-muted-foreground">Start fresh with the Gurus</p>
+                  <p className="font-medium text-foreground">{t('chat.newConversation')}</p>
+                  <p className="text-xs text-muted-foreground">{t('chat.startFreshWithGurus')}</p>
                 </div>
               </button>
 
@@ -144,8 +146,8 @@ export const MobileConversationSheet = ({
                   <Flame className="w-5 h-5 text-ojas" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-foreground">Serene Mind Meditation</p>
-                  <p className="text-xs text-muted-foreground">3-minute guided breathwork</p>
+                  <p className="font-medium text-foreground">{t('meditation.sereneMind')}</p>
+                  <p className="text-xs text-muted-foreground">{t('chat.breathworkDesc')}</p>
                 </div>
               </button>
 
@@ -153,7 +155,7 @@ export const MobileConversationSheet = ({
               {Object.keys(groupedConversations).length > 0 && (
                 <div className="pt-4">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-medium">
-                    Recent Conversations
+                    {t('chat.recentConversations')}
                   </p>
                   <div className="space-y-3">
                     {Object.entries(groupedConversations).map(([timeGroup, convs]) => (
@@ -175,10 +177,10 @@ export const MobileConversationSheet = ({
                               <MessageCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm text-foreground truncate">
-                                  {conv.preview || 'New conversation'}
+                                  {conv.preview || t('chat.newConversation')}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {conv.messageCount} messages
+                                  {t('chat.messagesCount', { count: conv.messageCount })}
                                 </p>
                               </div>
                               <button
@@ -204,7 +206,7 @@ export const MobileConversationSheet = ({
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-                  <p className="text-sm text-foreground">Back to Home</p>
+                  <p className="text-sm text-foreground">{t('chat.backToHome')}</p>
                 </Link>
               </div>
             </div>

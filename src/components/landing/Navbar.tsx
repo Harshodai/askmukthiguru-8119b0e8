@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -5,13 +6,14 @@ import { useState } from 'react';
 import { UserMenu } from '@/components/common/UserMenu';
 
 export const Navbar = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   const navLinks = [
-    { href: '#gurus', label: 'Meet the Gurus' },
-    { href: '#how-it-works', label: 'How It Works' },
-    { href: '#practices', label: 'Practices' },
-    { href: '#meditation', label: 'Meditation' },
+    { href: '#gurus', label: t('nav.meetGurus') },
+    { href: '#how-it-works', label: t('nav.howItWorks') },
+    { href: '#practices', label: t('nav.practices') },
+    { href: '#meditation', label: t('nav.meditation') },
   ];
 
   return (
@@ -27,7 +29,7 @@ export const Navbar = () => {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <span className="text-lg" aria-hidden="true">🙏</span>
-              <span className="text-lg font-bold text-gradient-gold">AskMukthiGuru</span>
+              <span className="text-lg font-bold text-gradient-gold">{t('nav.appName')}</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -45,7 +47,7 @@ export const Navbar = () => {
                 to="/chat"
                 className="px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-sm transition-all duration-300 hover:scale-105 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
               >
-                Start Chat
+                {t('nav.startChat')}
               </Link>
               <UserMenu />
             </div>
@@ -54,7 +56,7 @@ export const Navbar = () => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="md:hidden p-2 text-foreground hover:text-ojas transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
-              aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-label={isOpen ? t('common.closeNav') : t('common.openNav')}
               aria-expanded={isOpen}
               aria-controls="mobile-nav"
             >
@@ -86,7 +88,7 @@ export const Navbar = () => {
                   onClick={() => setIsOpen(false)}
                   className="px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-center transition-all duration-300 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
                 >
-                  Start Chat
+                  {t('nav.startChat')}
                 </Link>
               </div>
             </motion.div>

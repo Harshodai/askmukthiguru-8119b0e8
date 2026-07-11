@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
@@ -152,7 +153,7 @@ const getSourceDisplayName = (url: string, index: number): string => {
       return `O&O Academy Reference`;
     }
     if (hostname.includes('preethaji') || hostname.includes('krishnaji')) {
-      return `Teaching Reference`;
+      return t('chat.teachingReference');
     }
     return hostname;
   } catch {
@@ -160,10 +161,16 @@ const getSourceDisplayName = (url: string, index: number): string => {
   }
 };
 
-const FEEDBACK_TAGS = ['Clear answer', 'Relevant sources', 'Calming tone', 'Insightful'];
 
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
+    const { t } = useTranslation();
+    const FEEDBACK_TAGS = [
+      t('chat.clearAnswer'),
+      t('chat.relevantSources'),
+      t('chat.calmingTone'),
+      t('chat.insightful'),
+    ];
     const isGuru = message.role === 'guru';
     const navigate = useNavigate();
     const { profile } = useProfile();
@@ -219,7 +226,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       try {
         let target: typeof notebooks[number] | undefined = notebooks[0];
         if (!target) {
-          target = (await createNotebook('Saved from Chat')) ?? undefined;
+          target = (await createNotebook(t('chat.savedFromChat'))) ?? undefined;
         }
         if (target) {
           await addItem(target.id, {
@@ -236,7 +243,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         // fall through to legacy notes
       }
       const note = await createNote({
-        title: queryText ? queryText.slice(0, 80) : 'Teaching',
+        title: queryText ? queryText.slice(0, 80) : t('chat.teaching'),
         body: snippet,
         tags: ['from-chat'],
         source_message_id: message.id,
@@ -246,7 +253,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         setTimeout(() => setNoteSaved(false), 2000);
         toast({ title: 'Saved to Notes', description: 'Find it under Profile → Notes.' });
       } else {
-        toast({ title: 'Sign in to save notes', variant: 'destructive' });
+        toast({ title: t('chat.signInSaveNotes'), variant: 'destructive' });
       }
     }, [createNote, createNotebook, addItem, notebooks, message.content, message.id, queryText, toast]);
 
@@ -283,7 +290,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         const snippet = (queryText ? `Q: ${queryText}\nA: ` : '') + message.content.slice(0, 600);
         await memoryApi.add(snippet);
         setSaved(true);
-        toast({ title: 'Saved to your memory', description: 'The Guru will recall this in future conversations.' });
+        toast({ title: t('chat.savedToMemory'), description: t('chat.guruWillRecall') });
       } catch (e) {
         const err = e as { code?: string; message?: string };
         if (err?.code === 'unauthorized') {
@@ -623,7 +630,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     <button
                       onClick={onRegenerate}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                      title="Regenerate response"
+                      title={t('chat.regenerate')}
                     >
                       <RotateCcw className="w-4 h-4" />
                     </button>

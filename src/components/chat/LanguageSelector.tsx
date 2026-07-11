@@ -313,6 +313,7 @@ export const LanguageSelector = ({
         <div className="relative">
           <motion.button
             ref={triggerRef}
+            data-tour="language-selector"
             onClick={(e) => {
               e.stopPropagation();
               setIsOpen(!isOpen);

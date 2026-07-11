@@ -32,6 +32,7 @@ import { logoutAdmin, getAdminSession } from "@/admin/lib/adminAuth";
 import { useAdminGuard } from "@/admin/hooks/useAdminGuard";
 import { AdminTopbar } from "./AdminTopbar";
 import { AdminFiltersProvider } from "@/admin/lib/filtersStore";
+import { useTranslation } from 'react-i18next';
 
 const NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
@@ -58,6 +59,7 @@ const NAV = [
 ];
 
 export function AdminShell() {
+const { t } = useTranslation();
   const { ready } = useAdminGuard();
   const nav = useNavigate();
   const session = getAdminSession();

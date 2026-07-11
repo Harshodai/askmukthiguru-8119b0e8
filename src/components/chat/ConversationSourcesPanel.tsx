@@ -9,6 +9,7 @@
  *    autofocus on first item when opened, visible focus rings, AA contrast.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -118,7 +119,7 @@ function SourceRow({
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:text-ojas focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas rounded max-w-full"
-              aria-label={`Open source ${index + 1}: ${source.domain} in a new tab`}
+              aria-label={t('chat.openSourceAria', { number: index + 1, domain: source.domain })}
             >
               {source.ytId ? (
                 <Youtube className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden />
@@ -132,12 +133,12 @@ function SourceRow({
               type="button"
               onClick={() => onCopy(source.url)}
               className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
-              aria-label={`Copy URL for source ${index + 1}`}
+              aria-label={t('chat.copyUrlAria', { number: index + 1 })}
             >
               {copiedUrl === source.url ? (
-                <><Check className="w-3 h-3" aria-hidden /> Copied</>
+                <><Check className="w-3 h-3" aria-hidden /> {t('common.copied')}</>
               ) : (
-                <><Copy className="w-3 h-3" aria-hidden /> Copy</>
+                <><Copy className="w-3 h-3" aria-hidden /> {t('common.copy')}</>
               )}
             </button>
           </div>
@@ -151,7 +152,7 @@ function SourceRow({
               target="_blank"
               rel="noopener noreferrer"
               className="block mt-2 rounded-lg overflow-hidden border border-border/50 aspect-video bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
-              aria-label={`Open YouTube video for source ${index + 1}`}
+              aria-label={t('chat.openSourceAria', { number: index + 1, domain: 'YouTube' })}
               tabIndex={-1}
             >
               <img
@@ -165,7 +166,7 @@ function SourceRow({
 
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
-              Used in
+              {t('chat.references')}
             </span>
             {source.usedIn.map((p) => (
               <button
@@ -173,9 +174,9 @@ function SourceRow({
                 type="button"
                 onClick={() => onJump(p.messageId)}
                 className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-ojas/10 text-ojas hover:bg-ojas/20 border border-ojas/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
-                aria-label={`Scroll to answer ${p.answerNumber} where this source is cited`}
+                aria-label={t('chat.scrollToAnswerAria', { number: p.answerNumber })}
               >
-                answer #{p.answerNumber}
+                {t('chat.answerHash', { number: p.answerNumber })}
               </button>
             ))}
           </div>
@@ -193,6 +194,7 @@ export function ConversationSourcesPanel({
   filterMessageId,
   onClearFilter,
 }: Props) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -211,7 +213,7 @@ export function ConversationSourcesPanel({
       setCopiedUrl(url);
       window.setTimeout(() => setCopiedUrl((c) => (c === url ? null : c)), 1500);
     } catch {
-      toast({ title: 'Could not copy URL', variant: 'destructive' });
+      toast({ title: t('chat.couldNotCopy'), variant: 'destructive' });
     }
   };
 
@@ -222,9 +224,9 @@ export function ConversationSourcesPanel({
       .join('\n');
     try {
       await navigator.clipboard.writeText(md);
-      toast({ title: `Copied ${source.length} source${source.length === 1 ? '' : 's'}` });
+      toast({ title: t('common.copied') });
     } catch {
-      toast({ title: 'Could not copy sources', variant: 'destructive' });
+      toast({ title: t('chat.couldNotCopy'), variant: 'destructive' });
     }
   };
 
@@ -238,8 +240,8 @@ export function ConversationSourcesPanel({
     <div className="flex items-center justify-between gap-3 flex-wrap">
       <p className="text-caption text-muted-foreground">
         {filtered.length === 0
-          ? 'No sources cited yet in this conversation.'
-          : `${filtered.length} unique ${filtered.length === 1 ? 'source' : 'sources'} · ${totalCites} citation${totalCites === 1 ? '' : 's'}`}
+          ? t('chat.noSources')
+          : t('chat.sourceCount', { count: filtered.length, citationCount: totalCites })}
       </p>
       <div className="flex items-center gap-1.5">
         {filterMessageId && (
@@ -249,7 +251,7 @@ export function ConversationSourcesPanel({
             className="inline-flex items-center gap-1 text-[11px] font-medium text-ojas hover:text-ojas/80 border border-ojas/30 rounded-md px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
           >
             <Filter className="w-3 h-3" aria-hidden />
-            Showing 1 answer — clear
+            {t('chat.showingOneAnswer')}
           </button>
         )}
         <button
@@ -257,20 +259,20 @@ export function ConversationSourcesPanel({
           onClick={() => copyAll(filtered)}
           disabled={filtered.length === 0}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-foreground hover:text-ojas border border-border rounded-md px-2 py-1 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
-          aria-label="Copy all sources as markdown"
+          aria-label={t('chat.copyAll')}
         >
           <Copy className="w-3 h-3" aria-hidden />
-          Copy all
+          {t('chat.copyAll')}
         </button>
         <button
           type="button"
           onClick={() => setModalOpen(true)}
           disabled={filtered.length === 0}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-foreground hover:text-ojas border border-border rounded-md px-2 py-1 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
-          aria-label="Open full conversation sources in modal"
+          aria-label={t('chat.fullConversationSources')}
         >
           <Maximize2 className="w-3 h-3" aria-hidden />
-          Full view
+          {t('chat.fullView')}
         </button>
       </div>
     </div>
@@ -281,12 +283,12 @@ export function ConversationSourcesPanel({
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground" role="status">
           <Library className="w-10 h-10 mx-auto mb-3 opacity-40" aria-hidden />
-          <p className="text-body-sm">Sources will appear here as the Guru cites teachings.</p>
+          <p className="text-body-sm">{t('chat.sourcesWillAppear')}</p>
         </div>
       ) : (
         <ul
           role="list"
-          aria-label={`${filtered.length} conversation sources`}
+          aria-label={t('chat.sourceCount', { count: filtered.length, citationCount: totalCites })}
           className="space-y-3"
         >
           {filtered.map((s, idx) => (
@@ -310,15 +312,15 @@ export function ConversationSourcesPanel({
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <SheetContent
           className="w-full sm:max-w-md p-0 flex flex-col"
-          aria-label="Sources cited in this conversation"
+          aria-label={t('chat.sources')}
         >
           <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/60 space-y-2">
             <SheetTitle className="flex items-center gap-2 text-h3">
               <Library className="w-5 h-5 text-ojas" aria-hidden />
-              Sources
+              {t('chat.sources')}
             </SheetTitle>
             <SheetDescription className="sr-only">
-              A de-duplicated list of every source cited in this conversation. Press Tab to move between sources.
+              {t('chat.sourcesWillAppear')}
             </SheetDescription>
             {HeaderMeta}
           </SheetHeader>
@@ -333,10 +335,10 @@ export function ConversationSourcesPanel({
           <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/60 space-y-2">
             <DialogTitle className="flex items-center gap-2">
               <Library className="w-5 h-5 text-ojas" aria-hidden />
-              Full conversation sources
+              {t('chat.fullConversationSources')}
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Full list of all unique sources cited across this conversation. Each source shows which answers used it.
+              {t('chat.sourcesWillAppear')}
             </DialogDescription>
             {HeaderMeta}
           </DialogHeader>

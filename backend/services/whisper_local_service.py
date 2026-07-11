@@ -18,6 +18,7 @@ import subprocess
 from typing import Optional
 
 from app.config import settings
+from services.doctrine_terms import apply_corrections, get_whisper_initial_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -179,44 +180,13 @@ def transcribe_with_whisper(
     size_mb = os.path.getsize(audio_path) / (1024 * 1024)
     logger.info(f"[{video_id}] Transcribing {size_mb:.1f}MB audio with local MLX model: {model}...")
 
-    # Domain-specific terminology corrections
-    REPLACEMENTS = {
-        "Ecom": "Ekam",
-        "Ecoms": "Ekams",
-        "Ekum": "Ekam",
-        "ECAM": "Ekam",
-        "Eikam": "Ekam",
-        "Acom": "Ekam",
-        "Acoms": "Ekams",
-        "Akam": "Ekam",
-        "Akham": "Ekam",
-        "acom": "ekam",
-        "acoms": "ekams",
-        "acome": "ekam",
-        "Pretaji": "Preethaji",
-        "Pritaji": "Preethaji",
-        "Preetha ji": "Preethaji",
-        "Krishna ji": "Krishnaji",
-        "Mukti": "Mukthi",
-        "Soulsync": "Soul Sync",
-        "soul sink": "Soul Sync",
-        "Deeksha": "Deeksha",
-        "Diksha": "Deeksha",
-    }
-
-    # Root-cause fix: bias Whisper toward the canonical spelling of doctrine proper nouns via
-    # initial_prompt — otherwise it renders them phonetically ("Ekam"→"Akam"/"Acam",
-    # "Preethaji"→"Pretty Ji"). This prevents the error at the source; REPLACEMENTS above and
-    # the ingest corrector's FAST_REPLACEMENTS are the deterministic safety nets downstream.
-    DOCTRINE_GLOSSARY = (
-        "Correct spellings used in this recording: Ekam, Ekam World Centre, Sri Preethaji, "
-        "Sri Krishnaji, Deeksha, Soul Sync, Sadhana, the Beautiful State, Oneness, the Four "
-        "Sacred Secrets, Manifest 2026, Limitless Field."
-    )
-
+    # Bias Whisper toward canonical doctrine spellings via initial_prompt (prevents "Ekam"->"Akam"
+    # at the source); apply_corrections() below is the deterministic safety-net. Both derive from
+    # the single source of truth in services.doctrine_terms (admin-editable, drift-proof).
     try:
         result = mlx_whisper.transcribe(
-            audio_path, path_or_hf_repo=model, verbose=False, initial_prompt=DOCTRINE_GLOSSARY
+            audio_path, path_or_hf_repo=model, verbose=False,
+            initial_prompt=get_whisper_initial_prompt(),
         )
         text = result.get("text", "").strip()
 
@@ -235,10 +205,9 @@ def transcribe_with_whisper(
         trailing_thank_you = r"(Thank you[\.\!\?\s,]*){3,}$"
         text = re.sub(trailing_thank_you, " Thank you.", text, flags=re.IGNORECASE)
 
-        # Apply domain-specific replacements
-        for old, new in REPLACEMENTS.items():
-            # Case-insensitive replacement while trying to preserve case if possible
-            text = re.sub(rf"\b{old}\b", new, text, flags=re.IGNORECASE)
+        # Apply the shared doctrine-term corrections (single source of truth; also fixes the
+        # Tamil-"akam" case that the old IGNORECASE loop wrongly lowercased to "ekam").
+        text = apply_corrections(text)
 
         word_count = len(text.split())
         logger.info(

@@ -10,11 +10,12 @@ import asyncio
 import logging
 import re
 
+from services.doctrine_terms import apply_corrections, correction_term_lines
 from services.ollama_service import OllamaService
 
 logger = logging.getLogger(__name__)
 
-CORRECTION_SYSTEM_PROMPT = """You are a Text Correction Expert for the 'Mukthi Guru' spiritual platform.
+CORRECTION_SYSTEM_PROMPT = f"""You are a Text Correction Expert for the 'Mukthi Guru' spiritual platform.
 Your task is to fix transcription errors in the provided text, specifically focusing on:
 1. Homophones and misheard words.
 2. Domain-specific names and terms (see list below).
@@ -23,52 +24,15 @@ Your task is to fix transcription errors in the provided text, specifically focu
 DO NOT retain the original meaning absolutely. DO NOT summarize or rewrite the style. ONLY fix errors.
 
 Important Terms to Correct:
-- "Sri Preethaji" (often misheard as "Sri Pretty Ji", "Preeti Ji")
-- "Sri Krishnaji" (often misheard as "Sri Krishna Ji", "Krishna G")
-- "Ekam" (often misheard as "Acam", "Akam", "Akham", "Ecom", "Acom", "acom", "acoms", "acome") — note: the centre is "Ekam"; when capitalised "Akam" refers to it, correct it; lowercase "akam" may be the Tamil word for the inner self, so use context.
-- "Deeksha" (often misheard as "Diksha")
-- "Sadhana"
-- "Limitless Field"
+{correction_term_lines()}
 
 Output ONLY the corrected text. Do not add any conversational filler.
 """
 
-# Hard dictionary corrections for high-fidelity fallback
-FAST_REPLACEMENTS = {
-    r"\bAcom\b": "Ekam",
-    r"\bacom\b": "ekam",
-    r"\bAcoms\b": "Ekam",
-    r"\bacoms\b": "ekam",
-    r"\bEcom\b": "Ekam",
-    r"\becom\b": "ekam",
-    r"\bEcoms\b": "Ekam",
-    r"\becoms\b": "ekam",
-    r"\bacome\b": "ekam",
-    r"\bAcam\b": "Ekam",
-    r"\bacam\b": "ekam",
-    # K-spelling variants (Whisper renders "Ekam" as "Akam" too). Capitalised only —
-    # lowercase "akam" is the Tamil word for the inner self, so it is left untouched.
-    r"\bAkam\b": "Ekam",
-    r"\bAkham\b": "Ekam",
-    r"\bSri Pretty Ji\b": "Sri Preethaji",
-    r"\bsri pretty ji\b": "sri preethaji",
-    r"\bPretty Ji\b": "Preethaji",
-    r"\bpretty ji\b": "preethaji",
-    r"\bSri Preeti Ji\b": "Sri Preethaji",
-    r"\bsri preeti ji\b": "sri preethaji",
-    r"\bPreeti Ji\b": "Preethaji",
-    r"\bpreeti ji\b": "preethaji",
-    r"\bSri Krishna Ji\b": "Sri Krishnaji",
-    r"\bsri krishna ji\b": "sri krishnaji",
-    r"\bKrishna G\b": "Krishnaji",
-    r"\bkrishna g\b": "krishnaji",
-    r"\bDiksha\b": "Deeksha",
-    r"\bdiksha\b": "deeksha",
-    r"\bsoul sink\b": "Soul Sync",
-    r"\bSoul sink\b": "Soul Sync",
-    r"\bSoulsync\b": "Soul Sync",
-    r"\bsoulsync\b": "Soul Sync",
-}
+# Doctrine-term corrections now live in the single source of truth
+# (services.doctrine_terms.DEFAULT_DOCTRINE_TERMS, admin-editable). They are applied
+# deterministically via apply_corrections() in correct_transcript() below — no local dict here,
+# so the correction map can never drift between the whisper, ingest and output layers again.
 
 # Max concurrent correction tasks
 _MAX_CONCURRENT = 3
@@ -223,8 +187,7 @@ class TranscriptCorrector:
 
         full_corrected_text = " ".join(corrected_chunks)
 
-        # Apply fast regex-based replacements to catch any LLM misses
-        for pattern, replacement in FAST_REPLACEMENTS.items():
-            full_corrected_text = re.sub(pattern, replacement, full_corrected_text)
+        # Apply the shared doctrine-term corrections (single source of truth) to catch LLM misses
+        full_corrected_text = apply_corrections(full_corrected_text)
 
         return full_corrected_text

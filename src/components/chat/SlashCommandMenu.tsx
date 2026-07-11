@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Flame, RefreshCw, Sparkles, Share2, Trash2, Languages, GraduationCap, MessageSquare } from 'lucide-react';
 
@@ -19,65 +20,6 @@ export interface SlashCommand {
   keywords: string[];
 }
 
-const ALL_COMMANDS: SlashCommand[] = [
-  {
-    id: 'serene',
-    label: '/serene',
-    hint: 'Start the 3-minute Serene Mind practice',
-    icon: Flame,
-    keywords: ['serene', 'mind', 'calm', 'breath'],
-  },
-  {
-    id: 'meditate',
-    label: '/meditate',
-    hint: 'Open the guided meditation flow',
-    icon: Sparkles,
-    keywords: ['meditate', 'meditation', 'practice'],
-  },
-  {
-    id: 'retry',
-    label: '/retry',
-    hint: 'Regenerate the Guru’s last answer',
-    icon: RefreshCw,
-    keywords: ['retry', 'regenerate', 'again'],
-  },
-  {
-    id: 'share',
-    label: '/share',
-    hint: 'Share the last answer as a wisdom card',
-    icon: Share2,
-    keywords: ['share', 'card', 'wisdom'],
-  },
-  {
-    id: 'clear',
-    label: '/clear',
-    hint: 'Start a fresh conversation',
-    icon: Trash2,
-    keywords: ['clear', 'new', 'reset'],
-  },
-  {
-    id: 'lang',
-    label: '/lang',
-    hint: 'Open the language picker',
-    icon: Languages,
-    keywords: ['lang', 'language', 'hindi', 'telugu', 'malayalam'],
-  },
-  {
-    id: 'teach',
-    label: '/teach',
-    hint: 'Ask the Guru to explain a concept step-by-step',
-    icon: GraduationCap,
-    keywords: ['teach', 'explain', 'step', 'breakdown', 'learn'],
-  },
-  {
-    id: 'reflect',
-    label: '/reflect',
-    hint: 'Get a reflection question based on this conversation',
-    icon: MessageSquare,
-    keywords: ['reflect', 'question', 'introspect', 'ponder'],
-  },
-];
-
 interface Props {
   input: string;
   open: boolean;
@@ -85,13 +27,69 @@ interface Props {
   onClose: () => void;
 }
 
-/**
- * Lightweight slash-command palette anchored above the composer.
- * Activates whenever the input starts with `/`. Filters by typed query.
- * Keyboard: ArrowUp/Down to navigate, Enter to select, Esc to dismiss.
- */
 export const SlashCommandMenu = ({ input, open, onSelect, onClose }: Props) => {
+  const { t } = useTranslation();
   const query = input.startsWith('/') ? input.slice(1).toLowerCase().trim() : '';
+
+  const ALL_COMMANDS: SlashCommand[] = useMemo(() => [
+    {
+      id: 'serene',
+      label: '/serene',
+      hint: t('chat.slashSereneHint'),
+      icon: Flame,
+      keywords: ['serene', 'mind', 'calm', 'breath'],
+    },
+    {
+      id: 'meditate',
+      label: '/meditate',
+      hint: t('chat.slashMeditateHint'),
+      icon: Sparkles,
+      keywords: ['meditate', 'meditation', 'practice'],
+    },
+    {
+      id: 'retry',
+      label: '/retry',
+      hint: t('chat.slashRetryHint'),
+      icon: RefreshCw,
+      keywords: ['retry', 'regenerate', 'again'],
+    },
+    {
+      id: 'share',
+      label: '/share',
+      hint: t('chat.slashShareHint'),
+      icon: Share2,
+      keywords: ['share', 'card', 'wisdom'],
+    },
+    {
+      id: 'clear',
+      label: '/clear',
+      hint: t('chat.slashClearHint'),
+      icon: Trash2,
+      keywords: ['clear', 'new', 'reset'],
+    },
+    {
+      id: 'lang',
+      label: '/lang',
+      hint: t('chat.slashLangHint'),
+      icon: Languages,
+      keywords: ['lang', 'language', 'hindi', 'telugu', 'malayalam'],
+    },
+    {
+      id: 'teach',
+      label: '/teach',
+      hint: t('chat.slashTeachHint'),
+      icon: GraduationCap,
+      keywords: ['teach', 'explain', 'step', 'breakdown', 'learn'],
+    },
+    {
+      id: 'reflect',
+      label: '/reflect',
+      hint: t('chat.slashReflectHint'),
+      icon: MessageSquare,
+      keywords: ['reflect', 'question', 'introspect', 'ponder'],
+    },
+  ], [t]);
+
   const filtered = useMemo(() => {
     if (!query) return ALL_COMMANDS;
     return ALL_COMMANDS.filter(
@@ -99,7 +97,7 @@ export const SlashCommandMenu = ({ input, open, onSelect, onClose }: Props) => {
         c.label.toLowerCase().includes(query) ||
         c.keywords.some((k) => k.includes(query)),
     );
-  }, [query]);
+  }, [query, ALL_COMMANDS]);
 
   const [active, setActive] = useState(0);
   useEffect(() => setActive(0), [query, open]);
@@ -142,11 +140,11 @@ export const SlashCommandMenu = ({ input, open, onSelect, onClose }: Props) => {
     <div
       ref={listRef}
       role="listbox"
-      aria-label="Slash commands"
+      aria-label={t('chat.slashCommands')}
       className="mb-2 rounded-xl border border-ojas/25 bg-card/95 backdrop-blur-md shadow-lg overflow-hidden divide-y divide-border/40"
     >
       <div className="px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground/80 bg-ojas/5">
-        Slash commands
+        {t('chat.slashCommands')}
       </div>
       {filtered.map((cmd, i) => {
         const Icon = cmd.icon;
@@ -170,8 +168,8 @@ export const SlashCommandMenu = ({ input, open, onSelect, onClose }: Props) => {
         );
       })}
       <div className="px-3 py-1.5 text-[10px] text-muted-foreground/70 bg-background/60 flex items-center justify-between">
-        <span>↑↓ navigate · ↵ select · esc dismiss</span>
-        <span>{filtered.length} result{filtered.length === 1 ? '' : 's'}</span>
+        <span>{t('chat.slashKeyboardHint')}</span>
+        <span>{t('chat.slashResultsCount', { count: filtered.length })}</span>
       </div>
     </div>
   );

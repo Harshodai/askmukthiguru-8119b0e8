@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut,
@@ -28,6 +29,7 @@ import { exportAllData, getInitials, resetProfile } from '@/lib/profileStorage';
 import { useToast } from '@/hooks/use-toast';
 
 export const UserMenu = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { theme, setTheme } = useTheme();
@@ -44,10 +46,8 @@ export const UserMenu = () => {
     a.download = `askmukthiguru-export-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: 'Data exported', description: 'Your data was downloaded.' });
+    toast({ title: t('common.dataExported'), description: t('common.dataExportedDesc') });
   };
-
-
 
   const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
 
@@ -55,8 +55,9 @@ export const UserMenu = () => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          data-tour="profile"
           className="rounded-full ring-1 ring-border hover:ring-ojas/40 transition-all focus:outline-none focus:ring-2 focus:ring-ojas/60"
-          aria-label="Open user menu"
+          aria-label={t('common.openUserMenu')}
         >
           <Avatar className="w-9 h-9">
             {profile.avatarDataUrl ? (
@@ -75,46 +76,46 @@ export const UserMenu = () => {
             {profile.displayName}
           </span>
           <span className="text-[11px] text-muted-foreground">
-            Local profile · {profile.preferredLanguage.toUpperCase()}
+            {t('common.localProfile')} · {profile.preferredLanguage.toUpperCase()}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/profile')}>
-          <User className="w-4 h-4 mr-2" /> Profile
+          <User className="w-4 h-4 mr-2" /> {t('nav.profile')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=settings')}>
-          <Settings className="w-4 h-4 mr-2" /> Settings
+          <Settings className="w-4 h-4 mr-2" /> {t('common.settings')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/chat')}>
-          <MessageCircle className="w-4 h-4 mr-2" /> Continue chat
+          <MessageCircle className="w-4 h-4 mr-2" /> {t('common.continueChat')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')}>
-          <Flame className="w-4 h-4 mr-2" /> Insights & Stats
+          <Flame className="w-4 h-4 mr-2" /> {t('common.insightsStats')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <ThemeIcon className="w-4 h-4 mr-2" />
-            Theme
+            {t('common.theme')}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuItem onClick={() => setTheme('light')}>
-              <Sun className="w-4 h-4 mr-2" /> Light
+              <Sun className="w-4 h-4 mr-2" /> {t('common.light')}
               {theme === 'light' && <span className="ml-auto text-ojas">•</span>}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTheme('dark')}>
-              <Moon className="w-4 h-4 mr-2" /> Dark
+              <Moon className="w-4 h-4 mr-2" /> {t('common.dark')}
               {theme === 'dark' && <span className="ml-auto text-ojas">•</span>}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTheme('system')}>
-              <Monitor className="w-4 h-4 mr-2" /> System
+              <Monitor className="w-4 h-4 mr-2" /> {t('common.system')}
               {theme === 'system' && <span className="ml-auto text-ojas">•</span>}
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleExport}>
-          <Download className="w-4 h-4 mr-2" /> Export my data
+          <Download className="w-4 h-4 mr-2" /> {t('common.exportData')}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={async () => {
@@ -122,11 +123,11 @@ export const UserMenu = () => {
             await supabase.auth.signOut();
             resetProfile();
             navigate('/auth');
-            toast({ title: 'Signed out', description: 'You have been logged out.' });
+            toast({ title: t('common.signedOut'), description: t('common.signedOutDesc') });
           }}
           className="text-destructive focus:text-destructive"
         >
-          <LogOut className="w-4 h-4 mr-2" /> Sign out
+          <LogOut className="w-4 h-4 mr-2" /> {t('common.signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

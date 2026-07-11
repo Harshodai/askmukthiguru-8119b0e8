@@ -86,6 +86,7 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
+import { useTranslation } from 'react-i18next';
 
 const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'gentle', label: 'Gentle', hint: 'Soft, nurturing replies' },

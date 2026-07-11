@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
@@ -6,6 +7,7 @@ import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
 
 export const HeroSection = () => {
+  const { t } = useTranslation();
   return (
     <section className="relative min-h-dvh flex items-center justify-center overflow-hidden">
       {/* Background Image with Light Overlay */}
@@ -38,7 +40,7 @@ export const HeroSection = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8 shadow-md"
           >
             <Sparkles className="w-4 h-4 text-ojas" />
-            <span className="text-sm text-foreground font-medium">Guided by Ancient Wisdom, Powered by AI</span>
+            <span className="text-sm text-foreground font-medium">{t('landing.hero.badge')}</span>
           </motion.div>
 
           {/* Main Headline */}
@@ -48,9 +50,9 @@ export const HeroSection = () => {
             transition={{ delay: 0.3, duration: 0.7 }}
             className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
           >
-            <span className="text-foreground">Discover Your</span>
+            <span className="text-foreground">{t('landing.hero.heading1')}</span>
             <br />
-            <span className="text-gradient-gold">Beautiful State</span>
+            <span className="text-gradient-gold">{t('landing.hero.heading2')}</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -60,8 +62,7 @@ export const HeroSection = () => {
             transition={{ delay: 0.5, duration: 0.7 }}
             className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
           >
-            Experience the timeless wisdom of Sri Preethaji & Sri Krishnaji through
-            an AI companion designed to guide you from suffering to serenity.
+            {t('landing.hero.subtitle')}
           </motion.p>
 
           {/* CTA Button */}
@@ -74,7 +75,7 @@ export const HeroSection = () => {
               to="/chat"
               className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-105 shadow-lg glow-gold"
             >
-              <span>Start Chat</span>
+              <span>{t('landing.hero.cta')}</span>
               <motion.span
                 animate={{ x: [0, 5, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
@@ -94,7 +95,7 @@ export const HeroSection = () => {
             transition={{ delay: 1, duration: 0.5 }}
             className="mt-8 inline-block text-sm text-foreground/80 bg-background/60 backdrop-blur-sm px-4 py-2 rounded-full"
           >
-            This is an AI companion trained on spiritual teachings. Not a replacement for professional guidance.
+            {t('landing.hero.disclaimer')}
           </motion.p>
         </motion.div>
       </div>

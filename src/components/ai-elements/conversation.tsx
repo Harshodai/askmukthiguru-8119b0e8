@@ -7,6 +7,7 @@ import { ArrowDownIcon, DownloadIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { useTranslation } from 'react-i18next';
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
@@ -75,6 +76,7 @@ export const ConversationScrollButton = ({
   className,
   ...props
 }: ConversationScrollButtonProps) => {
+const { t } = useTranslation();
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
 
   const handleScrollToBottom = useCallback(() => {

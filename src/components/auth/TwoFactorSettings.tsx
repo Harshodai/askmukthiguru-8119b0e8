@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, ShieldCheck, Loader2, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Factor {
   id: string;
@@ -21,6 +22,7 @@ interface EnrollState {
 }
 
 export const TwoFactorSettings = () => {
+const { t } = useTranslation();
   const { toast } = useToast();
   const [factors, setFactors] = useState<Factor[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from "react";
 import { Check, ChevronDown, Lock, Sparkles, Heart, Users } from "lucide-react";
 import {
@@ -24,6 +25,7 @@ interface AssistantSwitcherProps {
 }
 
 export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProps) {
+  const { t } = useTranslation();
   const { assistants, selected, setSelectedSlug } = useAssistants();
   const [open, setOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
@@ -44,23 +46,23 @@ export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProp
         .eq("invite_code", code)
         .maybeSingle();
       if (!a) {
-        toast({ title: "Invalid invite code", variant: "destructive" });
+        toast({ title: t('chat.invalidInviteCode'), variant: "destructive" });
         return;
       }
       const { data: session } = await supabase.auth.getSession();
       const uid = session.session?.user.id;
       if (!uid) {
-        toast({ title: "Sign in to redeem", variant: "destructive" });
+        toast({ title: t('chat.signInToRedeem'), variant: "destructive" });
         return;
       }
       const { error } = await supabase
         .from("assistant_access")
         .insert({ user_id: uid, assistant_id: a.id, granted_via: "invite" });
       if (error && !String(error.message).includes("duplicate")) {
-        toast({ title: "Could not redeem", description: error.message, variant: "destructive" });
+        toast({ title: t('chat.couldNotRedeem'), description: error.message, variant: "destructive" });
         return;
       }
-      toast({ title: `Unlocked ${a.name}`, description: "Switch to it from the assistant menu." });
+      toast({ title: t('chat.unlockedAssistant', { name: a.name }), description: t('chat.switchToIt') });
       setInviteCode("");
       setTimeout(() => window.location.reload(), 600);
     } finally {
@@ -77,7 +79,7 @@ export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProp
               ? "inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 transition-colors px-2 py-0.5 text-[11px] text-foreground/80"
               : "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 hover:bg-muted/60 transition-colors px-2.5 py-1 text-[11px] text-foreground/80 max-w-[180px]"
           }
-          title="Switch assistant"
+          title={t('chat.switchAssistant')}
         >
           <SelectedIcon className="w-3 h-3 text-primary shrink-0" />
           <span className="font-medium truncate">{selected.name}</span>
@@ -86,7 +88,7 @@ export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProp
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-2">
         <p className="text-[11px] uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-2">
-          Assistants
+          {t('chat.assistants')}
         </p>
         <div className="space-y-1">
           {assistants.map((a) => {
@@ -125,17 +127,17 @@ export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProp
         </div>
         <div className="border-t border-border mt-2 pt-2 px-1 space-y-1.5">
           <p className="text-[11px] text-muted-foreground">
-            Have an invite code?
+            {t('chat.haveInviteCode')}
           </p>
           <div className="flex gap-1.5">
             <Input
-              placeholder="sky-..."
+              placeholder={t('chat.inviteCodePlaceholder')}
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
               className="h-8 text-xs"
             />
             <Button size="sm" onClick={handleRedeem} disabled={redeeming || !inviteCode.trim()}>
-              {redeeming ? "…" : "Redeem"}
+              {redeeming ? "…" : t('common.redeem')}
             </Button>
           </div>
         </div>

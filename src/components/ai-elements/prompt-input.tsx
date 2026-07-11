@@ -64,6 +64,7 @@ import type {
   RefObject,
 } from "react";
 import {
+import { useTranslation } from 'react-i18next';
   Children,
   createContext,
   useCallback,
@@ -212,6 +213,7 @@ const ProviderAttachmentsContext = createContext<AttachmentsContext | null>(
 );
 
 export const usePromptInputController = () => {
+const { t } = useTranslation();
   const ctx = useContext(PromptInputController);
   if (!ctx) {
     throw new Error(

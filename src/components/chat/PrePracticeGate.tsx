@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Sparkles, Heart, ArrowRight } from 'lucide-react';
@@ -23,46 +24,41 @@ interface OptionSpec {
   Icon: typeof Flame;
 }
 
-const OPTIONS: OptionSpec[] = [
-  {
-    id: 'soul_sync',
-    label: 'Soul Sync',
-    helper: 'I synced inward before opening this',
-    Icon: Sparkles,
-  },
-  {
-    id: 'serene_mind',
-    label: 'Serene Mind',
-    helper: 'I just finished the breath practice',
-    Icon: Flame,
-  },
-  {
-    id: 'both',
-    label: 'Both',
-    helper: 'I did Soul Sync and Serene Mind',
-    Icon: Heart,
-  },
-  {
-    id: 'none',
-    label: 'Not yet',
-    helper: 'Coming straight in — guide me as I am',
-    Icon: ArrowRight,
-  },
-];
-
-/**
- * One-time-per-session gate that asks the seeker whether they prepared
- * with Soul Sync or Serene Mind before entering the chat. The answer is
- * persisted on the local profile and feeds derived insights elsewhere.
- */
 export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
+  const { t } = useTranslation();
   const [asked, setAsked] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
     return sessionStorage.getItem(SESSION_KEY) === '1';
   });
   const { open: openSereneMind } = useSereneMind();
 
-  // Pre-warm profile (migrate any older shape) so first answer writes cleanly.
+  const OPTIONS: OptionSpec[] = [
+    {
+      id: 'soul_sync',
+      label: t('chat.prePractice.soulSync'),
+      helper: t('chat.prePractice.soulSyncHelper'),
+      Icon: Sparkles,
+    },
+    {
+      id: 'serene_mind',
+      label: t('chat.prePractice.sereneMind'),
+      helper: t('chat.prePractice.sereneMindHelper'),
+      Icon: Flame,
+    },
+    {
+      id: 'both',
+      label: t('chat.prePractice.both'),
+      helper: t('chat.prePractice.bothHelper'),
+      Icon: Heart,
+    },
+    {
+      id: 'none',
+      label: t('chat.prePractice.notYet'),
+      helper: t('chat.prePractice.notYetHelper'),
+      Icon: ArrowRight,
+    },
+  ];
+
   useEffect(() => {
     if (!asked) loadProfile();
   }, [asked]);
@@ -73,8 +69,6 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
     setAsked(true);
     window.dispatchEvent(new CustomEvent('askmukthiguru:pre_practice_completed'));
     if (answer === 'none') {
-      // Gentle invitation rather than a force — open Serene Mind as a soft nudge.
-      // The chat still loads beneath; user can dismiss the modal.
       setTimeout(() => openSereneMind('breathing'), 250);
     }
   };
@@ -115,7 +109,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
                 <Flame className="w-4 h-4 text-ojas" />
               </div>
               <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                Before we begin
+                {t('chat.prePractice.beforeBegin')}
               </span>
             </div>
 
@@ -123,7 +117,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
               id="pre-practice-title"
               className="text-xl sm:text-2xl font-display text-foreground leading-snug"
             >
-              Did you do Soul Sync or Serene Mind today?
+              {t('chat.prePractice.question')}
             </h2>
             <p className="text-sm text-muted-foreground mt-2">
               {insights.encouragement}
@@ -153,10 +147,10 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
                 onClick={handleSkip}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                Skip for now
+                {t('common.skip')}
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                Saved privately on this device
+                {t('chat.prePractice.savedLocally')}
               </span>
             </div>
           </motion.div>

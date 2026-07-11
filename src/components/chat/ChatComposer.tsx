@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Square, Flame, Sparkles, Plus, Mic, Volume2,
@@ -83,6 +84,7 @@ export function ChatComposer({
   onBlur,
   onSlashCommand,
 }: ChatComposerProps) {
+  const { t } = useTranslation();
   const showThinking =
     showInstantPill || showPipeline || isTyping || (isStreaming && inputValue === '');
 
@@ -96,7 +98,6 @@ export function ChatComposer({
 
       className="w-full max-w-3xl mx-auto"
     >
-      {/* Language + TTS controls — floated above the composer, not inside the input bar */}
       <div className="flex items-center justify-start gap-2 mb-2 px-1">
         <LanguageSelector
           value={currentLanguage}
@@ -114,7 +115,7 @@ export function ChatComposer({
       <PromptInput
         onSubmit={handleFormSubmit}
         role="form"
-        aria-label="Message composer"
+        aria-label={t('chat.messageComposer')}
         className={`rounded-2xl border bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
           inputFocused || isListening
             ? 'border-ojas/40 shadow-lg shadow-ojas/5'
@@ -124,19 +125,18 @@ export function ChatComposer({
         {isAwaitingSereneMind && (
           <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border/40 bg-ojas/5 rounded-t-3xl">
             <span className="text-xs text-ojas font-medium">
-              Please do Serene Mind now to unlock the chat.
+              {t('chat.sereneMindRequired')}
             </span>
             <button
               type="button"
               onClick={onSereneMind}
               className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
             >
-              Open Serene Mind
+              {t('chat.openSereneMind')}
             </button>
           </div>
         )}
 
-        {/* Slash command palette */}
         <div className="px-5 pt-3">
           <SlashCommandMenu
             input={inputValue}
@@ -156,6 +156,7 @@ export function ChatComposer({
 
         <PromptInputTextarea
           ref={inputRef as React.Ref<HTMLTextAreaElement>}
+          data-tour="chat-input"
           value={inputValue}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
@@ -163,13 +164,13 @@ export function ChatComposer({
           onBlur={onBlur}
           placeholder={
             isAwaitingSereneMind
-              ? 'Do Serene Mind now (say "open Serene Mind" to begin)…'
+              ? t('chat.inputPlaceholderSereneMind')
               : isListening
-                ? 'Speak now…'
-                : "Share what's on your heart…"
+                ? t('chat.inputPlaceholderListening')
+                : t('chat.inputPlaceholder')
           }
           rows={1}
-          aria-label="Your message"
+          aria-label={t('chat.yourMessage')}
           className="min-h-9 max-h-32 w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '28px' }}
           disabled={isAwaitingSereneMind}
@@ -186,7 +187,7 @@ export function ChatComposer({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                  aria-label="More actions"
+                  aria-label={t('chat.moreActions')}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -194,11 +195,11 @@ export function ChatComposer({
               <DropdownMenuContent align="start" side="top" className="w-48">
                 <DropdownMenuItem onClick={onSereneMind}>
                   <Flame className="w-4 h-4 mr-2 text-ojas" />
-                  Serene Mind
+                  {t('chat.sereneMind')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onGuidedMeditation}>
                   <Sparkles className="w-4 h-4 mr-2 text-ojas" />
-                  Guided Meditation
+                  {t('chat.guidedMeditation')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -207,17 +208,15 @@ export function ChatComposer({
           <div className="flex-1" />
 
           <PromptInputTools>
-
-            {/* Always-visible mic — voice input was buried in the language dropdown */}
             {(
               <Button
                 type="button"
                 size="icon-sm"
                 variant="ghost"
                 onClick={onVoiceToggle}
-                aria-label={isListening ? 'Stop voice input' : 'Speak your question'}
+                aria-label={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
                 aria-pressed={isListening}
-                title={isListening ? 'Stop listening' : 'Speak your question'}
+                title={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
                 className={`h-8 w-8 rounded-full transition-all ${
                   isListening
                     ? 'bg-red-500/15 text-red-500 hover:bg-red-500/25'
@@ -241,7 +240,7 @@ export function ChatComposer({
                 size="icon-sm"
                 onClick={onStop}
                 className="h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
-                aria-label="Stop generating"
+                aria-label={t('chat.stop')}
                 status="streaming"
               >
                 <Square className="w-4 h-4 fill-current" />
@@ -252,7 +251,7 @@ export function ChatComposer({
                 size="icon-sm"
                 disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
                 className="h-8 w-8 rounded-full bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
-                aria-label="Send message"
+                aria-label={t('chat.send')}
               >
                 <Send className="w-4 h-4" />
               </PromptInputSubmit>
@@ -267,7 +266,7 @@ export function ChatComposer({
           animate={{ opacity: 1 }}
           className="text-[10px] text-center text-muted-foreground/70 mt-3 select-none"
         >
-          AI companion &bull; Not a substitute for professional care
+          {t('chat.aiCompanionNotice')}
         </motion.p>
       )}
     </motion.div>

@@ -29,6 +29,7 @@ import {
   useState,
 } from "react";
 import { Streamdown } from "streamdown";
+import { useTranslation } from 'react-i18next';
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -90,6 +91,7 @@ export const MessageAction = ({
   size = "icon-sm",
   ...props
 }: MessageActionProps) => {
+const { t } = useTranslation();
   const button = (
     <Button size={size} type="button" variant={variant} {...props}>
       {children}

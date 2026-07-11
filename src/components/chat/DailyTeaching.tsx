@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
@@ -9,10 +10,10 @@ export interface DailyTeachingData {
   caption?: string;
 }
 
-// Dismissed teachings are tracked by id, so a fresh upload re-shows the banner.
 const DISMISSED_KEY = 'askmukthiguru_teaching_dismissed_id';
 
 export const DailyTeaching = () => {
+  const { t } = useTranslation();
   const [teaching, setTeaching] = useState<DailyTeachingData | null>(null);
   const [imageError, setImageError] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +27,7 @@ export const DailyTeaching = () => {
     const { data, error } = await supabase
       .from('daily_teachings')
       .select('id, image_url, caption')
-      .or(`expires_at.is.null,expires_at.gte.${now}`)   // skip expired
+      .or(`expires_at.is.null,expires_at.gte.${now}`)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -52,7 +53,6 @@ export const DailyTeaching = () => {
     console.debug('[DailyTeaching] Loaded:', data.id, data.caption?.slice(0, 40));
     retryCount.current = 0;
 
-    // If a NEW teaching arrived, clear the old dismissed state
     const oldDismissed = localStorage.getItem(DISMISSED_KEY);
     if (oldDismissed && oldDismissed !== data.id) {
       localStorage.removeItem(DISMISSED_KEY);
@@ -66,7 +66,6 @@ export const DailyTeaching = () => {
       caption: data.caption ?? undefined,
     });
 
-    // Automatically open if the pre-practice gate is already completed
     const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
     if (prePracticeCompleted && data.id !== oldDismissed) {
       setIsOpen(true);
@@ -76,7 +75,6 @@ export const DailyTeaching = () => {
   useEffect(() => {
     fetchTeaching();
 
-    // Re-fetch after auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         retryCount.current = 0;
@@ -84,7 +82,6 @@ export const DailyTeaching = () => {
       }
     });
 
-    // Realtime: when a new daily teaching is uploaded, refetch immediately
     const channel = supabase
       .channel('daily-teachings-feed')
       .on(
@@ -98,7 +95,6 @@ export const DailyTeaching = () => {
       .subscribe();
 
     const handlePrePracticeCompleted = () => {
-      // Show the teaching modal when the pre-practice gate completes
       const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
       if (prePracticeCompleted) {
         setIsOpen(true);
@@ -150,16 +146,14 @@ export const DailyTeaching = () => {
           className="relative max-w-md w-full rounded-3xl overflow-hidden border border-ojas/30 bg-card/90 shadow-2xl backdrop-blur-lg"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
           <button
             onClick={handleDismiss}
             className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/60 hover:bg-background/90 text-foreground transition-all border border-border"
-            aria-label="Close teaching modal"
+            aria-label={t('chat.closeTeachingModal')}
           >
             <X className="w-4 h-4" />
           </button>
 
-          {/* Image */}
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted/20">
             {imageError ? (
               <div className="w-full h-full bg-gradient-to-tr from-indigo-950 via-purple-950 to-amber-950/80 flex items-center justify-center pointer-events-none">
@@ -174,7 +168,7 @@ export const DailyTeaching = () => {
                 />
                 <img
                   src={teaching.imageUrl}
-                  alt="Today's teaching from the Gurus"
+                  alt={t('chat.teachingAlt')}
                   className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
                   onError={() => setImageError(true)}
                   loading="eager"
@@ -184,12 +178,11 @@ export const DailyTeaching = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />
           </div>
 
-          {/* Content */}
           <div className="p-6 sm:p-8 -mt-6 relative z-10">
             <div className="flex items-center gap-1.5 mb-3">
               <Sparkles className="w-4 h-4 text-ojas animate-pulse" />
               <span className="text-xs font-semibold text-ojas uppercase tracking-widest">
-                Today&apos;s Wisdom
+                {t('chat.todaysWisdom')}
               </span>
             </div>
             {teaching.caption && (
@@ -202,7 +195,7 @@ export const DailyTeaching = () => {
               onClick={handleDismiss}
               className="w-full py-3 px-4 rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground font-medium text-sm transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ojas/50"
             >
-              Receive Wisdom
+              {t('chat.receiveWisdom')}
             </button>
           </div>
         </motion.div>

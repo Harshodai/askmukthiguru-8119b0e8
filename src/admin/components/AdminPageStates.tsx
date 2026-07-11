@@ -4,8 +4,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useTranslation } from 'react-i18next';
 
 export function AdminPageError({
+const { t } = useTranslation();
   title = "Failed to load data",
   message,
   onRetry,

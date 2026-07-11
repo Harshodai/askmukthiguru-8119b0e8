@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 const sections = [
   {

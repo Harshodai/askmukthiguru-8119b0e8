@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { List, Loader2, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, ZoomIn, ZoomOut, RotateCcw, Network, Maximize2, Minimize2, Search, X, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -109,6 +110,7 @@ const formatDate = (iso: string): string => {
 };
 
 export const MemoryManager = () => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [memories, setMemories] = useState<GuruMemory[]>([]);
   const [core, setCore] = useState<CoreMemory | null>(null);
@@ -318,12 +320,12 @@ export const MemoryManager = () => {
     } catch (err) {
       if (err instanceof MemoryApiError) {
         if (err.code === 'unauthorized') {
-          setUnavailable('Sign in to view your memories.');
+          setUnavailable(t('memory.signInToView'));
         } else {
           setUnavailable(err.message);
         }
       } else {
-        setUnavailable('Could not load memories.');
+        setUnavailable(t('memory.couldNotLoad'));
       }
     } finally {
       setLoading(false);
@@ -384,10 +386,10 @@ export const MemoryManager = () => {
     try {
       const saved = await memoryApi.setCore(coreText);
       setCore(saved);
-      toast({ title: 'Core memory saved', description: 'The guru will always carry this with you.' });
+      toast({ title: t('memory.coreSaved'), description: t('memory.coreSavedDesc') });
     } catch (err) {
       const msg = err instanceof MemoryApiError ? err.message : 'Could not save core memory.';
-      toast({ title: 'Could not save', description: msg, variant: 'destructive' });
+      toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });
     } finally {
       setCoreSaving(false);
     }
@@ -400,11 +402,11 @@ export const MemoryManager = () => {
       const created = await memoryApi.add(newText);
       setMemories((prev) => [created, ...prev]);
       setNewText('');
-      toast({ title: 'Memory saved', description: 'The guru will remember this.' });
+      toast({ title: t('memory.memorySaved'), description: t('memory.memorySavedDesc') });
       loadKg(); // Refresh KG layout to include the new memory node
     } catch (err) {
       const msg = err instanceof MemoryApiError ? err.message : 'Could not save memory.';
-      toast({ title: 'Could not save', description: msg, variant: 'destructive' });
+      toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });
     } finally {
       setAdding(false);
     }
@@ -420,10 +422,10 @@ export const MemoryManager = () => {
       if (selectedNode?.id === id) {
         setSelectedNode(null);
       }
-      toast({ title: 'Forgotten', description: 'This memory has been released.' });
+      toast({ title: t('memory.forgotten'), description: t('memory.forgottenDesc') });
     } catch (err) {
       const msg = err instanceof MemoryApiError ? err.message : 'Could not forget memory.';
-      toast({ title: 'Could not forget', description: msg, variant: 'destructive' });
+      toast({ title: t('memory.couldNotForget'), description: msg, variant: 'destructive' });
     } finally {
       setForgettingId(null);
     }
@@ -1114,9 +1116,9 @@ export const MemoryManager = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Brain className="w-5 h-5 text-ojas" /> Memory
+            <Brain className="w-5 h-5 text-ojas" /> {t('memory.memory')}
           </CardTitle>
-          <CardDescription>What the guru remembers about you.</CardDescription>
+          <CardDescription>{t('memory.memoryDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-3 p-4 rounded-lg bg-muted/40 border border-border">
@@ -1152,7 +1154,7 @@ export const MemoryManager = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-ojas/10 rounded-lg text-ojas"><Brain className="w-4 h-4" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Memories</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statMemories')}</p>
                 <p className="text-lg font-bold text-white mt-0.5">{memories.length}</p>
               </div>
             </CardContent>
@@ -1161,8 +1163,8 @@ export const MemoryManager = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-prana/10 rounded-lg text-prana"><Sparkles className="w-4 h-4" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Core Status</p>
-                <p className="text-xs font-bold text-white mt-1">{coreText.trim() ? "Active" : "Unset"}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus')}</p>
+                <p className="text-xs font-bold text-white mt-1">{coreText.trim() ? t('memory.active') : t('memory.unset')}</p>
               </div>
             </CardContent>
           </Card>
@@ -1170,7 +1172,7 @@ export const MemoryManager = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400"><Network className="w-4 h-4" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">KG Nodes</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statKgNodes')}</p>
                 <p className="text-lg font-bold text-white mt-0.5">{kgNodes.length}</p>
               </div>
             </CardContent>
@@ -1179,7 +1181,7 @@ export const MemoryManager = () => {
             <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><BookText className="w-4 h-4" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Reflections</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statReflections')}</p>
                 <p className="text-lg font-bold text-white mt-0.5">{summaries.length}</p>
               </div>
             </CardContent>
@@ -1192,18 +1194,17 @@ export const MemoryManager = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-ojas" /> Core memory
+              <Sparkles className="w-5 h-5 text-ojas" /> {t('memory.coreMemory')}
             </CardTitle>
             <CardDescription>
-              Stable facts about you — always present in the guru's awareness.
-              Use this for your name, practice level, life context, key themes.
+              {t('memory.coreMemoryDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
               value={coreText}
               onChange={(e) => setCoreText(e.target.value)}
-              placeholder="e.g. I'm a software engineer in Bengaluru, daily meditator for 3 years, exploring Oneness teachings…"
+              placeholder={t('memory.corePlaceholder')}
               rows={4}
               maxLength={2048}
               disabled={coreSaving}
@@ -1220,11 +1221,11 @@ export const MemoryManager = () => {
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                Save
+                {t('common.save')}
               </Button>
             </div>
             {core?.updated_at && (
-              <p className="text-xs text-muted-foreground">Last saved {formatDate(core.updated_at)}</p>
+              <p className="text-xs text-muted-foreground">{t('memory.lastSaved', { date: formatDate(core.updated_at) })}</p>
             )}
           </CardContent>
         </Card>
@@ -1235,7 +1236,7 @@ export const MemoryManager = () => {
         <CardHeader className={isFullscreen ? 'px-0 pt-0' : ''}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2 font-display font-semibold tracking-tight text-white">
-              <Brain className="w-5 h-5 text-ojas" /> {isFullscreen ? 'My Consciousness Map' : 'Memories'}
+              <Brain className="w-5 h-5 text-ojas" /> {isFullscreen ? t('memory.consciousnessMap') : t('memory.memories')}
               <Badge variant="secondary" className="ml-2 font-display">
                 {memories.length}
               </Badge>
@@ -1247,7 +1248,7 @@ export const MemoryManager = () => {
                   size="sm"
                   onClick={() => setViewMode('list')}
                   className="h-8 px-2 font-display"
-                  title="List view"
+                  title={t('memory.listView')}
                 >
                   <List className="w-4 h-4" />
                 </Button>
@@ -1257,7 +1258,7 @@ export const MemoryManager = () => {
                 size="sm"
                 onClick={() => setViewMode('graph')}
                 className="h-8 px-2 font-display"
-                title="Graph view"
+                title={t('memory.graphView')}
               >
                 <Network className="w-4 h-4" />
               </Button>
@@ -1265,8 +1266,8 @@ export const MemoryManager = () => {
           </div>
           <CardDescription className="font-sans text-xs">
             {isFullscreen
-              ? 'Fullscreen view of your interactive personal consciousness map. Drag nodes to move, drag background to pan, scroll to zoom.'
-              : 'Interactive map of your spiritual states, derived from your conversations. Switch to graph view to explore connections.'}
+              ? t('memory.fullscreenDesc')
+              : t('memory.graphDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className={isFullscreen ? 'px-0 space-y-6' : 'space-y-6'}>
@@ -1275,7 +1276,7 @@ export const MemoryManager = () => {
               <Textarea
                 value={newText}
                 onChange={(e) => setNewText(e.target.value)}
-                placeholder="e.g. I practice every morning before sunrise."
+                placeholder={t('memory.reflectPlaceholder')}
                 rows={2}
                 maxLength={500}
                 disabled={adding}
@@ -1294,7 +1295,7 @@ export const MemoryManager = () => {
                   ) : (
                     <Plus className="w-4 h-4 mr-2" />
                   )}
-                  Save memory
+                  {t('memory.saveMemory')}
                 </Button>
               </div>
             </div>
@@ -1310,7 +1311,7 @@ export const MemoryManager = () => {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search memories..."
+                    placeholder={t('memory.searchPlaceholder')}
                     value={listSearchQuery}
                     onChange={(e) => setListSearchQuery(e.target.value)}
                     className="w-full pl-8 pr-7 py-1.5 rounded-md border border-zinc-800 bg-zinc-950 text-foreground text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
@@ -1332,7 +1333,7 @@ export const MemoryManager = () => {
                     <Brain className="w-6 h-6" />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {listSearchQuery ? 'No matching memories found.' : 'No memories yet.'}
+                    {listSearchQuery ? t('memory.noMatchFound') : t('memory.noMemories')}
                   </p>
                 </div>
               ) : (
@@ -1356,11 +1357,11 @@ export const MemoryManager = () => {
                             </span>
                             {m.source === 'explicit' ? (
                               <Badge variant="outline" className="text-xs bg-zinc-900 border-zinc-800">
-                                You added
+                                {t('memory.youAdded')}
                               </Badge>
                             ) : (
                               <Badge variant="secondary" className="text-xs bg-zinc-800/50">
-                                Auto-extracted
+                                {t('memory.autoExtracted')}
                               </Badge>
                             )}
                           </div>
@@ -1372,7 +1373,7 @@ export const MemoryManager = () => {
                               size="icon"
                               className="shrink-0 text-muted-foreground hover:text-destructive"
                               disabled={forgettingId === m.id}
-                              aria-label="Forget this memory"
+                              aria-label={t('memory.forgetAria')}
                             >
                               {forgettingId === m.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -1383,19 +1384,18 @@ export const MemoryManager = () => {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Forget this memory?</AlertDialogTitle>
+                              <AlertDialogTitle>{t('memory.forgetTitle')}</AlertDialogTitle>
                               <AlertDialogDescription>
                                 "{m.content}"
                                 <br />
                                 <br />
-                                The guru will no longer reference this in future
-                                conversations. This cannot be undone.
+                                {t('memory.forgetWarning')}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Keep</AlertDialogCancel>
+                              <AlertDialogCancel>{t('common.keep')}</AlertDialogCancel>
                               <AlertDialogAction onClick={() => handleForget(m.id)}>
-                                Forget
+                                {t('memory.forgetBtn')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -1415,11 +1415,11 @@ export const MemoryManager = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <BookText className="w-5 h-5 text-ojas" /> Session reflections
+              <BookText className="w-5 h-5 text-ojas" /> {t('memory.sessionReflections')}
               <Badge variant="secondary" className="ml-2">{summaries.length}</Badge>
             </CardTitle>
             <CardDescription>
-              Distilled summaries the guru keeps from your past sessions.
+              {t('memory.sessionReflectionsDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>

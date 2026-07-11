@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Share2, Sparkles, Check } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import { useTranslation } from 'react-i18next';
 
 interface WisdomCardGeneratorProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ const CARD_STYLES = [
 ] as const;
 
 export const WisdomCardGenerator = ({ isOpen, onClose, content }: WisdomCardGeneratorProps) => {
+const { t } = useTranslation();
   const [selectedStyle, setSelectedStyle] = useState(0);
   const [shared, setShared] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);

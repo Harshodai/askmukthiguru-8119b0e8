@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getMeditationStats } from '@/lib/meditationStorage';
 
 export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState(() => getMeditationStats());
 
   useEffect(() => {
@@ -22,28 +24,28 @@ export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
     {
       icon: Flame,
       value: stats.totalSessions,
-      label: 'Sessions',
+      label: t('meditation.sessions'),
       color: 'text-ojas',
       bgColor: 'bg-ojas/10',
     },
     {
       icon: Clock,
       value: stats.totalMinutes,
-      label: 'Minutes',
+      label: t('common.minutes'),
       color: 'text-prana',
       bgColor: 'bg-prana/10',
     },
     {
       icon: Calendar,
       value: stats.streakDays,
-      label: 'Day Streak',
+      label: t('meditation.dayStreak'),
       color: 'text-ojas-dark',
       bgColor: 'bg-ojas-dark/10',
     },
     {
       icon: Wind,
       value: stats.totalCycles,
-      label: 'Breaths',
+      label: t('meditation.breaths'),
       color: 'text-prana-light',
       bgColor: 'bg-prana/10',
     },
@@ -58,9 +60,9 @@ export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
       >
         <div className="text-center">
           <Flame className={compact ? 'w-5 h-5 text-ojas mx-auto mb-1' : 'w-8 h-8 text-ojas mx-auto mb-2'} />
-          <h3 className={compact ? 'text-xs font-semibold text-foreground' : 'font-semibold text-foreground'}>Begin Your Journey</h3>
+          <h3 className={compact ? 'text-xs font-semibold text-foreground' : 'font-semibold text-foreground'}>{t('meditation.beginYourJourney')}</h3>
           <p className={compact ? 'text-[10px] text-muted-foreground mt-1' : 'text-sm text-muted-foreground mt-1'}>
-            Try the Serene Mind meditation to start tracking your progress
+            {t('meditation.journeyDesc')}
           </p>
         </div>
       </motion.div>
@@ -75,7 +77,7 @@ export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
     >
       <h3 className={compact ? 'text-xs font-semibold text-foreground mb-2 flex items-center gap-2' : 'text-sm font-semibold text-foreground mb-3 flex items-center gap-2'}>
         <Flame className="w-4 h-4 text-ojas" />
-        Your Soul Journey
+        {t('meditation.yourSoulJourney')}
       </h3>
 
       <div className="grid grid-cols-4 gap-2">
