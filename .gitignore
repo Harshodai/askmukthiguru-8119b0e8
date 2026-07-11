@@ -35,6 +35,7 @@ venv/
 .venv_host
 .env
 .env.*
+!.env.example
 
 # Qdrant data
 qdrant_data/

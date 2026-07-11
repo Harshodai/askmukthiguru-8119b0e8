@@ -57,7 +57,6 @@ SERVICES = {
     "neo4j": {
         "url": "bolt://localhost:7687",
         "username": NEO4J_USER,
-        "password": NEO4J_PASSWORD,
         "timeout": 5
     },
     "jaeger": {
@@ -104,12 +103,12 @@ async def check_redis_health(config: dict) -> Tuple[bool, str]:
     except Exception as e:
         return False, f"Redis health check failed: {str(e)}"
 
-async def check_neo4j_health(config: dict) -> Tuple[bool, str]:
+async def check_neo4j_health(config: dict, password: str) -> Tuple[bool, str]:
     """Check Neo4j health."""
     try:
         driver: AsyncDriver = AsyncGraphDatabase.driver(
             config['url'],
-            auth=(config['username'], config['password']),
+            auth=(config['username'], password),
             max_connection_lifetime=config['timeout']
         )
 
@@ -166,6 +165,8 @@ async def check_service_health(session: aiohttp.ClientSession, service_name: str
 
     if service_name in ["qdrant", "jaeger", "backend"]:
         return await checker(session, config)
+    elif service_name == "neo4j":
+        return await checker(config, NEO4J_PASSWORD)
     else:
         return await checker(config)
 
