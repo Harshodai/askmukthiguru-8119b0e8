@@ -76,6 +76,8 @@ TWILIO_FROM = os.environ.get("TWILIO_FROM", "")
 WA_DB_PATH = os.environ.get("WA_DB_PATH", "./wa_state.db")
 WA_CHAT_TIMEOUT_S = int(os.environ.get("WA_CHAT_TIMEOUT_S", "60"))
 WA_HISTORY_LIMIT = int(os.environ.get("WA_HISTORY_LIMIT", "10"))
+CACHE_TTL_SECONDS = 1800
+MAX_MSG_LENGTH = 4096
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s | %(message)s")
 log = logging.getLogger("wa_bot")
@@ -119,8 +121,20 @@ def _init_db() -> None:
         conn.executescript(SCHEMA)
 
 
+def _prune_db():
+    cutoff = int(time.time()) - CACHE_TTL_SECONDS
+    with closing(_db()) as conn:
+        conn.execute("DELETE FROM wa_messages WHERE created_at < ?", (cutoff,))
+        conn.commit()
+    # Verify cleanup by reopening
+    with closing(_db()) as conn:
+        remaining = conn.execute("SELECT COUNT(*) FROM wa_messages WHERE created_at < ?", (cutoff,)).fetchone()[0]
+        log.debug(f"_prune_db: removed rows before {cutoff}, remaining expired: {remaining}")
+
+
 def history_for(phone: str, limit: int = WA_HISTORY_LIMIT) -> list[dict]:
     """Return last `limit` messages in chronological order (oldest first)."""
+    _prune_db()
     with closing(_db()) as conn:
         rows = conn.execute(
             "SELECT role, content FROM wa_messages WHERE phone=? "
@@ -195,6 +209,20 @@ def md_to_wa(text: str) -> str:
     return text.strip()
 
 
+def strip_markdown(text: str) -> str:
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'###?\s*', '', text)
+    text = re.sub(r'`(.+?)`', r'\1', text)
+    return text.strip()
+
+
+def _chunk_text(text: str) -> list[str]:
+    if len(text) <= MAX_MSG_LENGTH:
+        return [text]
+    return [text[i:i + MAX_MSG_LENGTH] for i in range(0, len(text), MAX_MSG_LENGTH)]
+
+
 def with_citations(text: str, citations: list[str]) -> str:
     if not citations:
         return text
@@ -215,11 +243,8 @@ def push_message(phone: str, body: str) -> None:
         return
     try:
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        client.messages.create(
-            body=body,
-            from_=TWILIO_FROM,
-            to=phone
-        )
+        for chunk in _chunk_text(body):
+            client.messages.create(body=chunk, from_=TWILIO_FROM, to=phone)
         log.info(f"Successfully pushed outbound WhatsApp message to {phone}")
     except Exception as e:
         log.exception(f"Failed to push message via Twilio client: {e}")
@@ -246,6 +271,7 @@ def poll_job_and_send_whatsapp(phone: str, job_id: str, jwt_token: str) -> None:
             if status == "completed":
                 result = job.get("result") or {}
                 answer_text = md_to_wa(result.get("response", "") or "")
+                answer_text = strip_markdown(answer_text)
                 answer_text = with_citations(answer_text, result.get("citations") or [])
                 if not answer_text:
                     answer_text = FALLBACK_GENERIC
@@ -319,19 +345,19 @@ def _verify_twilio(req) -> bool:
 
 
 def _twiml(message: str) -> tuple[str, int, dict]:
-    safe = (message or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    # If message is empty, return empty response tag
-    if not safe:
+    if not message:
         return (
             "<?xml version='1.0' encoding='UTF-8'?>\n<Response></Response>",
             200,
             {"Content-Type": "application/xml"},
         )
-    return (
-        f"<?xml version='1.0' encoding='UTF-8'?>\n<Response><Message>{safe}</Message></Response>",
-        200,
-        {"Content-Type": "application/xml"},
-    )
+    chunks = _chunk_text(message)
+    parts = []
+    for chunk in chunks:
+        safe = chunk.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        parts.append(f"<Message>{safe}</Message>")
+    body = "<?xml version='1.0' encoding='UTF-8'?>\n<Response>" + "".join(parts) + "</Response>"
+    return (body, 200, {"Content-Type": "application/xml"})
 
 
 FALLBACK_DOWN = (
@@ -371,6 +397,7 @@ def incoming():
             return _twiml("")
         else:
             answer_text = md_to_wa(resp.get("response", "") or "")
+            answer_text = strip_markdown(answer_text)
             answer_text = with_citations(answer_text, resp.get("citations") or [])
             if not answer_text:
                 answer_text = FALLBACK_GENERIC
@@ -385,14 +412,46 @@ def incoming():
 
     except requests.Timeout:
         log.warning("chat timeout for %s", phone)
-        return _twiml(FALLBACK_DOWN)
+        return _twiml("🙏 The Guru is taking longer than usual. Please try again.")
+    except requests.ConnectionError:
+        log.error("chat connection error for %s", phone)
+        return _twiml("🙏 Unable to reach the Guru. Please check your connection.")
     except requests.HTTPError as e:
         sc = e.response.status_code if e.response is not None else 0
         log.error("chat HTTP %s for %s: %s", sc, phone, e)
-        return _twiml(FALLBACK_DOWN if sc in (429, 502, 503, 504) else FALLBACK_GENERIC)
+        if sc == 503:
+            return _twiml("🙏 The Guru is deep in meditation. Please try again in a moment.")
+        if sc == 429:
+            return _twiml("🙏 Please wait a moment before your next question.")
+        if sc == 500:
+            return _twiml("🙏 The Guru needs a moment. Please try again shortly.")
+        return _twiml(FALLBACK_GENERIC)
     except Exception:
         log.exception("chat call failed for %s", phone)
         return _twiml(FALLBACK_GENERIC)
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    # Check backend API availability
+    backend_ready = False
+    try:
+        resp = requests.get(f"{API_URL}/api/health", timeout=3)
+        backend_ready = resp.status_code == 200
+    except Exception:
+        backend_ready = False
+
+    # Check database
+    db_ready = False
+    try:
+        with closing(_db()) as conn:
+            conn.execute("SELECT 1").fetchone()
+        db_ready = True
+    except Exception:
+        db_ready = False
+
+    ready = backend_ready and db_ready
+    return {"status": "ok", "ready": ready, "backend_url": API_URL, "backend_ready": backend_ready, "db_ready": db_ready}
 
 
 @app.route("/healthz", methods=["GET"])

@@ -1,5 +1,6 @@
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function KnowledgeGraphPage() {
   const [params] = useSearchParams();

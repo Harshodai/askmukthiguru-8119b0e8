@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
@@ -9,6 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
+import { setLanguage } from '@/lib/chat/config';
+import { LanguageOnboardingStep } from '@/components/onboarding/LanguageOnboardingStep';
 import {
   startAuthRun,
   recordStep,
@@ -38,14 +41,15 @@ const friendlyError = (err: Error | { message: string }): string => {
 };
 
 const ONBOARDED_FLAG_KEY = 'askmukthiguru_onboarded';
-const GOOGLE_STEP_KEY = 'askmukthiguru_google_step'; // survives redirect roundtrip
+const GOOGLE_STEP_KEY = 'askmukthiguru_google_step';
 
 type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
 
 const AuthPage = () => {
+  const { t } = useTranslation();
   usePageMeta({
-    title: 'Sign in or create account — AskMukthiGuru',
-    description: 'Sign in to AskMukthiGuru to continue your private, AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    title: t('auth.pageTitle'),
+    description: t('auth.pageDescription'),
     canonical: 'https://askmukthiguru.lovable.app/auth',
   });
   const [isSignUp, setIsSignUp] = useState(false);
@@ -55,13 +59,12 @@ const AuthPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // If we're coming back from a Google OAuth redirect, jump straight to "returning"
-  // so the user sees an immediate spinner instead of the bare auth form.
   const [googleStep, setGoogleStep] = useState<GoogleStep>(() =>
     typeof window !== 'undefined' && sessionStorage.getItem(GOOGLE_STEP_KEY) === '1'
       ? 'returning'
       : 'idle',
   );
+  const [showLanguageStep, setShowLanguageStep] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const redirectingRef = useRef(false);
@@ -69,8 +72,6 @@ const AuthPage = () => {
 
 
   useEffect(() => {
-    // Background profile + role provisioning. Runs after navigation so it never
-    // blocks the post-OAuth render. Safe to call multiple times.
     const ensureInBackground = async () => {
       try {
         const { data: ensured, error: ensureErr } = await (supabase.rpc as unknown as (
@@ -83,11 +84,9 @@ const AuthPage = () => {
           const isSchemaGap = msg.includes('404') || msg.includes('does not exist') || msg.includes('could not find') || msg.includes('function');
           if (!isSchemaGap) {
             console.error('[Auth] ensure_profile_and_role failed', ensureErr);
-            // H2.6: surface profile setup failures so the user knows their
-            // profile/role provisioning didn't complete (not silently swallowed).
             toast({
-              title: 'Profile setup incomplete',
-              description: 'We could not finish setting up your profile. Some features may be limited — please retry from Settings if needed.',
+              title: t('auth.profileSetupIncomplete'),
+              description: t('auth.profileSetupIncompleteDesc'),
               variant: 'destructive',
               duration: 6000,
             });
@@ -97,10 +96,9 @@ const AuthPage = () => {
         }
       } catch (rpcErr) {
         console.error('[Auth] ensure_profile_and_role threw', rpcErr);
-        // H2.6: also surface thrown errors so the failure isn't silent.
         toast({
-          title: 'Profile setup incomplete',
-          description: 'A server error occurred while provisioning your profile. Please retry later.',
+          title: t('auth.profileSetupIncomplete'),
+          description: t('auth.profileSetupServerError'),
           variant: 'destructive',
           duration: 6000,
         });
@@ -115,7 +113,6 @@ const AuthPage = () => {
       redirectingRef.current = true;
       console.log('[Auth] handleSession starting', { userId: session.user.id });
       
-      // Set a timeout to recover from stuck states
       if (sessionHandleTimeoutRef.current) {
         clearTimeout(sessionHandleTimeoutRef.current);
       }
@@ -125,18 +122,15 @@ const AuthPage = () => {
         setGoogleStep('idle');
         setFacebookStep('idle');
         setLoading(false);
-        setError('Authentication timeout. Please try again.');
+        setError(t('auth.authTimeout'));
         toast({
-          title: 'Connection Timeout',
-          description: 'Please try signing in again.',
+          title: t('auth.connectionTimeout'),
+          description: t('auth.tryAgain'),
           variant: 'destructive'
         });
-      }, 15000); // 15 second timeout
+      }, 15000);
       
       try {
-      // Only show the Google "finalizing" step if a Google attempt is actually
-      // in progress. Avoids a misleading "Signing you in…" flash for users who
-      // land on /auth with an already-valid session.
       const isGoogleReturn =
         sessionStorage.getItem(GOOGLE_STEP_KEY) === '1' ||
         getActiveRun()?.provider === 'google';
@@ -156,8 +150,6 @@ const AuthPage = () => {
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
       sessionStorage.removeItem('askmukthiguru_facebook_step');
 
-
-      // If this session is the tail end of a Google round-trip, record it.
       const active = getActiveRun();
       if (active && !active.steps.some((s) => s.name === 'provider_return')) {
         recordStep('provider_return', 'ok', Date.now() - active.startedAt, {
@@ -166,7 +158,6 @@ const AuthPage = () => {
       }
       const hydrateT0 = performance.now();
 
-      // ── Seed local profile from OAuth metadata synchronously (localStorage only) ──
       const meta = session.user.user_metadata ?? {};
       const metaName: string = meta.full_name || meta.name || '';
       const metaAvatar: string = meta.avatar_url || meta.picture || '';
@@ -196,23 +187,18 @@ const AuthPage = () => {
         return;
       }
 
-      // Fast path: if this user has previously completed onboarding, navigate
-      // immediately to /chat without waiting on a server profile fetch. The
-      // server-side ensure + profile fetch run in the background.
       const onboardedCached = localStorage.getItem(ONBOARDED_FLAG_KEY) === '1';
       if (onboardedCached) {
         recordStep('navigate', 'ok', 0, { meta: { to: '/chat', cached: true } });
         navigate('/chat', { replace: true });
         endAuthRun('ok');
         ensureInBackground();
-        // Refresh server profile lazily in the background.
         import('@/lib/profileStorage').then(({ fetchProfileFromServer }) => {
           fetchProfileFromServer().catch(() => {});
         });
         return;
       }
 
-      // Slow path: run ensure + profile fetch in parallel, then decide.
       const [, serverProfile] = await Promise.all([
         timeStep('profile_ensure', ensureInBackground),
         timeStep('profile_fetch', async () => {
@@ -232,13 +218,11 @@ const AuthPage = () => {
         recordStep('navigate', 'ok', 0, { meta: { to: '/profile?onboarding=true' } });
         navigate('/profile?onboarding=true', { replace: true });
       } else {
-        localStorage.setItem(ONBOARDED_FLAG_KEY, '1');
         recordStep('navigate', 'ok', 0, { meta: { to: '/chat' } });
-        navigate('/chat', { replace: true });
+        setShowLanguageStep(true);
       }
       endAuthRun('ok');
       
-      // Clear timeout on success
       if (sessionHandleTimeoutRef.current) {
         clearTimeout(sessionHandleTimeoutRef.current);
         sessionHandleTimeoutRef.current = null;
@@ -246,7 +230,6 @@ const AuthPage = () => {
       } catch (err) {
         console.error('[Auth] handleSession failed', err);
         
-        // Clear timeout on error
         if (sessionHandleTimeoutRef.current) {
           clearTimeout(sessionHandleTimeoutRef.current);
           sessionHandleTimeoutRef.current = null;
@@ -255,21 +238,18 @@ const AuthPage = () => {
         setGoogleStep('idle');
         setFacebookStep('idle');
         setLoading(false);
-        setError('Authentication failed. Please try again.');
+        setError(t('auth.authFailed'));
         redirectingRef.current = false;
         endAuthRun('error', err instanceof Error ? err.message : String(err));
         
-        // Show user-friendly error toast
         toast({
-          title: 'Sign-in Failed',
-          description: err instanceof Error ? err.message : 'Please try signing in again.',
+          title: t('auth.signInFailed'),
+          description: err instanceof Error ? err.message : t('auth.tryAgain'),
           variant: 'destructive'
         });
       }
     };
 
-
-    // Set up auth listener FIRST, then check existing session.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
         handleSession(session);
@@ -286,7 +266,7 @@ const AuthPage = () => {
         clearTimeout(sessionHandleTimeoutRef.current);
       }
     };
-  }, [navigate, toast]);
+  }, [navigate, toast, t]);
 
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -298,7 +278,7 @@ const AuthPage = () => {
       if (isSignUp) {
         const trimmedName = fullName.trim();
         if (!trimmedName) {
-          setError('Please enter your full name.');
+          setError(t('auth.enterName'));
           setLoading(false);
           return;
         }
@@ -324,15 +304,13 @@ const AuthPage = () => {
           identities: signUpData.user?.identities?.length ?? 0,
           needs_confirmation: !signUpData.session,
         });
-        // Seed the local profile with the chosen name so the chat header / profile
-        // page reflect it immediately, even before the email is confirmed.
         try {
           const { updateProfile } = await import('@/lib/profileStorage');
           updateProfile({ displayName: trimmedName });
         } catch { /* non-fatal */ }
         toast({
-          title: 'Check your email',
-          description: 'We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup.',
+          title: t('auth.checkEmail'),
+          description: t('auth.verificationSent'),
         });
         endAuthRun('ok');
       } else {
@@ -347,7 +325,6 @@ const AuthPage = () => {
           throw signInError;
         }
         console.info('[Auth] signIn success');
-        // Redirect logic is handled by onAuthStateChange effect
       }
     } catch (err: unknown) {
       const message = friendlyError(err as Error);
@@ -362,13 +339,10 @@ const AuthPage = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError(null);
-    // Optimistic: show "Connecting…" the instant the user clicks.
     setGoogleStep('connecting');
-    // Start a fresh telemetry run for this Google attempt.
     startAuthRun('google');
     const clickT0 = performance.now();
     recordStep('click_google', 'ok', 0);
-    // Promote to "Redirecting…" shortly after, so even slow networks feel responsive.
     const redirectTimer = window.setTimeout(() => {
       setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
     }, 400);
@@ -389,36 +363,10 @@ const AuthPage = () => {
       if (supabaseError) throw supabaseError;
       recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
       return;
-
-      /* Commented out Lovable Cloud managed Google OAuth
-      const initT0 = performance.now();
-      const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
-      });
-      recordStep('oauth_init', result.error ? 'error' : 'ok', Math.round(performance.now() - initT0), {
-        error: result.error instanceof Error ? result.error.message : undefined,
-        meta: { mode: 'lovable', redirected: !!result.redirected },
-      });
-
-      if (result.error) {
-        const message = result.error instanceof Error ? result.error.message : 'Google sign-in failed. Please try again.';
-        setError(message);
-        sessionStorage.removeItem(GOOGLE_STEP_KEY);
-        setGoogleStep('idle');
-        endAuthRun('error', message);
-        return;
-      }
-      if (result.redirected) {
-        recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
-        return;
-      }
-
-      setGoogleStep('finalizing');
-      */
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not connect to Google.';
+      const message = err instanceof Error ? err.message : t('auth.couldNotConnectGoogle');
       console.error('[Google Auth Error]', err);
-      setError('Could not connect to Google. Please try again.');
+      setError(t('auth.couldNotConnectGoogleRetry'));
       sessionStorage.removeItem(GOOGLE_STEP_KEY);
       setGoogleStep('idle');
       endAuthRun('error', message);
@@ -428,7 +376,6 @@ const AuthPage = () => {
     }
   };
 
-  // Facebook OAuth handler
   const [facebookStep, setFacebookStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
   
   const handleFacebookSignIn = async () => {
@@ -444,11 +391,6 @@ const AuthPage = () => {
     }, 400);
     
     try {
-      // OPTIMIZATION (Auth audit Truth-1): Always use Supabase native OAuth.
-      // The Lovable wrapper does NOT support 'facebook' in its TypeScript union
-      // (`@lovable.dev/cloud-auth-js` only allows google|apple|microsoft|lovable).
-      // The previous `lovable.auth.signInWithOAuth('facebook' as any, ...)` cast
-      // silently failed in production. Removed.
       sessionStorage.setItem('askmukthiguru_facebook_step', '1');
 
       const initT0 = performance.now();
@@ -466,9 +408,9 @@ const AuthPage = () => {
       recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
       return;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not connect to Facebook.';
+      const message = err instanceof Error ? err.message : t('auth.couldNotConnectFacebook');
       console.error('[Facebook Auth Error]', err);
-      setError('Could not connect to Facebook. Please try again.');
+      setError(t('auth.couldNotConnectFacebookRetry'));
       sessionStorage.removeItem('askmukthiguru_facebook_step');
       setFacebookStep('idle');
       endAuthRun('error', message);
@@ -482,7 +424,6 @@ const AuthPage = () => {
   const facebookBusy = facebookStep !== 'idle';
   const [showResetButton, setShowResetButton] = useState(false);
   
-  // Show reset button after 5 seconds of being stuck
   useEffect(() => {
     if (googleBusy || facebookBusy) {
       const timer = setTimeout(() => {
@@ -494,7 +435,6 @@ const AuthPage = () => {
     }
   }, [googleBusy, facebookBusy]);
   
-  // Manual reset function for stuck states
   const handleResetAuth = useCallback(() => {
     console.log('[Auth] Manual reset triggered');
     redirectingRef.current = false;
@@ -509,14 +449,12 @@ const AuthPage = () => {
       sessionHandleTimeoutRef.current = null;
     }
     toast({
-      title: 'Reset Complete',
-      description: 'You can try signing in again.',
+      title: t('auth.resetComplete'),
+      description: t('auth.tryAgain'),
     });
-  }, [toast]);
+  }, [toast, t]);
   
-  // Google One Tap initialization
   useEffect(() => {
-    // Skip if already authenticated or in sign-up mode
     if (loading || isSignUp) return;
     
     const initializeGoogleOneTap = () => {
@@ -526,7 +464,6 @@ const AuthPage = () => {
         return;
       }
       
-      // Load Google Identity Services script
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
@@ -540,7 +477,6 @@ const AuthPage = () => {
             cancel_on_tap_outside: true,
           });
           
-          // Display the One Tap prompt
           window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean; getNotDisplayedReason: () => string; getSkippedReason: () => string }) => {
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
               console.log('[Google One Tap]', notification.getNotDisplayedReason() || notification.getSkippedReason());
@@ -564,7 +500,6 @@ const AuthPage = () => {
       setLoading(true);
       startAuthRun('google_one_tap');
       
-      // Exchange the credential with Supabase
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: response.credential,
@@ -576,32 +511,49 @@ const AuthPage = () => {
       endAuthRun('ok');
       
       toast({
-        title: 'Welcome back!',
-        description: 'Signed in with Google One Tap',
+        title: t('auth.welcomeBack'),
+        description: t('auth.signedInOneTap'),
       });
     } catch (err) {
       console.error('[Google One Tap Error]', err);
-      setError('Google One Tap sign-in failed. Please try again.');
+      setError(t('auth.oneTapFailed'));
       endAuthRun('error', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, t]);
+
   const googleStepLabel: Record<GoogleStep, string> = {
-    idle: 'Continue with Google',
-    connecting: 'Connecting to Google…',
-    redirecting: 'Redirecting to Google…',
-    returning: 'Returning from Google…',
-    finalizing: 'Signing you in…',
+    idle: t('auth.continueWithGoogle'),
+    connecting: t('auth.connectingToGoogle'),
+    redirecting: t('auth.redirectingToGoogle'),
+    returning: t('auth.returningFromGoogle'),
+    finalizing: t('auth.signingYouIn'),
   };
   const googleProgressSteps: Array<{ key: GoogleStep; label: string }> = [
-    { key: 'connecting', label: 'Connect' },
-    { key: 'redirecting', label: 'Authorize' },
-    { key: 'finalizing', label: 'Sign in' },
+    { key: 'connecting', label: t('auth.stepConnect') },
+    { key: 'redirecting', label: t('auth.stepAuthorize') },
+    { key: 'finalizing', label: t('auth.stepSignIn') },
   ];
   const stepOrder: GoogleStep[] = ['idle', 'connecting', 'redirecting', 'returning', 'finalizing'];
   const currentStepIdx = stepOrder.indexOf(googleStep);
 
+  const facebookStepLabel = facebookBusy ? t('auth.connectingToFacebook') : t('auth.continueWithFacebook');
+
+  const handleLanguageComplete = (code: string) => {
+    setLanguage(code);
+    localStorage.setItem(ONBOARDED_FLAG_KEY, '1');
+    endAuthRun('ok');
+    if (sessionHandleTimeoutRef.current) {
+      clearTimeout(sessionHandleTimeoutRef.current);
+      sessionHandleTimeoutRef.current = null;
+    }
+    navigate('/chat', { replace: true });
+  };
+
+  if (showLanguageStep) {
+    return <LanguageOnboardingStep onComplete={handleLanguageComplete} />;
+  }
 
   return (
     <div className="min-h-dvh flex items-center justify-center bg-background px-4">
@@ -610,9 +562,9 @@ const AuthPage = () => {
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6 text-ojas" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Sign in to AskMukthiGuru</h1>
+          <h1 className="text-xl font-semibold text-foreground">{t('auth.signInTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            {isSignUp ? 'Create your account' : 'Welcome back, dear seeker'}
+            {isSignUp ? t('auth.createAccount') : t('auth.welcomeBack')}
           </p>
         </div>
 
@@ -652,11 +604,10 @@ const AuthPage = () => {
           {googleBusy && (
             <ol
               className="flex items-center justify-between text-[11px] text-muted-foreground px-1"
-              aria-label="Sign-in progress"
+              aria-label={t('auth.signInProgress')}
             >
               {googleProgressSteps.map((step) => {
                 const stepIdx = stepOrder.indexOf(step.key);
-                // Treat 'returning' as past Authorize, so Sign in is active.
                 const effectiveIdx =
                   googleStep === 'returning' ? stepOrder.indexOf('finalizing') : currentStepIdx;
                 const done = effectiveIdx > stepIdx;
@@ -685,7 +636,6 @@ const AuthPage = () => {
             </ol>
           )}
           
-          {/* Reset button for stuck states */}
           {showResetButton && (googleBusy || facebookBusy) && (
             <div className="text-center pt-2">
               <Button
@@ -694,12 +644,11 @@ const AuthPage = () => {
                 onClick={handleResetAuth}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                Taking too long? Click here to reset and try again
+                {t('auth.takingTooLong')}
               </Button>
             </div>
           )}
           
-          {/* Facebook Sign-In Button */}
           <Button
             variant="outline"
             className="w-full h-11 gap-2 relative overflow-hidden"
@@ -713,7 +662,7 @@ const AuthPage = () => {
               <path fill="#fff" d="M33.342 30.938L34.406 24H27.75v-4.5c0-1.9.93-3.75 3.911-3.75h3.026V9.844s-2.747-.469-5.372-.469c-5.482 0-9.065 3.323-9.065 9.337V24h-6.094v6.938h6.094v16.77a24.175 24.175 0 007.5 0v-16.77h5.592z"/>
             </svg>
             <span className="text-sm">
-              {facebookBusy ? 'Connecting to Facebook…' : 'Continue with Facebook'}
+              {facebookStepLabel}
             </span>
             {facebookBusy && (
               <span
@@ -731,14 +680,14 @@ const AuthPage = () => {
             <div className="w-full border-t border-border/50" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-background px-2 text-muted-foreground">or</span>
+            <span className="bg-background px-2 text-muted-foreground">{t('auth.or')}</span>
           </div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {isSignUp && (
             <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-xs text-muted-foreground">Full name</Label>
+              <Label htmlFor="fullName" className="text-xs text-muted-foreground">{t('auth.fullName')}</Label>
               <div className="relative">
                 <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -746,7 +695,7 @@ const AuthPage = () => {
                   type="text"
                   value={fullName}
                   onChange={(e) => { setFullName(e.target.value); setError(null); }}
-                  placeholder="Your name"
+                  placeholder={t('auth.yourName')}
                   className="pl-9 h-10"
                   autoComplete="name"
                   required
@@ -755,7 +704,7 @@ const AuthPage = () => {
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>
+            <Label htmlFor="email" className="text-xs text-muted-foreground">{t('auth.email')}</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -763,14 +712,14 @@ const AuthPage = () => {
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                placeholder="you@example.com"
+                placeholder={t('auth.emailPlaceholder')}
                 className="pl-9 h-10"
                 required
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-xs text-muted-foreground">Password</Label>
+            <Label htmlFor="password" className="text-xs text-muted-foreground">{t('auth.password')}</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -778,7 +727,7 @@ const AuthPage = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                placeholder="••••••••"
+                placeholder={t('auth.passwordPlaceholder')}
                 className="pl-9 pr-9 h-10"
                 required
                 minLength={6}
@@ -786,7 +735,7 @@ const AuthPage = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                 aria-pressed={showPassword}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -795,7 +744,7 @@ const AuthPage = () => {
             </div>
           </div>
           <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || googleBusy}>
-            {loading ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
+            {loading ? t('auth.pleaseWait') : isSignUp ? t('auth.createAccountBtn') : t('auth.signInBtn')}
           </Button>
         </form>
 
@@ -804,7 +753,7 @@ const AuthPage = () => {
             <button
               type="button"
               onClick={async () => {
-                if (!email) return setError('Enter your email above first, then tap Forgot password.');
+                if (!email) return setError(t('auth.enterEmailFirst'));
                 setLoading(true);
                 setError(null);
                 const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email, {
@@ -812,35 +761,35 @@ const AuthPage = () => {
                 });
                 setLoading(false);
                 if (resetErr) setError(friendlyError(resetErr));
-                else toast({ title: 'Check your email', description: 'We sent you a link to reset your password.' });
+                else toast({ title: t('auth.checkEmail'), description: t('auth.passwordResetSent') });
               }}
               className="text-xs text-muted-foreground hover:text-ojas hover:underline"
             >
-              Forgot your password?
+              {t('auth.forgotPassword')}
             </button>
           </div>
         )}
 
         <p className="text-center text-xs text-muted-foreground">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+          {isSignUp ? t('auth.alreadyAccount') : t('auth.noAccount')}{' '}
           <button
             onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
             className="text-ojas hover:underline font-medium"
           >
-            {isSignUp ? 'Sign in' : 'Sign up'}
+            {isSignUp ? t('auth.signInBtn') : t('auth.signUpBtn')}
           </button>
         </p>
 
         <p className="text-center text-[11px] text-muted-foreground/70 pt-2">
-          By continuing you agree to our{' '}
-          <a href="/terms" className="hover:text-ojas hover:underline">Terms</a> and{' '}
-          <a href="/privacy" className="hover:text-ojas hover:underline">Privacy Policy</a>.
+          {t('auth.byContinuing')}{' '}
+          <a href="/terms" className="hover:text-ojas hover:underline">{t('auth.terms')}</a>{t('auth.and')}{' '}
+          <a href="/privacy" className="hover:text-ojas hover:underline">{t('auth.privacyPolicy')}</a>.
         </p>
 
         <p className="text-center text-[11px] text-muted-foreground/60 pt-1">
-          Trouble signing in?{' '}
+          {t('auth.troubleSigningIn')}{' '}
           <a href="/auth/diagnostics" className="text-ojas hover:underline">
-            Run diagnostics
+            {t('auth.runDiagnostics')}
           </a>
         </p>
       </div>

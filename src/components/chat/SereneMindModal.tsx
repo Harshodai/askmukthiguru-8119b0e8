@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Pause, RotateCcw, Wind, Headphones, Youtube, ExternalLink, Check } from 'lucide-react';
@@ -28,6 +29,7 @@ const SERENE_MIND_VIDEO_ID = 'igSp4H0OWLE';
 const SERENE_MIND_YOUTUBE_URL = `https://youtu.be/${SERENE_MIND_VIDEO_ID}`;
 
 export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onComplete, isGated = false }: SereneMindModalProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SereneMindTab>(initialTab);
   const [selectedTechnique, setSelectedTechnique] = useState<BreathTechnique>(DEFAULT_TECHNIQUE);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -248,9 +250,9 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
   })();
 
   const tabs: { id: SereneMindTab; label: string; icon: typeof Wind }[] = [
-    { id: 'breathing', label: 'Breathe', icon: Wind },
-    { id: 'audio', label: 'Audio', icon: Headphones },
-    { id: 'video', label: 'Video', icon: Youtube },
+    { id: 'breathing', label: t('meditation.tabBreathe'), icon: Wind },
+    { id: 'audio', label: t('meditation.tabAudio'), icon: Headphones },
+    { id: 'video', label: t('meditation.tabVideo'), icon: Youtube },
   ];
 
   return (
@@ -263,7 +265,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
           className="fixed inset-0 z-50 flex items-center justify-center"
           role="dialog"
           aria-modal="true"
-          aria-label="Serene Mind meditation"
+          aria-label={t('meditation.sereneMind')}
         >
           <motion.div
             initial={{ opacity: 0 }}
@@ -286,7 +288,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors"
-                  aria-label="Close"
+                  aria-label={t('common.close')}
                 >
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -294,17 +296,17 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
 
               {/* Title */}
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ojas/85 mb-1.5">
-                Serene Mind
+                {t('meditation.sereneMind')}
               </p>
-              <h2 className="text-xl font-medium text-foreground/90 mb-1">Guided Practice</h2>
+              <h2 className="text-xl font-medium text-foreground/90 mb-1">{t('meditation.guidedPractice')}</h2>
               <p className="text-muted-foreground/80 text-xs mb-5">
-                Inspired by Sri Preethaji & Sri Krishnaji
+                {t('meditation.inspiredBy')}
               </p>
 
               {/* Tab strip */}
               <div
                 role="tablist"
-                aria-label="Meditation mode"
+                aria-label={t('meditation.tablistAria')}
                 className="inline-flex p-1 rounded-full bg-muted/65 border border-border/30 mb-6"
               >
                 {tabs.map((t) => {
@@ -367,7 +369,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
                   onClick={onClose}
                   className="mt-5 text-[11px] text-muted-foreground/80 hover:text-foreground underline underline-offset-2 transition-colors"
                 >
-                  Continue chatting
+                  {t('meditation.continueChatting')}
                 </button>
               )}
             </div>
@@ -417,6 +419,7 @@ const BreathingTab = ({
   teaching,
   teachingLoading,
 }: BreathingTabProps) => {
+  const { t } = useTranslation();
   const activeInhale = selectedTechnique.inhale;
   const activeExhale = selectedTechnique.exhale;
 
@@ -425,7 +428,7 @@ const BreathingTab = ({
       {/* Technique Selector */}
       <div className="mb-6">
         <label className="block text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider mb-2">
-          Select Technique
+          {t('meditation.selectTechnique')}
         </label>
         <div className="flex flex-wrap justify-center gap-2">
           {BREATH_TECHNIQUES.map((tech) => {
@@ -548,7 +551,7 @@ const BreathingTab = ({
         </motion.p>
         {isPlaying && phase !== 'complete' && (
           <p className="text-xs text-muted-foreground mt-2">
-            Remaining: {formatTime(totalTime)} • Cycles: {cycleCount}
+            {t('meditation.remainingAndCycles', { time: formatTime(totalTime), count: cycleCount })}
           </p>
         )}
       </div>
@@ -562,7 +565,7 @@ const BreathingTab = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            Return
+            {t('meditation.return')}
           </motion.button>
         ) : (
           <>
@@ -571,7 +574,7 @@ const BreathingTab = ({
               className="p-3.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 shadow-md"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              aria-label={isPlaying ? 'Pause breathing' : 'Start breathing'}
+              aria-label={isPlaying ? t('meditation.pauseBreathing') : t('meditation.startBreathing')}
             >
               {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
             </motion.button>
@@ -583,7 +586,7 @@ const BreathingTab = ({
                 animate={{ opacity: 1, scale: 1 }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                aria-label="Reset"
+                aria-label={t('meditation.startFresh')}
               >
                 <RotateCcw className="w-5 h-5 text-muted-foreground" />
               </motion.button>
@@ -595,7 +598,7 @@ const BreathingTab = ({
       {/* Dynamic RAG Teaching Quote */}
       {teachingLoading ? (
         <div className="mt-8 p-4 rounded-2xl bg-card border border-border/40 text-center text-xs text-muted-foreground">
-          <span className="inline-block animate-pulse">Retrieving authentic Ekam teaching...</span>
+          <span className="inline-block animate-pulse">{t('meditation.retrievingTeaching')}</span>
         </div>
       ) : (
         teaching && (
@@ -607,7 +610,7 @@ const BreathingTab = ({
             <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-ojas to-ojas-gold" />
             <p className="text-xs font-semibold text-ojas uppercase tracking-wider mb-1 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-ojas animate-pulse" />
-              Sri Preethaji & Sri Krishnaji Teaching
+              {t('meditation.teachingLabel')}
             </p>
             <p className="text-xs text-muted-foreground italic leading-relaxed">
               "{teaching}"
@@ -619,42 +622,42 @@ const BreathingTab = ({
       {selectedTechnique.id === 'serene_mind' && (
         <div className="mt-6 p-4 rounded-2xl bg-card border border-border/40 text-left">
           <p className="text-xs font-semibold text-ojas uppercase tracking-wider mb-3">
-            Serene Mind Practice Guide (5 Steps)
+            {t('meditation.practiceGuide')}
           </p>
           <div className="space-y-3 text-xs text-muted-foreground">
             <div className={`flex gap-2.5 items-start p-2 rounded-xl transition-all duration-300 ${phase === 'idle' ? 'bg-ojas/5 border border-ojas/20' : 'border border-transparent'}`}>
               <div className="w-5 h-5 rounded-full bg-ojas/10 text-ojas flex items-center justify-center font-bold text-[10px] shrink-0">1</div>
               <div>
-                <p className={`font-semibold ${phase === 'idle' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>Posture &amp; Preparation</p>
-                <p className="text-[11px] leading-relaxed">Sit erect with spine straight, close your eyes, and prepare to turn your attention inward.</p>
+                <p className={`font-semibold ${phase === 'idle' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>{t('meditation.guideStep1Title')}</p>
+                <p className="text-[11px] leading-relaxed">{t('meditation.guideStep1Desc')}</p>
               </div>
             </div>
             <div className={`flex gap-2.5 items-start p-2 rounded-xl transition-all duration-300 ${phase === 'inhale' ? 'bg-ojas/5 border border-ojas/20' : 'border border-transparent'}`}>
               <div className="w-5 h-5 rounded-full bg-ojas/10 text-ojas flex items-center justify-center font-bold text-[10px] shrink-0">2</div>
               <div>
-                <p className={`font-semibold ${phase === 'inhale' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>Conscious Breathing (4-2-6)</p>
-                <p className="text-[11px] leading-relaxed">Inhale slowly for 4s, hold briefly for 2s, then exhale slowly for 6s. The long exhale activates calm.</p>
+                <p className={`font-semibold ${phase === 'inhale' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>{t('meditation.guideStep2Title')}</p>
+                <p className="text-[11px] leading-relaxed">{t('meditation.guideStep2Desc')}</p>
               </div>
             </div>
             <div className={`flex gap-2.5 items-start p-2 rounded-xl transition-all duration-300 ${phase === 'hold1' ? 'bg-ojas/5 border border-ojas/20' : 'border border-transparent'}`}>
               <div className="w-5 h-5 rounded-full bg-ojas/10 text-ojas flex items-center justify-center font-bold text-[10px] shrink-0">3</div>
               <div>
-                <p className={`font-semibold ${phase === 'hold1' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>Self-Observation (Emotion)</p>
-                <p className="text-[11px] leading-relaxed">During the hold, identify the exact emotion present in you (irritation, fear, peace) without trying to change it.</p>
+                <p className={`font-semibold ${phase === 'hold1' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>{t('meditation.guideStep3Title')}</p>
+                <p className="text-[11px] leading-relaxed">{t('meditation.guideStep3Desc')}</p>
               </div>
             </div>
             <div className={`flex gap-2.5 items-start p-2 rounded-xl transition-all duration-300 ${phase === 'exhale' ? 'bg-ojas/5 border border-ojas/20' : 'border border-transparent'}`}>
               <div className="w-5 h-5 rounded-full bg-ojas/10 text-ojas flex items-center justify-center font-bold text-[10px] shrink-0">4</div>
               <div>
-                <p className={`font-semibold ${phase === 'exhale' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>Observe Thought Direction</p>
-                <p className="text-[11px] leading-relaxed">Observe where your thoughts are wandering—to past memories, future projections, or staying present.</p>
+                <p className={`font-semibold ${phase === 'exhale' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>{t('meditation.guideStep4Title')}</p>
+                <p className="text-[11px] leading-relaxed">{t('meditation.guideStep4Desc')}</p>
               </div>
             </div>
             <div className={`flex gap-2.5 items-start p-2 rounded-xl transition-all duration-300 ${phase === 'complete' ? 'bg-ojas/5 border border-ojas/20' : 'border border-transparent'}`}>
               <div className="w-5 h-5 rounded-full bg-ojas/10 text-ojas flex items-center justify-center font-bold text-[10px] shrink-0">5</div>
               <div>
-                <p className={`font-semibold ${phase === 'complete' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>Flame in the Brain</p>
-                <p className="text-[11px] leading-relaxed">Bring focus to your eyebrow center, visualize a tiny flame moving into the center of your brain. Smile and open eyes.</p>
+                <p className={`font-semibold ${phase === 'complete' ? 'text-ojas text-gradient-gold font-bold' : 'text-foreground'}`}>{t('meditation.guideStep5Title')}</p>
+                <p className="text-[11px] leading-relaxed">{t('meditation.guideStep5Desc')}</p>
               </div>
             </div>
           </div>
@@ -673,6 +676,7 @@ interface MediaTabProps {
 }
 
 const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) => {
+  const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -747,11 +751,11 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
   };
 
   const steps = [
-    { title: 'Posture & Breathing', start: 0, end: 30, desc: 'Sit erect, close eyes. Slow deep breaths with a long exhale.' },
-    { title: 'Observe Emotion', start: 30, end: 60, desc: 'Feel your inner emotional state without trying to change it.' },
-    { title: 'Observe Thoughts', start: 60, end: 90, desc: 'Notice where your thoughts wander—past, future, or present.' },
-    { title: 'Focus on the Flame', start: 90, end: 150, desc: 'Visualize a flame moving from eyebrow center to center of brain.' },
-    { title: 'Hold & Smile', start: 150, end: 180, desc: 'Hold attention on the flame, gently smile and open eyes.' },
+    { title: t('meditation.guideStepVideo1Title'), start: 0, end: 30, desc: t('meditation.guideStepVideo1Desc') },
+    { title: t('meditation.guideStepVideo2Title'), start: 30, end: 60, desc: t('meditation.guideStepVideo2Desc') },
+    { title: t('meditation.guideStepVideo3Title'), start: 60, end: 90, desc: t('meditation.guideStepVideo3Desc') },
+    { title: t('meditation.guideStepVideo4Title'), start: 90, end: 150, desc: t('meditation.guideStepVideo4Desc') },
+    { title: t('meditation.guideStepVideo5Title'), start: 150, end: 180, desc: t('meditation.guideStepVideo5Desc') },
   ];
 
   const activeStepIndex = steps.findIndex(
@@ -775,7 +779,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
           </div>
           <div className="p-4 rounded-2xl bg-card border border-border/40 text-left">
             <p className="text-xs font-semibold text-ojas uppercase tracking-wider mb-3">
-              Practice Progression
+              {t('meditation.practiceProgression')}
             </p>
             <div className="space-y-2.5 text-xs text-muted-foreground">
               {steps.map((s, idx) => (
@@ -839,8 +843,8 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
 
             {/* Player Info */}
             <div className="text-center mb-4">
-              <h3 className="font-bold text-foreground text-sm">Serene Mind Guidance</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Sri Preethaji's Voice</p>
+              <h3 className="font-bold text-foreground text-sm">{t('meditation.sereneMindGuidance')}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('meditation.sriPreethajisVoice')}</p>
             </div>
 
             {/* Simulated Seekbar / Progress Track */}
@@ -868,7 +872,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
                 className="p-3 rounded-full bg-muted/60 hover:bg-muted transition-all duration-300"
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.95 }}
-                aria-label="Restart audio"
+                aria-label={t('meditation.restartAudio')}
               >
                 <RotateCcw className="w-4 h-4 text-muted-foreground" />
               </motion.button>
@@ -878,7 +882,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
                 className="p-4 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground transition-all duration-300 shadow-md"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                aria-label={isPlaying ? 'Pause guidance' : 'Play guidance'}
+                aria-label={isPlaying ? t('meditation.pauseGuidance') : t('meditation.playGuidance')}
               >
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
               </motion.button>
@@ -888,7 +892,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
           {/* Dynamic Step Highlighting List */}
           <div className="p-4 rounded-2xl bg-card border border-border/40 text-left">
             <p className="text-xs font-semibold text-ojas uppercase tracking-wider mb-3">
-              Practice Progression
+              {t('meditation.practiceProgression')}
             </p>
             <div className="space-y-3 text-xs text-muted-foreground">
               {steps.map((s, idx) => {
@@ -935,7 +939,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
           className="mt-3 w-full py-2.5 px-4 rounded-full bg-ojas/90 hover:bg-ojas text-white text-sm font-semibold transition-all shadow-md flex items-center justify-center gap-1.5"
         >
           <Check className="w-4 h-4" />
-          Complete Meditation &amp; Unlock Chat
+          {t('meditation.completeAndUnlock')}
         </button>
       )}
 
@@ -946,7 +950,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
         className="inline-flex items-center gap-1.5 text-xs text-ojas hover:text-ojas-light transition-colors"
       >
         <ExternalLink className="w-3.5 h-3.5" />
-        Open in YouTube
+        {t('meditation.openInYoutube')}
       </a>
     </div>
   );

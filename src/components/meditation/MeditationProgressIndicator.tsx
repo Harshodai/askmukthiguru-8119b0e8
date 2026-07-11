@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ProgressRing } from '@/components/common/ui/ProgressRing';
 
 interface MeditationProgressIndicatorProps {
@@ -15,7 +16,9 @@ export const MeditationProgressIndicator = ({
   currentStep,
   totalSteps,
   stepProgress,
-}: MeditationProgressIndicatorProps) => (
+}: MeditationProgressIndicatorProps) => {
+  const { t } = useTranslation();
+  return (
   <ProgressRing
     currentStep={currentStep}
     totalSteps={totalSteps}
@@ -23,8 +26,9 @@ export const MeditationProgressIndicator = ({
     centerContent={
       <div className="text-center">
         <p className="text-3xl font-semibold text-ojas">{currentStep + 1}</p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">of {totalSteps}</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('meditation.stepXofY', { current: currentStep + 1, total: totalSteps })}</p>
       </div>
     }
   />
 );
+};

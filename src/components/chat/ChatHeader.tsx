@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PanelLeft, PanelLeftClose, Home, Download, Library } from 'lucide-react';
 import { UserMenu } from '@/components/common/UserMenu';
@@ -14,6 +15,8 @@ interface ChatHeaderProps {
 }
 
 export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0 }: ChatHeaderProps) => {
+  const { t } = useTranslation();
+
   return (
     <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/85 border-b border-border/40" data-testid="chat-header-simplified">
       <div className="flex items-center justify-between px-3 sm:px-5 h-[52px]">
@@ -24,10 +27,10 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               variant="ghost"
               onClick={onToggleSidebar}
               className="hidden sm:flex h-8 w-8"
-              aria-label={sidebarCollapsed ? 'Open sidebar' : 'Close sidebar'}
+              aria-label={sidebarCollapsed ? t('chat.openSidebar') : t('chat.closeSidebar')}
               aria-expanded={!sidebarCollapsed}
               aria-controls="sidebar-panel"
-              title={sidebarCollapsed ? 'Open sidebar' : 'Close sidebar'}
+              title={sidebarCollapsed ? t('chat.openSidebar') : t('chat.closeSidebar')}
             >
               {sidebarCollapsed ? (
                 <PanelLeft className="w-4 h-4 text-muted-foreground" />
@@ -40,8 +43,8 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
           <Link
             to="/"
             className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-            title="Home"
-            aria-label="AskMukthiGuru home"
+            title={t('nav.home')}
+            aria-label={t('chat.homeAria')}
           >
             <Home className="w-4 h-4 text-muted-foreground" />
           </Link>
@@ -52,7 +55,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               variant="ghost"
               onClick={onOpenMobileMenu}
               className="sm:hidden h-8 w-8"
-              aria-label="Open conversations"
+              aria-label={t('chat.openConversations')}
             >
               <PanelLeft className="w-4 h-4" />
             </Button>
@@ -60,7 +63,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
 
           <span className="flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none" data-testid="chat-header-wordmark">
             <span className="text-sm leading-none" aria-hidden="true">🙏</span>
-            AskMukthiGuru
+            {t('nav.appName')}
           </span>
         </div>
 
@@ -71,8 +74,8 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               variant="ghost"
               onClick={onOpenSources}
               className="h-8 w-8 text-muted-foreground hover:text-foreground relative"
-              aria-label={`Open sources panel (${sourcesCount} ${sourcesCount === 1 ? 'source' : 'sources'})`}
-              title="View all sources cited in this conversation"
+              aria-label={t('chat.openSources', { count: sourcesCount })}
+              title={t('chat.viewSources')}
             >
               <Library className="w-4 h-4" />
               {sourcesCount > 0 && (
@@ -88,8 +91,8 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               variant="ghost"
               onClick={onExport}
               className="h-8 w-8 hidden sm:flex text-muted-foreground"
-              aria-label="Export conversation as Markdown"
-              title="Export conversation as Markdown"
+              aria-label={t('chat.exportMarkdown')}
+              title={t('chat.exportMarkdown')}
             >
               <Download className="w-4 h-4" />
             </Button>

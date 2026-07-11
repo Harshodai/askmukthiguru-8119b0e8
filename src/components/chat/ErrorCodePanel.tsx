@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Copy, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import type { ChatBusError } from '@/lib/chatErrorBus';
@@ -7,17 +8,18 @@ interface ErrorCodePanelProps {
   compact?: boolean;
 }
 
-const CAUSE_BY_KIND: Record<string, string> = {
-  unauthorized: 'Your authenticated session has expired or is missing.',
-  rate_limited: 'You have sent too many messages in a short window.',
-  server_error: 'The Guru backend or the underlying model is temporarily unavailable.',
-  network: 'The browser could not reach the Guru service.',
-  timeout: 'The model did not finish responding before the deadline.',
-  unknown: 'An unexpected error occurred while preparing the reply.',
-};
-
 export const ErrorCodePanel = ({ error, compact = false }: ErrorCodePanelProps) => {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+
+  const CAUSE_BY_KIND: Record<string, string> = {
+    unauthorized: t('chat.errorCauseUnauthorized'),
+    rate_limited: t('chat.errorCauseRateLimited'),
+    server_error: t('chat.errorCauseServerError'),
+    network: t('chat.errorCauseNetwork'),
+    timeout: t('chat.errorCauseTimeout'),
+    unknown: t('chat.errorCauseUnknown'),
+  };
 
   const copyTrace = () => {
     const payload = [
@@ -50,23 +52,23 @@ export const ErrorCodePanel = ({ error, compact = false }: ErrorCodePanelProps) 
           type="button"
           onClick={copyTrace}
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Copy error trace"
+          aria-label={t('chat.copyTraceAria')}
         >
           <Copy className="w-3 h-3" />
-          {copied ? 'Copied' : 'Copy trace'}
+          {copied ? t('common.copied') : t('chat.copyTrace')}
         </button>
       </div>
       <p className="mt-1.5 font-semibold text-destructive leading-tight">{error.title}</p>
       <dl className="mt-2 grid grid-cols-[72px_1fr] gap-y-1 gap-x-2 text-[12px] leading-relaxed">
-        <dt className="text-muted-foreground">Cause</dt>
+        <dt className="text-muted-foreground">{t('chat.cause')}</dt>
         <dd className="text-foreground/85">{CAUSE_BY_KIND[error.kind] ?? CAUSE_BY_KIND.unknown}</dd>
-        <dt className="text-muted-foreground">Next step</dt>
+        <dt className="text-muted-foreground">{t('chat.nextStep')}</dt>
         <dd className="text-foreground/85">{error.nextStep}</dd>
       </dl>
       {error.detail && (
         <details className="mt-2">
           <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground/70 select-none inline-flex items-center gap-1">
-            <ExternalLink className="w-3 h-3" /> Technical detail
+            <ExternalLink className="w-3 h-3" /> {t('chat.technicalDetail')}
           </summary>
           <pre className="mt-1 text-[11px] text-muted-foreground whitespace-pre-wrap break-all font-mono bg-background/40 rounded px-2 py-1.5 border border-border/40">
             {error.detail}

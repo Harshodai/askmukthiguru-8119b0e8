@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ export const getConsent = (): Consent | null => {
  * Only shows essential-cookies notice — we don't run third-party trackers.
  */
 export const CookieConsentBanner = () => {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export const CookieConsentBanner = () => {
           exit={{ y: 100, opacity: 0 }}
           transition={{ duration: 0.25 }}
           role="dialog"
-          aria-label="Cookie consent"
+          aria-label={t('common.cookiesConsent')}
           className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 sm:left-auto sm:right-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))] sm:max-w-sm md:max-w-md z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4"
         >
           <div className="flex items-start gap-2.5">
@@ -56,25 +58,25 @@ export const CookieConsentBanner = () => {
             </div>
             <div className="flex-1 space-y-1.5">
               <p className="text-xs sm:text-sm font-medium text-foreground">
-                Essential cookies only
+                {t('common.essentialCookies')}
               </p>
               <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
-                No third-party trackers.{' '}
-                <Link to="/privacy" className="text-ojas hover:underline">Privacy</Link>.
+                {t('common.noThirdParty')}{' '}
+                <Link to="/privacy" className="text-ojas hover:underline">{t('common.privacy')}</Link>.
               </p>
               <div className="flex gap-2 pt-0.5">
                 <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5" onClick={() => decide('rejected')}>
-                  Reject
+                  {t('common.reject')}
                 </Button>
                 <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={() => decide('accepted')}>
-                  Accept
+                  {t('common.accept')}
                 </Button>
               </div>
             </div>
             <button
               onClick={() => decide('rejected')}
               className="p-1 rounded hover:bg-muted text-muted-foreground"
-              aria-label="Dismiss"
+              aria-label={t('common.dismiss')}
             >
               <X className="w-3.5 h-3.5" />
             </button>

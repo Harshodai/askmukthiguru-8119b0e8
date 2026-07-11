@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock, Flame, Heart, Moon, Sparkles, Star } from 'lucide-react';
@@ -14,6 +15,7 @@ const iconFor: Record<Practice['slug'], typeof Flame> = {
 };
 
 export const PracticesSection = () => {
+  const { t } = useTranslation();
   const { favorites, toggle, isFavorited } = useFavorites();
   const { toast } = useToast();
   const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
@@ -30,10 +32,9 @@ export const PracticesSection = () => {
           transition={{ duration: 0.5 }}
           className="text-center max-w-2xl mx-auto mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground font-serif">Daily practices</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground font-serif">{t('landing.practices.heading')}</h2>
           <p className="text-muted-foreground text-lg">
-            Guided meditations rooted in the teachings of Sri Preethaji & Sri Krishnaji.
-            Pick the one that meets you today — star your favorites to pin them here.
+            {t('landing.practices.subtitle')}
           </p>
         </motion.div>
 
@@ -52,16 +53,16 @@ export const PracticesSection = () => {
               >
                 <button
                   type="button"
-                  aria-label={fav ? `Unstar ${p.title}` : `Star ${p.title}`}
+                  aria-label={fav ? t('landing.practices.unstar', { title: p.title }) : t('landing.practices.star', { title: p.title })}
                   aria-pressed={fav}
-                  title={fav ? 'Remove from favorites' : 'Add to favorites'}
+                  title={fav ? t('common.removeFavorites') : t('common.addFavorites')}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     toggle(p.slug);
                     toast({
-                      title: fav ? 'Removed from favorites' : 'Added to favorites',
-                      description: `${p.title} has been ${fav ? 'removed from' : 'added to'} your list.`,
+                      title: fav ? t('landing.practices.removedFav') : t('landing.practices.addedFav'),
+                      description: fav ? t('landing.practices.removedDesc', { title: p.title }) : t('landing.practices.addedDesc', { title: p.title }),
                     });
                   }}
                   className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-background/70 backdrop-blur-sm hover:bg-background transition-colors"
@@ -99,7 +100,7 @@ export const PracticesSection = () => {
             to="/practices"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium shadow-md hover:scale-105 transition-transform"
           >
-            Explore all practices <ArrowRight className="w-4 h-4" />
+            {t('landing.practices.exploreAll')} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>

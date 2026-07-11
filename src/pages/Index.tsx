@@ -6,6 +6,7 @@ import { PracticesSection } from '@/components/landing/PracticesSection';
 import { AboutMeditationSection } from '@/components/landing/AboutMeditationSection';
 import { Footer } from '@/components/landing/Footer';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useTranslation } from 'react-i18next';
 
 const Index = () => {
   usePageMeta({

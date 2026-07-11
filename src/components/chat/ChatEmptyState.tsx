@@ -1,8 +1,4 @@
-/**
- * Empty-state cards rendered above the starter suggestions on a fresh chat.
- * Redesigned: hero-style "Continue last conversation" card, with "Today's
- * Teaching" as a paired secondary card. Uses semantic ojas/gold tokens only.
- */
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles, History, MessageSquare } from 'lucide-react';
@@ -15,16 +11,16 @@ interface ChatEmptyStateProps {
   onOpenTeaching?: () => void;
 }
 
-const formatRelative = (iso: string | Date): string => {
-  const t = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
-  const diff = Date.now() - t;
+const formatRelative = (iso: string | Date, t: (key: string, opts?: object) => string): string => {
+  const time = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
+  const diff = Date.now() - time;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('common.justNow');
+  if (mins < 60) return t('common.minutesAgo', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t('common.hoursAgo', { count: hrs });
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return t('common.daysAgo', { count: days });
 };
 
 export const ChatEmptyState = ({
@@ -32,6 +28,7 @@ export const ChatEmptyState = ({
   onResume,
   onOpenTeaching,
 }: ChatEmptyStateProps) => {
+  const { t } = useTranslation();
   const [lastConvo, setLastConvo] = useState<Conversation | null>(null);
   const { teaching } = useDailyTeaching();
 
@@ -65,7 +62,7 @@ export const ChatEmptyState = ({
           className={`group relative text-left rounded-2xl border border-ojas/30 bg-gradient-to-br from-card/80 to-ojas/[0.04] hover:border-ojas/60 backdrop-blur-md p-5 transition-all shadow-sm hover:shadow-lg hover:shadow-ojas/10 overflow-hidden ${
             teaching?.caption ? 'md:col-span-3' : ''
           }`}
-          aria-label="Continue last conversation"
+          aria-label={t('chat.continueLast')}
         >
           <div
             aria-hidden
@@ -76,22 +73,22 @@ export const ChatEmptyState = ({
               <History className="w-3.5 h-3.5 text-ojas" />
             </div>
             <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.15em]">
-              Continue where you left off
+              {t('chat.continueLeftOff')}
             </span>
             <span className="text-[10px] text-foreground/45 ml-auto tabular-nums">
-              {formatRelative(lastConvo.updatedAt)}
+              {formatRelative(lastConvo.updatedAt, t)}
             </span>
           </div>
           <p className="text-[15px] text-foreground/90 font-sans leading-relaxed line-clamp-2 mb-3">
-            {lastConvo.preview || 'Resume your last conversation with the Guru'}
+            {lastConvo.preview || t('chat.resumeLast')}
           </p>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] text-foreground/55">
               <MessageSquare className="w-3 h-3" />
-              <span>{userMessageCount} {userMessageCount === 1 ? 'message' : 'messages'}</span>
+              <span>{userMessageCount} {t('common.message', { count: userMessageCount })}</span>
             </div>
             <div className="flex items-center gap-1 text-xs font-medium text-ojas group-hover:gap-2 transition-all">
-              Resume <ArrowRight className="w-3.5 h-3.5" />
+              {t('chat.resume')} <ArrowRight className="w-3.5 h-3.5" />
             </div>
           </div>
         </motion.button>
@@ -106,14 +103,14 @@ export const ChatEmptyState = ({
           className={`group relative text-left rounded-2xl border border-ojas/30 bg-gradient-to-br from-ojas/[0.08] to-ojas/[0.02] hover:border-ojas/60 backdrop-blur-md p-5 transition-all shadow-sm hover:shadow-lg hover:shadow-ojas/10 overflow-hidden ${
             lastConvo ? 'md:col-span-2' : ''
           }`}
-          aria-label="Open today's teaching"
+          aria-label={t('chat.openTeaching')}
         >
           <div className="flex items-center gap-2 mb-2">
             <div className="w-7 h-7 rounded-full bg-ojas/15 flex items-center justify-center">
               <Sparkles className="w-3.5 h-3.5 text-ojas animate-pulse" />
             </div>
             <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.15em]">
-              Today&apos;s Teaching
+              {t('chat.todaysTeaching')}
             </span>
           </div>
           <p className="text-[14px] text-foreground/85 font-serif italic leading-relaxed line-clamp-3">

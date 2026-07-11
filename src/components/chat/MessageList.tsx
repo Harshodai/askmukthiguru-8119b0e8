@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '@/lib/chatStorage';
 import { ChatMessage } from './ChatMessage';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from 'react-i18next';
 
 // ── VirtualMessageWrapper for list virtualization (dynamic heights) ──────────────────
 const VirtualMessageWrapper = ({
@@ -87,6 +88,7 @@ const formatDateLabel = (date: Date): string => {
 };
 
 export const MessageList = React.memo(({
+const { t } = useTranslation();
   messages,
   streamingId,
   streamingContent,

@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 
 const PracticeDetailPage = () => {
   const { loading: authLoading } = useRequireAuth();

@@ -93,6 +93,56 @@ async def fetch_prompts(
         return []
 
 
+class DoctrineTermUpdate(BaseModel):
+    canonical: str = Field(..., min_length=1)
+    variants: list[str] = Field(default_factory=list)
+    enabled: bool = True
+
+
+@admin_router.get("/doctrine-terms")
+async def fetch_doctrine_terms(
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Effective doctrine-term correction map (code defaults + admin overrides)."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.doctrine_terms import load_doctrine_terms
+
+    return {"terms": load_doctrine_terms()}
+
+
+@admin_router.post("/doctrine-terms")
+async def upsert_doctrine_term(
+    body: DoctrineTermUpdate,
+    user: dict = Depends(get_current_user_from_supabase),
+) -> dict[str, Any]:
+    """Add/update a canonical term + its mis-transcription variants. Applies without a restart —
+    the whisper bias, ingest corrector and output cleanup all read the shared source of truth."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from app.telemetry_db import _get_client
+    from services.doctrine_terms import reload as reload_doctrine_terms
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Supabase unavailable")
+    try:
+        await client.table("doctrine_terms").upsert(
+            {
+                "canonical": body.canonical.strip(),
+                "variants": body.variants,
+                "enabled": body.enabled,
+                "updated_by": user.get("email") or user.get("id"),
+            },
+            on_conflict="canonical",
+        ).execute()
+    except Exception as e:
+        logger.error(f"Failed to upsert doctrine term: {e}")
+        raise HTTPException(status_code=500, detail=f"Upsert failed: {e}")
+    reload_doctrine_terms()  # hot-reload the correction map (no restart needed)
+    return {"ok": True, "canonical": body.canonical.strip()}
+
+
 @admin_router.get("/rag-flow-graph")
 async def get_rag_flow_graph(
     strategy: str = "standard",

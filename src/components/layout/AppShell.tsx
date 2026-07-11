@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ReactNode, useEffect, useState } from 'react';
 import {
   Home,
@@ -45,13 +46,14 @@ interface AppShellProps {
 }
 
 const navItems = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/practices', label: 'Practices', icon: Compass },
-  { to: '/profile', label: 'Profile', icon: User },
+  { to: '/', labelKey: 'nav.home' as const, icon: Home, end: true },
+  { to: '/chat', labelKey: 'nav.chat' as const, icon: MessageCircle },
+  { to: '/practices', labelKey: 'nav.practices' as const, icon: Compass },
+  { to: '/profile', labelKey: 'nav.profile' as const, icon: User },
 ];
 
 const SidebarBrand = () => {
+  const { t } = useTranslation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { profile } = useProfile();
@@ -63,10 +65,10 @@ const SidebarBrand = () => {
       {!collapsed && (
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm text-foreground truncate">
-            AskMukthiGuru
+            {t('nav.appName')}
           </p>
           <p className="text-[11px] text-muted-foreground truncate">
-            Welcome, {profile.displayName}
+            {t('common.welcomeSeeker')}, {profile.displayName}
           </p>
         </div>
       )}
@@ -75,6 +77,7 @@ const SidebarBrand = () => {
 };
 
 const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -91,10 +94,11 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigate</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('layout.navigate')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
+                const Icon = item.icon;
                 const isActive =
                   item.end
                     ? location.pathname === item.to
@@ -102,15 +106,15 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                 const showBadge = item.to === '/practices' && favCount > 0;
                 return (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={t(item.labelKey)}>
                       <NavLink
                         to={item.to}
                         end={item.end}
                         className="flex items-center gap-2"
                         activeClassName="text-ojas font-medium"
                       >
-                        <item.icon className="w-4 h-4" />
-                        <span>{item.label}</span>
+                        <Icon className="w-4 h-4" />
+                        <span>{t(item.labelKey)}</span>
                         {showBadge && !collapsed && (
                           <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-ojas/20 text-ojas text-[10px] font-semibold">
                             {favCount}
@@ -126,13 +130,13 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Quick</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('layout.quick')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={onOpenSearch} tooltip="Command palette (⌘K)">
+                <SidebarMenuButton onClick={onOpenSearch} tooltip={t('layout.commandPalette')}>
                   <Search className="w-4 h-4" />
-                  <span>Search</span>
+                  <span>{t('layout.search')}</span>
                   {!collapsed && (
                     <kbd className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                       ⌘K
@@ -141,9 +145,9 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => openSereneMind()} tooltip="Serene Mind">
+                <SidebarMenuButton onClick={() => openSereneMind()} tooltip={t('meditation.sereneMind')}>
                   <Flame className="w-4 h-4 text-ojas" />
-                  <span>Serene Mind</span>
+                  <span>{t('meditation.sereneMind')}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -170,7 +174,7 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
                 {profile.displayName}
               </p>
               <p className="text-[11px] text-muted-foreground truncate">
-                View profile
+                {t('layout.viewProfile')}
               </p>
             </div>
           )}
@@ -181,7 +185,8 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
 };
 
 const ConnectionPill = () => {
-  const [mode, setMode] = useState<string>('Offline Mode');
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<string>(t('layout.offlineMode'));
   const [connected, setConnected] = useState<boolean>(true);
 
   useEffect(() => {
@@ -199,10 +204,10 @@ const ConnectionPill = () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [t]);
 
   const dotColor = connected
-    ? mode === 'Connected to Guru'
+    ? mode === t('layout.connectedMode')
       ? 'bg-prana'
       : 'bg-muted-foreground'
     : 'bg-destructive';
@@ -210,7 +215,7 @@ const ConnectionPill = () => {
   return (
     <div
       className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card/60 text-[11px] text-muted-foreground"
-      title={`AI service: ${mode}`}
+      title={t('layout.aiService', { mode })}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${!connected ? 'animate-pulse' : ''}`} />
       <span>{mode}</span>
@@ -219,6 +224,7 @@ const ConnectionPill = () => {
 };
 
 const HeaderSereneButton = () => {
+  const { t } = useTranslation();
   const { open } = useSereneMind();
   return (
     <Button
@@ -226,15 +232,16 @@ const HeaderSereneButton = () => {
       size="sm"
       onClick={() => open()}
       className="gap-1.5 text-ojas hover:bg-ojas/10 hover:text-ojas"
-      title="Start Serene Mind meditation"
+      title={t('layout.sereneMindTitle')}
     >
       <Flame className="w-4 h-4" />
-      <span className="hidden sm:inline text-xs font-medium">Serene Mind</span>
+      <span className="hidden sm:inline text-xs font-medium">{t('meditation.sereneMind')}</span>
     </Button>
   );
 };
 
 export const AppShell = ({ children, title }: AppShellProps) => {
+  const { t } = useTranslation();
   const { loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -285,7 +292,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
               className="hidden md:inline-flex gap-2 text-muted-foreground"
             >
               <Search className="w-4 h-4" />
-              <span className="text-xs">Search</span>
+              <span className="text-xs">{t('layout.search')}</span>
               <kbd className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
                 ⌘K
               </kbd>

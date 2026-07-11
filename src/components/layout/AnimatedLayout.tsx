@@ -1,6 +1,7 @@
 import { motion, AnimatePresence, Variants, Transition } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AnimatedLayoutProps {
   children: ReactNode;
@@ -27,6 +28,7 @@ const pageTransition: Transition = {
 };
 
 export const AnimatedLayout = ({ children }: AnimatedLayoutProps) => {
+const { t } = useTranslation();
   const location = useLocation();
 
   return (

@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Lock, AlertCircle } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useTranslation } from 'react-i18next';
 
 const ResetPasswordPage = () => {
   usePageMeta({

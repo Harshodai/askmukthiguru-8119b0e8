@@ -1,12 +1,16 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import { RootErrorBoundary } from "./components/common/RootErrorBoundary";
+import { I18nextProvider } from "react-i18next";
+import i18n from "./i18n";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
-  <RootErrorBoundary>
-    <App />
-  </RootErrorBoundary>
+  <I18nextProvider i18n={i18n}>
+    <RootErrorBoundary>
+      <App />
+    </RootErrorBoundary>
+  </I18nextProvider>
 );
 
 // Register service worker for offline asset caching and crisis pages availability.

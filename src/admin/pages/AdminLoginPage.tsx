@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldCheck, AlertCircle } from "lucide-react";
 import { loginAdmin, verifyAdminSession } from "@/admin/lib/adminAuth";
+import { useTranslation } from 'react-i18next';
 
 export default function AdminLoginPage() {
   const nav = useNavigate();

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Clock, PlayCircle, Star } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { practices, getPracticeBySlug, type Practice } from '@/lib/practicesContent';
@@ -9,6 +10,7 @@ import { ActionCard } from '@/components/common/ui/ActionCard';
  * otherwise the first favorite, otherwise renders nothing.
  */
 export const ContinuePracticeCard = () => {
+  const { t } = useTranslation();
   const { favorites, recent } = useFavorites();
 
   if (favorites.length === 0) return null;
@@ -29,7 +31,7 @@ export const ContinuePracticeCard = () => {
       eyebrow={
         <>
           <Star className="w-3 h-3 fill-ojas text-ojas" />
-          <span>Continue your practice</span>
+          <span>{t('landing.continuePractice')}</span>
         </>
       }
       title={practice.title}

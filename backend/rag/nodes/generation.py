@@ -12,6 +12,7 @@ from rag.prompts import (
     GURU_SYSTEM_PROMPT,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
+    CANONICAL_URLS_LOGISTICS,
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
@@ -186,17 +187,10 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         knowledge_budget = 1536
     else:
         knowledge_budget = 3072  # standard
-    def _strip_ingestion_headers(text: str) -> str:
-        """Remove ingestion pipeline headers embedded in document text before LLM sees them."""
-        if not text:
-            return text
-        text = re.sub(r'\[Source:\s*[^\]]*?(?:Speaker:|Topic:)[^\]]*\]', '', text)
-        text = re.sub(r'\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]', '', text)
-        return text.strip()
 
     knowledge = "\n\n".join(
         [
-            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{_strip_ingestion_headers(doc_text(doc))}"
+            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
             for doc in relevant_docs
         ]
     )
@@ -246,19 +240,7 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         "against the Knowledge and state clearly whether it is SUPPORTED or NOT SUPPORTED "
         "by the teachings. Do NOT refuse to verify.\n"
         + _depth_instruction +
-        "11. CANONICAL URLS — When you point the seeker to an external resource (biography, "
-        "book, videos, or where to find more), name the FULL domain inline: ekam.org (Ekam "
-        "World Centre and co-founders), theonenessmovement.org (Oneness Movement, Manifest "
-        "2026), amazon.in or simonandschuster.com (The Four Sacred Secrets book), "
-        "youtube.com/c/pkconsciousness (videos and Soul Sync). Spell them exactly. NEVER write "
-        "a bare 'website:' or 'watch more here:' with no domain after it — give the actual "
-        "domain or drop the phrase entirely.\n"
-        "11b. LOGISTICS — For questions about upcoming programs, schedules, dates, ticket "
-        "prices, or event availability (NOT in the teachings): your ENTIRE reply must be one "
-        "or two sentences that (1) say you don't have current schedules/prices and (2) name "
-        "the site ekam.org. Do NOT add any teaching, practice, reflection, meditation, or "
-        "spiritual commentary — no matter how relevant it feels. Example — \"I don't have "
-        "current schedules or prices for Ekam's programs; you'll find the latest on ekam.org.\"\n"
+        CANONICAL_URLS_LOGISTICS +
         "12. For temporal/date questions about Manifest 2026 monthly powers, state the "
         "specific month and power name together (e.g. 'January: Power of Intention').\n"
         "13. REVERSIBLE COMPRESSION — If the Knowledge provided is compressed or missing detail and you need the full uncompressed text of a document to answer accurately, you MUST output exactly '[RETRIEVE: <source_url>]' as your entire response. Do NOT add any other words or explanation."
@@ -1176,10 +1158,11 @@ def _clean_inline_citations(text: str) -> str:
     # strips above and leave the answer ending on a bare colon. Strip them at line/text end.
     text = re.sub(r'(?im)[ \t]*\b(?:you can\s+)?(?:watch|read|learn|see|find)\s+(?:out\s+)?more\s+here\s*:?[ \t]*(?=\n|$)', '', text)
     text = re.sub(r'(?im)[ \t]*(?:on\s+|visit\s+)?(?:the\s+)?[A-Za-z][\w ]{0,24}?\bwebsite\s*:[ \t]*(?=\n|$)', '', text)
-    # Fix a known transcription artifact: the audio→text pipeline renders the centre "Ekam" as
-    # "Akam". Normalise the capitalised proper-noun form; leave lowercase "akam" (the Tamil word
-    # for the inner self) untouched.
-    text = re.sub(r'\bAkam\b', 'Ekam', text)
+    # Output safety-net for doctrine-term transcription errors already baked into the corpus
+    # (e.g. "Akam"->"Ekam"), for data ingested before the fix. Single source of truth:
+    # services.doctrine_terms.apply_corrections (admin-editable, shared with whisper + corrector).
+    from services.doctrine_terms import apply_corrections
+    text = apply_corrections(text)
     # Collapse multiple spaces
     text = re.sub(r' {2,}', ' ', text)
     # Fix spaces before punctuation

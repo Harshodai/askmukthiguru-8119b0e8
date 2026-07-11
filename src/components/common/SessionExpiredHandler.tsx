@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
 
@@ -11,6 +12,7 @@ const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
  * user is on a protected route.
  */
 export const SessionExpiredHandler = () => {
+const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 

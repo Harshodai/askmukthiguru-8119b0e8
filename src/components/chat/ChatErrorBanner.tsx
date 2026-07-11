@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, ChevronDown, ChevronUp, LogIn, RefreshCw, X } from 'lucide-react';
@@ -10,6 +11,7 @@ interface ChatErrorBannerProps {
 }
 
 export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
+  const { t } = useTranslation();
   const [err, setErr] = useState<ChatBusError | null>(null);
   const [expanded, setExpanded] = useState(false);
   const navigate = useNavigate();
@@ -48,7 +50,7 @@ export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
                     onClick={() => navigate('/auth?redirect=/chat')}
                     className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:bg-destructive/10 rounded-md px-2 py-0.5 transition-colors"
                   >
-                    <LogIn className="w-3 h-3" /> Sign in again
+                    <LogIn className="w-3 h-3" /> {t('common.signInAgain')}
                   </button>
                 ) : (
                   err.retryable && onRetry && (
@@ -57,7 +59,7 @@ export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
                       onClick={() => { onRetry(); chatErrorBus.dismiss(); }}
                       className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:bg-destructive/10 rounded-md px-2 py-0.5 transition-colors"
                     >
-                      <RefreshCw className="w-3 h-3" /> Retry last message
+                      <RefreshCw className="w-3 h-3" /> {t('chat.retryLastMessage')}
                     </button>
                   )
                 )}
@@ -68,7 +70,7 @@ export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
                   aria-expanded={expanded}
                 >
                   {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                  {expanded ? 'Hide details' : 'Details'}
+                  {expanded ? t('common.hideDetails') : t('common.details')}
                 </button>
               </div>
 
@@ -90,7 +92,7 @@ export const ChatErrorBanner = ({ onRetry }: ChatErrorBannerProps) => {
               type="button"
               onClick={() => chatErrorBus.dismiss()}
               className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0"
-              aria-label="Dismiss"
+              aria-label={t('common.dismiss')}
             >
               <X className="w-4 h-4" />
             </button>

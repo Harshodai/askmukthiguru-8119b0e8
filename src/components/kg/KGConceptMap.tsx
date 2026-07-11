@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
@@ -43,6 +44,7 @@ const WIDTH = 760;
 const HEIGHT = 560;
 
 export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
   const [data, setData] = useState<Subgraph | null>(null);
@@ -118,7 +120,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search a concept — e.g. suffering, deeksha, serene mind…"
+            placeholder={t('kg.searchPlaceholderDetailed')}
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ojas/40"
             aria-label="Knowledge graph query"
           />
@@ -129,7 +131,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ojas text-white text-sm font-medium disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-          Explore
+          {t('kg.explore')}
         </button>
       </form>
 
@@ -137,10 +139,10 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         <button onClick={() => setZoom((z) => Math.min(3, z + 0.2))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
         <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
         <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title="Reset view"><RotateCcw className="w-3.5 h-3.5" /></button>
-        <span className="ml-1">Drag to pan · scroll to zoom</span>
+        <span className="ml-1">{t('kg.dragToPan')}</span>
       </div>
 
-      {error && <div className="text-sm text-destructive">Couldn’t load graph: {error}</div>}
+      {error && <div className="text-sm text-destructive">{t('kg.errorLoading', { error })}</div>}
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <svg
@@ -203,17 +205,17 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             })}
             {data && data.nodes.length === 0 && !loading && (
               <text x={WIDTH / 2} y={HEIGHT / 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 13 }}>
-                No concepts found for “{submitted}”.
+                {t('kg.noConceptsFor', { query: submitted })}
               </text>
             )}
             {!data && !loading && (
               <text x={WIDTH / 2} y={HEIGHT / 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 13 }}>
-                Search a concept to visualise the knowledge graph.
+                {t('kg.searchToVisualise')}
               </text>
             )}
             {loading && (
               <text x={WIDTH / 2} y={HEIGHT / 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 13 }}>
-                Loading graph…
+                {t('kg.loading')}
               </text>
             )}
           </g>
@@ -222,7 +224,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
       {data && data.nodes.length > 0 && (
         <p className="text-xs text-muted-foreground text-center">
-          {data.nodes.length} concepts · {data.edges.length} relationships
+          {t('kg.conceptRelationshipCount', { nodeCount: data.nodes.length, edgeCount: data.edges.length })}
         </p>
       )}
     </div>

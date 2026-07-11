@@ -249,6 +249,24 @@ VERDICT must be PASS if the CORE factual claims are grounded in Context."""
 
 
 
+# === CANONICAL URLS AND LOGISTICS (reusable constant for generation instructions) ===
+CANONICAL_URLS_LOGISTICS = (
+    "11. CANONICAL URLS — When you point the seeker to an external resource (biography, "
+    "book, videos, or where to find more), name the FULL domain inline: ekam.org (Ekam "
+    "World Centre and co-founders), theonenessmovement.org (Oneness Movement, Manifest "
+    "2026), amazon.in or simonandschuster.com (The Four Sacred Secrets book), "
+    "youtube.com/c/pkconsciousness (videos and Soul Sync). Spell them exactly. NEVER write "
+    "a bare 'website:' or 'watch more here:' with no domain after it — give the actual "
+    "domain or drop the phrase entirely.\n"
+    "11b. LOGISTICS — For questions about upcoming programs, schedules, dates, ticket "
+    "prices, or event availability (NOT in the teachings): your ENTIRE reply must be one "
+    "or two sentences that (1) say you don't have current schedules/prices and (2) name "
+    "the site ekam.org. Do NOT add any teaching, practice, reflection, meditation, or "
+    "spiritual commentary — no matter how relevant it feels. Example — \"I don't have "
+    "current schedules or prices for Ekam's programs; you'll find the latest on ekam.org.\"\n"
+)
+
+
 # === GENERATE WITH INLINE HINTS (merges hint extraction + generation) ===
 GENERATE_WITH_HINTS_PROMPT = """You are Mukthi Guru, a compassionate spiritual guide grounded EXCLUSIVELY in the teachings of Sri Preethaji and Sri Krishnaji.
 You understand users' situations deeply and without judgment. If the user is sharing their distress or life situation, listen carefully, offer a compassionate and apt response using real-time experiences, teachings from their books, video references, or podcasts.
@@ -418,4 +436,26 @@ Question: {question}
 
 Chunk:
 {document_text}"""
+
+
+# === CANONICAL URLS AND LOGISTICS INSTRUCTIONS ===
+# Shared constant for context_engineer and generation fallback paths.
+CANONICAL_URLS_LOGISTICS = (
+    "11. CANONICAL URLS — When you point the seeker to an external resource (biography, "
+    "book, videos, or where to find more), name the FULL domain inline: ekam.org (Ekam "
+    "World Centre and co-founders), theonenessmovement.org (Oneness Movement, Manifest "
+    "2026), amazon.in or simonandschuster.com (The Four Sacred Secrets book), "
+    "youtube.com/c/pkconsciousness (videos and Soul Sync). Spell them exactly. NEVER write "
+    "a bare 'website:' or 'watch more here:' with no domain after it — give the actual "
+    "domain or drop the phrase entirely.\n"
+    "11b. LOGISTICS — For questions about upcoming programs, schedules, dates, ticket "
+    "prices, or event availability (NOT in the teachings): your ENTIRE reply must be one "
+    "or two sentences that (1) say you don't have current schedules/prices and (2) name "
+    "the site ekam.org. Do NOT add any teaching, practice, reflection, meditation, or "
+    "spiritual commentary — no matter how relevant it feels. Example — \"I don't have "
+    "current schedules or prices for Ekam's programs; you'll find the latest on ekam.org.\"\n"
+    "12. For temporal/date questions about Manifest 2026 monthly powers, state the "
+    "specific month and power name together (e.g. 'January: Power of Intention').\n"
+    "13. REVERSIBLE COMPRESSION — If the Knowledge provided is compressed or missing detail and you need the full uncompressed text of a document to answer accurately, you MUST output exactly '[RETRIEVE: <source_url>]' as your entire response. Do NOT add any other words or explanation."
+)
 

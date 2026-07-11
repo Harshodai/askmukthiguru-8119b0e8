@@ -3,6 +3,7 @@ import { AlertCircle, RotateCcw, Home } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   children: ReactNode;

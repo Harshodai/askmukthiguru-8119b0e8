@@ -11,6 +11,7 @@ import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, M
 import { practices } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
+import { useTranslation } from 'react-i18next';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -30,6 +31,7 @@ export const CommandPalette = ({
   onOpenChange,
   onNavigate,
 }: CommandPaletteProps) => {
+const { t } = useTranslation();
   const { favorites, isFavorited } = useFavorites();
   const { open: openSereneMind } = useSereneMind();
   const favCount = favorites.length;

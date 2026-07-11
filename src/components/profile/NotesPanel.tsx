@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -41,6 +42,7 @@ function downloadMarkdown(notes: Note[]) {
 }
 
 export function NotesPanel() {
+  const { t } = useTranslation();
   const { notes, loading, createNote, updateNote, deleteNote } = useNotes();
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export function NotesPanel() {
 
   const handleSave = async () => {
     if (!draftBody.trim()) {
-      toast({ title: "Note is empty", description: "Add something to save." });
+      toast({ title: t('notes.emptyTitle'), description: t('notes.emptyDesc') });
       return;
     }
     const tags = draftTags
@@ -98,21 +100,21 @@ export function NotesPanel() {
 
     if (editing) {
       await updateNote(editing.id, {
-        title: draftTitle || "Untitled",
+        title: draftTitle || t('notes.untitled'),
         body: draftBody,
         tags,
       });
-      toast({ title: "Note updated" });
+      toast({ title: t('notes.updated') });
     } else {
       await createNote({ title: draftTitle || undefined, body: draftBody, tags });
-      toast({ title: "Note saved" });
+      toast({ title: t('notes.saved') });
     }
     setComposing(false);
   };
 
   const handleDelete = async (id: string) => {
     await deleteNote(id);
-    toast({ title: "Note deleted" });
+    toast({ title: t('notes.deleted') });
   };
 
   const toggleFavorite = async (n: Note) => {
@@ -125,10 +127,10 @@ export function NotesPanel() {
         <div>
           <h2 className="text-2xl font-semibold flex items-center gap-2">
             <StickyNote className="h-5 w-5 text-primary" />
-            Your Notes
+            {t('notes.yourNotes')}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Save teachings, insights, and your own reflections.
+            {t('notes.description')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -138,10 +140,10 @@ export function NotesPanel() {
             onClick={() => downloadMarkdown(filtered.length ? filtered : notes)}
             disabled={!notes.length}
           >
-            <Download className="h-4 w-4 mr-1.5" /> Export
+            <Download className="h-4 w-4 mr-1.5" /> {t('notes.export')}
           </Button>
           <Button size="sm" onClick={openCompose}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Note
+            <Plus className="h-4 w-4 mr-1.5" /> {t('notes.newNote')}
           </Button>
         </div>
       </div>
@@ -150,7 +152,7 @@ export function NotesPanel() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search notes…"
+            placeholder={t('notes.searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
@@ -174,7 +176,7 @@ export function NotesPanel() {
 
       {loading ? (
         <div className="text-sm text-muted-foreground py-12 text-center">
-          Loading your notes…
+          {t('notes.loading')}
         </div>
       ) : filtered.length === 0 ? (
         <Card>
@@ -182,12 +184,12 @@ export function NotesPanel() {
             <StickyNote className="h-10 w-10 mx-auto text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
               {notes.length === 0
-                ? "No notes yet. Save a teaching from chat or write your first reflection."
-                : "No notes match your search."}
+                ? t('notes.noNotes')
+                : t('notes.noMatch')}
             </p>
             {notes.length === 0 && (
               <Button onClick={openCompose} size="sm" className="mt-2">
-                <Plus className="h-4 w-4 mr-1.5" /> Write your first note
+                <Plus className="h-4 w-4 mr-1.5" /> {t('notes.writeFirst')}
               </Button>
             )}
           </CardContent>
@@ -220,7 +222,7 @@ export function NotesPanel() {
                             e.stopPropagation();
                             void toggleFavorite(n);
                           }}
-                          aria-label="Favorite"
+                          aria-label={t('common.addFavorites')}
                         >
                           {n.is_favorite ? (
                             <BookmarkCheck className="h-4 w-4 text-primary" />
@@ -236,7 +238,7 @@ export function NotesPanel() {
                             e.stopPropagation();
                             void handleDelete(n.id);
                           }}
-                          aria-label="Delete"
+                          aria-label={t('common.delete')}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -253,7 +255,7 @@ export function NotesPanel() {
                       ))}
                       {n.source_message_id && (
                         <Badge variant="outline" className="text-xs">
-                          from chat
+                          {t('notes.fromChat')}
                         </Badge>
                       )}
                     </div>
@@ -272,11 +274,11 @@ export function NotesPanel() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>{editing ? "Edit note" : "New note"}</span>
+              <span>{editing ? t('notes.editNote') : t('notes.newNote')}</span>
               <button
                 onClick={() => setComposing(false)}
                 className="text-muted-foreground hover:text-foreground"
-                aria-label="Close"
+                aria-label={t('common.close')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -284,27 +286,27 @@ export function NotesPanel() {
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              placeholder="Title (optional)"
+              placeholder={t('notes.titlePlaceholder')}
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
             />
             <Textarea
-              placeholder="Write what you felt, what you want to remember…"
+              placeholder={t('notes.bodyPlaceholder')}
               value={draftBody}
               onChange={(e) => setDraftBody(e.target.value)}
               className="min-h-[180px]"
             />
             <Input
-              placeholder="Tags (comma-separated, e.g. compassion, breath)"
+              placeholder={t('notes.tagsPlaceholder')}
               value={draftTags}
               onChange={(e) => setDraftTags(e.target.value)}
             />
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" onClick={() => setComposing(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleSave}>
-                {editing ? "Save changes" : "Save note"}
+                {editing ? t('notes.saveChanges') : t('notes.saveNote')}
               </Button>
             </div>
           </div>

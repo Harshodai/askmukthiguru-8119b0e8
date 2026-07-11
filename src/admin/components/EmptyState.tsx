@@ -1,6 +1,8 @@
 import { Inbox } from "lucide-react";
+import { useTranslation } from 'react-i18next';
 
 export function EmptyState({
+const { t } = useTranslation();
   title = "No data",
   hint,
 }: {

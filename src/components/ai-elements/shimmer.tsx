@@ -5,6 +5,7 @@ import type { MotionProps } from "motion/react";
 import { motion } from "motion/react";
 import type { CSSProperties, ElementType, JSX } from "react";
 import { memo, useMemo } from "react";
+import { useTranslation } from 'react-i18next';
 
 type MotionHTMLProps = MotionProps & Record<string, unknown>;
 

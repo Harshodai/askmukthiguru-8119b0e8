@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useStudyNotebooks, type NotebookItem } from "@/hooks/useStudyNotebooks";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 
 export default function StudyNotebookPage() {
   const { notebooks, loading, error, createNotebook, deleteNotebook, addItem, listItems } = useStudyNotebooks();
