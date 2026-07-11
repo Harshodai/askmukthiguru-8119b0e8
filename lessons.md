@@ -3493,3 +3493,9 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Fix**: Commented out/removed the unused `llama-index` packages from `requirements.txt`.
 - **Pattern**: Regularly prune unused or legacy dependencies from `requirements.txt` to minimize build failures and image sizes, especially when deploying to environments that perform strict backtracking resolution.
 
+### Frozen lockfile error on bun install during Railway deployment
+- **Problem**: Railway uses `bun install --frozen-lockfile` to install frontend dependencies. If dependency updates occur or package.json changes without updating the lockfile, the deployment fails with a `lockfile had changes, but lockfile is frozen` error.
+- **Fix**: Run `bun install` locally to regenerate/update `bun.lock` with the latest dependency configurations and commit it.
+- **Pattern**: When packages are resolved or updated, always ensure `bun install` or the corresponding package manager tool is executed locally, and commit the updated lockfile to remote.
+
+
