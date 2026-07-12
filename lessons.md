@@ -1,5 +1,17 @@
 # Agentic Lessons & Memory
 
+## Jul 12, 2026 — Prompt Template Caching & Testing
+
+### Prefix caching requires stable templates at the top
+- **Problem**: When dynamic content like `{history}`, `{question}`, `{context}`, or `{transcript}` is placed at the beginning of prompt templates, it prevents prefix-based prompt caching, increasing LLM latency and cost across conversation turns.
+- **Fix**: Restructured prompt templates in `system.py`, `intent.py`, `verification.py`, `memory_service.py`, and `memory_service_v2.py` to place static instructions and JSON schemas first, and dynamic inputs at the end.
+- **Pattern**: Always place static instructions and schemas at the beginning of prompts. Put dynamic context/variables at the end.
+
+### Execute pytest in virtualenv
+- **Problem**: Running system-wide `pytest` on python scripts fails with `ModuleNotFoundError` on packages like `dotenv` which are installed inside the project's virtual environment.
+- **Fix**: Always execute tests using the correct virtualenv binary: `backend/.venv/bin/pytest`.
+- **Pattern**: Run all command-line verification scripts under the virtualenv `backend/.venv/bin/` to ensure dependencies resolve.
+
 ## Jul 11, 2026 — RLS + PGRST202 Schema Cache
 
 ### Five public tables had RLS disabled (security hole)
