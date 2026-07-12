@@ -286,9 +286,9 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
     try:
         # Generate 2-3 sub-questions from the answer
         prompt = (
-            f"Question: {question}\nAnswer: {answer}\n\n"
             "Generate 2 concise factual sub-questions whose answers would verify "
-            "whether the above answer is well-supported. Return one per line, no numbering."
+            "whether the answer is well-supported. Return one per line, no numbering.\n\n"
+            f"Question: {question}\nAnswer: {answer}"
         )
         raw = await ollama.generate(
             system_prompt="You generate factual verification sub-questions.",
@@ -301,9 +301,9 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
         supported = 0
         for sq in sub_qs:
             verify_prompt = (
+                "Does the context support a 'yes' answer? Reply only 'yes' or 'no'.\n\n"
                 f"Context:\n{context[:1500]}\n\n"
-                f"Sub-question: {sq}\nDoes the context support a 'yes' answer? "
-                "Reply only 'yes' or 'no'."
+                f"Sub-question: {sq}"
             )
             try:
                 resp = await ollama.generate(

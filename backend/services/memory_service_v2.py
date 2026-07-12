@@ -114,13 +114,13 @@ class MemoryServiceV2(MemoryService):
                 "Return ONLY a valid JSON object."
             )
             user_msg = (
-                f"Analyze this personal reflection: \"{content}\"\n\n"
-                f"Classify and extract:\n"
+                f"Classify and extract from a personal reflection:\n"
                 f"1. insight: A concise 3-6 word summary (e.g. 'Work Stress Anxiety', 'Daily Chanting Practice', 'Gratitude for Family'). Do NOT use 'User asked X'. Write as a short noun phrase in first person representing their state.\n"
                 f"2. state_category: Categorize into one of these exact states: 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'.\n"
                 f"3. related_concepts: List of concept names this relates to (e.g. 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection').\n\n"
                 f"Return ONLY this JSON:\n"
-                f'{{"insight": "...", "state_category": "...", "related_concepts": []}}'
+                f'{{"insight": "...", "state_category": "...", "related_concepts": []}}\n\n'
+                f"Analyze this personal reflection: \"{content}\""
             )
 
             response = await asyncio.wait_for(

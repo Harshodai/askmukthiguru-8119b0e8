@@ -301,10 +301,7 @@ FALLBACK_RESPONSE = "I don't have that specific teaching. 🙏"
 
 
 # === MULTI-TURN CONTEXT PROMPT ===
-MULTI_TURN_PROMPT = """CONVERSATION HISTORY (for maintaining teaching continuity):
-{history}
-
-INSTRUCTIONS FOR MULTI-TURN COHERENCE:
+MULTI_TURN_PROMPT = """INSTRUCTIONS FOR MULTI-TURN COHERENCE:
 1. If the user is continuing a thread about a specific teaching (Beautiful State, Serene Mind, etc.),
    stay focused on that teaching and deepen the exploration.
 2. If the user asks "tell me more" or "what about...", resolve the reference from history
@@ -315,7 +312,10 @@ INSTRUCTIONS FOR MULTI-TURN COHERENCE:
 5. Do NOT repeat information already shared in the conversation history.
 6. Build on previous responses — go deeper, not wider.
 
-This creates the feeling of a CONTINUOUS conversation with the guru, not isolated Q&A."""
+This creates the feeling of a CONTINUOUS conversation with the guru, not isolated Q&A.
+
+CONVERSATION HISTORY (for maintaining teaching continuity):
+{history}"""
 
 
 

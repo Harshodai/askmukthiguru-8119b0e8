@@ -737,17 +737,17 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
             f"[Source: {doc.get('title', 'Unknown')}]\n{doc_text(doc)}" for doc in relevant_docs[:3]
         )
 
-        prompt = f"""The user is in emotional distress. Their message: {question}
-
-Retrieved teachings from Sri Preethaji and Sri Krishnaji:
-{context}
-
-Based on the above teachings, compose a deeply compassionate response that:
+        prompt = f"""Based on the provided teachings, compose a deeply compassionate response for a user in emotional distress that:
 1. Acknowledges their pain with genuine empathy
 2. Shares the MOST relevant teaching that speaks directly to their situation
 3. Uses Sri Preethaji or Sri Krishnaji's words naturally, as if the guru is speaking directly
 4. Offers to guide them through a Serene Mind meditation
-5. Keeps the tone warm, personal, and non-clinical"""
+5. Keeps the tone warm, personal, and non-clinical
+
+User message: {question}
+
+Retrieved teachings from Sri Preethaji and Sri Krishnaji:
+{context}"""
 
         try:
             response = await ollama.generate(
