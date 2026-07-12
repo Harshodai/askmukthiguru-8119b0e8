@@ -49,26 +49,45 @@ const ChatPage = () => {
     },
   });
 
+  // Auto-show tour for new / returning users who haven't completed it
   useEffect(() => {
     if (loading) return;
     const onboarded = localStorage.getItem(ONBOARDED_KEY) === '1';
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
     const shownCount = parseInt(localStorage.getItem(TOUR_SHOWN_COUNT_KEY) || '0', 10);
-    // Re-show the tour on later visits until the user actually finishes it ("Got it"),
-    // up to TOUR_MAX_SHOWS times. Skipping/Escape counts as a show but not a completion.
-    if (onboarded && !tourDone && shownCount < TOUR_MAX_SHOWS) {
-      localStorage.setItem(TOUR_SHOWN_COUNT_KEY, String(shownCount + 1));
-      setTourOpen(true);
-    }
-  }, [loading]);
 
-  // "Got it" — the user finished the tour; never show it again.
+    // Show tour for:
+    //  - any authenticated user who hasn't finished it yet, up to TOUR_MAX_SHOWS times
+    //  - OR any user at all if tour was never shown (handles demo / product team)
+    const shouldShow = (onboarded || !!user) && !tourDone && shownCount < TOUR_MAX_SHOWS;
+    if (shouldShow) {
+      localStorage.setItem(TOUR_SHOWN_COUNT_KEY, String(shownCount + 1));
+      // Small delay so the chat UI renders before the tour positions itself
+      const t = setTimeout(() => setTourOpen(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [loading, user]);
+
+  // Listen for 'tour:restart' custom event (dispatched by UserMenu "Take a Tour")
+  useEffect(() => {
+    const handleRestartTour = () => {
+      localStorage.removeItem(TOUR_COMPLETED_KEY);
+      localStorage.removeItem(TOUR_SHOWN_COUNT_KEY);
+      setTourOpen(false);
+      // Re-open after a tick so state resets cleanly
+      setTimeout(() => setTourOpen(true), 80);
+    };
+    window.addEventListener('tour:restart', handleRestartTour);
+    return () => window.removeEventListener('tour:restart', handleRestartTour);
+  }, []);
+
+  /** "Got it" — the user finished the tour; never show it again. */
   const handleTourComplete = () => {
     localStorage.setItem(TOUR_COMPLETED_KEY, '1');
     setTourOpen(false);
   };
 
-  // Skip / Escape — dismiss without confirming, so it can re-show next visit.
+  /** Skip / Escape — dismiss without confirming, so it can re-show next visit. */
   const handleTourDismiss = () => {
     setTourOpen(false);
   };
