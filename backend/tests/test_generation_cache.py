@@ -89,11 +89,14 @@ async def test_sequential_calls_do_not_cross_contaminate_context(mock_services, 
     first_call_kwargs = mock_services.generate.call_args_list[0].kwargs
     second_call_kwargs = mock_services.generate.call_args_list[1].kwargs
 
-    first_prompt = first_call_kwargs["system_prompt"]
-    second_prompt = second_call_kwargs["system_prompt"]
+    first_prompt = first_call_kwargs["user_prompt"]
+    second_prompt = second_call_kwargs["user_prompt"]
 
     assert first_context in first_prompt
     assert second_context not in first_prompt
 
     assert second_context in second_prompt
     assert first_context not in second_prompt
+
+    assert first_context not in first_call_kwargs["system_prompt"]
+    assert second_context not in second_call_kwargs["system_prompt"]
