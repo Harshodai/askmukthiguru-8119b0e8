@@ -809,7 +809,9 @@ class MemoryServiceV2(MemoryService):
 
         # If absolutely no memories, return empty graph to trigger empty state in UI
         if not neo4j_mems and not supabase_mems:
-            return {"nodes": [], "edges": []}
+            empty = {"nodes": [], "edges": []}
+            self._KG_CACHE[cache_key] = (empty, time.time() + self._KG_TTL)
+            return empty
 
         # User is authenticated and has memories. Build the personalized Consciousness Map!
         _add_node(f"user:{user_id}", "You", "User")
