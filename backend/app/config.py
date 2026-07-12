@@ -659,6 +659,17 @@ class Settings(BaseSettings):
             if getattr(self, "sarvam_base_url", "") == "https://api.sarvam.ai/v1":
                 self.sarvam_base_url = self.sarvam_30b_endpoint
 
+        # Sanitize redis_url to strip 'default:' username if present (fixes Celery/Redis connection issues)
+        redis_url = getattr(self, "redis_url", "") or ""
+        if "@" in redis_url:
+            prefix = "rediss://" if redis_url.startswith("rediss://") else "redis://"
+            parts = redis_url.split("@", 1)
+            auth_part = parts[0].replace(prefix, "")
+            if ":" in auth_part:
+                username, password = auth_part.split(":", 1)
+                if username == "default":
+                    self.redis_url = f"{prefix}:{password}@{parts[1]}"
+
         provider = self.llm_provider.lower()
         required_keys = {
             "sarvam_cloud": "sarvam_api_key",
@@ -677,6 +688,7 @@ class Settings(BaseSettings):
             if not value.strip():
                 raise ValueError(f"{key_attr} is required when llm_provider='{provider}'")
         return self
+
 
 
 @lru_cache
