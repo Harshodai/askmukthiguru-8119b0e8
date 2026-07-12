@@ -246,7 +246,7 @@ async def chat_stream_poll(
     Reads events from Redis Stream (populated by worker) and streams them as SSE.
     """
     if not container.job_queue:
-        raise HTTPException(status_code=503, detail="Job queue is disabled")
+        raise HTTPException(status_code=503, detail="Job tracking is not available.")
 
     # Ownership check — return 404 on mismatch to avoid confirming existence.
     job_meta = await container.job_queue.get_job(job_id)

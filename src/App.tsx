@@ -1,5 +1,5 @@
 import { useEffect, Suspense } from "react";
-import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -68,6 +68,8 @@ const App = () => {
     // Silently purge conversations older than the user-configured retention window.
     // Never deletes the currently active conversation.
     purgeConversationsByAge(getRetentionDays());
+    // Preload critical route chunks after initial render
+    preloadCriticalRoutes();
   }, []);
 
   return (

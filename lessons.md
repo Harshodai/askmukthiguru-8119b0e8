@@ -1,6 +1,42 @@
 # Agentic Lessons & Memory
 
-## Jul 12, 2026 — UI Design Alignment, Caching, and Railway Permission Security
+## Jul 12, 2026 — Tour Slides, Chat Crash, Google Sign-In, CSP
+
+### Guided Tour Slides for First-Time Visitors
+- **Problem**: Landing page had no onboarding. New users arrived at the chat without understanding the three core features (Ask Guru, 3-min Meditation, Wisdom Map).
+- **Fix**: Built a 3-slide `DemoModal` that auto-opens on first visit (localStorage `askmukthiguru_tour_seen`):
+  1. **Talk to Your Guru** — colloquial chat preview: "Namaste. My mind won't stop racing." → practical guidance
+  2. **3-Minute Calm** — breathing orb animation with timer
+  3. **Your Wisdom Map** — knowledge graph with 6 nodes (Peace, Breath, Gratitude, Stillness, Kindness, Letting Go) + connection lines + labels
+- **Text overflow fix**: Added `overflow: hidden` + `word-break: break-word` to preview container so slide titles never spill outside the bordered box.
+- **Pattern**: First-visit tours should use localStorage gates, colloquial copy (not marketing speak), and uniform-height preview boxes to prevent modal resize jitter.
+
+### Chat Page Crash — Duplicate React Instance
+- **Problem**: `/chat` page crashed with `Invalid hook call` / `Cannot read properties of null (reading 'useState')` on `GuidedMeditationFlow`. Root cause: `framer-motion` bundled its own React, creating a second React instance that `GuidedMeditationFlow` loaded, while the rest of the app used the main React from `node_modules/react`.
+- **Fix**: Added `resolve: { dedupe: ["react", "react-dom"] }` to `vite.config.ts`. Forces Vite to hoist a single React copy.
+- **Pattern**: When a library (especially `framer-motion`, `@xyflow/react`, `@testing-library/react`) pulls in React as a dependency, it often creates a duplicate. Always add `dedupe: ["react", "react-dom"]` in Vite config. This is the single most common cause of "Invalid hook call" in Vite apps.
+
+### Google Sign-In — Empty Client ID + CSP Blocks
+- **Problem 1**: `VITE_GOOGLE_CLIENT_ID` was empty in Docker build because docker-compose referenced `${VITE_GOOGLE_CLIENT_ID:-}` but `.env` used `GOOGLE_CLIENT_ID`.
+- **Fix 1**: Changed docker-compose.yml arg to `${GOOGLE_CLIENT_ID:-}`.
+- **Problem 2**: CSP header blocked Google Fonts (`fonts.googleapis.com`), One Tap script (`accounts.google.com/gsi/client`), and OAuth redirect (`accounts.google.com`).
+- **Fix 2**: Updated `nginx.conf` CSP:
+  ```
+  script-src 'self' https://accounts.google.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com;
+  font-src 'self' https://fonts.gstatic.com;
+  connect-src 'self' http://backend:8000 https://accounts.google.com;
+  frame-src 'self' https://accounts.google.com;
+  ```
+- **Result**: "Continue with Google" button renders, One Tap loads, click redirects to Google OAuth with correct client ID.
+- **Pattern**: CSP must explicitly whitelist all Google OAuth/One Tap/Fonts/Font domains. Test in browser console for CSP violations — they appear as errors before the feature breaks visibly.
+
+### Facebook Button Removed
+- **Action**: Commented out the Facebook sign-in button in `AuthPage.tsx` (lines 652-674) per request. Kept code for easy re-enable.
+
+### Container Health Verified
+All 10 containers healthy:
+- Frontend, Backend, Celery worker, Neo4j, Qdrant, Redis, Jaeger, Prometheus, Grafana, GPTCache
 
 ### Non-Root User Permissions under Railway Docker Deployments
 - **Problem**: When hard-configuring container security to run as a non-root user (`USER appuser`) in `Dockerfile.railway`, the container starts with read-only permissions for the `/app` workspace folder (since files copied as `root` are owned by `root`). When the Python FastAPI app or Celery worker tries to instantiate database/file stores (like `FeedbackStore` trying to create the `data/` directory or HuggingFace trying to write cache), it crashes with `PermissionError: [Errno 13] Permission denied`.
