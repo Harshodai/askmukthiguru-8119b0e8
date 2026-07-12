@@ -699,17 +699,30 @@ class MemoryServiceV2(MemoryService):
         return result
 
     # ---- Personal Knowledge Graph ----
+    # Cache: {(user_id, view): (result, expires_at)} — 60s TTL, keeps Neo4j
+    # off the request path on repeat profile visits (Supermemory-style hot graph).
+    _KG_CACHE: dict[tuple, tuple[dict, float]] = {}
+    _KG_TTL = 60.0
 
     async def build_personal_knowledge_graph(self, user_id: Optional[str], view: str = "personal") -> dict[str, list[dict]]:
         """Build a {nodes, edges} knowledge graph for the user.
 
-        If view == "ontology" or user_id is None:
-          Returns public teachings ontology only (limit 50).
-        If view == "personal" and user_id is provided:
-          Returns personalized consciousness map. Empty if 0 memories.
+        - view=="ontology" or no user_id → public teaching ontology (limit 200).
+        - view=="personal" with user_id → consciousness map: user + memories +
+          concept edges + memory↔memory SHARED_STATE edges (Supermemory-style
+          peer links so isolated memories still connect through shared meaning).
+        Results are cached for 60s per (user_id, view).
         """
+        cache_key = (user_id or "anon", view)
+        cached = self._KG_CACHE.get(cache_key)
+        if cached and cached[1] > time.time():
+            return cached[0]
+
         nodes: dict[str, dict] = {}
         edges: list[dict] = []
+        # O(1) edge dedup — replaces the O(n²) `edge not in edges` scan that
+        # made large graphs quadratic during construction.
+        edges_seen: set[tuple[str, str, Optional[str]]] = set()
 
         def _add_node(uid: str, label: str, ntype: str, teacher: str | None = None,
                       state_category: str | None = None, content: str | None = None) -> None:
@@ -724,9 +737,11 @@ class MemoryServiceV2(MemoryService):
                 }
 
         def _add_edge(src: str, dst: str, label: str | None = None) -> None:
-            edge = {"source": src, "target": dst, "label": label}
-            if edge not in edges:
-                edges.append(edge)
+            key = (src, dst, label)
+            if key in edges_seen or src == dst:
+                return
+            edges_seen.add(key)
+            edges.append({"source": src, "target": dst, "label": label})
 
         # 1. Public Ontology View
         if view == "ontology" or not user_id:
