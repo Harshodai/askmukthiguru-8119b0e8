@@ -731,6 +731,13 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
         assessment = DistressAssessment(level=DistressLevel.MODERATE, confidence=0.5)
 
     relevant_docs = state.get("relevant_docs", [])
+    if not relevant_docs:
+        try:
+            from rag.nodes.retrieval import retrieve_documents
+            retrieval_res = await retrieve_documents(state, config)
+            relevant_docs = retrieval_res.get("relevant_docs", [])
+        except Exception as e:
+            logger.error(f"Inline retrieval for distress failed: {e}")
 
     if relevant_docs:
         context = "\n\n---\n\n".join(

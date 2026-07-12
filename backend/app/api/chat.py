@@ -132,7 +132,7 @@ async def chat_endpoint(
     Add ?wait=true to block for result (backward compat).
     Delegates inline to ChatRequestOrchestrator when queue is disabled.
     """
-    chat_body.user_message = sanitize_user_input(chat_body.user_message)
+    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
     is_benchmark = request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None)
 
@@ -197,7 +197,7 @@ async def chat_stream_endpoint(
     Client then connects to GET /api/chat/stream/{job_id} for SSE.
     Delegates inline to ChatStreamRequestOrchestrator when queue is disabled.
     """
-    chat_body.user_message = sanitize_user_input(chat_body.user_message)
+    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
     is_benchmark = request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None)
 
