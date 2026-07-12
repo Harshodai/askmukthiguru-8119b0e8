@@ -1,16 +1,23 @@
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Sparkles, Play } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.jpg';
 import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
-import { DemoModal } from './DemoModal';
+import { DemoModal, hasSeenTour } from './DemoModal';
 
 export const HeroSection = () => {
   const { t } = useTranslation();
   const [demoOpen, setDemoOpen] = useState(false);
+
+  useEffect(() => {
+    if (!hasSeenTour()) {
+      const timer = setTimeout(() => setDemoOpen(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   return (
     <>
@@ -22,8 +29,8 @@ export const HeroSection = () => {
             alt=""
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/30 via-transparent to-background/30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/25 to-background/80" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20" />
         </div>
 
         {/* Floating Particles */}
@@ -180,7 +187,7 @@ export const HeroSection = () => {
                   }}
                   className="group-hover:text-white"
                 >
-                  See how it works
+                  See how this works
                 </motion.span>
               </button>
             </motion.div>

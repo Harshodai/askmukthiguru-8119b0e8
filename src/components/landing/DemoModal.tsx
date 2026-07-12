@@ -1,6 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, MessageSquare, Brain, Flame, Sparkles } from 'lucide-react';
+
+const TOUR_KEY = 'askmukthiguru_tour_seen';
+
+export const hasSeenTour = () => {
+  try { return localStorage.getItem(TOUR_KEY) === '1'; } catch { return true; }
+};
+
+export const markTourSeen = () => {
+  try { localStorage.setItem(TOUR_KEY, '1'); } catch {}
+};
 
 interface DemoModalProps {
   isOpen: boolean;
@@ -11,15 +21,14 @@ const SLIDES = [
   {
     id: 'chat',
     icon: MessageSquare,
-    emoji: '✨',
-    title: 'Ask Anything. Receive Wisdom.',
-    subtitle: 'AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    emoji: '💬',
+    title: 'Talk to Your Personal Guru',
+    subtitle: 'Ask anything — stress, relationships, purpose — and get wise, thoughtful guidance.',
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="space-y-4 px-1 flex flex-col justify-center" style={{ height: 180 }}>
-        {/* Simulated chat bubbles */}
-        {/* User Question 1 (Right) */}
+      <div className="space-y-3 px-1 flex flex-col justify-center" style={{ height: 170 }}>
+        {/* User Question 1 */}
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -30,19 +39,19 @@ const SLIDES = [
             style={{
               background: 'rgba(255,255,255,0.06)',
               border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '16px 16px 4px 16px',
-              padding: '10px 14px',
-              fontSize: 13,
+              borderRadius: '14px 14px 4px 14px',
+              padding: '8px 12px',
+              fontSize: 12.5,
               color: 'rgba(255,255,255,0.85)',
-              maxWidth: 260,
-              lineHeight: 1.5,
+              maxWidth: 240,
+              lineHeight: 1.45,
             }}
           >
-            How can I find peace when my mind won't stop?
+            I feel anxious all the time. How do I calm down?
           </div>
         </motion.div>
 
-        {/* Guru Answer 1 (Left with Avatar) */}
+        {/* Guru Answer */}
         <motion.div
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -51,34 +60,34 @@ const SLIDES = [
         >
           <div
             style={{
-              width: 28, height: 28, borderRadius: '50%',
+              width: 26, height: 26, borderRadius: '50%',
               background: 'linear-gradient(135deg,#d4af37,#f59e0b)',
               flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12,
+              fontSize: 11,
               boxShadow: '0 2px 6px rgba(212, 175, 55, 0.4)',
             }}
           >
-            💫
+            🙏
           </div>
           <div
             style={{
               background: 'rgba(212, 175, 55, 0.12)',
               border: '1px solid rgba(212, 175, 55, 0.25)',
-              borderRadius: '16px 16px 16px 4px',
-              padding: '10px 14px',
-              fontSize: 13,
+              borderRadius: '14px 14px 14px 4px',
+              padding: '8px 12px',
+              fontSize: 12.5,
               color: 'rgba(255,255,255,0.95)',
-              maxWidth: 280,
-              lineHeight: 1.5,
+              maxWidth: 260,
+              lineHeight: 1.45,
               boxShadow: '0 0 15px rgba(212, 175, 55, 0.05)',
             }}
           >
-            The Beautiful State is not achieved — it's what remains when suffering dissolves. Observe your thoughts without becoming them...
+            Try this: sit quietly for 2 minutes and just watch your thoughts like clouds passing by. Don't fight them — just notice. You'll feel the anxiety loosen its grip.
           </div>
         </motion.div>
 
-        {/* User Question 2 (Right) */}
+        {/* User follow-up */}
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -89,15 +98,15 @@ const SLIDES = [
             style={{
               background: 'rgba(255,255,255,0.06)',
               border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '16px 16px 4px 16px',
-              padding: '10px 14px',
-              fontSize: 13,
+              borderRadius: '14px 14px 4px 14px',
+              padding: '8px 12px',
+              fontSize: 12.5,
               color: 'rgba(255,255,255,0.85)',
-              maxWidth: 260,
-              lineHeight: 1.5,
+              maxWidth: 240,
+              lineHeight: 1.45,
             }}
           >
-            What does "observing without becoming" mean?
+            That actually helped! Can I do this daily?
           </div>
         </motion.div>
       </div>
@@ -107,13 +116,12 @@ const SLIDES = [
     id: 'meditation',
     icon: Flame,
     emoji: '🧘',
-    title: 'Serene Mind Meditation',
-    subtitle: '3-minute guided breathwork to calm the mind and enter the Beautiful State — available any time.',
+    title: 'Quick Calm in 3 Minutes',
+    subtitle: 'A short breathing exercise to center yourself — perfect before a meeting, bedtime, or whenever life feels hectic.',
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="flex flex-col items-center justify-center space-y-3" style={{ height: 180 }}>
-        {/* Breathing orb */}
+      <div className="flex flex-col items-center justify-center space-y-3" style={{ height: 170 }}>
         <motion.div
           animate={{ scale: [1, 1.22, 1], opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
@@ -134,11 +142,10 @@ const SLIDES = [
         <motion.p
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ fontSize: 13, color: 'rgba(212,175,55,0.9)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}
+          style={{ fontSize: 13, color: 'rgba(212,175,55,0.9)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}
         >
           Breathe in...
         </motion.p>
-        {/* Timer bar */}
         <div style={{ width: 200, height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 100, overflow: 'hidden' }}>
           <motion.div
             initial={{ width: 0 }}
@@ -154,70 +161,56 @@ const SLIDES = [
   {
     id: 'knowledge',
     icon: Brain,
-    emoji: '🧠',
-    title: 'Your Wisdom Knowledge Graph',
-    subtitle: 'Watch your insights form a living map of concepts, teachings, and personal breakthroughs.',
+    emoji: '🕸️',
+    title: 'Your Personal Wisdom Map',
+    subtitle: 'Every conversation builds a living web of ideas — see how your insights connect over time.',
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="relative flex items-center justify-center" style={{ height: 180 }}>
-        {/* Nodes */}
-        {[
-          { x: 50, y: 50, label: 'Beautiful State', size: 28, color: '#d4af37', delay: 0.1 },
-          { x: 20, y: 25, label: 'Equanimity', size: 20, color: '#fbbf24', delay: 0.25 },
-          { x: 78, y: 30, label: 'Awareness', size: 22, color: '#fbbf24', delay: 0.35 },
-          { x: 15, y: 70, label: 'Presence', size: 18, color: '#fde68a', delay: 0.45 },
-          { x: 80, y: 72, label: 'Compassion', size: 20, color: '#fde68a', delay: 0.55 },
-          { x: 50, y: 85, label: 'Surrender', size: 17, color: '#fde68a', delay: 0.65 },
-        ].map((node, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: node.delay, type: 'spring', stiffness: 300 }}
-            style={{
-              position: 'absolute',
-              left: `${node.x}%`,
-              top: `${node.y}%`,
-              transform: 'translate(-50%,-50%)',
-              width: node.size,
-              height: node.size,
-              borderRadius: '50%',
-              background: `radial-gradient(circle, ${node.color}40, ${node.color}15)`,
-              border: `1px solid ${node.color}60`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: `0 0 12px ${node.color}30`,
-            }}
-          >
-            {i === 0 && (
-              <motion.div
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{ duration: 2.5, repeat: Infinity }}
-                style={{ width: 6, height: 6, borderRadius: '50%', background: node.color }}
-              />
-            )}
-          </motion.div>
-        ))}
-        {/* Connection lines */}
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.3 }}>
-          {[
-            [50, 50, 20, 25], [50, 50, 78, 30], [50, 50, 15, 70],
-            [50, 50, 80, 72], [50, 50, 50, 85],
-          ].map(([x1, y1, x2, y2], i) => (
-            <motion.line
-              key={i}
-              x1={`${x1}%`} y1={`${y1}%`}
-              x2={`${x2}%`} y2={`${y2}%`}
-              stroke="#d4af37"
-              strokeWidth={1}
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.6 }}
-              transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
-            />
-          ))}
+      <div className="relative" style={{ height: 160, width: '100%' }}>
+        {/* Connection lines — simple SVG, no animation */}
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }}>
+          <line x1="50%" y1="40%" x2="18%" y2="22%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="40%" x2="82%" y2="22%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="40%" x2="12%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="40%" x2="88%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="40%" x2="50%" y2="90%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="18%" y1="22%" x2="12%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.2" />
+          <line x1="82%" y1="22%" x2="88%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.2" />
         </svg>
+
+        {/* Nodes with labels */}
+        {[
+          { x: 50, y: 40, label: 'Peace', size: 28, color: '#d4af37', main: true },
+          { x: 18, y: 22, label: 'Breath', size: 18, color: '#fbbf24' },
+          { x: 82, y: 22, label: 'Gratitude', size: 20, color: '#fbbf24' },
+          { x: 12, y: 72, label: 'Stillness', size: 16, color: '#fde68a' },
+          { x: 88, y: 72, label: 'Kindness', size: 18, color: '#fde68a' },
+          { x: 50, y: 90, label: 'Letting Go', size: 16, color: '#fde68a' },
+        ].map((node, i) => (
+          <div key={i} style={{ position: 'absolute', left: `${node.x}%`, top: `${node.y}%`, transform: 'translate(-50%, -50%)', textAlign: 'center', zIndex: 1 }}>
+            <div
+              style={{
+                width: node.size, height: node.size, borderRadius: '50%',
+                background: `radial-gradient(circle, ${node.color}50, ${node.color}20)`,
+                border: `1.5px solid ${node.color}70`,
+                boxShadow: `0 0 14px ${node.color}30`,
+                margin: '0 auto',
+              }}
+            >
+              {node.main && (
+                <motion.div
+                  animate={{ scale: [1, 1.4, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity }}
+                  style={{ width: 6, height: 6, borderRadius: '50%', background: node.color, margin: '0 auto', position: 'relative', top: '50%', transform: 'translateY(-50%)' }}
+                />
+              )}
+            </div>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', fontWeight: 500, whiteSpace: 'nowrap', marginTop: 3, display: 'block' }}>
+              {node.label}
+            </span>
+          </div>
+        ))}
       </div>
     ),
   },
@@ -227,6 +220,13 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
   const [slide, setSlide] = useState(0);
   const current = SLIDES[slide];
   const Icon = current.icon;
+
+  useEffect(() => {
+    if (isOpen) {
+      markTourSeen();
+      setSlide(0);
+    }
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -251,23 +251,26 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 24 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 12 }}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 340, damping: 28 }}
             style={{
               position: 'fixed',
               top: '50%',
               left: '50%',
-              transform: 'translate(-50%, -50%)',
+              marginLeft: '-280px',
+              marginTop: '-240px',
               zIndex: 9991,
-              width: '90vw',
-              maxWidth: 560,
+              width: 560,
+              maxHeight: '85vh',
+              overflowY: 'auto',
             }}
           >
             {/* Outer shell */}
             <div
               style={{
+                width: '100%',
                 background: 'rgba(24, 18, 15, 0.95)',
                 border: `1px solid ${current.color}30`,
                 borderRadius: 28,
@@ -303,9 +306,9 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: current.color, fontWeight: 700, marginBottom: 2 }}>
-                      Feature {slide + 1} of {SLIDES.length}
+                      Step {slide + 1} of {SLIDES.length}
                     </p>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>AskMukthiGuru Demo</p>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Quick Tour</p>
                   </div>
                   <button
                     onClick={onClose}
@@ -331,29 +334,6 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                       exit={{ opacity: 0, x: -24 }}
                       transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
                     >
-                      {/* Emoji + Title */}
-                      <div style={{ marginBottom: 8 }}>
-                        <span style={{ fontSize: 32, filter: `drop-shadow(0 4px 12px ${current.color}50)` }}>
-                          {current.emoji}
-                        </span>
-                        <h2
-                          style={{
-                            fontSize: 22,
-                            fontWeight: 800,
-                            color: '#fff',
-                            letterSpacing: '-0.03em',
-                            lineHeight: 1.2,
-                            marginTop: 8,
-                            marginBottom: 8,
-                          }}
-                        >
-                          {current.title}
-                        </h2>
-                        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
-                          {current.subtitle}
-                        </p>
-                      </div>
-
                       {/* Preview area */}
                       <div
                         style={{
@@ -361,10 +341,31 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                           border: `1px solid ${current.color}18`,
                           borderRadius: 16,
                           padding: '16px',
-                          marginTop: 16,
-                          minHeight: 160,
+                          minHeight: 200,
                         }}
                       >
+                        {/* Emoji + Title + Subtitle inside preview */}
+                        <div style={{ marginBottom: 12 }}>
+                          <span style={{ fontSize: 28, filter: `drop-shadow(0 4px 12px ${current.color}50)` }}>
+                            {current.emoji}
+                          </span>
+                          <h2
+                            style={{
+                              fontSize: 20,
+                              fontWeight: 800,
+                              color: '#fff',
+                              letterSpacing: '-0.03em',
+                              lineHeight: 1.2,
+                              marginTop: 6,
+                              marginBottom: 4,
+                            }}
+                          >
+                            {current.title}
+                          </h2>
+                          <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                            {current.subtitle}
+                          </p>
+                        </div>
                         {current.preview}
                       </div>
                     </motion.div>
@@ -443,7 +444,7 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                     </motion.button>
                   ) : (
                     <motion.a
-                      href="/auth"
+                      href="/chat"
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.97 }}
                       style={{
@@ -459,7 +460,7 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                       }}
                     >
                       <Sparkles style={{ width: 14, height: 14 }} />
-                      Start Free
+                      Start Chatting
                     </motion.a>
                   )}
                 </div>
