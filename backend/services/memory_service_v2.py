@@ -919,7 +919,40 @@ class MemoryServiceV2(MemoryService):
             except Exception as e:
                 logger.warning(f"Failed to query concept rels: {e}")
 
-        return {"nodes": list(nodes.values()), "edges": edges}
+        # Memory↔Memory peer edges: group memories by state_category so isolated
+        # reflections still connect through shared meaning. Supermemory-style
+        # "similar memory" hint — one dashed edge per pair, capped to avoid
+        # visual noise on large graphs.
+        try:
+            by_state: dict[str, list[str]] = {}
+            for n in nodes.values():
+                if n["type"] == "Memory" and n.get("state_category") and n["state_category"] != "Neutral":
+                    by_state.setdefault(n["state_category"], []).append(n["id"])
+            _peer_cap = 40  # ponytail: bump if UI clarity holds at higher densities
+            _added = 0
+            for state, mids in by_state.items():
+                if len(mids) < 2:
+                    continue
+                # Chain memories in a ring so each has ≤2 peer edges — dense
+                # enough to show clusters, sparse enough to stay legible.
+                for i, src in enumerate(mids):
+                    dst = mids[(i + 1) % len(mids)]
+                    _add_edge(src, dst, "SHARED_STATE")
+                    _added += 1
+                    if _added >= _peer_cap:
+                        break
+                if _added >= _peer_cap:
+                    break
+        except Exception as e:
+            logger.warning(f"Failed to add peer memory edges: {e}")
+
+        result = {"nodes": list(nodes.values()), "edges": edges}
+        self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
+        # Evict old cache entries (bounded).
+        if len(self._KG_CACHE) > 256:
+            oldest = min(self._KG_CACHE, key=lambda k: self._KG_CACHE[k][1])
+            self._KG_CACHE.pop(oldest, None)
+        return result
 
     # ---- LRU fallback helpers ----
     def _lru_set(self, key: str, value: str) -> None:
