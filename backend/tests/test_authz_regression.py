@@ -55,7 +55,7 @@ def test_chat_stream_poll_requires_auth():
 
 
 def test_job_routes_require_auth_and_ownership():
-    from app.api.job_routes import get_job, cancel_job
+    from app.api.job_routes import cancel_job, get_job
     for fn in (get_job, cancel_job):
         assert _requires_supabase_user(fn), (
             f"REGRESSION: {fn.__name__} must Depend on get_current_user_from_supabase (IDOR fix)."
@@ -76,7 +76,7 @@ def test_concept_graph_requires_admin():
 
 
 def test_circuit_breaker_endpoints_admin_only():
-    from app.api.health import circuit_breaker_status, circuit_breaker_reset_endpoint, debug_headers
+    from app.api.health import circuit_breaker_reset_endpoint, circuit_breaker_status, debug_headers
     for fn in (circuit_breaker_status, circuit_breaker_reset_endpoint, debug_headers):
         assert _requires_supabase_user(fn), (
             f"REGRESSION: {fn.__name__} must require auth."

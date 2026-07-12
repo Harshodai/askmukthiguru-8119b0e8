@@ -1,10 +1,11 @@
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from app.config import settings
-from rag.states import GraphState
-from rag.nodes.verification import reflect_on_answer, verify_answer
+
 from rag.nodes.generation import format_final_answer
 from rag.nodes.short_circuit import rewrite_query
+from rag.nodes.verification import reflect_on_answer, verify_answer
+
 
 @pytest.mark.asyncio
 async def test_reflect_on_answer_caches_lettuce_detect(monkeypatch):

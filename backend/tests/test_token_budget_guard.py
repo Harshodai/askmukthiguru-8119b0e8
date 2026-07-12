@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.config import Settings
-from services.llm.sarvam_provider import SarvamProvider
+
+import pytest
+
 from services.llm.openrouter_provider import OpenRouterProvider
-from services.llm.ollama_provider import OllamaProvider
+from services.llm.sarvam_provider import SarvamProvider
+
 
 @pytest.fixture
 def mock_settings(monkeypatch):

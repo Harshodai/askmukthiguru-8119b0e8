@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.dependencies import get_container
+from app.main import app
 from services.auth_service import get_current_user_from_supabase
 
 # Create client without entering context manager to bypass lifespan qdrant startup

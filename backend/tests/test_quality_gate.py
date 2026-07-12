@@ -1,9 +1,12 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from ingest.quality_gate import DataQualityGate
-from services.okf_quality_filter import OKFQualityFilter
 from services.doctrine_service import DoctrineService
+from services.okf_quality_filter import OKFQualityFilter
 from tasks.ingest_tasks import ingest_playlist, playlist_complete
+
 
 @pytest.fixture
 def mock_llm():

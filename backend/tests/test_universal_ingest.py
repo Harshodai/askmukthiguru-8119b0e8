@@ -1,7 +1,10 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from ingest.pipeline import IngestionPipeline
-from ingest.quality_gate import DataQualityGate, DeterministicChecker
+from ingest.quality_gate import DeterministicChecker
+
 
 @pytest.fixture
 def mock_pipeline_deps(monkeypatch):

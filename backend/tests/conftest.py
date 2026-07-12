@@ -52,8 +52,9 @@ from app.core.limiter import limiter
 limiter.enabled = False
 
 import asyncio
-import pytest
 import logging
+
+import pytest
 
 logger = logging.getLogger(__name__)
 

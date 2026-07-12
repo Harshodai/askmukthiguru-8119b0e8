@@ -155,6 +155,7 @@ class ResultAssemblyStage(Stage):
             trigger_events=trigger_events,
             safety_events=safety_events,
             spans=spans,
+            node_timings=graph_result.get("node_timings", {}),
             follow_up_suggestions=graph_result.get("follow_up_suggestions", []),
         )
         return ctx.result

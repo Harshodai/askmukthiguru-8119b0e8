@@ -395,4 +395,5 @@ class PipelineCoordinator:
             "hallucination_flag": not result.get("is_faithful") if (is_rag and result.get("is_faithful") is not None) else False,
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
             "confidence_score": confidence,
+            "node_timings": result.get("node_timings", {}),
         }

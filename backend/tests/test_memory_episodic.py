@@ -31,26 +31,26 @@ class _MockTable:
         self._order_desc = False
         self._limit: int | None = None
 
-    def insert(self, row: dict) -> "_MockTable":
+    def insert(self, row: dict) -> _MockTable:
         self._row = row
         return self
 
-    def select(self, *_args) -> "_MockTable":
+    def select(self, *_args) -> _MockTable:
         return self
 
-    def eq(self, col: str, val: str) -> "_MockTable":
+    def eq(self, col: str, val: str) -> _MockTable:
         self._filters[col] = val
         return self
 
-    def or_(self, expr: str) -> "_MockTable":
+    def or_(self, expr: str) -> _MockTable:
         self._or_filter = expr
         return self
 
-    def order(self, _col: str, desc: bool = False) -> "_MockTable":
+    def order(self, _col: str, desc: bool = False) -> _MockTable:
         self._order_desc = desc
         return self
 
-    def limit(self, n: int) -> "_MockTable":
+    def limit(self, n: int) -> _MockTable:
         self._limit = n
         return self
 

@@ -21,7 +21,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rag.intent_prerouter import DISTRESS_RE, preroute_intent
 
-
 # ---------------------------------------------------------------------------
 # 1. Direct DISTRESS_RE pattern tests
 # ---------------------------------------------------------------------------

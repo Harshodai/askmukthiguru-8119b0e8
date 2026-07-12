@@ -174,6 +174,8 @@ class MemoryService:
                         insert_data["claim"] = metadata["claim"]
                     elif "insight" in metadata:
                         insert_data["claim"] = metadata["insight"]
+                    if "summary" in metadata:
+                        insert_data["summary"] = metadata["summary"]
                     if "confidence" in metadata:
                         insert_data["confidence"] = metadata["confidence"]
                     if "decay_score" in metadata:
@@ -187,9 +189,9 @@ class MemoryService:
                     )
                 except Exception as insert_err:
                     err_str = str(insert_err)
-                    # PostgREST schema cache may lack new columns — retry without claim/confidence/decay
+                    # PostgREST schema cache may lack new columns — retry without claim/confidence/decay/summary
                     if "PGRST204" in err_str or "Could not find" in err_str:
-                        for col in ("claim", "confidence", "decay_score"):
+                        for col in ("claim", "confidence", "decay_score", "summary"):
                             insert_data.pop(col, None)
                         result = await asyncio.to_thread(
                             self._supabase.table("guru_memories")
@@ -233,7 +235,7 @@ class MemoryService:
             end = start + page_size - 1
             result = await asyncio.to_thread(
                 self._supabase.table("guru_memories")
-                .select("id, content, source, created_at, updated_at")
+                .select("id, content, source, created_at, updated_at, summary")
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)
                 .range(start, end)
@@ -276,6 +278,69 @@ class MemoryService:
         except Exception as e:
             logger.error(f"Failed to forget memory {memory_id} for user {user_id}: {e}")
             return False
+
+    async def forget_all_reflections(self, user_id: str) -> int:
+        """Delete all episodic memories (reflections) for a user. Core facts are durable."""
+        if not self._supabase or self._is_anonymous(user_id):
+            return 0
+        try:
+            res = await asyncio.to_thread(
+                self._supabase.table("guru_memories")
+                .delete()
+                .eq("user_id", user_id)
+                .execute
+            )
+            n = len(res.data) if res and hasattr(res, "data") and res.data else 0
+            logger.info(f"forget_all_reflections user={user_id} deleted={n}")
+            return n
+        except Exception as e:
+            logger.error(f"Failed to forget all reflections for {user_id}: {e}")
+            return 0
+
+    async def regenerate_summary(self, user_id: str) -> int:
+        """Populate guru_memories.summary where NULL.
+
+        Strategy: pull all of the user's episodic memories that lack a summary,
+        pull all of the user's session summaries (guru_session_summaries), and
+        fill `summary` with a fallback (first 280 chars of the claim/content)
+        when a per-session match cannot be inferred. Optionally callers can run
+        a richer extractor pass offline; this is a cheap, deterministic pass.
+        """
+        if not self._supabase or self._is_anonymous(user_id):
+            return 0
+        try:
+            needs = await asyncio.to_thread(
+                self._supabase.table("guru_memories")
+                .select("id, content")
+                .eq("user_id", user_id)
+                .is_("summary", "null")
+                .execute
+            )
+            rows = needs.data if needs and hasattr(needs, "data") else []
+            if not rows:
+                return 0
+            updated = 0
+            for r in rows:
+                content = (r.get("content") or "").strip()
+                if not content:
+                    continue
+                fallback = content[:280]
+                try:
+                    await asyncio.to_thread(
+                        self._supabase.table("guru_memories")
+                        .update({"summary": fallback})
+                        .eq("id", r["id"])
+                        .eq("user_id", user_id)
+                        .execute
+                    )
+                    updated += 1
+                except Exception as upd_err:
+                    logger.warning(f"summary update failed for memory {r.get('id')}: {upd_err}")
+            logger.info(f"regenerate_summary user={user_id} updated={updated}")
+            return updated
+        except Exception as e:
+            logger.error(f"regenerate_summary failed for {user_id}: {e}")
+            return 0
 
     async def compact_memories(self, user_id: str) -> None:
         """
@@ -633,6 +698,11 @@ class MemoryService:
                         "insight": mem.insight,
                         "state_category": mem.state_category,
                         "related_concepts": mem.related_concepts,
+                        # Persist the session_summary as a column on each episodic memory row.
+                        # Task 9 (Memory tab on Profile) surfaces this summary instead of the
+                        # raw `claim` content. Falls back gracefully if the column is absent
+                        # (PGRST204 retry in add_explicit drops it).
+                        "summary": extracted.session_summary.strip(),
                     }
                 )
 

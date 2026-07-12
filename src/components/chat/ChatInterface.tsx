@@ -950,12 +950,12 @@ export const ChatInterface = () => {
                   setIsAwaitingSereneMind(false);
                   setSereneMindOnComplete(null);
                 });
-                openSereneMind('breathing', true);
+openSereneMind('audio', true);
               }, 7000);
             }
           } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
             // Voluntary request: open without gating — user asked for it
-            openSereneMind('breathing');
+            openSereneMind('audio');
           } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
             openSereneMind('audio');
           } else if (streamedProactiveSereneMind?.triggered) {
@@ -979,7 +979,7 @@ export const ChatInterface = () => {
                 setIsAwaitingSereneMind(false);
                 setSereneMindOnComplete(null);
               });
-              openSereneMind('breathing', true, customMed?.steps, customMed?.source_teaching);
+              openSereneMind('audio', true, customMed?.steps, customMed?.source_teaching);
             }, 7000);
           }
 
@@ -994,7 +994,7 @@ export const ChatInterface = () => {
               (t.includes('close your eyes') && t.includes('breath')) ||
               (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
             if (looksLikeSereneMind && meditationStep === 0) {
-              openSereneMind('breathing');
+openSereneMind('audio');
             }
           }
         }
@@ -1080,7 +1080,7 @@ export const ChatInterface = () => {
       if (isAwaitingSereneMind) {
         // If we are awaiting Serene Mind, we only allow MEDITATION/MEDITATION_CONTINUE intent
         if (response.intent === 'MEDITATION' || response.intent === 'MEDITATION_CONTINUE') {
-          openSereneMind('breathing', true);
+          openSereneMind('audio', true);
         } else {
           const blockedMsg: Message = {
             id: generateId(),
@@ -1101,7 +1101,7 @@ export const ChatInterface = () => {
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, blockedMessage]);
-        openSereneMind('breathing', true);
+        openSereneMind('audio', true);
       } else {
         const responseError = response.errorCode
           ? buildMessageError(response.errorCode, response.error)
@@ -1133,7 +1133,7 @@ export const ChatInterface = () => {
 
         if (response.intent === 'MEDITATION' || response.intent === 'MEDITATION_CONTINUE') {
           // Voluntary request: non-gated
-          openSereneMind('breathing');
+          openSereneMind('audio');
         } else if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
         } else if (response.proactiveSereneMind?.triggered) {
@@ -1157,7 +1157,7 @@ setIsAwaitingSereneMind(true);
                 setSereneMindOnComplete(null);
               });
               const customMed = response.proactiveSereneMind?.custom_meditation;
-              openSereneMind('breathing', true, customMed?.steps, customMed?.source_teaching);
+              openSereneMind('audio', true, customMed?.steps, customMed?.source_teaching);
             }, 7000);
         }
 
@@ -1170,7 +1170,7 @@ setIsAwaitingSereneMind(true);
             (t.includes('close your eyes') && t.includes('breath')) ||
             (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
           if (looksLikeSereneMind && meditationStep === 0) {
-            openSereneMind('breathing');
+            openSereneMind('audio');
           }
         }
       }

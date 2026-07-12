@@ -1,1 +1,1 @@
-SELECT cron.unschedule('test-job');
+SELECT pg_get_functiondef('seed_admin_demo'::regproc);

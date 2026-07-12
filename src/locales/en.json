@@ -843,5 +843,90 @@
     "sessionReflectionsDesc": "Distilled summaries the guru keeps from your past sessions.",
     "exitFullscreen": "Exit Fullscreen (Esc)",
     "toggleInsights": "Toggle Consciousness Insights"
+  },
+  "practices": {
+    "title": "Practices",
+    "subtitle": "Daily spiritual practices — Sri Preethaji & Sri Krishnaji",
+    "startPractice": "Begin",
+    "openInChat": "Open in chat",
+    "benefits": "Benefits",
+    "howItWorks": "How it works",
+    "perPracticeHint": "Sit comfortably with your spine upright. Eyes closed, mouth closed. Let the breath move.",
+    "soulSync": {
+      "title": "Soul Sync",
+      "tagline": "Reconnect with the deeper intelligence within.",
+      "duration": "15–20 min",
+      "purpose": "Soul Sync is your way home. You sit, you breathe, you hum — and the noise of the day falls away. You reconnect with the silent presence beneath your thoughts. This is the doorway into a Beautiful State.",
+      "howItWorks": [
+        "Conscious Breathing — sit comfortably, hands resting on your thighs, palms facing upward. Eyes closed. Take 8 slow, deep breaths, counting each one with the thumb touching each finger (index to pinky and back).",
+        "Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration calm your nervous system.",
+        "Settle in the Silent Pause — between each inhalation and exhalation, rest in the natural stillness. Don't force it — just witness.",
+        "Repeat \"Aham\" — with every exhalation, mentally whisper \"Aham\" (I am — boundless consciousness). Rest in the simple feeling of being.",
+        "Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.",
+        "Hold Your Intention — in this expanded state, bring your heartfelt intention to mind. Visualise it manifest. Close with deep gratitude."
+      ],
+      "benefits": [
+        "Calms the amygdala — lowers cortisol and stress arousal.",
+        "Shifts brainwaves from high-beta (overthinking) to coherent alpha (calm focus).",
+        "Aligns your inner state with your intentions — opens the door to synchronicity.",
+        "Dissolves self-centred suffering states — opens the heart to love, connection, and peace."
+      ]
+    },
+    "sereneMind": {
+      "title": "Serene Mind",
+      "tagline": "A 3-minute reset for an agitated heart.",
+      "duration": "3 min",
+      "purpose": "When emotion runs hot and the mind sparks, give yourself three minutes. Serene Mind uses a calming 4-2-6 breath and a gentle flame at the centre of your head to release tension — and return you to a quiet, clear, open mind.",
+      "howItWorks": [
+        "Focus on your breath — eyes closed, sit upright. Bring your whole, undivided attention to the breath entering and leaving your nostrils.",
+        "Scan your inner state — notice the emotions and thoughts present right now, without trying to push them away. Ask: \"What exact emotion am I feeling?\" (anxiety, anger, sadness, peace…)",
+        "Acknowledge without judgement — gently label the emotion. No judging. No fighting. Soft awareness.",
+        "See where your mind is — past regrets, future worries, or self-centred chatter? Just acknowledge the state of separation.",
+        "Flame Visualisation — visualise a steady golden flame glowing between your eyebrows. Slowly draw it inward to the centre of your brain — let it brighten the darkness and stabilise your mind.",
+        "Close with a smile — let a warm, gentle smile rest on your face. One more deep breath. Feel the shift. Slowly open your eyes."
+      ],
+      "benefits": [
+        "Instant amygdala calm — de-escalates panic, anger, or agitation in three minutes.",
+        "Builds self-awareness — naming emotions without judgement lowers their emotional charge.",
+        "Strengthens focus and presence — the flame steadies a scattered mind.",
+        "Physiological reset — engages the parasympathetic nervous system; heart rate slows; calm returns."
+      ]
+    },
+    "beautifulState": {
+      "title": "Beautiful State",
+      "tagline": "Step out of suffering, into love and connection.",
+      "duration": "10–15 min",
+      "purpose": "A Beautiful State is the natural state of your heart — calm, joyful, and connected. This practice trains you to dissolve self-centred suffering and return, again and again, to that open place where love lives.",
+      "howItWorks": [
+        "Recall a moment of connection — bring to mind a person, a moment, or a piece of nature you love deeply. Connect with the warmth and safety of that feeling.",
+        "Let the warmth expand — feel the love spread in your heart-space, filling your whole body.",
+        "Send well-being — wish well-being for yourself, then for the people in your life, then for all life everywhere.",
+        "Carry the warmth with you — gently return to your day, keeping the open-hearted feeling as you move."
+      ],
+      "benefits": [
+        "Dissolves self-centred suffering and emotional pain.",
+        "Strengthens compassion, empathy, and genuine connection.",
+        "Builds emotional resilience — more joy in daily life.",
+        "Induces physiological coherence — gentle on the heart."
+      ]
+    },
+    "dailyReflection": {
+      "title": "Daily Reflection",
+      "tagline": "Close the day with awareness and gratitude.",
+      "duration": "5–10 min",
+      "purpose": "An evening practice that helps you close the day with kindness. You honour what nourished you, acknowledge what hurt, and let both go before sleep — so the day doesn't follow you into the night.",
+      "howItWorks": [
+        "Settle into stillness — sit or lie down. Let the body soften.",
+        "Recall three moments — three small moments from today that brought peace, joy, or learning.",
+        "Acknowledge the struggles — name any moment of pain today without judgement.",
+        "Offer gratitude — offer thanks for the day as a whole. Let it go. Prepare to rest."
+      ],
+      "benefits": [
+        "Fosters gratitude — shifts your gaze toward the positive.",
+        "Closes the day mindfully — releases accumulated tension and stress.",
+        "Improves sleep — calms the mind before bed.",
+        "Builds self-compassion — review mistakes without judgement."
+      ]
+    }
   }
 }

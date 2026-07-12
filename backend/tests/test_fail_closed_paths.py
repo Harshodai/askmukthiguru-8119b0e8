@@ -17,7 +17,6 @@ from rag.nodes import intent as intent_module
 from rag.nodes import retrieve_documents
 from rag.nodes.short_circuit import handle_fallback
 
-
 # ── Guardrails fail-closed ────────────────────────────────────────────────
 
 

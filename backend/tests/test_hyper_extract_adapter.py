@@ -21,7 +21,6 @@ from ingest.hyper_extract_adapter import (
 )
 from ingest.pipeline import IngestionPipeline
 
-
 SAMPLE_TRANSCRIPT = """
 Introduction
 

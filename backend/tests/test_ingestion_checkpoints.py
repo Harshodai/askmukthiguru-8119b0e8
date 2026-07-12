@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
-import pytest
-import time
+
 from ingest.pipeline import IngestionCheckpoint
+
 
 def test_checkpoint_redis_primary():
     mock_redis = MagicMock()

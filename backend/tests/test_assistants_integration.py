@@ -10,17 +10,15 @@ Covers:
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.schemas import AssistantContext, ChatRequest
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.nodes.generation import context_engineer, generate_answer
-from rag.nodes import _services
 from services.qdrant.searcher import QdrantSearcher
 from services.qdrant_service import _build_tag_conditions
-
 
 # ---------------------------------------------------------------------------
 # Contract / backward compatibility

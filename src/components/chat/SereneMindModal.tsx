@@ -12,7 +12,7 @@ import {
   MeditationSession,
 } from '@/lib/meditationStorage';
 
-export type SereneMindTab = 'breathing' | 'audio' | 'video';
+export type SereneMindTab = 'audio' | 'video';
 
 interface SereneMindModalProps {
   isOpen: boolean;
@@ -28,7 +28,7 @@ type BreathPhase = 'idle' | 'inhale' | 'hold1' | 'exhale' | 'hold2' | 'complete'
 const SERENE_MIND_VIDEO_ID = 'igSp4H0OWLE';
 const SERENE_MIND_YOUTUBE_URL = `https://youtu.be/${SERENE_MIND_VIDEO_ID}`;
 
-export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onComplete, isGated = false }: SereneMindModalProps) => {
+export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onComplete, isGated = false }: SereneMindModalProps) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SereneMindTab>(initialTab);
   const [selectedTechnique, setSelectedTechnique] = useState<BreathTechnique>(DEFAULT_TECHNIQUE);
@@ -88,7 +88,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
 
   // Breathing phase loop — only runs when breathing tab is active
   useEffect(() => {
-    if (activeTab !== 'breathing') return;
+    if (activeTab !== 'audio') return;
     if (!isPlaying || phase === 'complete') return;
 
     if (phase === 'idle') {
@@ -151,7 +151,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
 
   // Pause breathing if user switches away from breathing tab
   useEffect(() => {
-    if (activeTab !== 'breathing' && isPlaying) {
+    if (activeTab !== 'audio' && isPlaying) {
       setIsPlaying(false);
     }
   }, [activeTab, isPlaying]);
@@ -249,8 +249,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
     return ((dur - countdown) / dur) * 100;
   })();
 
-  const tabs: { id: SereneMindTab; label: string; icon: typeof Wind }[] = [
-    { id: 'breathing', label: t('meditation.tabBreathe'), icon: Wind },
+  const tabs: { id: SereneMindTab; label: string; icon: typeof Headphones }[] = [
     { id: 'audio', label: t('meditation.tabAudio'), icon: Headphones },
     { id: 'video', label: t('meditation.tabVideo'), icon: Youtube },
   ];
@@ -332,30 +331,29 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'breathing', onC
               </div>
 
               {/* Tab content */}
-              {activeTab === 'breathing' && (
-                <BreathingTab
-                  phase={phase}
-                  isPlaying={isPlaying}
-                  countdown={countdown}
-                  totalTime={totalTime}
-                  cycleCount={cycleCount}
-                  formatTime={formatTime}
-                  getFlameScale={getFlameScale}
-                  getPhaseInstruction={getPhaseInstruction}
-                  handleStart={handleStart}
-                  setIsPlaying={setIsPlaying}
-                  resetMeditation={resetMeditation}
-                  onClose={onClose}
-                  selectedTechnique={selectedTechnique}
-                  onTechniqueChange={handleTechniqueChange}
-                  progressPercentage={progressPercentage}
-                  teaching={teaching ?? undefined}
-                  teachingLoading={teachingLoading}
-                />
-              )}
-
               {activeTab === 'audio' && (
-                <MediaTab mode="audio" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
+                <>
+                  <BreathingTab
+                    phase={phase}
+                    isPlaying={isPlaying}
+                    countdown={countdown}
+                    totalTime={totalTime}
+                    cycleCount={cycleCount}
+                    formatTime={formatTime}
+                    getFlameScale={getFlameScale}
+                    getPhaseInstruction={getPhaseInstruction}
+                    handleStart={handleStart}
+                    setIsPlaying={setIsPlaying}
+                    resetMeditation={resetMeditation}
+                    onClose={onClose}
+                    selectedTechnique={selectedTechnique}
+                    onTechniqueChange={handleTechniqueChange}
+                    progressPercentage={progressPercentage}
+                    teaching={teaching ?? undefined}
+                    teachingLoading={teachingLoading}
+                  />
+                  <MediaTab mode="audio" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
+                </>
               )}
 
               {activeTab === 'video' && (

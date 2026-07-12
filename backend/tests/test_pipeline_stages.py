@@ -14,7 +14,6 @@ Reuses conftest.py fixtures (sys.path / env setup).
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -36,7 +35,6 @@ from app.pipeline.stages import (
     build_default_pipeline,
 )
 from app.pipeline.stages.context import PipelineContext
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures

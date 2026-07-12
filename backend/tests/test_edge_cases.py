@@ -8,8 +8,10 @@ multi-tenant isolation) and verifies graceful degradation.
 from __future__ import annotations
 
 import asyncio
+
 # ExceptionGroup is built-in in Python 3.11+; for 3.9/3.10 use the backport
 import sys
+
 if sys.version_info < (3, 11):
     try:
         from exceptiongroup import ExceptionGroup  # type: ignore[import]
@@ -17,12 +19,11 @@ if sys.version_info < (3, 11):
         ExceptionGroup = Exception  # type: ignore[misc,assignment]
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
 
 client = TestClient(app)

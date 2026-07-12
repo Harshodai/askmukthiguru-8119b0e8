@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 
-from services.semantic_model_router import SemanticModelRouter, TIER
+from services.semantic_model_router import SemanticModelRouter
 
 # Suppress spurious numpy matmul runtime warnings triggered by FakeEmbedding vectors
 warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*encountered in matmul.*")

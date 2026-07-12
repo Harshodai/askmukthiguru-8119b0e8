@@ -2,6 +2,14 @@
  * Static catalog of meditation practices.
  * Each practice has a dedicated detail page with embedded YouTube media.
  *
+ * The static English content here is the **canonical source** for SEO/meta tags
+ * (used by `usePageMeta` and `schema.org/HowTo` JSON-LD before user language
+ * preference is known). The colloquial, localised copy lives in `src/locales/*`
+ * under the `practices.<slug>.{title|tagline|purpose|howItWorks|benefits|duration}`
+ * keys (see `src/locales/en.json`). At render time, `getLocalizedPractice()`
+ * merges the localised strings on top of the static catalog when a non-English
+ * language is active; otherwise the static English is used directly.
+ *
  * YouTube IDs were chosen from publicly available teachings of
  * Sri Preethaji & Sri Krishnaji and the One Consciousness/EkamUSA channel.
  */
@@ -18,6 +26,8 @@ export interface Practice {
   audioId?: string; // optional separate audio-only YouTube ID
   accent: 'ojas' | 'prana' | 'tejas' | 'lotus';
   inApp?: { label: string; path: string }; // optional link to in-app version
+  i18nKey?: string; // translation subtree key — when set, the corresponding
+                    // en/hi/te entries take precedence over the static fields.
 }
 
 export const practices: Practice[] = [
@@ -45,6 +55,7 @@ export const practices: Practice[] = [
     ],
     videoId: '69IrsSXeBTg',
     accent: 'ojas',
+    i18nKey: 'practices.soulSync',
   },
   {
     slug: 'serene-mind',
@@ -71,6 +82,7 @@ export const practices: Practice[] = [
     videoId: 'igSp4H0OWLE',
     accent: 'tejas',
     inApp: { label: 'Open in chat', path: '/chat' },
+    i18nKey: 'practices.sereneMind',
   },
   {
     slug: 'beautiful-state',
@@ -94,6 +106,7 @@ export const practices: Practice[] = [
     ],
     videoId: 'TqxxCYnAxo8',
     accent: 'lotus',
+    i18nKey: 'practices.beautifulState',
   },
   {
     slug: 'daily-reflection',
@@ -117,8 +130,54 @@ export const practices: Practice[] = [
     ],
     videoId: 'O-6f5wQXSu8',
     accent: 'prana',
+    i18nKey: 'practices.dailyReflection',
   },
 ];
 
 export const getPracticeBySlug = (slug: string): Practice | undefined =>
   practices.find((p) => p.slug === slug);
+
+/**
+ * Resolve the localised copy of a practice given an i18n `t` function and
+ * language code. Falls back gracefully to the static English catalog when
+ * translation keys are missing (e.g. partial locale coverage).
+ *
+ * Ponytail: returns a new Practice object — never mutates the static catalog
+ * (which is the canonical source for SEO/meta and must stay language-neutral).
+ */
+export const getLocalizedPractice = (
+  practice: Practice,
+  t: (key: string, opts?: unknown) => string,
+  lang: string = 'en',
+): Practice => {
+  if (!practice.i18nKey || lang === 'en') return practice;
+
+  // Helper: read an i18n key, returning the *same* fallback string when the key
+  // is missing in the active locale (i18next returns the key itself when no
+  // translation is found — we use that signal to detect missing keys).
+  const pick = (key: string, fallback: string): string => {
+    const value = t(key);
+    if (!value || value === key) return fallback;
+    return value;
+  };
+
+  const pickList = (key: string, fallback: string[]): string[] => {
+    // i18next returns objects/lists natively — use returnObjects option.
+    const value = t(key, { returnObjects: true }) as unknown;
+    if (Array.isArray(value) && value.length === fallback.length) {
+      return value as string[];
+    }
+    return fallback;
+  };
+
+  return {
+    ...practice,
+    title: pick(`${practice.i18nKey}.title`, practice.title),
+    tagline: pick(`${practice.i18nKey}.tagline`, practice.tagline),
+    durationLabel: pick(`${practice.i18nKey}.duration`, practice.durationLabel),
+    purpose: pick(`${practice.i18nKey}.purpose`, practice.purpose),
+    howItWorks: pickList(`${practice.i18nKey}.howItWorks`, practice.howItWorks),
+    benefits: pickList(`${practice.i18nKey}.benefits`, practice.benefits),
+  };
+};
+

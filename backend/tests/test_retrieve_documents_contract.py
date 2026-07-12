@@ -1,6 +1,6 @@
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
-import logging
 import pytest
 
 logging.basicConfig(level=logging.DEBUG)

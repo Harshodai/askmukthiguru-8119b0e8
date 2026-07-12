@@ -17,14 +17,14 @@ const SereneMindContext = createContext<SereneMindContextValue | null>(null);
 
 export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [initialTab, setInitialTab] = useState<SereneMindTab>('breathing');
+  const [initialTab, setInitialTab] = useState<SereneMindTab>('audio');
   const [isGated, setIsGated] = useState(false);
   const [onComplete, setOnCompleteState] = useState<(() => void) | null>(null);
   const [customSteps, setCustomSteps] = useState<MeditationStep[] | undefined>();
   const [sourceTeaching, setSourceTeaching] = useState<string | undefined>();
 
   const open = useCallback(
-    (tab: SereneMindTab = 'breathing', gated = false, steps?: MeditationStep[], teaching?: string) => {
+    (tab: SereneMindTab = 'audio', gated = false, steps?: MeditationStep[], teaching?: string) => {
       setInitialTab(tab);
       setIsGated(gated);
       setCustomSteps(steps);

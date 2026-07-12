@@ -1,10 +1,13 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from app.config import settings
+from app.pipeline.pipeline_coordinator import PipelineCoordinator
 from app.pipeline.stages import GraphStage
 from app.pipeline.stages.context import PipelineContext
-from app.pipeline.pipeline_coordinator import PipelineCoordinator
-from app.config import settings
 from services.nim_service import NimService
+
 
 class _DirectCoalescer:
     async def get_or_run(self, key, callback):

@@ -11,11 +11,10 @@ The X-Test-Key value must match BENCHMARK_SECRET.
 from __future__ import annotations
 
 import os
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch
 
+import pytest
 from fastapi import Request
-from fastapi.security import HTTPAuthorizationCredentials
 
 
 @pytest.fixture(autouse=True)
@@ -43,11 +42,10 @@ class TestTestAuthStrategyRegistration:
 
     def test_not_registered_by_default(self):
         """Default config (ENABLE_TEST_AUTH=false) → strategy NOT registered."""
-        from app.config import Settings
-        from services.auth_service import _strategies
-
         # Fresh settings with defaults - override env vars to test default
         import os
+
+        from app.config import Settings
         original_test = os.environ.get("ENABLE_TEST_AUTH")
         original_prod = os.environ.get("IS_PRODUCTION")
         os.environ["ENABLE_TEST_AUTH"] = "false"
@@ -70,6 +68,7 @@ class TestTestAuthStrategyRegistration:
 
         # Re-import to trigger registration logic with fresh settings
         import importlib
+
         import services.auth_service as auth_module
         importlib.reload(auth_module)
 
@@ -91,6 +90,7 @@ class TestTestAuthStrategyRegistration:
             assert settings.benchmark_secret == ""
 
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -109,6 +109,7 @@ class TestTestAuthStrategyRegistration:
             assert settings.is_production is True
 
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -129,6 +130,7 @@ class TestTestAuthStrategyRegistration:
             assert settings.benchmark_secret == "my-benchmark-secret"
 
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -148,6 +150,7 @@ class TestTestAuthStrategyAuthentication:
             "BENCHMARK_SECRET": "my-secret",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -172,6 +175,7 @@ class TestTestAuthStrategyAuthentication:
             "BENCHMARK_SECRET": "correct-secret",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -192,6 +196,7 @@ class TestTestAuthStrategyAuthentication:
             "BENCHMARK_SECRET": "my-secret",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -212,6 +217,7 @@ class TestTestAuthStrategyAuthentication:
             "BENCHMARK_SECRET": "",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -235,10 +241,11 @@ class TestAuthBridgeIntegration:
             "ENABLE_TEST_AUTH": "false",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
-            from services.auth_service import auth_bridge, get_current_user_from_supabase
+            from services.auth_service import auth_bridge
 
             request = _make_request({"X-Test-Key": "any-secret"})
 
@@ -257,6 +264,7 @@ class TestAuthBridgeIntegration:
             "BENCHMARK_SECRET": "test-secret-123",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 
@@ -278,6 +286,7 @@ class TestAuthBridgeIntegration:
             "BENCHMARK_SECRET": "correct-secret",
         }, clear=False):
             import importlib
+
             import services.auth_service as auth_module
             importlib.reload(auth_module)
 

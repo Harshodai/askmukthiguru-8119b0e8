@@ -2,14 +2,12 @@
 outage — it must not trip the circuit breaker. See lessons.md #118 for the
 identical bug already fixed on the OpenRouter provider; this covers the
 Ollama provider fix."""
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from app.config import settings
 from ollama import ResponseError
 
+from app.config import settings
 from services.ollama_service import OllamaService
 
 

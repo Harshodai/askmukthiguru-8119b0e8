@@ -1,11 +1,10 @@
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-import asyncio
-import hashlib
+
 from app.config import settings
-from ingest.pipeline import IngestionPipeline, IngestionCheckpoint
-from app.pipeline import PipelineCoordinator
-from app.pipeline.result import PipelineResult
+from ingest.pipeline import IngestionCheckpoint, IngestionPipeline
+
 
 def test_cache_config_settings():
     assert settings.semantic_cache_similarity == 0.90
@@ -14,8 +13,9 @@ def test_cache_config_settings():
 
 @pytest.mark.asyncio
 async def test_proactive_serene_mind_dict_return(monkeypatch):
-    from app.pipeline.stages.distress_stage import DistressStage
     from types import SimpleNamespace
+
+    from app.pipeline.stages.distress_stage import DistressStage
 
     container = MagicMock()
     container.serene_mind = None

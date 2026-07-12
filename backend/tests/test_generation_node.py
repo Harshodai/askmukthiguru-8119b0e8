@@ -9,7 +9,7 @@ import pytest
 
 import rag.nodes as nodes
 from rag.nodes import _services
-from rag.nodes.generation import _compute_context_budget, format_final_answer, generate_answer
+from rag.nodes.generation import _compute_context_budget, generate_answer
 from rag.states import GraphState
 
 

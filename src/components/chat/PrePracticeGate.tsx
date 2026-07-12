@@ -69,7 +69,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
     setAsked(true);
     window.dispatchEvent(new CustomEvent('askmukthiguru:pre_practice_completed'));
     if (answer === 'none') {
-      setTimeout(() => openSereneMind('breathing'), 250);
+      setTimeout(() => openSereneMind('audio'), 250);
     }
   };
 

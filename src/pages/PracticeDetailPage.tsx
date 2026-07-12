@@ -6,7 +6,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getPracticeBySlug } from '@/lib/practicesContent';
+import { getPracticeBySlug, getLocalizedPractice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { recordRecentPractice } from '@/lib/favoritesStorage';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,11 @@ const PracticeDetailPage = () => {
   const practice = getPracticeBySlug(slug);
   const { isFavorited, toggle } = useFavorites();
   const { toast } = useToast();
-  
+  const { t, i18n } = useTranslation();
+  // Localised copy for rendering; base `practice` remains canonical English for
+  // SEO meta + JSON-LD (which must be language-neutral at server-render time).
+  const lp = practice ? getLocalizedPractice(practice, t, i18n.language) : practice;
+
   const fav = practice ? isFavorited(practice.slug) : false;
   const [shareCopied, setShareCopied] = useState(false);
 
@@ -87,9 +91,9 @@ const PracticeDetailPage = () => {
     : null;
 
   const handleShare = async () => {
-    const stepsText = practice.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
-    const benefitsText = practice.benefits.map((b) => `• ${b}`).join('\n');
-    const shareText = `🧘 *${practice.title}* — ${practice.tagline} (${practice.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}\n\n🎥 *Guided Video:* ${watchUrl}\n\nShared via AskMukthiGuru`;
+    const stepsText = lp.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
+    const benefitsText = lp.benefits.map((b) => `• ${b}`).join('\n');
+    const shareText = `🧘 *${lp.title}* — ${lp.tagline} (${lp.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}\n\n🎥 *Guided Video:* ${watchUrl}\n\nShared via AskMukthiGuru`;
     
     try {
       await navigator.clipboard.writeText(shareText);
@@ -110,7 +114,7 @@ const PracticeDetailPage = () => {
   };
 
   return (
-    <AppShell title={practice.title}>
+    <AppShell title={lp.title}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <Link
           to="/practices"
@@ -136,7 +140,7 @@ const PracticeDetailPage = () => {
           </div>
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
-              {practice.title}
+              {lp.title}
             </h1>
             <div className="flex gap-2 shrink-0">
               <Button
@@ -176,7 +180,7 @@ const PracticeDetailPage = () => {
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
-            {practice.tagline}
+            {lp.tagline}
           </p>
         </motion.header>
 
@@ -199,7 +203,7 @@ const PracticeDetailPage = () => {
               <iframe
                 className="absolute inset-0 w-full h-full"
                 src={embedSrc}
-                title={`${practice.title} — guided video`}
+                title={`${lp.title} — guided video`}
                 loading="lazy"
                 allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -229,7 +233,7 @@ const PracticeDetailPage = () => {
                 <iframe
                   className="absolute inset-0 w-full h-full"
                   src={audioEmbed}
-                  title={`${practice.title} — audio`}
+                  title={`${lp.title} — audio`}
                   loading="lazy"
                   allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -247,7 +251,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
-              {practice.purpose}
+              {lp.purpose}
             </p>
           </CardContent>
         </Card>
@@ -259,7 +263,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
-              {practice.howItWorks.map((step) => {
+              {lp.howItWorks.map((step) => {
                 const parts = step.split(': ');
                 if (parts.length > 1) {
                   return (
@@ -281,7 +285,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
-              {practice.benefits.map((benefit) => {
+              {lp.benefits.map((benefit) => {
                 const parts = benefit.split(': ');
                 if (parts.length > 1) {
                   return (

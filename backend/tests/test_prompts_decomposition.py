@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
-
 BACKEND = Path(__file__).resolve().parent.parent
 
 
@@ -64,9 +61,9 @@ def test_all_public_prompts_reexported():
 
 def test_submodule_imports():
     """Constants are importable from their concern-specific submodule."""
-    from rag.prompts.system import GURU_SYSTEM_PROMPT, MEDITATION_STEPS
-    from rag.prompts.rag import STIMULUS_RAG_PROMPT, HYDE_PROMPT
     from rag.prompts.guardrails import INTENT_CLASSIFICATION_PROMPT
+    from rag.prompts.rag import HYDE_PROMPT, STIMULUS_RAG_PROMPT
+    from rag.prompts.system import GURU_SYSTEM_PROMPT, MEDITATION_STEPS
 
     assert isinstance(GURU_SYSTEM_PROMPT, str)
     assert isinstance(MEDITATION_STEPS, list)
