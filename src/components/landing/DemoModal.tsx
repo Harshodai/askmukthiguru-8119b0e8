@@ -92,8 +92,8 @@ const SLIDES = [
     emoji: '🧘',
     title: 'Serene Mind Meditation',
     subtitle: '3-minute guided breathwork to calm the mind and enter the Beautiful State — available any time.',
-    color: '#a78bfa',
-    glow: 'rgba(167, 139, 250, 0.25)',
+    color: '#d4af37',
+    glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
       <div className="flex flex-col items-center justify-center py-4 gap-5">
         {/* Breathing orb */}
@@ -102,22 +102,22 @@ const SLIDES = [
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             width: 88, height: 88, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(167,139,250,0.6) 0%, rgba(139,92,246,0.2) 60%, transparent 100%)',
-            border: '2px solid rgba(167,139,250,0.4)',
+            background: 'radial-gradient(circle, rgba(212,175,55,0.6) 0%, rgba(212,175,55,0.2) 60%, transparent 100%)',
+            border: '2px solid rgba(212,175,55,0.4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 40px rgba(167,139,250,0.3)',
+            boxShadow: '0 0 40px rgba(212,175,55,0.3)',
           }}
         >
           <motion.div
             animate={{ scale: [1, 0.85, 1] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(167,139,250,0.3)', border: '1px solid rgba(167,139,250,0.5)' }}
+            style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(212,175,55,0.3)', border: '1px solid rgba(212,175,55,0.5)' }}
           />
         </motion.div>
         <motion.p
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ fontSize: 13, color: 'rgba(167,139,250,0.9)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}
+          style={{ fontSize: 13, color: 'rgba(212,175,55,0.9)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}
         >
           Breathe in...
         </motion.p>
@@ -127,7 +127,7 @@ const SLIDES = [
             initial={{ width: 0 }}
             animate={{ width: '60%' }}
             transition={{ duration: 1.5, delay: 0.4 }}
-            style={{ height: '100%', background: 'linear-gradient(90deg,#a78bfa,#c4b5fd)', borderRadius: 100 }}
+            style={{ height: '100%', background: 'linear-gradient(90deg,#d4af37,#fbbf24)', borderRadius: 100 }}
           />
         </div>
         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>1:48 remaining</p>
@@ -140,18 +140,18 @@ const SLIDES = [
     emoji: '🧠',
     title: 'Your Wisdom Knowledge Graph',
     subtitle: 'Watch your insights form a living map of concepts, teachings, and personal breakthroughs.',
-    color: '#34d399',
-    glow: 'rgba(52, 211, 153, 0.25)',
+    color: '#d4af37',
+    glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
       <div className="relative flex items-center justify-center" style={{ height: 160 }}>
         {/* Nodes */}
         {[
-          { x: 50, y: 50, label: 'Beautiful State', size: 28, color: '#34d399', delay: 0.1 },
-          { x: 20, y: 25, label: 'Equanimity', size: 20, color: '#6ee7b7', delay: 0.25 },
-          { x: 78, y: 30, label: 'Awareness', size: 22, color: '#6ee7b7', delay: 0.35 },
-          { x: 15, y: 70, label: 'Presence', size: 18, color: '#a7f3d0', delay: 0.45 },
-          { x: 80, y: 72, label: 'Compassion', size: 20, color: '#a7f3d0', delay: 0.55 },
-          { x: 50, y: 85, label: 'Surrender', size: 17, color: '#a7f3d0', delay: 0.65 },
+          { x: 50, y: 50, label: 'Beautiful State', size: 28, color: '#d4af37', delay: 0.1 },
+          { x: 20, y: 25, label: 'Equanimity', size: 20, color: '#fbbf24', delay: 0.25 },
+          { x: 78, y: 30, label: 'Awareness', size: 22, color: '#fbbf24', delay: 0.35 },
+          { x: 15, y: 70, label: 'Presence', size: 18, color: '#fde68a', delay: 0.45 },
+          { x: 80, y: 72, label: 'Compassion', size: 20, color: '#fde68a', delay: 0.55 },
+          { x: 50, y: 85, label: 'Surrender', size: 17, color: '#fde68a', delay: 0.65 },
         ].map((node, i) => (
           <motion.div
             key={i}
@@ -193,7 +193,7 @@ const SLIDES = [
               key={i}
               x1={`${x1}%`} y1={`${y1}%`}
               x2={`${x2}%`} y2={`${y2}%`}
-              stroke="#34d399"
+              stroke="#d4af37"
               strokeWidth={1}
               initial={{ pathLength: 0, opacity: 0 }}
               animate={{ pathLength: 1, opacity: 0.6 }}

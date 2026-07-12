@@ -134,14 +134,12 @@ export const HeroSection = () => {
                       width: 56,
                       height: 56,
                       borderRadius: '50%',
-                      background: 'rgba(10,10,14,0.7)',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(212, 175, 55, 0.4)',
+                      background: 'linear-gradient(135deg, #d4af37 0%, #f59e0b 100%)',
+                      border: '1.5px solid rgba(255, 255, 255, 0.45)',
                       boxShadow: [
-                        '0 0 0 1px rgba(212, 175, 55, 0.15) inset',
-                        '0 8px 24px rgba(212, 175, 55, 0.25)',
-                        '0 2px 8px rgba(0,0,0,0.5)',
+                        '0 0 0 1px rgba(255, 255, 255, 0.2) inset',
+                        '0 8px 24px rgba(212, 175, 55, 0.4)',
+                        '0 2px 8px rgba(0,0,0,0.35)',
                       ].join(', '),
                       position: 'relative',
                     }}
@@ -152,7 +150,7 @@ export const HeroSection = () => {
                         position: 'absolute',
                         inset: 0,
                         borderRadius: '50%',
-                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08), transparent 60%)',
+                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), transparent 60%)',
                       }}
                     />
                     <Play
@@ -162,7 +160,7 @@ export const HeroSection = () => {
                         color: '#ffffff',
                         fill: '#ffffff',
                         marginLeft: 2, // optical centering for play icon
-                        filter: 'drop-shadow(0 0 8px rgba(212, 175, 55, 0.6))',
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
                       }}
                     />
                   </motion.span>
