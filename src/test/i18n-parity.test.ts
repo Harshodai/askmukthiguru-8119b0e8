@@ -10,7 +10,7 @@
  * translations. When you add a key to en.json, also add it to hi.json and
  * te.json OR extend the baseline.
  *
- * Run: `npx vitest run src/test/i18n-parity.test.ts`
+ * Run: `npm test` or `npm run test:watch`
  */
 
 import { describe, it, expect } from 'vitest';

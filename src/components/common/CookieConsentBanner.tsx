@@ -66,17 +66,17 @@ export const CookieConsentBanner = () => {
               </p>
               <div className="flex gap-2 pt-0.5">
                 <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5" onClick={() => decide('rejected')}>
-                  {t('common.reject')}
+                  {t('common.reject') === 'common.reject' ? 'Reject' : t('common.reject')}
                 </Button>
                 <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={() => decide('accepted')}>
-                  {t('common.accept')}
+                  {t('common.accept') === 'common.accept' ? 'Accept' : t('common.accept')}
                 </Button>
               </div>
             </div>
             <button
               onClick={() => decide('rejected')}
               className="p-1 rounded hover:bg-muted text-muted-foreground"
-              aria-label={t('common.dismiss')}
+              aria-label={t('common.dismiss') === 'common.dismiss' ? 'Dismiss' : t('common.dismiss')}
             >
               <X className="w-3.5 h-3.5" />
             </button>

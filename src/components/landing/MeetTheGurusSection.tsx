@@ -20,11 +20,11 @@ export const MeetTheGurusSection = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="text-foreground">{t('landing.gurus.heading1')}</span>{' '}
-            <span className="text-gradient-gold">{t('landing.gurus.heading2')}</span>
+            <span className="text-foreground">{t('landing.meetGurus.heading1')}</span>{' '}
+            <span className="text-gradient-gold">{t('landing.meetGurus.heading2')}</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            {t('landing.gurus.subtitle')}
+            {t('landing.meetGurus.subtitle')}
           </p>
         </motion.div>
 
@@ -61,13 +61,13 @@ export const MeetTheGurusSection = () => {
               {/* Content */}
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  {t('landing.gurus.name')}
+                  {t('landing.meetGurus.name')}
                 </h3>
                 <p className="text-ojas font-medium mb-4">
-                  {t('landing.gurus.title')}
+                  {t('landing.meetGurus.title')}
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  {t('landing.gurus.description')}
+                  {t('landing.meetGurus.description')}
                 </p>
 
                 {/* Key Teachings */}
@@ -89,7 +89,7 @@ export const MeetTheGurusSection = () => {
               <div className="flex items-start gap-4">
                 <Sparkles className="w-6 h-6 text-ojas flex-shrink-0 mt-1" />
                 <blockquote className="text-lg italic text-foreground">
-                  {t('landing.gurus.quote')}
+                  {t('landing.meetGurus.quote')}
                 </blockquote>
               </div>
             </div>
@@ -105,7 +105,7 @@ export const MeetTheGurusSection = () => {
           className="text-center mt-8 text-sm text-muted-foreground"
         >
           <Heart className="w-4 h-4 inline mr-2 text-ojas" />
-          {t('landing.gurus.disclosure')}
+          {t('landing.meetGurus.disclosure')}
         </motion.p>
       </div>
     </section>

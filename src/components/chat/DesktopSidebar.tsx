@@ -196,7 +196,7 @@ export const DesktopSidebar = ({
               <img src={gurusPhoto} alt={t('desktopSidebar.gurusAlt')} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">{t('nav.appName')}</p>
+              <p className="text-sm font-semibold text-foreground truncate">{t('nav.appName') === 'nav.appName' ? 'AskMukthiGuru' : t('nav.appName')}</p>
               <p className="text-[10px] text-muted-foreground">{t('desktopSidebar.tagline')}</p>
             </div>
             <button
@@ -215,7 +215,7 @@ export const DesktopSidebar = ({
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium bg-ojas/10 hover:bg-ojas/15 text-ojas border border-ojas/20 hover:border-ojas/35 transition-all"
             >
               <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-              {t('desktopSidebar.newConversation')}
+              {t('desktopSidebar.newConversation') === 'desktopSidebar.newConversation' ? 'New Conversation' : t('desktopSidebar.newConversation')}
             </button>
             <button
               onClick={onOpenSereneMind}
@@ -324,7 +324,7 @@ export const DesktopSidebar = ({
                             onClick={e => handleRename(conv, e)}
                             className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                             title={t('desktopSidebar.rename')}
-                            aria-label={t('desktopSidebar.renameConv')}
+                            aria-label={t('desktopSidebar.renameConv') === 'desktopSidebar.renameConv' ? 'Rename conversation' : t('desktopSidebar.renameConv')}
                           >
                             <Edit2 className="w-2.5 h-2.5" />
                           </button>
@@ -335,7 +335,7 @@ export const DesktopSidebar = ({
                             }}
                             className="p-1 rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
                             title={t('common.delete')}
-                            aria-label={t('desktopSidebar.deleteConv')}
+                            aria-label={t('desktopSidebar.deleteConv') === 'desktopSidebar.deleteConv' ? 'Delete conversation' : t('desktopSidebar.deleteConv')}
                           >
                             <Trash2 className="w-2.5 h-2.5" />
                           </button>
@@ -361,7 +361,7 @@ export const DesktopSidebar = ({
           {deleteConfirmId && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 text-center">
               <div className="bg-card border border-border/50 rounded-2xl p-4 shadow-xl max-w-[240px] space-y-3">
-                <p className="text-xs font-semibold text-foreground">{t('desktopSidebar.deleteTitle')}</p>
+                <p className="text-xs font-semibold text-foreground">{t('desktopSidebar.deleteTitle') === 'desktopSidebar.deleteTitle' ? 'Delete conversation?' : t('desktopSidebar.deleteTitle')}</p>
                 <p className="text-[10px] text-muted-foreground">{t('desktopSidebar.deleteWarning')}</p>
                 <div className="flex items-center gap-2 justify-center">
                   <button

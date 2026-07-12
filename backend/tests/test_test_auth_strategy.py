@@ -42,39 +42,25 @@ class TestTestAuthStrategyRegistration:
 
     def test_not_registered_by_default(self):
         """Default config (ENABLE_TEST_AUTH=false) → strategy NOT registered."""
-        # Fresh settings with defaults - override env vars to test default
-        import os
-
-        from app.config import Settings
-        original_test = os.environ.get("ENABLE_TEST_AUTH")
-        original_prod = os.environ.get("IS_PRODUCTION")
-        os.environ["ENABLE_TEST_AUTH"] = "false"
-        os.environ["IS_PRODUCTION"] = "true"
-        try:
+        with patch.dict(os.environ, {
+            "ENABLE_TEST_AUTH": "false",
+            "IS_PRODUCTION": "true",
+            "BENCHMARK_SECRET": "",
+        }, clear=False):
+            from app.config import Settings
             settings = Settings()
             assert settings.enable_test_auth is False
             assert settings.is_production is True
-        finally:
-            if original_test is not None:
-                os.environ["ENABLE_TEST_AUTH"] = original_test
-            else:
-                os.environ.pop("ENABLE_TEST_AUTH", None)
-            if original_prod is not None:
-                os.environ["IS_PRODUCTION"] = original_prod
-            else:
-                os.environ.pop("IS_PRODUCTION", None)
-        assert settings.is_production is True
-        assert settings.benchmark_secret is None
+            assert settings.benchmark_secret == ""
 
-        # Re-import to trigger registration logic with fresh settings
-        import importlib
+            import importlib
 
-        import services.auth_service as auth_module
-        importlib.reload(auth_module)
+            import services.auth_service as auth_module
+            importlib.reload(auth_module)
 
-        # Should NOT have TestAuthStrategy
-        from services.auth_service import TestAuthStrategy
-        assert not any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
+            # Should NOT have TestAuthStrategy
+            from services.auth_service import TestAuthStrategy
+            assert not any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
 
     def test_not_registered_when_enable_true_but_no_secret(self):
         """ENABLE_TEST_AUTH=true but BENCHMARK_SECRET unset → strategy NOT registered."""

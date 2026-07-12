@@ -321,6 +321,36 @@ class OpenRouterService:
             **kwargs,
         )
 
+    async def generate_raw(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        model: str,
+        **kwargs,
+    ) -> str:
+        """Raw generation without graceful degradation — exceptions propagate.
+        
+        Intended for callers (e.g., translation providers) that need failures
+        to bubble up for fallback logic, unlike `_generate_fast`/`translate_text`
+        which swallow errors.
+        """
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_prompt})
+
+        temperature = kwargs.pop("temperature", 0.0)
+        max_tokens = kwargs.pop("max_tokens", 2048)
+
+        return await self._call_api(
+            messages=messages,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            operation="raw_generation",
+            **kwargs,
+        )
+
     async def generate_stream(
         self,
         system_prompt: str,

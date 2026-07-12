@@ -19,10 +19,15 @@ const STEPS: Step[] = [
 
 interface GuidedTourProps {
   isOpen: boolean;
+  /** Fired only when the user finishes the tour ("Got it") — marks it confirmed. */
   onComplete: () => void;
+  /** Fired when the user dismisses without finishing (skip / Escape). Must NOT mark
+   *  the tour confirmed, so it can re-show on later visits. Falls back to onComplete. */
+  onDismiss?: () => void;
 }
 
-export const GuidedTour = ({ isOpen, onComplete }: GuidedTourProps) => {
+export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) => {
+  const dismiss = onDismiss ?? onComplete;
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
@@ -99,12 +104,12 @@ export const GuidedTour = ({ isOpen, onComplete }: GuidedTourProps) => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onComplete();
+        dismiss();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onComplete]);
+  }, [isOpen, dismiss]);
 
   const handleNext = () => {
     if (stepIndex < STEPS.length - 1) {
@@ -144,7 +149,7 @@ export const GuidedTour = ({ isOpen, onComplete }: GuidedTourProps) => {
                 </span>
                 <div className="flex-1" />
                 <button
-                  onClick={onComplete}
+                  onClick={dismiss}
                   className="text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors font-medium"
                 >
                   {t('onboarding.tour.skip')}

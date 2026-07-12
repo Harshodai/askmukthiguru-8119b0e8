@@ -11,7 +11,7 @@ import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
 import { submitFeedbackToBackend, translateText } from '@/lib/aiService';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
-import { InlineActions } from './InlineActions';
+import { InlineActions, EngagementCard } from './InlineActions';
 import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
@@ -48,6 +48,16 @@ const injectCitationLinks = (content: string, citationsLen: number): string => {
   });
 };
 
+
+/**
+ * True when a guru answer is a crisis/helpline response. Such answers must never
+ * carry the "Did this help? 👍/👎" engagement card or the "explain simply" inline
+ * actions — a thumbs-down widget under a suicide helpline is unsafe. The backend
+ * crisis path (services/crisis_helplines.format_helplines_block) always emits the
+ * 🆘 intro; we also match a bare helpline heading defensively.
+ */
+const isCrisisAnswer = (content: string): boolean =>
+  /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
 
 const getDomain = (url: string): string => {
   try {
@@ -166,10 +176,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
     const { t } = useTranslation();
     const FEEDBACK_TAGS = [
-      t('chat.clearAnswer'),
-      t('chat.relevantSources'),
-      t('chat.calmingTone'),
-      t('chat.insightful'),
+      t('chat.clearAnswer') === 'chat.clearAnswer' ? 'Clear answer' : t('chat.clearAnswer'),
+      t('chat.relevantSources') === 'chat.relevantSources' ? 'Relevant sources' : t('chat.relevantSources'),
+      t('chat.calmingTone') === 'chat.calmingTone' ? 'Calming tone' : t('chat.calmingTone'),
+      t('chat.insightful') === 'chat.insightful' ? 'Insightful' : t('chat.insightful'),
     ];
     const isGuru = message.role === 'guru';
     const navigate = useNavigate();
@@ -611,9 +621,17 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                 )}
               </div>
 
-              {/* Inline action buttons for the latest guru message only */}
-              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && (
+              {/* Inline action buttons for the latest guru message only.
+                  Suppressed on crisis/helpline answers (see isCrisisAnswer). */}
+              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
                 <InlineActions messageContent={message.content} onAction={onAction} />
+              )}
+
+              {/* Engagement card: "Did this help?" — shown for the last guru answer.
+                  Never shown on crisis/helpline answers — a feedback widget under a
+                  helpline is unsafe (see isCrisisAnswer). */}
+              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                <EngagementCard messageContent={message.content} queryText={queryText} />
               )}
 
 
@@ -720,7 +738,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               >
                 <Sparkles className="w-2.5 h-2.5 text-muted-foreground/60" aria-hidden />
                 <span>
-                  AI-generated{citations.length > 0 ? ` · ${citations.length} ${citations.length === 1 ? 'source' : 'sources'}` : ''}
+                  AI-generated
                 </span>
               </div>
             )}

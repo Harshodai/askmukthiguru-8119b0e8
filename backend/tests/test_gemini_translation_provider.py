@@ -20,14 +20,14 @@ def _run(coro):
 
 
 def test_translate_text_calls_openrouter_with_gemini_model(monkeypatch):
-    """The configured gemini_model must reach OpenRouter via _generate_fast."""
+    """The configured gemini_model must reach OpenRouter via generate_raw."""
     from app.config import settings as _settings  # noqa: F401  (ensures import)
     from services.translation.gemini_provider import GeminiTranslationProvider
 
     monkeypatch.setattr(_settings, "gemini_model", "google/gemini-2.5-flash", raising=False)
 
     fake_or = MagicMock()
-    fake_or._generate_fast = AsyncMock(return_value="नमस्ते")
+    fake_or.generate_raw = AsyncMock(return_value="नमस्ते")
     fake_or.is_available = True
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
@@ -38,8 +38,8 @@ def test_translate_text_calls_openrouter_with_gemini_model(monkeypatch):
     )
 
     assert out == "नमस्ते"
-    fake_or._generate_fast.assert_awaited_once()
-    _, kwargs = fake_or._generate_fast.call_args
+    fake_or.generate_raw.assert_awaited_once()
+    _, kwargs = fake_or.generate_raw.call_args
     assert kwargs.get("model") == "google/gemini-2.5-flash"
 
 
@@ -51,14 +51,14 @@ def test_translate_text_reraises_on_openrouter_exception(monkeypatch):
     monkeypatch.setattr(_settings, "gemini_model", "google/gemini-2.5-flash", raising=False)
 
     fake_or = MagicMock()
-    fake_or._generate_fast = AsyncMock(side_effect=RuntimeError("openrouter 503"))
+    fake_or.generate_raw = AsyncMock(side_effect=RuntimeError("openrouter 503"))
     fake_or.is_available = True
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
     with pytest.raises(RuntimeError, match="503"):
         _run(
             provider.translate_text(
-                text="Hello [^1]", source_lang="en", target_lang="hi"
+                text="Hello [1]", source_lang="en", target_lang="hi"
             )
         )
 
@@ -71,16 +71,16 @@ def test_translate_text_preserves_citation_markers_when_or_returns_markers(monke
     monkeypatch.setattr(_settings, "gemini_model", "google/gemini-2.5-flash", raising=False)
 
     fake_or = MagicMock()
-    fake_or._generate_fast = AsyncMock(return_value="उत्तर [^1]")
+    fake_or.generate_raw = AsyncMock(return_value="उत्तर [1]")
     fake_or.is_available = True
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
     out = _run(
         provider.translate_text(
-            text="Answer with citation [^1]", source_lang="en", target_lang="hi"
+            text="Answer with citation [1]", source_lang="en", target_lang="hi"
         )
     )
-    assert "[^1]" in out
+    assert "[1]" in out
 
 
 def test_translate_text_restitches_markers_when_stripped(monkeypatch):
@@ -91,18 +91,18 @@ def test_translate_text_restitches_markers_when_stripped(monkeypatch):
     monkeypatch.setattr(_settings, "gemini_model", "google/gemini-2.5-flash", raising=False)
 
     fake_or = MagicMock()
-    # Gemini dropped [^1] from the translation.
-    fake_or._generate_fast = AsyncMock(return_value="यह एक उत्तर है")
+    # Gemini dropped [1] from the translation.
+    fake_or.generate_raw = AsyncMock(return_value="यह एक उत्तर है")
     fake_or.is_available = True
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
     out = _run(
         provider.translate_text(
-            text="This is an answer [^1] and [^2]", source_lang="en", target_lang="hi"
+            text="This is an answer [1] and [2]", source_lang="en", target_lang="hi"
         )
     )
     # Best-effort: at least one marker recovered from the original must be present.
-    assert "[^1]" in out or "[^2]" in out
+    assert "[1]" in out or "[2]" in out
 
 
 def test_health_check_false_when_openrouter_unavailable():

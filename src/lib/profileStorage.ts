@@ -192,11 +192,26 @@ export const loadProfile = (): UserProfile => {
   }
 };
 
+/** Locales with actual UI translations (src/locales/*.json). Others fall back to English chrome. */
+const UI_LOCALES = ['en', 'hi', 'te'] as const;
+
 export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true): void => {
   try {
     const next = { ...profile, updatedAt: new Date() };
     localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
     window.dispatchEvent(new CustomEvent('profile:updated', { detail: next }));
+
+    // Keep the i18n detector key + live UI language in lockstep with the profile.
+    // The other ~20 answer-languages have no UI translations, so the chrome stays English.
+    const uiLang = UI_LOCALES.includes(next.preferredLanguage as (typeof UI_LOCALES)[number])
+      ? next.preferredLanguage
+      : 'en';
+    localStorage.setItem('askmukthiguru_profile.preferredLanguage', uiLang);
+    // Dynamic import avoids an import cycle (i18n → react-i18next) and keeps this
+    // module usable in non-React contexts/tests.
+    void import('@/i18n').then(({ default: i18n }) => {
+      if (i18n.language !== uiLang) i18n.changeLanguage(uiLang);
+    });
 
     if (syncWithServer) {
       syncProfileToServer(next);

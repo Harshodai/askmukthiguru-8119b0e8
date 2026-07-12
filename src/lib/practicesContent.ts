@@ -150,7 +150,7 @@ export const getLocalizedPractice = (
   t: (key: string, opts?: unknown) => string,
   lang: string = 'en',
 ): Practice => {
-  if (!practice.i18nKey || lang === 'en') return practice;
+  if (!practice.i18nKey) return practice;
 
   // Helper: read an i18n key, returning the *same* fallback string when the key
   // is missing in the active locale (i18next returns the key itself when no
@@ -166,6 +166,11 @@ export const getLocalizedPractice = (
     const value = t(key, { returnObjects: true }) as unknown;
     if (Array.isArray(value) && value.length === fallback.length) {
       return value as string[];
+    }
+    if (import.meta.env.DEV && Array.isArray(value)) {
+      console.warn(
+        `[i18n] Translation key "${key}" returned array of length ${value.length}, expected ${fallback.length}. Falling back to English.`,
+      );
     }
     return fallback;
   };

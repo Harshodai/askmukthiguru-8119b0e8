@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
+import { MoodBanner } from '@/components/mood/MoodBanner';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
@@ -19,6 +20,8 @@ import { GuidedTour } from '@/components/onboarding/GuidedTour';
 
 const LAST_SEEN_KEY = 'askmukthiguru_last_seen';
 const TOUR_COMPLETED_KEY = 'askmukthiguru_tour_completed';
+const TOUR_SHOWN_COUNT_KEY = 'askmukthiguru_tour_shown_count';
+const TOUR_MAX_SHOWS = 3;
 const ONBOARDED_KEY = 'askmukthiguru_onboarded';
 
 const ChatPage = () => {
@@ -50,13 +53,23 @@ const ChatPage = () => {
     if (loading) return;
     const onboarded = localStorage.getItem(ONBOARDED_KEY) === '1';
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
-    if (onboarded && !tourDone) {
+    const shownCount = parseInt(localStorage.getItem(TOUR_SHOWN_COUNT_KEY) || '0', 10);
+    // Re-show the tour on later visits until the user actually finishes it ("Got it"),
+    // up to TOUR_MAX_SHOWS times. Skipping/Escape counts as a show but not a completion.
+    if (onboarded && !tourDone && shownCount < TOUR_MAX_SHOWS) {
+      localStorage.setItem(TOUR_SHOWN_COUNT_KEY, String(shownCount + 1));
       setTourOpen(true);
     }
   }, [loading]);
 
+  // "Got it" — the user finished the tour; never show it again.
   const handleTourComplete = () => {
     localStorage.setItem(TOUR_COMPLETED_KEY, '1');
+    setTourOpen(false);
+  };
+
+  // Skip / Escape — dismiss without confirming, so it can re-show next visit.
+  const handleTourDismiss = () => {
     setTourOpen(false);
   };
 
@@ -110,8 +123,9 @@ const ChatPage = () => {
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>
+      <MoodBanner />
       <ChatInterface />
-      <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} />
+      <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="gap-2">

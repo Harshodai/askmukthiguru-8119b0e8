@@ -112,7 +112,7 @@ export const completeMeditationSession = async (
   extras?: { mood?: string; reflection?: string; gratitude?: string },
   /** Whether the user fully completed (true) or exited early (false). Defaults to true. */
   completed = true
-): Promise<void> => {
+): Promise<MeditationSession> => {
   const sessions = loadMeditationSessions();
   const existingIndex = sessions.findIndex(s => s.id === sessionId);
 
@@ -160,6 +160,8 @@ export const completeMeditationSession = async (
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('askmukthiguru:meditation_completed'));
   }
+
+  return completedSession;
 };
 
 /**
@@ -168,7 +170,14 @@ export const completeMeditationSession = async (
 const calculateStreak = (sessions: MeditationSession[]): number => {
   if (sessions.length === 0) return 0;
 
-  const completedSessions = sessions.filter(s => s.completed);
+  // Forgiving streak: any genuine sit keeps the streak alive — a full session OR a
+  // partial of at least 30s (Insight-Timer pattern). Zero-duration rows (mood
+  // check-ins are stored as completed 0s sessions) do NOT count, so they can't
+  // silently inflate the streak.
+  const STREAK_MIN_SECONDS = 30;
+  const completedSessions = sessions.filter(
+    s => s.durationSeconds >= STREAK_MIN_SECONDS || (s.completed && s.durationSeconds > 0),
+  );
   if (completedSessions.length === 0) return 0;
 
   // Get unique dates (only date part, not time)
@@ -287,4 +296,39 @@ export const clearMeditationData = (): void => {
   } catch (error) {
     console.error('Failed to clear meditation data:', error);
   }
+};
+
+const MOOD_CHECKIN_KEY = 'askmukthiguru_last_mood_checkin';
+
+/**
+ * Returns the Unix timestamp (ms) of the last mood check-in, or null if never.
+ */
+export const getLastMoodCheckIn = (): number | null => {
+  try {
+    const raw = localStorage.getItem(MOOD_CHECKIN_KEY);
+    if (!raw) return null;
+    const ts = parseInt(raw, 10);
+    return isNaN(ts) ? null : ts;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Record a mood check-in as a zero-duration meditation session carrying
+ * `mood` + `reflection` in `extras`, and stamp the check-in timestamp.
+ */
+export const recordMoodCheckIn = async (
+  mood: string,
+  reflection?: string,
+): Promise<MeditationSession> => {
+  const session = startMeditationSession();
+  // Zero-duration session flagged completed so it is captured in stats/history.
+  const completed = await completeMeditationSession(session.id, 0, 0, { mood, reflection }, true);
+  try {
+    localStorage.setItem(MOOD_CHECKIN_KEY, String(Date.now()));
+  } catch (error) {
+    console.error('Failed to stamp mood check-in:', error);
+  }
+  return completed;
 };

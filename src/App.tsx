@@ -9,6 +9,7 @@ import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
+import { purgeConversationsByAge, getRetentionDays } from "@/lib/chatStorage";
 
 // Pages
 const Index = lazyWithRetry(() => import("./pages/Index"));
@@ -64,6 +65,9 @@ const DebugLayout = () => (
 const App = () => {
   useEffect(() => {
     console.log('[App] Mounted');
+    // Silently purge conversations older than the user-configured retention window.
+    // Never deletes the currently active conversation.
+    purgeConversationsByAge(getRetentionDays());
   }, []);
 
   return (

@@ -115,7 +115,50 @@ export interface Conversation {
 const STORAGE_KEY = 'askmukthiguru_chat_history';
 const CONVERSATIONS_KEY = 'askmukthiguru_conversations';
 const CURRENT_CONVERSATION_KEY = 'askmukthiguru_current_conversation';
-const MAX_CONVERSATIONS = 10;
+const MAX_CONVERSATIONS_KEY = 'askmukthiguru_max_conversations';
+const RETENTION_DAYS_KEY = 'askmukthiguru_retention_days';
+
+export const getMaxConversations = (): number => {
+  try {
+    const raw = localStorage.getItem(MAX_CONVERSATIONS_KEY);
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  } catch {}
+  return 10;
+};
+
+/** Read the user-configured retention window in days (default: 90). */
+export const getRetentionDays = (): number => {
+  try {
+    const raw = localStorage.getItem(RETENTION_DAYS_KEY);
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  } catch {}
+  return 90;
+};
+
+/** Persist the retention window in days and immediately prune stale conversations. */
+export const setRetentionDays = (days: number): void => {
+  try {
+    const clamped = Math.max(1, Math.min(365, days));
+    localStorage.setItem(RETENTION_DAYS_KEY, clamped.toString());
+    // Inline purge to avoid forward-reference to purgeConversationsByAge
+    const currentId = localStorage.getItem(CURRENT_CONVERSATION_KEY);
+    const cutoff = Date.now() - clamped * 24 * 60 * 60 * 1000;
+    const raw = localStorage.getItem(CONVERSATIONS_KEY);
+    if (!raw) return;
+    const all = JSON.parse(raw) as Array<{ id: string; updatedAt: string }>;
+    const keep = all.filter(
+      (c) => c.id === currentId || new Date(c.updatedAt).getTime() >= cutoff
+    );
+    if (keep.length < all.length) {
+      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(keep));
+    }
+  } catch {}
+};
+
+// Backwards compatible constant for internal use (now derived at runtime)
+const MAX_CONVERSATIONS = getMaxConversations();
 
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -219,7 +262,7 @@ export const saveConversation = (conversation: Conversation, notify: boolean = t
     }
 
     // Keep only the last MAX_CONVERSATIONS
-    const trimmed = conversations.slice(0, MAX_CONVERSATIONS);
+    const trimmed = conversations.slice(0, getMaxConversations());
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(trimmed));
 
     // Notify sidebar (DesktopSidebar listens for this to reload its list).
@@ -284,6 +327,26 @@ export const deleteConversation = (id: string): void => {
     })();
   } catch (error) {
     console.error('Failed to delete conversation:', error);
+  }
+};
+
+/**
+ * Purge conversations older than `days` days from local storage.
+ * Never deletes the currently active conversation.
+ */
+export const purgeConversationsByAge = (days: number): void => {
+  try {
+    const currentId = getCurrentConversationId();
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const conversations = loadConversations();
+    const keep = conversations.filter(
+      (c) => c.id === currentId || new Date(c.updatedAt).getTime() >= cutoff
+    );
+    if (keep.length < conversations.length) {
+      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(keep));
+    }
+  } catch (error) {
+    console.error('Failed to purge old conversations:', error);
   }
 };
 

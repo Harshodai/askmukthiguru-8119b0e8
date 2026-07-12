@@ -74,7 +74,7 @@ import {
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
 import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
-import { loadConversations } from '@/lib/chatStorage';
+import { loadConversations, deleteConversation, getCurrentConversationId, type Conversation, getMaxConversations, getRetentionDays, setRetentionDays as saveRetentionDays, formatRelativeTime } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { MemoryManager } from '@/components/profile/MemoryManager';
@@ -153,6 +153,10 @@ const ProfilePage = () => {
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
+  const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
+  const [retention, setRetention] = useState<number>(getMaxConversations());
+  const [retentionDays, setRetentionDays_] = useState<number>(getRetentionDays());
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState<string>('');
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
   const [recalledTeachings, setRecalledTeachings] = useState<{ content: string; recall_count: number }[]>([]);
 
@@ -214,6 +218,25 @@ const ProfilePage = () => {
     });
     setDirty(false);
     toast({ title: 'Profile saved', description: 'Your preferences are updated.' });
+
+  // Sync conversation list for profile UI
+  const [localConversationCount, setLocalConversationCount] = useState(0);
+
+  useEffect(() => {
+    const reload = () => {
+      const convs = loadConversations();
+      setConversations(convs);
+      setLocalConversationCount(convs.length);
+    };
+    reload();
+    window.addEventListener('storage', reload);
+    window.addEventListener('conversation:updated', reload);
+    return () => {
+      window.removeEventListener('storage', reload);
+      window.removeEventListener('conversation:updated', reload);
+    };
+  }, []);
+
   };
 
   const handleAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,7 +341,8 @@ const ProfilePage = () => {
         {/* I'll stop here to avoid creating too large a chunk, but I'll continue below if needed. */}
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-8">
+            <TabsList className="grid w-full grid-cols-4 sm:grid-cols-6 lg:grid-cols-7 mb-8">
+                <TabsTrigger value="conversations">Conversations</TabsTrigger>
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="stats">Insights</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -552,6 +576,115 @@ const ProfilePage = () => {
 
             <TabsContent value="notes" className="space-y-6 mt-0">
               <NotesPanel />
+            </TabsContent>
+
+            <TabsContent value="conversations" className="space-y-6 mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Conversations</CardTitle>
+                  <CardDescription>Manage and prune your chat history.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* ── Days-based retention control ─────────────────────── */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Keep conversations for</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={retentionDays}
+                        onChange={e => setRetentionDays_(Math.max(1, Math.min(365, parseInt(e.target.value) || 90)))}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">days</span>
+                    </div>
+                    {/* Quick-select day presets */}
+                    <div className="flex flex-wrap gap-2">
+                      {[7, 30, 90, 180, 365].map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setRetentionDays_(d)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            retentionDays === d
+                              ? 'bg-ojas/20 border-ojas text-ojas'
+                              : 'border-border text-muted-foreground hover:border-ojas/50'
+                          }`}
+                        >
+                          {d === 365 ? '1 yr' : `${d}d`}
+                        </button>
+                      ))}
+                    </div>
+                    <Slider
+                      value={[retentionDays]}
+                      min={1}
+                      max={365}
+                      step={1}
+                      onValueChange={([v]) => setRetentionDays_(Math.max(1, Math.min(365, v)))}
+                    />
+                    <Button
+                      onClick={() => {
+                        saveRetentionDays(retentionDays);
+                        // Refresh conversation list after purge
+                        setConversations(loadConversations());
+                        toast({ title: `Retention set to ${retentionDays} days` });
+                      }}
+                    >
+                      Save retention
+                    </Button>
+                  </div>
+
+                  {conversations.length === 0 ? (
+                    <p className="text-muted-foreground">No conversations.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {conversations.map(conv => (
+                        <li key={conv.id} className="flex items-center justify-between p-2 border rounded">
+                          <div className="flex-1">
+                            <p className="font-medium">{conv.preview || 'Untitled'}</p>
+                            <p className="text-xs text-muted-foreground">{formatRelativeTime(conv.updatedAt)}</p>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => { deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setLocalConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="mt-4">Delete all conversations</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete all conversations?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Type <code>DELETE</code> to confirm. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="py-2">
+                        <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder="Type DELETE to confirm" />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteAllConfirm('')}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => {
+                          if (deleteAllConfirm.trim().toUpperCase() === 'DELETE') {
+                            const currentId = getCurrentConversationId();
+                            const toDelete = conversations.filter(c => c.id !== currentId);
+                            toDelete.forEach(c => deleteConversation(c.id));
+                            setConversations(prev => prev.filter(c => c.id === currentId));
+                            setLocalConversationCount(prev => Math.max(0, prev - toDelete.length));
+                            setDeleteAllConfirm('');
+                            toast({ title: 'All conversations deleted' });
+                          }
+                        }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'}>Confirm</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="memory" className="space-y-6 mt-0">

@@ -67,7 +67,9 @@ export const BackgroundParticles = ({
     }));
   }, [effectiveCount, isMobile]);
 
-  if (prefersReducedMotion || effectiveCount === 0) return null;
+  if (prefersReducedMotion || effectiveCount === 0) {
+    return <div className={className} />;
+  }
 
   return (
     <div className={className}>

@@ -235,7 +235,12 @@ async def test_memory_service_extract_and_write(monkeypatch):
         is_core=False,
         source="extracted",
         run_compaction=False,
-        metadata={"insight": "User is feeling anxious", "state_category": "Neutral", "related_concepts": []}
+        metadata={
+            "insight": "User is feeling anxious", 
+            "state_category": "Neutral", 
+            "related_concepts": [],
+            "summary": "User discussed anxiety and is a seeker."
+        }
     )
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.insert.assert_called_with({
@@ -364,4 +369,45 @@ async def test_memory_service_compaction(monkeypatch):
             "source": "extracted"
         }
     ])
+
+
+@pytest.mark.asyncio
+async def test_memory_service_add_explicit_episodic_merge():
+    supabase_mock = MagicMock()
+    table_mock = MagicMock()
+    update_mock = MagicMock()
+    execute_mock = MagicMock()
+    rpc_mock = MagicMock()
+    rpc_execute_mock = MagicMock()
+
+    supabase_mock.table.return_value = table_mock
+    table_mock.update.return_value = update_mock
+    update_mock.eq.return_value = update_mock
+    update_mock.execute.return_value = execute_mock
+    execute_mock.data = [{"id": "existing-id", "content": "Updated content"}]
+
+    # Mock the RPC call returning a match
+    supabase_mock.rpc.return_value = rpc_mock
+    rpc_mock.execute.return_value = rpc_execute_mock
+    rpc_execute_mock.data = [{"id": "existing-id", "similarity": 0.95}]
+
+    embedding_mock = MagicMock()
+    embedding_mock.encode_single_full.return_value = {"dense": [0.2] * 1024}
+
+    service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
+    res = await service.add_explicit("user123", "Felt very connected", is_core=False)
+
+    supabase_mock.rpc.assert_called_with(
+        "match_user_memories_by_user",
+        {
+            "p_user_id": "user123",
+            "p_query_embedding": [0.2] * 1024,
+            "p_k": 1,
+            "p_min_sim": 0.88,
+        }
+    )
+    table_mock.update.assert_called_once()
+    table_mock.insert.assert_not_called()
+    assert res == {"id": "existing-id", "content": "Updated content"}
+
 

@@ -104,7 +104,7 @@ export const ThinkingPills = ({
             hasSteps ? 'cursor-pointer' : 'cursor-default'
           }`}
           aria-expanded={expanded}
-          aria-label={t('chat.toggleThinking')}
+          aria-label={t('chat.toggleThinking') === 'chat.toggleThinking' ? 'Toggle thinking details' : t('chat.toggleThinking')}
         >
           <span className="thinking-shimmer font-serif italic text-foreground/80">{t('chat.thinking')}</span>
 
