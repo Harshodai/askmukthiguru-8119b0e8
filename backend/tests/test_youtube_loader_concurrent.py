@@ -1,7 +1,9 @@
+from unittest.mock import patch
+
 import pytest
-import asyncio
-from unittest.mock import patch, MagicMock
+
 from ingest.youtube_loader import fetch_transcripts_concurrent
+
 
 @pytest.mark.asyncio
 async def test_fetch_transcripts_concurrent_exception_safety():

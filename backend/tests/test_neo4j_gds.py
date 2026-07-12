@@ -7,6 +7,7 @@ Neo4j hasn't been restarted with the updated plugin list yet.
 from __future__ import annotations
 
 import os
+
 import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.neo4j]

@@ -7,7 +7,6 @@ Tests that:
 4. Graph variant selection is correct for various query types
 """
 import asyncio
-import re
 import sys
 from pathlib import Path
 

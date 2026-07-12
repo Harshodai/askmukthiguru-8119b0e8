@@ -96,6 +96,7 @@ class GuruMemoryResponse(BaseModel):
     created_at: str
     decay_score: float
     source: str
+    summary: Optional[str] = None
 
 
 class MemoryListResponse(BaseModel):
@@ -161,6 +162,7 @@ async def list_memories_endpoint(
                 created_at=created_iso,
                 decay_score=1.0,
                 source=m.get("source", "extracted"),
+                summary=m.get("summary"),
             )
         )
     return MemoryListResponse(
@@ -261,6 +263,36 @@ async def forget_memory_endpoint(
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
 
     return {"status": "ok", "message": "Memory forgotten"}
+
+
+@router.delete("/memory/reflections")
+async def delete_all_reflections_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Delete all of the user's episodic memories (reflections). Core facts are durable."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+    count = await container.memory_service.forget_all_reflections(user["id"])
+    return {"status": "ok", "deleted": count}
+
+
+@router.post("/memory/regenerate-summary")
+async def regenerate_summary_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Regenerate the `summary` column on episodic memories where it is null.
+
+    Fills the column from the existing session_summary of the source conversation
+    where correspondence can be inferred; falls back to a truncated claim. Cheap;
+    used to surface the human-readable roll-up (Task 9 shows the summary on the
+    Profile Memory tab).
+    """
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory service not enabled")
+    count = await container.memory_service.regenerate_summary(user["id"])
+    return {"status": "ok", "updated": count}
 
 
 @router.get("/memory/summaries")

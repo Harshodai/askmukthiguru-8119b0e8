@@ -7,7 +7,6 @@ Run with:
 
 from __future__ import annotations
 
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -121,8 +120,8 @@ class TestIsAvailable(unittest.TestCase):
     """Verify both LLM services expose the is_available property."""
 
     def test_ollama_is_available(self) -> None:
-        from services.ollama_service import OllamaService
         from app.config import settings
+        from services.ollama_service import OllamaService
         # Exercise OllamaService internals; temporarily bypass cloud-only guard.
         settings.ollama_cloud_only = False
         svc = OllamaService()

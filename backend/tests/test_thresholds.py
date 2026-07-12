@@ -1,6 +1,4 @@
-import os
-import pytest
-from app.config import Settings, get_settings
+from app.config import Settings
 
 
 def test_settings_thresholds_defaults():

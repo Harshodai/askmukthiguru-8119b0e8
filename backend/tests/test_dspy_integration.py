@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,11 +10,11 @@ import pytest
 def test_dspy_engine_imports():
     """DSPy module imports work."""
     from rag.dspy_engine import (
-        MukthiGuruSignature,
         MukthiGuruModule,
-        setup_dspy_lm,
-        make_module,
+        MukthiGuruSignature,
         dspy_generate,
+        make_module,
+        setup_dspy_lm,
     )
     assert MukthiGuruSignature is not None
     assert MukthiGuruModule is not None
@@ -57,7 +57,7 @@ def test_dspy_generate_returns_none_without_module():
 
 def test_dspy_generate_falls_back_on_exception():
     """dspy_generate returns None when the module raises."""
-    from rag.dspy_engine import dspy_generate, MukthiGuruModule
+    from rag.dspy_engine import MukthiGuruModule, dspy_generate
 
     module = MagicMock(spec=MukthiGuruModule)
     module.forward.side_effect = RuntimeError("DSPy failure")
@@ -69,7 +69,7 @@ def test_dspy_generate_falls_back_on_exception():
 
 def test_generation_node_has_dspy_fallback():
     """DSPy failure falls through gracefully — module returns None on error."""
-    from rag.dspy_engine import dspy_generate, MukthiGuruModule
+    from rag.dspy_engine import MukthiGuruModule, dspy_generate
 
     module = MagicMock(spec=MukthiGuruModule)
     module.forward.side_effect = RuntimeError("DSPy failure")
@@ -80,6 +80,7 @@ def test_generation_node_has_dspy_fallback():
 def test_generation_node_has_dspy_branch():
     """Verify the generate_answer function references DSPy code path."""
     import inspect
+
     from rag.nodes.generation import generate_answer
     src = inspect.getsource(generate_answer)
     assert "use_dspy" in src, "generate_answer should reference use_dspy config"

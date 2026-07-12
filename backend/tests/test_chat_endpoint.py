@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
 
 client = TestClient(app)

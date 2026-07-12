@@ -1,9 +1,10 @@
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from rag.states import GraphState
+
 from rag.nodes.cross_teacher_reasoning import cross_teacher_reasoning
+from rag.states import GraphState
 
 # rag/nodes/__init__.py does `from .cross_teacher_reasoning import cross_teacher_reasoning`,
 # which shadows the `cross_teacher_reasoning` submodule attribute on the `rag.nodes`

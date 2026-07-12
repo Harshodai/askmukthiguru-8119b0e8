@@ -9,10 +9,7 @@ verdict fires follow-ups, dedupes, and recurses to a sufficient verdict.
 import asyncio
 from unittest.mock import AsyncMock, patch
 
-import pytest
-
 from rag.nodes import deep_research as dr
-
 
 STATE = {
     "query_tier": "tier3_complex",  # auto-fires

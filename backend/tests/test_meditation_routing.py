@@ -67,7 +67,7 @@ def _bootstrap_stubs() -> None:
         "SparseVector", "NamedVector", "NamedSparseVector",
     ):
         setattr(qc_models, cls_name, type(cls_name, (), {"__init__": lambda self, *a, **kw: None}))
-    setattr(qc_models, "Distance", type("Distance", (), {"COSINE": "Cosine"}))
+    qc_models.Distance = type("Distance", (), {"COSINE": "Cosine"})
 
     st = _install_module_stub("sentence_transformers")
     st.SentenceTransformer = type("SentenceTransformer", (), {"__init__": lambda self, *a, **kw: None})

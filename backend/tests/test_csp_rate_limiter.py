@@ -2,8 +2,6 @@
 
 import time
 
-import pytest
-
 from app.security_utils import TTLRateLimiter, build_csp
 
 

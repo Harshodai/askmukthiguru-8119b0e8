@@ -9,10 +9,7 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
 import time
-
-import pytest
 
 from services.hot_cache import HotCache
 

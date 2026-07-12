@@ -127,6 +127,11 @@ class Settings(BaseSettings):
     openrouter_classify_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_rpm_limit: int = 20
 
+    # --- Gemini translation (layered ahead of Sarvam via OpenRouter) ---
+    gemini_translation_enabled: bool = True
+    gemini_model: str = "google/gemini-2.5-flash"
+    gemini_fallback_to_sarvam: bool = True
+
     # --- Nvidia NIM (hosted API Catalog) ---
     nim_api_key: str = ""
     nim_base_url: str = "https://integrate.api.nvidia.com/v1"

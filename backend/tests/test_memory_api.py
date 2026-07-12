@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -38,7 +38,7 @@ def mock_dependencies():
 def test_list_memories_endpoint(mock_dependencies):
     container = mock_dependencies
     
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_result = {
         "total": 1,
         "memories": [
@@ -100,7 +100,7 @@ def test_get_core_memory_endpoint(mock_dependencies):
 def test_add_memory_endpoint(mock_dependencies):
     container = mock_dependencies
     
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_inserted = {
         "id": "new-mem-uuid",
         "content": "Meditation practice is daily",

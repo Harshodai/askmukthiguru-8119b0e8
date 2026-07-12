@@ -1,8 +1,9 @@
 import pytest
+
 from app.config import settings
-from services.openrouter_service import OpenRouterService
 from services.llm.openrouter_provider import OpenRouterProvider
-import httpx
+from services.openrouter_service import OpenRouterService
+
 
 class FakeResponse:
     def __init__(self, status_code=200, data=None):

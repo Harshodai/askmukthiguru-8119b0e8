@@ -6,7 +6,6 @@ labels covering all inputs. KMeans path untouched (default).
 """
 
 import numpy as np
-import pytest
 
 from app.config import settings
 from ingest.raptor import RaptorIndexer

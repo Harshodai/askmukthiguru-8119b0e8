@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from services.memory_service import MemoryExtraction, MemoryService
+from services.memory_service import MemoryService
 
 
 @pytest.mark.asyncio

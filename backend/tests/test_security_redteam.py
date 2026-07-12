@@ -24,7 +24,6 @@ from app.schemas import ChatRequest
 from app.security_utils import is_valid_youtube_url, sanitize_path
 from services.injection_scanner import InjectionScanner
 
-
 # ─── Prompt Injection ───
 
 

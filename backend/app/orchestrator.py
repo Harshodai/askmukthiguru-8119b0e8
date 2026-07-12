@@ -121,6 +121,7 @@ class ChatRequestOrchestrator:
             proactive_serene_mind=result.proactive_serene_mind,
             faithfulness_score=result.faithfulness_score,
             hallucination_flag=result.hallucination_flag,
+            node_timings=result.node_timings,
         )
 
     async def _log_telemetry(
