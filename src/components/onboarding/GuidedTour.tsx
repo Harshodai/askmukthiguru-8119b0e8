@@ -290,7 +290,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
               {/* Outer shell — double-bezel technique */}
               <div
                 style={{
-                  background: 'rgba(10, 10, 14, 0.94)',
+                  background: 'rgba(24, 18, 15, 0.95)',
                   backdropFilter: 'blur(24px)',
                   WebkitBackdropFilter: 'blur(24px)',
                   border: '1px solid rgba(212, 175, 55, 0.3)',
@@ -307,7 +307,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                 <div
                   style={{
                     borderRadius: 19,
-                    background: 'linear-gradient(135deg, rgba(18,18,24,0.95) 0%, rgba(12,12,18,0.98) 100%)',
+                    background: 'linear-gradient(135deg, rgba(32, 25, 20, 0.97) 0%, rgba(20, 16, 13, 0.99) 100%)',
                     boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.06)',
                     padding: '18px 20px 20px',
                   }}
@@ -321,7 +321,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         [arrow.side === 'bottom' ? 'top' : 'bottom']: -7,
                         width: 14,
                         height: 14,
-                        background: 'rgba(12,12,18,0.98)',
+                        background: 'rgba(20, 16, 13, 0.99)',
                         border: `1px solid rgba(212, 175, 55, 0.3)`,
                         transform: 'rotate(45deg)',
                         borderRight: arrow.side === 'bottom' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
