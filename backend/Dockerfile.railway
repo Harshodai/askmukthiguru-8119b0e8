@@ -28,6 +28,9 @@ COPY backend/ .
 # resolves it to /app/memory/okf/compiled.json inside the image. See backend/Dockerfile.
 COPY memory/ ./memory/
 
+# Create data and cache directories and ensure proper permissions for non-root user
+RUN mkdir -p /app/data /app/.cache && chown -R appuser:appuser /app
+
 # Production environment flags
 ENV ENV=production \
     IS_PRODUCTION=true \
