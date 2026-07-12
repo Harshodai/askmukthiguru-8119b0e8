@@ -10,6 +10,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  MapPin,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -28,7 +29,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { exportAllData, getInitials, resetProfile } from '@/lib/profileStorage';
 import { useToast } from '@/hooks/use-toast';
 
-export const UserMenu = () => {
+interface UserMenuProps {
+  onRestartTour?: () => void;
+}
+
+export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { profile } = useProfile();
@@ -92,6 +97,20 @@ export const UserMenu = () => {
         <DropdownMenuItem onClick={() => navigate('/profile?tab=stats')}>
           <Flame className="w-4 h-4 mr-2" /> {t('common.insightsStats')}
         </DropdownMenuItem>
+        {(
+          <DropdownMenuItem
+            onClick={() => {
+              if (onRestartTour) {
+                onRestartTour();
+              } else {
+                window.dispatchEvent(new CustomEvent('tour:restart'));
+              }
+            }}
+            className="text-ojas/80 focus:text-ojas"
+          >
+            <MapPin className="w-4 h-4 mr-2" /> Take a Tour
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
