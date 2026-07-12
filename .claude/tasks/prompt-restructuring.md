@@ -47,11 +47,30 @@ Optimize prompt templates across the codebase for stable prefix/prompt caching. 
   - Current Layout: Dynamic reflection content (`{content}`) first, then static schema.
   - Change: Static instructions and schema first, followed by dynamic reflection content.
 
-## Verification & Testing
-1. Run `pytest backend/tests/test_prompts_decomposition.py -v`
-2. Run `pytest backend/tests/test_memory_service.py -v`
-3. Commit with `feat(caching): restructure prompts for stable prefix caching`
+## Verification & Testing (Completed)
+1. Run `backend/.venv/bin/pytest backend/tests/test_prompts_decomposition.py -v` (PASSED)
+2. Run `backend/.venv/bin/pytest backend/tests/test_memory_service.py -v` (PASSED)
+3. Commit with `feat(caching): restructure prompts for stable prefix caching` (Done, pushed to remote as `6b19d783`)
 
-## Security/Design Safety
-- The changes are strictly text/formatting restructurings in strings and f-strings. No runtime dependencies or application logic are altered.
-- All f-string variables are preserved exactly as named to avoid NameErrors.
+## Detailed Description of Changes
+
+1. **`backend/rag/prompts/system.py`**:
+   - `MULTI_TURN_PROMPT` restructured to place static instructions `INSTRUCTIONS FOR MULTI-TURN COHERENCE:` at the very beginning of the prompt, and the dynamic `{history}` variable at the end under a clean header block.
+
+2. **`backend/rag/nodes/intent.py`**:
+   - Inside `handle_distress` prompt construction, the static empathy instructions, meditation guidelines, and tone rules are now placed first.
+   - Dynamic seeker message `{question}` and retrieved teachings `{context}` are placed at the end.
+
+3. **`backend/rag/nodes/verification.py`**:
+   - Inside lightweight CoVe subquestion check (`_cove_subquestion_check`):
+     - `prompt`: Placed instructions first, followed by dynamic inputs (`Question: {question}`, `Answer: {answer}`).
+     - `verify_prompt`: Placed instructions first, followed by dynamic `Context` and `Sub-question: {sq}`.
+
+4. **`backend/services/memory_service.py`**:
+   - Inside `consolidate_memories` user message: Placed JSON schema instructions first, followed by dynamic memory list `{memory_list_str}`.
+   - Inside `extract_memories` user message: Placed extraction instructions and expected JSON schema block first, followed by dynamic deduplication context `{dedup_section}` and conversation transcript `{transcript}`.
+
+5. **`backend/services/memory_service_v2.py`**:
+   - Inside memory extraction/classification user message: Placed classification guidelines and expected JSON schema first, followed by the dynamic user reflection `{content}`.
+
+All changes have been verified to pass tests cleanly, and were successfully committed and pushed to the remote repository.
