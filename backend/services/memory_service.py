@@ -455,9 +455,9 @@ class MemoryService:
                 "Return ONLY the JSON object, nothing else. No reasoning, no markdown formatting blocks, no think tags."
             )
             user_msg = (
+                f'Return ONLY this JSON schema: {{"compacted_memories": ["memory 1", "memory 2", ...]}}\n\n'
                 f"Here are the current user memories to consolidate:\n\n"
-                f"{memory_list_str}\n\n"
-                f'Return ONLY this JSON schema: {{"compacted_memories": ["memory 1", "memory 2", ...]}}'
+                f"{memory_list_str}"
             )
 
             response = await asyncio.wait_for(
@@ -620,11 +620,11 @@ class MemoryService:
                 f"     - content: The full context/claim of the memory.\n"
                 f"     - state_category: Categorize as 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'.\n"
                 f"     - related_concepts: List of concept names this relates to (e.g., 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection').\n"
-                f"3. session_summary: 1-2 sentence summary of the session topics and user state.\n"
-                f"{dedup_section}\n\n"
-                f"Transcript:\n{transcript}\n\n"
+                f"3. session_summary: 1-2 sentence summary of the session topics and user state.\n\n"
                 f"Return ONLY this JSON (fill in the values):\n"
-                f'{{"core_memories": [], "episodic_memories": [{{"insight": "...", "content": "...", "state_category": "...", "related_concepts": []}}], "session_summary": "..."}}'
+                f'{{"core_memories": [], "episodic_memories": [{{"insight": "...", "content": "...", "state_category": "...", "related_concepts": []}}], "session_summary": "..."}}\n\n'
+                f"{dedup_section}\n\n"
+                f"Transcript:\n{transcript}"
             )
 
             response = await asyncio.wait_for(
