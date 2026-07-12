@@ -152,3 +152,7 @@ openwiki/.last-update.json
 *.snapshot
 *.rdb
 supabase_dump.sql
+*dump.sql
+*.sql.gz
+
+
