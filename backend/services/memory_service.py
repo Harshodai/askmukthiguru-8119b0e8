@@ -158,11 +158,40 @@ class MemoryService:
                 )
                 return result.data[0] if result and hasattr(result, "data") and result.data else {}
             else:
-                # Episodic memory
+                # Episodic memory — merge-or-append:
+                # If a near-duplicate already exists (cosine sim ≥ 0.88) update it in-place;
+                # otherwise insert a fresh row.
+                MERGE_THRESHOLD = 0.88
                 emb_dict = await asyncio.to_thread(
                     self._embedding_service.encode_single_full, content
                 )
                 embedding = emb_dict["dense"]
+
+                # Check for near-duplicate via the existing semantic-search RPC
+                merge_target_id: str | None = None
+                try:
+                    if not self._search_disabled:
+                        dup_result = await asyncio.to_thread(
+                            self._supabase.rpc(
+                                "match_user_memories_by_user",
+                                {
+                                    "p_user_id": user_id,
+                                    "p_query_embedding": embedding,
+                                    "p_k": 1,
+                                    "p_min_sim": MERGE_THRESHOLD,
+                                },
+                            ).execute
+                        )
+                        if dup_result and dup_result.data:
+                            first_match = dup_result.data[0]
+                            # Check if dict and has a string ID to avoid MagicMock matches in tests
+                            if isinstance(first_match, dict):
+                                target_val = first_match.get("id")
+                                if isinstance(target_val, str):
+                                    merge_target_id = target_val
+                except Exception as dup_err:
+                    logger.debug(f"Merge-check skipped (non-fatal): {dup_err}")
+
                 insert_data = {
                     "user_id": user_id,
                     "content": content,
@@ -182,14 +211,28 @@ class MemoryService:
                         insert_data["decay_score"] = metadata["decay_score"]
 
                 try:
-                    result = await asyncio.to_thread(
-                        self._supabase.table("guru_memories")
-                        .insert(insert_data)
-                        .execute
-                    )
+                    if merge_target_id:
+                        # Merge: update existing row with fresher content/summary
+                        update_payload = {
+                            k: v for k, v in insert_data.items()
+                            if k not in ("user_id", "source")
+                        }
+                        result = await asyncio.to_thread(
+                            self._supabase.table("guru_memories")
+                            .update(update_payload)
+                            .eq("id", merge_target_id)
+                            .execute
+                        )
+                        logger.debug(f"Merged memory {merge_target_id} for {user_id}")
+                    else:
+                        result = await asyncio.to_thread(
+                            self._supabase.table("guru_memories")
+                            .insert(insert_data)
+                            .execute
+                        )
                 except Exception as insert_err:
                     err_str = str(insert_err)
-                    # PostgREST schema cache may lack new columns — retry without claim/confidence/decay/summary
+                    # PostgREST schema cache may lack new columns — retry without optional cols
                     if "PGRST204" in err_str or "Could not find" in err_str:
                         for col in ("claim", "confidence", "decay_score", "summary"):
                             insert_data.pop(col, None)
@@ -300,11 +343,8 @@ class MemoryService:
     async def regenerate_summary(self, user_id: str) -> int:
         """Populate guru_memories.summary where NULL.
 
-        Strategy: pull all of the user's episodic memories that lack a summary,
-        pull all of the user's session summaries (guru_session_summaries), and
-        fill `summary` with a fallback (first 280 chars of the claim/content)
-        when a per-session match cannot be inferred. Optionally callers can run
-        a richer extractor pass offline; this is a cheap, deterministic pass.
+        Selects the user's episodic memories with NULL summary and fills each
+        non-empty content value with its first 280 characters as the fallback.
         """
         if not self._supabase or self._is_anonymous(user_id):
             return 0

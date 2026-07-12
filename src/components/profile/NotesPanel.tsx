@@ -5,6 +5,8 @@ import {
   Bookmark,
   BookmarkCheck,
   Download,
+  Mic,
+  MicOff,
   Plus,
   Search,
   Trash2,
@@ -24,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { useNotes, type Note } from "@/hooks/useNotes";
 import { toast } from "@/hooks/use-toast";
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 function downloadMarkdown(notes: Note[]) {
   const body = notes
@@ -52,6 +55,18 @@ export function NotesPanel() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftBody, setDraftBody] = useState("");
   const [draftTags, setDraftTags] = useState("");
+
+  const voice = useSpeechRecognition({
+    useSarvam: true,
+    onTranscript: (text, isFinal) => {
+      if (isFinal) setDraftBody((prev) => (prev ? `${prev} ${text}` : text).slice(0, 2000));
+    },
+  });
+
+  const handleVoiceToggle = () => {
+    if (voice.isListening) voice.stopListening();
+    else void voice.startListening();
+  };
 
   const allTags = useMemo(() => {
     const s = new Set<string>();
@@ -296,6 +311,21 @@ export function NotesPanel() {
               onChange={(e) => setDraftBody(e.target.value)}
               className="min-h-[180px]"
             />
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handleVoiceToggle}
+                disabled={!voice.isSupported}
+                aria-label={voice.isListening ? 'Stop voice input' : 'Start voice input'}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40 py-1"
+              >
+                {voice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                {voice.isListening ? 'Listening…' : 'Dictate'}
+              </button>
+              {voice.error && (
+                <span className="text-[10px] text-destructive">{voice.error}</span>
+              )}
+            </div>
             <Input
               placeholder={t('notes.tagsPlaceholder')}
               value={draftTags}

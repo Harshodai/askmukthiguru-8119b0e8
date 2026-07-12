@@ -196,6 +196,24 @@
       "breathingCue": "Breathe in for 4 counts... Hold... Breathe out for 6 counts"
     }
   },
+  "mood": {
+    "bannerTitle": "How are you arriving today?",
+    "bannerCta": "Check in",
+    "bannerSnooze": "Not now",
+    "title": "Mood check-in",
+    "subtitle": "A gentle moment to notice how you feel.",
+    "calm": "Calm",
+    "anxious": "Anxious",
+    "sad": "Sad",
+    "frustrated": "Frustrated",
+    "open": "Open",
+    "reflectionLabel": "What's going on?",
+    "reflectionPlaceholder": "Optional — share what's on your heart…",
+    "suggestedPractice": "A practice that may help",
+    "startPractice": "Start practice",
+    "submit": "Submit check-in",
+    "thanks": "Thanks for sharing. 🙏"
+  },
   "chat": {
     "pageTitle": "Chat with the Guru — AskMukthiGuru",
     "pageDescription": "Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.",
@@ -268,6 +286,13 @@
     "explainSimply": "Explain simply",
     "explainSimplyQuery": "Explain this in simpler terms: {{content}}",
     "howRelates": "How relates to me",
+    "engagement": {
+      "didThisHelp": "Did this help?",
+      "yes": "Yes",
+      "needsWork": "Needs work",
+      "no": "No",
+      "thanks": "Thanks"
+    },
     "teachingReference": "Teaching Reference",
     "teaching": "Teaching",
     "clearAnswer": "Clear answer",

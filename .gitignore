@@ -146,3 +146,8 @@ data/dump/
 data/ontology/*.ttl
 scratch/
 openwiki/.last-update.json
+# DB snapshots/dumps (may contain PII; can be >100MB — never commit)
+*.dump
+*.snapshot
+*.rdb
+supabase_dump.sql

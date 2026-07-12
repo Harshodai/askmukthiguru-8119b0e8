@@ -170,7 +170,7 @@ export function ChatComposer({
                 : t('chat.inputPlaceholder')
           }
           rows={1}
-          aria-label={t('chat.yourMessage')}
+          aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
           className="min-h-9 max-h-32 w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '28px' }}
           disabled={isAwaitingSereneMind}
@@ -251,7 +251,7 @@ export function ChatComposer({
                 size="icon-sm"
                 disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
                 className="h-8 w-8 rounded-full bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
-                aria-label={t('chat.send')}
+                aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >
                 <Send className="w-4 h-4" />
               </PromptInputSubmit>

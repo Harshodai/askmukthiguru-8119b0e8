@@ -7,8 +7,16 @@ filtering, dry-run semantics, single-user scope, and the forever retention (0) s
 from __future__ import annotations
 
 import asyncio
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+# Make `backend` importable when run from the repo root.
+_REPO = Path(__file__).resolve().parents[2]
+_BACKEND = _REPO / "backend"
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
 
 
 def _run(coro):
@@ -75,8 +83,14 @@ def test_retention_days_zero_is_forever(monkeypatch):
     )
     db.table = MagicMock(return_value=q)
 
+    delete_q = MagicMock()
+    delete_q.eq = MagicMock(return_value=delete_q)
+    delete_q.execute = MagicMock(return_value=MagicMock(data=[{"id": "c3"}]))
+    db.table.return_value.delete = MagicMock(return_value=delete_q)
+
     counts = _run(prune_retention(db, user_id=None, dry_run=False))
     assert counts["purged_conversations"] == 0
+    db.table.return_value.delete.assert_not_called()
 
 
 def test_expired_is_purged(monkeypatch):
@@ -99,6 +113,8 @@ def test_expired_is_purged(monkeypatch):
 
     counts = _run(prune_retention(db, user_id=None, dry_run=False))
     assert counts["purged_conversations"] == 1, counts
+    delete_q.eq.assert_called_with("id", "c1")
+    delete_q.execute.assert_called_once()
 
 
 def test_user_id_scope_passes_through(monkeypatch):

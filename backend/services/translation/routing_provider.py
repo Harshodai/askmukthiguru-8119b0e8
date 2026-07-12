@@ -12,17 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class RoutingTranslationProvider(TranslationProvider):
-    """Dynamic translation router: Gemini first (when enabled), Sarvam fallback."""
+    """Dynamic translation router: Gemini first (when enabled), Sarvam fallback, Ollama last resort."""
 
     def __init__(
         self,
-        sarvam_provider: TranslationProvider,
         ollama_provider: TranslationProvider | None = None,
+        sarvam_provider: TranslationProvider | None = None,
         gemini_provider: TranslationProvider | None = None,
     ) -> None:
-        # Signature kept backwards-compatible: positional `sarvam_provider` order
-        # preserved so existing callers (factory.py) using keyword args still work
-        # and old positional `(ollama_provider, sarvam_provider)` callers also work.
+        # Legacy positional order preserved: (ollama_provider, sarvam_provider).
+        # Keyword args (gemini_provider=..., sarvam_provider=..., ollama_provider=...) also work.
         self._ollama = ollama_provider
         self._sarvam = sarvam_provider
         self._gemini = gemini_provider
@@ -35,7 +34,7 @@ class RoutingTranslationProvider(TranslationProvider):
         target_lang: str,
         **kwargs: Any,
     ) -> str:
-        """Translate via Gemini first (when enabled + configured), else Sarvam."""
+        """Translate via Gemini first (when enabled + configured), else Sarvam, else Ollama."""
         # Gemini-first path: try, fall back to Sarvam on any failure.
         if settings.gemini_translation_enabled and self._gemini is not None:
             try:
@@ -43,12 +42,16 @@ class RoutingTranslationProvider(TranslationProvider):
                     text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
                 )
             except Exception as gemini_err:
-                logger.error(
-                    f"Gemini translation failed, falling back to Sarvam: {gemini_err}"
-                )
-                # Fall through to Sarvam below if it is configured; else raise.
-                if not settings.gemini_fallback_to_sarvam:
+                if settings.gemini_fallback_to_sarvam:
+                    logger.error(
+                        f"Gemini translation failed, falling back to Sarvam: {gemini_err}"
+                    )
+                else:
+                    logger.error(
+                        f"Gemini translation failed, no fallback configured: {gemini_err}"
+                    )
                     raise
+                # Fall through to Sarvam below if it is configured; else raise.
 
         # Sarvam fallback path (existing gate preserved).
         if (
@@ -62,12 +65,23 @@ class RoutingTranslationProvider(TranslationProvider):
                 )
             except Exception as sarvam_err:
                 logger.error(f"Sarvam translation failed: {sarvam_err}")
+                # Fall through to Ollama if available.
+                pass
+
+        # Ollama fallback if Sarvam unavailable/failed and Ollama configured.
+        if self._ollama is not None:
+            try:
+                return await self._ollama.translate_text(
+                    text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
+                )
+            except Exception as ollama_err:
+                logger.error(f"Ollama translation failed: {ollama_err}")
                 raise
 
-        raise RuntimeError("No translation provider available (Sarvam not configured)")
+        raise RuntimeError("No translation provider available (Sarvam/Ollama not configured)")
 
     async def health_check(self) -> bool:
-        """Return True if Gemini or Sarvam is healthy (guarded)."""
+        """Return True if any provider in the chain is healthy."""
         gemini_ok = False
         if settings.gemini_translation_enabled and self._gemini is not None:
             try:
@@ -87,4 +101,11 @@ class RoutingTranslationProvider(TranslationProvider):
             except Exception:
                 sarvam_ok = False
 
-        return gemini_ok or sarvam_ok
+        ollama_ok = False
+        if self._ollama is not None:
+            try:
+                ollama_ok = await self._ollama.health_check()
+            except Exception:
+                ollama_ok = False
+
+        return gemini_ok or sarvam_ok or ollama_ok

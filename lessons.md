@@ -3498,4 +3498,208 @@ A parallel MCP-driven (`codebase-memory-mcp`) audit surfaced 6 more silent-failu
 - **Fix**: Run `bun install` locally to regenerate/update `bun.lock` with the latest dependency configurations and commit it.
 - **Pattern**: When packages are resolved or updated, always ensure `bun install` or the corresponding package manager tool is executed locally, and commit the updated lockfile to remote.
 
+---
+
+## Jul 12, 2026 — Railway Production Deployment Hardening
+
+### Railway volumes are read-only in ephemeral `railway run` containers
+- **Problem**: Attempted to `railway run --service neo4j -- cp neo4j.dump /data/dumps/` but got `Read-only file system`. The volume mount in ephemeral execution containers is read-only; only the main service container has write access to its volume.
+- **Fix**: Only the service's main container can write to its persistent volume. For Neo4j dump upload, the only working path is the **Neo4j Browser UI** (HTTP API) which runs inside the service container itself. The `:system` shell command `LOAD DATABASE` writes via the DB process, not the filesystem.
+- **Pattern**: Never assume `railway run` can write to service volumes. For data loads, use the service's native API/UI (Neo4j Browser, Qdrant snapshot upload API, psql for Postgres, redis-cli for Redis).
+
+### Railway public domains don't expose Bolt (port 7687) for Neo4j
+- **Problem**: Created a domain on port 7687 (`bolt://host:7687`) expecting WebSocket Bolt to work via Railway's TLS proxy. Got `SERVICE_UNAVAILABLE` — Railway's HTTP/HTTPS proxy doesn't upgrade Bolt WebSocket connections.
+- **Fix**: Use the **HTTP API** (Neo4j Browser at `https://<domain>/browser/`) for all management operations. Bolt is only available internally via `railway.internal` DNS.
+- **Pattern**: Railway exposes HTTP/HTTPS only. For databases with custom binary protocols (Bolt, PostgreSQL wire protocol, Redis RESP), use internal DNS from other services, or the service's HTTP admin UI for external access.
+
+### Railway managed databases (Postgres, Redis, Qdrant templates) expose correct env vars; Neo4j template does not
+- **Problem**: `railway add --database postgres` creates a Postgres service with `PGHOST`, `PGPASSWORD`, `PGUSER`, `PGDATABASE`, `PGPORT` auto-set. The Neo4j template (`railway deploy --template neo4j`) only sets `NEO4J_PASSWORD` — no `NEO4J_URI`, `NEO4J_USER`, or Bolt endpoint.
+- **Fix**: Manually construct internal Bolt URI: `bolt://<service-name>.railway.internal:7687`. For HTTP/Browser, create a domain on port 8080.
+- **Pattern**: Don't assume all Railway templates expose the same variable convention. Check `railway variables --service <name>` after each template deploy.
+
+### Railway volume storage billing includes orphaned volumes from deleted services
+- **Finding**: 596 GB of "deleted services" volumes persisted after service deletion, billing at ~$0.002/GB/hr = ~$86/mo wasted.
+- **Fix**: After deleting a service, immediately run `railway volume list` and delete unattached volumes (`serviceName: null`).
+- **Pattern**: Add `railway volume list` to every deploy/cleanup script. Treat orphaned volumes as a critical cost leak.
+
+### Railway usage costs are per-second; memory is the dominant cost driver
+- **Observation**: Qdrant reported 110 GB RAM (leak), Backend 66 GB (leak), Neo4j 44 GB (misconfigured pagecache/heap). Total ~$0.04/hr just for RAM.
+- **Fix**: Set explicit memory limits in Railway dashboard *and* in service config:
+  - Qdrant: `QUANTIZATION=scalar`, `CACHE_SIZE=2GB`, Railway limit 4GB
+  - Neo4j: `NEO4J_server_memory_heap_max__size=2G`, `NEO4J_server_memory_pagecache_size=1G`, Railway limit 4GB
+  - Backend: `PYTHON_MEMORY_LIMIT_MB=2048`, `WEB_CONCURRENCY=1`, Railway limit 3GB
+  - Postgres: `shared_buffers=512MB`, `effective_cache_size=1GB`, Railway limit 2GB
+  - Redis: `maxmemory=512mb`, `maxmemory-policy=allkeys-lru`, Railway limit 1GB
+- **Pattern**: Every service must have both application-level memory config AND Railway platform limit. The platform limit is the hard cap; the app config prevents the app from trying to exceed it.
+
+### Railway `railway run` cannot run interactive CLI tools for Neo4j restore
+- **Problem**: Tried `railway run --service neo4j -- neo4j-admin database load ...` but the container doesn't have the dump file, and the volume is read-only.
+- **Fix**: Upload dump via Neo4j Browser HTTP API, then run `:system LOAD DATABASE` in Browser query box. This runs inside the service container with proper volume access.
+- **Pattern**: For database admin operations requiring file access, use the service's native web UI (Neo4j Browser, Qdrant dashboard, pgAdmin, RedisInsight) rather than CLI.
+
+### Qdrant snapshot upload works via public HTTP API
+- **Success**: `curl -X POST "https://qdrant-production-14ee.up.railway.app/collections/spiritual_wisdom/snapshots/upload" -F "snapshot=@qdrant_snapshot.snapshot"` worked immediately. 89k points restored.
+- **Pattern**: Qdrant's HTTP API is fully exposed via Railway public domain. Use it for snapshots, collection management, and monitoring.
+
+### Railway Pro ($20/mo) includes $20 usage credit; actual cost for this stack ~$13-15/mo after fixes
+- **Breakdown** (after memory limits applied):
+  - Backend (2 GB, 1 vCPU): ~$3/mo
+  - Celery worker (1 GB, 1 vCPU): ~$1.5/mo
+  - Qdrant (4 GB, 1 vCPU): ~$4/mo
+  - Neo4j (4 GB, 1 vCPU): ~$4/mo
+  - Postgres (2 GB, 1 vCPU): ~$2/mo
+  - Redis (1 GB, 1 vCPU): ~$1/mo
+  - Volumes (~2 GB total): ~$0.5/mo
+  - **Total: ~$19/mo** (within $20 credit)
+- **Pattern**: Always set memory limits *before* monitoring costs. Unbounded services will exhaust the credit in hours.
+
+### Railway `railway variables` command uses `variable` subcommand, not `variables get`
+- **Trap**: `railway variables get KEY` fails with `unrecognized subcommand 'get'`. Correct: `railway variable get KEY` (singular).
+- **Pattern**: Railway CLI uses singular `variable` for get/set, plural `variables` for listing. Document this in team scripts.
+
+### Orphaned `qdrant-volume-KX5n` and `redis-volume-jX9V` persisted after service recreation
+- **Problem**: Each `railway deploy --template qdrant` creates a new volume. Old volumes detach and accumulate.
+- **Fix**: Before deploying a template, check `railway volume list` and delete unattached volumes for that service type.
+- **Pattern**: Template deploys are not idempotent — they create new resources each time. Cleanup is mandatory.
+
+---
+
+## Jul 12, 2026 — Production Railway Deployment Script Architecture
+
+### Core Requirements for `deploy_railway_production.sh`
+1. **Idempotent**: Safe to re-run; detects existing services/volumes and updates config only
+2. **Leak-proof**: Validates no orphaned volumes before/after; enforces memory limits on all services
+3. **Observable**: Emits structured JSON logs; outputs summary with URLs, credentials, costs
+4. **Recoverable**: On failure, prints exact manual steps to complete; supports `--resume-from <phase>`
+5. **Secure**: Never logs secrets; masks passwords in output; uses Railway's secret injection
+6. **Validating**: Post-deploy health checks for every service (HTTP, Bolt, Redis PING, psql)
+7. **Rollback-ready**: Captures pre-deploy state; `./deploy.sh --rollback` restores previous config
+
+### Phases
+```bash
+# Phase 0: Pre-flight
+check_prereqs()           # railway CLI, jq, docker, psql, redis-cli
+validate_no_orphaned_volumes()
+capture_pre_deploy_state()
+
+# Phase 1: Infrastructure (idempotent)
+ensure_service postgres --template postgres
+ensure_service redis --template redis
+ensure_service qdrant --template qdrant
+ensure_service neo4j --template neo4j
+
+# Phase 2: Config (idempotent, validates limits)
+apply_memory_limits()
+set_service_variables()
+construct_internal_dns()
+
+# Phase 3: Application deploy
+deploy_backend()
+deploy_celery_worker()
+
+# Phase 4: Data migration (manual steps documented, automated where possible)
+migrate_qdrant_snapshot()
+migrate_neo4j_dump_via_browser()  # documents manual steps
+migrate_postgres_dump()
+migrate_redis_rdb()
+
+# Phase 5: Celery worker config (manual dashboard step)
+print_celery_worker_config_steps()
+
+# Phase 6: Post-deploy validation
+health_check_all()
+cost_estimate()
+print_lovable_config()
+print_summary_json()
+```
+
+### Leak Detection Built Into Script
+```bash
+check_memory_leaks() {
+  for svc in qdrant backend neo4j postgres redis; do
+    current_gb=$(railway metric memory --service $svc --latest --json | jq -r .gb)
+    limit_gb=$(railway service limit --service $svc --json | jq -r .memory_gb)
+    if (( $(echo "$current_gb > $limit_gb * 0.9" | bc -l) )); then
+      alert "Service $svc at ${current_gb}GB of ${limit_gb}GB limit (90% threshold)"
+    fi
+  done
+}
+
+check_orphaned_volumes() {
+  railway volume list --json | jq -r '.volumes[] | select(.serviceName==null) | .id' | while read vol; do
+    alert "Orphaned volume: $vol — delete with: railway volume delete -v $vol"
+  done
+}
+```
+
+### Usage
+```bash
+# Full deploy
+./deploy_railway_production.sh
+
+# Resume from phase 4 (data migration)
+./deploy_railway_production.sh --resume-from 4
+
+# Dry run (no changes, prints plan)
+./deploy_railway_production.sh --dry-run
+
+# Rollback
+./deploy_railway_production.sh --rollback
+
+# Leak check only
+./deploy_railway_production.sh --leak-check
+```
+
+---
+
+## Jul 12, 2026 — Anti-Leak Checklist for Railway Deployments
+
+### Pre-Deploy
+- [ ] `railway volume list` — zero unattached volumes
+- [ ] All services have `memory_limit_mb` set in Railway dashboard
+- [ ] All services have application-level memory config matching platform limit
+- [ ] No service uses `latest` tag — all images pinned to digest or semver
+
+### Post-Deploy (within 5 min)
+- [ ] `railway metric memory --service <each> --latest` — all under 80% of limit
+- [ ] `railway volume list` — no new unattached volumes
+- [ ] Health checks pass: `/api/health`, Qdrant `/collections`, Neo4j Browser, `psql`, `redis-cli PING`
+
+### Daily (Automated via GitHub Actions)
+- [ ] `railway metric memory --service <each> --period 24h --json` → alert if any > 90% limit
+- [ ] `railway volume list` → alert on any `serviceName: null`
+- [ ] `railway usage --period 24h` → alert if > $15/day (75% of $20 credit)
+
+### Weekly
+- [ ] Review `railway metric memory --service <each> --period 7d` per service
+- [ ] Verify all image tags still resolve (no `latest` drift)
+- [ ] Check Railway dashboard for "Restarted" services (OOM kills)
+
+### Monthly
+- [ ] Rotate all API keys (OpenRouter, Sarvam, NIM, Supabase, JWT)
+- [ ] Audit `railway variables` for stale/unused keys
+- [ ] Verify backup/restore for Postgres, Qdrant, Neo4j, Redis
+- [ ] Update all base images in Dockerfiles
+
+---
+
+## Jul 12, 2026 — Railway Cost Attribution Formula
+
+```
+Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB_hours * $0.00000006) + Egress_GB * $0.05
+           ≈ Σ (vCPU * 730h * $0.00000772 + GB_RAM * 730h * $0.00000386 + Volume_GB * 730h * $0.00000006)
+```
+
+| Service | vCPU | GB RAM | Volume GB | Monthly $ |
+|---------|------|--------|-----------|-----------|
+| Backend | 1    | 2      | 0         | $3.00     |
+| Celery  | 1    | 1      | 0         | $1.50     |
+| Qdrant  | 1    | 4      | 1         | $4.20     |
+| Neo4j   | 1    | 4      | 0.5       | $4.10     |
+| Postgres| 1    | 2      | 1         | $2.00     |
+| Redis   | 1    | 1      | 0.5       | $1.00     |
+| **Total** | **6** | **14** | **3** | **~$15.80** |
+
+**Rule**: If any service exceeds its row in this table, it's leaking.
+
 

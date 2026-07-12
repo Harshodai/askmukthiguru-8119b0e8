@@ -264,7 +264,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
           className="fixed inset-0 z-50 flex items-center justify-center"
           role="dialog"
           aria-modal="true"
-          aria-label={t('meditation.sereneMind')}
+          aria-label={t('meditation.sereneMind') === 'meditation.sereneMind' ? 'Serene Mind meditation' : t('meditation.sereneMind')}
         >
           <motion.div
             initial={{ opacity: 0 }}
@@ -352,12 +352,19 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
                     teaching={teaching ?? undefined}
                     teachingLoading={teachingLoading}
                   />
-                  <MediaTab mode="audio" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
+                  <MediaTab
+                    mode="audio"
+                    videoId={SERENE_MIND_VIDEO_ID}
+                    url={SERENE_MIND_YOUTUBE_URL}
+                    isGated={isGated}
+                    externalIsPlaying={isPlaying}
+                    onExternalReset={resetMeditation}
+                  />
                 </>
               )}
 
               {activeTab === 'video' && (
-                <MediaTab mode="video" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} />
+                <MediaTab mode="video" videoId={SERENE_MIND_VIDEO_ID} url={SERENE_MIND_YOUTUBE_URL} isGated={isGated} onComplete={handleComplete} isPrimary={true} />
               )}
 
               {/* Gentle escape hatch — hidden/disabled when gated until complete. */}
@@ -671,12 +678,19 @@ interface MediaTabProps {
   url: string;
   isGated?: boolean;
   onComplete?: () => void;
+  isPrimary?: boolean;
+  /** When set, audio playback is slaved to this value (breath-tab Start/pause/reset). */
+  externalIsPlaying?: boolean;
+  /** Called when audio naturally completes so breath-tab can be reset. */
+  onExternalReset?: () => void;
 }
 
-const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) => {
+const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, externalIsPlaying, onExternalReset }: MediaTabProps) => {
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  // In audio mode with externalIsPlaying, local state is overridden by breath controls
+  const [localIsPlaying, setLocalIsPlaying] = useState(false);
+  const isPlaying = mode === 'audio' && externalIsPlaying !== undefined ? externalIsPlaying : localIsPlaying;
   const [currentTime, setCurrentTime] = useState(0);
   const totalDuration = 180; // 3 minutes
 
@@ -695,10 +709,10 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
   const handlePlayPause = () => {
     if (isPlaying) {
       sendPlayerCommand('pauseVideo');
-      setIsPlaying(false);
+      setLocalIsPlaying(false);
     } else {
       sendPlayerCommand('playVideo');
-      setIsPlaying(true);
+      setLocalIsPlaying(true);
     }
   };
 
@@ -708,11 +722,22 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
   };
 
   const handleReset = () => {
-    setIsPlaying(false);
+    setLocalIsPlaying(false);
     setCurrentTime(0);
     sendPlayerCommand('pauseVideo');
     sendPlayerCommand('seekTo', [0, true]);
   };
+
+  // Slave audio to breath controls when externalIsPlaying is provided
+  useEffect(() => {
+    if (mode !== 'audio' || externalIsPlaying === undefined) return;
+    if (externalIsPlaying) {
+      sendPlayerCommand('playVideo');
+    } else {
+      sendPlayerCommand('pauseVideo');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalIsPlaying, mode]);
 
   // Simulating time tracking for custom seekbar
   useEffect(() => {
@@ -721,9 +746,10 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
       interval = setInterval(() => {
         setCurrentTime((prev) => {
           if (prev >= totalDuration) {
-            setIsPlaying(false);
+            setLocalIsPlaying(false);
             if (interval) clearInterval(interval);
-            onComplete?.();
+            if (isPrimary) onComplete?.();
+            if (mode === 'audio' && onExternalReset) onExternalReset();
             return totalDuration;
           }
           return prev + 1;
@@ -733,7 +759,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete }: MediaTabProps) =>
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, onComplete]);
+  }, [isPlaying, onComplete, mode, onExternalReset]);
 
   // Clean up on unmount
   useEffect(() => {

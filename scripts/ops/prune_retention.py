@@ -51,34 +51,33 @@ async def prune_retention(db: Any, user_id: str | None = None, dry_run: bool = F
     """Delete expired conversations per retention_days. Returns per-step counts."""
     counts = {"scanned": 0, "purged_conversations": 0, "purged_messages": 0}
 
-    # We rely on Postgres to do the date math via a raw SQL RPC (supabase.rpc).
-    # Falling back to client-side filtering if RPC is unavailable.
-    try:
-        # SQL: delete from conversations where (retention_days > 0)
-        #      and created_at < now() - (retention_days || ' days')::interval
-        #      [and user_id = $user_id]
+    # Build the SQL with explicit SELECT vs DELETE forms based on dry_run
+    if dry_run:
+        # Dry-run: SELECT count of expired conversations
+        sql = (
+            "SELECT count(*)::int AS n FROM public.conversations"
+            " WHERE retention_days > 0"
+            "   AND created_at < now() - (retention_days || ' days')::interval"
+        )
+    else:
+        # Real run: DELETE expired conversations and return count
         sql = (
             "WITH expired AS ("
             "  DELETE FROM public.conversations"
             "  WHERE retention_days > 0"
             "    AND created_at < now() - (retention_days || ' days')::interval"
         )
-        params: dict[str, Any] = {}
-        if user_id:
-            sql += " AND user_id = $user_id"
-            params["user_id"] = user_id
-        sql += " RETURNING id"
-        sql += ")"
-        # chat_messages cascade via FK ON DELETE CASCADE — no manual delete needed.
+
+    params: dict[str, Any] = {}
+    if user_id:
+        sql += " AND user_id = $user_id"
+        params["user_id"] = user_id
+
+    if not dry_run:
+        sql += " RETURNING id)"
         sql += " SELECT count(*)::int AS n FROM expired;"
 
-        if dry_run:
-            # Dry run: replace DELETE with SELECT count(*).
-            sql = sql.replace(
-                "WITH expired AS (\n  DELETE FROM public.conversations",
-                "WITH expired AS (\n  SELECT id FROM public.conversations",
-            )
-
+    try:
         result = await asyncio.to_thread(
             lambda: db.rpc("exec_sql", {"query": sql, "params": params}).execute()
         )

@@ -92,7 +92,32 @@
     "selectLanguage": "भाषा चुनें",
     "searchLanguages": "{{count}} भाषाएँ खोजें…",
     "assistants": "सहायक",
-    "redeem": "रिडीम करें"
+    "redeem": "रिडीम करें",
+    "engagement": {
+      "didThisHelp": "क्या यह मददगार था?",
+      "yes": "हाँ",
+      "needsWork": "सुधार चाहिए",
+      "no": "नहीं",
+      "thanks": "धन्यवाद"
+    }
+  },
+  "mood": {
+    "bannerTitle": "आज आप कैसा महसूस कर रहे हैं?",
+    "bannerCta": "चेक-इन",
+    "bannerSnooze": "अभी नहीं",
+    "title": "मूड चेक-इन",
+    "subtitle": "अपनी भावनाओं को नोटिस करने का एक क्षण।",
+    "calm": "शांत",
+    "anxious": "चिंतित",
+    "sad": "दुखी",
+    "frustrated": "निराश",
+    "open": "खुला",
+    "reflectionLabel": "क्या हो रहा है?",
+    "reflectionPlaceholder": "वैकल्पिक — अपने मन की बात साझा करें…",
+    "suggestedPractice": "एक अभ्यास जो मदद कर सकता है",
+    "startPractice": "अभ्यास शुरू करें",
+    "submit": "चेक-इन सबमिट करें",
+    "thanks": "साझा करने के लिए धन्यवाद। 🙏"
   },
   "landing": {
     "hero": {

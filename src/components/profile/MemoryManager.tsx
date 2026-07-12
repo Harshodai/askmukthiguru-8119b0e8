@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { List, Loader2, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, ZoomIn, ZoomOut, RotateCcw, Network, Maximize2, Minimize2, Search, X, Info } from 'lucide-react';
+import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, ZoomIn, ZoomOut, RotateCcw, Network, Maximize2, Minimize2, Search, X, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Card,
@@ -34,6 +34,7 @@ import {
   type KGNode,
   type KGEdge,
 } from '@/lib/memoryApi';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 interface SimNode extends KGNode {
   x: number;
@@ -123,6 +124,20 @@ export const MemoryManager = () => {
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
   const [forgettingId, setForgettingId] = useState<string | null>(null);
+
+  // Voice-to-text for reflection and core memory textareas
+  const reflectVoice = useSpeechRecognition({
+    useSarvam: true,
+    onTranscript: (text, isFinal) => {
+      if (isFinal) setNewText((prev) => (prev ? `${prev} ${text}` : text).slice(0, 500));
+    },
+  });
+  const coreVoice = useSpeechRecognition({
+    useSarvam: true,
+    onTranscript: (text, isFinal) => {
+      if (isFinal) setCoreText((prev) => (prev ? `${prev} ${text}` : text).slice(0, 2048));
+    },
+  });
 
   // Layout & Resizability
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
@@ -1209,20 +1224,32 @@ export const MemoryManager = () => {
               maxLength={2048}
               disabled={coreSaving}
             />
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted-foreground">{coreText.length}/2048</span>
-              <Button
-                size="sm"
-                onClick={handleSaveCore}
-                disabled={coreSaving}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => coreVoice.isListening ? coreVoice.stopListening() : void coreVoice.startListening()}
+                disabled={!coreVoice.isSupported || coreSaving}
+                aria-label={coreVoice.isListening ? 'Stop voice input' : 'Dictate core memory'}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40 py-1"
               >
-                {coreSaving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {t('common.save')}
-              </Button>
+                {coreVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                {coreVoice.isListening ? 'Listening…' : 'Dictate'}
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{coreText.length}/2048</span>
+                <Button
+                  size="sm"
+                  onClick={handleSaveCore}
+                  disabled={coreSaving}
+                >
+                  {coreSaving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  {t('common.save')}
+                </Button>
+              </div>
             </div>
             {core?.updated_at && (
               <p className="text-xs text-muted-foreground">{t('memory.lastSaved', { date: formatDate(core.updated_at) })}</p>
@@ -1282,21 +1309,33 @@ export const MemoryManager = () => {
                 disabled={adding}
               />
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">
-                  {newText.length}/500
-                </span>
-                <Button
-                  size="sm"
-                  onClick={handleAdd}
-                  disabled={!newText.trim() || adding}
+                <button
+                  type="button"
+                  onClick={() => reflectVoice.isListening ? reflectVoice.stopListening() : void reflectVoice.startListening()}
+                  disabled={!reflectVoice.isSupported || adding}
+                  aria-label={reflectVoice.isListening ? 'Stop voice input' : 'Dictate memory'}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-ojas disabled:opacity-40"
                 >
-                  {adding ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Plus className="w-4 h-4 mr-2" />
-                  )}
-                  {t('memory.saveMemory')}
-                </Button>
+                  {reflectVoice.isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  {reflectVoice.isListening ? 'Listening…' : 'Dictate'}
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {newText.length}/500
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={handleAdd}
+                    disabled={!newText.trim() || adding}
+                  >
+                    {adding ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    {t('memory.saveMemory')}
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -27,10 +27,10 @@ from services.translation.base import TranslationProvider
 
 logger = logging.getLogger(__name__)
 
-# Matches Markdown footnote-style citation markers: [^1], [^42], etc.
+# Matches plain citation markers: [1], [42], [1, 2, 3], etc.
 # Preserve these across translation — answer prose carries them; the front-end
 # citation linker consumes them downstream.
-_CITATION_RE = re.compile(r"\[\^(\d+)\]")
+_CITATION_RE = re.compile(r"\[(\d+(?:,\s*\d+)*)\]")
 
 
 class GeminiTranslationProvider(TranslationProvider):
@@ -70,12 +70,12 @@ class GeminiTranslationProvider(TranslationProvider):
             f"You are a professional translator. Translate the following text from "
             f"language code '{src_code}' to language code '{tgt_code}'. "
             f"Provide ONLY the final translation. Do not include any notes, "
-            f"explanations, or quotes. Preserve any [^N] citation markers verbatim "
+            f"explanations, or quotes. Preserve any [N] citation markers verbatim "
             f"in their original positions.\n\nText to translate:\n{text}"
         )
 
         try:
-            translated = await self._openrouter._generate_fast(
+            translated = await self._openrouter.generate_raw(
                 system_prompt="You are a professional translator. Output only the translated text.",
                 user_prompt=prompt,
                 model=settings.gemini_model,
@@ -90,9 +90,20 @@ class GeminiTranslationProvider(TranslationProvider):
         # present in the original, append them at the end in order. Never crash.
         try:
             if original_markers:
-                missing = [m for m in original_markers if f"[^{m}]" not in translated]
+                # original_markers contains captured groups like "1" or "1, 2"
+                # Flatten into individual numbers
+                all_nums = []
+                for group in original_markers:
+                    nums = [n.strip() for n in group.split(',')]
+                    all_nums.extend(nums)
+                # Check for each number if it appears as [N] or within [N,M,...] in translated
+                missing = []
+                for n in all_nums:
+                    # Match [N] or [N, ...] or [..., N] or [..., N, ...]
+                    if not re.search(rf"\[\s*{re.escape(n)}\s*(?:,\s*\d+\s*)*\]", translated):
+                        missing.append(n)
                 if missing:
-                    suffix = " " + " ".join(f"[^{m}]" for m in missing)
+                    suffix = " " + " ".join(f"[{n}]" for n in missing)
                     translated = translated.rstrip() + suffix
         except Exception as stitch_err:  # pragma: no cover — defensive
             logger.warning(f"Citation marker re-stitch skipped: {stitch_err}")

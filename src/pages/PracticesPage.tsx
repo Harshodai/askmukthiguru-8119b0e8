@@ -4,7 +4,7 @@ import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star, Loader2 } from '
 import { AppShell } from '@/components/layout/AppShell';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { practices, type Practice } from '@/lib/practicesContent';
+import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { cn } from '@/lib/utils';
@@ -91,11 +91,14 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
 };
 
 const PracticesPage = () => {
+  const { t, i18n } = useTranslation();
   const { loading: authLoading } = useRequireAuth();
   const { favorites, toggle, isFavorited } = useFavorites();
   const { teaching: dailyTeaching } = useDailyTeaching();
-  const favoritePractices = practices.filter((p) => favorites.includes(p.slug));
-  const otherPractices = practices.filter((p) => !favorites.includes(p.slug));
+  const lang = i18n.language;
+  const localizedPractices = practices.map((p) => getLocalizedPractice(p, t, lang));
+  const favoritePractices = localizedPractices.filter((p) => favorites.includes(p.slug));
+  const otherPractices = localizedPractices.filter((p) => !favorites.includes(p.slug));
 
   usePageMeta({
     title: 'Daily Practices — Guided Meditations | AskMukthiGuru',

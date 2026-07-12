@@ -1,1 +1,1 @@
-SELECT pg_get_functiondef('seed_admin_demo'::regproc);
+SELECT pg_get_functiondef('public.seed_admin_demo()'::regprocedure);

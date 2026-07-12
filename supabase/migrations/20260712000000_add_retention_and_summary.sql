@@ -6,15 +6,16 @@
 --    and on conversations via 20260627130000_tenant_rls.sql) — no policy changes needed.
 
 ALTER TABLE public.conversations
-  ADD COLUMN IF NOT EXISTS retention_days int NOT NULL DEFAULT 90;
+  ADD COLUMN IF NOT EXISTS retention_days int NOT NULL DEFAULT 90
+  CONSTRAINT retention_days_nonneg CHECK (retention_days >= 0);
 
 ALTER TABLE public.guru_memories
   ADD COLUMN IF NOT EXISTS summary text;
 
--- Self-heal existing rows: backfill summary = first 280 chars of claim.
+-- Self-heal existing rows: backfill summary = first 280 chars of content.
 UPDATE public.guru_memories
-SET summary = left(claim, 280)
-WHERE summary IS NULL AND claim IS NOT NULL;
+SET summary = left(content, 280)
+WHERE summary IS NULL AND content IS NOT NULL;
 
 -- Index for the auto-purge job: scans rows older than retention_days.
 CREATE INDEX IF NOT EXISTS idx_conversations_retention_created
