@@ -193,7 +193,7 @@ export const loadProfile = (): UserProfile => {
 };
 
 /** Locales with actual UI translations (src/locales/*.json). Others fall back to English chrome. */
-const UI_LOCALES = ['en', 'hi', 'te'] as const;
+const UI_LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr'] as const;
 
 export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true): void => {
   try {

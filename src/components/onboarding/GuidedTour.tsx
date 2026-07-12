@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Step {
@@ -31,6 +31,9 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+  const [arrow, setArrow] = useState<{ side: 'top' | 'bottom'; left: number } | null>(null);
+  const [ready, setReady] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const currentStep = STEPS[stepIndex];
 
@@ -39,46 +42,63 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
-    const tooltipWidth = 320;
-    const tooltipHeight = 160;
-    const gap = 12;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const gap = 12;
+    const tooltipWidth = Math.min(320, viewportWidth - gap * 2);
+    // Measure the tooltip's real rendered height (varies by language/content length)
+    // instead of assuming a fixed size — a stale guess is what causes overlap/overflow.
+    const tooltipHeight = tooltipRef.current?.offsetHeight || 160;
 
     let top: number;
-    let left: number;
+    let side: 'top' | 'bottom';
 
     const spaceBelow = viewportHeight - rect.bottom;
     const spaceAbove = rect.top;
 
     if (spaceBelow >= tooltipHeight + gap) {
       top = rect.bottom + gap;
+      side = 'bottom';
     } else if (spaceAbove >= tooltipHeight + gap) {
       top = rect.top - tooltipHeight - gap;
+      side = 'top';
     } else {
       top = Math.max(gap, (viewportHeight - tooltipHeight) / 2);
+      side = 'bottom';
     }
 
-    left = rect.left + rect.width / 2 - tooltipWidth / 2;
-    // Clamp to viewport with gutters
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
     left = Math.max(gap, Math.min(left, viewportWidth - tooltipWidth - gap));
-    // Final safety: ensure tooltip stays fully on-screen
-    const clampedWidth = Math.min(tooltipWidth, viewportWidth - gap * 2);
 
-    setTooltipStyle({
-      position: 'fixed',
-      top,
-      left,
-      width: clampedWidth,
+    setTooltipStyle({ position: 'fixed', top, left, width: tooltipWidth });
+    setArrow({
+      side,
+      left: Math.max(20, Math.min(rect.left + rect.width / 2 - left, tooltipWidth - 20)),
     });
   }, [currentStep.target]);
 
   useEffect(() => {
     if (!isOpen) return;
+    setReady(false);
+    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.target}"]`);
+    // Bring the target on-screen first — positioning against an off-screen element
+    // (below the fold, behind a collapsed sidebar) is the other half of "bad placement".
+    el?.scrollIntoView({ block: 'center', behavior: 'auto' });
+
+    // First pass: position with a fallback height estimate so the tooltip appears
+    // immediately. Second pass (next frame): the tooltip is now in the DOM, so
+    // re-measure its real height — translated/longer content reflows the card
+    // taller than the estimate, and that's what was throwing the position off.
     positionTooltip();
+    setReady(true);
+    const raf = requestAnimationFrame(() => positionTooltip());
+
     const onResize = () => positionTooltip();
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+    };
   }, [isOpen, positionTooltip, stepIndex]);
 
   useEffect(() => {
@@ -133,9 +153,10 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
         >
           <div className="absolute inset-0 bg-black/50 pointer-events-none" />
 
-          {tooltipStyle.left !== undefined && (
+          {ready && tooltipStyle.left !== undefined && (
             <motion.div
               key={stepIndex}
+              ref={tooltipRef}
               initial={{ opacity: 0, y: 8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
@@ -143,6 +164,16 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
               style={tooltipStyle}
               className="bg-card/95 backdrop-blur-xl border border-border/60 rounded-2xl shadow-2xl p-5 pointer-events-auto"
             >
+              {arrow && (
+                <div
+                  className={`absolute w-3 h-3 bg-card/95 backdrop-blur-xl rotate-45 ${
+                    arrow.side === 'bottom'
+                      ? 'border-t border-l border-border/60'
+                      : 'border-b border-r border-border/60'
+                  }`}
+                  style={{ left: arrow.left - 6, [arrow.side === 'bottom' ? 'top' : 'bottom']: -6 }}
+                />
+              )}
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[11px] font-mono text-muted-foreground/70 font-medium tabular-nums">
                   {t('onboarding.tour.stepIndicator', { current: stepIndex + 1, total: STEPS.length })}

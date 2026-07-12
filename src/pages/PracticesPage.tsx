@@ -101,8 +101,8 @@ const PracticesPage = () => {
   const otherPractices = localizedPractices.filter((p) => !favorites.includes(p.slug));
 
   usePageMeta({
-    title: 'Daily Practices — Guided Meditations | AskMukthiGuru',
-    description: 'Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    title: t('seo.practicesTitle') || 'Daily Practices — Guided Meditations | AskMukthiGuru',
+    description: t('seo.practicesDescription') || 'Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
     canonical: 'https://askmukthiguru.lovable.app/practices',
     ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
     jsonLd: {
@@ -127,7 +127,7 @@ const PracticesPage = () => {
   }
 
   return (
-    <AppShell title="Practices">
+    <AppShell title={t('practices.title')}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
@@ -135,10 +135,9 @@ const PracticesPage = () => {
           transition={{ duration: 0.4 }}
           className="mb-8"
         >
-          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Daily practices</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">{t('practices.title')}</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl">
-            A small library of guided practices rooted in the teachings of
-            Sri Preethaji & Sri Krishnaji. Tap the star to pin the ones you return to most.
+            {t('practices.subtitle')}
           </p>
         </motion.header>
 

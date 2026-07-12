@@ -749,17 +749,18 @@ class MemoryService:
         # Run memory compaction check
         await self.compact_memories(user_id)
 
-        # Write session summary to DB
+        # Write session summary to DB (upsert to handle re-ingestion)
         if extracted.session_summary.strip():
             try:
                 await asyncio.to_thread(
                     self._supabase.table("guru_session_summaries")
-                    .insert(
+                    .upsert(
                         {
                             "user_id": user_id,
                             "session_id": session_id,
                             "summary": extracted.session_summary.strip(),
-                        }
+                        },
+                        on_conflict="user_id,session_id",
                     )
                     .execute
                 )

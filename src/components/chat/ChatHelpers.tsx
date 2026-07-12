@@ -133,20 +133,33 @@ type PrePracticeLog = NonNullable<
   ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog']
 >;
 
-export const buildPersonalisedWelcome = (log: PrePracticeLog | undefined, slug: string | undefined): string => {
+export const buildPersonalisedWelcome = (log: PrePracticeLog | undefined, slug: string | undefined, recentMood?: string): string => {
   if (!log) return WELCOME_MESSAGE(slug);
   const insights = derivePrePracticeInsights(log);
   const prefix = greetingPrefix(slug, 'return_new_day');
+  let base: string;
   switch (log.lastAnswer) {
     case 'soul_sync':
-      return `${prefix}. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
+      base = `${prefix}. You arrived after Soul Sync — your heart is already listening. ${insights.encouragement} What would you like to explore?`;
+      break;
     case 'serene_mind':
-      return `${prefix}. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
+      base = `${prefix}. The Serene Mind practice has settled your breath. ${insights.encouragement} Share what stirs within.`;
+      break;
     case 'both':
-      return `${prefix}. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
+      base = `${prefix}. Soul Sync and Serene Mind together — a beautiful preparation. ${insights.encouragement} Speak freely.`;
+      break;
     case 'none':
-      return `${prefix}, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
+      base = `${prefix}, dear seeker. We can begin gently. ${insights.encouragement} What brings you here today?`;
+      break;
     default:
-      return WELCOME_MESSAGE(slug);
+      base = WELCOME_MESSAGE(slug);
   }
+  if (recentMood === 'anxious' || recentMood === 'frustrated') {
+    base += ' I sense some turbulence — let us find stillness together.';
+  } else if (recentMood === 'sad') {
+    base += ' I hold space for your heart. Share what weighs on you.';
+  } else if (recentMood === 'calm') {
+    base += ' A quiet mind is already a temple. Let us deepen that peace.';
+  }
+  return base;
 };

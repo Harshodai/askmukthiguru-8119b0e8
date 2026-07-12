@@ -34,38 +34,77 @@ elif [ -z "${WEB_CONCURRENCY}" ]; then
 fi
 
 
+# Detect if running as root
+if [ "$(id -u)" -eq 0 ]; then
+    GOSU_PREFIX="gosu appuser"
+else
+    GOSU_PREFIX=""
+fi
+
 # If the command starts with python/uvicorn, inject --workers from WEB_CONCURRENCY
 if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
     echo "Warming cache in the background..."
-    gosu appuser python -m scripts.warm_cache > /app/data/warm_cache.log 2>&1 &
+    if [ -n "$GOSU_PREFIX" ]; then
+        $GOSU_PREFIX python -m scripts.warm_cache > /app/data/warm_cache.log 2>&1 &
+    else
+        python -m scripts.warm_cache > /app/data/warm_cache.log 2>&1 &
+    fi
 
     echo "Starting server with WEB_CONCURRENCY=${WEB_CONCURRENCY} workers..."
-    echo "Dropping privileges to appuser..."
+    if [ -n "$GOSU_PREFIX" ]; then
+        echo "Dropping privileges to appuser..."
+    fi
+    
     if [ "${WEB_CONCURRENCY}" -gt 1 ]; then
         # Gunicorn with uvicorn workers for proper process isolation (worker crash
         # doesn't bring down the master; master respawns crashed workers).
-        exec gosu appuser gunicorn app.main:app \
-            --worker-class uvicorn.workers.UvicornWorker \
-            --workers "${WEB_CONCURRENCY}" \
-            --bind 0.0.0.0:8000 \
-            --timeout 300 \
-            --keep-alive 300 \
-            --max-requests 1000 \
-            --max-requests-jitter 100 \
-            --graceful-timeout 60 \
-            --preload
+        if [ -n "$GOSU_PREFIX" ]; then
+            exec gosu appuser gunicorn app.main:app \
+                --worker-class uvicorn.workers.UvicornWorker \
+                --workers "${WEB_CONCURRENCY}" \
+                --bind 0.0.0.0:8000 \
+                --timeout 300 \
+                --keep-alive 300 \
+                --max-requests 1000 \
+                --max-requests-jitter 100 \
+                --graceful-timeout 60 \
+                --preload
+        else
+            exec gunicorn app.main:app \
+                --worker-class uvicorn.workers.UvicornWorker \
+                --workers "${WEB_CONCURRENCY}" \
+                --bind 0.0.0.0:8000 \
+                --timeout 300 \
+                --keep-alive 300 \
+                --max-requests 1000 \
+                --max-requests-jitter 100 \
+                --graceful-timeout 60 \
+                --preload
+        fi
     else
-        exec gosu appuser python -m uvicorn app.main:app \
-            --host 0.0.0.0 \
-            --port 8000 \
-            --timeout-keep-alive 300
+        if [ -n "$GOSU_PREFIX" ]; then
+            exec gosu appuser python -m uvicorn app.main:app \
+                --host 0.0.0.0 \
+                --port 8000 \
+                --timeout-keep-alive 300
+        else
+            exec python -m uvicorn app.main:app \
+                --host 0.0.0.0 \
+                --port 8000 \
+                --timeout-keep-alive 300
+        fi
     fi
 fi
 
 # Celery worker — drop privileges like uvicorn
 if [[ "$1" == 'celery' ]]; then
     echo "Starting Celery worker..."
-    echo "Dropping privileges to appuser..."
-    exec gosu appuser "$@"
+    if [ -n "$GOSU_PREFIX" ]; then
+        echo "Dropping privileges to appuser..."
+        exec gosu appuser "$@"
+    else
+        exec "$@"
+    fi
 fi
+
 
