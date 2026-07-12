@@ -231,17 +231,40 @@ export const MemoryManager = () => {
   }, [kgNodes, dimensions.width, dimensions.height]);
 
   // Main Force Simulation Loop
+  // - Cooldown counter freezes the sim once the layout settles (Supermemory-
+  //   style: after the initial spring, CPU goes to zero and stays quiet until
+  //   the user drags a node or the graph changes).
+  // - Edge attraction uses a pre-built node id → SimNode map so it's O(edges)
+  //   per tick instead of O(edges × nodes) from repeated array .find() scans.
   useEffect(() => {
     if (viewMode !== 'graph' || kgNodes.length === 0) return;
 
     let animationFrameId: number;
+    let ticks = 0;
+    const maxTicks = Math.max(220, kgNodes.length * 6); // scale with graph size
+    const kickAlive = () => { ticks = 0; };
 
     const tick = () => {
       const nodes = simNodesRef.current;
+      const draggedId = activeDraggedNodeRef.current;
+      // If dragged, keep the sim hot so neighbors respond in real time.
+      if (draggedId) kickAlive();
       if (nodes.length === 0) {
         animationFrameId = requestAnimationFrame(tick);
         return;
       }
+
+      // Frozen state — skip physics, only stream current positions.
+      if (ticks > maxTicks && !draggedId) {
+        animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+      ticks++;
+
+      // Build once-per-tick lookup for edge attraction. Cheap; avoids O(N)
+      // .find() inside the edges loop.
+      const nodeById = new Map<string, SimNode>();
+      for (const n of nodes) nodeById.set(n.id, n);
 
       // 1. Charge Repulsion (push nodes apart)
       for (let i = 0; i < nodes.length; i++) {
@@ -253,7 +276,6 @@ export const MemoryManager = () => {
           const distSq = dx * dx + dy * dy + 0.1;
           const dist = Math.sqrt(distSq);
           if (dist < 220) {
-            // Stronger repulsion closer together
             const force = 180 / distSq;
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
@@ -267,13 +289,13 @@ export const MemoryManager = () => {
 
       // 2. Edge Link Attraction (pull connected nodes)
       for (const edge of kgEdges) {
-        const s = nodes.find(n => n.id === edge.source);
-        const t = nodes.find(n => n.id === edge.target);
+        const s = nodeById.get(edge.source);
+        const t = nodeById.get(edge.target);
         if (s && t) {
           const dx = t.x - s.x;
           const dy = t.y - s.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
-          const targetDist = 95;
+          const targetDist = edge.label === 'SHARED_STATE' ? 130 : 95;
           const force = (dist - targetDist) * 0.025;
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
@@ -293,7 +315,6 @@ export const MemoryManager = () => {
       }
 
       // 4. Update Coordinates with Friction
-      const draggedId = activeDraggedNodeRef.current;
       const posMap = new Map<string, { x: number; y: number }>();
 
       for (const n of nodes) {
