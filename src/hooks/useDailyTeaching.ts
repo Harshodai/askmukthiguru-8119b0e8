@@ -44,6 +44,9 @@ export function useDailyTeaching() {
 
       if (data) {
         const typed = data as DailyTeachingData;
+        if (typed.caption) {
+          typed.caption = typed.caption.replace(/^\[Source:\s*[^\]]+\]\s*/i, '');
+        }
         _cachedTeaching = typed;
         _cacheExpiry = Date.now() + 5 * 60 * 1000; // 5 min
         setTeaching(typed);

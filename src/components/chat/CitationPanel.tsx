@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { X, Link as LinkIcon, ExternalLink } from "lucide-react";
+import { X, Link as LinkIcon, ExternalLink, Play, Youtube } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -85,15 +85,33 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           <p className="text-xs text-muted-foreground mt-1">{t('chat.channelLabel', { channel: c.channel_name })}</p>
                         )}
                         {ytId && (
-                          <div className="mt-3 rounded-lg overflow-hidden border">
-                            <iframe
-                              width="100%"
-                              src={`https://www.youtube.com/embed/${ytId}`}
-                              title={t('chat.youTubePlayer')}
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              className="w-full aspect-video"
-                              referrerPolicy="strict-origin-when-cross-origin"
-                            />
+                          <div className="mt-3">
+                            <a
+                              href={c.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block rounded-lg overflow-hidden border group transition-colors"
+                            >
+                              <div className="relative aspect-video bg-black/10">
+                                <img
+                                  src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
+                                  alt="YouTube thumbnail"
+                                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                  <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="p-2 bg-background border-t">
+                                <p className="text-xs font-medium text-ojas flex items-center gap-1">
+                                  <Youtube className="w-3 h-3 text-red-500" />
+                                  Watch on YouTube
+                                </p>
+                              </div>
+                            </a>
                           </div>
                         )}
                       </div>

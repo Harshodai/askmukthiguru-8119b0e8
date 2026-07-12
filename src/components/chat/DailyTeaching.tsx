@@ -63,7 +63,7 @@ export const DailyTeaching = () => {
     setTeaching({
       id: data.id,
       imageUrl: data.image_url,
-      caption: data.caption ?? undefined,
+      caption: data.caption ? data.caption.replace(/^\[Source:\s*[^\]]+\]\s*/i, '') : undefined,
     });
 
     const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
