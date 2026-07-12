@@ -14,8 +14,8 @@ const SLIDES = [
     emoji: '✨',
     title: 'Ask Anything. Receive Wisdom.',
     subtitle: 'AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
-    color: '#f97316',
-    glow: 'rgba(249, 115, 22, 0.25)',
+    color: '#d4af37',
+    glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
       <div className="space-y-3 px-1">
         {/* Simulated chat bubbles */}
@@ -28,22 +28,22 @@ const SLIDES = [
           <div
             style={{
               width: 28, height: 28, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#f97316,#fb923c)',
+              background: 'linear-gradient(135deg,#d4af37,#f59e0b)',
               flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 12,
             }}
           >
-            🧡
+            💫
           </div>
           <div
             style={{
-              background: 'rgba(249,115,22,0.12)',
-              border: '1px solid rgba(249,115,22,0.2)',
+              background: 'rgba(212, 175, 55, 0.12)',
+              border: '1px solid rgba(212, 175, 55, 0.25)',
               borderRadius: '16px 16px 16px 4px',
               padding: '10px 14px',
               fontSize: 13,
-              color: 'rgba(255,255,255,0.85)',
+              color: 'rgba(255,255,255,0.9)',
               maxWidth: 260,
               lineHeight: 1.5,
             }}
@@ -64,7 +64,7 @@ const SLIDES = [
               borderRadius: '16px 16px 4px 16px',
               padding: '10px 14px',
               fontSize: 13,
-              color: 'rgba(255,255,255,0.7)',
+              color: 'rgba(255,255,255,0.75)',
               maxWidth: 280,
               lineHeight: 1.6,
             }}
@@ -78,8 +78,8 @@ const SLIDES = [
           transition={{ delay: 0.75 }}
           className="flex gap-2 items-end"
         >
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#f97316,#fb923c)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🧡</div>
-          <div style={{ background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', fontSize: 13, color: 'rgba(255,255,255,0.85)', maxWidth: 240, lineHeight: 1.5 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#d4af37,#f59e0b)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>💫</div>
+          <div style={{ background: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.25)', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', fontSize: 13, color: 'rgba(255,255,255,0.9)', maxWidth: 240, lineHeight: 1.5 }}>
             What does "observing without becoming" mean?
           </div>
         </motion.div>
@@ -433,12 +433,12 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                         display: 'flex', alignItems: 'center', gap: 6,
                         padding: '8px 18px',
                         borderRadius: 100,
-                        background: 'linear-gradient(135deg, #f97316, #fb923c)',
+                        background: 'linear-gradient(135deg, #d4af37, #f59e0b)',
                         color: '#fff',
                         fontSize: 13,
                         fontWeight: 700,
                         textDecoration: 'none',
-                        boxShadow: '0 4px 20px rgba(249,115,22,0.4)',
+                        boxShadow: '0 4px 20px rgba(212, 175, 55, 0.4)',
                       }}
                     >
                       <Sparkles style={{ width: 14, height: 14 }} />
