@@ -21,6 +21,7 @@ import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
+import { MoodBanner } from '@/components/mood/MoodBanner';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, getAIConfig } from '@/lib/aiService';
@@ -1481,12 +1482,15 @@ return (
         onExport={handleExportConversation}
         onOpenSources={() => setSourcesPanelOpen(true)}
         sourcesCount={uniqueSourcesCount}
+        hasMessages={messages.some(m => m.role === 'user')}
       />
 
 
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} />
 
+      {/* Mood check-in banner */}
+      <MoodBanner />
 
       {/* Messages Area — this is the scroll container */}
       <div

@@ -9,6 +9,16 @@
 */
 
 @layer base {
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
   :root {
     /* Sacred Energy Colors - Warm & Inviting */
     --ojas-gold: 43 96% 56%;

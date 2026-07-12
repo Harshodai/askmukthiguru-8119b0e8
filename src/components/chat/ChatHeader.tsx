@@ -12,9 +12,18 @@ interface ChatHeaderProps {
   onExport?: () => void;
   onOpenSources?: () => void;
   sourcesCount?: number;
+  hasMessages?: boolean;
 }
 
-export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0 }: ChatHeaderProps) => {
+export const ChatHeader = ({
+  onOpenMobileMenu,
+  sidebarCollapsed,
+  onToggleSidebar,
+  onExport,
+  onOpenSources,
+  sourcesCount = 0,
+  hasMessages = false,
+}: ChatHeaderProps) => {
   const { t } = useTranslation();
 
   return (
@@ -61,14 +70,17 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
             </Button>
           )}
 
-          <span className="flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none" data-testid="chat-header-wordmark">
+          <span
+            className={`flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none ${sidebarCollapsed ? '' : 'md:hidden'}`}
+            data-testid="chat-header-wordmark"
+          >
             <span className="text-sm leading-none" aria-hidden="true">🙏</span>
             {t('nav.appName')}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5">
-          {onOpenSources && (
+          {hasMessages && onOpenSources && (
             <Button
               size="icon"
               variant="ghost"
@@ -85,7 +97,7 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               )}
             </Button>
           )}
-          {onExport && (
+          {hasMessages && onExport && (
             <Button
               size="icon"
               variant="ghost"
@@ -97,7 +109,9 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               <Download className="w-4 h-4" />
             </Button>
           )}
-          <UserMenu />
+          <div className={sidebarCollapsed ? '' : 'md:hidden'}>
+            <UserMenu />
+          </div>
         </div>
       </div>
     </header>

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
-import { MoodBanner } from '@/components/mood/MoodBanner';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
@@ -142,7 +141,6 @@ const ChatPage = () => {
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>
-      <MoodBanner />
       <ChatInterface />
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>
