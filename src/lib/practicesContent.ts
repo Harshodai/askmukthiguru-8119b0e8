@@ -147,7 +147,9 @@ export const getPracticeBySlug = (slug: string): Practice | undefined =>
  */
 export const getLocalizedPractice = (
   practice: Practice,
-  t: (key: string, opts?: unknown) => string,
+  // Accept i18next TFunction or any compatible callable — signature varies
+  // by generic instantiation, so widen here to keep call sites clean.
+  t: (key: string, opts?: any) => any,
   lang: string = 'en',
 ): Practice => {
   if (!practice.i18nKey) return practice;
