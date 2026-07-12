@@ -728,21 +728,26 @@ export const MemoryManager = () => {
                     const pathString = getPathData(edge.source, edge.target, s, t);
                     const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
                     const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
+                    // SHARED_STATE = inferred peer link (memory↔memory via
+                    // same consciousness state). Render dashed + fainter so
+                    // users can distinguish doctrinal edges from soft peers.
+                    const isPeer = edge.label === 'SHARED_STATE';
 
                     return (
                       <g
                         key={`e-${i}`}
                         style={{ transition: 'opacity 0.2s, color 0.2s' }}
-                        color={isDimmed ? 'hsl(var(--border) / 0.15)' : 'hsl(var(--ojas) / 0.7)'}
+                        color={isDimmed ? 'hsl(var(--border) / 0.15)' : (isPeer ? 'hsl(var(--ojas) / 0.35)' : 'hsl(var(--ojas) / 0.7)')}
                       >
                         <path
                           d={pathString}
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth={isDimmed ? 1.0 : 1.75}
-                          markerEnd="url(#arrow)"
+                          strokeWidth={isDimmed ? 1.0 : (isPeer ? 1.0 : 1.75)}
+                          strokeDasharray={isPeer ? '4 4' : undefined}
+                          markerEnd={isPeer ? undefined : 'url(#arrow)'}
                         />
-                        {edge.label && !isDimmed && (
+                        {edge.label && !isDimmed && !isPeer && (
                           <text
                             x={mx} y={my}
                             textAnchor="middle"
