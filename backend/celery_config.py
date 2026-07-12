@@ -17,6 +17,16 @@ from celery import Celery
 from kombu import Exchange, Queue
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+# Sanitize redis_url to strip 'default:' username if present (fixes Celery/Kombu connection issues)
+if "@" in REDIS_URL:
+    prefix = "rediss://" if REDIS_URL.startswith("rediss://") else "redis://"
+    parts = REDIS_URL.split("@", 1)
+    auth_part = parts[0].replace(prefix, "")
+    if ":" in auth_part:
+        username, password = auth_part.split(":", 1)
+        if username == "default":
+            REDIS_URL = f"{prefix}:{password}@{parts[1]}"
+
 
 celery_app = Celery(
     "mukthi_guru",
