@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Step {
@@ -26,17 +26,22 @@ interface GuidedTourProps {
   onDismiss?: () => void;
 }
 
+const SPOTLIGHT_PAD = 8;
+
 export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) => {
   const dismiss = onDismiss ?? onComplete;
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+  const [spotlight, setSpotlight] = useState<React.CSSProperties | null>(null);
   const [arrow, setArrow] = useState<{ side: 'top' | 'bottom'; left: number } | null>(null);
   const [ready, setReady] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const currentStep = STEPS[stepIndex];
 
+  // Re-reads the target's *current* rect every call — safe to call from a resize
+  // handler, a ResizeObserver (content length changed), or after a step change.
   const positionTooltip = useCallback(() => {
     const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.target}"]`);
     if (!el) return;
@@ -46,8 +51,6 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     const viewportHeight = window.innerHeight;
     const gap = 12;
     const tooltipWidth = Math.min(320, viewportWidth - gap * 2);
-    // Measure the tooltip's real rendered height (varies by language/content length)
-    // instead of assuming a fixed size — a stale guess is what causes overlap/overflow.
     const tooltipHeight = tooltipRef.current?.offsetHeight || 160;
 
     let top: number;
@@ -75,50 +78,42 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
       side,
       left: Math.max(20, Math.min(rect.left + rect.width / 2 - left, tooltipWidth - 20)),
     });
+    setSpotlight({
+      position: 'fixed',
+      top: rect.top - SPOTLIGHT_PAD,
+      left: rect.left - SPOTLIGHT_PAD,
+      width: rect.width + SPOTLIGHT_PAD * 2,
+      height: rect.height + SPOTLIGHT_PAD * 2,
+    });
   }, [currentStep.target]);
 
-  useEffect(() => {
+  // Target changed (step advanced, or tour just opened): bring it on-screen and
+  // position synchronously before paint — no flash of the wrong position.
+  useLayoutEffect(() => {
     if (!isOpen) return;
-    setReady(false);
     const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.target}"]`);
-    // Bring the target on-screen first — positioning against an off-screen element
-    // (below the fold, behind a collapsed sidebar) is the other half of "bad placement".
     el?.scrollIntoView({ block: 'center', behavior: 'auto' });
-
-    // First pass: position with a fallback height estimate so the tooltip appears
-    // immediately. Second pass (next frame): the tooltip is now in the DOM, so
-    // re-measure its real height — translated/longer content reflows the card
-    // taller than the estimate, and that's what was throwing the position off.
     positionTooltip();
     setReady(true);
-    const raf = requestAnimationFrame(() => positionTooltip());
-
-    const onResize = () => positionTooltip();
-    window.addEventListener('resize', onResize);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', onResize);
-    };
   }, [isOpen, positionTooltip, stepIndex]);
 
+  // Track the target continuously while the tour is open, instead of trying to
+  // enumerate every event that can move it — a modal's entrance animation, the
+  // sidebar's own width transition, a late-loading card shifting page height,
+  // scroll. A one-shot calculation went stale the moment any of those fired
+  // after it ran; a resize/mutation listener still has to guess which events
+  // matter. rAF polling is what Shepherd/driver.js do for exactly this reason:
+  // it can't miss a layout shift because it never assumes one won't happen.
   useEffect(() => {
     if (!isOpen) return;
-
-    document.querySelectorAll('[data-tour-highlighted]').forEach((el) => {
-      el.removeAttribute('data-tour-highlighted');
-    });
-
-    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.target}"]`);
-    if (el) {
-      el.setAttribute('data-tour-highlighted', 'true');
-    }
-
-    return () => {
-      document.querySelectorAll('[data-tour-highlighted]').forEach((el) => {
-        el.removeAttribute('data-tour-highlighted');
-      });
+    let raf: number;
+    const tick = () => {
+      positionTooltip();
+      raf = requestAnimationFrame(tick);
     };
-  }, [isOpen, currentStep.target, stepIndex]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen, positionTooltip]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -130,6 +125,13 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, dismiss]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setReady(false);
+      setStepIndex(0);
+    }
+  }, [isOpen]);
 
   const handleNext = () => {
     if (stepIndex < STEPS.length - 1) {
@@ -149,18 +151,34 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50"
+          className="fixed inset-0 z-50 pointer-events-none"
         >
-          <div className="absolute inset-0 bg-black/50 pointer-events-none" />
+          {/* Spotlight: a single box-shadow "cutout" over the target, not a
+              separate dark overlay + per-element z-index hack — the latter only
+              wins visually if every ancestor between the target and <body>
+              happens not to create its own stacking context, which broke
+              silently for sidebar/nav targets. */}
+          {spotlight && (
+            <motion.div
+              layout
+              transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
+              className="absolute"
+              style={{
+                ...spotlight,
+                boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+                borderRadius: 12,
+                border: '2px solid hsl(var(--ojas))',
+              }}
+            />
+          )}
 
           {ready && tooltipStyle.left !== undefined && (
             <motion.div
-              key={stepIndex}
               ref={tooltipRef}
-              initial={{ opacity: 0, y: 8, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              layout
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ layout: { type: 'tween', duration: 0.25, ease: 'easeOut' }, opacity: { duration: 0.2 }, scale: { duration: 0.2 } }}
               style={tooltipStyle}
               className="bg-card/95 backdrop-blur-xl border border-border/60 rounded-2xl shadow-2xl p-5 pointer-events-auto"
             >
@@ -187,12 +205,22 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                 </button>
               </div>
 
-              <h3 className="text-base font-semibold text-foreground mb-1.5">
-                {t(currentStep.titleKey)}
-              </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-                {t(currentStep.descriptionKey)}
-              </p>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={stepIndex}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <h3 className="text-base font-semibold text-foreground mb-1.5">
+                    {t(currentStep.titleKey)}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                    {t(currentStep.descriptionKey)}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
 
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">

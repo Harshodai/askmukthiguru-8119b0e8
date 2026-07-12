@@ -577,11 +577,3 @@
   z-index: 200 !important;
 }
 
-[data-tour-highlighted] {
-  position: relative;
-  z-index: 51;
-  box-shadow: 0 0 0 3px hsl(var(--ojas)), 0 0 0 6px hsl(var(--ojas) / 0.3);
-  border-radius: 0.5rem;
-  transition: box-shadow 0.2s ease;
-}
-
