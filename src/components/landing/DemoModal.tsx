@@ -22,13 +22,12 @@ const SLIDES = [
     id: 'chat',
     icon: MessageSquare,
     emoji: '💬',
-    title: 'Talk to Your Personal Guru',
-    subtitle: 'Ask anything — stress, relationships, purpose — and get wise, thoughtful guidance.',
+    title: 'Talk to Your Guru',
+    subtitle: 'Ask anything — stress, purpose, relationships — get thoughtful guidance.',
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="space-y-3 px-1 flex flex-col justify-center" style={{ height: 170 }}>
-        {/* User Question 1 */}
+      <div className="space-y-3 px-1 flex flex-col justify-center" style={{ height: 160 }}>
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -47,11 +46,10 @@ const SLIDES = [
               lineHeight: 1.45,
             }}
           >
-            I feel anxious all the time. How do I calm down?
+            Namaste. My mind won't stop racing.
           </div>
         </motion.div>
 
-        {/* Guru Answer */}
         <motion.div
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -83,11 +81,10 @@ const SLIDES = [
               boxShadow: '0 0 15px rgba(212, 175, 55, 0.05)',
             }}
           >
-            Try this: sit quietly for 2 minutes and just watch your thoughts like clouds passing by. Don't fight them — just notice. You'll feel the anxiety loosen its grip.
+            Try this: sit for 2 minutes, watch thoughts like clouds passing. Don't fight — just notice. The racing slows naturally.
           </div>
         </motion.div>
 
-        {/* User follow-up */}
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
@@ -106,7 +103,7 @@ const SLIDES = [
               lineHeight: 1.45,
             }}
           >
-            That actually helped! Can I do this daily?
+            That simple? I can do that daily.
           </div>
         </motion.div>
       </div>
@@ -116,12 +113,12 @@ const SLIDES = [
     id: 'meditation',
     icon: Flame,
     emoji: '🧘',
-    title: 'Quick Calm in 3 Minutes',
-    subtitle: 'A short breathing exercise to center yourself — perfect before a meeting, bedtime, or whenever life feels hectic.',
+    title: '3-Minute Calm',
+    subtitle: 'Quick breathing practice — before meetings, bedtime, or whenever you need center.',
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="flex flex-col items-center justify-center space-y-3" style={{ height: 170 }}>
+      <div className="flex flex-col items-center justify-center space-y-3" style={{ height: 160 }}>
         <motion.div
           animate={{ scale: [1, 1.22, 1], opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
@@ -162,31 +159,29 @@ const SLIDES = [
     id: 'knowledge',
     icon: Brain,
     emoji: '🕸️',
-    title: 'Your Personal Wisdom Map',
-    subtitle: 'Every conversation builds a living web of ideas — see how your insights connect over time.',
+    title: 'Your Wisdom Map',
+    subtitle: 'Every chat builds a living web — see how insights connect over time.',
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="relative" style={{ height: 160, width: '100%' }}>
-        {/* Connection lines — simple SVG, no animation */}
+      <div className="relative" style={{ height: 150, width: '100%' }}>
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0 }}>
-          <line x1="50%" y1="40%" x2="18%" y2="22%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
-          <line x1="50%" y1="40%" x2="82%" y2="22%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
-          <line x1="50%" y1="40%" x2="12%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
-          <line x1="50%" y1="40%" x2="88%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
-          <line x1="50%" y1="40%" x2="50%" y2="90%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
-          <line x1="18%" y1="22%" x2="12%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.2" />
-          <line x1="82%" y1="22%" x2="88%" y2="72%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.2" />
+          <line x1="50%" y1="38%" x2="18%" y2="20%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="38%" x2="82%" y2="20%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="38%" x2="12%" y2="70%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="38%" x2="88%" y2="70%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="50%" y1="38%" x2="50%" y2="88%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35" />
+          <line x1="18%" y1="20%" x2="12%" y2="70%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.2" />
+          <line x1="82%" y1="20%" x2="88%" y2="70%" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.2" />
         </svg>
 
-        {/* Nodes with labels */}
         {[
-          { x: 50, y: 40, label: 'Peace', size: 28, color: '#d4af37', main: true },
-          { x: 18, y: 22, label: 'Breath', size: 18, color: '#fbbf24' },
-          { x: 82, y: 22, label: 'Gratitude', size: 20, color: '#fbbf24' },
-          { x: 12, y: 72, label: 'Stillness', size: 16, color: '#fde68a' },
-          { x: 88, y: 72, label: 'Kindness', size: 18, color: '#fde68a' },
-          { x: 50, y: 90, label: 'Letting Go', size: 16, color: '#fde68a' },
+          { x: 50, y: 38, label: 'Peace', size: 28, color: '#d4af37', main: true },
+          { x: 18, y: 20, label: 'Breath', size: 18, color: '#fbbf24' },
+          { x: 82, y: 20, label: 'Gratitude', size: 20, color: '#fbbf24' },
+          { x: 12, y: 70, label: 'Stillness', size: 16, color: '#fde68a' },
+          { x: 88, y: 70, label: 'Kindness', size: 18, color: '#fde68a' },
+          { x: 50, y: 88, label: 'Letting Go', size: 16, color: '#fde68a' },
         ].map((node, i) => (
           <div key={i} style={{ position: 'absolute', left: `${node.x}%`, top: `${node.y}%`, transform: 'translate(-50%, -50%)', textAlign: 'center', zIndex: 1 }}>
             <div
@@ -342,6 +337,7 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                           borderRadius: 16,
                           padding: '16px',
                           minHeight: 200,
+                          overflow: 'hidden',
                         }}
                       >
                         {/* Emoji + Title + Subtitle inside preview */}
@@ -362,7 +358,7 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
                           >
                             {current.title}
                           </h2>
-                          <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                          <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                             {current.subtitle}
                           </p>
                         </div>
