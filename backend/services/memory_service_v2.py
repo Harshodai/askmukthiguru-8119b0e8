@@ -777,7 +777,9 @@ class MemoryServiceV2(MemoryService):
                         _add_edge(f"concept:{edge['source']}", f"concept:{edge['target']}", edge['rel_type'])
             except Exception as e:
                 logger.warning(f"build_personal_knowledge_graph ontology view failed: {e}")
-            return {"nodes": list(nodes.values()), "edges": edges}
+            result = {"nodes": list(nodes.values()), "edges": edges}
+            self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
+            return result
 
         # 2. Personal View
         # Check memories count from both Neo4j and Supabase
