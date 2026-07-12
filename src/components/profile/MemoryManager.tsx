@@ -467,25 +467,38 @@ export const MemoryManager = () => {
     }
   };
 
-  // Neighborhood and Connection highlighting calculations
+  // Memoized indexes — kill O(N × edges) scans that ran once per render.
+  // nodeIndex: id → node (used by getPathData and hover neighborhood).
+  // adjacency: id → Set<neighborId> (used for hover dim + selectedNode fade).
+  const nodeIndex = useRef(new Map<string, KGNode>()).current;
+  const adjacency = useRef(new Map<string, Set<string>>()).current;
+  useEffect(() => {
+    nodeIndex.clear();
+    adjacency.clear();
+    for (const n of kgNodes) nodeIndex.set(n.id, n);
+    for (const e of kgEdges) {
+      if (!adjacency.has(e.source)) adjacency.set(e.source, new Set());
+      if (!adjacency.has(e.target)) adjacency.set(e.target, new Set());
+      adjacency.get(e.source)!.add(e.target);
+      adjacency.get(e.target)!.add(e.source);
+    }
+  }, [kgNodes, kgEdges, nodeIndex, adjacency]);
+
+  // Neighborhood highlighting (O(1) after adjacency build).
   const connectedNodeIds = new Set<string>();
   if (hoveredNode) {
     connectedNodeIds.add(hoveredNode.id);
-    kgEdges.forEach(edge => {
-      if (edge.source === hoveredNode.id) connectedNodeIds.add(edge.target);
-      if (edge.target === hoveredNode.id) connectedNodeIds.add(edge.source);
-    });
+    const peers = adjacency.get(hoveredNode.id);
+    if (peers) for (const id of peers) connectedNodeIds.add(id);
   }
 
-  // Matching nodes based on query
   const matchesQuery = (node: KGNode) => {
     if (!searchQuery) return true;
-    return node.label.toLowerCase().includes(searchQuery.toLowerCase()) || node.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return node.label.toLowerCase().includes(q) || node.type.toLowerCase().includes(q);
   };
 
-  const getRadiusForNode = (node?: KGNode) => {
-    return node ? getCfgForNode(node).r : 15;
-  };
+  const getRadiusForNode = (node?: KGNode) => (node ? getCfgForNode(node).r : 15);
 
   const getPathData = (
     sourceId: string,
@@ -493,10 +506,8 @@ export const MemoryManager = () => {
     s: { x: number; y: number },
     t: { x: number; y: number }
   ) => {
-    const sourceNode = kgNodes.find(n => n.id === sourceId);
-    const targetNode = kgNodes.find(n => n.id === targetId);
-    const rSource = getRadiusForNode(sourceNode);
-    const rTarget = getRadiusForNode(targetNode);
+    const rSource = getRadiusForNode(nodeIndex.get(sourceId));
+    const rTarget = getRadiusForNode(nodeIndex.get(targetId));
 
     const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
     const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
