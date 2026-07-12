@@ -95,7 +95,8 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     const vh = window.innerHeight;
     const gap = 14;
     const tooltipWidth = clamp(340, 280, vw - gap * 2);
-    const tooltipHeight = tooltipRef.current?.offsetHeight || 180;
+    // Use a stable estimated height to prevent feedback loop during layout animations
+    const tooltipHeight = 200;
 
     // Determine radius of the element (approximated from computed style)
     let radius = 12;
@@ -204,7 +205,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     id: i,
     x: Math.random() * 100,
     delay: Math.random() * 0.3,
-    color: ['#f97316', '#fb923c', '#fdba74', '#fde68a', '#86efac'][Math.floor(Math.random() * 5)],
+    color: ['#d4af37', '#f59e0b', '#fbbf24', '#fef08a', '#a7f3d0'][Math.floor(Math.random() * 5)],
   }));
 
   return (
@@ -238,8 +239,8 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   borderRadius: spotlight.radius,
                   // Single large box-shadow = the dark overlay with a "hole" at this element
                   boxShadow: '0 0 0 9999px rgba(0,0,0,0.65)',
-                  // Accent border around the target
-                  border: '2px solid rgba(249, 115, 22, 0.6)',
+                  // Accent border around the target - Gold
+                  border: '2px solid rgba(212, 175, 55, 0.65)',
                 }}
               />
 
@@ -253,7 +254,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   width: spotlight.width + 8,
                   height: spotlight.height + 8,
                   borderRadius: spotlight.radius + 4,
-                  border: '2px solid rgba(249, 115, 22, 0.4)',
+                  border: '2px solid rgba(212, 175, 55, 0.4)',
                 }}
                 animate={{
                   scale: [1, 1.06, 1],
@@ -289,15 +290,15 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
               {/* Outer shell — double-bezel technique */}
               <div
                 style={{
-                  background: 'rgba(10, 10, 14, 0.92)',
+                  background: 'rgba(10, 10, 14, 0.94)',
                   backdropFilter: 'blur(24px)',
                   WebkitBackdropFilter: 'blur(24px)',
-                  border: '1px solid rgba(249, 115, 22, 0.25)',
+                  border: '1px solid rgba(212, 175, 55, 0.3)',
                   borderRadius: 20,
                   boxShadow: [
-                    '0 0 0 1px rgba(249, 115, 22, 0.12) inset',
-                    '0 24px 48px rgba(0, 0, 0, 0.6)',
-                    '0 0 60px rgba(249, 115, 22, 0.08)',
+                    '0 0 0 1px rgba(212, 175, 55, 0.15) inset',
+                    '0 24px 48px rgba(0, 0, 0, 0.65)',
+                    '0 0 60px rgba(212, 175, 55, 0.08)',
                   ].join(', '),
                   padding: '1px',
                 }}
@@ -321,12 +322,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         width: 14,
                         height: 14,
                         background: 'rgba(12,12,18,0.98)',
-                        border: `1px solid rgba(249, 115, 22, 0.25)`,
+                        border: `1px solid rgba(212, 175, 55, 0.3)`,
                         transform: 'rotate(45deg)',
-                        borderRight: arrow.side === 'bottom' ? 'none' : '1px solid rgba(249, 115, 22, 0.25)',
-                        borderBottom: arrow.side === 'bottom' ? 'none' : '1px solid rgba(249, 115, 22, 0.25)',
-                        borderTop: arrow.side === 'top' ? 'none' : '1px solid rgba(249, 115, 22, 0.25)',
-                        borderLeft: arrow.side === 'top' ? 'none' : '1px solid rgba(249, 115, 22, 0.25)',
+                        borderRight: arrow.side === 'bottom' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
+                        borderBottom: arrow.side === 'bottom' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
+                        borderTop: arrow.side === 'top' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
+                        borderLeft: arrow.side === 'top' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
                       }}
                     />
                   )}
@@ -336,15 +337,15 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                     {/* Eyebrow pill */}
                     <span
                       style={{
-                        background: 'rgba(249, 115, 22, 0.12)',
-                        border: '1px solid rgba(249, 115, 22, 0.2)',
+                        background: 'rgba(212, 175, 55, 0.12)',
+                        border: '1px solid rgba(212, 175, 55, 0.25)',
                         borderRadius: 100,
                         padding: '2px 8px',
                         fontSize: 10,
                         fontWeight: 600,
                         letterSpacing: '0.12em',
                         textTransform: 'uppercase',
-                        color: 'rgba(249, 115, 22, 0.9)',
+                        color: 'rgba(212, 175, 55, 0.95)',
                       }}
                     >
                       <MapPin className="w-2.5 h-2.5 inline mr-1 -mt-0.5" />
@@ -400,7 +401,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             fontSize: 28,
                             lineHeight: 1,
                             flexShrink: 0,
-                            filter: 'drop-shadow(0 2px 8px rgba(249,115,22,0.3))',
+                            filter: 'drop-shadow(0 2px 8px rgba(212,175,55,0.3))',
                           }}
                         >
                           {currentStep.emoji}
@@ -447,7 +448,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                       style={{
                         height: '100%',
-                        background: 'linear-gradient(90deg, #f97316, #fb923c)',
+                        background: 'linear-gradient(90deg, #d4af37, #f59e0b)',
                         borderRadius: 100,
                       }}
                     />
@@ -467,9 +468,9 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             borderRadius: 100,
                             background:
                               i === stepIndex
-                                ? '#f97316'
+                                ? '#d4af37'
                                 : i < stepIndex
-                                ? 'rgba(249,115,22,0.4)'
+                                ? 'rgba(212,175,55,0.4)'
                                 : 'rgba(255,255,255,0.12)',
                             transition: 'all 0.25s cubic-bezier(0.32,0.72,0,1)',
                             border: 'none',
@@ -520,13 +521,13 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           gap: 6,
                           padding: '8px 16px',
                           borderRadius: 100,
-                          background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
+                          background: 'linear-gradient(135deg, #d4af37 0%, #f59e0b 100%)',
                           border: 'none',
                           color: '#fff',
                           fontSize: 13,
                           fontWeight: 700,
                           cursor: 'pointer',
-                          boxShadow: '0 4px 16px rgba(249,115,22,0.35)',
+                          boxShadow: '0 4px 16px rgba(212,175,55,0.35)',
                           letterSpacing: '-0.01em',
                           transition: 'box-shadow 0.2s',
                         }}
@@ -545,19 +546,19 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           gap: 4,
                           padding: '8px 14px',
                           borderRadius: 100,
-                          background: 'rgba(249,115,22,0.15)',
-                          border: '1px solid rgba(249,115,22,0.3)',
-                          color: 'rgba(249,115,22,0.9)',
+                          background: 'rgba(212,175,55,0.15)',
+                          border: '1px solid rgba(212,175,55,0.3)',
+                          color: 'rgba(212,175,55,0.95)',
                           fontSize: 13,
                           fontWeight: 600,
                           cursor: 'pointer',
                           transition: 'all 0.15s',
                         }}
                         onMouseEnter={e => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(249,115,22,0.22)';
+                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,175,55,0.22)';
                         }}
                         onMouseLeave={e => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(249,115,22,0.15)';
+                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,175,55,0.15)';
                         }}
                       >
                         {t('onboarding.tour.next')}
