@@ -1,5 +1,20 @@
 # Agentic Lessons & Memory
 
+## Jul 12, 2026 — UI Design Alignment, Caching, and Railway Permission Security
+
+### Non-Root User Permissions under Railway Docker Deployments
+- **Problem**: When hard-configuring container security to run as a non-root user (`USER appuser`) in `Dockerfile.railway`, the container starts with read-only permissions for the `/app` workspace folder (since files copied as `root` are owned by `root`). When the Python FastAPI app or Celery worker tries to instantiate database/file stores (like `FeedbackStore` trying to create the `data/` directory or HuggingFace trying to write cache), it crashes with `PermissionError: [Errno 13] Permission denied`.
+- **Fix**: Pre-create all required runtime write directories (such as `/app/data` and `/app/.cache`) in the Dockerfile while still running as root, and recursively grant ownership of `/app` to the non-root user (`RUN mkdir -p /app/data /app/.cache && chown -R appuser:appuser /app`) before switching to `USER appuser`.
+- **Pattern**: When transitioning any Docker container to run as a non-root user, ensure all directories that will be written to at runtime are pre-created and recursively `chowned` to that non-root user in the Dockerfile.
+
+### Service Worker Caching Mixed Content Block
+- **Problem**: When a project registers a Service Worker (such as for web push or PWA caching) during local development on `localhost:8080`, the browser caches those routes. If you later load the hosted staging/preview app on HTTPS (e.g. `preview--askmukthiguru.lovable.app`), the cached Service Worker will intercept dynamic imports and try to fetch them from `http://localhost:8080/src/pages/Index.tsx`, failing due to Mixed Content blocks.
+- **Fix**: To test without this interference, open the preview URL in an **Incognito / Private Window** (which bypasses existing service workers/caches) or clear site data/unregister service workers in DevTools.
+
+### Uniform Height Constraints on Sliding Preview Cards
+- **Problem**: In multi-step interactive wizard/preview cards (like the `DemoModal` slides), if each slide has a different content height (e.g., Slide 1 has a chat transcript, Slide 2 has a breathing guide, Slide 3 has a graph), the entire modal container will continuously resize and shift height as the user clicks "Next". This creates a jittery, unpolished feel.
+- **Fix**: Apply a fixed, uniform height wrapper constraint (such as `style={{ height: 180 }}`) to all slide contents and center them vertically. This keeps the modal container perfectly stable and uniform.
+
 ## Jul 12, 2026 — Offline Translations & Validation of Regional Locales
 
 ### Offline Translations & Validation of Regional Locales
