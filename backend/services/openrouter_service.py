@@ -198,9 +198,31 @@ class OpenRouterService:
             logger.warning(f"OpenRouter circuit breaker open — graceful degradation for {operation}")
             return await self._graceful_degradation(messages, operation=operation)
 
+        is_anthropic = "anthropic/" in model or "claude" in model
+
+        payload_messages = []
+        for msg in messages:
+            if is_anthropic and msg.get("role") == "system" and msg.get("content"):
+                content = msg["content"]
+                if isinstance(content, str):
+                    payload_messages.append({
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": content,
+                                "cache_control": {"type": "ephemeral"}
+                            }
+                        ]
+                    })
+                else:
+                    payload_messages.append(msg)
+            else:
+                payload_messages.append(msg)
+
         payload = {
             "model": model,
-            "messages": messages,
+            "messages": payload_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
@@ -210,9 +232,13 @@ class OpenRouterService:
             if param in kwargs:
                 payload[param] = kwargs[param]
 
+        headers = {}
+        if is_anthropic:
+            headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+
         async def _execute():
             client = await self._get_http_client()
-            resp = await client.post("/chat/completions", json=payload)
+            resp = await client.post("/chat/completions", json=payload, headers=headers or None)
             resp.raise_for_status()
             return resp.json()
 
@@ -240,6 +266,18 @@ class OpenRouterService:
             usage = data.get("usage", {})
             tokens_in = usage.get("prompt_tokens") or self._estimate_tokens(str(messages))
             tokens_out = usage.get("completion_tokens") or self._estimate_tokens(content)
+
+            prompt_details = usage.get("prompt_tokens_details") or {}
+            cached_tokens = (
+                prompt_details.get("cached_tokens") or
+                usage.get("cache_read_input_tokens") or 0
+            )
+            if cached_tokens > 0:
+                logger.info(
+                    f"OpenRouter Cache Hit: cached_tokens={cached_tokens} "
+                    f"out of prompt_tokens={tokens_in} for model={model}"
+                )
+
             self._track_token_usage(tokens_in=tokens_in, tokens_out=tokens_out, model=model)
 
             return content
@@ -361,14 +399,31 @@ class OpenRouterService:
         """Streaming generation using the main OpenRouter model."""
         await self._enforce_rate_limit()
 
-        messages = [{"role": "system", "content": system_prompt}]
+        model = kwargs.get("model", self._gen_model)
+        is_anthropic = "anthropic/" in model or "claude" in model
+
+        if is_anthropic and system_prompt:
+            messages = [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": system_prompt,
+                            "cache_control": {"type": "ephemeral"}
+                        }
+                    ]
+                }
+            ]
+        else:
+            messages = [{"role": "system", "content": system_prompt}]
+
         if context:
             full_prompt = f"Context:\n{context}\n\nQuestion: {user_prompt}"
         else:
             full_prompt = user_prompt
         messages.append({"role": "user", "content": full_prompt})
 
-        model = kwargs.get("model", self._gen_model)
         max_tokens = kwargs.get("max_tokens", 8192)
         temperature = kwargs.get("temperature", 0.1)
 
@@ -392,10 +447,15 @@ class OpenRouterService:
                 client = await self._get_http_client()
                 buffer = ""
 
+                headers = {}
+                if is_anthropic:
+                    headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+
                 async with client.stream(
                     "POST",
                     "/chat/completions",
                     json=payload,
+                    headers=headers or None,
                 ) as resp:
                     resp.raise_for_status()
 
