@@ -26,3 +26,27 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
     }
   });
 }
+
+/**
+ * Preload a lazy component's chunk in the background.
+ * Call this when you anticipate the user will navigate to a route.
+ */
+export function preloadLazy<T extends ComponentType<unknown>>(
+  factory: () => Promise<{ default: T }>
+) {
+  // Trigger the dynamic import without waiting
+  factory().catch(() => {}); // Silently fail if already cached or error
+}
+
+/**
+ * Preload critical routes after initial page load.
+ * Call in a useEffect after the app mounts.
+ */
+export function preloadCriticalRoutes() {
+  // Preload chat route (highest probability next navigation)
+  requestIdleCallback?.(() => {
+    import('@/pages/ChatPage').catch(() => {});
+    import('@/pages/ProfilePage').catch(() => {});
+    import('@/pages/PracticesPage').catch(() => {});
+  }, { timeout: 2000 });
+}
