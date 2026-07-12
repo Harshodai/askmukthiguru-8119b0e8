@@ -163,7 +163,7 @@ const getSourceDisplayName = (url: string, index: number): string => {
       return `O&O Academy Reference`;
     }
     if (hostname.includes('preethaji') || hostname.includes('krishnaji')) {
-      return t('chat.teachingReference');
+      return 'Teaching Reference';
     }
     return hostname;
   } catch {
