@@ -92,6 +92,7 @@ function SourceRow({
   copiedUrl: string | null;
   autoFocus?: boolean;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLLIElement | null>(null);
   useEffect(() => {
     if (autoFocus) {

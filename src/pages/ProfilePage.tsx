@@ -220,13 +220,13 @@ const ProfilePage = () => {
     toast({ title: 'Profile saved', description: 'Your preferences are updated.' });
 
   // Sync conversation list for profile UI
-  const [localConversationCount, setLocalConversationCount] = useState(0);
+  const [localConversationCount, setConversationCount] = useState(0);
 
   useEffect(() => {
     const reload = () => {
       const convs = loadConversations();
       setConversations(convs);
-      setLocalConversationCount(convs.length);
+      setConversationCount(convs.length);
     };
     reload();
     window.addEventListener('storage', reload);
@@ -645,7 +645,7 @@ const ProfilePage = () => {
                             <p className="font-medium">{conv.preview || 'Untitled'}</p>
                             <p className="text-xs text-muted-foreground">{formatRelativeTime(conv.updatedAt)}</p>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => { deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setLocalConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`}>
+                          <Button variant="ghost" size="sm" onClick={() => { deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </li>
@@ -675,7 +675,7 @@ const ProfilePage = () => {
                             const toDelete = conversations.filter(c => c.id !== currentId);
                             toDelete.forEach(c => deleteConversation(c.id));
                             setConversations(prev => prev.filter(c => c.id === currentId));
-                            setLocalConversationCount(prev => Math.max(0, prev - toDelete.length));
+                            setConversationCount(prev => Math.max(0, prev - toDelete.length));
                             setDeleteAllConfirm('');
                             toast({ title: 'All conversations deleted' });
                           }

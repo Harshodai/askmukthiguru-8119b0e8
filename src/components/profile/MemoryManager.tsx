@@ -231,17 +231,40 @@ export const MemoryManager = () => {
   }, [kgNodes, dimensions.width, dimensions.height]);
 
   // Main Force Simulation Loop
+  // - Cooldown counter freezes the sim once the layout settles (Supermemory-
+  //   style: after the initial spring, CPU goes to zero and stays quiet until
+  //   the user drags a node or the graph changes).
+  // - Edge attraction uses a pre-built node id → SimNode map so it's O(edges)
+  //   per tick instead of O(edges × nodes) from repeated array .find() scans.
   useEffect(() => {
     if (viewMode !== 'graph' || kgNodes.length === 0) return;
 
     let animationFrameId: number;
+    let ticks = 0;
+    const maxTicks = Math.max(220, kgNodes.length * 6); // scale with graph size
+    const kickAlive = () => { ticks = 0; };
 
     const tick = () => {
       const nodes = simNodesRef.current;
+      const draggedId = activeDraggedNodeRef.current;
+      // If dragged, keep the sim hot so neighbors respond in real time.
+      if (draggedId) kickAlive();
       if (nodes.length === 0) {
         animationFrameId = requestAnimationFrame(tick);
         return;
       }
+
+      // Frozen state — skip physics, only stream current positions.
+      if (ticks > maxTicks && !draggedId) {
+        animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+      ticks++;
+
+      // Build once-per-tick lookup for edge attraction. Cheap; avoids O(N)
+      // .find() inside the edges loop.
+      const nodeById = new Map<string, SimNode>();
+      for (const n of nodes) nodeById.set(n.id, n);
 
       // 1. Charge Repulsion (push nodes apart)
       for (let i = 0; i < nodes.length; i++) {
@@ -253,7 +276,6 @@ export const MemoryManager = () => {
           const distSq = dx * dx + dy * dy + 0.1;
           const dist = Math.sqrt(distSq);
           if (dist < 220) {
-            // Stronger repulsion closer together
             const force = 180 / distSq;
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
@@ -267,13 +289,13 @@ export const MemoryManager = () => {
 
       // 2. Edge Link Attraction (pull connected nodes)
       for (const edge of kgEdges) {
-        const s = nodes.find(n => n.id === edge.source);
-        const t = nodes.find(n => n.id === edge.target);
+        const s = nodeById.get(edge.source);
+        const t = nodeById.get(edge.target);
         if (s && t) {
           const dx = t.x - s.x;
           const dy = t.y - s.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 0.1;
-          const targetDist = 95;
+          const targetDist = edge.label === 'SHARED_STATE' ? 130 : 95;
           const force = (dist - targetDist) * 0.025;
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
@@ -293,7 +315,6 @@ export const MemoryManager = () => {
       }
 
       // 4. Update Coordinates with Friction
-      const draggedId = activeDraggedNodeRef.current;
       const posMap = new Map<string, { x: number; y: number }>();
 
       for (const n of nodes) {
@@ -446,25 +467,38 @@ export const MemoryManager = () => {
     }
   };
 
-  // Neighborhood and Connection highlighting calculations
+  // Memoized indexes — kill O(N × edges) scans that ran once per render.
+  // nodeIndex: id → node (used by getPathData and hover neighborhood).
+  // adjacency: id → Set<neighborId> (used for hover dim + selectedNode fade).
+  const nodeIndex = useRef(new Map<string, KGNode>()).current;
+  const adjacency = useRef(new Map<string, Set<string>>()).current;
+  useEffect(() => {
+    nodeIndex.clear();
+    adjacency.clear();
+    for (const n of kgNodes) nodeIndex.set(n.id, n);
+    for (const e of kgEdges) {
+      if (!adjacency.has(e.source)) adjacency.set(e.source, new Set());
+      if (!adjacency.has(e.target)) adjacency.set(e.target, new Set());
+      adjacency.get(e.source)!.add(e.target);
+      adjacency.get(e.target)!.add(e.source);
+    }
+  }, [kgNodes, kgEdges, nodeIndex, adjacency]);
+
+  // Neighborhood highlighting (O(1) after adjacency build).
   const connectedNodeIds = new Set<string>();
   if (hoveredNode) {
     connectedNodeIds.add(hoveredNode.id);
-    kgEdges.forEach(edge => {
-      if (edge.source === hoveredNode.id) connectedNodeIds.add(edge.target);
-      if (edge.target === hoveredNode.id) connectedNodeIds.add(edge.source);
-    });
+    const peers = adjacency.get(hoveredNode.id);
+    if (peers) for (const id of peers) connectedNodeIds.add(id);
   }
 
-  // Matching nodes based on query
   const matchesQuery = (node: KGNode) => {
     if (!searchQuery) return true;
-    return node.label.toLowerCase().includes(searchQuery.toLowerCase()) || node.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return node.label.toLowerCase().includes(q) || node.type.toLowerCase().includes(q);
   };
 
-  const getRadiusForNode = (node?: KGNode) => {
-    return node ? getCfgForNode(node).r : 15;
-  };
+  const getRadiusForNode = (node?: KGNode) => (node ? getCfgForNode(node).r : 15);
 
   const getPathData = (
     sourceId: string,
@@ -472,10 +506,8 @@ export const MemoryManager = () => {
     s: { x: number; y: number },
     t: { x: number; y: number }
   ) => {
-    const sourceNode = kgNodes.find(n => n.id === sourceId);
-    const targetNode = kgNodes.find(n => n.id === targetId);
-    const rSource = getRadiusForNode(sourceNode);
-    const rTarget = getRadiusForNode(targetNode);
+    const rSource = getRadiusForNode(nodeIndex.get(sourceId));
+    const rTarget = getRadiusForNode(nodeIndex.get(targetId));
 
     const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
     const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
@@ -696,21 +728,26 @@ export const MemoryManager = () => {
                     const pathString = getPathData(edge.source, edge.target, s, t);
                     const mx = (s.x + t.x) / 2 + (t.y - s.y) * 0.08;
                     const my = (s.y + t.y) / 2 - (t.x - s.x) * 0.08;
+                    // SHARED_STATE = inferred peer link (memory↔memory via
+                    // same consciousness state). Render dashed + fainter so
+                    // users can distinguish doctrinal edges from soft peers.
+                    const isPeer = edge.label === 'SHARED_STATE';
 
                     return (
                       <g
                         key={`e-${i}`}
                         style={{ transition: 'opacity 0.2s, color 0.2s' }}
-                        color={isDimmed ? 'hsl(var(--border) / 0.15)' : 'hsl(var(--ojas) / 0.7)'}
+                        color={isDimmed ? 'hsl(var(--border) / 0.15)' : (isPeer ? 'hsl(var(--ojas) / 0.35)' : 'hsl(var(--ojas) / 0.7)')}
                       >
                         <path
                           d={pathString}
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth={isDimmed ? 1.0 : 1.75}
-                          markerEnd="url(#arrow)"
+                          strokeWidth={isDimmed ? 1.0 : (isPeer ? 1.0 : 1.75)}
+                          strokeDasharray={isPeer ? '4 4' : undefined}
+                          markerEnd={isPeer ? undefined : 'url(#arrow)'}
                         />
-                        {edge.label && !isDimmed && (
+                        {edge.label && !isDimmed && !isPeer && (
                           <text
                             x={mx} y={my}
                             textAnchor="middle"
