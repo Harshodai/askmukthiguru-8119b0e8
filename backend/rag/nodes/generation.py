@@ -475,7 +475,15 @@ def _cite_sentences(
             effective_threshold = threshold
 
         if best_score >= effective_threshold and best_title:
-            result_parts.append(f"{stripped} [Source: {best_title}]")
+            doc_idx = next(
+                (i + 1 for i, d in enumerate(docs)
+                 if (d.get("title") or d.get("source_url") or "").strip() == best_title),
+                None
+            )
+            if doc_idx:
+                result_parts.append(f"{stripped} [{doc_idx}]")
+            else:
+                result_parts.append(stripped)
         else:
             result_parts.append(stripped)
 
@@ -1185,6 +1193,32 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     if intent == "?":
         intent = "CASUAL"
     answer = strip_cot(answer)
+
+    # Convert [Source: Title] in the answer text to [N] based on relevant_docs mapping
+    import re
+    relevant_docs = state.get("relevant_docs", [])
+    def replace_source_match(match):
+        title_part = match.group(1).strip()
+        title_lower = title_part.lower()
+        
+        # Check against relevant_docs titles/URLs
+        for idx, doc in enumerate(relevant_docs):
+            t = (doc.get("title") or doc.get("source_url") or "").strip().lower()
+            if t and (title_lower == t or title_lower in t or t in title_lower):
+                return f"[{idx + 1}]"
+        
+        # Fallback: check against canonical URL map keyword match
+        from rag.nodes.utils import _CANONICAL_URL_MAP
+        for keywords, url in _CANONICAL_URL_MAP:
+            if any(kw.lower() in title_lower for kw in keywords):
+                # Find if this URL is already in our citations list
+                for idx, c in enumerate(citations):
+                    c_url = c.get("url") if isinstance(c, dict) else str(c)
+                    if c_url and url.lower() in c_url.lower():
+                        return f"[{idx + 1}]"
+        return "" # If no match, strip it so it doesn't leak raw bracket text
+        
+    answer = re.sub(r'\[Source:\s*([^\]]+)\]', replace_source_match, answer)
     answer = _clean_inline_citations(answer)
 
     # Fast-tier: accept unconditionally (skips full verification pipeline)
