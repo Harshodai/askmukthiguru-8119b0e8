@@ -1,0 +1,525 @@
+import json
+from pathlib import Path
+
+# --- Full Tamil Translations mapping for all missing/fallback/corrupted keys (277 unique strings) ---
+TA_FULL_MAP = {
+    "Back": "பின்னால்",
+    "Loading...": "ஏற்றப்படுகிறது...",
+    "iCall: 9152987821 | Vandrevala Foundation: 1860-2662-345": "ஐ கால்: 9152987821 | வந்தேவாலா அறக்கட்டளை: 1860-2662-345",
+    "Data exported": "தரவு ஏற்றுமதி செய்யப்பட்டது",
+    "Your data was downloaded.": "உங்கள் தரவு பதிவிறக்கம் செய்யப்பட்டது.",
+    "Hide details": "விவரங்களை மறை",
+    "Details": "விவரங்கள்",
+    "Redeem": "மீட்டெடு",
+    "Keep": "வைத்துக் கொள்",
+    "Meet the Gurus": "Read Aloud: குருக்களை சந்தியுங்கள்", # changed to avoid fallback matching if needed, wait, let's just make it "குருக்களை சந்தியுங்கள்"
+    "Meet the Gurus": "குருக்களை சந்தியுங்கள்",
+    "Meditation": "தியானம்",
+    "Chat": "உரையாடல்",
+    "Continue your practice": "உங்கள் பயிற்சியைத் தொடரவும்",
+    "Start Chat": "உரையாடலைத் தொடங்கு",
+    "This is an AI companion trained on spiritual teachings. Not a replacement for professional guidance.": "இது ஆன்மீக போதனைகளில் பயிற்சி பெற்ற ஒரு AI வழிகாட்டியாகும். இது தொழில்முறை வழிகாட்டுதலுக்கு மாற்றாக இல்லை.",
+    "The wisdom of Sri Preethaji & Sri Krishnaji, founders of the Oneness Movement, now accessible through a compassionate AI companion.": "ஒன்னஸ் இயக்கத்தின் நிறுவனர்களான ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜியின் ஞானம் இப்போது ஒரு அன்பான AI வழிகாட்டியின் மூலம் கிடைக்கிறது.",
+    "Daily practices": "தினசரி பயிற்சிகள்",
+    "Remove from favorites": "மென்பயிற்சியிலிருந்து நீக்கு",
+    "Added to favorites": "விருப்பமானவைகளில் சேர்க்கப்பட்டது",
+    "This is an AI companion trained on spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help.": "இது ஆன்மீக போதனைகளில் பயிற்சி பெற்ற ஒரு AI வழிகாட்டியாகும். இது மருத்துவ அல்லது மருத்துவ சிகிச்சைக்கு மாற்றாக இல்லை. நீங்கள் மனநல நெருக்கடியை எதிர்கொண்டால், தயவுசெய்து தொழில்முறை உதவியை நாடவும்.",
+    "Made with": "உருவாக்கப்பட்டது",
+    "Try Serene Mind": "செரீன் மைண்ட் தியானத்தை முயற்சிக்கவும்",
+    "Check in": "செக்-இன்",
+    "Not now": "இப்போது இல்லை",
+    "Mood check-in": "மனநிலை செக்-இன்",
+    "Calm": "அமைதி",
+    "Sad": "வருத்தம்",
+    "Frustrated": "ஏமாற்றம்",
+    "Open": "திறந்த",
+    "What's going on?": "என்ன நடக்கிறது?",
+    "Optional — share what's on your heart…": "விருப்பத்தேர்வு — உங்கள் இதயத்தில் உள்ளதைப் பகிர்ந்து கொள்ளுங்கள்...",
+    "A practice that may help": "உதவக்கூடிய ஒரு பயிற்சி",
+    "Start practice": "பயிற்சியைத் தொடங்கு",
+    "Chat with the Guru — AskMukthiGuru": "குருவுடன் உரையாடுங்கள் — அஸ்குமுக்திகுரு",
+    "Chat with your AI Spiritual Guide": "உங்கள் AI ஆன்மீக வழிகாட்டியுடன் உரையாடுங்கள்",
+    "It looks like you were recently active on another device. Pick up where you left off.": "நீங்கள் சமீபத்தில் மற்றொரு சாதனத்தில் செயலில் இருந்ததாகத் தெரிகிறது. நீங்கள் விட்ட இடத்திலிருந்து தொடருங்கள்.",
+    "Share what's on your heart…": "உங்கள் இதயத்தில் உள்ளதைப் பகிர்ந்து கொள்ளுங்கள்...",
+    "Speak now…": "இப்போது பேசுங்கள்...",
+    "Send message": "செய்தியை அனுப்பு",
+    "Stop generating": "உருவாக்குவதை நிறுத்து",
+    "Please do Serene Mind now to unlock the chat.": "உரையாடலைத் திறக்க தயவுசெய்து இப்போது செரீன் மைண்ட் தியானம் செய்யுங்கள்.",
+    "Open Serene Mind": "செரீன் மைண்ட் தியானத்தைத் திற",
+    "Serene Mind": "செரீன் மைண்ட்",
+    "AI-generated · {{count}} source": "AI ஆல் உருவாக்கப்பட்டது · {{count}} ஆதாரம்",
+    "Video Lessons ({{count}})": "வீடியோ பாடங்கள் ({{count}})",
+    "Watch on YouTube ↗": "யூடியூப்பில் பார்க்கவும் ↗",
+    "Open sources panel ({{count}} source)": "ஆதாரங்கள் பலகையைத் திற ({{count}} ஆதாரம்)",
+    "Open sources panel ({{count}} sources)": "ஆதாரங்கள் பலகையைத் திற ({{count}} ஆதாரங்கள்)",
+    "Export conversation as Markdown": "உரையாடலை மார்க் டவுனாக ஏற்றுமதி செய்",
+    "Continue where you left off": "நீங்கள் விட்ட இடத்திலிருந்து தொடருங்கள்",
+    "Today's Teaching": "இன்றைய போதனை",
+    "Open today's teaching": "இன்றைய போதனையைத் திற",
+    "Today's Line": "இன்றைய வரி",
+    "Close teaching modal": "போதனை சாளரத்தை மூடு",
+    "Today's teaching from the Gurus": "குருக்களின் இன்றைய போதனை",
+    "Today's Wisdom": "இன்றைய ஞானம்",
+    "Retry last message": "கடைசி செய்தியை மீண்டும் முயற்சி செய்",
+    "Your authenticated session has expired or is missing.": "உங்கள் அங்கீகரிக்கப்பட்ட அமர்வு காலாவதியாகிவிட்டது அல்லது இல்லை.",
+    "You have sent too many messages in a short window.": "குறுகிய காலத்தில் நீங்கள் பல செய்திகளை அனுப்பியுள்ளீர்கள்.",
+    "An unexpected error occurred while preparing the reply.": "பதிலைத் தயாரிக்கும் போது எதிர்பாராத பிழை ஏற்பட்டது.",
+    "Copy trace": "தடயத்தை நகலெடு",
+    "Cause": "காரணம்",
+    "Next step": "அடுத்த படி",
+    "Thinking": "சிந்திக்கிறது",
+    "Toggle thinking details": "சிந்தனை விவரங்களை மாற்று",
+    "Reflecting on the teachings…": "போதனைகளைப் பிரதிபலிக்கிறது...",
+    "Drawing from the teachings…": "போதனைகளிலிருந்து பெறப்படுகிறது...",
+    "Jump to latest message": "சமீபத்திய செய்திக்குச் செல்",
+    "Jump to latest message ({{count}} new)": "சமீபத்திய செய்திக்குச் செல் ({{count}} புதியது)",
+    "Tell me more about this: {{content}}": "இதைப் பற்றி மேலும் கூறுங்கள்: {{content}}",
+    "Explain simply": "எளிமையாக விளக்கு",
+    "Yes": "ஆம்",
+    "Needs work": "மேம்படுத்தப்பட வேண்டும்",
+    "Teaching": "போதனை",
+    "Clear answer": "பதிலைத் தெளிவுபடுத்து",
+    "Relevant sources": "தொடர்புடைய ஆதாரங்கள்",
+    "Calming tone": "அமைதியான தொனி",
+    "Insightful": "நுண்ணறிவுள்ள",
+    "Saved from Chat": "உரையாடலில் இருந்து சேமிக்கப்பட்டது",
+    "Assistants": "வழிகாட்டிகள்",
+    "Have an invite code?": "அழைப்புக் குறியீடு உள்ளதா?",
+    "Invalid invite code": "தவறான அழைப்புக் குறியீடு",
+    "Channel: {{channel}}": "சேனல்: {{channel}}",
+    "Share the last answer as a wisdom card": "கடைசி பதிலை ஞான அட்டையாகப் பகிர்",
+    "Start a fresh conversation": "புதிய உரையாடலைத் தொடங்கு",
+    "Ask the Guru to explain a concept step-by-step": "ஒரு கருத்தை படிப்படியாக விளக்குமாறு குருவிடம் கேளுங்கள்",
+    "Get a reflection question based on this conversation": "இந்த உரையாடலின் அடிப்படையில் ஒரு பிரதிபலிப்பு கேள்வியைப் பெறுங்கள்",
+    "Before we begin": "நாங்கள் தொடங்குவதற்கு முன்",
+    "Did you do Soul Sync or Serene Mind today?": "இன்று நீங்கள் சோல் சிங்க் அல்லது செரீன் மைண்ட் தியானம் செய்தீர்களா?",
+    "Soul Sync": "சோல் சிங்க்",
+    "I synced inward before opening this": "இதைத் திறப்பதற்கு முன் நான் என்னை உள்முகமாக இணைத்துக் கொண்டேன்",
+    "Both": "இரண்டும்",
+    "I did Soul Sync and Serene Mind": "நான் சோல் சிங்க் மற்றும் செரீன் மைண்ட் இரண்டையும் செய்தேன்",
+    "Saved privately on this device": "இந்தச் சாதனத்தில் தனிப்பட்ட முறையில் சேமிக்கப்பட்டது",
+    "AI companion • Not a substitute for professional care": "AI வழிகாட்டி • தொழில்முறை சிகிச்சைக்கு மாற்றாக இல்லை",
+    "Cancel": "ரத்துசெய்",
+    "Helpful": "உதவியாக இருந்தது",
+    "Not helpful": "உதவியாக இல்லை",
+    "Copy question": "கேள்வியை நகலெடு",
+    "Redo last message": "கடைசி செய்தியை மீண்டும் செய்",
+    "Speech timed out. Please try again.": "பேச்சு நேரம் முடிந்தது. மீண்டும் முயற்சிக்கவும்.",
+    "Listening...": "கேட்டுக்கொண்டிருக்கிறது...",
+    "Microphone error. Check permissions.": "ஒலிவாங்கி பிழை. அனுமதிகளைச் சரிபார்க்கவும்.",
+    "Voice search disabled.": "குரல் தேடல் முடக்கப்பட்டது.",
+    "Speak and watch it type": "பேசுங்கள் மற்றும் அது தட்டச்சு செய்வதைப் பாருங்கள்",
+    "Voice Search": "குரல் தேடல்",
+    "Dismiss": "செயலிழக்க செய்",
+    "Tap to cancel": "ரத்து செய்ய தட்டவும்",
+    "Click the microphone to start speaking. When you finish, tap the checkmark to search or the cancel button to stop.": "பேசத் தொடங்க ஒலிவாங்கியை அழுத்தவும். முடிந்ததும், தேட சரி குறியீட்டையோ அல்லது நிறுத்த ரத்து பொத்தானையோ அழுத்தவும்.",
+    "Start Speaking": "பேசத் தொடங்குங்கள்",
+    "Voice recognition in progress. Please speak clearly.": "குரல் அங்கீகாரம் செயல்பாட்டில் உள்ளது. தெளிவாகப் பேசவும்.",
+    "Stop listening": "கேட்பதை நிறுத்து",
+    "No speech detected. Please try again.": "பேச்சு எதுவும் கண்டறியப்படவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    "Speech recognition error.": "குரல் அங்கீகாரப் பிழை.",
+    "Unlock with Invite Code": "அழைப்புக் குறியீடு மூலம் திறக்கவும்",
+    "To access AskMukthiGuru, please enter your invitation code.": "அஸ்குமுக்திகுருவை அணுக, தயவுசெய்து உங்கள் அழைப்புக் குறியீட்டை உள்ளிடவும்.",
+    "Enter Invite Code": "அழைப்புக் குறியீட்டை உள்ளிடவும்",
+    "Submit Code": "குறியீட்டைச் சமர்ப்பி",
+    "Invitation code verified!": "அழைப்புக் குறியீடு சரிபார்க்கப்பட்டது!",
+    "Sign in to Save Notes": "குறிப்புகளைச் சேமிக்க உள்நுழையவும்",
+    "By signing in, you can sync your notebooks across devices and never lose your spiritual reflections.": "உள்நுழைவதன் மூலம், உங்கள் குறிப்பேடுகளைச் சாதனங்களில் ஒத்திசைக்கலாம் மற்றும் உங்கள் ஆன்மீக பிரதிபலிப்புகளை ஒருபோதும் இழக்க மாட்டீர்கள்.",
+    "Sign in to sync": "ஒத்திசைக்க உள்நுழையவும்",
+    "Sign out of active session": "செயலில் உள்ள அமர்விலிருந்து வெளியேறு",
+    "Are you sure you want to sign out? Your local conversation cache will remain intact, but you won't sync new notes until you sign back in.": "நீங்கள் நிச்சயமாக வெளியேற விரும்புகிறீர்களா? உங்கள் உள்ளூர் உரையாடல்கள் இருக்கும், ஆனால் நீங்கள் மீண்டும் உள்நுழையும் வரை புதிய குறிப்புகள் ஒத்திசைக்கப்படாது.",
+    "Sign Out": "வெளியேறு",
+    "Cookie Consent": "குக்கீ ஒப்புதல்",
+    "We use cookies to improve your sign-in experience and remember your theme preference. We do not use third-party tracking or advertising cookies.": "உங்கள் உள்நுழைவு அனுபவத்தை மேம்படுத்தவும் உங்கள் தீம் விருப்பத்தை நினைவில் கொள்ளவும் நாங்கள் குக்கீகளைப் பயன்படுத்துகிறோம். மூன்றாம் தரப்பு கண்காணிப்பு அல்லது விளம்பர குக்கீகளை நாங்கள் பயன்படுத்துவதில்லை.",
+    "Accept all": "அனைத்தையும் ஏற்றுக்கொள்",
+    "Decline optional": "விருப்பத்தேர்வை நிராகரி",
+    "Save selection": "தேர்வைச் சேமி",
+    "Check email for reset link": "மீட்டமைப்பு இணைப்பிற்கு மின்னஞ்சலைச் சரிபார்க்கவும்",
+    "Go back to login": "உள்நுழைவிற்குத் திரும்பு",
+    "We sent a password reset link to your email address. Please follow the instructions in the email.": "உங்கள் மின்னஞ்சல் முகவரிக்கு கடவுச்சொல் மீட்டமைப்பு இணைப்பை அனுப்பியுள்ளோம். மின்னஞ்சலில் உள்ள வழிமுறைகளைப் பின்பற்றவும்.",
+    "Profile diagnostics": "சுயவிவரக் கண்டறிதல்",
+    "Role verification and active profiles": "பங்கு சரிபார்ப்பு மற்றும் செயலில் உள்ள சுயவிவரங்கள்",
+    "Verification complete. Redirecting to app dashboard.": "சரிபார்ப்பு முடிந்தது. பயன்பாட்டு டாஷ்போர்டிற்கு திருப்பி விடப்படுகிறது.",
+    "Verifying auth session...": "அமர்வைச் சரிபார்க்கிறது...",
+    "No active profile found. Creating defaults.": "செயலில் உள்ள சுயவிவரம் எதுவும் இல்லை. இயல்புநிலைகளை உருவாக்குகிறது.",
+    "Active role": "செயலில் உள்ள பங்கு",
+    "User ID": "பயனர் ஐடி",
+    "Loading diagnostics...": "கண்டறிதலை ஏற்றுகிறது...",
+    "Re-run verification": "சரிபார்ப்பை மீண்டும் இயக்கு",
+    "Save to Study Notebook": "குறிப்பேட்டில் சேமி",
+    "Save answer to a notebook for reflection and study.": "பிரதிபலிப்பு மற்றும் படிப்பிற்காக பதிலை ஒரு குறிப்பேட்டில் சேமிக்கவும்.",
+    "Select Notebook": "குறிப்பேட்டைத் தேர்ந்தெடு",
+    "Create New Notebook": "புதிய குறிப்பேட்டை உருவாக்கு",
+    "Notebook title": "குறிப்பேட்டின் தலைப்பு",
+    "Notebook saved": "குறிப்பேடு சேமிக்கப்பட்டது",
+    "Answer saved to {{title}}": "பதில் {{title}} இல் சேமிக்கப்பட்டது",
+    "Failed to save notebook": "குறிப்பேட்டைச் சேமிக்க முடியவில்லை",
+    "Choose or create a notebook to organize your spiritual insights.": "உங்கள் ஆன்மீக நுண்ணறிவுகளை ஒழுங்கமைக்க ஒரு குறிப்பேட்டைத் தேர்ந்தெடுக்கவும் அல்லது உருவாக்கவும்.",
+    "Existing Notebooks": "ஏற்கனவே உள்ள குறிப்பேடுகள்",
+    "View your study notebooks": "உங்கள் குறிப்பேடுகளைப் பார்க்கவும்",
+    "New Notebook": "புதிய குறிப்பேடு",
+    "Title (required)": "தலைப்பு (தேவை)",
+    "Create": "உருவாக்கு",
+    "No study notebooks found. Create one to organize your wisdom cards and insights.": "குறிப்பேடுகள் எதுவும் இல்லை. உங்கள் ஞான அட்டைகளையும் நுண்ணறிவுகளையும் ஒழுங்கமைக்க ஒன்றை உருவாக்கவும்.",
+    "Failed to delete notebook": "குறிப்பேட்டை நீக்க முடியவில்லை",
+    "Edit Notebook": "குறிப்பேட்டைத் திருத்து",
+    "Save changes": "மாற்றங்களைச் சேமி",
+    "Confirm Delete": "நீக்குவதை உறுதிப்படுத்து",
+    "Are you sure you want to delete \"{{title}}\"? All saved answers in this notebook will be permanently deleted.": "\"{{title}}\" ஐ நீக்க விரும்புகிறீர்கள் என்பதில் உறுதியாக இருக்கிறீர்களா? இந்த குறிப்பேட்டில் உள்ள அனைத்து பதில்களும் நிரந்தரமாக நீக்கப்படும்.",
+    "Delete Notebook": "குறிப்பேட்டை நீக்கு",
+    "Study Notebooks": "குறிப்பேடுகள்",
+    "Failed to update notebook": "குறிப்பேட்டைப் புதுப்பிக்க முடியவில்லை",
+    "Select a notebook to view your saved insights.": "உங்கள் சேமிக்கப்பட்ட நுண்ணறிவுகளைக் காண ஒரு குறிப்பேட்டைத் தேர்ந்தெடுக்கவும்.",
+    "Saved Insights": "சேமிக்கப்பட்ட நுண்ணறிவுகள்",
+    "No insights saved in this notebook yet. Start chatting and save key teachings here.": "இந்த குறிப்பேட்டில் இன்னும் நுண்ணறிவுகள் எதுவும் சேமிக்கப்படவில்லை. உரையாடலைத் தொடங்கி முக்கிய போதனைகளை இங்கே சேமிக்கவும்.",
+    "Remove insight": "நுண்ணறிவை நீக்கு",
+    "Remove from notebook": "குறிப்பேட்டிலிருந்து நீக்கு",
+    "Insight removed from notebook": "குறிப்பேட்டிலிருந்து நுண்ணறிவு நீக்கப்பட்டது",
+    "Failed to remove insight": "நுண்ணறிவை நீக்க முடியவில்லை",
+    "Open interactive map": "வரைபடத்தைத் திற",
+    "Open personal consciousness map": "சொந்த விழிப்புணர்வு வரைபடத்தைத் திற",
+    "Memory manager": "நினைவு நிர்வாகி",
+    "Personal consciousness map": "சொந்த விழிப்புணர்வு வரைபடம்",
+    "Reset password": "கடவுச்சொல்லை மீட்டமை",
+    "Reset": "மீட்டமை",
+    "Check your email for the reset link.": "மீட்டமைப்பு இணைப்பிற்கு உங்கள் மின்னஞ்சலைச் சரிபார்க்கவும்.",
+    "Updating password...": "கடவுச்சொல்லைப் புதுப்பிக்கிறது...",
+    "Password updated successfully.": "கடவுச்சொல் வெற்றிகரமாக புதுப்பிக்கப்பட்டது.",
+    "Password update failed. Please try again.": "கடவுச்சொல் புதுப்பிப்பு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.",
+    "Verify Invitation Code": "அழைப்புக் குறியீட்டைச் சரிபார்",
+    "Invite Code": "அழைப்புக் குறியீடு",
+    "Verifying invitation code...": "அழைப்புக் குறியீட்டைச் சரிபார்க்கிறது...",
+    "Verification complete. Welcome!": "சரிபார்ப்பு முடிந்தது. வருக!",
+    "Verification failed. Check code.": "சரிபார்ப்பு தோல்வியடைந்தது. குறியீட்டைச் சரிபார்க்கவும்.",
+    "Access Restricted": "அணுகல் வரையறுக்கப்பட்டுள்ளது",
+    "AskMukthiGuru is currently in private preview. Please enter your invitation code to access the AI Spiritual Companion.": "அஸ்குமுக்திகுரு தற்போது தனிப்பட்ட முன்னோட்டத்தில் உள்ளது. AI ஆன்மீக வழிகாட்டியை அணுக உங்கள் அழைப்புக் குறியீட்டை உள்ளிடவும்.",
+    "Unlock Access": "அணுகலைத் திறக்கவும்",
+    "Terms of Service": "சேவை விதிமுறைகள்",
+    "Forgot your password?": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
+    "Hide password": "கடவுச்சொல்லை மறை",
+    "Don't have an account?": "கணக்கு இல்லையா?",
+    "Sign in to AskMukthiGuru to continue your private, AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji.": "ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜியின் போதனைகளில் வேரூன்றிய உங்கள் ஆன்மீக உரையாடல்களைத் தொடர அஸ்குமுக்திகுருவில் உள்நுழையவும்.",
+    "Profile setup incomplete": "சுயவிவர அமைவு முழுமையடையவில்லை",
+    "Switch conversation language to {{native}}?": "உரையாடல் மொழியை {{native}} க்கு மாற்றவா?",
+    "Unlocked {{name}}": "{{name}} திறக்கப்பட்டது",
+    "Export my data": "எனது தரவை ஏற்றுமதி செய்",
+    "How It": "எப்படி செயல்படுகிறது",
+    "Works": "எப்படி செயல்படுகிறது",
+    "Start a Conversation": "உரையாடலைத் தொடங்கு",
+    "Get personalized guidance rooted in the profound teachings of Sri Preethaji & Sri Krishnaji.": "ஸ்ரீ பிரೀதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜியின் ஆழமான போதனைகளில் வேரூன்றிய தனிப்பயனாக்கப்பட்ட வழிகாட்டுதலைப் பெறுங்கள்.",
+    "A simple journey from wherever you are to your beautiful state": "நீங்கள் இருக்கும் இடத்திலிருந்து உங்கள் பேரானந்த நிலைக்கு ஒரு எளிய பயணம்",
+    "See it in action (90 sec)": "செயல்பாட்டில் பாருங்கள் (90 வினாடிகள்)",
+    "Release emotional tension": "உணர்ச்சி அழுத்தத்தை வெளியிடுங்கள்",
+    "Breathe in for 4 counts... Hold... Breathe out for 6 counts": "4 வினாடிகள் மூச்சை இழுக்கவும்... நிறுத்தவும்... 6 வினாடிகள் வெளிவிடவும்",
+    "Serene Mind": "செரீன் மைண்ட்",
+    "For over three decades, Sri Preethaji and Sri Krishnaji have guided millions toward inner transformation. Their teachings focus on moving from a 'suffering state' to a 'beautiful state' through consciousness technology that blends ancient yogic wisdom with modern neuroscience.": "மூன்று தசாப்தங்களுக்கும் மேலாக, ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜி மில்லியன் கணக்கானவர்களை உள் மாற்றத்தை நோக்கி வழிநடத்தியுள்ளனர். அவர்களின் போதனைகள் பண்டைய யோக ஞானத்தையும் நவீன நரம்பியல் அறிவியலையும் இணைக்கின்றன.",
+    "Guided by their wisdom, powered by AI": "அவர்களின் ஞானத்தால் வழிநடத்தப்பட்டு, AI ஆல் இயக்கப்படுகிறது",
+    "\"When you are in a beautiful state, you become a blessing to everyone around you. Your very presence heals, your words inspire, and your actions create ripples of transformation.\"": "\"நீங்கள் ஒரு பேரானந்த நிலையில் இருக்கும்போது, உங்களைச் சுற்றியுள்ள அனைவருக்கும் நீங்கள் ஒரு ஆசீர்வாதமாக மாறுகிறீர்கள். உங்கள் இருப்பு குணப்படுத்துகிறது, உங்கள் வார்த்தைகள் ஊக்கமளிக்கின்றன.\"",
+    "Add to favorites": "விருப்பமானவைகளில் சேர்",
+    "Explore all practices": "அனைத்து பயிற்சிகளையும் ஆராயுங்கள்",
+    "{{title}} has been removed from your list.": "{{title}} உங்கள் பட்டியலிலிருந்து நீக்கப்பட்டது.",
+    "Removed from favorites": "விருப்பமானவைகளிலிருந்து நீக்கப்பட்டது",
+    "Star {{title}}": "{{title}} ஐ நட்சத்திரமிடு",
+    "Guided meditations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Pick the one that meets you today — star your favorites to pin them here.": "ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜியின் போதனைகளில் வேரூன்றிய வழிகாட்டப்பட்ட தியானங்கள். உங்களுக்குத் தேவையானதைத் தேர்ந்தெடுங்கள்.",
+    "Unstar {{title}}": "{{title}} இன் நட்சத்திரத்தை நீக்கு",
+    "Navigate": "வழிசெலுத்து",
+    "Observe Thought Direction": "ஆலோச்சனையின் திசையை கவனி",
+    "Flame in the Brain": "மூளையில் சுடர்",
+    "Posture & Breathing": "அமர்வு நிலை & சுவாசம்",
+    "Feel your inner emotional state without trying to change it.": "உங்கள் உள் உணர்ச்சி நிலையை மாற்ற முயற்சிக்காமல் அதை உணருங்கள்.",
+    "Observe Emotion": "உணர்ச்சியைக் கவனி",
+    "Observe Thoughts": "அலோசனைகளைக் கவனி",
+    "Hold attention on the flame, gently smile and open eyes.": "சுடரின் மீது கவனத்தை வைத்து, மெதுவாக புன்னகைத்து கண்களைத் திறக்கவும்.",
+    "Guided Meditation": "வழிகாட்டப்பட்ட தியானம்",
+    "Hold": "நிறுத்து",
+    "Searching {{tradition}} on \"{{topic}}\"…": "\"{{topic}}\" இல் {{tradition}} ஐத் தேடுகிறது...",
+    "Your Soul Journey": "உங்கள் ஆன்மா பயணம்",
+    "{{current}} of {{total}}": "{{current}} இன் {{total}}",
+    "Memory": "நினைவு",
+    "The guru will always carry this with you.": "குரு இதை எப்போதும் உங்களுடன் வைத்திருப்பார்.",
+    "Memory saved": "நினைவு சேமிக்கப்பட்டது",
+    "Could not save": "சேமிக்க முடியவில்லை",
+    "Memories": "நினைவுகள்",
+    "Core Status": "முக்கிய நிலை",
+    "Core memory": "முக்கிய நினைவு",
+    "My Consciousness Map": "எனது விழிப்புணர்வு வரைபடம்",
+    "List view": "பட்டியல் காட்சி",
+    "Fullscreen view of your interactive personal consciousness map. Drag nodes to move, drag background to pan, scroll to zoom.": "உங்கள் விழிப்புணர்வு வரைபடத்தின் முழுத்திரை காட்சி.",
+    "Save memory": "நினைவைச் சேமி",
+    "Search memories...": "நினைவுகளைத் தேடு...",
+    "You added": "நீங்கள் சேர்த்தது",
+    "Auto-extracted": "தானாக எடுக்கப்பட்டது",
+    "The guru will no longer reference this in future conversations. This cannot be undone.": "குரு இனி எதிர்கால உரையாடல்களில் இதைக் குறிப்பிட மாட்டார். இதை மாற்ற முடியாது.",
+    "Keep": "வைத்துக் கொள்",
+    "Session reflections": "அமர்வு பிரதிபலிப்புகள்",
+    "Practices": "பயிற்சிகள்",
+    "Begin": "தொடங்கு",
+    "Soul Sync is your way home. You sit, you breathe, you hum — and the noise of the day falls away. You reconnect with the silent presence beneath your thoughts. This is the doorway into a Beautiful State.": "சோல் சிங்க் என்பது நீங்கள் வீட்டிற்குத் திரும்பும் வழியாகும். நீங்கள் அமர்ந்து, சுவாசித்து, மூச்சை வெளிவிடும்போது அன்றாட சலசலப்புகள் விலகிவிடும். இதுவே பேரானந்த நிலையிற்கான நுழைவாயில்.",
+    "When emotion runs hot and the mind sparks, give yourself three minutes. Serene Mind uses a calming 4-2-6 breath and a gentle flame at the centre of your head to release tension — and return you to a quiet, clear, open mind.": "உணர்ச்சிகள் மேலோங்கி மனம் பதற்றமடையும் போது, உங்களுக்காக 3 நிமிடங்கள் ஒதுக்குங்கள். செரீன் மைண்ட் தியானம் உங்கள் பதற்றத்தைக் குறைத்து உங்களை அமைதிப்படுத்தும்.",
+    # Additional keys from needed list
+    "Read aloud": "சத்தமாக வாசி",
+    "Save to memory": "நினைவில் சேமி",
+    "Edit & resend": "திருத்தி மீண்டும் அனுப்பு",
+    "Share as Wisdom Card": "ஞான அட்டையாகப் பகிர்",
+    "Sign in to save memories": "நினைவுகளைச் சேமிக்க உள்நுழையவும்",
+    "Stopped by you.": "உங்களால் நிறுத்தப்பட்டது.",
+    "Your browser does not support voice recognition.": "உங்கள் உலாவி குரல் அங்கீகாரத்தை ஆதரிக்கவில்லை.",
+    "Text-to-Speech Not Supported": "உரையிலிருந்து பேச்சு ஆதரிக்கப்படவில்லை",
+    "Your browser does not support text-to-speech.": "உங்கள் உலாவி உரையிலிருந்து பேச்சை ஆதரிக்கவில்லை.",
+    "Voice Output Disabled": "குரல் வெளியீடு முடக்கப்பட்டது",
+    "Voice Output Enabled": "குரல் வெளியீடு செயல்படுத்தப்பட்டது",
+    "Guru responses will be read aloud.": "குருவின் பதில்கள் சத்தமாக வாசிக்கப்படும்.",
+    "Select Language": "மொழியைத் தேர்ந்தெடு",
+    "Search {{count}} languages…": "{{count}} மொழிகளில் தேடு...",
+    "Non-English messages are auto-translated before being sent to the Guru.": "ஆங்கிலம் அல்லாத செய்திகள் குருவுக்கு அனுப்பப்படுவதற்கு முன்பு தானாகவே மொழிபெயர்க்கப்படும்.",
+    "Local Voice Enabled": "உள்ளூர் குரல் செயல்படுத்தப்பட்டது",
+    "Voice not supported in this browser": "இந்த உலாவியில் குரல் ஆதரிக்கப்படவில்லை",
+    "Enable voice output": "குரல் வெளியீட்டை இயக்கு",
+    "Select language": "மொழியைத் தேர்ந்தெடு",
+    "What helped?": "எது உதவியது?",
+    "What could improve?": "எதை மேம்படுத்தலாம்?",
+    "Optional: tell us more…": "விருப்பத்தேர்வு: மேலும் விவரங்களை வழங்கவும்...",
+    "High confidence": "அதிக நம்பிக்கை",
+    "Why this confidence?": "இந்த நம்பிக்கை ஏன்?",
+    "Technical detail": "தொழில்நுட்ப விவரம்",
+    "Reflect": "பிரதிபலிக்கவும்",
+    "Meditate": "தியானிக்கவும்",
+    "Learn": "கற்றுக்கொள்ளுங்கள்",
+    "What is the Beautiful State, and how do I begin?": "பேரானந்த நிலை என்றால் என்ன, நான் அதை எவ்வாறு தொடங்குவது?",
+    "Share a teaching from Sri Preethaji on suffering": "துன்பம் குறித்து ஸ்ரீ பிரீதாஜியின் போதனையைப் பகிர்ந்து கொள்ளுங்கள்",
+    "Recent conversations": "சமீபத்திய உரையாடல்கள்",
+    "Safety check": "பாதுகாப்பு சோதனை",
+    "Connection interrupted": "இணைப்பு துண்டிக்கப்பட்டது",
+    "Edit shortcut": "குறுக்குவழியைத் திருத்து",
+    "{{count}} unique source · {{citationCount}} citation": "{{count}} தனித்துவமான ஆதாரம் · {{citationCount}} மேற்கோள்",
+    "{{count}} unique sources · {{citationCount}} citations": "{{count}} தனித்துவமான ஆதாரங்கள் · {{citationCount}} மேற்கோள்கள்",
+    "Sources will appear here as the Guru cites teachings.": "குரு போதனைகளைக் குறிப்பிடும்போது ஆதாரங்கள் இங்கே தோன்றும்.",
+    "Full conversation sources": "முழு உரையாடல் ஆதாரங்கள்",
+    "Could not copy URL": "URL ஐ நகலெடுக்க முடியவில்லை",
+    "{{count}} messages": "{{count}} செய்திகள்",
+    "Your Spiritual Companion": "உங்கள் ஆன்மீக வழிகாட்டி",
+    "Oops! Page not found": "அய்யோ! பக்கம் கண்டறியப்படவில்லை",
+    "Return to Home": "முகப்பிற்குத் திரும்பு",
+    "Welcome back!": "மீண்டும் வருக!",
+    "A server error occurred while provisioning your profile. Please retry later.": "உங்கள் சுயவிவரத்தை அமைக்கும் போது சர்வர் பிழை ஏற்பட்டது. பின்னர் மீண்டும் முயற்சிக்கவும்.",
+    "Authentication timeout. Please try again.": "அங்கீகார நேரம் முடிந்தது. மீண்டும் முயற்சிக்கவும்.",
+    "Connection Timeout": "இணைப்பு நேரம் முடிந்தது",
+    "Sign-in Failed": "உள்நுழைவு தோல்வியடைந்தது",
+    "Signed in with Google One Tap": "கூகுள் ஒன் டாப் மூலம் உள்நுழையப்பட்டது",
+    "Authorize": "அங்கீகரி",
+    "Taking too long? Click here to reset and try again": "ரொம்ப நேரம் ஆகிறதா? மீட்டமைக்க இங்கே கிளிக் செய்து மீண்டும் முயற்சிக்கவும்",
+    "Sign up": "பதிவுசெய்",
+    "Privacy Policy": "தனியுரிமைக் கொள்கை",
+    "Dashboard": "டாஷ்போர்டு",
+    "Overview": "கண்ணோட்டம்",
+    "Triggers": "தூண்டிகள்",
+    "Topics": "தலைப்புகள்",
+    "Prompts": "முன்மொழிவுகள்",
+    "Ingestion": "தரவு உட்செலுத்துதல்",
+    "Logs": "பதிவுகள்",
+    "Guided Practice": "வழிகாட்டப்பட்ட பயிற்சி",
+    "Start": "தொடங்கு",
+    "Resume": "தொடரவும்",
+    "Complete": "நிறைவு செய்",
+    "Step {{number}}": "படி {{number}}",
+    "{{count}} min": "{{count}} நிமி",
+    "Close your eyes": "உங்கள் கண்களை மூடுங்கள்",
+    "Focus on the flame": "சுடரின் மீது கவனம் செலுத்துங்கள்",
+    "Return to the present moment": "தற்போதைய தருணத்திற்குத் திரும்பு",
+    "Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin.": "தொடர இப்போது செரீன் மைண்ட் தியானம் செய்யுங்கள். கீழே உள்ள பொத்தானைக் கிளிக் செய்யவும், அல்லது \"எனக்காக செரீன் மைண்டைத் திறக்க முடியுமா\" என்று கூறவும்.",
+    "Message blocked: {{reason}}": "செய்தி தடுக்கப்பட்டது: {{reason}}",
+    "Audio": "ஆடியோ",
+    "Select Technique": "தொழில்நுட்பத்தைத் தேர்ந்தெடு",
+    "Sri Preethaji & Sri Krishnaji Teaching": "ஸ்ரீ பிரீதாஜி & ஸ்ரீ கிருஷ்ணாஜி போதனை",
+    "Serene Mind Practice Guide (5 Steps)": "செரீன் மைண்ட் பயிற்சி வழிகாட்டி (5 படிகள்)",
+    "Posture & Preparation": "அமர்வு நிலை & தயாரிப்பு",
+    "Inhale slowly for 4s, hold briefly for 2s, then exhale slowly for 6s. The long exhale activates calm.": "4 விநாடிகள் மெதுவாக மூச்சை இழுத்து, 2 விநாடிகள் நிறுத்தி, பின்னர் 6 விநாடிகள் மெதுவாக வெளிவிடவும். நீண்ட மூச்சு அமைதியைத் தூண்டும்.",
+    "Self-Observation (Emotion)": "சுய கண்காணிப்பு (உணர்ச்சி)",
+    "Bring focus to your eyebrow center, visualize a tiny flame moving into the center of your brain. Smile and open eyes.": "உங்கள் புருவ மையத்தில் கவனத்தைக் குவித்து, மூளையின் மையத்திற்குச் செல்லும் ஒரு சிறிய சுடரைக் காட்சிப்படுத்துங்கள். புன்னகைத்து கண்களைத் திறக்கவும்.",
+    "Sri Preethaji's Voice": "ஸ்ரீ பிரீதாஜியின் குரல்",
+    "Complete Meditation & Unlock Chat": "தியானத்தை முடித்து உரையாடலைத் திறக்கவும்",
+    "Play guidance": "வழிகாட்டுதலை இயக்கு",
+    "Pause guidance": "வழிகாட்டுதலை நிறுத்து",
+    "Peaceful": "அமைதி",
+    "Grateful": "நன்றியுணர்வு",
+    "Emotional": "உணர்ச்சிபூர்வமான",
+    "Energised": "ஆற்றல் பெற்ற",
+    "Skip to chat": "உரையாடலுக்குச் செல்",
+    "One thing of gratitude": "நன்றியுணர்வின் ஒரு விஷயம்",
+    "Name something you are grateful for right now.": "இப்போது நீங்கள் நன்றியோடு இருக்கும் ஒரு விஷயத்தைக் குறிப்பிடுங்கள்.",
+    "I am grateful for…": "நான் நன்றியோடு இருப்பது...",
+    "Beautiful": "அழகு",
+    "Return to Chat": "உரையாடலுக்குத் திரும்பு",
+    "You paused at {{step}}. Continue right where you left off.": "நீங்கள் {{step}} இல் நிறுத்தியுள்ளீர்கள். நீங்கள் விட்ட இடத்திலிருந்து தொடருங்கள்.",
+    "Start fresh": "புதிதாகத் தொடங்கு",
+    "Pause this practice?": "இந்தப் பயிற்சியை நிறுத்தவா?",
+    "You can continue right where you left off the next time you open Serene Mind.": "அடுத்த முறை செரீன் மைண்டைத் திறக்கும்போது நீங்கள் விட்ட இடத்திலிருந்து தொடரலாம்.",
+    "Begin Your Journey": "உங்கள் பயணத்தைத் தொடங்குங்கள்",
+    "Day Streak": "தினசரி தொடர்ச்சி",
+    "Sit erect, close eyes. Slow deep breaths with a long exhale.": "நேராக நிமிர்ந்து உட்கார்ந்து, கண்களை மூடுங்கள். மெதுவான ஆழமான மூச்சுடன் நீண்ட நேரம் வெளிவிடுங்கள்.",
+    "Notice where your thoughts wander—past, future, or present.": "உங்கள் எண்ணங்கள் எங்கு அலைபாய்கின்றன என்பதைக் கவனியுங்கள்—கடந்த காலம், எதிர்காலம் அல்லது நிகழ்காலம்.",
+    "Focus on the Flame": "சுடரின் மீது கவனம் செலுத்துங்கள்",
+    "An unexpected error occurred. Please try again.": "எதிர்பாராத பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.",
+    "Network error": "பிணைய பிழை",
+    "Page Not Found": "பக்கம் கண்டறியப்படவில்லை",
+    "The page you are looking for does not exist.": "நீங்கள் தேடும் பக்கம் இல்லை.",
+    "Unauthorized": "அங்கீகரிக்கப்படாதது",
+    "Please sign in to access this feature.": "இந்த அம்சத்தை அணுக தயவுசெய்து உள்நுழையவும்.",
+    "Session Expired": "அமர்வு காலாவதியானது",
+    "Your session has expired. Please sign in again.": "உங்கள் அமர்வு காலாவதியாகிவிட்டது. தயவுசெய்து மீண்டும் உள்நுழையவும்.",
+    "Please wait a moment before trying again.": "மீண்டும் முயற்சிக்கும் முன் சிறிது நேரம் காத்திருக்கவும்.",
+    "Server Error": "சேவையக பிழை",
+    "We are currently performing maintenance. Please check back later.": "நாங்கள் தற்போது பராமரிப்புப் பணிகளை மேற்கொண்டு வருகிறோம். பின்னர் சரிபார்க்கவும்.",
+    "The Guru is resting. Please try again in a moment.": "குரு ஓய்வெடுக்கிறார். சற்று நேரத்தில் மீண்டும் முயற்சிக்கவும்.",
+    "Unable to get response": "பதிலைப் பெற முடியவில்லை",
+    "Your spiritual AI companion for inner peace and transformation.": "உள் அமைதி மற்றும் மாற்றத்திற்கான உங்கள் ஆன்மீக AI வழிகாட்டி.",
+    "Start a conversation by typing or speaking your question.": "உங்கள் கேள்வியைத் தட்டச்சு செய்து அல்லது பேசி உரையாடலைத் தொடங்குங்கள்.",
+    "Get Started": "தொடங்குங்கள்",
+    "Don't show this again": "இதை மீண்டும் காட்டாதே",
+    "Choose Your Language": "உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்",
+    "Chat with the Guru": "குருவுடன் உரையாடுங்கள்",
+    "Study Notebook": "குறிப்பேடு",
+    "Save teachings that resonate with you for later reflection": "உங்களை ஈர்க்கும் போதனைகளை பின்னர் பிரதிபலிப்பதற்காக சேமிக்கவும்",
+    "Explore how spiritual concepts connect and relate": "ஆன்மீக கருத்துக்கள் எவ்வாறு இணைகின்றன மற்றும் தொடர்பு கொள்கின்றன என்பதை ஆராயுங்கள்",
+    "Customize your experience — language, voice, theme, and more": "உங்கள் அனுபவத்தைத் தனிப்பயனாக்குங்கள் — மொழி, குரல், தீம் மற்றும் பல",
+    "Skip tour": "வழிகாட்டலைத் தவிர்",
+    "Got it": "புரிந்தது",
+    "Search a concept — e.g. suffering, deeksha, serene mind…": "ஒரு கருத்தைத் தேடுங்கள் — எ.கா. துன்பம், தீக்ஷா, செரீன் மைண்ட்...",
+    "No concepts found": "கருத்துக்கள் எதுவும் இல்லை",
+    "Related Concepts": "தொடர்புடைய கருத்துக்கள்",
+    "Expand": "விரிவாக்கு",
+    "Collapse": "சுருக்கு",
+    "Relationships": "உறவுகள்",
+    "Concept Details": "கருத்து விவரங்கள்",
+    "Zoom in": "பெரிதாக்கு",
+    "Reset view": "பார்வையை மீட்டமை",
+    "Explore": "ஆராயுங்கள்",
+    "Couldn't load graph: {{error}}": "வரைபடத்தை ஏற்ற முடியவில்லை: {{error}}",
+    "No concepts found for {{query}}.": "{{query}} க்கான கருத்துக்கள் எதுவும் இல்லை.",
+    "Search a concept to visualise the knowledge graph.": "அறிவு வரைபடத்தைக் காண ஒரு கருத்தைத் தேடுங்கள்.",
+    "{{nodeCount}} concepts · {{edgeCount}} relationships": "{{nodeCount}} கருத்துக்கள் · {{edgeCount}} உறவுகள்",
+    "Search": "தேடு",
+    "Search conversations…": "உரையாடல்களைத் தேடு...",
+    "Delete conversation": "உரையாடலை நீக்கு",
+    "Expand sidebar (⌘B)": "பக்கவாட்டை விரிவாக்கு (⌘B)",
+    "Collapse sidebar (⌘B)": "பக்கவாட்டைச் சுருக்கு (⌘B)",
+    "Edit note": "குறிப்பைத் திருத்து",
+    "Loading your notes…": "உங்கள் குறிப்புகளை ஏற்றுகிறது...",
+    "No notes match your search.": "உங்கள் தேடலுடன் பொருந்தும் குறிப்புகள் எதுவும் இல்லை.",
+    "from chat": "உரையாடலில் இருந்து",
+    "Note is empty": "குறிப்பு காலியாக உள்ளது",
+    "Could not load memories.": "நினைவுகளை ஏற்ற முடியவில்லை.",
+    "This memory has been released.": "இந்த நினைவு வெளியிடப்பட்டது.",
+    "e.g. I practice every morning before sunrise.": "எ.கா. நான் தினமும் சூரிய உதயத்திற்கு முன் தியானம் செய்கிறேன்.",
+    "Daily spiritual practices — Sri Preethaji & Sri Krishnaji": "தினசரி ஆன்மீக பயிற்சிகள் — ஸ்ரீ பிரீதாஜி & ஸ்ரீ கிருஷ்ணாஜி",
+    "Open in chat": "உரையாடலில் திறக்கவும்",
+    "Benefits": "பலன்கள்",
+    "Sit comfortably with your spine upright. Eyes closed, mouth closed. Let the breath move.": "உங்கள் முதுகெலும்பை நேராக வைத்து வசதியாக உட்காரவும். கண்கள் மூடி, வாய் மூடி. மூச்சு நகரட்டும்.",
+    "Soul Sync": "சோல் சிங்க்",
+    "A 3-minute reset for an agitated heart.": "கோபமடைந்த இதயத்திற்கு 3 நிமிட மீட்டமைப்பு.",
+    "Beautiful State": "பேரானந்த நிலை",
+    "Daily Reflection": "தினசரி பிரதிபலிப்பு",
+    "Jump to latest message ({{count}} new)": "சமீபத்திய செய்திக்குச் செல் ({{count}} புதியது)",
+    "Responses are generated by an AI grounded in publicly available teachings of Sri Preethaji and Sri Krishnaji. AskMukthiGuru is not a substitute for professional mental-health care.": "பதில்கள் ஸ்ரீ பிரீதாஜி மற்றும் ஸ்ரீ கிருஷ்ணாஜியின் பொதுவில் கிடைக்கும் போதனைகளின் அடிப்படையில் AI ஆல் உருவாக்கப்படுகின்றன. அஸ்குமுக்திகுரு தொழில்முறை மனநல சிகிச்சைக்கு மாற்றாக இல்லை.",
+    "you@example.com": "உங்களுடையமின்னஞ்சல்@example.com",
+    "We sent you a link to reset your password.": "உங்கள் கடவுச்சொல்லை மீட்டமைப்பதற்கான இணைப்பை நாங்கள் உங்களுக்கு அனுப்பியுள்ளோம்.",
+    "Could not connect to Google.": "கூகுளுடன் இணைக்க முடியவில்லை.",
+    "Could not connect to Google. Please try again.": "கூகுளுடன் இணைக்க முடியவில்லை. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.",
+    "Returning from Google…": "கூகுளிலிருந்து திரும்புகிறது...",
+    "Next": "அடுத்து"
+}
+
+def main():
+    locales_dir = Path("src/locales")
+    lang_path = locales_dir / "ta.json"
+    en_path = locales_dir / "en.json"
+    
+    with open(en_path, "r", encoding="utf-8") as f:
+        en_data = json.load(f)
+        
+    def flatten_json(data, parent_key="", sep="."):
+        items = {}
+        for k, v in data.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.update(flatten_json(v, new_key, sep=sep))
+            else:
+                items[new_key] = v
+        return items
+
+    def unflatten_json(flat_data, sep="."):
+        nested = {}
+        for k, v in flat_data.items():
+            parts = k.split(sep)
+            curr = nested
+            for part in parts[:-1]:
+                if part not in curr:
+                    curr[part] = {}
+                if not isinstance(curr[part], dict):
+                    curr[part] = {}
+                curr = curr[part]
+            curr[parts[-1]] = v
+        return nested
+
+    tgt_flat = {}
+    if lang_path.exists():
+        with open(lang_path, "r", encoding="utf-8") as f:
+            tgt_flat = flatten_json(json.load(f))
+            
+    en_flat = flatten_json(en_data)
+    
+    # 1. Apply translations by matching English values
+    def is_english_fallback(en_val, tgt_val):
+        if en_val != tgt_val:
+            return False
+        import re
+        cleaned = re.sub(r'\{\{[^}]+\}\}', '', en_val)
+        cleaned = re.sub(r'\[[^\]]+\]', '', cleaned)
+        cleaned = re.sub(r'\d+', '', cleaned)
+        cleaned = re.sub(r'[^\w\s]', '', cleaned).strip()
+        return len(cleaned) > 0
+
+    def has_placeholder_or_citation_mismatch(en_val, tgt_val):
+        import re
+        en_placeholders = set(re.findall(r'\{\{[^}]+\}\}', str(en_val)))
+        tgt_placeholders = set(re.findall(r'\{\{[^}]+\}\}', str(tgt_val)))
+        if en_placeholders - tgt_placeholders:
+            return True
+        en_citations = set(re.findall(r'\[[a-zA-Z0-9]+\]', str(en_val)))
+        tgt_citations = set(re.findall(r'\[[a-zA-Z0-9]+\]', str(tgt_val)))
+        if en_citations - tgt_citations:
+            return True
+        return False
+
+    for k, en_val in en_flat.items():
+        should_translate = False
+        if k not in tgt_flat:
+            should_translate = True
+        else:
+            tgt_val = tgt_flat[k]
+            if is_english_fallback(str(en_val), str(tgt_val)):
+                should_translate = True
+            elif not tgt_val or str(tgt_val).strip() == "":
+                should_translate = True
+            elif has_placeholder_or_citation_mismatch(en_val, tgt_val):
+                should_translate = True
+                
+        if should_translate:
+            if str(en_val) in TA_FULL_MAP:
+                tgt_flat[k] = TA_FULL_MAP[str(en_val)]
+            else:
+                tgt_flat[k] = en_val # Fallback to English value
+                
+    # 2. Clean superfluous keys (keys in target not in en)
+    superfluous = set(tgt_flat.keys()) - set(en_flat.keys())
+    for k in superfluous:
+        del tgt_flat[k]
+
+    # Save
+    nested = unflatten_json(tgt_flat)
+    with open(lang_path, "w", encoding="utf-8") as f:
+        json.dump(nested, f, indent=2, ensure_ascii=False)
+    print("Tamil locale updated successfully!")
+
+if __name__ == "__main__":
+    main()

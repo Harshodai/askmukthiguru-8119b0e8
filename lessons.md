@@ -1,5 +1,12 @@
 # Agentic Lessons & Memory
 
+## Jul 12, 2026 — Offline Translations & Validation of Regional Locales
+
+### Offline Translations & Validation of Regional Locales
+- **Problem**: When performing translations for fallback and missing keys, using external APIs like OpenRouter or Sarvam might lead to credit exhaustion (HTTP 402) or introduce external network dependencies.
+- **Fix**: Implemented offline Python translation scripts (`apply_offline_translations_kn.py`, `apply_offline_translations_ta.py`, `apply_offline_translations_mr.py`) containing comprehensive mappings of all missing, fallback, or placeholder-mismatched strings. Added robust checks for placeholder/citation mismatches and verified all five target languages (Hindi, Telugu, Kannada, Tamil, Marathi) using `translate_locales.py --validate`.
+- **Pattern**: For deterministic locale mappings and constraints on external network/API usage, use offline mapping scripts. Always validate placeholder and citation preservation using automated regex validation (such as in `translate_locales.py`).
+
 ## Jul 12, 2026 — Prompt Template Caching & Testing
 
 ### Prefix caching requires stable templates at the top
