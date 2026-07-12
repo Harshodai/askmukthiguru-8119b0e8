@@ -40,6 +40,7 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.production
 
 # Qdrant data
 qdrant_data/
