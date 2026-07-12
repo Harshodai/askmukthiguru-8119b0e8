@@ -674,13 +674,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     elif layers:
         system_prompt = (
             f"PERSONA:\n{layers['persona']}\n\n"
-            f"INSTRUCTIONS:\n{layers['instructions']}\n\n"
-            f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}"
+            f"INSTRUCTIONS:\n{layers['instructions']}"
         )
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
 
         user_prompt = (
+            f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}\n\n"
             f"USER STATE:\n{layers['user_state']}\n\n"
             f"QUESTION: {question}"
         )
@@ -730,8 +730,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
             
-        system_prompt += f"\n\nCONTEXT (retrieved teachings):\n{memory}\n\n{context}"
-        user_prompt = f"Question: {question}"
+        user_prompt = f"CONTEXT (retrieved teachings):\n{memory}\n\n{context}\n\nQuestion: {question}"
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
 
@@ -995,13 +994,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
                 system_prompt = (
                     f"PERSONA:\n{layers_copy['persona']}\n\n"
-                    f"INSTRUCTIONS:\n{layers_copy['instructions']}\n\n"
-                    f"KNOWLEDGE (retrieved teachings):\n{layers_copy['knowledge']}"
+                    f"INSTRUCTIONS:\n{layers_copy['instructions']}"
                 )
                 if lang_suffix:
                     system_prompt += f"\n\n{lang_suffix}"
 
                 user_prompt = (
+                    f"KNOWLEDGE (retrieved teachings):\n{layers_copy['knowledge']}\n\n"
                     f"USER STATE:\n{layers_copy['user_state']}\n\n"
                     f"QUESTION: {question}"
                 )
@@ -1028,8 +1027,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 )
                 if lang_suffix:
                     system_prompt += f"\n\n{lang_suffix}"
-                system_prompt += f"\n\nCONTEXT (retrieved teachings):\n{memory}\n\n{context}"
-                user_prompt = f"Question: {question}"
+                user_prompt = f"CONTEXT (retrieved teachings):\n{memory}\n\n{context}\n\nQuestion: {question}"
                 if history_str:
                     user_prompt = f"{history_str}\n\n{user_prompt}"
 
