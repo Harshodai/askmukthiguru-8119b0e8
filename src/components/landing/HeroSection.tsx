@@ -107,7 +107,7 @@ export const HeroSection = () => {
                       position: 'absolute',
                       inset: -8,
                       borderRadius: '50%',
-                      border: '1.5px solid rgba(212, 175, 55, 0.45)',
+                      border: '1.5px solid hsl(var(--ojas-gold) / 0.45)',
                     }}
                   />
                   {/* Ring 2 — faster pulse, offset */}
@@ -118,7 +118,7 @@ export const HeroSection = () => {
                       position: 'absolute',
                       inset: -4,
                       borderRadius: '50%',
-                      border: '1px solid rgba(212, 175, 55, 0.25)',
+                      border: '1px solid hsl(var(--ojas-gold) / 0.25)',
                     }}
                   />
 
@@ -134,11 +134,11 @@ export const HeroSection = () => {
                       width: 56,
                       height: 56,
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #d4af37 0%, #f59e0b 100%)',
-                      border: '1.5px solid rgba(255, 255, 255, 0.45)',
+                      background: 'linear-gradient(135deg, hsl(var(--ojas-gold)) 0%, hsl(var(--ojas-gold-light)) 100%)',
+                      border: '1.5px solid hsl(var(--ojas-gold-light) / 0.65)',
                       boxShadow: [
                         '0 0 0 1px rgba(255, 255, 255, 0.2) inset',
-                        '0 8px 24px rgba(212, 175, 55, 0.4)',
+                        '0 8px 24px hsl(var(--ojas-gold) / 0.55)',
                         '0 2px 8px rgba(0,0,0,0.35)',
                       ].join(', '),
                       position: 'relative',

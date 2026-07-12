@@ -17,12 +17,36 @@ const SLIDES = [
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="space-y-3 px-1">
+      <div className="space-y-4 px-1 flex flex-col justify-center" style={{ height: 180 }}>
         {/* Simulated chat bubbles */}
+        {/* User Question 1 (Right) */}
+        <motion.div
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.15 }}
+          className="flex gap-2 items-end justify-end"
+        >
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px 16px 4px 16px',
+              padding: '10px 14px',
+              fontSize: 13,
+              color: 'rgba(255,255,255,0.85)',
+              maxWidth: 260,
+              lineHeight: 1.5,
+            }}
+          >
+            How can I find peace when my mind won't stop?
+          </div>
+        </motion.div>
+
+        {/* Guru Answer 1 (Left with Avatar) */}
         <motion.div
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.55 }}
           className="flex gap-2 items-end"
         >
           <div
@@ -32,6 +56,7 @@ const SLIDES = [
               flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 12,
+              boxShadow: '0 2px 6px rgba(212, 175, 55, 0.4)',
             }}
           >
             💫
@@ -43,18 +68,21 @@ const SLIDES = [
               borderRadius: '16px 16px 16px 4px',
               padding: '10px 14px',
               fontSize: 13,
-              color: 'rgba(255,255,255,0.9)',
-              maxWidth: 260,
+              color: 'rgba(255,255,255,0.95)',
+              maxWidth: 280,
               lineHeight: 1.5,
+              boxShadow: '0 0 15px rgba(212, 175, 55, 0.05)',
             }}
           >
-            How can I find peace when my mind won't stop?
+            The Beautiful State is not achieved — it's what remains when suffering dissolves. Observe your thoughts without becoming them...
           </div>
         </motion.div>
+
+        {/* User Question 2 (Right) */}
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.45 }}
+          transition={{ delay: 0.95 }}
           className="flex gap-2 items-end justify-end"
         >
           <div
@@ -64,22 +92,11 @@ const SLIDES = [
               borderRadius: '16px 16px 4px 16px',
               padding: '10px 14px',
               fontSize: 13,
-              color: 'rgba(255,255,255,0.75)',
-              maxWidth: 280,
-              lineHeight: 1.6,
+              color: 'rgba(255,255,255,0.85)',
+              maxWidth: 260,
+              lineHeight: 1.5,
             }}
           >
-            The Beautiful State isn't something you achieve — it's what remains when suffering dissolves. Begin by observing your thoughts without becoming them...
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.75 }}
-          className="flex gap-2 items-end"
-        >
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#d4af37,#f59e0b)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>💫</div>
-          <div style={{ background: 'rgba(212, 175, 55, 0.12)', border: '1px solid rgba(212, 175, 55, 0.25)', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', fontSize: 13, color: 'rgba(255,255,255,0.9)', maxWidth: 240, lineHeight: 1.5 }}>
             What does "observing without becoming" mean?
           </div>
         </motion.div>
@@ -95,13 +112,13 @@ const SLIDES = [
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="flex flex-col items-center justify-center py-4 gap-5">
+      <div className="flex flex-col items-center justify-center space-y-3" style={{ height: 180 }}>
         {/* Breathing orb */}
         <motion.div
           animate={{ scale: [1, 1.22, 1], opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           style={{
-            width: 88, height: 88, borderRadius: '50%',
+            width: 72, height: 72, borderRadius: '50%',
             background: 'radial-gradient(circle, rgba(212,175,55,0.6) 0%, rgba(212,175,55,0.2) 60%, transparent 100%)',
             border: '2px solid rgba(212,175,55,0.4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -111,7 +128,7 @@ const SLIDES = [
           <motion.div
             animate={{ scale: [1, 0.85, 1] }}
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(212,175,55,0.3)', border: '1px solid rgba(212,175,55,0.5)' }}
+            style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(212,175,55,0.3)', border: '1px solid rgba(212,175,55,0.5)' }}
           />
         </motion.div>
         <motion.p
@@ -143,7 +160,7 @@ const SLIDES = [
     color: '#d4af37',
     glow: 'rgba(212, 175, 55, 0.25)',
     preview: (
-      <div className="relative flex items-center justify-center" style={{ height: 160 }}>
+      <div className="relative flex items-center justify-center" style={{ height: 180 }}>
         {/* Nodes */}
         {[
           { x: 50, y: 50, label: 'Beautiful State', size: 28, color: '#d4af37', delay: 0.1 },
