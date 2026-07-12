@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { MessageCircle, Heart, Sparkles, Flower } from 'lucide-react';
+import { MessageCircle, Heart, Sparkles, Flower, Play } from 'lucide-react';
 
 export const HowItWorksSection = () => {
   const { t } = useTranslation();
 
   const handlePlayClick = () => {
-    // Video not yet available — card is non-interactive
+    // Video not yet available
   };
 
   const steps = [
@@ -89,22 +89,22 @@ export const HowItWorksSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.7, delay: 0.4 }}
-          className="max-w-4xl mx-auto mt-16 text-center"
+          className="max-w-2xl mx-auto mt-16"
         >
-          <button
-            className="aspect-video rounded-xl border border-ojas/20 bg-gradient-to-b from-ojas/5 to-transparent flex flex-col items-center justify-center group"
-            disabled
-            aria-label={t('landing.howItWorks.videoAlt')}
-          >
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-16 h-16 rounded-full bg-ojas/80 hover:bg-ojas flex items-center justify-center text-white text-2xl transition-colors group-hover:bg-ojas"
-            >
-              ▶
-            </motion.div>
-            <p className="text-muted-foreground text-sm mt-4">{t('landing.howItWorks.videoPlaceholder')}</p>
-          </button>
+          <div className="relative aspect-video rounded-xl border border-border/40 bg-gradient-to-b from-muted/80 to-muted/30 overflow-hidden">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-16 h-16 rounded-full bg-ojas/15 flex items-center justify-center border border-ojas/30"
+              >
+                <Play className="w-6 h-6 text-ojas/70 ml-0.5" />
+              </motion.div>
+              <p className="text-sm text-muted-foreground">
+                {t('landing.howItWorks.videoPlaceholder')}
+              </p>
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

@@ -26,7 +26,7 @@ import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, getAIConfig } from '@/lib/aiService';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
-import { getLastCompletedMeditationTimestamp } from '@/lib/meditationStorage';
+import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
@@ -329,7 +329,15 @@ export const ChatInterface = () => {
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
-        content: buildPersonalisedWelcome(profile.prePracticeLog, selected?.slug),
+        content: buildPersonalisedWelcome(profile.prePracticeLog, selected?.slug, (() => {
+          try {
+            const sessions = loadMeditationSessions();
+            const last = sessions.filter(s => s.completed).sort((a, b) =>
+              (b.completedAt ?? b.startedAt).getTime() - (a.completedAt ?? a.startedAt).getTime()
+            )[0];
+            return last?.mood;
+          } catch { return undefined; }
+        })()),
         timestamp: new Date(),
       };
       setMessages([welcomeMessage]);

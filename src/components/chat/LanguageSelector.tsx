@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { setLanguage } from '@/lib/aiService';
 import { useToast } from '@/hooks/use-toast';
 // ScrollArea removed in favor of native scrollable div to prevent Radix popover collapsing
@@ -136,6 +137,7 @@ export const LanguageSelector = ({
   const selectedLanguage = value ?? internalLang;
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [coords, setCoords] = useState<{ bottom: number; left: number; maxHeight: number } | null>(null);
 
@@ -372,7 +374,7 @@ export const LanguageSelector = ({
                       type="text"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search 23 languages…"
+                      placeholder={t('language.searchPlaceholder')}
                       className="w-full px-3 py-1.5 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
                       autoFocus
                     />
@@ -387,7 +389,7 @@ export const LanguageSelector = ({
                   <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
                     <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Non-English messages are auto-translated before being sent to the Guru.
+                      {t('language.translationNotice')}
                     </p>
                   </div>
                 </motion.div>
@@ -413,7 +415,7 @@ export const LanguageSelector = ({
           whileTap={{ scale: 0.98 }}
           aria-haspopup="listbox"
           aria-expanded={isOpen}
-          aria-label={`Selected language: ${currentLang?.name ?? 'English'}. Click to change.`}
+          aria-label={t('language.ariaLabel', { name: currentLang?.name ?? 'English' })}
         >
           <Globe className="w-4 h-4 text-ojas" />
           <span className="text-foreground font-medium hidden sm:inline">

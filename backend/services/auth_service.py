@@ -349,7 +349,12 @@ async def get_current_user_from_supabase(
     Falls back to anonymous user in non-production when no auth token is provided.
     Expired/invalid tokens still reject properly.
     """
-    if token is None and not settings.is_production:
+    # Always try auth strategies first (covers X-Test-Key backdoor without Bearer token)
+    user = await auth_bridge.get_user(request, token)
+    if user:
+        return user
+    # No auth succeeded — fall back to anonymous in dev mode
+    if not settings.is_production:
         logger.warning("No auth token in dev mode — using anonymous user")
         return {"id": "anonymous", "email": None, "is_anonymous": True}
-    return await auth_bridge.get_user(request, token)
+    raise HTTPException(status_code=401, detail="Authentication required or session expired")

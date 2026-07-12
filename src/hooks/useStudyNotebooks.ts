@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 export interface StudyNotebook {
   id: string;
@@ -39,10 +39,20 @@ export function useStudyNotebooks() {
   const [notebooks, setNotebooks] = useState<StudyNotebook[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    if (isMounted.current) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const token = await getToken();
       const headers: Record<string, string> = { Accept: "application/json" };
@@ -50,12 +60,18 @@ export function useStudyNotebooks() {
       const res = await fetch(`${BASE}/notebooks`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as StudyNotebook[];
-      setNotebooks(data ?? []);
+      if (isMounted.current) {
+        setNotebooks(data ?? []);
+      }
     } catch (e: unknown) {
-      setError(errMsg(e, "Failed to load notebooks"));
-      setNotebooks([]);
+      if (isMounted.current) {
+        setError(errMsg(e, "Failed to load notebooks"));
+        setNotebooks([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, []);
 

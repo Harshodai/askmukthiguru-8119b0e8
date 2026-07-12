@@ -61,9 +61,8 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
   };
 
   const streakDays = useMemo(() => {
-    if (!submitted) return 0;
     try { return getMeditationStats().streakDays ?? 0; } catch { return 0; }
-  }, [submitted]);
+  }, []);
 
   const handleStartPractice = () => {
     if (!suggestedPractice) return;
@@ -136,6 +135,12 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                       </button>
                     ))}
                   </div>
+
+                  {streakDays > 0 && (
+                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-ojas/25 text-xs font-semibold text-ojas">
+                      🔥 {streakDays} {streakDays === 1 ? 'day' : 'days'} streak — your beautiful state is taking root!
+                    </div>
+                  )}
 
                   <label className="block text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider mt-5 mb-1 text-left">
                     {t('mood.reflectionLabel')}

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
+import { PostCompletionStreak } from './PostCompletionStreak';
 import {
   generateSessionId,
   completeMeditationSession,
@@ -397,6 +398,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 <p className="text-sm text-muted-foreground">
                   {t('meditation.practiceComplete', { mood: selectedMood })}
                 </p>
+                <PostCompletionStreak />
                 <button
                   onClick={requestClose}
                   className="px-6 py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium"

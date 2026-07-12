@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-smoke_doctrine.py — Micro-benchmark to verify that E5 queries retrieve 
+smoke_doctrine.py — Micro-benchmark to verify that BAAI/bge-m3 queries retrieve
 the core doctrine documents ("Deeksha", "Sri Preethaji and Sri Krishnaji", "Ekam")
-using dense search fallback (with Issue B fix applied).
+using dense+sparse hybrid search.
+
+Run inside the container where models are cached:
+  docker compose exec backend python benchmarks/smoke_doctrine.py
 """
 
 import asyncio

@@ -36,11 +36,11 @@ export interface PersonalInsight {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const MOOD_SCORE: Record<string, number> = {
-  heavy: -2,
-  contemplative: 0,
-  peaceful: 1,
-  lighter: 1,
-  grateful: 2,
+  calm: 1,
+  anxious: -2,
+  sad: -1,
+  frustrated: -2,
+  open: 0,
 };
 
 function startOfDay(d: Date): number {

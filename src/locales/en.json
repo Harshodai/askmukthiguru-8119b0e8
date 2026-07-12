@@ -714,7 +714,10 @@
     "language": {
       "title": "Choose Your Language",
       "subtitle": "Select your preferred language for the Guru",
-      "continue": "Continue"
+      "continue": "Continue",
+      "searchPlaceholder": "Search 23 languages…",
+      "translationNotice": "Non-English messages are auto-translated before being sent to the Guru.",
+      "ariaLabel": "Selected language: {{name}}. Click to change."
     },
     "tour": {
       "step1": {
@@ -891,8 +894,8 @@
         "Hold Your Intention — in this expanded state, bring your heartfelt intention to mind. Visualise it manifest. Close with deep gratitude."
       ],
       "benefits": [
-        "Calms the amygdala — lowers cortisol and stress arousal.",
-        "Shifts brainwaves from high-beta (overthinking) to coherent alpha (calm focus).",
+        "Gently soothes your mind and body — releasing tension you may not even notice.",
+        "Quiets mental chatter and invites calm, focused awareness.",
         "Aligns your inner state with your intentions — opens the door to synchronicity.",
         "Dissolves self-centred suffering states — opens the heart to love, connection, and peace."
       ]
@@ -911,10 +914,10 @@
         "Close with a smile — let a warm, gentle smile rest on your face. One more deep breath. Feel the shift. Slowly open your eyes."
       ],
       "benefits": [
-        "Instant amygdala calm — de-escalates panic, anger, or agitation in three minutes.",
-        "Builds self-awareness — naming emotions without judgement lowers their emotional charge.",
+        "Quickly settles strong emotions — a gentle reset in just three minutes.",
+        "Builds self-awareness — naming what you feel helps it soften naturally.",
         "Strengthens focus and presence — the flame steadies a scattered mind.",
-        "Physiological reset — engages the parasympathetic nervous system; heart rate slows; calm returns."
+        "A natural reset for your whole being — the body softens, the mind stills."
       ]
     },
     "beautifulState": {
@@ -931,8 +934,8 @@
       "benefits": [
         "Dissolves self-centred suffering and emotional pain.",
         "Strengthens compassion, empathy, and genuine connection.",
-        "Builds emotional resilience — more joy in daily life.",
-        "Induces physiological coherence — gentle on the heart."
+        "Helps you bounce back with more joy in daily life.",
+        "Brings a gentle harmony to your whole being — calming mind and heart."
       ]
     },
     "dailyReflection": {
@@ -948,10 +951,14 @@
       ],
       "benefits": [
         "Fosters gratitude — shifts your gaze toward the positive.",
-        "Closes the day mindfully — releases accumulated tension and stress.",
-        "Improves sleep — calms the mind before bed.",
+        "Closes the day mindfully — lets go of what weighed on you.",
+        "Invites restful sleep — a quiet mind welcomes deep rest.",
         "Builds self-compassion — review mistakes without judgement."
       ]
     }
+  },
+  "seo": {
+    "practicesTitle": "Daily Practices — Guided Meditations | AskMukthiGuru",
+    "practicesDescription": "Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji."
   }
 }
