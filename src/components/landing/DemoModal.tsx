@@ -251,7 +251,7 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
             {/* Outer shell */}
             <div
               style={{
-                background: 'rgba(8, 8, 12, 0.95)',
+                background: 'rgba(24, 18, 15, 0.95)',
                 border: `1px solid ${current.color}30`,
                 borderRadius: 28,
                 boxShadow: [
@@ -267,7 +267,7 @@ export const DemoModal = ({ isOpen, onClose }: DemoModalProps) => {
               <div
                 style={{
                   borderRadius: 26,
-                  background: 'linear-gradient(145deg, rgba(16,16,22,0.97) 0%, rgba(10,10,16,0.99) 100%)',
+                  background: 'linear-gradient(145deg, rgba(32, 25, 20, 0.98) 0%, rgba(20, 16, 13, 0.99) 100%)',
                   boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.05)',
                   overflow: 'hidden',
                 }}
