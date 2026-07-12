@@ -469,16 +469,99 @@ class IngestionPipeline:
                 return await self._ingest_video_enhanced(url, on_progress, tags=tags)
             return await self._ingest_video(url, max_accuracy, on_progress, tags=tags)
         else:
-            # Try social media / direct video (Instagram Reels, TikTok, direct MP4 etc.)
-            from ingest.social_media_loader import is_social_media_url
-            if is_social_media_url(url):
-                return await self._ingest_social_media_video(url, on_progress, tags=tags)
-            return {
-                "status": "error",
-                "message": f"Unsupported URL format: {url}",
-                "chunks_indexed": 0,
-                "summaries_created": 0,
-            }
+            # Try PDF and Web Page Article Ingestion
+            lower_url = url.lower()
+            if ".pdf" in lower_url or url.endswith(".pdf"):
+                self._notify(on_progress, "Downloading and parsing PDF...", 0.1)
+                try:
+                    import requests
+                    from pypdf import PdfReader
+                    import io
+
+                    response = requests.get(url, timeout=30)
+                    response.raise_for_status()
+                    
+                    pdf_file = io.BytesIO(response.content)
+                    reader = PdfReader(pdf_file)
+                    text = ""
+                    for page in reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text + "\n"
+                    
+                    title = url.split("/")[-1].replace(".pdf", "").replace("-", " ").replace("_", " ").title()
+                    if not text.strip():
+                        raise ValueError("PDF contains no readable text")
+                    
+                    return await self.ingest_raw_text(
+                        text=text,
+                        source_url=url,
+                        title=title,
+                        content_type="pdf",
+                        on_progress=on_progress,
+                        tags=tags,
+                    )
+                except Exception as e:
+                    logger.error(f"PDF Ingestion failed for {url}: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"PDF Ingestion failed: {e}",
+                        "chunks_indexed": 0,
+                        "summaries_created": 0,
+                    }
+            elif url.startswith("http://") or url.startswith("https://"):
+                # Try social media first to prevent scraping video platform HTML
+                from ingest.social_media_loader import is_social_media_url
+                if is_social_media_url(url):
+                    return await self._ingest_social_media_video(url, on_progress, tags=tags)
+
+                self._notify(on_progress, "Scraping web page article...", 0.1)
+                try:
+                    import requests
+                    from bs4 import BeautifulSoup
+
+                    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+                    response = requests.get(url, headers=headers, timeout=20)
+                    response.raise_for_status()
+                    
+                    soup = BeautifulSoup(response.content, "html.parser")
+                    for element in soup(["script", "style", "nav", "header", "footer", "iframe", "aside"]):
+                        element.decompose()
+                    
+                    text = soup.get_text(separator="\n")
+                    text = "\n".join([line.strip() for line in text.splitlines() if line.strip()])
+                    
+                    title_el = soup.find("title")
+                    title = title_el.get_text().strip() if title_el else url.split("/")[-1]
+                    if not title:
+                        title = "Web Article Summary"
+
+                    if not text.strip():
+                        raise ValueError("Scraped web page contains no readable text")
+                    
+                    return await self.ingest_raw_text(
+                        text=text,
+                        source_url=url,
+                        title=title,
+                        content_type="web_article",
+                        on_progress=on_progress,
+                        tags=tags,
+                    )
+                except Exception as e:
+                    logger.error(f"Web scraping failed for {url}: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Web scraping failed: {e}",
+                        "chunks_indexed": 0,
+                        "summaries_created": 0,
+                    }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported URL format: {url}",
+                    "chunks_indexed": 0,
+                    "summaries_created": 0,
+                }
 
     async def _ingest_social_media_video(
         self,
@@ -802,9 +885,16 @@ class IngestionPipeline:
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.35)
         hyper_extract_result = self._enrich_text(clean_text)
 
-        # Step 2c: Enrich video metadata from transcript for non-Apify paths
+        # Step 2c: Enrich video metadata from transcript for all paths
         method = result.get("method", "")
-        if not method.startswith("pre_extracted_"):
+        # Check if title is just a video ID (11 chars, alphanumeric/underscore/hyphen) - needs real title
+        current_title = result.get("title", "")
+        needs_metadata = not method.startswith("pre_extracted_") or (
+            current_title and len(current_title) == 11 and 
+            all(c.isalnum() or c in '_-' for c in current_title)
+        )
+        
+        if needs_metadata:
             self._notify(on_progress, "Extracting video metadata...", 0.4)
             enriched = extract_video_metadata(raw_text, video_id)
             if enriched.get("title"):
@@ -863,6 +953,11 @@ class IngestionPipeline:
             language=video_language,
             extra_metadatas=extra_metadatas,
             tags=tags,
+            video_id=video_id,
+            channel_name=result.get("channel_name"),
+            published_at=result.get("published_at"),
+            duration=result.get("duration"),
+            thumbnail_url=result.get("thumbnail_url"),
         )
 
         try:
@@ -1727,6 +1822,11 @@ class IngestionPipeline:
         language: str = "en",
         tags: Optional[list[str]] = None,
         source_type: Optional[str] = None,
+        video_id: Optional[str] = None,
+        channel_name: Optional[str] = None,
+        published_at: Optional[str] = None,
+        duration: Optional[int] = None,
+        thumbnail_url: Optional[str] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -1738,6 +1838,14 @@ class IngestionPipeline:
             return 0
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+
+        # Extract video_id from source_url if not provided
+        if not video_id and source_url:
+            video_id = extract_video_id(source_url)
+        
+        # Auto-generate thumbnail URL if we have video_id
+        if video_id and not thumbnail_url:
+            thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
 
         # Scan chunk contents, title, source URL, and speaker name to resolve the teacher context.
         combined_context = f"{' '.join(chunks[:3])} {title} {source_url} {speaker}".lower()
@@ -1823,6 +1931,13 @@ class IngestionPipeline:
                 "tags": tags or [],
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
+                # YouTube-specific fields (populated when available)
+                "video_id": video_id,
+                "channel_name": channel_name,
+                "published_at": published_at,
+                "duration": duration,
+                "thumbnail_url": thumbnail_url,
+                "view_count": None,
             }
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
@@ -2005,16 +2120,33 @@ class IngestionPipeline:
             chunks = self._splitter.split_text(text)
 
         if title:
-            # Prepend Contextual Header to every chunk to maintain narrative origin
-            # Recommendation: Source: {video_title} | Speaker: {speaker} | Topic: {topic}
             header_parts = [f"Source: {title}"]
             if speaker and speaker != "Unknown":
                 header_parts.append(f"Speaker: {speaker}")
             if topic and topic != "Spiritual":
                 header_parts.append(f"Topic: {topic}")
 
-            header = f"[{' | '.join(header_parts)}]\n"
-            return [header + chunk for chunk in chunks]
+            prefix_base = f"[{' | '.join(header_parts)}]"
+            
+            enriched_chunks = []
+            for i, chunk in enumerate(chunks):
+                lookback = ""
+                if i > 0:
+                    prev_chunk = chunks[i-1].strip()
+                    # Grab last 120 chars of previous chunk as lookback
+                    lookback_text = prev_chunk[-120:].replace('\n', ' ')
+                    lookback = f" [Preceding Context: ...{lookback_text}]"
+                
+                lookahead = ""
+                if i < len(chunks) - 1:
+                    next_chunk = chunks[i+1].strip()
+                    # Grab first 120 chars of next chunk as lookahead
+                    lookahead_text = next_chunk[:120].replace('\n', ' ')
+                    lookahead = f" [Following Context: {lookahead_text}...]"
+                
+                header = f"{prefix_base}{lookback}{lookahead}\n"
+                enriched_chunks.append(header + chunk)
+            return enriched_chunks
 
         return chunks
 
