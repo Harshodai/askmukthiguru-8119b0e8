@@ -91,9 +91,9 @@ const PracticeDetailPage = () => {
     : null;
 
   const handleShare = async () => {
-    const stepsText = lp.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
-    const benefitsText = lp.benefits.map((b) => `• ${b}`).join('\n');
-    const shareText = `🧘 *${lp.title}* — ${lp.tagline} (${lp.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}\n\n🎥 *Guided Video:* ${watchUrl}\n\nShared via AskMukthiGuru`;
+    const stepsText = lp!.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
+    const benefitsText = lp!.benefits.map((b) => `• ${b}`).join('\n');
+    const shareText = `🧘 *${lp!.title}* — ${lp!.tagline} (${lp!.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}\n\n🎥 *Guided Video:* ${watchUrl}\n\nShared via AskMukthiGuru`;
     
     try {
       await navigator.clipboard.writeText(shareText);
@@ -114,7 +114,7 @@ const PracticeDetailPage = () => {
   };
 
   return (
-    <AppShell title={lp.title}>
+    <AppShell title={lp!.title}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <Link
           to="/practices"
@@ -140,7 +140,7 @@ const PracticeDetailPage = () => {
           </div>
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">
-              {lp.title}
+              {lp!.title}
             </h1>
             <div className="flex gap-2 shrink-0">
               <Button
@@ -180,7 +180,7 @@ const PracticeDetailPage = () => {
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
-            {lp.tagline}
+            {lp!.tagline}
           </p>
         </motion.header>
 
@@ -203,7 +203,7 @@ const PracticeDetailPage = () => {
               <iframe
                 className="absolute inset-0 w-full h-full"
                 src={embedSrc}
-                title={`${lp.title} — guided video`}
+                title={`${lp!.title} — guided video`}
                 loading="lazy"
                 allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -233,7 +233,7 @@ const PracticeDetailPage = () => {
                 <iframe
                   className="absolute inset-0 w-full h-full"
                   src={audioEmbed}
-                  title={`${lp.title} — audio`}
+                  title={`${lp!.title} — audio`}
                   loading="lazy"
                   allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
@@ -251,7 +251,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
-              {lp.purpose}
+              {lp!.purpose}
             </p>
           </CardContent>
         </Card>
@@ -263,7 +263,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
-              {lp.howItWorks.map((step) => {
+              {lp!.howItWorks.map((step) => {
                 const parts = step.split(': ');
                 if (parts.length > 1) {
                   return (
@@ -285,7 +285,7 @@ const PracticeDetailPage = () => {
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
-              {lp.benefits.map((benefit) => {
+              {lp!.benefits.map((benefit) => {
                 const parts = benefit.split(': ');
                 if (parts.length > 1) {
                   return (

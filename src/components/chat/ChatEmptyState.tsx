@@ -11,7 +11,7 @@ interface ChatEmptyStateProps {
   onOpenTeaching?: () => void;
 }
 
-const formatRelative = (iso: string | Date, t: (key: string, opts?: object) => string): string => {
+const formatRelative = (iso: string | Date, t: (key: string, opts?: any) => any): string => {
   const time = typeof iso === 'string' ? new Date(iso).getTime() : iso.getTime();
   const diff = Date.now() - time;
   const mins = Math.floor(diff / 60000);
