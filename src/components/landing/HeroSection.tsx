@@ -107,7 +107,7 @@ export const HeroSection = () => {
                       position: 'absolute',
                       inset: -8,
                       borderRadius: '50%',
-                      border: '1.5px solid rgba(249,115,22,0.5)',
+                      border: '1.5px solid rgba(212, 175, 55, 0.45)',
                     }}
                   />
                   {/* Ring 2 — faster pulse, offset */}
@@ -118,7 +118,7 @@ export const HeroSection = () => {
                       position: 'absolute',
                       inset: -4,
                       borderRadius: '50%',
-                      border: '1px solid rgba(249,115,22,0.3)',
+                      border: '1px solid rgba(212, 175, 55, 0.25)',
                     }}
                   />
 
@@ -137,10 +137,10 @@ export const HeroSection = () => {
                       background: 'rgba(10,10,14,0.7)',
                       backdropFilter: 'blur(16px)',
                       WebkitBackdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(249,115,22,0.35)',
+                      border: '1px solid rgba(212, 175, 55, 0.4)',
                       boxShadow: [
-                        '0 0 0 1px rgba(249,115,22,0.1) inset',
-                        '0 8px 24px rgba(249,115,22,0.2)',
+                        '0 0 0 1px rgba(212, 175, 55, 0.15) inset',
+                        '0 8px 24px rgba(212, 175, 55, 0.25)',
                         '0 2px 8px rgba(0,0,0,0.5)',
                       ].join(', '),
                       position: 'relative',
@@ -159,10 +159,10 @@ export const HeroSection = () => {
                       style={{
                         width: 18,
                         height: 18,
-                        color: '#f97316',
-                        fill: '#f97316',
+                        color: '#ffffff',
+                        fill: '#ffffff',
                         marginLeft: 2, // optical centering for play icon
-                        filter: 'drop-shadow(0 0 6px rgba(249,115,22,0.6))',
+                        filter: 'drop-shadow(0 0 8px rgba(212, 175, 55, 0.6))',
                       }}
                     />
                   </motion.span>
