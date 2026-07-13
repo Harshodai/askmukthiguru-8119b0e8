@@ -2,6 +2,7 @@
  * Local profile storage with backend sync support.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { BACKEND_URL } from './backendUrl';
 
 export type GuruTone = 'gentle' | 'direct' | 'poetic';
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -226,7 +227,7 @@ export const saveProfile = (profile: UserProfile, syncWithServer: boolean = true
  */
 // Backend /api/profile lives on the FastAPI server. In Lovable preview /
 // production it isn't reachable, so we skip the round-trip there.
-const HAS_CUSTOM_BACKEND = Boolean(import.meta.env.VITE_BACKEND_URL);
+const HAS_CUSTOM_BACKEND = Boolean(BACKEND_URL);
 
 export const syncProfileToServer = async (profile: UserProfile) => {
   if (!HAS_CUSTOM_BACKEND) return;
@@ -234,7 +235,7 @@ export const syncProfileToServer = async (profile: UserProfile) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/profile`, {
+    const response = await fetch(`${BACKEND_URL}/api/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -289,7 +290,7 @@ export const fetchProfileFromServer = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/profile`, {
+    const response = await fetch(`${BACKEND_URL}/api/profile`, {
       headers: {
         'Authorization': `Bearer ${session.access_token}`
       }
