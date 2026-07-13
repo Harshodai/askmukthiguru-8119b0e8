@@ -3787,5 +3787,10 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 - **Problem**: The user wanted the local Supabase/PostgreSQL schema replicated in production without using CLI tokens. The full dump contains data rows (which triggers duplicate key violations) and raw table creations (which fails if tables already exist).
 - **Fix**: Executed a schema-only dump via `pg_dump --schema-only` on the running local container. Created a post-processing script `process_sql_dump.py` to append `IF NOT EXISTS` to `CREATE TABLE`, `CREATE SCHEMA`, `CREATE INDEX`, and `CREATE SEQUENCE`, and wrapped enum `CREATE TYPE` blocks inside PostgreSQL exception-handling blocks (`DO $$ BEGIN CREATE TYPE ... EXCEPTION WHEN duplicate_object THEN null; END $$;`).
 
+### Supabase Project ID Migration and Key Alignments
+- **Problem**: Moving an existing React/Vite + Playwright codebase to a new production Supabase project ref (e.g. from `fynkjimvuimakgtidvuq` to `ozmjeuqbholoxypfxixb`) leaves orphaned connections if references are missed. Critical areas include Vite `.env.production` files, CLI `supabase/config.toml` files, preconnect/dns-prefetch tags in `index.html`, and Playwright E2E mocked localStorage auth tokens (which format their key names dynamically as `sb-[project-id]-auth-token`).
+- **Fix**: Replaced all occurrences of the old project ref across `index.html`, `config.toml`, and E2E specs; created a standard `src/utils/supabase.ts` client wrapper to prevent multiple client instances; and executed `npx skills add supabase/agent-skills` to load the official Supabase agent workflow context.
+
+
 
 
