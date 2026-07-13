@@ -37,38 +37,48 @@ CREATE POLICY "Admins can manage assistant_doctrines" ON public.assistant_doctri
   FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 
 -- ============ communications (user-owned) ============
-ALTER TABLE IF EXISTS public.communications ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view own communications" ON public.communications;
-CREATE POLICY "Users can view own communications" ON public.communications
-  FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can insert own communications" ON public.communications;
-CREATE POLICY "Users can insert own communications" ON public.communications
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Admins can manage communications" ON public.communications;
-CREATE POLICY "Admins can manage communications" ON public.communications
-  FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'communications') THEN
+    ALTER TABLE public.communications ENABLE ROW LEVEL SECURITY;
+    
+    DROP POLICY IF EXISTS "Users can view own communications" ON public.communications;
+    CREATE POLICY "Users can view own communications" ON public.communications
+      FOR SELECT USING (auth.uid() = user_id);
+    
+    DROP POLICY IF EXISTS "Users can insert own communications" ON public.communications;
+    CREATE POLICY "Users can insert own communications" ON public.communications
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+    
+    DROP POLICY IF EXISTS "Admins can manage communications" ON public.communications;
+    CREATE POLICY "Admins can manage communications" ON public.communications
+      FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+  END IF;
+END $$;
 
 -- ============ digital_employees (user-owned) ============
-ALTER TABLE IF EXISTS public.digital_employees ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view own digital_employees" ON public.digital_employees;
-CREATE POLICY "Users can view own digital_employees" ON public.digital_employees
-  FOR SELECT USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can insert own digital_employees" ON public.digital_employees;
-CREATE POLICY "Users can insert own digital_employees" ON public.digital_employees
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can update own digital_employees" ON public.digital_employees;
-CREATE POLICY "Users can update own digital_employees" ON public.digital_employees
-  FOR UPDATE USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Admins can manage digital_employees" ON public.digital_employees;
-CREATE POLICY "Admins can manage digital_employees" ON public.digital_employees
-  FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'digital_employees') THEN
+    ALTER TABLE public.digital_employees ENABLE ROW LEVEL SECURITY;
+    
+    DROP POLICY IF EXISTS "Users can view own digital_employees" ON public.digital_employees;
+    CREATE POLICY "Users can view own digital_employees" ON public.digital_employees
+      FOR SELECT USING (auth.uid() = user_id);
+    
+    DROP POLICY IF EXISTS "Users can insert own digital_employees" ON public.digital_employees;
+    CREATE POLICY "Users can insert own digital_employees" ON public.digital_employees
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+    
+    DROP POLICY IF EXISTS "Users can update own digital_employees" ON public.digital_employees;
+    CREATE POLICY "Users can update own digital_employees" ON public.digital_employees
+      FOR UPDATE USING (auth.uid() = user_id);
+    
+    DROP POLICY IF EXISTS "Admins can manage digital_employees" ON public.digital_employees;
+    CREATE POLICY "Admins can manage digital_employees" ON public.digital_employees
+      FOR ALL USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+  END IF;
+END $$;
 
 -- Reload PostgREST schema cache to pick up the new policies and function changes
 NOTIFY pgrst, 'reload schema';
