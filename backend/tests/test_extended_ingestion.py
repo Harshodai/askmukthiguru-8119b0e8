@@ -11,13 +11,13 @@ async def test_pdf_ingestion_routing():
     pipeline = IngestionPipeline(mock_qdrant, mock_embed, mock_ollama)
     pipeline.ingest_raw_text = AsyncMock(return_value={"status": "success", "chunks_indexed": 5})
 
-    mock_pdf_reader = MagicMock()
+    mock_doc = MagicMock()
     mock_page = MagicMock()
-    mock_page.extract_text.return_value = "Spiritual teachings text from PDF"
-    mock_pdf_reader.pages = [mock_page]
+    mock_page.get_text.return_value = "Spiritual teachings text from PDF"
+    mock_doc.__iter__ = MagicMock(return_value=iter([mock_page]))
 
     with patch("requests.get") as mock_get, \
-         patch("pypdf.PdfReader", return_value=mock_pdf_reader) as mock_pdf_reader_patch, \
+         patch("fitz.open", return_value=mock_doc) as mock_fitz_open, \
          patch.object(pipeline._auditor, "run", new=AsyncMock(return_value=MagicMock(passed=True, score=85, reasons=[]))) as mock_auditor:
         mock_get.return_value.iter_content.return_value = [b"PDF_CONTENT"]
         mock_get.return_value.status_code = 200
