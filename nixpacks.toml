@@ -1,3 +1,7 @@
+[variables]
+PYTHONPATH = "backend"
+WEB_CONCURRENCY = "2"
+
 [providers]
 python = {}
 
@@ -8,4 +12,4 @@ cmds = ["python -m pip install -r backend/requirements.txt"]
 cmds = []
 
 [start]
-cmd = "python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"
+cmd = "python backend/start_railway.py"
