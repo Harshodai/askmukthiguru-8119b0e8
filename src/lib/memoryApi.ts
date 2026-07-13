@@ -10,6 +10,7 @@
  */
 
 import { supabase as supabaseTyped } from '@/integrations/supabase/client';
+import { BACKEND_URL } from './backendUrl';
 
 // Generated Supabase types don't yet include the guru_* memory tables.
 // Cast to `any` for those queries — RLS still enforces auth/row scoping.
@@ -116,7 +117,7 @@ async function invokeEdgeFn<T>(
   return data as T;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+// BACKEND_URL imported from ./backendUrl
 
 /**
  * Fallback save path: the FastAPI backend embeds server-side with the local
@@ -337,7 +338,7 @@ export const memoryApi = {
    *  Without auth: public ontology view (Concepts/Teachers/Practices only).
    */
   async getKnowledgeGraph(view = 'personal'): Promise<{ nodes: KGNode[]; edges: KGEdge[] }> {
-    const BACKEND = import.meta.env.VITE_BACKEND_URL || '';
+    const BACKEND = BACKEND_URL;
     if (!BACKEND) return { nodes: [], edges: [] };
 
     const session = await supabase.auth.getSession();

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 export interface AskState {
   result: string | null;

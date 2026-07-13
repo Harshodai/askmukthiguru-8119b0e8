@@ -1,14 +1,15 @@
 import type { AIConfig } from './types';
+import { BACKEND_URL } from '../backendUrl';
 
-// Auto-detect backend URL:
-//   1. VITE_BACKEND_URL (self-hosted FastAPI) — preferred for full RAG
-//   2. Lovable Cloud edge function `guru-chat` — cloud fallback (LLM-only, no RAG yet)
-//   3. Relative `/api/chat` — last resort, requires reverse-proxy
+// Backend URL resolution (see `src/lib/backendUrl.ts`):
+//   1. VITE_BACKEND_URL env var (self-hosted / staging overrides)
+//   2. Production Railway backend (hardcoded fallback for Lovable prod deploys)
+//   3. Lovable Cloud edge function `guru-chat` (LLM-only cloud fallback)
+//   4. Relative `/api/chat` (dev reverse-proxy only)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const EDGE_CHAT_URL = SUPABASE_URL
   ? `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/guru-chat`
   : '';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 export const DEFAULT_ENDPOINT = BACKEND_URL
   ? `${BACKEND_URL}/api/chat`
   : EDGE_CHAT_URL || '/api/chat';
