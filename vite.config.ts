@@ -70,15 +70,16 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/js/[name]-[hash].js',
           entryFileNames: 'assets/js/[name]-[hash].js',
           assetFileNames: (assetInfo) => {
-            const info = assetInfo.name.split('.');
+            const name = assetInfo.name ?? '';
+            const info = name.split('.');
             const ext = info[info.length - 1];
-            if (/\.(png|jpe?g|gif|svg|webp|avif|ico)$/.test(assetInfo.name)) {
+            if (/\.(png|jpe?g|gif|svg|webp|avif|ico)$/.test(name)) {
               return `assets/images/[name]-[hash].${ext}`;
             }
-            if (/\.(woff2?|ttf|eot)$/.test(assetInfo.name)) {
+            if (/\.(woff2?|ttf|eot)$/.test(name)) {
               return `assets/fonts/[name]-[hash].${ext}`;
             }
-            if (/\.css$/.test(assetInfo.name)) {
+            if (/\.css$/.test(name)) {
               return `assets/css/[name]-[hash].${ext}`;
             }
             return `assets/[name]-[hash].${ext}`;
