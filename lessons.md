@@ -3791,6 +3791,11 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 - **Problem**: Moving an existing React/Vite + Playwright codebase to a new production Supabase project ref (e.g. from `fynkjimvuimakgtidvuq` to `ozmjeuqbholoxypfxixb`) leaves orphaned connections if references are missed. Critical areas include Vite `.env.production` files, CLI `supabase/config.toml` files, preconnect/dns-prefetch tags in `index.html`, and Playwright E2E mocked localStorage auth tokens (which format their key names dynamically as `sb-[project-id]-auth-token`).
 - **Fix**: Replaced all occurrences of the old project ref across `index.html`, `config.toml`, and E2E specs; created a standard `src/utils/supabase.ts` client wrapper to prevent multiple client instances; and executed `npx skills add supabase/agent-skills` to load the official Supabase agent workflow context.
 
+### Supabase Database Linter & Security Hardening
+- **Problem**: Default SQL function creations (e.g. `SECURITY DEFINER` trigger/helper functions) automatically grant execution privileges to the `PUBLIC` (meaning anonymous) role. Broad SELECT policies on storage metadata allow directories to be listed, and overly broad RLS write policies allow any user to modify global configurations.
+- **Fix**: Wrote standard SQL migration to revoke `EXECUTE` from `PUBLIC` on all trigger/helper functions, explicitly grant execution to the `authenticated` role only on client RPC APIs, disable directory listing by removing broad select policies on storage buckets, and restrict write/update operations to verified admins via `public.has_role(auth.uid(), 'admin')`.
+
+
 
 
 
