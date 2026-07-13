@@ -3810,3 +3810,12 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
   1. In `useRequireAuth`, introduced an `initialCheckDone` flag inside the effect. The `onAuthStateChange` listener ignores `SIGNED_OUT` (no session) events until `initialCheckDone` is `true`, allowing `getSession()` to settle first.
   2. In `SessionExpiredHandler`, monkey-patched `supabase.auth.signOut` to set an `auth_explicit_signout` flag in session storage when signed out programmatically. The handler checks this flag along with a ref of the `lastUser` to only show the "Your session has ended" toast on natural, un-triggered session expirations, and only redirects when actually previously signed in or explicitly logging out on a protected route.
 - **Pattern**: When coordinating global session expiry alerts and page-level auth guards, isolate mount-time state verification from subsequent real-time state transitions using initialization flags, and tag programmatically triggered logs/actions to suppress redundant toast notifications.
+
+---
+
+## Jul 13, 2026 — Dynamic Translation-based Language List Discovery
+
+### Eliminating Hardcoded Language Dropdowns in Internationalized Apps
+- **Problem**: When managing a multi-language app, hardcoding the complete list of regional or national languages (like all 22+ scheduled Indian languages) in frontend components leads to drift and bugs where users can select unsupported languages with no translation files.
+- **Fix**: Replaced static arrays with dynamic filtering matching `Object.keys(i18n.options.resources)`. This queries the active translation config at runtime to automatically filter a master database of languages, restricting selections to only translated locales (English, Hindi, Telugu, Kannada, Tamil, Marathi) and dynamically scaling as new json translation resources are registered.
+- **Pattern**: Drive system settings and UI option lists dynamically from loaded configuration/resources (single source of truth) rather than maintaining separate hardcoded arrays across components.

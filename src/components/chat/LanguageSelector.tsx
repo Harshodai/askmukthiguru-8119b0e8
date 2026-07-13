@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import i18n from '@/i18n';
 import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +16,7 @@ interface Language {
 }
 
 // 22 scheduled Indian languages + English. Aligned with Sarvam-30B's claimed coverage.
-export const LANGUAGES: Language[] = [
+const MASTER_LANGUAGES: Language[] = [
   { code: 'en', name: 'English (India)', native: 'English', bcp47: 'en-IN' },
   { code: 'hi', name: 'Hindi', native: 'हिन्दी', bcp47: 'hi-IN' },
   { code: 'bn', name: 'Bengali', native: 'বাংলা', bcp47: 'bn-IN' },
@@ -40,6 +41,14 @@ export const LANGUAGES: Language[] = [
   { code: 'sat', name: 'Santali', native: 'ᱥᱟᱱᱛᱟᱲᱤ', bcp47: 'sat-IN' },
   { code: 'brx', name: 'Bodo', native: 'बड़ो', bcp47: 'brx-IN' },
 ];
+
+export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
+  const resources = i18n.options?.resources;
+  if (!resources) {
+    return ['en', 'hi', 'te', 'kn', 'ta', 'mr'].includes(lang.code);
+  }
+  return Object.keys(resources).includes(lang.code);
+});
 
 /**
  * Flag emoji per language code. Used to make the pill visually rich.
