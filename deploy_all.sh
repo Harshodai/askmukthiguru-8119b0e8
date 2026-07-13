@@ -22,17 +22,40 @@ LOG_FILE="$PROJECT_DIR/deploy_all_$(date +%Y%m%d_%H%M%S).log"
 # ─── Helpers ───────────────────────────────────────────────────────────────
 # Run command as argument array (no eval). Log a redacted representation.
 run() {
+    local cmd_name=$1
+    shift
     local redacted=()
+    # Railway variable commands log names only, never values.
+    local hide_values=false
+    case "$cmd_name" in
+        railway)
+            local next_is_var=false
+            for arg in "$@"; do
+                if [[ "$arg" == "variables" || "$arg" == "variable" ]]; then
+                    next_is_var=true
+                elif [[ "$next_is_var" == true && "$arg" == "set" ]]; then
+                    hide_values=true
+                    next_is_var=false
+                fi
+            done
+            ;;
+    esac
+
     for arg in "$@"; do
         case "$arg" in
             *=*)
                 local key="${arg%%=*}"
+                local value="${arg#*=}"
                 case "$key" in
-                    *SECRET*|*PASSWORD*|*TOKEN*|*KEY*|*PASS*|*AUTH*|*PRIVATE*)
+                    *SECRET*|*PASSWORD*|*TOKEN*|*KEY*|*PASS*|*AUTH*|*PRIVATE*|REDIS_URL|SUPABASE_URL|DATABASE_URL)
                         redacted+=("${key}=***REDACTED***")
                         ;;
                     *)
-                        redacted+=("$arg")
+                        if [[ "$hide_values" == true ]]; then
+                            redacted+=("${key}=***REDACTED***")
+                        else
+                            redacted+=("$arg")
+                        fi
                         ;;
                 esac
                 ;;
@@ -41,8 +64,8 @@ run() {
                 ;;
         esac
     done
-    log "${redacted[*]}"
-    "$@" 2>&1 | tee -a "$LOG_FILE"
+    log "${cmd_name} ${redacted[*]}"
+    "$cmd_name" "$@" 2>&1 | tee -a "$LOG_FILE"
 }
 require() { command -v "$1" >/dev/null || { error "Missing: $1"; exit 1; }; }
 
@@ -104,7 +127,7 @@ if service_exists "Postgres"; then
     success "Postgres already exists"
 else
     log "Adding PostgreSQL..."
-    run "railway add --database postgres"
+    run railway add --database postgres
     sleep 10
 fi
 
@@ -113,7 +136,7 @@ if service_exists "Redis"; then
     success "Redis already exists"
 else
     log "Adding Redis..."
-    run "railway add --database redis"
+    run railway add --database redis
     sleep 10
 fi
 
@@ -122,7 +145,7 @@ if service_exists "gb-neo4j-railway-template" || service_exists "neo4j"; then
     success "Neo4j already exists"
 else
     log "Adding Neo4j (template)..."
-    run "railway deploy --template neo4j"
+    run railway deploy --template neo4j
     sleep 15
 fi
 
@@ -131,7 +154,7 @@ if service_exists "qdrant"; then
     success "Qdrant already exists"
 else
     log "Adding Qdrant (template)..."
-    run "railway deploy --template qdrant"
+    run railway deploy --template qdrant
     sleep 15
 fi
 
@@ -207,7 +230,7 @@ set_var() {
     if railway variables get "$key" >/dev/null 2>&1; then
         warn "$key already set"
     else
-        run "railway variables set $key=\"$value\""
+        run railway variables set "$key=$value"
     fi
 }
 
@@ -222,7 +245,7 @@ set_var PYTHON_MEMORY_LIMIT_MB "2048"
 
 # Models
 set_var SARVAM_CLOUD_MODEL "sarvam-30b"
-set_var EMBEDDING_MODEL "BAAI/bge-m3"
+set_var EMBEDDING_MODEL "sentence-transformers/all-MiniLM-L6-v2"
 set_var RERANKER_MODEL "BAAI/bge-reranker-v2-m3"
 
 # Service URLs (internal Railway DNS)
@@ -240,10 +263,18 @@ elif [[ -n "$REDIS_PASSWORD" && -z "$REDIS_SVC" ]]; then
     warn "REDIS_PASSWORD set but REDIS_SVC not detected — set REDIS_URL manually after deploy"
 fi
 
+# SUPABASE_URL must stay the HTTPS Supabase endpoint; the backend's actual
+# Postgres DSN is stored in DATABASE_URL. Both require SUPABASE_KEY for the
+# Supabase client and API access.
 if [[ -n "$PGHOST" && -n "$PGPASSWORD" && -n "$PGUSER" && -n "$PGDATABASE" ]]; then
-    set_var SUPABASE_URL "postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}"
+    set_var DATABASE_URL "postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}"
+    log "DATABASE_URL set from Railway Postgres credentials"
 else
-    warn "Postgres credentials incomplete — set SUPABASE_URL manually after deploy"
+    warn "Postgres credentials incomplete — set DATABASE_URL manually after deploy"
+fi
+
+if ! railway variables get SUPABASE_URL >/dev/null 2>&1; then
+    warn "SUPABASE_URL not set — set it to your HTTPS Supabase project URL and SUPABASE_KEY in Railway dashboard"
 fi
 
 if [[ -n "$QDRANT_URL" ]]; then
@@ -261,7 +292,7 @@ done
 
 # ─── PHASE 4: DEPLOY BACKEND ───────────────────────────────────────────────
 log "=== PHASE 4: Deploy Backend ==="
-run "railway up --detach"
+run railway up --detach
 
 # ─── PHASE 5: CELERY WORKER ────────────────────────────────────────────────
 log "=== PHASE 5: Create Celery Worker ==="
@@ -269,14 +300,22 @@ if service_exists "celery-worker"; then
     warn "celery-worker already exists"
 else
     log "Creating celery-worker service..."
-    run "railway add --service celery-worker --json"
-    success "celery-worker service created — configure Dockerfile/command in Railway dashboard"
-    warn "In Railway dashboard: celery-worker → Settings → Dockerfile: backend/Dockerfile, Start Command: celery -A celery_config worker --loglevel=info --queues=transcription,embedding,indexing,ingestion,okf --concurrency=1"
+    if run railway add --service celery-worker --json; then
+        # Apply the checked-in Railway config via deploy to the new service.
+        # railway.json uses backend/Dockerfile.railway; start_railway.py switches
+        # to Celery when SERVICE_TYPE=celery.
+        run railway variable set --service celery-worker SERVICE_TYPE=celery
+        run railway up --service celery-worker --detach
+        success "celery-worker service created and deployed"
+    else
+        error "Failed to create celery-worker service"
+        exit 1
+    fi
 fi
 
 # ─── PHASE 6: GET URLs & HEALTH CHECK ──────────────────────────────────────
 log "=== PHASE 6: Get URLs & Health Check ==="
-run "railway domain"
+run railway domain
 
 BACKEND_URL=$(railway domain --service askmukthiguru-8119b0e8 2>/dev/null | grep -oE 'https://[^ ]+' | head -1)
 if [[ -z "$BACKEND_URL" ]]; then
@@ -285,11 +324,13 @@ fi
 
 log "Backend URL: $BACKEND_URL"
 
+HEALTHY=false
 if [[ -n "$BACKEND_URL" ]]; then
     log "Waiting for health endpoint..."
     for i in {1..20}; do
         if curl -sf "$BACKEND_URL/api/health" >/dev/null 2>&1; then
             success "Backend healthy!"
+            HEALTHY=true
             break
         else
             warn "Attempt $i/20: waiting..."
@@ -298,85 +339,26 @@ if [[ -n "$BACKEND_URL" ]]; then
     done
 fi
 
+if [[ "$HEALTHY" != true ]]; then
+    error "Backend health check failed after all attempts"
+    exit 1
+fi
+
 # ─── PHASE 7: DATA MIGRATION SCRIPT ────────────────────────────────────────
 log "=== PHASE 7: Data Migration Prep ==="
 
-cat > "$PROJECT_DIR/migrate_data.sh" <<'MIGRATE_EOF'
-#!/usr/bin/env bash
-# Data Migration Script - Run AFTER Railway services are healthy
-
-set -euo pipefail
-
-# Use explicit Docker binary path per project standards
-export PATH="/Users/harshodaikolluru/.docker/bin:$PATH"
-export DOCKER_CONFIG=".docker_clean"
-
-LOG="migrate_$(date +%Y%m%d_%H%M%S).log"
-
-log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
-
-# ─── Neo4j ────────────────────────────────────────────────────────────────
-log "=== Neo4j: Dump & Import ==="
-docker exec mukthiguru-neo4j neo4j-admin database dump neo4j --to-path=/data/dumps 2>&1 | tee -a "$LOG"
-docker cp mukthiguru-neo4j:/data/dumps/neo4j.dump ./neo4j.dump 2>&1 | tee -a "$LOG"
-log "→ Upload neo4j.dump via Railway Neo4j Browser (LOAD DATABASE neo4j FROM 'neo4j.dump' OVERWRITE)"
-
-# ─── Qdrant ───────────────────────────────────────────────────────────────
-log "=== Qdrant: Snapshot & Upload ==="
-curl -X POST http://localhost:6333/collections/spiritual_wisdom/snapshots 2>&1 | tee -a "$LOG"
-sleep 5
-SNAPSHOT=$(curl -s http://localhost:6333/collections/spiritual_wisdom/snapshots | jq -r '.result[-1].name')
-curl "http://localhost:6333/collections/spiritual_wisdom/snapshots/$SNAPSHOT" -o qdrant_snapshot.snapshot 2>&1 | tee -a "$LOG"
-log "→ Upload qdrant_snapshot.snapshot via Railway Qdrant API"
-
-# ─── PostgreSQL ───────────────────────────────────────────────────────────
-log "=== PostgreSQL: Dump & Restore ==="
-docker exec supabase_db_fynkjimvuimakgtidvuq pg_dump -U postgres -d postgres --no-owner --no-acl > supabase_dump.sql 2>&1 | tee -a "$LOG"
-log "→ Restore: psql \"postgresql://...\" < supabase_dump.sql"
-
-# ─── Redis ────────────────────────────────────────────────────────────────
-log "=== Redis: BGSAVE & Restore ==="
-# Use REDISCLI_AUTH env var instead of hardcoded password
-# Set REDISCLI_AUTH=mukthiguru_redis_pass before running, or export from env
-docker exec mukthiguru-redis redis-cli -a "${REDISCLI_AUTH:-}" BGSAVE 2>&1 | tee -a "$LOG"
-sleep 5
-docker cp mukthiguru-redis:/data/dump.rdb ./redis_dump.rdb 2>&1 | tee -a "$LOG"
-log "→ Restore: redis-cli -h your-redis.railway.internal -p 6379 -a \$REDISCLI_AUTH --rdb ./redis_dump.rdb"
-
-log "=== Migration scripts ready. Run manually after verifying Railway services. ==="
-MIGRATE_EOF
-
-chmod +x "$PROJECT_DIR/migrate_data.sh"
-success "Created migrate_data.sh"
-
-# ─── PHASE 8: LOVABLE SETUP GUIDE ──────────────────────────────────────────
-log "=== PHASE 8: Lovable Configuration ==="
-
-cat > "$PROJECT_DIR/lovable_setup.md" <<LOVABLE_EOF
-# Lovable Setup for askmukthiguru
-
-## 1. Set API URL
-1. Open https://askmukthiguru.lovable.app
-2. Settings → Environment Variables
-3. Add: \`VITE_API_URL = $BACKEND_URL\`
-4. Click "Deploy"
-
-## 2. Verify Connection
-- Open browser devtools → Network
-- Send a chat message
-- Verify request goes to $BACKEND_URL/api/chat
-
-## 3. Custom Domain (if purchased via Lovable)
-- Settings → Domains → Add custom domain
-- Follow DNS instructions (CNAME to lovable.app)
-
-## 4. Credits
-- Pro plan: 20 credits/month + 5 daily
-- Each deploy uses ~1-5 credits
-- Monitor: Settings → Credit Usage
-LOVABLE_EOF
-
-success "Created lovable_setup.md"
+# The reviewed tracked migrate_data.sh and lovable_setup.md are preserved as-is.
+# If they do not exist, emit a clear next-step warning instead of overwriting.
+if [[ -x "$PROJECT_DIR/migrate_data.sh" ]]; then
+    success "Reviewed migrate_data.sh is already present"
+else
+    warn "migrate_data.sh not found — copy/review the migration script before running data migration"
+fi
+if [[ -f "$PROJECT_DIR/lovable_setup.md" ]]; then
+    success "Reviewed lovable_setup.md is already present"
+else
+    warn "lovable_setup.md not found — set VITE_BACKEND_URL (not VITE_API_URL) in Lovable after deploy"
+fi
 
 # ─── PHASE 9: SUMMARY ──────────────────────────────────────────────────────
 log "=== DEPLOYMENT COMPLETE ===" | tee -a "$LOG_FILE"

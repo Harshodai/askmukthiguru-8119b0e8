@@ -24,7 +24,9 @@ fi
 log "Created snapshot: $SNAPSHOT_NAME"
 
 log "Waiting for snapshot $SNAPSHOT_NAME to be ready..."
-while true; do
+SNAPSHOT_DEADLINE=60
+SNAPSHOT_ELAPSED=0
+while [[ $SNAPSHOT_ELAPSED -lt $SNAPSHOT_DEADLINE ]]; do
   SNAPSHOT_STATUS=$(curl --fail-with-body -s "http://localhost:6333/collections/spiritual_wisdom/snapshots/$SNAPSHOT_NAME" 2>&1 | tee -a "$LOG" | jq -r '.result.status // .status // empty')
   if [[ "$SNAPSHOT_STATUS" == "Completed" || "$SNAPSHOT_STATUS" == "completed" ]]; then
     log "Snapshot $SNAPSHOT_NAME is ready"
@@ -32,7 +34,13 @@ while true; do
   fi
   log "Snapshot status: $SNAPSHOT_STATUS, waiting..."
   sleep 2
+  SNAPSHOT_ELAPSED=$((SNAPSHOT_ELAPSED + 2))
 done
+
+if [[ "$SNAPSHOT_STATUS" != "Completed" && "$SNAPSHOT_STATUS" != "completed" ]]; then
+  log "ERROR: Snapshot $SNAPSHOT_NAME did not become ready within ${SNAPSHOT_DEADLINE}s"
+  exit 1
+fi
 
 curl --fail-with-body "http://localhost:6333/collections/spiritual_wisdom/snapshots/$SNAPSHOT_NAME" -o qdrant_snapshot.snapshot 2>&1 | tee -a "$LOG"
 log "→ Upload qdrant_snapshot.snapshot via Railway Qdrant API"
@@ -50,19 +58,27 @@ if [[ -z "${REDISCLI_AUTH:-}" ]]; then
   exit 1
 fi
 export REDISCLI_AUTH
+log "Capturing baseline LASTSAVE before BGSAVE..."
+BASELINE_SAVE=$(docker exec -e REDISCLI_AUTH mukthiguru-redis redis-cli LASTSAVE 2>&1 | tail -1)
 docker exec -e REDISCLI_AUTH mukthiguru-redis redis-cli BGSAVE 2>&1 | tee -a "$LOG"
 log "Waiting for BGSAVE to complete..."
-while true; do
-  LAST_SAVE=$(docker exec -e REDISCLI_AUTH mukthiguru-redis redis-cli LASTSAVE 2>&1 | tee -a "$LOG" | tail -1)
-  sleep 1
+BGSAVE_DEADLINE=120
+BGSAVE_ELAPSED=0
+while [[ $BGSAVE_ELAPSED -lt $BGSAVE_DEADLINE ]]; do
   CURRENT_SAVE=$(docker exec -e REDISCLI_AUTH mukthiguru-redis redis-cli LASTSAVE 2>&1 | tail -1)
-  if [[ "$CURRENT_SAVE" != "$LAST_SAVE" ]]; then
+  if [[ "$CURRENT_SAVE" != "$BASELINE_SAVE" ]]; then
     log "BGSAVE completed successfully (lastsave: $CURRENT_SAVE)"
     break
   fi
-  log "BGSAVE in progress... (lastsave: $LAST_SAVE)"
+  log "BGSAVE in progress... (lastsave: $CURRENT_SAVE)"
   sleep 2
+  BGSAVE_ELAPSED=$((BGSAVE_ELAPSED + 2))
 done
+
+if [[ "$CURRENT_SAVE" == "$BASELINE_SAVE" ]]; then
+  log "ERROR: BGSAVE did not produce a new LASTSAVE within ${BGSAVE_DEADLINE}s"
+  exit 1
+fi
 docker cp mukthiguru-redis:/data/dump.rdb ./redis_dump.rdb 2>&1 | tee -a "$LOG"
 log "→ Restore: redis-cli -h your-redis.railway.internal -p 6379 --rdb ./redis_dump.rdb"
 

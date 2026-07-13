@@ -27,10 +27,10 @@ Deploy the full askmukthiguru stack to **Railway Pro** ($20/mo) with:
 | Service | Railway Name | Public URL | Status |
 |---------|--------------|------------|--------|
 | Backend (FastAPI) | `askmukthiguru-8119b0e8` | `https://askmukthiguru-8119b0e8-production.up.railway.app` | ✅ Healthy (`/api/health` 200) |
-| Qdrant | `qdrant` | `https://qdrant-production-14ee.up.railway.app` | ✅ 89,053 vectors loaded |
+| Qdrant | `qdrant` | **Private only** (`qdrant.railway.internal:6333`) | ✅ 89,053 vectors loaded (API key required) |
 | PostgreSQL | `Postgres` | Internal only | ✅ Running |
 | Redis | `Redis` | Internal only | ✅ Running |
-| Celery Worker | `celery-worker` | Created, needs config | ⚠️ Created, not configured |
+| Celery Worker | `celery-worker` | Internal only | ✅ Deployed via `railway.json` + `SERVICE_TYPE=celery` |
 
 ### ⚠️ In Progress / Blocked
 | Service | Issue |
@@ -121,14 +121,12 @@ railway variables get PGHOST PGPASSWORD PGUSER PGDATABASE PGPORT --service Postg
 psql "postgresql://user:pass@host:port/db" < supabase_dump.sql
 
 # 2. Redis restore
-railway variables get REDIS_PASSWORD --service Redis
-redis-cli -h redis.railway.internal -p 6379 -a PASS --rdb ./redis_dump.rdb
+export REDISCLI_AUTH=$(railway variables get REDIS_PASSWORD --service Redis)
+redis-cli -h redis.railway.internal -p 6379 --rdb ./redis_dump.rdb
 
-# 3. Configure Celery Worker (Railway Dashboard)
-# Service: celery-worker → Settings
-# Dockerfile: backend/Dockerfile
-# Start Command: celery -A celery_config worker --loglevel=info --queues=transcription,embedding,indexing,ingestion,okf --concurrency=1
-# Deploy
+# 3. Celery Worker
+# Deployed automatically via `railway add --service celery-worker` + `SERVICE_TYPE=celery` +
+# `railway up --service celery-worker`. No manual dashboard step needed.
 
 # 4. Lovable frontend
 # https://askmukthiguru.lovable.app → Settings → Env Vars
@@ -163,7 +161,7 @@ curl https://askmukthiguru-8119b0e8-production.up.railway.app/api/health
 |---------|----------|----------|
 | Neo4j (new) | neo4j | **Retrieve from Railway vault / secret manager** |
 | Neo4j (old, deleted) | neo4j | **Rotated — no longer valid** |
-| Qdrant | — | (no auth) |
+| Qdrant | — | **API key required; no public unauthenticated access** |
 | Postgres | (from `railway variables`) | (from `railway variables`) |
 | Redis | — | (from `railway variables`) |
 
@@ -182,16 +180,33 @@ railway variables get PGHOST PGPASSWORD PGUSER PGDATABASE PGPORT --service Postg
 psql "postgresql://..." < supabase_dump.sql
 
 # Restore Redis
-railway variables get REDIS_PASSWORD --service Redis
-redis-cli -h redis.railway.internal -p 6379 -a $PASS --rdb ./redis_dump.rdb
+export REDISCLI_AUTH=$(railway variables get REDIS_PASSWORD --service Redis)
+redis-cli -h redis.railway.internal -p 6379 --rdb ./redis_dump.rdb
 
 # Deploy Celery worker config
-# (Do in Railway Dashboard)
+# Deployed automatically via `railway add --service celery-worker` + `SERVICE_TYPE=celery` +
+# `railway up --service celery-worker`. No manual dashboard step needed.
 
 # Update Lovable
 # VITE_BACKEND_URL = https://askmukthiguru-8119b0e8-production.up.railway.app  (NOT VITE_API_URL — code never reads that var)
 ```
 
 ---
+
+### Qdrant Security Note
+Qdrant is kept **private** on Railway (`RAILWAY_PRIVATE_DOMAIN=qdrant.railway.internal`).
+To require an API key:
+1. Generate a strong key (e.g. `openssl rand -hex 32`).
+2. Set `QDRANT_API_KEY=<key>` on the **qdrant** service and on the **askmukthiguru-8119b0e8** service so the backend client can authenticate.
+3. Verify the public domain no longer responds without the key:
+   ```bash
+   curl https://qdrant-production-14ee.up.railway.app/collections
+   # should return 401/403 once auth is enforced
+   ```
+4. Use the internal private domain for backend traffic:
+   ```bash
+   QDRANT_URL=http://qdrant.railway.internal:6333
+   # With QDRANT_API_KEY set, the client passes it automatically.
+   ```
 
 **Status:** 80% deployed. Neo4j is the only blocker. Browser UI is the only proven restore path.
