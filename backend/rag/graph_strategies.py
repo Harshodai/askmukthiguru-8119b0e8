@@ -25,6 +25,7 @@ from langgraph.types import Send
 
 from app.config import settings
 from rag.nodes import (
+    agentic_graph_traversal,
     context_engineer,
     decompose_query,
     enrich_context,
@@ -44,12 +45,12 @@ from rag.nodes import (
     rerank_documents,
     retrieve_documents,
     rewrite_query,
-    route_after_grading,
     verify_answer,
     web_search_node,
     cross_teacher_reasoning,
 )
 from rag.resolve_followup import resolve_followup
+from rag.nodes.intent import route_after_grading
 from rag.states import GraphState
 
 
@@ -61,7 +62,7 @@ def route_after_intent_fast(state: GraphState) -> str:
         return "distress"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR"]:
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR", "COMPARATIVE"]:
         if needs_web_search:
             return "temporal"
         return "query"
@@ -83,7 +84,7 @@ def route_after_intent(state: GraphState) -> str:
         return "query"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR"]:
+    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR", "COMPARATIVE"]:
         if needs_web_search:
             return "temporal"
         return "query"
@@ -255,6 +256,7 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("decompose_query", decompose_query)
         graph.add_node("navigate_and_hyde", navigate_and_hyde)
         graph.add_node("retrieve_documents", retrieve_documents)
+        graph.add_node("agentic_graph_traversal", agentic_graph_traversal)
         graph.add_node("rerank_documents", rerank_documents)
         graph.add_node("grade_documents", grade_documents)
         graph.add_node("enrich_context", enrich_context)
@@ -297,7 +299,21 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_edge("resolve_followup", "decompose_query")
         graph.add_edge("decompose_query", "navigate_and_hyde")
         graph.add_edge("navigate_and_hyde", "retrieve_documents")
-        graph.add_edge("retrieve_documents", "rerank_documents")
+
+        # Agentic graph traversal is invoked only for COMPARATIVE intent.
+        # All other intents route directly to reranking.
+        def _route_after_retrieve(state: GraphState) -> str:
+            return "agentic_graph_traversal" if state.get("intent") == "COMPARATIVE" else "rerank_documents"
+
+        graph.add_conditional_edges(
+            "retrieve_documents",
+            _route_after_retrieve,
+            {
+                "agentic_graph_traversal": "agentic_graph_traversal",
+                "rerank_documents": "rerank_documents",
+            },
+        )
+        graph.add_edge("agentic_graph_traversal", "rerank_documents")
         graph.add_edge("rerank_documents", "grade_documents")
         graph.add_edge("grade_documents", "cross_teacher_reasoning")
 

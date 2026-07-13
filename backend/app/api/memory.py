@@ -63,7 +63,7 @@ async def list_episodes_endpoint(
     """List the authenticated user's recent conversation episodes, paginated."""
     svc = getattr(container, "episodic_memory_service", None)
     if svc is None or not svc.available:
-        raise HTTPException(status_code=501, detail="Episodic memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     page = max(1, page)
     page_size = max(1, min(page_size, 100))
     rows = await svc.retrieve_recent(user["id"], limit=page_size)
@@ -81,7 +81,7 @@ async def search_episodes_endpoint(
     """Substring search over the authenticated user's episodes (query + answer)."""
     svc = getattr(container, "episodic_memory_service", None)
     if svc is None or not svc.available:
-        raise HTTPException(status_code=501, detail="Episodic memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     if not q or not q.strip():
         return []
     rows = await svc.search(user["id"], q, limit=limit)
@@ -140,7 +140,7 @@ async def list_memories_endpoint(
 ) -> MemoryListResponse:
     """List episodic memories for the authenticated user, paginated."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
 
     result = await container.memory_service.list_memories(user["id"], page=page, page_size=page_size)
     memories = []
@@ -180,7 +180,7 @@ async def get_core_memory_endpoint(
 ) -> CoreMemoryResponse:
     """Retrieve core profile preferences aggregated with core facts."""
     if not container.user_profile:
-        raise HTTPException(status_code=501, detail="User profile service not enabled")
+        raise HTTPException(status_code=501, detail="Profile features are not available at this time.")
 
     profile = await container.user_profile.get_or_create_profile(user["id"])
 
@@ -220,7 +220,7 @@ async def add_memory_endpoint(
 ) -> GuruMemoryResponse:
     """Manually add an explicit memory."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
 
     content = body.text.strip()
     if not content:
@@ -256,7 +256,7 @@ async def forget_memory_endpoint(
 ) -> dict:
     """Forget/delete a specific memory by its ID."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
 
     success = await container.memory_service.forget(user["id"], body.memory_id)
     if not success:
@@ -272,7 +272,7 @@ async def delete_all_reflections_endpoint(
 ) -> dict:
     """Delete all of the user's episodic memories (reflections). Core facts are durable."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     count = await container.memory_service.forget_all_reflections(user["id"])
     return {"status": "ok", "deleted": count}
 
@@ -290,7 +290,7 @@ async def regenerate_summary_endpoint(
     Profile Memory tab).
     """
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     count = await container.memory_service.regenerate_summary(user["id"])
     return {"status": "ok", "updated": count}
 
@@ -303,7 +303,7 @@ async def list_summaries_endpoint(
 ) -> list[dict]:
     """List recent session summaries for the authenticated user."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     rows = await container.memory_service.recent_summaries(user["id"], limit=limit)
     out = []
     for r in rows:
@@ -327,7 +327,7 @@ async def relevant_memories_endpoint(
 ) -> list[dict]:
     """Return memories semantically relevant to a query via match_user_memories RPC."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     rows = await container.memory_service.search_semantic(
         user["id"], body.query, limit=body.limit, min_similarity=0.6
     )
@@ -353,7 +353,7 @@ async def list_conversation_continuity_endpoint(
 ) -> list[dict]:
     """List recent conversation memories (for continuity display)."""
     if not container.user_profile:
-        raise HTTPException(status_code=501, detail="User profile service not enabled")
+        raise HTTPException(status_code=501, detail="Profile features are not available at this time.")
     rows = await container.user_profile.get_recent_memories(user["id"], limit=limit)
     out = []
     for m in rows:
@@ -406,7 +406,7 @@ async def personal_knowledge_graph_endpoint(
     """
     svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
     if svc is None:
-        raise HTTPException(status_code=501, detail="Memory service not enabled")
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
 
     # Try auth; fallback to public ontology view
     user_id = None

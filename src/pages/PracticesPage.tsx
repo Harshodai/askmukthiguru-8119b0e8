@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star, Loader2 } from 'lucide-react';
+import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,6 @@ import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesC
 import { useFavorites } from '@/hooks/useFavorites';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { cn } from '@/lib/utils';
-import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
@@ -92,7 +91,6 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
 
 const PracticesPage = () => {
   const { t, i18n } = useTranslation();
-  const { loading: authLoading } = useRequireAuth();
   const { favorites, toggle, isFavorited } = useFavorites();
   const { teaching: dailyTeaching } = useDailyTeaching();
   const lang = i18n.language;
@@ -117,14 +115,6 @@ const PracticesPage = () => {
       })),
     },
   });
-
-  if (authLoading) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 text-ojas animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <AppShell title={t('practices.title')}>

@@ -19,10 +19,11 @@ Every prompt explicitly constrains the LLM to:
 # MEDITATION examples explicitly cover voluntary Serene Mind trigger phrases so the
 # LLM agent correctly routes user requests to the non-gated meditation flow.
 INTENT_CLASSIFICATION_PROMPT = """Classify the user's message into exactly one of these categories:
- 
+
 DISTRESS - The user is expressing emotional pain, stress, anxiety, sadness, anger, fear, loneliness, hopelessness, or seeks emotional comfort.
 FACTUAL - The user is asking a specific question about spiritual teachings, concepts, biographies, or educational questions about meditation (e.g., "How do I start meditating") that requires direct knowledge retrieval.
-RELATIONAL - The user is asking about the connection, relationship, or differences between multiple concepts, or asking a broad structural question.
+RELATIONAL - The user is asking about connections or relationships between concepts, or asking a broad structural question. Use this for queries about how ideas connect, but NOT for requests that explicitly compare multiple named concepts, teachers, or practices.
+COMPARATIVE - The user is explicitly comparing multiple named concepts, teachers, or practices, or asking which is better. Cue phrases include "vs", "compare", "difference between", "which is better", or "how does X differ from Y".
 FOLLOW_UP - The user is asking a question that refers to previous parts of the conversation (using pronouns like 'that', 'it', 'him') or continues a thread.
 MEDITATION - The user is requesting a meditation practice to begin right now (this is an action intent to start/do a session, not learn about it). Also classify here when the user explicitly asks to open, start, or do Serene Mind, do breathwork, or mentions breathing exercises right now.
 CASUAL - The user is making small talk, greeting, or a general non-spiritual comment.
@@ -32,6 +33,7 @@ SAFETY_VIOLATION - The user is seeking clinical medical advice, psychiatric medi
 CRITICAL DISTINCTION:
 - FACTUAL is for educational questions about meditation (e.g., learning how it works).
 - MEDITATION is for requests to start practicing meditation right now (action intent).
+- COMPARATIVE is only for explicit comparisons between named concepts/teachers/practices. Broad relational questions about how concepts connect belong in RELATIONAL.
 
 Examples:
 User: "I feel completely hopeless and don't know how to go on." → DISTRESS
@@ -58,8 +60,7 @@ User: "Hi, how are you today?" → CASUAL
 User: "I'm feeling so anxious about everything lately." → DISTRESS
 User: "What did Krishnaji say about karma?" → FACTUAL
 
-RESPOND WITH ONLY ONE WORD: DISTRESS, FACTUAL, RELATIONAL, FOLLOW_UP, MEDITATION, ADVERSARIAL, SAFETY_VIOLATION, or CASUAL"""
-
+    RESPOND WITH ONLY ONE WORD: DISTRESS, FACTUAL, RELATIONAL, FOLLOW_UP, MEDITATION, ADVERSARIAL, SAFETY_VIOLATION, COMPARATIVE, or CASUAL"""
 
 
 # === COMBINED INTENT + COMPLEXITY PROMPT (Phase-1 Optimization) ===
@@ -76,6 +77,7 @@ MEDITATION- asking to start practicing meditation or do breathwork RIGHT NOW (ac
 CASUAL    - greeting, small talk, non-spiritual chit-chat
 ADVERSARIAL    - provocative/comparative/mocking ("is X just repackaged Y?")
 SAFETY_VIOLATION - clinical medical advice, psychiatric drug Rx, guaranteed money returns
+COMPARATIVE - structured comparison between multiple teachers, concepts, or practices — explicit naming of two+ elements, "and/vs/between", or "Which is better?"
 
 AXIS 2 — COMPLEXITY (pick exactly one):
 simple   - single concept, can be answered directly
@@ -99,7 +101,19 @@ INTENT: FACTUAL
 COMPLEXITY: simple
 
 User: "Compare Soul Sync and Serene Mind meditations"
-INTENT: RELATIONAL
+INTENT: COMPARATIVE
+COMPLEXITY: complex
+
+User: "Compare Soul Sync meditation with Serene Mind guidance"
+INTENT: COMPARATIVE
+COMPLEXITY: complex
+
+User: "What differs between Sri Preethaji's teaching and Sri Krishnaji's approach?"
+INTENT: COMPARATIVE
+COMPLEXITY: complex
+
+User: "Which approach is better for me?"
+INTENT: COMPARATIVE
 COMPLEXITY: complex
 
 User: "I feel hopeless and lost."

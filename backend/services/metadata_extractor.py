@@ -8,12 +8,13 @@ Strategy:
     - Apify path: contract data filled from Apify fields (done in youtube_loader)
     - YouTube/STT path: LLM (instructor + classification model) extracts title+speaker,
       langdetect extracts language (free, instant)
-    - Results cached per video_id in transcripts/metadata_cache.json
+    - Results cached per video_id in transcripts/metadata_cache.json with TTL + schema version
 """
 
 import json
 import logging
 import os
+import time
 
 from langdetect import DetectorFactory, detect as langdetect_detect
 from pydantic import BaseModel, Field
@@ -28,6 +29,11 @@ CACHE_PATH = os.path.join(
     "transcripts",
     "metadata_cache.json",
 )
+
+# Cache schema version - increment when format changes
+CACHE_SCHEMA_VERSION = 2
+# TTL: 30 days in seconds
+CACHE_TTL_SECONDS = 30 * 24 * 60 * 60
 
 
 class VideoMetadata(BaseModel):
@@ -45,7 +51,31 @@ def _load_cache() -> dict:
     if os.path.exists(CACHE_PATH):
         try:
             with open(CACHE_PATH, encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+            # Validate schema version
+            if not isinstance(data, dict):
+                logger.warning("metadata_cache.json schema invalid — resetting")
+                return {}
+            if data.get("_schema_version") != CACHE_SCHEMA_VERSION:
+                logger.warning(f"Cache schema version mismatch (expected {CACHE_SCHEMA_VERSION}), resetting")
+                return {}
+            # Filter expired entries
+            now = time.time()
+            valid = {}
+            for vid, entry in data.items():
+                if vid.startswith("_"):  # Skip metadata keys
+                    continue
+                if isinstance(entry, dict) and "cached_at" in entry:
+                    cached_at = entry["cached_at"]
+                    if not isinstance(cached_at, (int, float)):
+                        logger.warning(f"[{vid}] Cache entry has invalid cached_at timestamp, resetting entry")
+                        continue
+                    if now - cached_at <= CACHE_TTL_SECONDS:
+                        valid[vid] = {k: v for k, v in entry.items() if k != "cached_at"}
+                        valid[vid]["cached_at"] = cached_at
+                    else:
+                        logger.debug(f"[{vid}] Cache entry expired, will refresh")
+            return valid
         except (json.JSONDecodeError, OSError):
             logger.warning("metadata_cache.json corrupt — resetting")
     return {}
@@ -53,8 +83,19 @@ def _load_cache() -> dict:
 
 def _save_cache(cache: dict):
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
+    # Add metadata, preserving original cached_at timestamps when present
+    cache_with_meta = {
+        "_schema_version": CACHE_SCHEMA_VERSION,
+        **{
+            vid: {
+                **{k: v for k, v in meta.items() if k != "cached_at"},
+                "cached_at": meta.get("cached_at", time.time()),
+            }
+            for vid, meta in cache.items()
+        }
+    }
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
-        json.dump(cache, f, indent=2, ensure_ascii=False)
+        json.dump(cache_with_meta, f, indent=2, ensure_ascii=False)
 
 
 def _detect_language(text: str) -> str:
@@ -146,10 +187,11 @@ def _extract_title_speaker_sync(text: str) -> dict:
         return {"title": "", "speaker": "Unknown"}
 
 
-def extract_video_metadata(text: str, video_id: str) -> dict:
+def extract_video_metadata(text: str, video_id: str, metadata_enrichment: bool = False) -> dict:
     """
     Extract metadata (title, speaker, language) for a video transcript.
-    Uses cache — only calls LLM on first extraction per video_id.
+    Uses cache with TTL — only calls LLM on first extraction or cache expiry per video_id.
+    Set metadata_enrichment=True to force LLM extraction when metadata is missing.
 
     Returns dict with keys: title, speaker, language
     """
@@ -157,6 +199,11 @@ def extract_video_metadata(text: str, video_id: str) -> dict:
     if video_id in cache:
         logger.debug(f"[{video_id}] Using cached metadata")
         return cache[video_id]
+
+    if not metadata_enrichment:
+        # No enrichment requested; return empty dict so callers can decide fallback
+        logger.debug(f"[{video_id}] Metadata enrichment disabled, returning empty")
+        return {}
 
     language = _detect_language(text)
     llm_result = _extract_title_speaker_sync(text)

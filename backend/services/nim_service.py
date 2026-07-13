@@ -486,7 +486,7 @@ class NimService:
             line = line.strip()
             if line.startswith("INTENT:"):
                 val = line.split(":", 1)[-1].strip()
-                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY"]:
+                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY", "COMPARATIVE"]:
                     if candidate in val:
                         intent = candidate
                         break

@@ -554,6 +554,8 @@ class OllamaService:
             return "FOLLOW_UP"
         elif "MEDITATION" in result_upper:
             return "MEDITATION"
+        elif "COMPARATIVE" in result_upper:
+            return "COMPARATIVE"
         else:
             return "CASUAL"
 
@@ -582,7 +584,7 @@ class OllamaService:
             for label in (
                 "DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL",
                 "FACTUAL", "RELATIONAL", "FOLLOW_UP",
-                "MEDITATION", "CASUAL",
+                "MEDITATION", "COMPARATIVE", "CASUAL",
             ):
                 if label in result_upper:
                     intent = label

@@ -39,7 +39,7 @@ async def review_card(
 ):
     """Submit a card review rating (0-5) to update its SM-2 scheduling."""
     srs_service = SRSService(container.supabase_client, container.ollama)
-    card = await srs_service.review_card(req.card_id, req.rating)
+    card = await srs_service.review_card(req.card_id, user["id"], req.rating)
     if not card:
         raise HTTPException(status_code=400, detail="Failed to process card review")
     return card

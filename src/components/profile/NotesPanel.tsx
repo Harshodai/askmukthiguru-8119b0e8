@@ -45,7 +45,8 @@ function downloadMarkdown(notes: Note[]) {
 }
 
 export function NotesPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n?.language || 'en';
   const { notes, loading, createNote, updateNote, deleteNote } = useNotes();
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -57,7 +58,8 @@ export function NotesPanel() {
   const [draftTags, setDraftTags] = useState("");
 
   const voice = useSpeechRecognition({
-    useSarvam: true,
+    lang: currentLang,
+    useSarvam: currentLang !== 'en',
     onTranscript: (text, isFinal) => {
       if (isFinal) setDraftBody((prev) => (prev ? `${prev} ${text}` : text).slice(0, 2000));
     },
@@ -311,6 +313,12 @@ export function NotesPanel() {
               onChange={(e) => setDraftBody(e.target.value)}
               className="min-h-[180px]"
             />
+            {voice.isListening && (voice.transcript || voice.interimTranscript) && (
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
+                <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
+                {voice.transcript} <span className="text-muted-foreground italic">{voice.interimTranscript}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <button
                 type="button"

@@ -93,6 +93,6 @@ async def get_feedback_lessons(
                         except json.JSONDecodeError:
                             continue
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to read lessons file: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to load feedback lessons. Please try again.")
             
     return lessons

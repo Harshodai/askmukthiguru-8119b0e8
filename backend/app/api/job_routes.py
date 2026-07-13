@@ -26,7 +26,7 @@ async def get_job(
 ):
     """Poll job status and result. Only the job owner may read."""
     if not container.job_queue:
-        raise HTTPException(status_code=503, detail="Job queue is disabled")
+        raise HTTPException(status_code=503, detail="Job tracking is not available.")
     job = await container.job_queue.get_job(job_id)
     owner = str(job.get("user_id") or "") if job else ""
     uid = str(user.get("id") or "")
@@ -44,7 +44,7 @@ async def cancel_job(
 ):
     """Cancel a queued job. Only the job owner may cancel."""
     if not container.job_queue:
-        raise HTTPException(status_code=503, detail="Job queue is disabled")
+        raise HTTPException(status_code=503, detail="Job tracking is not available.")
     job = await container.job_queue.get_job(job_id)
     owner = str(job.get("user_id") or "") if job else ""
     uid = str(user.get("id") or "")

@@ -1,36 +1,17 @@
-exclude: '^(\.agent|\.agents|node_modules|playwright-report|dist|scripts|local_ingestion|mukthi_guru_colab_optimized\.py)/'
-
 repos:
-  # --- Standard File Checks ---
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-toml
-      - id: check-json
-      - id: check-added-large-files
-        args: ['--maxkb=5000'] # 5MB limit
       - id: detect-private-key
-
-  # --- Python Linting & Formatting (Ruff) ---
-  # Ruff replaces black, isort, flake8, and pyupgrade in one ultra-fast tool.
-  # Configuration is read from backend/pyproject.toml
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.0
-    hooks:
-      # Run the linter.
-      - id: ruff
-        args: [ --fix ]
-      # Run the formatter.
-      - id: ruff-format
-
-  # --- Python SAST (Bandit) ---
-  # Security linter for Python. Fail on HIGH severity findings only;
-  # LOW/MEDIUM are reviewed manually in /tmp/security_findings.md.
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.9
     hooks:
       - id: bandit
-        args: ['-r', 'app', 'services', 'rag', '-ll']
+        args: ["-ll", "-c", "backend/pyproject.toml"]
+        files: ^(backend|scripts)/

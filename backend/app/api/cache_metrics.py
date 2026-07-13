@@ -45,8 +45,8 @@ async def cache_metrics(
                 }
             else:
                 exact_stats = {"available": True}
-    except Exception as e:
-        exact_stats = {"available": False, "error": str(e)[:120]}
+    except Exception:
+        exact_stats = {"available": False, "error": "unavailable"}
 
     # --- Semantic cache (Qdrant, ~20-50ms) ---
     semantic_stats = {"available": False, "size": None}
@@ -56,8 +56,8 @@ async def cache_metrics(
                 semantic_stats = container.semantic_cache.stats()
             else:
                 semantic_stats = {"available": True}
-    except Exception as e:
-        semantic_stats = {"available": False, "error": str(e)[:120]}
+    except Exception:
+        semantic_stats = {"available": False, "error": "unavailable"}
 
     return JSONResponse({
         "timestamp": int(time.time()),

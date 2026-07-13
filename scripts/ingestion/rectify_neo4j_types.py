@@ -4,7 +4,7 @@ Map Neo4j UNKNOWN entity_type nodes to canonical types via pattern rules.
 
 Usage:
     source .venv/bin/activate
-    NEO4J_PASSWORD=mukthiguru_neo4j_pass python scripts/ingestion/rectify_neo4j_types.py [--dry-run]
+    NEO4J_PASSWORD=<password> python scripts/ingestion/rectify_neo4j_types.py [--dry-run]
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ logger = logging.getLogger("rectify_neo4j_types")
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASS = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+NEO4J_PASS = os.environ.get("NEO4J_PASSWORD", "")
 
 BODY_PARTS = {
     "pineal", "pituitary", "hypothalamus", "blood", "bones", "brain",

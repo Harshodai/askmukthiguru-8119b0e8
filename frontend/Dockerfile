@@ -22,7 +22,7 @@ FROM nginx:1.27-alpine AS final
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy custom nginx config if present (optional)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

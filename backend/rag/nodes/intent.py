@@ -74,6 +74,7 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "CASUAL":            ("CASUAL",           "tier2_simple", False),
         "CAPABILITY":        ("FACTUAL",          "tier2_simple", False),
         "FACTUAL":           ("FACTUAL",          "tier2_simple", False),
+        "COMPARATIVE":       ("COMPARATIVE",      "tier3_complex", False),
     }
     return mapping.get(route_name)
 
@@ -618,6 +619,8 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             query_tier = "tier2_simple"
         else:
             query_tier = "tier3_complex"
+    elif intent == "COMPARATIVE":
+        query_tier = "tier3_complex"
 
     # Store in cache
     # Store in cache with TTL timestamp
@@ -734,8 +737,15 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
     if not relevant_docs:
         try:
             from rag.nodes.retrieval import retrieve_documents
-            retrieval_res = await retrieve_documents(state, config)
-            relevant_docs = retrieval_res.get("relevant_docs", [])
+            from rag.nodes.reranking import rerank_documents, grade_documents
+
+            local_state = dict(state)
+            retrieval_res = await retrieve_documents(local_state, config)
+            local_state.update(retrieval_res)
+            rerank_res = await rerank_documents(local_state, config)
+            local_state.update(rerank_res)
+            grade_res = await grade_documents(local_state, config)
+            relevant_docs = grade_res.get("relevant_docs", [])
         except Exception as e:
             logger.error(f"Inline retrieval for distress failed: {e}")
 

@@ -54,9 +54,10 @@ class MemoryService:
         self._llm_service = llm_service
         self._search_failures = 0
         self._search_disabled = False
+        self._reinforce_tasks: set[asyncio.Task] = set()
 
     @staticmethod
-    def _is_anonymous(user_id: str | None) -> bool:
+    def _is_anonymous(user_id: Optional[str]) -> bool:
         return not user_id or user_id == "anonymous"
 
     async def get_core(self, user_id: str) -> list[dict[str, Any]]:
@@ -79,12 +80,11 @@ class MemoryService:
     async def search_semantic(
         self, user_id: str, query: str, limit: int = 5, min_similarity: float = 0.6
     ) -> list[dict[str, Any]]:
-        """Search episodic memories using semantic vector search via the match_user_memories_by_user RPC."""
+        """Search episodic memories using semantic vector search with bio-mimetic time decay."""
         if not self._supabase or not self._embedding_service or self._search_disabled or self._is_anonymous(user_id):
             return []
         try:
             # Generate query embedding
-            # Use encode_single_full which is already wrapped with instructions and caching
             emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, query)
             query_embedding = emb_dict["dense"]
 
@@ -95,13 +95,63 @@ class MemoryService:
                     {
                         "p_user_id": user_id,
                         "p_query_embedding": query_embedding,
-                        "p_k": limit,
+                        "p_k": limit * 2,  # Fetch slightly more to re-rank with decay
                         "p_min_sim": min_similarity,
                     },
                 ).execute
             )
             self._search_failures = 0
-            return result.data if result and hasattr(result, "data") else []
+            raw_memories = result.data if result and hasattr(result, "data") else []
+
+            # Apply Bio-Mimetic Decay calculations
+            import math
+            from datetime import datetime, timezone
+
+            now = datetime.now(timezone.utc)
+            scored_memories = []
+            for mem in raw_memories:
+                updated_at_str = mem.get("updated_at") or mem.get("created_at")
+                if updated_at_str:
+                    try:
+                        cleaned_str = updated_at_str.replace("Z", "+00:00")
+                        last_updated = datetime.fromisoformat(cleaned_str)
+                        if last_updated.tzinfo is None:
+                            last_updated = last_updated.replace(tzinfo=timezone.utc)
+                        delta_days = (now - last_updated).total_seconds() / (24.0 * 3600.0)
+                    except Exception:
+                        delta_days = 0.0
+                else:
+                    delta_days = 0.0
+
+                decay_factor = math.exp(-0.01 * delta_days)
+                original_decay = mem.get("decay_score")
+                if original_decay is None:
+                    original_decay = 1.0
+
+                current_decay = original_decay * decay_factor
+                mem["decay_score_current"] = current_decay
+
+                similarity = mem.get("similarity", 0.0)
+                mem["combined_score"] = similarity * current_decay
+                scored_memories.append(mem)
+
+            # Sort by combined_score descending
+            scored_memories.sort(key=lambda x: x.get("combined_score", 0.0), reverse=True)
+            final_results = scored_memories[:limit]
+
+            # Reinforcement: Asynchronously boost decay_score for the top 3 accessed memories
+            for mem in final_results[:3]:
+                mem_id = mem.get("id")
+                if mem_id:
+                    db_decay = mem.get("decay_score")
+                    if db_decay is None:
+                        db_decay = 1.0
+                    new_decay = min(2.0, db_decay + 0.20)
+                    task = asyncio.create_task(self._reinforce_memory(mem_id, new_decay))
+                    self._reinforce_tasks.add(task)
+                    task.add_done_callback(self._reinforce_tasks.discard)
+
+            return final_results
         except Exception as e:
             self._search_failures += 1
             if self._search_failures >= self._SEARCH_FAILURE_LIMIT:
@@ -115,6 +165,19 @@ class MemoryService:
             else:
                 logger.error(f"Semantic search failed for {user_id}: {e}")
             return []
+
+    async def _reinforce_memory(self, memory_id: str, new_decay: float) -> None:
+        """Asynchronously boost a memory's decay score in the database."""
+        try:
+            await asyncio.to_thread(
+                self._supabase.table("guru_memories")
+                .update({"decay_score": new_decay})
+                .eq("id", memory_id)
+                .execute
+            )
+            logger.debug(f"Reinforced memory {memory_id} to decay_score={new_decay}")
+        except Exception as e:
+            logger.error(f"Failed to reinforce memory {memory_id}: {e}")
 
     async def recent_summaries(self, user_id: str, limit: int = 3) -> list[dict[str, Any]]:
         """Retrieve recent session summaries for a user."""

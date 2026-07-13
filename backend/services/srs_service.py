@@ -75,10 +75,10 @@ class SRSService:
             logger.error(f"Failed to create SRS card for {user_id}: {e}")
             return None
 
-    async def review_card(self, card_id: str, rating: int) -> dict[str, Any] | None:
+    async def review_card(self, card_id: str, user_id: str, rating: int) -> dict[str, Any] | None:
         """
         Record a review response and update scheduling parameters using SM-2 algorithm.
-        
+
         Rating scale: 0-5.
         - 0-2: Incorrect / forgotten response. Repetitions reset.
         - 3-5: Correct response. Repetitions increment.
@@ -86,11 +86,12 @@ class SRSService:
         if not self.available or rating < 0 or rating > 5:
             return None
         try:
-            # Fetch current card parameters
+            # Fetch current card parameters scoped to the authenticated user
             card_resp = await asyncio.to_thread(
                 self._supabase.table("user_retention_cards")
                 .select("*")
                 .eq("id", card_id)
+                .eq("user_id", user_id)
                 .execute
             )
             if not card_resp.data:
@@ -138,6 +139,7 @@ class SRSService:
                 self._supabase.table("user_retention_cards")
                 .update(update_payload)
                 .eq("id", card_id)
+                .eq("user_id", user_id)
                 .execute
             )
             return resp.data[0] if resp.data else None
@@ -177,22 +179,45 @@ Format your output exactly as a JSON list of objects:
                 clean_resp = clean_resp.split("```")[1]
                 if clean_resp.startswith("json"):
                     clean_resp = clean_resp[4:]
-            
+
             pairs = json.loads(clean_resp.strip())
+            if not isinstance(pairs, list) or len(pairs) > 2:
+                logger.warning(f"Generated flashcards are not a list of at most 2 items: {type(pairs).__name__}")
+                return []
+
             created_cards = []
+            from guardrails import GuardrailsService
+            guardrails = GuardrailsService()
             for pair in pairs:
+                if not isinstance(pair, dict):
+                    continue
                 q = pair.get("question")
                 a = pair.get("answer")
-                if q and a:
-                    card = await self.create_card(
-                        user_id=user_id,
-                        question=q,
-                        answer=a,
-                        source_type="notebook_item",
-                        source_id=source_id
-                    )
-                    if card:
-                        created_cards.append(card)
+                if not isinstance(q, str) or not q.strip() or not isinstance(a, str) or not a.strip():
+                    logger.warning("Skipping flashcard with missing or non-string question/answer.")
+                    continue
+                q = q.strip()
+                a = a.strip()
+                input_check = await guardrails.check_input(q + " " + a)
+                if input_check.get("blocked"):
+                    logger.warning(f"Flashcard content blocked by guardrails: {input_check.get('reason')}")
+                    continue
+                output_check = await guardrails.check_output(a)
+                if output_check.get("blocked"):
+                    logger.warning(f"Flashcard answer blocked by guardrails: {output_check.get('reason')}")
+                    continue
+                moderated_answer = output_check.get("moderated_response")
+                if moderated_answer is not None:
+                    a = moderated_answer.strip()
+                card = await self.create_card(
+                    user_id=user_id,
+                    question=q,
+                    answer=a,
+                    source_type="notebook_item",
+                    source_id=source_id
+                )
+                if card:
+                    created_cards.append(card)
             return created_cards
         except Exception as e:
             logger.error(f"Failed to generate flashcards from notebook item: {e}")

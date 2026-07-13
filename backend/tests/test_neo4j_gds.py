@@ -18,7 +18,7 @@ def _neo4j_config():
     return (
         os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
         os.environ.get("NEO4J_USER", "neo4j"),
-        os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass"),
+        os.environ.get("NEO4J_PASSWORD", ""),
     )
 
 

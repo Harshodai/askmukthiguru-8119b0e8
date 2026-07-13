@@ -26,7 +26,8 @@ async def _health_check(name: str, coro) -> dict:
         await asyncio.wait_for(coro, timeout=2.0)
         return {"name": name, "ok": True, "latency_ms": int((time.perf_counter() - s) * 1000)}
     except Exception as exc:
-        return {"name": name, "ok": False, "error": str(exc)[:120]}
+        logger.warning("Health check %s failed: %s", name, exc)
+        return {"name": name, "ok": False, "error": "unhealthy"}
 
 
 @router.get("/api/healthz")

@@ -51,8 +51,11 @@ class DistressStage(Stage):
         ctx.assessment = assessment
 
         # ponytail: proactive Serene Mind block from execute() verbatim
+        # Check an already-distressed conversation even when its latest turn
+        # uses no keyword. This avoids dropping a persistent trend while
+        # keeping expensive semantic detection keyword-gated.
         proactive_data = None
-        if ctx.has_distress_keywords:
+        if ctx.has_distress_keywords or state.get("distress_history"):
             proactive_data = await self._maybe_trigger_proactive_serene_mind(
                 ctx, assessment, ctx.user_id, ctx.request, state
             )

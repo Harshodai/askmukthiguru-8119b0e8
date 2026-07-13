@@ -14,6 +14,9 @@ import hashlib
 import json
 import logging
 import os
+import ipaddress
+import socket
+import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
@@ -306,7 +309,6 @@ class IngestionPipeline:
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
             chunk_overlap=settings.rag_chunk_overlap,
-            length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
 
@@ -315,6 +317,22 @@ class IngestionPipeline:
             ollama_service=self._llm,
             qdrant_service=self._qdrant,
         )
+
+    def _is_url_safe(self, url: str) -> bool:
+        """Return False if URL resolves to private, loopback, or link‑local IPs."""
+        try:
+            parsed = urllib.parse.urlparse(url)
+            hostname = parsed.hostname
+            if not hostname:
+                return False
+            for info in socket.getaddrinfo(hostname, None):
+                ip_str = info[4][0]
+                ip_obj = ipaddress.ip_address(ip_str)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                    return False
+        except Exception:
+            return False
+        return True
 
     def _get_neo4j_driver(self):
         if self._neo4j_driver is None:
@@ -385,11 +403,11 @@ class IngestionPipeline:
 
         if not text:
             if ext == ".pdf":
-                from pypdf import PdfReader
+                import fitz
 
-                reader = PdfReader(file_path)
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
+                doc = fitz.open(file_path)
+                for page in doc:
+                    text += page.get_text() + "\n"
             elif ext in [".txt", ".csv"]:
                 with open(file_path, encoding="utf-8") as f:
                     text = f.read()
@@ -474,26 +492,50 @@ class IngestionPipeline:
             if ".pdf" in lower_url or url.endswith(".pdf"):
                 self._notify(on_progress, "Downloading and parsing PDF...", 0.1)
                 try:
+                    # SSRF protection and size limit
+                    if not self._is_url_safe(url):
+                        raise ValueError("URL resolves to a private or prohibited IP address")
                     import requests
                     from pypdf import PdfReader
                     import io
 
-                    response = requests.get(url, timeout=30)
-                    response.raise_for_status()
-                    
-                    pdf_file = io.BytesIO(response.content)
+                    resp = requests.get(url, timeout=30, stream=True)
+                    resp.raise_for_status()
+                    max_bytes = 5 * 1024 * 1024
+                    content = bytearray()
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        content.extend(chunk)
+                        if len(content) > max_bytes:
+                            raise ValueError("Response size exceeds 5 MiB limit")
+
+                    pdf_file = io.BytesIO(content)
                     reader = PdfReader(pdf_file)
                     text = ""
                     for page in reader.pages:
                         page_text = page.extract_text()
                         if page_text:
                             text += page_text + "\n"
-                    
+
                     title = url.split("/")[-1].replace(".pdf", "").replace("-", " ").replace("_", " ").title()
                     if not text.strip():
                         raise ValueError("PDF contains no readable text")
-                    
+
+                    # Data Quality Gate
+                    quality_res = await self._auditor.run(text, url)
+                    if not quality_res.passed:
+                        return {
+                            "status": "rejected",
+                            "message": (
+                                f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
+                                f"Reasons: {'; '.join(quality_res.reasons)}"
+                            ),
+                            "source_url": url,
+                            "chunks_indexed": 0,
+                            "summaries_created": 0,
+                        }
+
                     return await self.ingest_raw_text(
+                        max_accuracy=max_accuracy,
                         text=text,
                         source_url=url,
                         title=title,
@@ -520,11 +562,21 @@ class IngestionPipeline:
                     import requests
                     from bs4 import BeautifulSoup
 
+                    # SSRF protection and size limit
+                    if not self._is_url_safe(url):
+                        raise ValueError("URL resolves to a private or prohibited IP address")
+
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-                    response = requests.get(url, headers=headers, timeout=20)
+                    response = requests.get(url, headers=headers, timeout=20, stream=True)
                     response.raise_for_status()
-                    
-                    soup = BeautifulSoup(response.content, "html.parser")
+                    max_bytes = 5 * 1024 * 1024
+                    content_bytes = bytearray()
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content_bytes.extend(chunk)
+                        if len(content_bytes) > max_bytes:
+                            raise ValueError("Response size exceeds 5 MiB limit")
+
+                    soup = BeautifulSoup(bytes(content_bytes), "html.parser")
                     for element in soup(["script", "style", "nav", "header", "footer", "iframe", "aside"]):
                         element.decompose()
                     
@@ -535,18 +587,33 @@ class IngestionPipeline:
                     title = title_el.get_text().strip() if title_el else url.split("/")[-1]
                     if not title:
                         title = "Web Article Summary"
-
+                    
                     if not text.strip():
                         raise ValueError("Scraped web page contains no readable text")
                     
+                    # Data Quality Gate
+                    quality_res = await self._auditor.run(text, url)
+                    if not quality_res.passed:
+                        return {
+                            "status": "rejected",
+                            "message": (
+                                f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
+                                f"Reasons: {'; '.join(quality_res.reasons)}"
+                            ),
+                            "source_url": url,
+                            "chunks_indexed": 0,
+                            "summaries_created": 0,
+                        }
+                    
                     return await self.ingest_raw_text(
-                        text=text,
-                        source_url=url,
-                        title=title,
-                        content_type="web_article",
-                        on_progress=on_progress,
-                        tags=tags,
-                    )
+                        max_accuracy=max_accuracy,
+                         text=text,
+                         source_url=url,
+                         title=title,
+                         content_type="web_article",
+                         on_progress=on_progress,
+                         tags=tags,
+                     )
                 except Exception as e:
                     logger.error(f"Web scraping failed for {url}: {e}")
                     return {
@@ -835,6 +902,18 @@ class IngestionPipeline:
 
         raw_text = result["text"]
 
+        # Enrich metadata for cached transcripts lacking a title
+        method = result.get("method", "")
+        if method.startswith("pre_extracted_") and not result.get("title"):
+            self._notify(on_progress, "Extracting video metadata...", 0.15)
+            enriched = extract_video_metadata(raw_text, video_id, metadata_enrichment=True)
+            if enriched.get("title"):
+                result["title"] = enriched["title"]
+            if enriched.get("speaker"):
+                result["speaker"] = enriched["speaker"]
+            if enriched.get("language"):
+                result["language"] = enriched["language"]
+
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(content_hash):
@@ -885,24 +964,6 @@ class IngestionPipeline:
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.35)
         hyper_extract_result = self._enrich_text(clean_text)
 
-        # Step 2c: Enrich video metadata from transcript for all paths
-        method = result.get("method", "")
-        # Check if title is just a video ID (11 chars, alphanumeric/underscore/hyphen) - needs real title
-        current_title = result.get("title", "")
-        needs_metadata = not method.startswith("pre_extracted_") or (
-            current_title and len(current_title) == 11 and 
-            all(c.isalnum() or c in '_-' for c in current_title)
-        )
-        
-        if needs_metadata:
-            self._notify(on_progress, "Extracting video metadata...", 0.4)
-            enriched = extract_video_metadata(raw_text, video_id)
-            if enriched.get("title"):
-                result["title"] = enriched["title"]
-            if enriched.get("speaker") and enriched["speaker"] != "Unknown":
-                result["speaker"] = enriched["speaker"]
-            if enriched.get("language"):
-                result["language"] = enriched["language"]
 
         # Step 3: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
@@ -1092,7 +1153,7 @@ class IngestionPipeline:
         method = result.get("method", "")
         if not method.startswith("pre_extracted_"):
             self._notify(on_progress, "Extracting video metadata...", 0.35)
-            enriched = extract_video_metadata(raw_text, video_id)
+            enriched = extract_video_metadata(raw_text, video_id, metadata_enrichment=True)
             if enriched.get("title"):
                 result["title"] = enriched["title"]
             if enriched.get("speaker") and enriched["speaker"] != "Unknown":
@@ -1117,12 +1178,13 @@ class IngestionPipeline:
         # 4. Partition into topic-based sub-sections
         self._notify(on_progress, "Partitioning by topic relevance...", 0.6)
         sections = self._topic_partition(clean_text, topics)
+        if not sections:
+            sections = {"Main Topic": clean_text}
 
         # We will split parent texts into chunks of 1500 chars to avoid oversized parents
         parent_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1500,
             chunk_overlap=200,
-            length_function=len,
         )
 
         all_chunks = []
@@ -1176,6 +1238,12 @@ class IngestionPipeline:
         # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
         backup_collection = self._backup_before_reindex(url)
 
+        # Fallback: if topic partitioning / propositioning yielded nothing, split the full text.
+        if not all_chunks:
+            all_chunks, all_extra_metadatas = self._hierarchical_split(
+                clean_text, title=video_title, speaker=speaker, topic="Spiritual"
+            )
+
         # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
         self._notify(on_progress, "Indexing all extracted topic chunks...", 0.85)
         total_chunks = 0
@@ -1191,6 +1259,11 @@ class IngestionPipeline:
                 language=video_language,
                 extra_metadatas=all_extra_metadatas,
                 tags=tags,
+                video_id=video_id,
+                channel_name=result.get("channel_name"),
+                published_at=result.get("published_at"),
+                duration=result.get("duration"),
+                thumbnail_url=result.get("thumbnail_url"),
             )
 
         try:
@@ -1469,6 +1542,11 @@ class IngestionPipeline:
                     content_type="video",
                     source_type="video",
                     tags=tags,
+                    video_id=extract_video_id(video["url"]),
+                    channel_name=transcript.get("channel_name"),
+                    published_at=transcript.get("published_at"),
+                    duration=transcript.get("duration"),
+                    thumbnail_url=transcript.get("thumbnail_url"),
                 )
 
                 try:
@@ -1552,16 +1630,9 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        self._notify(on_progress, "Cleaning and indexing...", 0.6)
-        clean_text = clean_transcript(result["text"])
-        clean_text, pii_found = redact_pii(clean_text)
-        if pii_found:
-            logger.warning(f"PII redacted from file url={url} — {pii_found} instances")
-
-        # Data Quality Gate (Iceberg-style stage-before-merge). Fix: image path had
-        # no quality gating whatsoever — OCR noise/garbage text was indexed unfiltered.
-        self._notify(on_progress, "Auditing content quality...", 0.65)
-        quality_res = await self._auditor.run(clean_text, url)
+        # Data Quality Gate (Iceberg-style stage-before-merge). Auditing before cleaning.
+        self._notify(on_progress, "Auditing content quality...", 0.4)
+        quality_res = await self._auditor.run(result["text"], url)
         if not quality_res.passed:
             return {
                 "status": "rejected",
@@ -1571,6 +1642,12 @@ class IngestionPipeline:
                 "chunks_indexed": 0,
                 "summaries_created": 0,
             }
+
+        self._notify(on_progress, "Cleaning and indexing...", 0.6)
+        clean_text = clean_transcript(result["text"])
+        clean_text, pii_found = redact_pii(clean_text)
+        if pii_found:
+            logger.warning(f"PII redacted from file url={url} — {pii_found} instances")
 
         chunks_count = self._chunk_embed_index(
             clean_text,
@@ -2007,27 +2084,31 @@ class IngestionPipeline:
     ) -> tuple[list[str], list[dict]]:
         """
         Phase 2 Improvement: Parent-Child Hierarchical Chunking.
-        Splits text into large Parent Chunks, and then into smaller Child Chunks.
-        Returns: (child_texts, child_metadatas) where metadatas contain parent mapping.
+        Splits text into large Parent Chunks (RecursiveCharacterTextSplitter), then into smaller Child Chunks.
+        Each child chunk is approx 400 characters and is prepended with the parent context (up to 1500 characters).
+        Returns (child_texts, child_metadatas) where metadatas contain parent mapping.
         """
         import uuid
         import re
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-        # 1. Split into parent chunks using semantic splitting
-        parent_chunks = self._semantic_split(text)
+        # 1. Split into parent chunks using RecursiveCharacterTextSplitter (500 size, 50 overlap)
+        parent_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        parent_chunks = parent_splitter.split_text(text)
 
-        all_child_texts = []
-        all_child_metadatas = []
+        all_child_texts: list[str] = []
+        all_child_metadatas: list[dict] = []
 
         for parent_text in parent_chunks:
             parent_id = str(uuid.uuid4())
+            # Truncate parent context to 1500 chars (parent_text is <=500, but keep logic)
+            parent_context = parent_text[:1500]
 
-            # 2. Split parent_text into child chunks strictly at sentence boundaries (~400 chars target)
+            # 2. Split parent_text into child chunks (~400 chars) respecting sentence boundaries
             sentences = re.split(r"(?<=[.!?]) +", parent_text)
-            children = []
-            current_child_sentences = []
+            children: list[str] = []
+            current_child_sentences: list[str] = []
             current_len = 0
-
             for sentence in sentences:
                 sentence_len = len(sentence)
                 if current_len + sentence_len > 400 and current_child_sentences:
@@ -2036,20 +2117,14 @@ class IngestionPipeline:
                     current_len = sentence_len
                 else:
                     current_child_sentences.append(sentence)
-                    current_len += sentence_len + (1 if current_child_sentences else 0)
+                    current_len += sentence_len + 1
             if current_child_sentences:
                 children.append(" ".join(current_child_sentences))
 
             for child in children:
-                # Add context headers to the child
-                header_parts = [f"Source: {title}"]
-                if speaker and speaker != "Unknown":
-                    header_parts.append(f"Speaker: {speaker}")
-                if topic and topic != "Spiritual":
-                    header_parts.append(f"Topic: {topic}")
-                header = f"[{' | '.join(header_parts)}]\n"
-
-                all_child_texts.append(header + child)
+                # Prepend full parent context to each child chunk
+                child_with_context = f"{parent_context}\n{child}"
+                all_child_texts.append(child_with_context)
                 all_child_metadatas.append(
                     {"parent_id": parent_id, "parent_text": parent_text, "is_child": True}
                 )

@@ -17,7 +17,7 @@ from neo4j import GraphDatabase
 QDRANT_URL  = os.getenv("QDRANT_URL", "http://localhost:6333")
 NEO4J_URI   = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER  = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASS  = os.getenv("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+NEO4J_PASS  = os.getenv("NEO4J_PASSWORD", "")
 
 def format_table(headers, rows):
     """Simple terminal table formatter to avoid tabulate dependency."""

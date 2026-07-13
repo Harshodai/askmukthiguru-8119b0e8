@@ -1,0 +1,1890 @@
+{
+  "memory.memoryDesc": [
+    "missing",
+    "What the guru remembers about you."
+  ],
+  "chat.sarvamReady": [
+    "missing",
+    "Sarvam-ready"
+  ],
+  "auth.resetComplete": [
+    "missing",
+    "Reset Complete"
+  ],
+  "chat.slashLangHint": [
+    "missing",
+    "Open the language picker"
+  ],
+  "memory.signInToView": [
+    "missing",
+    "Sign in to view your memories."
+  ],
+  "common.share": [
+    "missing",
+    "Share"
+  ],
+  "memory.sessionReflectionsDesc": [
+    "missing",
+    "Distilled summaries the guru keeps from your past sessions."
+  ],
+  "meditation.stop": [
+    "missing",
+    "Stop"
+  ],
+  "common.signedOutDesc": [
+    "missing",
+    "You have been logged out."
+  ],
+  "chat.closeSidebar": [
+    "missing",
+    "Close sidebar"
+  ],
+  "chat.startSpeaking": [
+    "missing",
+    "Speak your question"
+  ],
+  "chat.errorCauseServerError": [
+    "missing",
+    "The Guru backend or the underlying model is temporarily unavailable."
+  ],
+  "auth.pleaseWait": [
+    "missing",
+    "Please wait…"
+  ],
+  "memory.exitFullscreen": [
+    "missing",
+    "Exit Fullscreen (Esc)"
+  ],
+  "common.removeFavorites": [
+    "missing",
+    "Remove from favorites"
+  ],
+  "meditation.restartAudio": [
+    "missing",
+    "Restart audio"
+  ],
+  "landing.meetGurus.description": [
+    "missing",
+    "For over three decades, Sri Preethaji and Sri Krishnaji have guided millions toward inner transformation. Their teachings focus on moving from a 'suffering state' to a 'beautiful state' through consciousness technology that blends ancient yogic wisdom with modern neuroscience."
+  ],
+  "chat.autoTranslateNotice": [
+    "missing",
+    "Non-English messages are auto-translated before being sent to the Guru."
+  ],
+  "landing.footer.tagline": [
+    "missing",
+    "Your spiritual AI companion for discovering inner peace and the beautiful state."
+  ],
+  "auth.pageTitle": [
+    "missing",
+    "Sign in or create account — AskMukthiGuru"
+  ],
+  "kg.noResults": [
+    "missing",
+    "No concepts found"
+  ],
+  "chat.teachingAlt": [
+    "missing",
+    "Today's teaching from the Gurus"
+  ],
+  "auth.tryAgain": [
+    "missing",
+    "Please try again."
+  ],
+  "chat.slashResultsCount_one": [
+    "missing",
+    "{{count}} result"
+  ],
+  "landing.practices.addedDesc": [
+    "missing",
+    "{{title}} has been added to your list."
+  ],
+  "notes.emptyDesc": [
+    "missing",
+    "Add something to save."
+  ],
+  "meditation.returnToPresent": [
+    "missing",
+    "Return to the present moment"
+  ],
+  "layout.aiService": [
+    "missing",
+    "AI service: {{mode}}"
+  ],
+  "common.signedOut": [
+    "missing",
+    "Signed out"
+  ],
+  "common.retry": [
+    "missing",
+    "Retry"
+  ],
+  "chat.openSereneMind": [
+    "missing",
+    "Open Serene Mind"
+  ],
+  "meditation.closeEyes": [
+    "missing",
+    "Close your eyes"
+  ],
+  "chat.starterReflectPrompt": [
+    "missing",
+    "What is the Beautiful State, and how do I begin?"
+  ],
+  "chat.stop": [
+    "missing",
+    "Stop generating"
+  ],
+  "admin.teachingTips": [
+    "missing",
+    "Teaching Tips"
+  ],
+  "meditation.blockedSereneMind": [
+    "missing",
+    "Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin."
+  ],
+  "landing.practices.removeFav": [
+    "missing",
+    "Remove from favorites"
+  ],
+  "onboarding.tour.step5.description": [
+    "missing",
+    "Explore how spiritual concepts connect and relate"
+  ],
+  "chat.toggleThinking": [
+    "missing",
+    "Toggle thinking details"
+  ],
+  "landing.howItWorks.step2Title": [
+    "missing",
+    "Share Your Heart"
+  ],
+  "admin.prompts": [
+    "missing",
+    "Prompts"
+  ],
+  "meditation.tablistAria": [
+    "missing",
+    "Meditation mode"
+  ],
+  "chat.whatHelped": [
+    "missing",
+    "What helped?"
+  ],
+  "chat.drawingFrom": [
+    "missing",
+    "Drawing from {{tradition}}…"
+  ],
+  "meditation.tabBreathe": [
+    "missing",
+    "Breathe"
+  ],
+  "auth.welcomeBack": [
+    "missing",
+    "Welcome back!"
+  ],
+  "mood.bannerSnooze": [
+    "missing",
+    "Not now"
+  ],
+  "chat.openTeaching": [
+    "missing",
+    "Open today's teaching"
+  ],
+  "chat.prePractice.savedLocally": [
+    "missing",
+    "Saved privately on this device"
+  ],
+  "privacy.storeEmail": [
+    "missing",
+    "Email address & encrypted password (or Google profile) — for sign-in."
+  ],
+  "meditation.complete": [
+    "missing",
+    "Complete"
+  ],
+  "mood.open": [
+    "missing",
+    "Open"
+  ],
+  "auth.enterEmailFirst": [
+    "missing",
+    "Enter your email above first, then tap Forgot password."
+  ],
+  "common.notNow": [
+    "missing",
+    "Not now"
+  ],
+  "landing.meditation.heading3": [
+    "missing",
+    "Meditation"
+  ],
+  "meditation.returnToChat": [
+    "missing",
+    "Return to Chat"
+  ],
+  "chat.yourSpiritualCompanion": [
+    "missing",
+    "Your Spiritual Companion"
+  ],
+  "auth.yourName": [
+    "missing",
+    "Your name"
+  ],
+  "auth.showPassword": [
+    "missing",
+    "Show password"
+  ],
+  "meditation.dayStreak": [
+    "missing",
+    "Day Streak"
+  ],
+  "kg.noConceptsFor": [
+    "missing",
+    "No concepts found for {{query}}."
+  ],
+  "common.confirm": [
+    "missing",
+    "Confirm"
+  ],
+  "landing.practices.unstar": [
+    "missing",
+    "Unstar {{title}}"
+  ],
+  "practices.soulSync.title": [
+    "missing",
+    "Soul Sync"
+  ],
+  "chat.signInSaveMemories": [
+    "missing",
+    "Sign in to save memories"
+  ],
+  "chat.couldNotCopy": [
+    "missing",
+    "Could not copy URL"
+  ],
+  "admin.dashboard": [
+    "missing",
+    "Dashboard"
+  ],
+  "terms.pageDescription": [
+    "missing",
+    "Terms governing personal, non-commercial use of AskMukthiGuru. AI guidance is not a substitute for professional mental-health care."
+  ],
+  "kg.relationships": [
+    "missing",
+    "Relationships"
+  ],
+  "common.more": [
+    "missing",
+    "More"
+  ],
+  "landing.practices.addedFav": [
+    "missing",
+    "Added to favorites"
+  ],
+  "landing.howItWorks.step1Title": [
+    "missing",
+    "Start a Conversation"
+  ],
+  "layout.offlineMode": [
+    "missing",
+    "Offline Mode"
+  ],
+  "practices.subtitle": [
+    "missing",
+    "Daily spiritual practices — Sri Preethaji & Sri Krishnaji"
+  ],
+  "chat.inputPlaceholder": [
+    "missing",
+    "Share what's on your heart…"
+  ],
+  "meditation.youPausedAt": [
+    "missing",
+    "You paused at {{step}}. Continue right where you left off."
+  ],
+  "meditation.focusOnFlame": [
+    "missing",
+    "Focus on the flame"
+  ],
+  "onboarding.done": [
+    "missing",
+    "Get Started"
+  ],
+  "landing.howItWorks.subtitle": [
+    "missing",
+    "A simple journey from wherever you are to your beautiful state"
+  ],
+  "common.close": [
+    "missing",
+    "Close"
+  ],
+  "auth.forgotPassword": [
+    "missing",
+    "Forgot your password?"
+  ],
+  "notFound.message": [
+    "missing",
+    "Oops! Page not found"
+  ],
+  "landing.meetGurus.title": [
+    "missing",
+    "Founders of Ekam & The Oneness Movement"
+  ],
+  "admin.admins": [
+    "missing",
+    "Admins"
+  ],
+  "chat.engagement.needsWork": [
+    "missing",
+    "Needs work"
+  ],
+  "common.system": [
+    "missing",
+    "System"
+  ],
+  "landing.hero.cta": [
+    "missing",
+    "Start Chat"
+  ],
+  "auth.hidePassword": [
+    "missing",
+    "Hide password"
+  ],
+  "memory.reflectPlaceholder": [
+    "missing",
+    "e.g. I practice every morning before sunrise."
+  ],
+  "chat.videoLessons": [
+    "missing",
+    "Video Lessons ({{count}})"
+  ],
+  "meditation.whatInsightArose": [
+    "missing",
+    "What insight arose during your meditation?"
+  ],
+  "meditation.selectTechnique": [
+    "missing",
+    "Select Technique"
+  ],
+  "chat.prePractice.beforeBegin": [
+    "missing",
+    "Before we begin"
+  ],
+  "meditation.oneThingOfGratitude": [
+    "missing",
+    "One thing of gratitude"
+  ],
+  "common.privacy": [
+    "missing",
+    "Privacy"
+  ],
+  "privacy.storeMeditation": [
+    "missing",
+    "Meditation sessions — stored locally on your device."
+  ],
+  "desktopSidebar.newConvTooltip": [
+    "missing",
+    "New conversation (⌘B to expand)"
+  ],
+  "chat.confidenceHigh": [
+    "missing",
+    "High confidence"
+  ],
+  "chat.selectLanguage": [
+    "missing",
+    "Select Language"
+  ],
+  "landing.meditation.heading1": [
+    "missing",
+    "The"
+  ],
+  "auth.privacyPolicy": [
+    "missing",
+    "Privacy Policy"
+  ],
+  "meditation.beautiful": [
+    "missing",
+    "Beautiful"
+  ],
+  "layout.connectedMode": [
+    "missing",
+    "Connected to Guru"
+  ],
+  "landing.continuePractice": [
+    "missing",
+    "Continue your practice"
+  ],
+  "layout.navigate": [
+    "missing",
+    "Navigate"
+  ],
+  "memory.consciousnessMap": [
+    "missing",
+    "My Consciousness Map"
+  ],
+  "mood.calm": [
+    "missing",
+    "Calm"
+  ],
+  "chat.ttsNotSupportedDesc": [
+    "missing",
+    "Your browser does not support text-to-speech."
+  ],
+  "landing.howItWorks.heading2": [
+    "missing",
+    "Works"
+  ],
+  "error.serverError": [
+    "missing",
+    "Server Error"
+  ],
+  "memory.couldNotLoad": [
+    "missing",
+    "Could not load memories."
+  ],
+  "terms.intellectualPropertyText": [
+    "missing",
+    "Teachings cited are the intellectual property of Sri Preethaji, Sri Krishnaji and AUM, used here for educational and reflective purposes with attribution."
+  ],
+  "common.or": [
+    "missing",
+    "or"
+  ],
+  "meditation.infusedFromTeaching": [
+    "missing",
+    "Infused from {{teaching}}"
+  ],
+  "chat.aiLabelWithSources_one": [
+    "missing",
+    "AI-generated · {{count}} source"
+  ],
+  "kg.conceptRelationshipCount": [
+    "missing",
+    "{{nodeCount}} concepts · {{edgeCount}} relationships"
+  ],
+  "landing.practices.addFav": [
+    "missing",
+    "Add to favorites"
+  ],
+  "common.today": [
+    "missing",
+    "Today"
+  ],
+  "common.closeNav": [
+    "missing",
+    "Close navigation menu"
+  ],
+  "kg.errorLoading": [
+    "missing",
+    "Couldn't load graph: {{error}}"
+  ],
+  "chat.aiCompanionNotice": [
+    "missing",
+    "AI companion • Not a substitute for professional care"
+  ],
+  "desktopSidebar.tagline": [
+    "missing",
+    "Your Spiritual Companion"
+  ],
+  "chat.sereneMindRequired": [
+    "missing",
+    "Please do Serene Mind now to unlock the chat."
+  ],
+  "chat.optionalTellUsMore": [
+    "missing",
+    "Optional: tell us more…"
+  ],
+  "desktopSidebar.collapseTooltip": [
+    "missing",
+    "Collapse sidebar (⌘B)"
+  ],
+  "meditation.tabAudio": [
+    "missing",
+    "Audio"
+  ],
+  "error.notFoundDescription": [
+    "missing",
+    "The page you are looking for does not exist."
+  ],
+  "common.disclaimerDesc": [
+    "missing",
+    "AskMukthiGuru is an AI spiritual companion inspired by the teachings of Sri Preethaji & Sri Krishnaji. It offers wisdom and guidance on your journey toward inner peace."
+  ],
+  "terms.changesText": [
+    "missing",
+    "We may update these Terms; continued use after a change constitutes acceptance of the new Terms."
+  ],
+  "auth.signUpBtn": [
+    "missing",
+    "Sign up"
+  ],
+  "chat.closeTeachingModal": [
+    "missing",
+    "Close teaching modal"
+  ],
+  "mood.frustrated": [
+    "missing",
+    "Frustrated"
+  ],
+  "landing.meditation.cta": [
+    "missing",
+    "Try Serene Mind"
+  ],
+  "error.guruResting": [
+    "missing",
+    "The Guru is resting. Please try again in a moment."
+  ],
+  "notes.tagsPlaceholder": [
+    "missing",
+    "Tags (comma-separated, e.g. compassion, breath)"
+  ],
+  "kg.zoomIn": [
+    "missing",
+    "Zoom in"
+  ],
+  "common.dismiss": [
+    "missing",
+    "Dismiss"
+  ],
+  "error.sessionExpiredDescription": [
+    "missing",
+    "Your session has expired. Please sign in again."
+  ],
+  "common.hours": [
+    "missing",
+    "hrs"
+  ],
+  "auth.signedInOneTap": [
+    "missing",
+    "Signed in with Google One Tap"
+  ],
+  "terms.changes": [
+    "missing",
+    "Changes"
+  ],
+  "chat.drawingFromTeachings": [
+    "missing",
+    "Drawing from the teachings…"
+  ],
+  "chat.startersLearn": [
+    "missing",
+    "Learn"
+  ],
+  "chat.jumpToLatest": [
+    "missing",
+    "Jump to latest message"
+  ],
+  "terms.accountTermination": [
+    "missing",
+    "Account & termination"
+  ],
+  "chat.startersMeditate": [
+    "missing",
+    "Meditate"
+  ],
+  "meditation.guideStep5Desc": [
+    "missing",
+    "Bring focus to your eyebrow center, visualize a tiny flame moving into the center of your brain. Smile and open eyes."
+  ],
+  "desktopSidebar.gurusAlt": [
+    "missing",
+    "Gurus"
+  ],
+  "common.accept": [
+    "missing",
+    "Accept"
+  ],
+  "meditation.blockedMessage": [
+    "missing",
+    "Message blocked: {{reason}}"
+  ],
+  "kg.expand": [
+    "missing",
+    "Expand"
+  ],
+  "memory.memory": [
+    "missing",
+    "Memory"
+  ],
+  "chat.reflecting": [
+    "missing",
+    "Reflecting on the teachings…"
+  ],
+  "chat.srOnlyTitle": [
+    "missing",
+    "Chat with your AI Spiritual Guide"
+  ],
+  "admin.retrieval": [
+    "missing",
+    "Retrieval"
+  ],
+  "chat.watchOnYouTube": [
+    "missing",
+    "Watch on YouTube ↗"
+  ],
+  "common.beginJourney": [
+    "missing",
+    "I Understand — Begin My Journey"
+  ],
+  "notes.loading": [
+    "missing",
+    "Loading your notes…"
+  ],
+  "chat.cancelEdit": [
+    "missing",
+    "Cancel"
+  ],
+  "meditation.guideStep5Title": [
+    "missing",
+    "Flame in the Brain"
+  ],
+  "chat.insightful": [
+    "missing",
+    "Insightful"
+  ],
+  "auth.signInFailed": [
+    "missing",
+    "Sign-in Failed"
+  ],
+  "desktopSidebar.memories_plural": [
+    "missing",
+    "{{count}} memories"
+  ],
+  "chat.inviteCodePlaceholder": [
+    "missing",
+    "sky-..."
+  ],
+  "common.source": [
+    "missing",
+    "source"
+  ],
+  "chat.voiceNotInBrowser": [
+    "missing",
+    "Voice not supported in this browser"
+  ],
+  "chat.recentConversations": [
+    "missing",
+    "Recent conversations"
+  ],
+  "terms.accountTerminationText": [
+    "missing",
+    "You may delete your account at any time. We may suspend accounts that violate these Terms or applicable law."
+  ],
+  "chat.tellMeMoreQuery": [
+    "missing",
+    "Tell me more about this: {{content}}"
+  ],
+  "onboarding.tour.step4.title": [
+    "missing",
+    "Study Notebook"
+  ],
+  "chat.errorCauseUnauthorized": [
+    "missing",
+    "Your authenticated session has expired or is missing."
+  ],
+  "chat.voiceOutputEnabled": [
+    "missing",
+    "Voice Output Enabled"
+  ],
+  "chat.nextStep": [
+    "missing",
+    "Next step"
+  ],
+  "privacy.storeChats": [
+    "missing",
+    "Chat conversations and messages — stored locally on your device."
+  ],
+  "privacy.neverTrain": [
+    "missing",
+    "Use your conversations to train external models."
+  ],
+  "landing.howItWorks.step4Title": [
+    "missing",
+    "Experience Serenity"
+  ],
+  "onboarding.dontShowAgain": [
+    "missing",
+    "Don't show this again"
+  ],
+  "meditation.grateful": [
+    "missing",
+    "Grateful"
+  ],
+  "meditation.guidedMeditation": [
+    "missing",
+    "Guided Meditation"
+  ],
+  "common.dataExportedDesc": [
+    "missing",
+    "Your data was downloaded."
+  ],
+  "meditation.peaceful": [
+    "missing",
+    "Peaceful"
+  ],
+  "memory.forgetAria": [
+    "missing",
+    "Forget this memory"
+  ],
+  "chat.voiceOutputDisabled": [
+    "missing",
+    "Voice Output Disabled"
+  ],
+  "admin.unauthorized": [
+    "missing",
+    "You do not have access to this area."
+  ],
+  "mood.reflectionPlaceholder": [
+    "missing",
+    "Optional — share what's on your heart…"
+  ],
+  "mood.sad": [
+    "missing",
+    "Sad"
+  ],
+  "common.showLess": [
+    "missing",
+    "Show less"
+  ],
+  "chat.savedFromChat": [
+    "missing",
+    "Saved from Chat"
+  ],
+  "kg.reset": [
+    "missing",
+    "Reset view"
+  ],
+  "practices.sereneMind.howItWorks": [
+    "missing",
+    "['Focus on your breath — eyes closed, sit upright. Bring your whole, undivided attention to the breath entering and leaving your nostrils.', 'Scan your inner state — notice the emotions and thoughts present right now, without trying to push them away. Ask: \"What exact emotion am I feeling?\" (anxiety, anger, sadness, peace…)', 'Acknowledge without judgement — gently label the emotion. No judging. No fighting. Soft awareness.', 'See where your mind is — past regrets, future worries, or self-centred chatter? Just acknowledge the state of separation.', 'Flame Visualisation — visualise a steady golden flame glowing between your eyebrows. Slowly draw it inward to the centre of your brain — let it brighten the darkness and stabilise your mind.', 'Close with a smile — let a warm, gentle smile rest on your face. One more deep breath. Feel the shift. Slowly open your eyes.']"
+  ],
+  "chat.noCitations": [
+    "missing",
+    "No citations available"
+  ],
+  "meditation.guideStep3Title": [
+    "missing",
+    "Self-Observation (Emotion)"
+  ],
+  "chat.slashClearHint": [
+    "missing",
+    "Start a fresh conversation"
+  ],
+  "onboarding.tour.stepIndicator": [
+    "missing",
+    "{{current}}/{{total}}"
+  ],
+  "common.viewAll": [
+    "missing",
+    "View All"
+  ],
+  "chat.todaysTeaching": [
+    "missing",
+    "Today's Teaching"
+  ],
+  "chat.todaysLine": [
+    "missing",
+    "Today's Line"
+  ],
+  "mood.bannerCta": [
+    "missing",
+    "Check in"
+  ],
+  "chat.localVoiceEnabled": [
+    "missing",
+    "Local Voice Enabled"
+  ],
+  "chat.selectLanguageAria": [
+    "missing",
+    "Select language"
+  ],
+  "chat.prePractice.soulSync": [
+    "missing",
+    "Soul Sync"
+  ],
+  "desktopSidebar.deleteWarning": [
+    "missing",
+    "This action cannot be undone and your teaching history will be lost."
+  ],
+  "auth.or": [
+    "missing",
+    "or"
+  ],
+  "chat.inputPlaceholderListening": [
+    "missing",
+    "Speak now…"
+  ],
+  "memory.memorySavedDesc": [
+    "missing",
+    "The guru will remember this."
+  ],
+  "common.openUserMenu": [
+    "missing",
+    "Open user menu"
+  ],
+  "chat.saveToMemory": [
+    "missing",
+    "Save to memory"
+  ],
+  "kg.collapse": [
+    "missing",
+    "Collapse"
+  ],
+  "auth.emailPlaceholder": [
+    "missing",
+    "you@example.com"
+  ],
+  "chat.technicalDetail": [
+    "missing",
+    "Technical detail"
+  ],
+  "kg.conceptDetail": [
+    "missing",
+    "Concept Details"
+  ],
+  "meditation.pauseDesc": [
+    "missing",
+    "You can continue right where you left off the next time you open Serene Mind."
+  ],
+  "auth.createAccount": [
+    "missing",
+    "Create your account"
+  ],
+  "common.messages": [
+    "missing",
+    "messages"
+  ],
+  "chat.openSources_other": [
+    "missing",
+    "Open sources panel ({{count}} sources)"
+  ],
+  "chat.signInSaveNotes": [
+    "missing",
+    "Sign in to save notes"
+  ],
+  "meditation.playGuidance": [
+    "missing",
+    "Play guidance"
+  ],
+  "meditation.skipToChat": [
+    "missing",
+    "Skip to chat"
+  ],
+  "landing.practices.removedFav": [
+    "missing",
+    "Removed from favorites"
+  ],
+  "auth.stepSignIn": [
+    "missing",
+    "Sign in"
+  ],
+  "auth.signInProgress": [
+    "missing",
+    "Sign-in progress"
+  ],
+  "memory.autoExtracted": [
+    "missing",
+    "Auto-extracted"
+  ],
+  "nav.meditation": [
+    "missing",
+    "Meditation"
+  ],
+  "admin.telemetry": [
+    "missing",
+    "Telemetry"
+  ],
+  "onboarding.language.title": [
+    "missing",
+    "Choose Your Language"
+  ],
+  "memory.forgetWarning": [
+    "missing",
+    "The guru will no longer reference this in future conversations. This cannot be undone."
+  ],
+  "onboarding.tour.step1.title": [
+    "missing",
+    "Chat with the Guru"
+  ],
+  "meditation.startFresh": [
+    "missing",
+    "Start fresh"
+  ],
+  "auth.stepAuthorize": [
+    "missing",
+    "Authorize"
+  ],
+  "memory.youAdded": [
+    "missing",
+    "You added"
+  ],
+  "chat.slashShareHint": [
+    "missing",
+    "Share the last answer as a wisdom card"
+  ],
+  "landing.howItWorks.heading1": [
+    "missing",
+    "How It"
+  ],
+  "common.enabling": [
+    "missing",
+    "Enabling…"
+  ],
+  "chat.savedToNotebookDesc": [
+    "missing",
+    "Added to \"{{title}}\""
+  ],
+  "common.essentialCookies": [
+    "missing",
+    "Essential cookies only"
+  ],
+  "error.chatErrorTitle": [
+    "missing",
+    "Unable to get response"
+  ],
+  "common.hideDetails": [
+    "missing",
+    "Hide details"
+  ],
+  "chat.engagement.yes": [
+    "missing",
+    "Yes"
+  ],
+  "common.showMore": [
+    "missing",
+    "Show more"
+  ],
+  "landing.meetGurus.subtitle": [
+    "missing",
+    "The wisdom of Sri Preethaji & Sri Krishnaji, founders of the Oneness Movement, now accessible through a compassionate AI companion."
+  ],
+  "landing.footer.madeWith": [
+    "missing",
+    "Made with"
+  ],
+  "practices.openInChat": [
+    "missing",
+    "Open in chat"
+  ],
+  "onboarding.step1": [
+    "missing",
+    "Start a conversation by typing or speaking your question."
+  ],
+  "admin.login": [
+    "missing",
+    "Admin Login"
+  ],
+  "chat.ttsNotSupported": [
+    "missing",
+    "Text-to-Speech Not Supported"
+  ],
+  "mood.title": [
+    "missing",
+    "Mood check-in"
+  ],
+  "admin.triggers": [
+    "missing",
+    "Triggers"
+  ],
+  "common.exportData": [
+    "missing",
+    "Export my data"
+  ],
+  "meditation.durationMinutes": [
+    "missing",
+    "{{count}} min"
+  ],
+  "desktopSidebar.noResults": [
+    "missing",
+    "No results"
+  ],
+  "chat.stopped": [
+    "missing",
+    "Stopped by you."
+  ],
+  "common.done": [
+    "missing",
+    "Done"
+  ],
+  "chat.jumpToLatestNew": [
+    "missing",
+    "Jump to latest message ({{count}} new)"
+  ],
+  "chat.copyTrace": [
+    "missing",
+    "Copy trace"
+  ],
+  "auth.takingTooLong": [
+    "missing",
+    "Taking too long? Click here to reset and try again"
+  ],
+  "error.networkError": [
+    "missing",
+    "Network error"
+  ],
+  "chat.safetyCheck": [
+    "missing",
+    "Safety check"
+  ],
+  "kg.explore": [
+    "missing",
+    "Explore"
+  ],
+  "auth.authTimeout": [
+    "missing",
+    "Authentication timeout. Please try again."
+  ],
+  "notes.editNote": [
+    "missing",
+    "Edit note"
+  ],
+  "meditation.guideStepVideo2Title": [
+    "missing",
+    "Observe Emotion"
+  ],
+  "chat.stoppedByYou": [
+    "missing",
+    "Stopped by you."
+  ],
+  "auth.connectionTimeout": [
+    "missing",
+    "Connection Timeout"
+  ],
+  "admin.overview": [
+    "missing",
+    "Overview"
+  ],
+  "common.home": [
+    "missing",
+    "Home"
+  ],
+  "chat.prePractice.both": [
+    "missing",
+    "Both"
+  ],
+  "common.error": [
+    "missing",
+    "Error"
+  ],
+  "privacy.whatWeStore": [
+    "missing",
+    "What we store"
+  ],
+  "meditation.openInYoutube": [
+    "missing",
+    "Open in YouTube"
+  ],
+  "common.delete": [
+    "missing",
+    "Delete"
+  ],
+  "chat.notHelpful": [
+    "missing",
+    "Not helpful"
+  ],
+  "auth.troubleSigningIn": [
+    "missing",
+    "Trouble signing in?"
+  ],
+  "chat.sourceCount_one": [
+    "missing",
+    "{{count}} unique source · {{citationCount}} citation"
+  ],
+  "notes.untitled": [
+    "missing",
+    "Untitled"
+  ],
+  "common.settings": [
+    "missing",
+    "Settings"
+  ],
+  "onboarding.tour.gotIt": [
+    "missing",
+    "Got it"
+  ],
+  "practices.benefits": [
+    "missing",
+    "Benefits"
+  ],
+  "common.forSeekersEverywhere": [
+    "missing",
+    "for seekers everywhere"
+  ],
+  "common.keep": [
+    "missing",
+    "Keep"
+  ],
+  "kg.relatedConcepts": [
+    "missing",
+    "Related Concepts"
+  ],
+  "meditation.step": [
+    "missing",
+    "Step {{number}}"
+  ],
+  "chat.fullConversationSources": [
+    "missing",
+    "Full conversation sources"
+  ],
+  "chat.calmingTone": [
+    "missing",
+    "Calming tone"
+  ],
+  "chat.assistants": [
+    "missing",
+    "Assistants"
+  ],
+  "admin.logs": [
+    "missing",
+    "Logs"
+  ],
+  "common.reject": [
+    "missing",
+    "Reject"
+  ],
+  "landing.howItWorks.step1Desc": [
+    "missing",
+    "Begin your journey by sharing what's on your mind or in your heart with our AI companion."
+  ],
+  "mood.suggestedPractice": [
+    "missing",
+    "A practice that may help"
+  ],
+  "meditation.guideStepVideo3Desc": [
+    "missing",
+    "Notice where your thoughts wander—past, future, or present."
+  ],
+  "chat.helpful": [
+    "missing",
+    "Helpful"
+  ],
+  "chat.send": [
+    "missing",
+    "Send message"
+  ],
+  "meditation.nameSomethingGrateful": [
+    "missing",
+    "Name something you are grateful for right now."
+  ],
+  "chat.errorCauseUnknown": [
+    "missing",
+    "An unexpected error occurred while preparing the reply."
+  ],
+  "practices.dailyReflection.title": [
+    "missing",
+    "Daily Reflection"
+  ],
+  "landing.practices.star": [
+    "missing",
+    "Star {{title}}"
+  ],
+  "chat.errorCauseRateLimited": [
+    "missing",
+    "You have sent too many messages in a short window."
+  ],
+  "common.on": [
+    "missing",
+    "On"
+  ],
+  "meditation.guideStepVideo1Desc": [
+    "missing",
+    "Sit erect, close eyes. Slow deep breaths with a long exhale."
+  ],
+  "landing.howItWorks.step2Desc": [
+    "missing",
+    "Express your thoughts, feelings, struggles, or questions in a safe, judgment-free space."
+  ],
+  "chat.pageTitle": [
+    "missing",
+    "Chat with the Guru — AskMukthiGuru"
+  ],
+  "onboarding.tour.step4.description": [
+    "missing",
+    "Save teachings that resonate with you for later reflection"
+  ],
+  "memory.keep": [
+    "missing",
+    "Keep"
+  ],
+  "chat.slashReflectHint": [
+    "missing",
+    "Get a reflection question based on this conversation"
+  ],
+  "chat.enableVoiceOutput": [
+    "missing",
+    "Enable voice output"
+  ],
+  "memory.forgottenDesc": [
+    "missing",
+    "This memory has been released."
+  ],
+  "auth.passwordPlaceholder": [
+    "missing",
+    "••••••••"
+  ],
+  "chat.sereneMind": [
+    "missing",
+    "Serene Mind"
+  ],
+  "common.redeem": [
+    "missing",
+    "Redeem"
+  ],
+  "desktopSidebar.deleteConv": [
+    "missing",
+    "Delete conversation"
+  ],
+  "chat.exportMarkdown": [
+    "missing",
+    "Export conversation as Markdown"
+  ],
+  "landing.practices.heading": [
+    "missing",
+    "Daily practices"
+  ],
+  "auth.authFailed": [
+    "missing",
+    "Authentication failed. Please try again."
+  ],
+  "mood.reflectionLabel": [
+    "missing",
+    "What's going on?"
+  ],
+  "meditation.guideStep2Desc": [
+    "missing",
+    "Inhale slowly for 4s, hold briefly for 2s, then exhale slowly for 6s. The long exhale activates calm."
+  ],
+  "chat.prePractice.soulSyncHelper": [
+    "missing",
+    "I synced inward before opening this"
+  ],
+  "chat.editShortcut": [
+    "missing",
+    "Edit shortcut"
+  ],
+  "memory.sessionReflections": [
+    "missing",
+    "Session reflections"
+  ],
+  "chat.whatImprove": [
+    "missing",
+    "What could improve?"
+  ],
+  "common.message": [
+    "missing",
+    "message"
+  ],
+  "mood.startPractice": [
+    "missing",
+    "Start practice"
+  ],
+  "chat.channelLabel": [
+    "missing",
+    "Channel: {{channel}}"
+  ],
+  "chat.readAloud": [
+    "missing",
+    "Read aloud"
+  ],
+  "landing.practices.exploreAll": [
+    "missing",
+    "Explore all practices"
+  ],
+  "chat.starterLearnPrompt": [
+    "missing",
+    "Share a teaching from Sri Preethaji on suffering"
+  ],
+  "auth.couldNotConnectGoogleRetry": [
+    "missing",
+    "Could not connect to Google. Please try again."
+  ],
+  "admin.ingestion": [
+    "missing",
+    "Ingestion"
+  ],
+  "onboarding.tour.skip": [
+    "missing",
+    "Skip tour"
+  ],
+  "common.back": [
+    "missing",
+    "Back"
+  ],
+  "chat.regenerate": [
+    "missing",
+    "Regenerate response"
+  ],
+  "common.noResults": [
+    "missing",
+    "No results found"
+  ],
+  "chat.detectedLang": [
+    "missing",
+    "Detected {{name}}"
+  ],
+  "chat.searchingTradition": [
+    "missing",
+    "Searching {{tradition}} on \"{{topic}}\"…"
+  ],
+  "chat.continueLast": [
+    "missing",
+    "Continue where you left off"
+  ],
+  "error.rateLimitedDescription": [
+    "missing",
+    "Please wait a moment before trying again."
+  ],
+  "common.yesterday": [
+    "missing",
+    "Yesterday"
+  ],
+  "meditation.pauseGuidance": [
+    "missing",
+    "Pause guidance"
+  ],
+  "error.maintenanceDescription": [
+    "missing",
+    "We are currently performing maintenance. Please check back later."
+  ],
+  "common.search": [
+    "missing",
+    "Search"
+  ],
+  "error.unauthorizedDescription": [
+    "missing",
+    "Please sign in to access this feature."
+  ],
+  "memory.statCoreStatus": [
+    "missing",
+    "Core Status"
+  ],
+  "chat.openSources_one": [
+    "missing",
+    "Open sources panel ({{count}} source)"
+  ],
+  "auth.profileSetupServerError": [
+    "missing",
+    "A server error occurred while provisioning your profile. Please retry later."
+  ],
+  "chat.editResend": [
+    "missing",
+    "Edit & resend"
+  ],
+  "chat.teaching": [
+    "missing",
+    "Teaching"
+  ],
+  "terms.title": [
+    "missing",
+    "Terms of Service"
+  ],
+  "chat.openSidebar": [
+    "missing",
+    "Open sidebar"
+  ],
+  "meditation.sriPreethajisVoice": [
+    "missing",
+    "Sri Preethaji's Voice"
+  ],
+  "auth.byContinuing": [
+    "missing",
+    "By continuing you agree to our"
+  ],
+  "landing.hero.heading2": [
+    "missing",
+    "Beautiful State"
+  ],
+  "auth.passwordResetSent": [
+    "missing",
+    "We sent you a link to reset your password."
+  ],
+  "meditation.guideStepVideo4Title": [
+    "missing",
+    "Focus on the Flame"
+  ],
+  "common.minutesAgo": [
+    "missing",
+    "{{count}}m ago"
+  ],
+  "chat.searchLanguages": [
+    "missing",
+    "Search {{count}} languages…"
+  ],
+  "practices.beautifulState.title": [
+    "missing",
+    "Beautiful State"
+  ],
+  "practices.startPractice": [
+    "missing",
+    "Begin"
+  ],
+  "practices.soulSync.howItWorks": [
+    "missing",
+    "['Conscious Breathing — sit comfortably, hands resting on your thighs, palms facing upward. Eyes closed. Take 8 slow, deep breaths, counting each one with the thumb touching each finger (index to pinky and back).', 'Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration calm your nervous system.', \"Settle in the Silent Pause — between each inhalation and exhalation, rest in the natural stillness. Don't force it — just witness.\", 'Repeat \"Aham\" — with every exhalation, mentally whisper \"Aham\" (I am — boundless consciousness). Rest in the simple feeling of being.', 'Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.', 'Hold Your Intention — in this expanded state, bring your heartfelt intention to mind. Visualise it manifest. Close with deep gratitude.']"
+  ],
+  "memory.couldNotSave": [
+    "missing",
+    "Could not save"
+  ],
+  "common.copied": [
+    "missing",
+    "Copied!"
+  ],
+  "error.chatErrorDesc": [
+    "missing",
+    "The Guru is resting. Please try again in a moment."
+  ],
+  "auth.verificationSent": [
+    "missing",
+    "We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup."
+  ],
+  "memory.fullscreenDesc": [
+    "missing",
+    "Fullscreen view of your interactive personal consciousness map. Drag nodes to move, drag background to pan, scroll to zoom."
+  ],
+  "error.unauthorized": [
+    "missing",
+    "Unauthorized"
+  ],
+  "kg.searchToVisualise": [
+    "missing",
+    "Search a concept to visualise the knowledge graph."
+  ],
+  "notes.searchPlaceholder": [
+    "missing",
+    "Search notes…"
+  ],
+  "chat.startersReflect": [
+    "missing",
+    "Reflect"
+  ],
+  "kg.searchPlaceholderDetailed": [
+    "missing",
+    "Search a concept — e.g. suffering, deeksha, serene mind…"
+  ],
+  "practices.soulSync.purpose": [
+    "missing",
+    "Soul Sync is your way home. You sit, you breathe, you hum — and the noise of the day falls away. You reconnect with the silent presence beneath your thoughts. This is the doorway into a Beautiful State."
+  ],
+  "chat.copyQuestion": [
+    "missing",
+    "Copy question"
+  ],
+  "chat.todaysWisdom": [
+    "missing",
+    "Today's Wisdom"
+  ],
+  "notes.writeFirst": [
+    "missing",
+    "Write your first note"
+  ],
+  "common.loading": [
+    "missing",
+    "Loading..."
+  ],
+  "meditation.teachingLabel": [
+    "missing",
+    "Sri Preethaji & Sri Krishnaji Teaching"
+  ],
+  "chat.prePractice.bothHelper": [
+    "missing",
+    "I did Soul Sync and Serene Mind"
+  ],
+  "desktopSidebar.memories": [
+    "missing",
+    "{{count}} memory"
+  ],
+  "notes.fromChat": [
+    "missing",
+    "from chat"
+  ],
+  "memory.graphView": [
+    "missing",
+    "Graph view"
+  ],
+  "common.learnMore": [
+    "missing",
+    "Learn More"
+  ],
+  "auth.alreadyAccount": [
+    "missing",
+    "Already have an account?"
+  ],
+  "memory.active": [
+    "missing",
+    "Active"
+  ],
+  "common.details": [
+    "missing",
+    "Details"
+  ],
+  "onboarding.welcomeDesc": [
+    "missing",
+    "Your spiritual AI companion for inner peace and transformation."
+  ],
+  "chat.clearAnswer": [
+    "missing",
+    "Clear answer"
+  ],
+  "onboarding.tour.step6.description": [
+    "missing",
+    "Customize your experience — language, voice, theme, and more"
+  ],
+  "admin.topics": [
+    "missing",
+    "Topics"
+  ],
+  "common.disable": [
+    "missing",
+    "Disable"
+  ],
+  "meditation.stepXofY": [
+    "missing",
+    "{{current}} of {{total}}"
+  ],
+  "error.notFound": [
+    "missing",
+    "Page Not Found"
+  ],
+  "chat.relevantSources": [
+    "missing",
+    "Relevant sources"
+  ],
+  "memory.forgetBtn": [
+    "missing",
+    "Forget"
+  ],
+  "chat.invalidInviteCode": [
+    "missing",
+    "Invalid invite code"
+  ],
+  "privacy.pageTitle": [
+    "missing",
+    "Privacy Policy — AskMukthiGuru"
+  ],
+  "auth.couldNotConnectGoogle": [
+    "missing",
+    "Could not connect to Google."
+  ],
+  "common.edit": [
+    "missing",
+    "Edit"
+  ],
+  "auth.profileSetupIncomplete": [
+    "missing",
+    "Profile setup incomplete"
+  ],
+  "nav.startChat": [
+    "missing",
+    "Start Chat"
+  ],
+  "meditation.hold": [
+    "missing",
+    "Hold"
+  ],
+  "nav.meetGurus": [
+    "missing",
+    "Meet the Gurus"
+  ],
+  "chat.thinking": [
+    "missing",
+    "Thinking"
+  ],
+  "chat.sourcesWillAppear": [
+    "missing",
+    "Sources will appear here as the Guru cites teachings."
+  ],
+  "auth.returningFromGoogle": [
+    "missing",
+    "Returning from Google…"
+  ],
+  "common.minutes": [
+    "missing",
+    "mins"
+  ],
+  "meditation.emotional": [
+    "missing",
+    "Emotional"
+  ],
+  "notes.titlePlaceholder": [
+    "missing",
+    "Title (optional)"
+  ],
+  "desktopSidebar.searchPlaceholder": [
+    "missing",
+    "Search conversations…"
+  ],
+  "landing.practices.removedDesc": [
+    "missing",
+    "{{title}} has been removed from your list."
+  ],
+  "chat.sourceCount_other": [
+    "missing",
+    "{{count}} unique sources · {{citationCount}} citations"
+  ],
+  "chat.explainSimply": [
+    "missing",
+    "Explain simply"
+  ],
+  "landing.hero.subtitle": [
+    "missing",
+    "Experience the timeless wisdom of Sri Preethaji & Sri Krishnaji through an AI companion designed to guide you from suffering to serenity."
+  ],
+  "common.off": [
+    "missing",
+    "Off"
+  ],
+  "notes.emptyTitle": [
+    "missing",
+    "Note is empty"
+  ],
+  "common.decline": [
+    "missing",
+    "Decline"
+  ],
+  "nav.chat": [
+    "missing",
+    "Chat"
+  ],
+  "error.sessionExpired": [
+    "missing",
+    "Session Expired"
+  ],
+  "meditation.completeAndUnlock": [
+    "missing",
+    "Complete Meditation & Unlock Chat"
+  ],
+  "desktopSidebar.noConversations": [
+    "missing",
+    "No conversations yet.\nStart a new one above."
+  ],
+  "meditation.guideStep1Title": [
+    "missing",
+    "Posture & Preparation"
+  ],
+  "memory.memorySaved": [
+    "missing",
+    "Memory saved"
+  ],
+  "notFound.returnHome": [
+    "missing",
+    "Return to Home"
+  ],
+  "practices.perPracticeHint": [
+    "missing",
+    "Sit comfortably with your spine upright. Eyes closed, mouth closed. Let the breath move."
+  ],
+  "practices.sereneMind.tagline": [
+    "missing",
+    "A 3-minute reset for an agitated heart."
+  ],
+  "common.madeWith": [
+    "missing",
+    "Made with"
+  ],
+  "common.addFavorites": [
+    "missing",
+    "Add to favorites"
+  ],
+  "memory.statReflections": [
+    "missing",
+    "Reflections"
+  ],
+  "common.pushPromptAria": [
+    "missing",
+    "Enable daily teaching notifications"
+  ],
+  "chat.savedToNotebook": [
+    "missing",
+    "Saved to Study Notebook"
+  ],
+  "layout.search": [
+    "missing",
+    "Search"
+  ],
+  "chat.whyThisConfidence": [
+    "missing",
+    "Why this confidence?"
+  ],
+  "onboarding.next": [
+    "missing",
+    "Next"
+  ],
+  "common.feedback": [
+    "missing",
+    "Feedback"
+  ],
+  "landing.hero.disclaimer": [
+    "missing",
+    "This is an AI companion trained on spiritual teachings. Not a replacement for professional guidance."
+  ],
+  "chat.haveInviteCode": [
+    "missing",
+    "Have an invite code?"
+  ],
+  "meditation.practiceGuide": [
+    "missing",
+    "Serene Mind Practice Guide (5 Steps)"
+  ],
+  "notes.noMatch": [
+    "missing",
+    "No notes match your search."
+  ],
+  "auth.pageDescription": [
+    "missing",
+    "Sign in to AskMukthiGuru to continue your private, AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji."
+  ],
+  "chat.shareWisdomCard": [
+    "missing",
+    "Share as Wisdom Card"
+  ],
+  "common.minute": [
+    "missing",
+    "min"
+  ],
+  "chat.continueDescription": [
+    "missing",
+    "It looks like you were recently active on another device. Pick up where you left off."
+  ],
+  "chat.messagesCount": [
+    "missing",
+    "{{count}} messages"
+  ],
+  "chat.prePractice.question": [
+    "missing",
+    "Did you do Soul Sync or Serene Mind today?"
+  ],
+  "chat.copyUrlAria": [
+    "missing",
+    "Copy URL for source {{number}}"
+  ],
+  "meditation.beginYourJourney": [
+    "missing",
+    "Begin Your Journey"
+  ],
+  "meditation.gratitudePlaceholder": [
+    "missing",
+    "I am grateful for…"
+  ],
+  "common.dataExported": [
+    "missing",
+    "Data exported"
+  ],
+  "practices.sereneMind.benefits": [
+    "missing",
+    "['Instant amygdala calm — de-escalates panic, anger, or agitation in three minutes.', 'Builds self-awareness — naming emotions without judgement lowers their emotional charge.', 'Strengthens focus and presence — the flame steadies a scattered mind.', 'Physiological reset — engages the parasympathetic nervous system; heart rate slows; calm returns.']"
+  ],
+  "chat.retryLastMessage": [
+    "missing",
+    "Retry last message"
+  ],
+  "meditation.start": [
+    "missing",
+    "Start"
+  ],
+  "meditation.energised": [
+    "missing",
+    "Energised"
+  ],
+  "chat.voiceOutputEnabledDesc": [
+    "missing",
+    "Guru responses will be read aloud."
+  ],
+  "meditation.pausePractice": [
+    "missing",
+    "Pause this practice?"
+  ],
+  "chat.slashTeachHint": [
+    "missing",
+    "Ask the Guru to explain a concept step-by-step"
+  ],
+  "meditation.guidedPractice": [
+    "missing",
+    "Guided Practice"
+  ],
+  "layout.quick": [
+    "missing",
+    "Quick"
+  ],
+  "nav.notebooks": [
+    "missing",
+    "Notebooks"
+  ],
+  "privacy.neverAds": [
+    "missing",
+    "Show you advertisements."
+  ],
+  "common.copy": [
+    "missing",
+    "Copy"
+  ],
+  "chat.voiceNotSupportedDesc": [
+    "missing",
+    "Your browser does not support voice recognition."
+  ],
+  "auth.continueWithGoogle": [
+    "missing",
+    "Continue with Google"
+  ],
+  "chat.switchLang": [
+    "missing",
+    "Switch conversation language to {{native}}?"
+  ],
+  "chat.connectionInterrupted": [
+    "missing",
+    "Connection interrupted"
+  ],
+  "meditation.resume": [
+    "missing",
+    "Resume"
+  ],
+  "chat.cause": [
+    "missing",
+    "Cause"
+  ],
+  "error.genericDescription": [
+    "missing",
+    "An unexpected error occurred. Please try again."
+  ],
+  "desktopSidebar.expandTooltip": [
+    "missing",
+    "Expand sidebar (⌘B)"
+  ],
+  "common.importantNotice": [
+    "missing",
+    "Important Notice"
+  ],
+  "common.localProfile": [
+    "missing",
+    "Local profile"
+  ],
+  "privacy.aiDisclosureText": [
+    "missing",
+    "Responses are generated by an AI grounded in publicly available teachings of Sri Preethaji and Sri Krishnaji. AskMukthiGuru is not a substitute for professional mental-health care."
+  ],
+  "landing.footer.disclaimer": [
+    "missing",
+    "This is an AI companion trained on spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help."
+  ],
+  "meditation.sereneMind": [
+    "missing",
+    "Serene Mind"
+  ],
+  "common.hour": [
+    "missing",
+    "hr"
+  ],
+  "common.day": [
+    "fallback",
+    "d"
+  ],
+  "common.days": [
+    "fallback",
+    "d"
+  ],
+  "common.crisisNumbers": [
+    "fallback",
+    "iCall: 9152987821 | Vandrevala Foundation: 1860-2662-345"
+  ]
+}

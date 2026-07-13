@@ -1,26 +1,46 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Sparkles, Play } from 'lucide-react';
+import { ArrowRight, Play, Sparkles } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.jpg';
 import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
-import { DemoModal, hasSeenTour } from './DemoModal';
+import { DemoModal, hasSeenTour, recordTourOutcome, WelcomePrompt } from './DemoModal';
 
 export const HeroSection = () => {
   const { t } = useTranslation();
   const [demoOpen, setDemoOpen] = useState(false);
+  const [welcomeVisible, setWelcomeVisible] = useState(false);
 
   useEffect(() => {
     if (!hasSeenTour()) {
-      const timer = setTimeout(() => setDemoOpen(true), 1500);
-      return () => clearTimeout(timer);
+      setWelcomeVisible(true);
     }
   }, []);
 
+  const startTour = () => {
+    setWelcomeVisible(false);
+    setDemoOpen(true);
+  };
+
+  const dismissWelcome = () => {
+    recordTourOutcome('dismissed');
+    setWelcomeVisible(false);
+  };
+
+  const skipTour = () => {
+    recordTourOutcome('skipped');
+    setDemoOpen(false);
+  };
+
+  const completeTour = () => {
+    recordTourOutcome('completed');
+    setDemoOpen(false);
+  };
+
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <section className="relative min-h-dvh flex items-center justify-center overflow-hidden">
         {/* Background Image with Light Overlay */}
         <div className="absolute inset-0">
@@ -87,22 +107,24 @@ export const HeroSection = () => {
               {/* Primary CTA */}
               <Link
                 to="/chat"
-                className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-105 shadow-lg glow-gold"
+                className="group inline-flex min-h-11 items-center gap-3 px-8 py-4 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-105 shadow-lg glow-gold motion-reduce:transform-none"
               >
                 <span>{t('landing.hero.cta')}</span>
                 <motion.span
                   animate={{ x: [0, 5, 0] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
+                  className="motion-reduce:!transform-none"
                 >
-                  →
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </motion.span>
               </Link>
 
               {/* Premium Play Button */}
               <button
-                onClick={() => setDemoOpen(true)}
-                className="group relative flex items-center gap-3"
-                aria-label="Watch feature demo"
+                type="button"
+                onClick={startTour}
+                className="group relative flex min-h-11 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
+                aria-label="See how AskMukthiGuru works in a three-step tour"
               >
                 {/* Animated outer pulse rings */}
                 <span className="relative flex-shrink-0">
@@ -224,8 +246,12 @@ export const HeroSection = () => {
         </motion.div>
       </section>
 
-      {/* Demo modal portal */}
-      <DemoModal isOpen={demoOpen} onClose={() => setDemoOpen(false)} />
-    </>
+      <WelcomePrompt
+        isVisible={welcomeVisible}
+        onStartTour={startTour}
+        onDismiss={dismissWelcome}
+      />
+      <DemoModal isOpen={demoOpen} onComplete={completeTour} onDismiss={skipTour} />
+    </MotionConfig>
   );
 };

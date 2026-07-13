@@ -631,24 +631,21 @@ class SarvamCloudService:
             return "SAFETY_VIOLATION"
         elif "ADVERSARIAL" in result_upper:
             return "ADVERSARIAL"
-        elif "MEDITATION" in result_upper:
-            return "MEDITATION"
-        elif "FACTUAL" in result_upper:
+        elif "FACTUAL" in result_upper or "QUERY" in result_upper:
             return "FACTUAL"
         elif "RELATIONAL" in result_upper:
             return "RELATIONAL"
         elif "FOLLOW_UP" in result_upper:
             return "FOLLOW_UP"
-        elif "QUERY" in result_upper:
-            return "QUERY"
-        elif "CASUAL" in result_upper:
-            return "CASUAL"
-        else:
-            # Unrecognized output — default to QUERY (safer than CASUAL)
-            logger.warning(
-                f"classify_intent got unrecognized output: {result[:100]!r}. Defaulting to QUERY."
-            )
-            return "QUERY"
+        elif "MEDITATION" in result_upper:
+            return "MEDITATION"
+        elif "COMPARATIVE" in result_upper:
+            return "COMPARATIVE"
+        # Unrecognized output — default to QUERY (safer than CASUAL)
+        logger.warning(
+            f"classify_intent got unrecognized output: {result[:100]!r}. Defaulting to QUERY."
+        )
+        return "QUERY"
 
     async def classify_complexity(self, text: str) -> str:
         """Classify user question complexity into 'simple' or 'complex' using the fast model."""
@@ -696,6 +693,7 @@ class SarvamCloudService:
                     "FACTUAL",
                     "RELATIONAL",
                     "FOLLOW_UP",
+                    "COMPARATIVE",
                     "CASUAL",
                     "QUERY",
                 ]:

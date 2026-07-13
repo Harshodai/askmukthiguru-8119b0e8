@@ -22,8 +22,18 @@ export interface Practice {
   purpose: string;
   howItWorks: string[];
   benefits: string[];
-  videoId: string; // YouTube video ID (embed)
+  videoId?: string; // YouTube video ID (embed)
   audioId?: string; // optional separate audio-only YouTube ID
+  /**
+   * Optional presentation metadata. Text-first practices deliberately omit
+   * media; a future recording can be attached without changing their route.
+   */
+  media?: {
+    kind: 'youtube' | 'audio';
+    id: string;
+    title?: string;
+  };
+  format?: 'guided-video' | 'source-reflection';
   accent: 'ojas' | 'prana' | 'tejas' | 'lotus';
   inApp?: { label: string; path: string }; // optional link to in-app version
   i18nKey?: string; // translation subtree key — when set, the corresponding
@@ -31,6 +41,27 @@ export interface Practice {
 }
 
 export const practices: Practice[] = [
+  {
+    slug: 'wisdom-reflection',
+    title: 'Wisdom Reflection',
+    tagline: 'Read today\'s teaching, sit with it, and notice what shifts.',
+    durationLabel: '3 min',
+    intentions: ['Contemplation', 'Presence', 'Self-awareness'],
+    purpose:
+      'A short, text-first practice that pairs an available Daily Teaching with quiet reflection. If no teaching is available, it offers a neutral prompt instead of inventing a quotation.',
+    howItWorks: [
+      'Read: Receive today\'s teaching, or the fallback reflection prompt.',
+      'Reflect: Spend a few quiet minutes noticing what the words bring up for you.',
+      'Check in: Name how you feel now, without judging the answer.',
+    ],
+    benefits: [
+      'Makes space to meet an authentic teaching at your own pace.',
+      'Builds a small habit of noticing your inner state.',
+      'Offers a calm, screen-light practice when video is not wanted.',
+    ],
+    accent: 'ojas',
+    format: 'source-reflection',
+  },
   {
     slug: 'soul-sync',
     title: 'Soul Sync',
@@ -187,4 +218,3 @@ export const getLocalizedPractice = (
     benefits: pickList(`${practice.i18nKey}.benefits`, practice.benefits),
   };
 };
-

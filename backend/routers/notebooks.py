@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
@@ -14,12 +14,20 @@ router = APIRouter(tags=["Notebooks"])
 
 
 class CreateNotebookRequest(BaseModel):
-    title: str
+    title: str = Field(..., min_length=1, max_length=200)
+
+    @field_validator("title")
+    @classmethod
+    def _strip_title(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("title must not be empty or whitespace only")
+        return v
 
 
 class NotebookItemRequest(BaseModel):
-    query: str
-    answer: str
+    query: str = Field(..., max_length=10000)
+    answer: str = Field(..., max_length=50000)
     citations: list[dict] = []
     source_episode_id: Optional[str] = None
 
@@ -32,10 +40,10 @@ async def create_notebook(
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
-        raise HTTPException(status_code=501, detail="Notebook service not enabled")
+        raise HTTPException(status_code=503, detail="Notebooks are not available at this time.")
     result = await svc.create(user["id"], body.title)
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to create notebook")
+        raise HTTPException(status_code=500, detail="Could not create notebook. Please try again.")
     return result
 
 
@@ -46,7 +54,7 @@ async def list_notebooks(
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
-        raise HTTPException(status_code=501, detail="Notebook service not enabled")
+        raise HTTPException(status_code=503, detail="Notebooks are not available at this time.")
     return await svc.list(user["id"])
 
 
@@ -58,7 +66,7 @@ async def delete_notebook(
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
-        raise HTTPException(status_code=501, detail="Notebook service not enabled")
+        raise HTTPException(status_code=503, detail="Notebooks are not available at this time.")
     if await svc.delete(user["id"], notebook_id):
         return {"status": "ok"}
     raise HTTPException(status_code=404, detail="Notebook not found")
@@ -73,12 +81,12 @@ async def add_item(
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
-        raise HTTPException(status_code=501, detail="Notebook service not enabled")
+        raise HTTPException(status_code=503, detail="Notebooks are not available at this time.")
     result = await svc.add_item(
         user["id"], notebook_id, body.query, body.answer, body.citations, body.source_episode_id
     )
     if not result:
-        raise HTTPException(status_code=500, detail="Failed to add item")
+        raise HTTPException(status_code=500, detail="Could not add item. Please try again.")
     return result
 
 
@@ -91,5 +99,5 @@ async def list_items(
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
-        raise HTTPException(status_code=501, detail="Notebook service not enabled")
+        raise HTTPException(status_code=503, detail="Notebooks are not available at this time.")
     return await svc.list_items(user["id"], notebook_id, limit=limit)

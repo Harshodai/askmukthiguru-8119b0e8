@@ -34,7 +34,10 @@ async def contact_support(
     category: str = Form("Feedback"),
     attachments: list[UploadFile] = File(default_factory=list),
 ):
-    if not email or "@" not in email:
+    if not email:
+        raise HTTPException(status_code=422, detail="Valid email is required")
+    import re
+    if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
         raise HTTPException(status_code=422, detail="Valid email is required")
 
     if not subject.strip():
@@ -45,46 +48,50 @@ async def contact_support(
 
     saved_paths: list[str] = []
     tmp_dir = f"/tmp/support_attachments/{uuid.uuid4().hex}"
-    os.makedirs(tmp_dir, exist_ok=True)
-
-    for af in attachments:
-        ext = os.path.splitext(af.filename or "")[1].lower()
-        if ext not in SUPPORTED_ATTACHMENT_TYPES:
-            logger.warning("Skipped unsupported attachment type: %s", ext)
-            continue
-        content = await af.read()
-        if len(content) > MAX_ATTACHMENT_SIZE:
-            logger.warning("Skipped oversized attachment: %s", af.filename)
-            continue
-        dest = os.path.join(tmp_dir, f"{uuid.uuid4().hex}{ext}")
-        with open(dest, "wb") as f:
-            f.write(content)
-        saved_paths.append(dest)
-
-    ok = send_support_email(
-        name=name,
-        from_email=email,
-        subject=subject,
-        message=message,
-        category=category,
-        attachment_paths=saved_paths,
-    )
-
-    # Cleanup temp files
-    for p in saved_paths:
-        try:
-            os.remove(p)
-        except OSError:
-            pass
     try:
-        os.rmdir(tmp_dir)
-    except OSError:
-        pass
+        os.makedirs(tmp_dir, exist_ok=True)
 
-    if not ok:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to send message. Please try again later or email us directly.",
+        for af in attachments:
+            ext = os.path.splitext(af.filename or "")[1].lower()
+            if ext not in SUPPORTED_ATTACHMENT_TYPES:
+                logger.warning("Skipped unsupported attachment type: %s", ext)
+                continue
+            content = await af.read()
+            if len(content) > MAX_ATTACHMENT_SIZE:
+                logger.warning("Skipped oversized attachment: %s", af.filename)
+                continue
+            if ext in {".jpg", ".jpeg"}:
+                if not content.startswith(b"\xff\xd8\xff"):
+                    logger.warning("Skipped attachment with mismatched content type: %s", af.filename)
+                    continue
+            elif ext == ".png" and not content.startswith(b"\x89PNG"):
+                logger.warning("Skipped attachment with mismatched content type: %s", af.filename)
+                continue
+            elif ext == ".pdf" and not content.startswith(b"%PDF"):
+                logger.warning("Skipped attachment with mismatched content type: %s", af.filename)
+                continue
+            dest = os.path.join(tmp_dir, f"{uuid.uuid4().hex}{ext}")
+            with open(dest, "wb") as f:
+                f.write(content)
+            saved_paths.append(dest)
+
+        ok = send_support_email(
+            name=name,
+            from_email=email,
+            subject=subject,
+            message=message,
+            category=category,
+            attachment_paths=saved_paths,
         )
 
-    return {"ok": True, "message": "Message sent. We will get back to you within 24-48 hours."}
+        if not ok:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to send message. Please try again later or email us directly.",
+            )
+
+        return {"ok": True, "message": "Message sent. We will get back to you within 24-48 hours."}
+    finally:
+        import shutil
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir, ignore_errors=True)

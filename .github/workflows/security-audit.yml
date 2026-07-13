@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: GitLeaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

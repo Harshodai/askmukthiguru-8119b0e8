@@ -1,0 +1,290 @@
+{
+  "practices.soulSync.benefits": [
+    "missing",
+    "['Calms the amygdala — lowers cortisol and stress arousal.', 'Shifts brainwaves from high-beta (overthinking) to coherent alpha (calm focus).', 'Aligns your inner state with your intentions — opens the door to synchronicity.', 'Dissolves self-centred suffering states — opens the heart to love, connection, and peace.']"
+  ],
+  "practices.soulSync.howItWorks": [
+    "missing",
+    "['Conscious Breathing — sit comfortably, hands resting on your thighs, palms facing upward. Eyes closed. Take 8 slow, deep breaths, counting each one with the thumb touching each finger (index to pinky and back).', 'Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration calm your nervous system.', \"Settle in the Silent Pause — between each inhalation and exhalation, rest in the natural stillness. Don't force it — just witness.\", 'Repeat \"Aham\" — with every exhalation, mentally whisper \"Aham\" (I am — boundless consciousness). Rest in the simple feeling of being.', 'Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.', 'Hold Your Intention — in this expanded state, bring your heartfelt intention to mind. Visualise it manifest. Close with deep gratitude.']"
+  ],
+  "auth.authFailed": [
+    "fallback",
+    "Authentication failed. Please try again."
+  ],
+  "auth.checkEmail": [
+    "fallback",
+    "Check your email"
+  ],
+  "auth.couldNotConnectFacebookRetry": [
+    "fallback",
+    "Could not connect to Facebook. Please try again."
+  ],
+  "auth.emailPlaceholder": [
+    "fallback",
+    "you@example.com"
+  ],
+  "auth.enterEmailFirst": [
+    "fallback",
+    "Enter your email above first, then tap Forgot password."
+  ],
+  "auth.oneTapFailed": [
+    "fallback",
+    "Google One Tap sign-in failed. Please try again."
+  ],
+  "auth.or": [
+    "fallback",
+    "or"
+  ],
+  "auth.pageTitle": [
+    "fallback",
+    "Sign in or create account — AskMukthiGuru"
+  ],
+  "auth.passwordResetSent": [
+    "fallback",
+    "We sent you a link to reset your password."
+  ],
+  "auth.returningFromGoogle": [
+    "fallback",
+    "Returning from Google…"
+  ],
+  "auth.signInProgress": [
+    "fallback",
+    "Sign-in progress"
+  ],
+  "auth.signInTitle": [
+    "fallback",
+    "Sign in to AskMukthiGuru"
+  ],
+  "auth.stepSignIn": [
+    "fallback",
+    "Sign in"
+  ],
+  "auth.troubleSigningIn": [
+    "fallback",
+    "Trouble signing in?"
+  ],
+  "auth.tryAgain": [
+    "fallback",
+    "Please try again."
+  ],
+  "auth.verificationSent": [
+    "fallback",
+    "We sent you a verification link to complete sign-up. Tip: visit /auth/diagnostics after signing in to verify role + profile setup."
+  ],
+  "auth.yourName": [
+    "fallback",
+    "Your name"
+  ],
+  "chat.drawingFrom": [
+    "fallback",
+    "Drawing from {{tradition}}…"
+  ],
+  "chat.inviteCodePlaceholder": [
+    "fallback",
+    "sky-..."
+  ],
+  "chat.newMessagesShort": [
+    "fallback",
+    "{{count}} new"
+  ],
+  "onboarding.language.subtitle": [
+    "fallback",
+    "Select your preferred language for the Guru"
+  ],
+  "onboarding.language.continue": [
+    "fallback",
+    "Continue"
+  ],
+  "meditation.practiceComplete": [
+    "validation_failed",
+    "You have completed your practice. Carry this {{mood}} state into your day."
+  ],
+  "admin.admins": [
+    "fallback",
+    "Admins"
+  ],
+  "admin.alerts": [
+    "fallback",
+    "Alerts"
+  ],
+  "admin.evals": [
+    "fallback",
+    "Evaluations"
+  ],
+  "admin.login": [
+    "fallback",
+    "Admin Login"
+  ],
+  "admin.monitoring": [
+    "fallback",
+    "Monitoring"
+  ],
+  "admin.quality": [
+    "fallback",
+    "Quality"
+  ],
+  "admin.ragFlow": [
+    "fallback",
+    "RAG Flow"
+  ],
+  "admin.retrieval": [
+    "fallback",
+    "Retrieval"
+  ],
+  "admin.teachingTips": [
+    "fallback",
+    "Teaching Tips"
+  ],
+  "admin.telemetry": [
+    "fallback",
+    "Telemetry"
+  ],
+  "admin.unauthorized": [
+    "fallback",
+    "You do not have access to this area."
+  ],
+  "desktopSidebar.deleteTitle": [
+    "fallback",
+    "Delete conversation?"
+  ],
+  "desktopSidebar.deleteWarning": [
+    "fallback",
+    "This action cannot be undone and your teaching history will be lost."
+  ],
+  "desktopSidebar.gurusAlt": [
+    "fallback",
+    "Gurus"
+  ],
+  "desktopSidebar.memories": [
+    "fallback",
+    "{{count}} memory"
+  ],
+  "desktopSidebar.memories_plural": [
+    "fallback",
+    "{{count}} memories"
+  ],
+  "desktopSidebar.newConvTooltip": [
+    "fallback",
+    "New conversation (⌘B to expand)"
+  ],
+  "desktopSidebar.noResults": [
+    "fallback",
+    "No results"
+  ],
+  "desktopSidebar.tagline": [
+    "fallback",
+    "Your Spiritual Companion"
+  ],
+  "layout.aiService": [
+    "fallback",
+    "AI service: {{mode}}"
+  ],
+  "layout.connectedMode": [
+    "fallback",
+    "Connected to Guru"
+  ],
+  "layout.offlineMode": [
+    "fallback",
+    "Offline Mode"
+  ],
+  "layout.quick": [
+    "fallback",
+    "Quick"
+  ],
+  "layout.sereneMindTitle": [
+    "fallback",
+    "Start Serene Mind meditation"
+  ],
+  "layout.viewProfile": [
+    "fallback",
+    "View profile"
+  ],
+  "memory.active": [
+    "fallback",
+    "Active"
+  ],
+  "memory.corePlaceholder": [
+    "fallback",
+    "e.g. I'm a software engineer in Bengaluru, daily meditator for 3 years, exploring Oneness teachings…"
+  ],
+  "memory.coreSaved": [
+    "fallback",
+    "Core memory saved"
+  ],
+  "memory.couldNotForget": [
+    "fallback",
+    "Could not forget"
+  ],
+  "memory.exitFullscreen": [
+    "fallback",
+    "Exit Fullscreen (Esc)"
+  ],
+  "memory.forgetAria": [
+    "fallback",
+    "Forget this memory"
+  ],
+  "memory.forgetBtn": [
+    "fallback",
+    "Forget"
+  ],
+  "memory.forgotten": [
+    "fallback",
+    "Forgotten"
+  ],
+  "memory.graphView": [
+    "fallback",
+    "Graph view"
+  ],
+  "memory.lastSaved": [
+    "fallback",
+    "Last saved {{date}}"
+  ],
+  "memory.memories": [
+    "fallback",
+    "Memories"
+  ],
+  "memory.memoryDesc": [
+    "fallback",
+    "What the guru remembers about you."
+  ],
+  "memory.memorySavedDesc": [
+    "fallback",
+    "The guru will remember this."
+  ],
+  "memory.noMatchFound": [
+    "fallback",
+    "No matching memories found."
+  ],
+  "memory.noMemories": [
+    "fallback",
+    "No memories yet."
+  ],
+  "memory.statKgNodes": [
+    "fallback",
+    "KG Nodes"
+  ],
+  "memory.statReflections": [
+    "fallback",
+    "Reflections"
+  ],
+  "memory.unset": [
+    "fallback",
+    "Unset"
+  ],
+  "notes.bodyPlaceholder": [
+    "fallback",
+    "Write what you felt, what you want to remember…"
+  ],
+  "terms.accountTermination": [
+    "fallback",
+    "Account & termination"
+  ],
+  "terms.changes": [
+    "fallback",
+    "Changes"
+  ],
+  "terms.intellectualPropertyText": [
+    "fallback",
+    "Teachings cited are the intellectual property of Sri Preethaji, Sri Krishnaji and AUM, used here for educational and reflective purposes with attribution."
+  ]
+}

@@ -105,6 +105,15 @@ class ProfileUpdate(BaseModel):
                 raise ValueError(f"Must be one of {valid}")
         return v
 
+    @field_validator("topics_of_interest")
+    @classmethod
+    def validate_topics(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        if v is not None:
+            for t in v:
+                if len(t) > 200:
+                    raise ValueError(f"Topic too long (max 200 chars): {t[:50]}...")
+        return v
+
 
 class ChatResponse(BaseModel):
     """Chat API response body."""

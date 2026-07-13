@@ -19,8 +19,8 @@ import logging
 from typing import Any, Dict, List, Annotated
 
 from app.config import settings
+from rag.prompts import AGENTIC_TRAVERSAL_SYSTEM_PROMPT
 from rag.states import GraphState
-from langgraph.graph.state import CompiledStateGraph
 from .tools import get_concept_details, get_adjacent_concepts, get_graph_traversal_context
 
 logger = logging.getLogger(__name__)
@@ -53,8 +53,11 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
     if intent != "COMPARATIVE" and query_tier != "tier3_complex":
         return {}
 
+    request_id = state.get("request_id")
+    log_extra = {"request_id": request_id} if request_id else {}
     logger.info(
-        f"Starting Agentic Graph Traversal for intent={intent}, tier={query_tier}"
+        f"Starting Agentic Graph Traversal for intent={intent}, tier={query_tier}",
+        extra=log_extra,
     )
 
     # Initialize traversal context from state
@@ -73,6 +76,10 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
             else:
                 # Extract from query using existing pipeline function
                 start_concepts = extract_doctrine_tags(state.get("question", ""))
+
+            # Fallback: if no start concepts found, extract entity concepts from initial retrieval docs
+            if not start_concepts:
+                start_concepts = _extract_concepts_from_docs(state.get("relevant_docs", []))
 
             if start_concepts:
                 # Add starting concepts to traversal context
@@ -99,7 +106,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
                         })
 
         except Exception as e:
-            logger.warning(f"Failed to initialize graph traversal: {e}")
+            logger.warning(f"Failed to initialize graph traversal: {e}", extra={"request_id": request_id} if request_id else {})
             return {
                 "graph_traversal_error": f"Initialization failed: {str(e)}",
                 "graph_traversal_context": [],
@@ -120,6 +127,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
             context_summary,
             current_step,
             max_steps,
+            request_id=request_id,
         )
 
         if next_action.get("action") == "DONE":
@@ -135,7 +143,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
         # Execute the action
         try:
             action_result = await _execute_traversal_action(
-                next_action, state, current_step
+                next_action, state, current_step, request_id=request_id
             )
 
             if action_result:
@@ -146,14 +154,15 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
                 state["graph_traversal_done"] = next_action.get("done", False)
             else:
                 logger.warning(
-                    f"Agentic Graph Traversal: Action {next_action} returned no result"
+                    f"Agentic Graph Traversal: Action {next_action} returned no result",
+                    extra={"request_id": request_id} if request_id else {},
                 )
                 break
 
             current_step += 1
 
         except Exception as e:
-            logger.error(f"Error in Agentic Graph Traversal action: {e}")
+            logger.error(f"Error in Agentic Graph Traversal action: {e}", extra={"request_id": request_id} if request_id else {})
             break
 
     # Mark traversal as complete if we exited normally
@@ -219,7 +228,12 @@ def _prepare_context_summary(traversal_context: List[Dict]) -> Dict[str, Any]:
 
 
 async def _ask_llm_to_decide(
-    question: str, context_summary: Dict, step: int, max_steps: int
+    question: str,
+    context_summary: Dict,
+    step: int,
+    max_steps: int,
+    *,
+    request_id: str | None = None,
 ) -> Dict[str, Any]:
     """Ask the fast model to decide what to do next in the traversal."""
     try:
@@ -227,71 +241,46 @@ async def _ask_llm_to_decide(
 
         ollama = OllamaService()
 
-        system_prompt = """
-        You are a spiritual knowledge navigator helping the user understand relationships
-        between spiritual concepts. You are walking through an ontology graph to gather
-        context for a comparative question.
+        # Build actual entity IDs from traversed context, not just counts.
+        traversed_ids = [
+            c.get("entity_id") for c in context_summary.get("concepts_found", [])
+        ]
+        candidate_ids = [eid for eid in traversed_ids if eid] or ["none yet"]
+        candidate_concepts = "\n".join(f"- {eid}" for eid in candidate_ids)
 
-        Current Situation:
-        - Step {step} of {max_steps}
-        - {traversal_summary}
-        - Original question: {question}
-
-        Available Actions:
-        1. EXPLORE: Look at details of a specific concept (requires entity_id)
-        2. NAVIGATE: Follow relationships from a concept to discover connected concepts
-        3. DONE: Stop traversal - you have enough context to answer
-        4. STOP: Stop early - something went wrong or you don't need more context
-
-        Criteria for Action Selection:
-        - If you already have the concepts directly mentioned in the question, choose DONE
-        - If you need to understand a concept's properties, use EXPLORE
-        - If you need to find relationships, use NAVIGATE
-        - If you haven't found the right concepts yet, continue with NAVIGATE
-
-        For EXPLORE/NAVIGATE: Provide the entity_id (e.g., from the concepts we already found)
-
-        Examples:
-        Action: EXPLORE, entity_id: "Karma", reasoning: "Need to understand what Karma means"
-        Action: NAVIGATE, entity_id: "Beautiful State", reasoning: "Find what concepts relate to this"
-        Action: DONE, reasoning: "Found all necessary concepts for the comparative question"
-        Action: STOP, reasoning: "Something went wrong or reached sufficient context"
-
-        Respond with ONLY a JSON-like structure:
-        {{"action": "EXPLORE"/"NAVIGATE"/"DONE"/"STOP", "entity_id": "...", "reasoning": "..."}}
-        """
-
-        # Format context for the prompt
-        context_str = (
-            f"Traversed concepts: {len(context_summary.get('concepts_found', []))}, "
-            f"Connections: {len(context_summary.get('connections', []))}"
+        system_prompt = AGENTIC_TRAVERSAL_SYSTEM_PROMPT.format(
+            step=step + 1,
+            max_steps=max_steps,
+            traversal_summary=context_summary.get(
+                "traversal_summary", "Starting traversal from scratch"
+            ),
+            question=question,
+            candidate_concepts=candidate_concepts,
         )
 
-        user_prompt = f"""
-        Current State: {context_str}
-        Need to answer: {question}
-
-        What should we do next? Choose from:
-        1. EXPLORE <entity_id> - Look at details of a concept
-        2. NAVIGATE <entity_id> - Follow relationships from a concept
-        3. DONE - Stop traversal
-        4. STOP - Stop early
-
-        If EXPLORE or NAVIGATE, provide the entity_id from our traversed concepts.
-        """
+        user_prompt = (
+            f"Already traversed concept IDs: {', '.join(candidate_ids)}\n"
+            f"Need to answer: {question}\n\n"
+            "What should we do next? Return ONLY a JSON object with 'action', 'entity_id', and 'reasoning'."
+        )
 
         response = await ollama._generate_fast(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             timeout=FAST_MODEL_TIMEOUT,
             max_retries=1,
+            model=FAST_MODEL_NAME,
+            metadata={"request_id": request_id} if request_id else None,
         )
 
         # Parse response
         return _parse_llm_traversal_decision(response, context_summary)
 
     except Exception as e:
-        logger.error(f"Error asking LLM to decide traversal: {e}")
+        logger.error(
+            f"Error asking LLM to decide traversal: {e}",
+            extra={"request_id": request_id} if request_id else {},
+        )
         return {
             "action": "STOP",
             "reasoning": f"Failed to get LLM decision: {str(e)}",
@@ -301,18 +290,36 @@ async def _ask_llm_to_decide(
 def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[str, Any]:
     """Parse the LLM's traversal decision from its response.
 
-    Action detection is case-insensitive, but entity ids are extracted from the
-    original (case-preserving) text so Neo4j lookups keep their casing.
+    Prefer a strict JSON response. Fall back to heuristic text matching for
+    non-JSON outputs. Entity IDs are case-preserving so Neo4j lookups keep
+    their casing.
     """
-    raw = (response or "").strip()
-    lowered = raw.lower()
+    import json
+    import re
 
-    # Look for patterns in response
+    raw = (response or "").strip()
+
+    # 1. Try strict JSON first.
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            action = (parsed.get("action") or "").upper()
+            if action in {"EXPLORE", "NAVIGATE", "DONE", "STOP"}:
+                return {
+                    "action": action,
+                    "entity_id": parsed.get("entity_id"),
+                    "reasoning": parsed.get("reasoning") or response,
+                    "done": action in {"DONE", "STOP"} and (parsed.get("done") is not False),
+                }
+    except json.JSONDecodeError:
+        pass
+
+    lowered = raw.lower()
     action = "STOP"
     entity_id = None
     reasoning = ""
 
-    # Check for explicit DONE/STOP
+    # 2. Heuristic fallback for non-JSON responses.
     if "done" in lowered:
         return {
             "action": "DONE",
@@ -327,8 +334,6 @@ def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[
             "done": False,
         }
 
-    # Try to extract entity_id for EXPLORE/NAVIGATE
-    # Pattern: "explore karm" or "navigate karma"
     if "explore" in lowered or "look at" in lowered:
         action = "EXPLORE"
     elif "navigate" in lowered or "follow" in lowered:
@@ -338,11 +343,8 @@ def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[
         reasoning = f"Unclear action in LLM response: {raw[:100]}"
 
     # Extract entity_id - case-preserving so graph ids keep their casing
-    import re
-
-    # Look for entity patterns (word(s) after the action verb)
     entity_match = re.search(
-        r"(?:explore|navigate|follow)\s+(?:concept\s+)?([A-Za-z][A-Za-z\s'\-]+?)(?:\s|$|,|\.|\"|')",
+        r"(?:explore|navigate|follow)\s+(?:concept\s+)?([A-Za-z][A-Za-z\s'\-]+?)(?:\s|$|,|\.|\"|\')",
         raw,
     )
     if entity_match:
@@ -353,9 +355,8 @@ def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[
     if quoted_match:
         entity_id = quoted_match.group(1).strip()
 
-    # If no entity_id found, use a generic one to signal next action
+    # If no entity_id found, use the first concept from context if available
     if not entity_id:
-        # Use the first concept from context if available
         concepts = context_summary.get("concepts_found", [])
         if concepts:
             entity_id = concepts[0].get("entity_id")
@@ -365,12 +366,17 @@ def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[
     return {
         "action": action,
         "entity_id": entity_id,
-        "reasoning": response,
+        "reasoning": response if not reasoning else reasoning,
+        "done": action == "DONE",
     }
 
 
 async def _execute_traversal_action(
-    action: Dict[str, Any], state: GraphState, step: int
+    action: Dict[str, Any],
+    state: GraphState,
+    step: int,
+    *,
+    request_id: str | None = None,
 ) -> Optional[Dict[str, Any]]:
     """Execute the LLM-decided traversal action."""
     action_name = action.get("action")
@@ -421,8 +427,27 @@ async def _execute_traversal_action(
             return {"context_chunks": [], "done": False}
 
     except Exception as e:
-        logger.error(f"Error executing traversal action {action_name} for {entity_id}: {e}")
+        logger.error(
+            f"Error executing traversal action {action_name} for {entity_id}: {e}",
+            extra={"request_id": request_id} if request_id else {},
+        )
         return None
+
+
+def _extract_concepts_from_docs(docs: List[Dict]) -> List[str]:
+    """Extract likely ontology entity concepts from relevant docs as fallback."""
+    concepts: set[str] = set()
+    for doc in docs:
+        text = doc.get("text") or ""
+        # Look for bolded/mentioned concepts and explicit entity IDs in metadata.
+        for candidate in doc.get("metadata", {}).get("concepts", []) or []:
+            if isinstance(candidate, str):
+                concepts.add(candidate.strip())
+        # Simple pattern for **Concept Name** mentions.
+        import re
+        for match in re.finditer(r"\*\*([A-Z][A-Za-z\s'-]{2,40})\*\*", text):
+            concepts.add(match.group(1).strip())
+    return list(concepts)[:5]
 
 
 def _has_meaningful_traversal(traversal_context: List[Dict]) -> bool:

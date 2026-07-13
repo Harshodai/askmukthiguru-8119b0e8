@@ -3,7 +3,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 const projectRoot = '/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8';
-const pluginRoot = '/Users/harshodaikolluru/.claude/plugins/cache/understand-anything/understand-anything/2.7.7';
+const pluginRoot = '/Users/harshodaikolluru/.claude/plugins/cache/understand-anything/understand-anything/2.8.2';
 
 const computeBatchesScript = path.join(pluginRoot, 'skills/understand/compute-batches.mjs');
 const extractStructureScript = path.join(pluginRoot, 'skills/understand/extract-structure.mjs');

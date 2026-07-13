@@ -31,6 +31,25 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Pre-extracted transcript staleness thresholds (in seconds)
+PRE_EXTRACTED_MAX_AGE_WARN = 7 * 24 * 60 * 60   # 7 days — warn but use
+PRE_EXTRACTED_MAX_AGE_SKIP = 30 * 24 * 60 * 60  # 30 days — skip, re-fetch from YouTube
+
+
+def fetch_youtube_title(video_id: str) -> Optional[str]:
+    """Fetch YouTube video title via oEmbed API."""
+    import httpx
+    url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("title")
+    except Exception as e:
+        logger.debug(f"[{video_id}] Failed to fetch YouTube title via oEmbed: {e}")
+    return None
+
 
 def _get_cookies_opts() -> dict:
     """Get yt-dlp cookie options. Falls back to Chrome cookies if cookies.txt is not found."""
@@ -358,6 +377,10 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
 # Main Transcript Fetcher + Council Logic
 # ============================================================
 
+# Pre-extracted transcript max age (seconds) — warn if older, skip if > 30 days
+PRE_EXTRACTED_MAX_AGE_WARN = 7 * 24 * 60 * 60    # 7 days
+PRE_EXTRACTED_MAX_AGE_SKIP = 30 * 24 * 60 * 60   # 30 days
+
 
 def fetch_transcript_hybrid(
     video_id: str,
@@ -372,7 +395,7 @@ def fetch_transcript_hybrid(
     Tries 3 distinct tiers:
     1. Direct API manual captions
     2. Direct API auto-generated captions
-    3. Final fallback: yt-dlp subtitle download (VTT)
+    3. yt-dlp subtitle download + VTT parsing (fallback when API rate-limited)
 
     If Transcript Council is enabled:
     - ALSO runs local Whisper large-v3-turbo STT
@@ -384,6 +407,27 @@ def fetch_transcript_hybrid(
         and 'council' info (youtube_score, sarvam_score, winner)
     """
     import json
+    import os
+    import time
+
+    # Helper to check if a title looks like a YouTube video ID
+    def _is_video_id_title(t: str) -> bool:
+        return len(t) == 11 and all(c.isalnum() or c in '_-' for c in t)
+
+    # Helper: check pre-extracted file staleness
+    def _check_staleness(path: str, source: str) -> tuple[bool, bool]:
+        """Returns (warn, skip) based on file age and YouTube metadata drift."""
+        try:
+            mtime = os.path.getmtime(path)
+            age = time.time() - mtime
+            warn = age > PRE_EXTRACTED_MAX_AGE_WARN
+            skip = age > PRE_EXTRACTED_MAX_AGE_SKIP
+            if warn or skip:
+                logger.warning(f"[{video_id}] Pre-extracted {source} age: {age/86400:.1f} days — {'WARN' if warn else 'OK'}, {'SKIP' if skip else 'USE'}")
+            
+            return warn, skip
+        except Exception:
+            return False, False
 
     source_url = f"https://www.youtube.com/watch?v={video_id}"
     languages = settings.transcript_languages_list
@@ -397,21 +441,34 @@ def fetch_transcript_hybrid(
     )
     if os.path.exists(transcripts_json_path):
         try:
-            with open(transcripts_json_path, encoding="utf-8") as f:
-                data = json.load(f)
-                if video_id in data and data[video_id].get("captions"):
-                    logger.info(f"[{video_id}] Found pre-extracted transcript in transcripts.json!")
-                    return {
-                        "text": data[video_id]["captions"],
-                        "source_url": source_url,
-                        "title": data[video_id].get("title")
-                        or data[video_id].get("videoId")
-                        or title,
-                        "speaker": data[video_id].get("channelName", "Unknown"),
-                        "topic": topic,
-                        "language": data[video_id].get("language_code"),
-                        "method": "pre_extracted_json",
-                    }
+            warn, skip = _check_staleness(transcripts_json_path, "transcripts.json")
+            if not skip:
+                with open(transcripts_json_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                    if video_id in data and data[video_id].get("captions"):
+                        logger.info(f"[{video_id}] Found pre-extracted transcript in transcripts.json!")
+                        json_title = data[video_id].get("title") or data[video_id].get("videoId") or title
+                        # If title looks like a video ID, fetch real YouTube title via oEmbed
+                        if _is_video_id_title(json_title):
+                            yt_title = fetch_youtube_title(video_id)
+                            if yt_title:
+                                json_title = yt_title
+                                logger.info(f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}")
+                        return {
+                            "text": data[video_id]["captions"],
+                            "source_url": source_url,
+                            "title": json_title,
+                            "speaker": data[video_id].get("channelName", "Unknown"),
+                            "topic": topic,
+                            "language": data[video_id].get("language_code"),
+                            "method": "pre_extracted_json",
+                            "video_id": video_id,
+                            "channel_name": data[video_id].get("channelName"),
+                            "published_at": data[video_id].get("published_at"),
+                            "duration": data[video_id].get("duration"),
+                            "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                            "view_count": data[video_id].get("view_count"),
+                        }
         except Exception as e:
             logger.warning(f"[{video_id}] Error reading transcripts.json: {e}")
 
@@ -423,35 +480,49 @@ def fetch_transcript_hybrid(
     )
     if os.path.exists(transcript_md_path):
         try:
-            with open(transcript_md_path, encoding="utf-8") as f:
-                content = f.read()
-                if "## Transcript" in content:
-                    parts = content.split("## Transcript")
-                    transcript_text = parts[1].strip()
-                    if transcript_text:
-                        logger.info(
-                            f"[{video_id}] Found pre-extracted transcript in {video_id}.md!"
-                        )
-                        # extract title if possible
-                        parsed_title = title
-                        parsed_speaker = ""
-                        parsed_language = ""
-                        for line in content.split("\n"):
-                            if line.startswith("# "):
-                                parsed_title = line[2:].strip()
-                            elif line.startswith("**Channel:**"):
-                                parsed_speaker = line.split("**Channel:**", 1)[1].strip().strip("`")
-                            elif line.startswith("**Language:**"):
-                                parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
-                        return {
-                            "text": transcript_text,
-                            "source_url": source_url,
-                            "title": parsed_title or title,
-                            "speaker": parsed_speaker or speaker,
-                            "topic": topic,
-                            "language": parsed_language or None,
-                            "method": "pre_extracted_md",
-                        }
+            warn, skip = _check_staleness(transcript_md_path, f"{video_id}.md")
+            if not skip:
+                with open(transcript_md_path, encoding="utf-8") as f:
+                    content = f.read()
+                    if "## Transcript" in content:
+                        parts = content.split("## Transcript")
+                        transcript_text = parts[1].strip()
+                        if transcript_text:
+                            logger.info(
+                                f"[{video_id}] Found pre-extracted transcript in {video_id}.md!"
+                            )
+                            # extract title if possible
+                            parsed_title = title
+                            parsed_speaker = ""
+                            parsed_language = ""
+                            for line in content.split("\n"):
+                                if line.startswith("# "):
+                                    parsed_title = line[2:].strip()
+                                elif line.startswith("**Channel:**"):
+                                    parsed_speaker = line.split("**Channel:**", 1)[1].strip().strip("`")
+                                elif line.startswith("**Language:**"):
+                                    parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
+                            # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
+                            if _is_video_id_title(parsed_title):
+                                yt_title = fetch_youtube_title(video_id)
+                                if yt_title:
+                                    parsed_title = yt_title
+                                    logger.info(f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}")
+                            return {
+                                "text": transcript_text,
+                                "source_url": source_url,
+                                "title": parsed_title or title,
+                                "speaker": parsed_speaker or speaker,
+                                "topic": topic,
+                                "language": parsed_language or None,
+                                "method": "pre_extracted_md",
+                                "video_id": video_id,
+                                "channel_name": parsed_speaker or None,
+                                "published_at": None,  # Not typically in .md files
+                                "duration": None,
+                                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                                "view_count": None,
+                            }
         except Exception as e:
             logger.warning(f"[{video_id}] Error reading {video_id}.md: {e}")
 
@@ -513,9 +584,15 @@ def fetch_transcript_hybrid(
                 "topic": topic,
                 "language": None,
                 "method": "failed",
-                "error": "All transcript extraction methods failed",
-                "council": council_info,
-            }
+            "error": "All transcript extraction methods failed",
+            "council": council_info,
+            "video_id": video_id,
+            "channel_name": None,
+            "published_at": None,
+            "duration": None,
+            "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+            "view_count": None,
+        }
 
         logger.info(
             f"[{video_id}] ✅ Council complete: {method} "
@@ -530,6 +607,12 @@ def fetch_transcript_hybrid(
             "language": None,
             "method": method,
             "council": council_info,
+            "video_id": video_id,
+            "channel_name": None,
+            "published_at": None,
+            "duration": None,
+            "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+            "view_count": None,
         }
 
     # ── No council: use YouTube only ──
@@ -542,6 +625,12 @@ def fetch_transcript_hybrid(
             "topic": topic,
             "language": None,
             "method": "youtube_captions",
+            "video_id": video_id,
+            "channel_name": None,
+            "published_at": None,
+            "duration": None,
+            "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+            "view_count": None,
         }
 
     logger.error(f"[{video_id}] ❌ All transcript extraction methods failed.")
@@ -554,6 +643,12 @@ def fetch_transcript_hybrid(
         "language": None,
         "method": "failed",
         "error": "All transcript extraction methods failed",
+        "video_id": video_id,
+        "channel_name": None,
+        "published_at": None,
+        "duration": None,
+        "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+        "view_count": None,
     }
 
 

@@ -33,6 +33,27 @@ async def test_proactive_serene_mind_dict_return(monkeypatch):
     assert isinstance(result, dict)
     assert result == {"triggered": False}
 
+
+@pytest.mark.asyncio
+async def test_persistent_distress_checks_trend_without_a_new_keyword():
+    from types import SimpleNamespace
+
+    from app.pipeline.stages.distress_stage import DistressStage
+
+    stage = DistressStage()
+    stage._detect_distress = AsyncMock()
+    stage._maybe_trigger_proactive_serene_mind = AsyncMock(return_value={"triggered": False})
+    ctx = SimpleNamespace(
+        state={"user_msg_en": "I had tea", "distress_history": [{"score": 2}]},
+        user_id="test-user",
+        request=MagicMock(),
+    )
+
+    await stage.run(ctx)
+
+    stage._detect_distress.assert_not_awaited()
+    stage._maybe_trigger_proactive_serene_mind.assert_awaited_once()
+
 @pytest.mark.asyncio
 async def test_ingestion_deduplication(tmp_path, monkeypatch):
     checkpoint_file = tmp_path / "ingest_checkpoint.json"
