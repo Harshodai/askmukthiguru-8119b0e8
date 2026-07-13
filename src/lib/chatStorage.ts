@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface MessageFeedback {
   vote: 'up' | 'down';
@@ -206,7 +207,6 @@ export const clearChatHistory = (): void => {
 // Fire-and-forget: never blocks the local-first save. Failures are logged only.
 async function syncConversationToDb(conversation: Conversation): Promise<void> {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
     const { data: { session } } = await supabase.auth.getSession();
     const userId = session?.user?.id;
     if (!userId) return;
@@ -313,10 +313,8 @@ export const deleteConversation = (id: string): void => {
     const conversations = loadConversations();
     const filtered = conversations.filter(c => c.id !== id);
     localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(filtered));
-    // Mirror delete to DB (cascade removes chat_messages via RLS-scoped query)
     void (async () => {
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) return;
         await supabase.from('chat_messages').delete().eq('conversation_id', id);
@@ -360,7 +358,6 @@ export const renameConversation = (id: string, newTitle: string): void => {
       localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
       void (async () => {
         try {
-          const { supabase } = await import('@/integrations/supabase/client');
           const { data: { session } } = await supabase.auth.getSession();
           if (!session?.user?.id) return;
           await supabase

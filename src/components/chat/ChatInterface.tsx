@@ -611,7 +611,6 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
       // Fire-and-forget; never blocks UI; ignores errors (e.g. anon user).
       void (async () => {
         try {
-          const { supabase } = await import('@/integrations/supabase/client');
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           await supabase.from('profiles').update({
