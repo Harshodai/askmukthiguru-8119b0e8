@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface StudyNotebook {
   id: string;
@@ -25,7 +26,6 @@ function errMsg(e: unknown, fallback: string): string {
 
 async function getToken(): Promise<string | null> {
   try {
-    const { supabase } = await import("@/integrations/supabase/client");
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? null;
   } catch {

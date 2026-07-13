@@ -28,6 +28,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useTheme } from '@/hooks/useTheme';
 import { exportAllData, getInitials, resetProfile } from '@/lib/profileStorage';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UserMenuProps {
   onRestartTour?: () => void;
@@ -138,7 +139,6 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={async () => {
-            const { supabase } = await import('@/integrations/supabase/client');
             await supabase.auth.signOut();
             resetProfile();
             navigate('/auth');
