@@ -1,29 +1,49 @@
-# ============================================================
-# Mukthi Guru — Frontend Dockerfile
-# Multi-stage build: Vite → Nginx static serving
-# ============================================================
+# ── Mukthi Guru — Railway Production Dockerfile ─────────────────────────────
+# Optimised for Railway.app:
+#   - Python 3.12 slim to minimise image size
+#   - No dev dependencies (no FlashRank, no ipykernel, etc.)
+#   - Health check via /api/health
+#   - 2 uvicorn workers for concurrency under production load
 
-FROM node:20-alpine AS builder
+FROM python:3.12-slim
+
+# System deps: curl for healthcheck, gcc for any compiled extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gcc g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -s /bin/bash appuser
 
 WORKDIR /app
 
-# Install dependencies first (cache layer)
-COPY package*.json ./
-RUN npm ci
+# Install Python deps before copying app code (cache layer)
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source and build
-COPY . .
-RUN npm run build
+# Copy app code
+COPY backend/ .
 
-# --- Final stage: Nginx ---
-FROM nginx:1.25-alpine
+# OKF compiled index lives at the repo root, not under backend/; retrieval.py
+# resolves it to /app/memory/okf/compiled.json inside the image. See backend/Dockerfile.
+COPY memory/ ./memory/
 
-# Copy built static files
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Create data and cache directories and ensure proper permissions for non-root user
+RUN mkdir -p /app/data /app/.cache && chown -R appuser:appuser /app
 
-# Copy custom Nginx config for SPA routing
-COPY k8s/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+# Production environment flags
+ENV ENV=production \
+    IS_PRODUCTION=true \
+    WEB_CONCURRENCY=2 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-EXPOSE 80
+EXPOSE 8000
 
-CMD ["nginx", "-g", "daemon off;"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
+
+USER appuser
+
+# Railway sets $PORT; uvicorn reads it
+CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2}
