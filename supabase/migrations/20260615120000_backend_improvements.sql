@@ -23,8 +23,8 @@ CREATE TRIGGER trg_touch_last_message
 AFTER INSERT ON public.chat_messages
 FOR EACH ROW EXECUTE FUNCTION public.touch_user_last_message();
 
--- ── 2. Bhakti analytics ──
-CREATE OR REPLACE VIEW public.v_meditation_heatmap AS
+CREATE OR REPLACE VIEW public.v_meditation_heatmap 
+WITH (security_invoker = true) AS
 SELECT user_id,
        date_trunc('day', started_at)::date AS day,
        COUNT(*) AS sessions,
