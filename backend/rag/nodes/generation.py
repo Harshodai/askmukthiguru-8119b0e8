@@ -399,9 +399,8 @@ def _cite_sentences(
         "jaccard": getattr(settings, "citation_jaccard_threshold", 0.18),
         "cosine": getattr(settings, "citation_cosine_threshold", 0.65),
     }
-    intent_thresholds.update(
-        getattr(settings, "citation_thresholds_by_intent", {}).get(intent, {})
-    )
+    thresholds_by_intent = getattr(settings, "citation_thresholds_by_intent", {}) or {}
+    intent_thresholds.update(thresholds_by_intent.get(intent, {}))
     jaccard_threshold = intent_thresholds.get("jaccard", threshold)
     cosine_threshold = intent_thresholds.get("cosine", cosine_threshold)
 

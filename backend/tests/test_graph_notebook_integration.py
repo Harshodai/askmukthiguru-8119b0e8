@@ -117,7 +117,9 @@ async def test_add_explicit_temporal_superseding():
     # Mock RPC returning a near-duplicate memory target
     mock_rpc_resp = MagicMock()
     mock_rpc_resp.data = [{"id": "old-mem-uuid", "similarity": 0.95}]
-    mock_supabase.rpc.return_value = mock_rpc_resp
+    mock_rpc = MagicMock()
+    mock_rpc.execute = MagicMock(return_value=mock_rpc_resp)
+    mock_supabase.rpc.return_value = mock_rpc
     
     # Mock base class add_explicit (super().add_explicit)
     mock_add_explicit_resp = {"id": "old-mem-uuid", "content": "Updated content"}
@@ -141,3 +143,6 @@ async def test_add_explicit_temporal_superseding():
         
         # Verify Neo4j session run was called to update/supersede the old memory and insert new
         assert mock_session.run.called
+        # Assert that the superseding Cypher statement was executed
+        cypher_calls = " ".join(str(call) for call in mock_session.run.call_args_list)
+        assert "is_superseded" in cypher_calls or "SUPERSEDED_BY" in cypher_calls

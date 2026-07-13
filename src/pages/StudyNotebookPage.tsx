@@ -185,7 +185,13 @@ export default function StudyNotebookPage() {
           ))}
         </div>
 
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <Dialog open={showCreate} onOpenChange={(open) => {
+          if (!open) {
+            voice.stopListening();
+            voice.resetTranscript();
+          }
+          setShowCreate(open);
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Notebook</DialogTitle>
@@ -206,6 +212,7 @@ export default function StudyNotebookPage() {
                   size="icon"
                   disabled={!voice.isSupported}
                   onClick={() => voice.isListening ? voice.stopListening() : void voice.startListening()}
+                  aria-label={voice.isListening ? "Stop voice input" : "Start voice input"}
                   className={cn(voice.isListening && "border-emerald-500 text-emerald-500 animate-pulse")}
                 >
                   {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}

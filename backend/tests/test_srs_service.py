@@ -41,7 +41,7 @@ async def test_review_card_sm2_algorithm():
     }]
 
     mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute = MagicMock(return_value=mock_select_resp)
-    mock_supabase.table.return_value.update.return_value.eq.return_value.eq.return_value.execute = MagicMock(return_value=mock_update_resp)
+    mock_supabase.table.return_value.update.return_value.eq.return_value.eq.return_value.eq.return_value.execute = MagicMock(return_value=mock_update_resp)
 
     service = SRSService(mock_supabase)
 

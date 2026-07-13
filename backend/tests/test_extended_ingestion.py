@@ -15,6 +15,7 @@ async def test_pdf_ingestion_routing():
     mock_page = MagicMock()
     mock_page.get_text.return_value = "Spiritual teachings text from PDF"
     mock_doc.__iter__ = MagicMock(return_value=iter([mock_page]))
+    mock_doc.__enter__.return_value = mock_doc
 
     with patch("requests.get") as mock_get, \
          patch("fitz.open", return_value=mock_doc) as mock_fitz_open, \

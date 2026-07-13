@@ -318,11 +318,14 @@ class ServiceContainer:
             # ponytail: reuse the same supabase_client built above — no new connection.
             self.episodic_memory_service = EpisodicMemoryService(supabase_client=self.supabase_client)
             self.notebook_service = NotebookService(supabase_client=self.supabase_client)
+            from services.srs_service import SRSService
+            self.srs_service = SRSService(supabase_client=self.supabase_client, ollama_service=self.ollama)
         else:
             self.user_profile = None
             self.memory_service = None
             self.episodic_memory_service = None
             self.notebook_service = None
+            self.srs_service = None
 
     def _build_ingestion(self) -> None:
         """Layer 7: Ingestion pipeline (depends on core services)."""

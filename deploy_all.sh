@@ -378,7 +378,7 @@ echo "║ 2. Run data migration:                                               �
 echo "║    ./migrate_data.sh                                                 ║"
 echo "║ 3. Configure Lovable:                                                ║"
 echo "║    Open https://askmukthiguru.lovable.app → Settings → Env Vars      ║"
-echo "║    VITE_API_URL = $BACKEND_URL"
+echo "║    VITE_BACKEND_URL = $BACKEND_URL"
 echo "║    Deploy                                                            ║"
 echo "║ 4. Test end-to-end:                                                  ║"
 echo "║    curl $BACKEND_URL/api/health"
@@ -395,7 +395,7 @@ Log: $LOG_FILE
 Next Steps:
 1. Set API keys in Railway Dashboard
 2. Run ./migrate_data.sh
-3. Configure Lovable VITE_API_URL=$BACKEND_URL
+3. Configure Lovable VITE_BACKEND_URL=$BACKEND_URL
 4. Test end-to-end
 EOF
 

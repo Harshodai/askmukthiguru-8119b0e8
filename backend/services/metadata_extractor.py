@@ -72,7 +72,6 @@ def _load_cache() -> dict:
                         continue
                     if now - cached_at <= CACHE_TTL_SECONDS:
                         valid[vid] = {k: v for k, v in entry.items() if k != "cached_at"}
-                        valid[vid]["cached_at"] = cached_at
                     else:
                         logger.debug(f"[{vid}] Cache entry expired, will refresh")
             return valid

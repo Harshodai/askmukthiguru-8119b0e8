@@ -51,12 +51,16 @@ async def contact_support(
     try:
         os.makedirs(tmp_dir, exist_ok=True)
 
+        if len(attachments) > MAX_ATTACHMENTS:
+            logger.warning("Too many attachments (%d), limiting to %d", len(attachments), MAX_ATTACHMENTS)
+            attachments = attachments[:MAX_ATTACHMENTS]
+
         for af in attachments:
             ext = os.path.splitext(af.filename or "")[1].lower()
             if ext not in SUPPORTED_ATTACHMENT_TYPES:
                 logger.warning("Skipped unsupported attachment type: %s", ext)
                 continue
-            content = await af.read()
+            content = await af.read(MAX_ATTACHMENT_SIZE + 1)
             if len(content) > MAX_ATTACHMENT_SIZE:
                 logger.warning("Skipped oversized attachment: %s", af.filename)
                 continue

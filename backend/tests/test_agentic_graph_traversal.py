@@ -100,7 +100,7 @@ def _sample_node_record(entity_id="Karma", name="Karma", node_type="Concept"):
 
 
 def _make_driver_for_details():
-    """Driver whose execute_read runs the callback with a tx-like object."""
+    """Driver whose session().execute_read runs the callback with a tx-like object."""
     class _Tx:
         def run(self, cypher, entity_id=None):
             return _sample_node_record()
@@ -109,7 +109,9 @@ def _make_driver_for_details():
         return fn(_Tx())
 
     driver = MagicMock()
-    driver.execute_read = _execute_read
+    session_mock = MagicMock()
+    session_mock.execute_read = _execute_read
+    driver.session.return_value = session_mock
     return driver
 
 
@@ -282,7 +284,9 @@ def test_get_adjacent_concepts():
 
     container = MagicMock()
     driver = MagicMock()
-    driver.execute_read = _execute_read
+    session_mock = MagicMock()
+    session_mock.execute_read = _execute_read
+    driver.session.return_value = session_mock
     container.neo4j_driver = driver
     with patch("app.dependencies.get_container", return_value=container):
         result = asyncio.run(get_adjacent_concepts("Karma", _base_state()))

@@ -21,6 +21,7 @@ export const FlashcardPractice = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fetchState, setFetchState] = useState<'initial' | 'success' | 'error'>('initial');
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDueCards = async () => {
     setLoading(true);
@@ -93,17 +94,19 @@ export const FlashcardPractice = () => {
       });
 
       if (response.ok) {
-        // Transition to next card
+        setError(null);
         if (currentIndex < cards.length - 1) {
           setCurrentIndex((prev) => prev + 1);
           setShowAnswer(false);
         } else {
-          // All caught up / reload
           fetchDueCards();
         }
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        setError(errData.message || "Failed to submit review");
       }
     } catch (error) {
-      console.error('Failed to submit card review:', error);
+      setError("Network error — could not submit review");
     } finally {
       setSubmitting(false);
     }
@@ -195,6 +198,7 @@ export const FlashcardPractice = () => {
             </Button>
           ) : (
             <div className="space-y-3">
+              {error && <p className="text-red-400 text-xs text-center mt-2">{error}</p>}
               <span className="text-[10px] text-zinc-400 font-medium block text-center">
                 Rate your recollection difficulty to schedule the next review:
               </span>

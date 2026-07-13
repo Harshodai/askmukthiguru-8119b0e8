@@ -70,7 +70,7 @@ def extract_citations(state: GraphState) -> dict:
 
             # Skip citations from YouTube videos with video ID as title (metadata extraction failed)
             if _is_youtube_url(source) and _is_youtube_video_id_title(title):
-                logger.debug(f"Skipping citation from YouTube video with ID-only title: {title}")
+                logger.debug(f"Skipping citation from YouTube video with ID-only title: {title}", extra={"request_id": state.get("request_id")})
                 continue
 
             # For YouTube videos, also verify title relevance to answer
@@ -78,7 +78,7 @@ def extract_citations(state: GraphState) -> dict:
             if _is_youtube_url(source) and title:
                 title_relevance = _jaccard(sent, title)
                 if title_relevance < 0.05:
-                    logger.debug(f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})")
+                    logger.debug(f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})", extra={"request_id": state.get("request_id")})
                     continue
 
             citations.append({

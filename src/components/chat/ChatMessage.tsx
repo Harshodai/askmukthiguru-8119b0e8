@@ -141,32 +141,32 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
     window.addEventListener('message', handleMessage);
 
     // If the API script is already present, register a real player to listen for errors.
+    // Use an off-screen probe element so the visible iframe is the only DOM node.
+    let probeContainer: HTMLDivElement | null = null;
     if (window.YT?.Player) {
-      const containerId = `yt-player-${videoId}-${Math.random().toString(36).slice(2, 8)}`;
-      const container = document.getElementById('yt-player-root');
-      if (container) {
-        const playerEl = document.createElement('div');
-        playerEl.id = containerId;
-        container.appendChild(playerEl);
-        playerRef.current = new window.YT.Player(containerId, {
-          videoId,
-          playerVars: { autoplay: 1, enablejsapi: 1, origin: window.location.origin },
-          events: {
-            onReady: (event) => {
-              event.target.addEventListener('onError', (e) => {
-                if (e.data === 101 || e.data === 150) {
-                  setEmbedError(true);
-                }
-              });
-            },
-            onError: (event) => {
-              if (event.data === 101 || event.data === 150) {
+      const containerId = `yt-probe-${videoId}-${Math.random().toString(36).slice(2, 8)}`;
+      probeContainer = document.createElement('div');
+      probeContainer.id = containerId;
+      probeContainer.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;';
+      document.body.appendChild(probeContainer);
+      playerRef.current = new window.YT.Player(containerId, {
+        videoId,
+        playerVars: { autoplay: 1, enablejsapi: 1, origin: window.location.origin },
+        events: {
+          onReady: (event) => {
+            event.target.addEventListener('onError', (e) => {
+              if (e.data === 101 || e.data === 150) {
                 setEmbedError(true);
               }
-            },
+            });
           },
-        });
-      }
+          onError: (event) => {
+            if (event.data === 101 || event.data === 150) {
+              setEmbedError(true);
+            }
+          },
+        },
+      });
     }
 
     return () => {
@@ -177,6 +177,9 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
         // ignore cleanup errors
       }
       playerRef.current = null;
+      if (probeContainer) {
+        probeContainer.remove();
+      }
     };
   }, [loaded, videoId]);
 

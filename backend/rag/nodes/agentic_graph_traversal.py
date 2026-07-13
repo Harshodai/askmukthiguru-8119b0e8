@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Annotated
+from typing import Any, Dict, List, Optional, Annotated
 
 from app.config import settings
 from rag.prompts import AGENTIC_TRAVERSAL_SYSTEM_PROMPT
@@ -82,9 +82,11 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
                 start_concepts = _extract_concepts_from_docs(state.get("relevant_docs", []))
 
             if start_concepts:
-                # Add starting concepts to traversal context
                 for concept_id in start_concepts[:3]:  # Limit to top 3 concepts
+                    if current_step >= max_steps:
+                        break
                     concept_result = await get_concept_details(concept_id, state)
+                    current_step += 1
 
                     if concept_result.get("node_data"):
                         traversal_context.append({
@@ -94,9 +96,9 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
                             "reasoning": f"Starting concept from doctrine tags",
                         })
 
-                    # Also get adjacent concepts for these starting points
                     if current_step < max_steps:
                         adj_result = await get_adjacent_concepts(concept_id, state)
+                        current_step += 1
                         traversal_context.append({
                             "concept_id": f"adjacent_to_{concept_id}",
                             "adjacent_concepts": adj_result["adjacent_concepts"],
@@ -148,10 +150,6 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
 
             if action_result:
                 traversal_context.extend(action_result["context_chunks"])
-                # Store expanded context back to state
-                state["graph_traversal_context"] = traversal_context
-                state["graph_traversal_steps"] = current_step + 1
-                state["graph_traversal_done"] = next_action.get("done", False)
             else:
                 logger.warning(
                     f"Agentic Graph Traversal: Action {next_action} returned no result",
