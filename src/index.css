@@ -14,9 +14,15 @@
   #root {
     margin: 0;
     padding: 0;
-    height: 100%;
+    min-height: 100%;
     width: 100%;
-    overflow: hidden;
+  }
+
+  /* Allow page-level vertical scroll; horizontal overflow is still clipped to
+     prevent decorative absolute-positioned elements from creating scrollbars. */
+  html,
+  body {
+    overflow-x: hidden;
   }
 
   :root {

@@ -34,7 +34,7 @@ export const WisdomReflectionPractice = () => {
   }, [secondsLeft]);
 
   const hasTeachingText = Boolean(teaching?.caption?.trim());
-  const sourceText = hasTeachingText ? teaching.caption : FALLBACK_PROMPT;
+  const sourceText = hasTeachingText ? teaching!.caption : FALLBACK_PROMPT;
   const sourceLabel = loading
     ? null
     : hasTeachingText

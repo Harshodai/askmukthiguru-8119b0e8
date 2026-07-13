@@ -23,7 +23,7 @@ interface TeachingState {
 // Browser-session cache: technique_id → teaching string
 const _cache = new Map<string, string>();
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 export const useBreathTeaching = (techniqueId: string): TeachingState => {
   const [state, setState] = useState<TeachingState>({
