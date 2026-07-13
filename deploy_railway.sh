@@ -30,14 +30,14 @@ fi
 
 log "=== Railway Deployment Started ==="
 
-# 1. Add Services
+# 1. Add Services (use Railway's supported template deployment command)
 services=("neo4j" "qdrant" "postgresql" "redis")
 for svc in "${services[@]}"; do
     log "Adding service: $svc"
     if railway service list | grep -q "$svc"; then
         warn "$svc already exists, skipping"
     else
-        railway add --template "$svc" 2>&1 | tee -a railway_deploy.log
+        railway deploy --template "$svc" 2>&1 | tee -a railway_deploy.log
         success "$svc added"
         sleep 10
     fi
@@ -47,18 +47,48 @@ done
 log "Fetching generated credentials..."
 railway variables 2>&1 > /dev/null
 
-# Extract key variables
-NEO4J_PASSWORD=$(railway variables get NEO4J_PASSWORD 2>/dev/null || echo "")
-REDIS_PASSWORD=$(railway variables get REDIS_PASSWORD 2>/dev/null || echo "")
-PGHOST=$(railway variables get PGHOST 2>/dev/null || echo "")
-PGPORT=$(railway variables get PGPORT 2>/dev/null || echo "")
-PGDATABASE=$(railway variables get PGDATABASE 2>/dev/null || echo "")
-PGUSER=$(railway variables get PGUSER 2>/dev/null || echo "")
-PGPASSWORD=$(railway variables get PGPASSWORD 2>/dev/null || echo "")
+# Discover deployed service names so we can target the right vault per service
+NEO4J_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("neo4j|Neo4j")) | .name' | head -1)
+POSTGRES_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("Postgres|postgres|postgresql")) | .name' | head -1)
+REDIS_SVC=$(railway service list --json 2>/dev/null | jq -r '.[] | select(.name | test("Redis|redis")) | .name' | head -1)
+
+# Helper to fetch a variable from a specific service
+get_var() {
+    local var=$1 service=$2
+    railway variables get "$var" --service "$service" 2>/dev/null || echo ""
+}
+
+# Extract key variables from the services that own them
+NEO4J_PASSWORD=$(get_var NEO4J_PASSWORD "$NEO4J_SVC")
+[[ -z "$NEO4J_PASSWORD" ]] && NEO4J_PASSWORD=$(get_var NEO4J_PASSWORD "neo4j")
+[[ -z "$NEO4J_PASSWORD" ]] && NEO4J_PASSWORD=$(get_var NEO4J_AUTH "$NEO4J_SVC" | cut -d'/' -f2)
+
+REDIS_PASSWORD=$(get_var REDIS_PASSWORD "$REDIS_SVC")
+[[ -z "$REDIS_PASSWORD" ]] && REDIS_PASSWORD=$(get_var REDISPASSWORD "$REDIS_SVC")
+[[ -z "$REDIS_PASSWORD" ]] && REDIS_PASSWORD=$(get_var REDIS_AUTH "$REDIS_SVC")
+
+PGHOST=$(get_var PGHOST "$POSTGRES_SVC")
+[[ -z "$PGHOST" ]] && PGHOST=$(get_var POSTGRES_HOST "$POSTGRES_SVC")
+[[ -z "$PGHOST" ]] && PGHOST=$(get_var RAILWAY_PRIVATE_DOMAIN "$POSTGRES_SVC")
+
+PGPORT=$(get_var PGPORT "$POSTGRES_SVC")
+[[ -z "$PGPORT" ]] && PGPORT=$(get_var POSTGRES_PORT "$POSTGRES_SVC")
+[[ -z "$PGPORT" ]] && PGPORT="5432"
+
+PGDATABASE=$(get_var PGDATABASE "$POSTGRES_SVC")
+[[ -z "$PGDATABASE" ]] && PGDATABASE=$(get_var POSTGRES_DB "$POSTGRES_SVC")
+[[ -z "$PGDATABASE" ]] && PGDATABASE="postgres"
+
+PGUSER=$(get_var PGUSER "$POSTGRES_SVC")
+[[ -z "$PGUSER" ]] && PGUSER=$(get_var POSTGRES_USER "$POSTGRES_SVC")
+[[ -z "$PGUSER" ]] && PGUSER="postgres"
+
+PGPASSWORD=$(get_var PGPASSWORD "$POSTGRES_SVC")
+[[ -z "$PGPASSWORD" ]] && PGPASSWORD=$(get_var POSTGRES_PASSWORD "$POSTGRES_SVC")
 
 log "Extracted credentials:"
-echo "  NEO4J_PASSWORD: ${NEO4J_PASSWORD:-(not set)}"
-echo "  REDIS_PASSWORD: ${REDIS_PASSWORD:-(not set)}"
+echo "  NEO4J_PASSWORD: $([[ -n ${NEO4J_PASSWORD:-} ]] && echo "configured" || echo "(not set)")"
+echo "  REDIS_PASSWORD: $([[ -n ${REDIS_PASSWORD:-} ]] && echo "configured" || echo "(not set)")"
 echo "  PGHOST: ${PGHOST:-(not set)}"
 
 # 3. Set environment variables
@@ -88,7 +118,7 @@ set_var PYTHON_MEMORY_LIMIT_MB "2048"
 
 # Models
 set_var SARVAM_CLOUD_MODEL "sarvam-30b"
-set_var EMBEDDING_MODEL "BAAI/bge-m3"
+set_var EMBEDDING_MODEL "sentence-transformers/all-MiniLM-L6-v2"
 set_var RERANKER_MODEL "BAAI/bge-reranker-v2-m3"
 
 # Service URLs (internal Railway DNS)
@@ -130,10 +160,17 @@ log "Creating celery-worker service..."
 if railway service list | grep -q "celery-worker"; then
     warn "celery-worker already exists"
 else
-    railway service create celery-worker \
-        --dockerfile backend/Dockerfile \
-        --command "celery -A celery_config worker --loglevel=info --queues=transcription,embedding,indexing,ingestion,okf --concurrency=1" > /dev/null 2>&1
-    success "celery-worker created"
+    # Use the supported `railway add --service` flow, then deploy with the
+    # checked-in railway.json configuration. start_railway.py reads SERVICE_TYPE
+    # and switches to the Celery worker entrypoint.
+    if railway add --service celery-worker > /dev/null 2>&1; then
+        railway variable set --service celery-worker SERVICE_TYPE=celery > /dev/null 2>&1
+        railway up --service celery-worker --detach > /dev/null 2>&1
+        success "celery-worker created and deployed"
+    else
+        error "Failed to create celery-worker service"
+        exit 1
+    fi
 fi
 
 # 6. Get URLs
@@ -141,12 +178,14 @@ log "Fetching service URLs..."
 railway domain > /dev/null 2>&1
 
 # 7. Health Check
-BACKEND_URL=$(railway domain --service backend 2>/dev/null | grep -oE 'https://[^ ]+' | head -1)
+BACKEND_URL=$(railway domain --service askmukthiguru-8119b0e8 2>/dev/null | grep -oE 'https://[^ ]+' | head -1)
+HEALTHY=false
 if [[ -n "$BACKEND_URL" ]]; then
     log "Testing health endpoint: $BACKEND_URL/api/health"
     for i in {1..10}; do
         if curl -sf "$BACKEND_URL/api/health" > /dev/null; then
             success "Backend healthy!"
+            HEALTHY=true
             break
         else
             warn "Attempt $i/10: waiting for backend..."
@@ -154,7 +193,12 @@ if [[ -n "$BACKEND_URL" ]]; then
         fi
     done
 else
-    warn "Could not get backend URL automatically. Check: railway domain --service backend"
+    warn "Could not get backend URL automatically. Check: railway domain --service askmukthiguru-8119b0e8"
+fi
+
+if [[ "$HEALTHY" != true ]]; then
+    error "Backend health verification failed after all attempts"
+    exit 1
 fi
 
 # 8. Summary
@@ -164,7 +208,7 @@ echo "Railway Dashboard: https://railway.com/project/$(railway status --json | j
 echo ""
 echo "NEXT STEPS:"
 echo "1. Set API keys in Railway dashboard: OPENROUTER_API_KEY, SARVAM_API_KEY, NIM_API_KEY, SUPABASE_KEY"
-echo "2. In Lovable (https://askmukthiguru.lovable.app): Settings → Environment Variables → VITE_API_URL=$BACKEND_URL"
+echo "2. In Lovable (https://askmukthiguru.lovable.app): Settings → Environment Variables → VITE_BACKEND_URL=$BACKEND_URL"
 echo "3. Run data migration (see migrate_data.sh)"
 echo ""
 echo "Logs saved to: railway_deploy.log"
