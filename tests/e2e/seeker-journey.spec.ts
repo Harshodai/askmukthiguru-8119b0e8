@@ -451,7 +451,7 @@ test.describe('Seeker Journey', () => {
         updatedAt: '2026-05-20T00:00:00.000Z',
       };
 
-      localStorage.setItem('sb-fynkjimvuimakgtidvuq-auth-token', JSON.stringify(mockSession));
+      localStorage.setItem('sb-ozmjeuqbholoxypfxixb-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSession));
@@ -556,7 +556,7 @@ test.describe('Seeker Journey', () => {
         url: window.location.href,
         localStorageKeys: Object.keys(localStorage),
         localStorageDemoToken: localStorage.getItem('sb-supabase-demo-auth-token'),
-        localStorageProdToken: localStorage.getItem('sb-fynkjimvuimakgtidvuq-auth-token'),
+        localStorageProdToken: localStorage.getItem('sb-ozmjeuqbholoxypfxixb-auth-token'),
         sessionStorageKeys: Object.keys(sessionStorage),
       };
     });
