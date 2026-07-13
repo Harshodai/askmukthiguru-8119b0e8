@@ -1,18 +1,15 @@
 import type { AIConfig } from './types';
+import { BACKEND_URL } from '../backendUrl';
 
-// Backend URL resolution (highest priority first):
+// Backend URL resolution (see `src/lib/backendUrl.ts`):
 //   1. VITE_BACKEND_URL env var (self-hosted / staging overrides)
-//   2. Production Railway backend (hardcoded fallback for prod deploys)
+//   2. Production Railway backend (hardcoded fallback for Lovable prod deploys)
 //   3. Lovable Cloud edge function `guru-chat` (LLM-only cloud fallback)
 //   4. Relative `/api/chat` (dev reverse-proxy only)
-const PROD_RAILWAY_URL = 'https://askmukthiguru-8119b0e8-production.up.railway.app';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const EDGE_CHAT_URL = SUPABASE_URL
   ? `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/guru-chat`
   : '';
-const isProdHost = typeof window !== 'undefined'
-  && /\.lovable\.(app|dev)$|askmukthiguru\./.test(window.location.hostname);
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (isProdHost ? PROD_RAILWAY_URL : '');
 export const DEFAULT_ENDPOINT = BACKEND_URL
   ? `${BACKEND_URL}/api/chat`
   : EDGE_CHAT_URL || '/api/chat';
