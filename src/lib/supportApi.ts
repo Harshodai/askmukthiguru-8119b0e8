@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import { BACKEND_URL_OR_LOCAL as API_BASE } from './backendUrl';
 
 export interface SupportPayload {
   name: string;
