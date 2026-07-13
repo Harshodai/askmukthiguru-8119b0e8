@@ -7,11 +7,15 @@
   "deploy": {
     "startCommand": "python start_railway.py",
     "restartPolicyType": "ON_FAILURE",
-
     "restartPolicyMaxRetries": 3,
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 15,
+    "drainingSeconds": 30,
+    "overlapSeconds": 10,
     "limits": {
       "cpu": 2000,
       "memory": "8Gi"
     }
   }
 }
+

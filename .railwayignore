@@ -1,0 +1,25 @@
+# Hide frontend from Railway build detection
+# Railway should ONLY see backend/ and build using backend/Dockerfile.railway
+package.json
+tsconfig.json
+vite.config.ts
+src/
+components.json
+vercel.json
+.lovable/
+node_modules/
+dist/
+dist-ssr/
+
+# Hide all frontend-related files
+*.tsx
+*.jsx
+*.ts
+*.css
+*.html
+
+# Keep only backend and config
+!backend/
+!railway.json
+!.railwayignore
+
