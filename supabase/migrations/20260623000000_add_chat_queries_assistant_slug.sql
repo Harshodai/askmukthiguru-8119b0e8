@@ -12,9 +12,8 @@ create index if not exists idx_chat_queries_assistant_slug
     on public.chat_queries(assistant_slug)
     where assistant_slug is not null;
 
--- Step 3: optional helper view for assistant-level quality metrics
--- drop view if exists public.v_chat_queries_by_assistant;
-create or replace view public.v_chat_queries_by_assistant as
+create or replace view public.v_chat_queries_by_assistant 
+with (security_invoker = true) as
 select
     assistant_slug,
     count(*) as query_count,

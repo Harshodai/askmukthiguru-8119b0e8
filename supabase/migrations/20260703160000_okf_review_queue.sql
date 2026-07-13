@@ -15,10 +15,9 @@ CREATE TABLE IF NOT EXISTS okf_review_queue (
 -- Enable RLS
 ALTER TABLE okf_review_queue ENABLE ROW LEVEL SECURITY;
 
--- Create Policies (Admins can do everything)
 CREATE POLICY "Admins have full access to okf_review_queue"
     ON okf_review_queue
     FOR ALL
     TO authenticated
-    USING (auth.jwt() ->> 'email' IN (SELECT email FROM auth.users WHERE is_super_admin = true) OR (auth.jwt() -> 'user_metadata' ->> 'is_superuser')::boolean = true)
-    WITH CHECK (auth.jwt() ->> 'email' IN (SELECT email FROM auth.users WHERE is_super_admin = true) OR (auth.jwt() -> 'user_metadata' ->> 'is_superuser')::boolean = true);
+    USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+    WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
