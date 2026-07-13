@@ -24,31 +24,31 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 });
 console.log('[supabase client] storageKey:', (supabase.auth as any).storageKey);
 
-// Periodic token refresh as a safety net (autoRefreshToken handles most cases)
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+export const isEmailAllowed = (email: string | undefined | null): boolean => {
+  if (!email) return false;
+  const parts = email.split('@');
+  if (parts.length !== 2) return false;
+  const domain = parts[1].toLowerCase();
 
-if (!import.meta.env.TEST) {
-  setInterval(async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { error } = await supabase.auth.refreshSession();
-        if (error) {
-          console.warn('[supabase] Token refresh failed:', error.message);
-          if (
-            error.message?.includes('401') ||
-            error.message?.includes('invalid') ||
-            error.message?.includes('expired')
-          ) {
-            await supabase.auth.signOut();
-          }
-        }
-      }
-    } catch (err) {
-      console.error('[supabase] Unexpected error during token refresh:', err);
-    }
-  }, REFRESH_INTERVAL_MS);
-}
+  // Allow @example.com in local development/test environment for E2E tests and developers
+  if (!import.meta.env.PROD && domain === 'example.com') {
+    return true;
+  }
+
+  // Google domains
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    return true;
+  }
+
+  // Microsoft domains (hotmail, outlook, live, msn)
+  // Support regional variations (e.g. hotmail.co.uk, outlook.fr, live.com.br)
+  const msDomainRegex = /^(hotmail|outlook|live|msn)\.(com|co\.[a-z]{2}|com\.[a-z]{2}|[a-z]{2})$/;
+  if (msDomainRegex.test(domain)) {
+    return true;
+  }
+
+  return false;
+};
 
 supabase.auth.onAuthStateChange((event) => {
   if (event === 'TOKEN_REFRESHED') {

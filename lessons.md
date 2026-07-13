@@ -3799,3 +3799,14 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 
 
 
+
+---
+
+## Jul 13, 2026 — Auth Domain Restriction and Session Expiration Handlers
+
+### Preventing Mount Race Conditions and Duplicate Toasts in Supabase Auth Handlers
+- **Problem**: When a page requiring authentication loads, `onAuthStateChange` often fires a `SIGNED_OUT` (or equivalent no-session) event immediately on registration before `supabase.auth.getSession()` resolves. If not handled, this causes a race condition redirect to `/auth` on page load, even if the user has a valid active session. Furthermore, if a session is present but fails validation (e.g. email domain not allowed or invalid test account), calling `signOut` triggers a subsequent `SIGNED_OUT` event which incorrectly fires a "Your session has ended" toast.
+- **Fix**:
+  1. In `useRequireAuth`, introduced an `initialCheckDone` flag inside the effect. The `onAuthStateChange` listener ignores `SIGNED_OUT` (no session) events until `initialCheckDone` is `true`, allowing `getSession()` to settle first.
+  2. In `SessionExpiredHandler`, monkey-patched `supabase.auth.signOut` to set an `auth_explicit_signout` flag in session storage when signed out programmatically. The handler checks this flag along with a ref of the `lastUser` to only show the "Your session has ended" toast on natural, un-triggered session expirations, and only redirects when actually previously signed in or explicitly logging out on a protected route.
+- **Pattern**: When coordinating global session expiry alerts and page-level auth guards, isolate mount-time state verification from subsequent real-time state transitions using initialization flags, and tag programmatically triggered logs/actions to suppress redundant toast notifications.

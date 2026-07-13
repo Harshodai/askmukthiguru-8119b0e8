@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isEmailAllowed } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -14,40 +14,74 @@ export function useRequireAuth() {
 
   useEffect(() => {
     let cancelled = false;
+    let initialCheckDone = false;
+
+    const handleInvalidSession = async () => {
+      if (cancelled) return;
+      initialCheckDone = true;
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('[useRequireAuth] signOut failed:', err);
+      }
+      navigate('/auth', { replace: true });
+    };
+
+    const handleNoSession = () => {
+      if (cancelled) return;
+      initialCheckDone = true;
+      if (window.location.pathname !== '/auth') {
+        sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+      }
+      navigate('/auth', { replace: true });
+    };
+
+    const validateAndSetSession = async (session: any) => {
+      if (!session?.user) {
+        handleNoSession();
+        return;
+      }
+
+      const email = session.user.email;
+      const isAllowed = isEmailAllowed(email);
+      const isExplicitLogin = sessionStorage.getItem('auth_explicit_login') === 'true';
+
+      if (!isAllowed || (email === 'test@example.com' && !isExplicitLogin)) {
+        await handleInvalidSession();
+        return;
+      }
+
+      if (cancelled) return;
+      setUser(session.user);
+      setLoading(false);
+      initialCheckDone = true;
+    };
 
     const check = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        await validateAndSetSession(session);
       } catch (err) {
         console.error('[useRequireAuth] getSession crashed:', err);
+        if (cancelled) return;
+        handleNoSession();
       }
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (!session?.user) {
-        // Save current path for post-login redirect
-        if (window.location.pathname !== '/auth') {
-          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
-        }
-        navigate('/auth', { replace: true });
-        return;
-      }
-      setUser(session.user);
-      setLoading(false);
     };
 
     check();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (cancelled) return;
+
       if (!session?.user) {
-        if (window.location.pathname !== '/auth') {
-          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
-        }
-        navigate('/auth', { replace: true });
+        // Prevent race condition: ignore early SIGNED_OUT events before getSession settles
+        if (!initialCheckDone) return;
+        handleNoSession();
         return;
       }
-      setUser(session.user);
-      setLoading(false);
+
+      await validateAndSetSession(session);
     });
 
     return () => {
@@ -58,3 +92,4 @@ export function useRequireAuth() {
 
   return { user, loading };
 }
+

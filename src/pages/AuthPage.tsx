@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isEmailAllowed } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -131,7 +131,27 @@ const AuthPage = () => {
       }, 15000);
       
       try {
-      const isGoogleReturn =
+        if (!isEmailAllowed(session.user.email)) {
+          console.warn('[Auth] Non-allowed email domain blocked:', session.user.email);
+          if (sessionHandleTimeoutRef.current) {
+            clearTimeout(sessionHandleTimeoutRef.current);
+            sessionHandleTimeoutRef.current = null;
+          }
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "Registration/Login is restricted to verified @gmail.com or @hotmail.com/@outlook.com accounts.",
+            variant: "destructive"
+          });
+          setError("Access restricted to verified @gmail.com or @hotmail.com/@outlook.com accounts.");
+          redirectingRef.current = false;
+          setGoogleStep('idle');
+          setFacebookStep('idle');
+          setLoading(false);
+          return;
+        }
+
+        const isGoogleReturn =
         sessionStorage.getItem(GOOGLE_STEP_KEY) === '1' ||
         getActiveRun()?.provider === 'google';
       const isFacebookReturn = 
@@ -282,6 +302,11 @@ const AuthPage = () => {
           setLoading(false);
           return;
         }
+        if (!isEmailAllowed(email)) {
+          setError("Registration is only allowed for verified @gmail.com or @hotmail.com/@outlook.com emails.");
+          setLoading(false);
+          return;
+        }
         console.info('[Auth] signUp start', { email, hasName: true });
         const signUpT0 = performance.now();
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -316,6 +341,7 @@ const AuthPage = () => {
       } else {
         console.info('[Auth] signIn start', { email });
         const signInT0 = performance.now();
+        sessionStorage.setItem('auth_explicit_login', 'true');
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         recordStep('email_signin', signInError ? 'error' : 'ok', Math.round(performance.now() - signInT0), {
           error: signInError?.message,
