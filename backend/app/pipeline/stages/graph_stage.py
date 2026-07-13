@@ -122,9 +122,17 @@ class GraphStage(Stage):
                     selected_graph = getattr(container, "standard_graph")
                     initial_state["query_tier"] = "standard"
             try:
-                config = {"recursion_limit": 60}
-                if stream_queue:
-                    config["configurable"] = {"stream_queue": stream_queue}
+                import uuid
+                user_id = ctx.user_id or str(uuid.uuid4())
+                session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
+                config = {
+                    "recursion_limit": 60,
+                    "configurable": {
+                        "user_id": user_id,
+                        "session_id": session_id,
+                        **({"stream_queue": stream_queue} if stream_queue else {})
+                    }
+                }
                 return await selected_graph.ainvoke(initial_state, config=config)
             except GraphRecursionError as e:
                 logger.warning(f"Graph recursion limit reached ({e}). Returning fallback response.")
@@ -137,11 +145,16 @@ class GraphStage(Stage):
             finally:
                 budget_var.reset(token)
 
+        user_id = ctx.user_id or str(uuid.uuid4())
+        session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
         history_hash = hashlib.md5(str([m["content"] for m in chat_history_en[-4:]]).encode()).hexdigest()[:8]
         start_lat = time.time()
         try:
             result = await asyncio.wait_for(
-                coalescer.get_or_run(f"{lang_detection.primary.value if lang_detection else 'en'}:{user_msg_en}:{history_hash}", run),
+                coalescer.get_or_run(
+                    f"{user_id}:{session_id}:{lang_detection.primary.value if lang_detection else 'en'}:{user_msg_en}:{history_hash}",
+                    run,
+                ),
                 timeout=settings.pipeline_timeout,
             )
         except asyncio.TimeoutError:

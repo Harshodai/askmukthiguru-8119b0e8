@@ -7,7 +7,7 @@
 fastapi>=0.115.0,<1.0
 uvicorn[standard]>=0.34.0,<1.0
 pydantic>=2.10.0,<3.0
-pydantic-settings>=2.7.0,<3.0
+pydantic-settings>=2.14.2,<3.0
 python-dotenv>=1.0.0,<2.0
 
 # --- LLM Orchestration ---
@@ -42,11 +42,12 @@ ragatouille>=0.0.8
 
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0
-yt-dlp>=2025.1.0
+# yt-dlp>=2026.6.9  # LICENSE-EXCEPTION: Un licensed release not approved; use a known public-domain build
+yt-dlp>=2025.10.14
 
 # --- Image Handling ---
 requests>=2.32.0,<3.0
-Pillow>=10.0.0,<11.0
+Pillow>=12.2.0,<13.0
 
 # --- RAPTOR Clustering ---
 # umap-learn>=0.5.7  # Removed: incompatible with Python 3.12 (llvmlite build failure)
@@ -66,7 +67,7 @@ cachetools>=5.3.0,<6.0
 prometheus_client>=0.21.0
 
 # --- UI ---
-gradio>=4.0.0
+gradio>=6.15.0
 
 # --- Testing ---
 pytest>=8.3.0,<9.0
@@ -74,6 +75,9 @@ pytest-asyncio>=0.25.0,<1.0
 httpx>=0.28.0,<1.0
 
 # --- Auth & Rate Limiting (Phase 1) ---
+cryptography>=48.0.1,<50.0
+langgraph-checkpoint>=2.0.0,<3.0
+langgraph-sdk>=0.1.32,<0.2.0
 fastapi-users[sqlalchemy]>=13.0.0
 slowapi>=0.1.9
 aiosqlite>=0.20.0
@@ -104,7 +108,7 @@ opentelemetry-sdk>=1.24.0,<2.0
 opentelemetry-instrumentation-fastapi>=0.45b0,<1.0
 opentelemetry-exporter-otlp>=1.24.0,<2.0
 litellm>=1.24.0
-PyPDF2>=3.0.0
+# pypdf>=6.13.3,<7.0  # LICENSE-EXCEPTION: BSD-3-Clause not approved; replaced by pymupdf (AGPL-3.0) requires commercial license in production
 pymupdf>=1.23.0
 PyYAML>=6.0.0
 openinference-instrumentation-langchain>=0.1.33,<1.0

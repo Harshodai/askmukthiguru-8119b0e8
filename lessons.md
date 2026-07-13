@@ -3772,4 +3772,20 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 
 **Rule**: If any service exceeds its row in this table, it's leaking.
 
+## Jul 12, 2026 — Dynamic Redis Variables, Celery Sanitization, and SQL Schema Dumps
+
+### Dynamic Railway Variables for Redis Connection
+- **Problem**: Manually pasting static connection URLs (like `REDIS_URL` containing passwords) into application services leads to connection crashes (`invalid username-password pair`) if the target database service is recreated, rotating its password.
+- **Fix**: Link services dynamically using Railway's reference syntax (e.g., `REDIS_URL=${{Redis.REDIS_URL}}` and `REDIS_PASSWORD=${{Redis.REDISPASSWORD}}`). Railway resolves these variables dynamically at runtime, keeping them in sync.
+
+### Celery/Kombu Redis Authentication Crash
+- **Problem**: When a Redis connection string contains a username like `default` (e.g. `redis://default:PASSWORD@host`), Celery/Kombu's transport client can fail to connect, throwing `invalid username-password pair` because standard Redis password-only auth expects a blank username.
+- **Fix**: Added URL sanitization in `celery_config.py` and `app/config.py` to detect and strip the `default` username from the `REDIS_URL` (converting `redis://default:password@host` to `redis://:password@host`).
+- **Pattern**: Always sanitize loaded database/caching URLs at initialization to ensure compatibility with library-specific connection parsers.
+
+### Schema-Only Database Dumps with IF NOT EXISTS Qualifiers
+- **Problem**: The user wanted the local Supabase/PostgreSQL schema replicated in production without using CLI tokens. The full dump contains data rows (which triggers duplicate key violations) and raw table creations (which fails if tables already exist).
+- **Fix**: Executed a schema-only dump via `pg_dump --schema-only` on the running local container. Created a post-processing script `process_sql_dump.py` to append `IF NOT EXISTS` to `CREATE TABLE`, `CREATE SCHEMA`, `CREATE INDEX`, and `CREATE SEQUENCE`, and wrapped enum `CREATE TYPE` blocks inside PostgreSQL exception-handling blocks (`DO $$ BEGIN CREATE TYPE ... EXCEPTION WHEN duplicate_object THEN null; END $$;`).
+
+
 

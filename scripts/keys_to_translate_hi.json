@@ -1,0 +1,66 @@
+{
+  "practices.soulSync.howItWorks": [
+    "missing",
+    "['Conscious Breathing — sit comfortably, hands resting on your thighs, palms facing upward. Eyes closed. Take 8 slow, deep breaths, counting each one with the thumb touching each finger (index to pinky and back).', 'Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration calm your nervous system.', \"Settle in the Silent Pause — between each inhalation and exhalation, rest in the natural stillness. Don't force it — just witness.\", 'Repeat \"Aham\" — with every exhalation, mentally whisper \"Aham\" (I am — boundless consciousness). Rest in the simple feeling of being.', 'Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.', 'Hold Your Intention — in this expanded state, bring your heartfelt intention to mind. Visualise it manifest. Close with deep gratitude.']"
+  ],
+  "auth.emailPlaceholder": [
+    "fallback",
+    "you@example.com"
+  ],
+  "chat.copyUrlAria": [
+    "validation_failed",
+    "Copy URL for source {{number}}"
+  ],
+  "chat.detectedLang": [
+    "validation_failed",
+    "Detected {{name}}"
+  ],
+  "chat.drawingFrom": [
+    "validation_failed",
+    "Drawing from {{tradition}}…"
+  ],
+  "chat.inviteCodePlaceholder": [
+    "fallback",
+    "sky-..."
+  ],
+  "chat.noCitations": [
+    "fallback",
+    "No citations available"
+  ],
+  "chat.savedToNotebookDesc": [
+    "validation_failed",
+    "Added to \"{{title}}\""
+  ],
+  "chat.scheduledLanguages": [
+    "validation_failed",
+    "{{count}} scheduled languages + English"
+  ],
+  "chat.scrollToAnswerAria": [
+    "validation_failed",
+    "Scroll to answer {{number}} where this source is cited"
+  ],
+  "chat.searchingTeachings": [
+    "validation_failed",
+    "Searching the teachings on \"{{topic}}\"…"
+  ],
+  "chat.searchingTradition": [
+    "validation_failed",
+    "Searching {{tradition}} on \"{{topic}}\"…"
+  ],
+  "chat.slashCommands": [
+    "fallback",
+    "Slash commands"
+  ],
+  "chat.slashKeyboardHint": [
+    "fallback",
+    "↑↓ navigate · ↵ select · esc dismiss"
+  ],
+  "chat.slashResultsCount_one": [
+    "fallback",
+    "{{count}} result"
+  ],
+  "chat.sourcesReferences": [
+    "fallback",
+    "Sources & References"
+  ]
+}

@@ -40,7 +40,7 @@ class ConcurrentRetriever:
             async with asyncio.TaskGroup() as tg:
                 vt = tg.create_task(self.vector_fetcher(query), name="vector_retrieval")
                 gt = tg.create_task(self.graph_fetcher(query), name="graph_retrieval")
-        except* Exception as eg:
+        except Exception as eg:
             # Unwrap the first exception from the ExceptionGroup for clean logging.
             # Use a non-reversible hash token — never log raw user query content.
             first_exc = eg.exceptions[0]

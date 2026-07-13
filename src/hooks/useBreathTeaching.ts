@@ -54,10 +54,13 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
 
+        if (!token) {
+          if (!cancelled) setState({ teaching: null, loading: false, error: false });
+          return;
+        }
+
         const res = await fetch(`${BACKEND_URL}/api/breath-teaching/${techniqueId}`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

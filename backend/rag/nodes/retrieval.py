@@ -172,6 +172,7 @@ async def query_neo4j_subgraph(query: str) -> str:
             if driver is None:
                 raise RuntimeError("Neo4j driver unavailable")
             subgraph_context = []
+            candidates = set()
             with driver.session() as session:
                 # Fix: LightRAG's Neo4JStorage writes entity_id (not entity_name),
                 # and the shared knowledge-graph nodes it authors are never tagged
@@ -192,11 +193,14 @@ async def query_neo4j_subgraph(query: str) -> str:
                         subgraph_context.append(
                             f"Relationship: {record['source']} -[{record['rel']}]-> {record['target']}{desc_str}"
                         )
-            return subgraph_context
+                        if record.get('target'):
+                            candidates.add(record['target'])
+            return subgraph_context, list(candidates)
 
-        res = await asyncio.to_thread(_run)
+        res, candidates = await asyncio.to_thread(_run)
         if res:
-            return "\n[Targeted Subgraph Context]:\n" + "\n".join(res)
+            candidate_str = f"\n[Next-Step Traversal Candidates]: {', '.join(sorted(candidates))}" if candidates else ""
+            return "\n[Targeted Subgraph Context]:\n" + "\n".join(res) + candidate_str
     except Exception as e:
         logger.warning(f"Failed to fetch Neo4j targeted subgraph: {e}")
     return ""

@@ -14,7 +14,7 @@ logger = logging.getLogger("seed_personal_kg")
 
 NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD", "")
 
 # Test user ID that X-Test-Key auth resolves to
 TEST_USER_ID = "00000000-0000-0000-0000-000000000000"

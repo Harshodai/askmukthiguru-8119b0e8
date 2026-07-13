@@ -99,7 +99,7 @@ async def kg_sparql(req: SparqlRequest, _user=Depends(get_current_user_from_supa
                 rows.append({k: rec.get(k) for k in columns})
     except Exception as exc:  # noqa: BLE001
         logger.warning("kg/sparql query failed: %s", exc)
-        raise HTTPException(status_code=400, detail=f"Query failed: {exc}") from exc
+        raise HTTPException(status_code=400, detail="Query execution failed. Check syntax and try again.")
 
     # Inference hook: when requested, document that n10s.inference.nodesLabelled
     # is available to expand label sets. Full integration is out of scope (YAGNI).

@@ -261,6 +261,23 @@ routes:
       - "Explain the principle of Oneness"
       - "Define spiritual right action"
       - "What does it mean to surrender according to the teachings"
+  
+  # ---------------------------------------------------------------------------
+  # COMPARATIVE — cross-teacher / cross-concept analysis.
+  # ---------------------------------------------------------------------------
+  - name: COMPARATIVE
+    priority: 100
+    threshold: 0.70
+    utterances:
+      - "compare the teachings of"
+      - "how does X differ from Y"
+      - "contrast the views of"
+      - "what is the difference between"
+      - "compare and contrast"
+      - "versus"
+      - "vs"
+      - "how does the concept of"
+      - "how does"  # generic, lets LLM decide if comparative
 
 # =============================================================================
 # Doctrinal keyword anchoring — what concepts to ensure appear in retrieved

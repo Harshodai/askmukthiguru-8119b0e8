@@ -13,6 +13,7 @@ from app.config import settings as app_settings
 
 from . import _services, utils
 from ._services import init_services
+from .agentic_graph_traversal import agentic_graph_traversal
 from .generation import (
     context_engineer,
     format_final_answer,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Loader2, Share2, Check } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Share2, Check } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,13 +10,12 @@ import { getPracticeBySlug, getLocalizedPractice } from '@/lib/practicesContent'
 import { useFavorites } from '@/hooks/useFavorites';
 import { recordRecentPractice } from '@/lib/favoritesStorage';
 import { cn } from '@/lib/utils';
-import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { WisdomReflectionPractice } from '@/components/meditation/WisdomReflectionPractice';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 
 const PracticeDetailPage = () => {
-  const { loading: authLoading } = useRequireAuth();
   const { slug = '' } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const practice = getPracticeBySlug(slug);
@@ -57,14 +56,6 @@ const PracticeDetailPage = () => {
       : undefined,
   });
 
-  if (authLoading) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 text-ojas animate-spin" />
-      </div>
-    );
-  }
-
   if (!practice) {
     return (
       <AppShell title="Practice not found">
@@ -81,8 +72,8 @@ const PracticeDetailPage = () => {
   }
 
   // Build sandboxed embed URL — no autoplay, modest branding, no related videos from other channels.
-  const embedSrc = `https://www.youtube-nocookie.com/embed/${practice.videoId}?modestbranding=1&rel=0`;
-  const watchUrl = `https://www.youtube.com/watch?v=${practice.videoId}`;
+  const embedSrc = practice.videoId ? `https://www.youtube-nocookie.com/embed/${practice.videoId}?modestbranding=1&rel=0` : null;
+  const watchUrl = practice.videoId ? `https://www.youtube.com/watch?v=${practice.videoId}` : null;
   const audioEmbed = practice.audioId
     ? `https://www.youtube-nocookie.com/embed/${practice.audioId}?modestbranding=1&rel=0`
     : null;
@@ -93,7 +84,8 @@ const PracticeDetailPage = () => {
   const handleShare = async () => {
     const stepsText = lp!.howItWorks.map((step, idx) => `${idx + 1}. ${step}`).join('\n');
     const benefitsText = lp!.benefits.map((b) => `• ${b}`).join('\n');
-    const shareText = `🧘 *${lp!.title}* — ${lp!.tagline} (${lp!.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}\n\n🎥 *Guided Video:* ${watchUrl}\n\nShared via AskMukthiGuru`;
+    const mediaText = watchUrl ? `\n\n🎥 *Guided Video:* ${watchUrl}` : '';
+    const shareText = `🧘 *${lp!.title}* — ${lp!.tagline} (${lp!.durationLabel})\n\n📖 *How to Practice:*\n${stepsText}\n\n✨ *Key Benefits:*\n${benefitsText}${mediaText}\n\nShared via AskMukthiGuru`;
     
     try {
       await navigator.clipboard.writeText(shareText);
@@ -184,7 +176,7 @@ const PracticeDetailPage = () => {
           </p>
         </motion.header>
 
-        {/* Video */}
+        {practice.format === 'source-reflection' ? <WisdomReflectionPractice /> : embedSrc && watchUrl && (
         <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -212,6 +204,7 @@ const PracticeDetailPage = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Optional audio */}
         {audioEmbed && audioWatch && (

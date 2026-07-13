@@ -8,6 +8,7 @@ Wired after generate_answer and before format_final_answer.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
 from rag.states import GraphState
@@ -25,6 +26,20 @@ def _jaccard(a: str, b: str, n: int = 3) -> float:
     if not ga or not gb:
         return 0.0
     return len(ga & gb) / len(ga | gb)
+
+
+def _is_youtube_video_id_title(title: str) -> bool:
+    """Check if a title is just a YouTube video ID (11 chars, alphanumeric + _ -)."""
+    if not title:
+        return False
+    return len(title) == 11 and all(c.isalnum() or c in '_-' for c in title)
+
+
+def _is_youtube_url(source: str) -> bool:
+    """Check if source is a YouTube URL."""
+    if not source:
+        return False
+    return 'youtube.com' in source.lower() or 'youtu.be' in source.lower()
 
 
 def extract_citations(state: GraphState) -> dict:
@@ -50,6 +65,22 @@ def extract_citations(state: GraphState) -> dict:
                 best_doc = doc
         if best_doc and best_score > 0.15:
             meta = best_doc.get("metadata", {}) or {}
+            source = meta.get("source_url") or meta.get("source", "unknown")
+            title = meta.get("title", "")
+
+            # Skip citations from YouTube videos with video ID as title (metadata extraction failed)
+            if _is_youtube_url(source) and _is_youtube_video_id_title(title):
+                logger.debug(f"Skipping citation from YouTube video with ID-only title: {title}")
+                continue
+
+            # For YouTube videos, also verify title relevance to answer
+            # to avoid citing videos that only match on incidental word overlap
+            if _is_youtube_url(source) and title:
+                title_relevance = _jaccard(sent, title)
+                if title_relevance < 0.05:
+                    logger.debug(f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})")
+                    continue
+
             citations.append({
                 "doc_id": meta.get("source", "unknown"),
                 "quote": sent[:200],

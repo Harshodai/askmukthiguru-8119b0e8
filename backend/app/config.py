@@ -16,7 +16,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -263,6 +263,14 @@ class Settings(BaseSettings):
     chat_rate_limit: str = "20/minute"
     registration_rate_limit: str = "5/minute"
     admin_rate_limit: str = "5/minute"
+    auth_rate_limit_per_ip: str = "5/minute"
+    auth_rate_limit_per_account: str = "3/minute"
+    auth_rate_limit_burst: int = 10
+    auth_backoff_base_seconds: float = 2.0
+    auth_backoff_multiplier: float = 2.0
+    notebook_rate_limit: str = "20/minute"
+    memory_write_rate_limit: str = "10/minute"
+    profile_rate_limit: str = "10/minute"
 
     # --- Support / Contact (SMTP) ---
     smtp_host: Optional[str] = None
@@ -510,6 +518,22 @@ class Settings(BaseSettings):
     important_kwd_boost_enabled: bool = True
     important_kwd_boost_per_term: float = 0.2
     rag_citation_cosine_enabled: bool = False
+    # Citation similarity thresholds — adaptive by query type
+    # Higher = stricter (fewer false positive citations)
+    citation_jaccard_threshold: float = 0.18      # was 0.08
+    citation_cosine_threshold: float = 0.65       # was 0.50
+    # Per-intent overrides (merge with defaults)
+    citation_thresholds_by_intent: dict[str, dict[str, float]] = Field(
+        default_factory=lambda: {
+            "FACTUAL":   {"jaccard": 0.20, "cosine": 0.70},
+            "RELATIONAL": {"jaccard": 0.18, "cosine": 0.65},
+            "QUERY":     {"jaccard": 0.18, "cosine": 0.65},
+            "CASUAL":    {"jaccard": 0.12, "cosine": 0.55},
+            "GREETING":  {"jaccard": 0.10, "cosine": 0.50},
+            "DISTRESS":  {"jaccard": 0.15, "cosine": 0.60},
+            "GUIDED_TOUR": {"jaccard": 0.12, "cosine": 0.55},
+        }
+    )
     raptor_clustering_method: str = "kmeans"  # "kmeans" | "gmm"
 
     # --- TTFT Optimization (Ruthless Audit Phase 1) ---
@@ -521,6 +545,11 @@ class Settings(BaseSettings):
     # CoVe adds ~60s and up to 4 small LLM calls. LettuceDetect faithfulness scoring remains.
     # Default True (disabled) to reduce pipeline LLM calls.
     rag_cove_disabled: bool = True
+    # Agentic Graph Traversal configuration (for COMPARATIVE intent + tier3_complex)
+    agentic_graph_traversal_enabled: bool = True
+    agentic_graph_max_steps: int = 3
+    agentic_graph_fast_model: str = "nim:meta/llama-3.1-8b-instruct"
+    agentic_graph_timeout_per_step: int = 15
     # TTL in seconds for the retrieval-level doc-ID cache keyed by (query_embedding_bucket, tenant_id).
     # Reduces Qdrant round-trips for repeated query patterns by ~40%.
     retrieval_cache_ttl: int = 300

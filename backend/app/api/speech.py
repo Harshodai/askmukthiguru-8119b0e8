@@ -42,9 +42,17 @@ async def speech_to_text_endpoint(
     """
     Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
     """
-    content = await file.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Empty audio file provided.")
+    MAX_AUDIO_BYTES = 25 * 1024 * 1024
+    ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/wav", "audio/wave", "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-m4a", "audio/mp4"}
+
+    if file.size and file.size > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
+    if not file.content_type or file.content_type not in ALLOWED_AUDIO_TYPES:
+        raise HTTPException(status_code=415, detail=f"Unsupported audio format. Supported: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}")
+
+    content = await file.read(MAX_AUDIO_BYTES + 1)
+    if len(content) > MAX_AUDIO_BYTES or not content:
+        raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
 
     api_key = settings.sarvam_api_key
 
@@ -128,7 +136,7 @@ async def text_to_speech_endpoint(
     api_key = settings.sarvam_api_key
     if not api_key or api_key.startswith("sk_dummy") or len(api_key) <= 10:
         raise HTTPException(
-            status_code=500, detail="Sarvam TTS not configured (missing or dummy API key)."
+            status_code=500, detail="Speech synthesis is not available at this time."
         )
 
     lang = req.target_language_code
@@ -209,7 +217,7 @@ async def translate_endpoint(
     api_key = settings.sarvam_api_key
     if not api_key or api_key.startswith("sk_dummy") or len(api_key) <= 10:
         raise HTTPException(
-            status_code=500, detail="Translation not configured (missing or dummy API key)."
+            status_code=500, detail="Translation service is not available at this time."
         )
 
     service = SarvamCloudService()

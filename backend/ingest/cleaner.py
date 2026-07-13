@@ -14,7 +14,10 @@ Removes noise from transcripts and OCR output:
 import logging
 import re
 
-from rag.nodes.utils import DOCTRINE_SYNONYMS
+try:
+    from rag.nodes.utils import DOCTRINE_SYNONYMS
+except Exception:
+    DOCTRINE_SYNONYMS = {}
 
 logger = logging.getLogger(__name__)
 

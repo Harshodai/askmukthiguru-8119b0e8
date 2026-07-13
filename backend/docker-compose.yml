@@ -315,7 +315,7 @@ services:
         VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_ANON_KEY}
         VITE_USE_NATIVE_OAUTH: ${USE_NATIVE_OAUTH:-true}
         VITE_JAEGER_UI_URL: ${VITE_JAEGER_UI_URL:-http://localhost:16686}
-        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8000}
     container_name: mukthiguru-frontend
     ports:

@@ -45,11 +45,12 @@ interface SimNode extends KGNode {
 
 /** Per-type visual config: color, ring, radius */
 const NODE_CONFIG: Record<string, { color: string; stroke: string; r: number; ring: number }> = {
-  User:     { color: 'hsl(35 90% 55%)',   stroke: 'hsl(35 90% 35%)',   r: 28, ring: 0 },
-  Teacher:  { color: 'hsl(260 70% 60%)',  stroke: 'hsl(260 70% 40%)',  r: 22, ring: 1 },
-  Practice: { color: 'hsl(170 60% 45%)',  stroke: 'hsl(170 60% 28%)',  r: 20, ring: 1 },
-  Concept:  { color: 'hsl(210 65% 55%)',  stroke: 'hsl(210 65% 35%)',  r: 16, ring: 2 },
-  Memory:   { color: 'hsl(340 55% 55%)',  stroke: 'hsl(340 55% 35%)',  r: 13, ring: 3 },
+  User:         { color: 'hsl(35 90% 55%)',   stroke: 'hsl(35 90% 35%)',   r: 28, ring: 0 },
+  Teacher:      { color: 'hsl(260 70% 60%)',  stroke: 'hsl(260 70% 40%)',  r: 22, ring: 1 },
+  Practice:     { color: 'hsl(170 60% 45%)',  stroke: 'hsl(170 60% 28%)',  r: 20, ring: 1 },
+  Concept:      { color: 'hsl(210 65% 55%)',  stroke: 'hsl(210 65% 35%)',  r: 16, ring: 2 },
+  Memory:       { color: 'hsl(340 55% 55%)',  stroke: 'hsl(340 55% 35%)',  r: 13, ring: 3 },
+  NotebookItem: { color: 'hsl(100 60% 50%)',  stroke: 'hsl(100 60% 30%)',  r: 15, ring: 3 },
 };
 
 const DEFAULT_NODE = { color: 'hsl(220 40% 50%)', stroke: 'hsl(220 40% 30%)', r: 15, ring: 2 };
@@ -111,8 +112,9 @@ const formatDate = (iso: string): string => {
 };
 
 export const MemoryManager = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast } = useToast();
+  const currentLang = i18n?.language || 'en';
   const [memories, setMemories] = useState<GuruMemory[]>([]);
   const [core, setCore] = useState<CoreMemory | null>(null);
   const [coreText, setCoreText] = useState('');
@@ -127,13 +129,15 @@ export const MemoryManager = () => {
 
   // Voice-to-text for reflection and core memory textareas
   const reflectVoice = useSpeechRecognition({
-    useSarvam: true,
+    lang: currentLang,
+    useSarvam: currentLang !== 'en',
     onTranscript: (text, isFinal) => {
       if (isFinal) setNewText((prev) => (prev ? `${prev} ${text}` : text).slice(0, 500));
     },
   });
   const coreVoice = useSpeechRecognition({
-    useSarvam: true,
+    lang: currentLang,
+    useSarvam: currentLang !== 'en',
     onTranscript: (text, isFinal) => {
       if (isFinal) setCoreText((prev) => (prev ? `${prev} ${text}` : text).slice(0, 2048));
     },
@@ -1261,6 +1265,12 @@ export const MemoryManager = () => {
               maxLength={2048}
               disabled={coreSaving}
             />
+            {coreVoice.isListening && (coreVoice.transcript || coreVoice.interimTranscript) && (
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
+                <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
+                {coreVoice.transcript} <span className="text-muted-foreground italic">{coreVoice.interimTranscript}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <button
                 type="button"
@@ -1345,6 +1355,12 @@ export const MemoryManager = () => {
                 maxLength={500}
                 disabled={adding}
               />
+              {reflectVoice.isListening && (reflectVoice.transcript || reflectVoice.interimTranscript) && (
+                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
+                  <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
+                  {reflectVoice.transcript} <span className="text-muted-foreground italic">{reflectVoice.interimTranscript}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <button
                   type="button"

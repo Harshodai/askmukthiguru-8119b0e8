@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from redis import asyncio as aioredis
 
+from app.config import settings
 from app.metrics import MEMORY_LRU_EVICTIONS
 from services.memory_service import MemoryService
 from services.tenant_context import TenantContext
@@ -157,6 +158,33 @@ class MemoryServiceV2(MemoryService):
         metadata: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Manually add a memory, and write it to both Supabase and Neo4j."""
+        # Pre-check for duplicate/merge target in Supabase (to handle superseding in Neo4j)
+        merge_target_id: str | None = None
+        if not is_core:
+            try:
+                emb_dict = await asyncio.to_thread(
+                    self._embedding_service.encode_single_full, content
+                )
+                embedding = emb_dict.get("dense")
+                if embedding and not self._search_disabled:
+                    dup_result = await asyncio.to_thread(
+                        self._supabase.rpc(
+                            "match_user_memories_by_user",
+                            {
+                                "p_user_id": user_id,
+                                "p_query_embedding": embedding,
+                                "p_k": 1,
+                                "p_min_sim": 0.88,
+                            },
+                        ).execute
+                    )
+                    if dup_result and dup_result.data:
+                        first_match = dup_result.data[0]
+                        if isinstance(first_match, dict) and isinstance(first_match.get("id"), str):
+                            merge_target_id = first_match.get("id")
+            except Exception as dup_err:
+                logger.debug(f"Pre-merge duplicate check skipped: {dup_err}")
+
         # Step 1: Classify if metadata not provided
         classified = metadata
         if not is_core:
@@ -186,6 +214,7 @@ class MemoryServiceV2(MemoryService):
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver:
+                    import uuid
                     from services.tenant_context import TenantContext
                     tenant_id = TenantContext.get()
                     mem_id = str(res["id"])
@@ -193,41 +222,81 @@ class MemoryServiceV2(MemoryService):
                     state_cat = classified.get("state_category") or "Neutral"
                     rel_concepts = classified.get("related_concepts") or []
 
+                    # If merging, generate a new UUID for the Neo4j node so we preserve the old node
+                    new_mem_id = str(uuid.uuid4()) if merge_target_id else mem_id
+
                     def _write_neo4j():
                         with driver.session() as session:
-                            # 1. Create/merge User and Memory nodes
-                            session.run(
-                                """
-                                MERGE (u:User {id: $user_id})
-                                SET u.tenant_id = $tenant_id
-                                MERGE (m:GlobalMemory {id: $memory_id})
-                                SET m.content = $content,
-                                    m.insight = $insight,
-                                    m.state_category = $state_category,
-                                    m.created_at = timestamp(),
-                                    m.tenant_id = $tenant_id
-                                MERGE (u)-[:HAS_MEMORY]->(m)
-                                """,
-                                user_id=user_id,
-                                memory_id=mem_id,
-                                content=content,
-                                insight=insight,
-                                state_category=state_cat,
-                                tenant_id=tenant_id,
-                            )
+                            if merge_target_id:
+                                # 1. Mark old memory node as superseded
+                                session.run(
+                                    """
+                                    MATCH (m:GlobalMemory {id: $old_id})
+                                    SET m.is_superseded = true,
+                                        m.decay_score = 0.05
+                                    """,
+                                    old_id=merge_target_id
+                                )
+                                # 2. Create the new memory node, and link to User + old memory node
+                                session.run(
+                                    """
+                                    MERGE (u:User {id: $user_id})
+                                    SET u.tenant_id = $tenant_id
+                                    MERGE (m:GlobalMemory {id: $memory_id})
+                                    SET m.content = $content,
+                                        m.insight = $insight,
+                                        m.state_category = $state_category,
+                                        m.created_at = timestamp(),
+                                        m.tenant_id = $tenant_id
+                                    MERGE (u)-[:HAS_MEMORY]->(m)
+                                    WITH m
+                                    MATCH (old:GlobalMemory {id: $old_id})
+                                    MERGE (old)-[:SUPERSEDED_BY]->(m)
+                                    """,
+                                    user_id=user_id,
+                                    memory_id=new_mem_id,
+                                    content=content,
+                                    insight=insight,
+                                    state_category=state_cat,
+                                    tenant_id=tenant_id,
+                                    old_id=merge_target_id
+                                )
+                                target_mem_id = new_mem_id
+                            else:
+                                # Standard insert flow
+                                session.run(
+                                    """
+                                    MERGE (u:User {id: $user_id})
+                                    SET u.tenant_id = $tenant_id
+                                    MERGE (m:GlobalMemory {id: $memory_id})
+                                    SET m.content = $content,
+                                        m.insight = $insight,
+                                        m.state_category = $state_category,
+                                        m.created_at = timestamp(),
+                                        m.tenant_id = $tenant_id
+                                    MERGE (u)-[:HAS_MEMORY]->(m)
+                                    """,
+                                    user_id=user_id,
+                                    memory_id=mem_id,
+                                    content=content,
+                                    insight=insight,
+                                    state_category=state_cat,
+                                    tenant_id=tenant_id,
+                                )
+                                target_mem_id = mem_id
 
-                            # 2. Relate to state category if it's a known ontology node
+                            # 3. Relate to state category if it's a known ontology node
                             session.run(
                                 """
                                 MATCH (m:GlobalMemory {id: $memory_id})
                                 MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($state_cat)
                                 MERGE (m)-[:RELATES_TO]->(c)
                                 """,
-                                memory_id=mem_id,
+                                memory_id=target_mem_id,
                                 state_cat=state_cat
                             )
 
-                            # 3. Relate to concepts
+                            # 4. Relate to concepts
                             for concept in rel_concepts:
                                 session.run(
                                     """
@@ -235,7 +304,7 @@ class MemoryServiceV2(MemoryService):
                                     MATCH (c) WHERE (c:Concept OR c:Teacher OR c:Practice) AND toLower(c.entity_id) = toLower($concept)
                                     MERGE (m)-[:RELATES_TO]->(c)
                                     """,
-                                    memory_id=mem_id,
+                                    memory_id=target_mem_id,
                                     concept=concept,
                                 )
 
@@ -398,7 +467,7 @@ class MemoryServiceV2(MemoryService):
                 from neo4j import GraphDatabase
                 uri = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
                 user = os.environ.get("NEO4J_USER", "neo4j")
-                password = os.environ.get("NEO4J_PASSWORD", "mukthiguru_neo4j_pass")
+                password = os.environ.get("NEO4J_PASSWORD", "")
                 self._neo4j_driver = GraphDatabase.driver(uri, auth=(user, password))
             except Exception as e:
                 logger.warning(f"Neo4j unavailable: {e}")
@@ -785,6 +854,12 @@ class MemoryServiceV2(MemoryService):
         # Check memories count from both Neo4j and Supabase
         neo4j_mems = []
         supabase_mems = []
+        concept_nodes: dict[str, list[str]] = {}
+
+        def _associate_concept(concept_name: str, item_id: str) -> None:
+            c_key = concept_name.lower().strip()
+            if c_key:
+                concept_nodes.setdefault(c_key, []).append(item_id)
 
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
@@ -793,6 +868,7 @@ class MemoryServiceV2(MemoryService):
                     with driver.session() as session:
                         res = session.run(
                             "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
+                            "WHERE m.is_superseded IS NULL OR NOT m.is_superseded = true "
                             "RETURN m.id AS id, m.content AS content, m.insight AS insight, m.state_category AS state_category, m.created_at AS created_at",
                             uid=user_id
                         )
@@ -807,13 +883,35 @@ class MemoryServiceV2(MemoryService):
         except Exception as e:
             logger.warning(f"Failed to query Supabase memories: {e}")
 
-        # If absolutely no memories, return empty graph to trigger empty state in UI
-        if not neo4j_mems and not supabase_mems:
+        # Fetch user's study notebooks and their items
+        notebook_items = []
+        try:
+            notebooks_res = await asyncio.to_thread(
+                self._supabase.table("study_notebooks")
+                .select("id")
+                .eq("user_id", user_id)
+                .execute
+            )
+            notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]
+            if notebook_ids:
+                items_res = await asyncio.to_thread(
+                    self._supabase.table("study_notebook_items")
+                    .select("id, query, answer, created_at")
+                    .in_("notebook_id", notebook_ids)
+                    .limit(50)
+                    .execute
+                )
+                notebook_items = items_res.data or []
+        except Exception as e:
+            logger.warning(f"Failed to query study notebook items for KG: {e}")
+
+        # If absolutely no memories and no notebook items, return empty graph to trigger empty state in UI
+        if not neo4j_mems and not supabase_mems and not notebook_items:
             empty = {"nodes": [], "edges": []}
             self._KG_CACHE[cache_key] = (empty, time.time() + self._KG_TTL)
             return empty
 
-        # User is authenticated and has memories. Build the personalized Consciousness Map!
+        # User is authenticated. Build the personalized Consciousness Map!
         _add_node(f"user:{user_id}", "You", "User")
 
         # Set up state categories as base concepts so they exist in our graph
@@ -839,6 +937,7 @@ class MemoryServiceV2(MemoryService):
 
             if state_cat in state_categories:
                 _add_edge(f"memory:{mid}", f"concept:{state_cat}", "IN_STATE")
+                _associate_concept(state_cat, f"memory:{mid}")
 
         # Add Supabase memories if not already processed
         for m in supabase_mems:
@@ -873,6 +972,7 @@ class MemoryServiceV2(MemoryService):
                     clabel = r["clabel"] or "Concept"
                     _add_node(f"concept:{cid}", cid, clabel, cid if clabel == "Teacher" else None)
                     _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
+                    _associate_concept(cid, f"memory:{mid}")
                     concept_ids_in_graph.add(cid)
                     referenced_concept_ids.add(cid)
             except Exception as e:
@@ -900,6 +1000,28 @@ class MemoryServiceV2(MemoryService):
                 if kw in content:
                     _add_node(f"concept:{cid}", cid, "Concept")
                     _add_edge(f"memory:{mid}", f"concept:{cid}", "RELATES_TO")
+                    _associate_concept(cid, f"memory:{mid}")
+                    concept_ids_in_graph.add(cid)
+
+        # 3. Add Study Notebook Items
+        for item in notebook_items:
+            nid = str(item.get("id", ""))
+            if not nid:
+                continue
+            query = item.get("query", "")
+            answer = item.get("answer", "")
+            label = query[:30] + ("..." if len(query) > 30 else "")
+            
+            _add_node(f"notebook:{nid}", label, "NotebookItem", content=f"Q: {query}\nA: {answer}")
+            _add_edge(f"user:{user_id}", f"notebook:{nid}", "SAVED_NOTE")
+            
+            # Find related concepts using content keyword matching
+            full_text = (query + " " + answer).lower()
+            for kw, cid in concept_keywords.items():
+                if kw in full_text:
+                    _add_node(f"concept:{cid}", cid, "Concept")
+                    _add_edge(f"notebook:{nid}", f"concept:{cid}", "REFERENCES")
+                    _associate_concept(cid, f"notebook:{nid}")
                     concept_ids_in_graph.add(cid)
 
         # Query and add relationships between the matched ontology concepts
@@ -949,6 +1071,26 @@ class MemoryServiceV2(MemoryService):
                     break
         except Exception as e:
             logger.warning(f"Failed to add peer memory edges: {e}")
+
+        # Add Concept Sharing peer edges (Recall principle)
+        try:
+            _concept_peer_cap = 40
+            _concept_peers_added = 0
+            for c_key, items in concept_nodes.items():
+                unique_items = list(dict.fromkeys(items))
+                if len(unique_items) < 2:
+                    continue
+                # Chain items in a ring/cycle to avoid visual clutter
+                for i, src in enumerate(unique_items):
+                    dst = unique_items[(i + 1) % len(unique_items)]
+                    _add_edge(src, dst, "SHARED_CONCEPT")
+                    _concept_peers_added += 1
+                    if _concept_peers_added >= _concept_peer_cap:
+                        break
+                if _concept_peers_added >= _concept_peer_cap:
+                    break
+        except Exception as e:
+            logger.warning(f"Failed to add concept peer edges: {e}")
 
         result = {"nodes": list(nodes.values()), "edges": edges}
         self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)

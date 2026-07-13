@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { BookOpen, Plus, Trash2, X, Loader2, ChevronDown, ChevronUp, Bookmark, Hash } from "lucide-react";
+import { BookOpen, Plus, Trash2, X, Loader2, ChevronDown, ChevronUp, Bookmark, Hash, Mic, MicOff } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,10 +12,13 @@ import { useStudyNotebooks, type NotebookItem } from "@/hooks/useStudyNotebooks"
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 export default function StudyNotebookPage() {
   const { notebooks, loading, error, createNotebook, deleteNotebook, addItem, listItems } = useStudyNotebooks();
   const { toast } = useToast();
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n?.language || 'en';
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -23,8 +26,18 @@ export default function StudyNotebookPage() {
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
   const createRef = useRef<HTMLInputElement>(null);
 
+  const voice = useSpeechRecognition({
+    lang: currentLang,
+    useSarvam: currentLang !== 'en',
+    onTranscript: (text, isFinal) => {
+      if (isFinal) setNewTitle((prev) => (prev ? `${prev} ${text}` : text).slice(0, 100));
+    },
+  });
+
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
+    voice.stopListening();
+    voice.resetTranscript();
     const nb = await createNotebook(newTitle.trim());
     if (nb) {
       setNewTitle("");
@@ -177,16 +190,39 @@ export default function StudyNotebookPage() {
             <DialogHeader>
               <DialogTitle>Create New Notebook</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <Input
-                ref={createRef}
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="e.g., Morning Meditations"
-                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              />
+             <div className="space-y-4 pt-2">
+              <div className="flex gap-2">
+                <Input
+                  ref={createRef}
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="e.g., Morning Meditations"
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={!voice.isSupported}
+                  onClick={() => voice.isListening ? voice.stopListening() : void voice.startListening()}
+                  className={cn(voice.isListening && "border-emerald-500 text-emerald-500 animate-pulse")}
+                >
+                  {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+              </div>
+              {voice.isListening && (voice.transcript || voice.interimTranscript) && (
+                <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-xs text-foreground mt-2 animate-pulse">
+                  <span className="font-semibold text-emerald-500 mr-1">Voice Input:</span>
+                  {voice.transcript} <span className="text-muted-foreground italic">{voice.interimTranscript}</span>
+                </div>
+              )}
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => {
+                  voice.stopListening();
+                  voice.resetTranscript();
+                  setShowCreate(false);
+                }}>Cancel</Button>
                 <Button onClick={handleCreate} disabled={!newTitle.trim()} className="bg-ojas hover:bg-ojas/90">
                   Create
                 </Button>

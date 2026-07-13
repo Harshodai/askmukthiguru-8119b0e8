@@ -518,7 +518,7 @@ class OpenRouterService:
         if not result_upper:
             return "QUERY"
 
-        for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "QUERY", "CASUAL"]:
+        for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "QUERY", "CASUAL", "COMPARATIVE"]:
             if candidate in result_upper:
                 return candidate
         return "QUERY"
@@ -533,7 +533,7 @@ class OpenRouterService:
         prompt = (
             "Classify the following user message.\n\n"
             "1. INTENT: Choose exactly one from: DISTRESS, SAFETY_VIOLATION, ADVERSARIAL, "
-            "MEDITATION, FACTUAL, RELATIONAL, FOLLOW_UP, CASUAL.\n"
+            "MEDITATION, FACTUAL, RELATIONAL, FOLLOW_UP, CASUAL, COMPARATIVE.\n"
             "2. COMPLEXITY: Is this question 'simple' (single fact) or 'complex' (multi-hop/comparative)?\n\n"
             f"Message: {message}\n\n"
             "Reply in EXACTLY this format (no other text):\n"
@@ -552,7 +552,7 @@ class OpenRouterService:
             line = line.strip()
             if line.startswith("INTENT:"):
                 val = line.split(":", 1)[-1].strip()
-                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY"]:
+                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "COMPARATIVE", "CASUAL", "QUERY"]:
                     if candidate in val:
                         intent = candidate
                         break

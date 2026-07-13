@@ -82,13 +82,11 @@ class AdaptiveChunker:
         self._recursive = RecursiveCharacterTextSplitter(
             chunk_size=self._chunk_size,
             chunk_overlap=self._chunk_overlap,
-            length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
         self._recursive_small = RecursiveCharacterTextSplitter(
             chunk_size=max(self._chunk_size // 2, self._min_chunk_chars),
             chunk_overlap=self._chunk_overlap,
-            length_function=len,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
 

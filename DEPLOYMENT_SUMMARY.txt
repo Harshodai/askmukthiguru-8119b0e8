@@ -1,0 +1,10 @@
+Backend URL: https://askmukthiguru-8119b0e8-production.up.railway.app
+Railway Project: resilient-embrace
+Deployed: Sun Jul 12 02:48:28 IST 2026
+Log: deploy_all_20260712_024702.log
+
+Next Steps:
+1. Set API keys in Railway Dashboard
+2. Run ./migrate_data.sh
+3. Configure Lovable VITE_API_URL=https://askmukthiguru-8119b0e8-production.up.railway.app
+4. Test end-to-end

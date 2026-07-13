@@ -23,6 +23,7 @@ from fastapi import (
     FastAPI,
     Request,
 )
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -60,7 +61,7 @@ from app.context import correlation_id_var
 from app.dependencies import ServiceContainer, get_container, shutdown, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
-from app.security_utils import TTLRateLimiter, build_csp
+from app.security_utils import TTLRateLimiter, ExponentialBackoffRateLimiter, validate_correlation_id, build_csp
 from app.telemetry_db import init_telemetry_db
 from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
 from services.auth_service import get_current_user_from_supabase
@@ -93,6 +94,7 @@ from app.api.profile import router as profile_router
 from app.api.speech import router as speech_router
 from app.api.teachings import router as teachings_router
 from routers.notebooks import router as notebooks_router
+from app.api.srs import router as srs_router
 
 # Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
@@ -472,8 +474,13 @@ class SecurityHeadersMiddleware:
 app.add_middleware(SecurityHeadersMiddleware)
 
 # ── TTL-based in-memory rate limiter ──
-_AUTH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=5)
-_ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
+_AUTH_RATE_LIMITER = ExponentialBackoffRateLimiter(
+    ttl=60.0,
+    max_requests=5,
+    backoff_base=settings.auth_backoff_base_seconds,
+    backoff_multiplier=settings.auth_backoff_multiplier,
+)
+_ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=int(settings.admin_rate_limit.split('/')[0]))
 
 
 # Auth endpoint rate limiter middleware — tight limits on login/reset/register
@@ -489,12 +496,36 @@ _AUTH_LIMIT_PATHS: frozenset[str] = frozenset({
 async def auth_rate_limit_middleware(request: Request, call_next):
     if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
         client_ip = request.client.host if request.client else "unknown"
-        key = f"auth_rl:{request.url.path}:{client_ip}"
-        if not _AUTH_RATE_LIMITER.is_allowed(key):
+        ip_key = f"auth_rl:ip:{request.url.path}:{client_ip}"
+
+        ip_allowed, ip_retry_after = _AUTH_RATE_LIMITER.is_allowed(ip_key)
+        if not ip_allowed:
             return JSONResponse(
                 status_code=429,
                 content={"error": "Too Many Requests", "message": "Auth rate limit exceeded. Try again later."},
+                headers={"Retry-After": str(int(ip_retry_after))},
             )
+
+        try:
+            body = await request.json()
+            email = body.get("email") or body.get("username") or ""
+            if email:
+                acct_key = f"auth_rl:acct:{email}"
+                acct_allowed, acct_retry_after = _AUTH_RATE_LIMITER.is_allowed(acct_key)
+                if not acct_allowed:
+                    _AUTH_RATE_LIMITER.record_attempt(ip_key, success=False)
+                    return JSONResponse(
+                        status_code=429,
+                        content={"error": "Too Many Requests", "message": "Too many login attempts for this account. Try again later."},
+                        headers={"Retry-After": str(int(acct_retry_after))},
+                    )
+        except (json.JSONDecodeError, RuntimeError):
+            pass
+
+        resp = await call_next(request)
+
+        _AUTH_RATE_LIMITER.record_attempt(ip_key, success=resp.status_code < 400)
+        return resp
     return await call_next(request)
 
 
@@ -598,6 +629,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"Validation error on {request.url.path}: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Validation failed", "message": "Invalid request data."},
+    )
+
+
 # === Routers ===
 
 app.include_router(auth_router, prefix="/api/auth")
@@ -614,6 +654,7 @@ app.include_router(teachings_router, prefix="/api")
 app.include_router(support_router, prefix="/api")
 app.include_router(waitlist_router, prefix="/api")
 app.include_router(notebooks_router, prefix="/api")
+app.include_router(srs_router, prefix="/api")
 from app.api.kg import router as kg_router
 
 app.include_router(kg_router, prefix="/api")

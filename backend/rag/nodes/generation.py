@@ -362,8 +362,9 @@ def _cosine(a: list[float], b: list[float]) -> float:
 def _cite_sentences(
     answer: str,
     docs: list[dict],
-    threshold: float = 0.08,
-    cosine_threshold: float = 0.5,
+    intent: str = "QUERY",
+    threshold: float = 0.18,
+    cosine_threshold: float = 0.65,
 ) -> str:
     """Append inline [Source: title] markers to sentences with sufficient doc overlap.
 
@@ -373,11 +374,15 @@ def _cite_sentences(
     the best matching doc exceeds the relevant threshold to avoid hallucinated
     citations on sentences with no clear grounding.
 
+    Thresholds are adaptive by query intent (FACTUAL, RELATIONAL, QUERY, CASUAL, etc.)
+    via settings.citation_thresholds_by_intent.
+
     Args:
         answer:           Raw answer text after COT stripping.
         docs:             Retrieved documents (list of dicts with 'text' and 'title' keys).
-        threshold:         Min Jaccard score to attach a citation (default 0.08).
-        cosine_threshold:  Min cosine similarity to attach a citation (default 0.5).
+        intent:           Query intent for adaptive threshold selection.
+        threshold:        Min Jaccard score to attach a citation (default from settings).
+        cosine_threshold: Min cosine similarity to attach a citation (default from settings).
 
     Returns:
         Answer with inline citations appended sentence-by-sentence.
@@ -386,6 +391,19 @@ def _cite_sentences(
         return answer
 
     import re as _re
+
+    # Get adaptive thresholds for this intent: start from configured base
+    # thresholds, then overlay any intent-specific overrides so unspecified
+    # keys keep the base value.
+    intent_thresholds = {
+        "jaccard": getattr(settings, "citation_jaccard_threshold", 0.18),
+        "cosine": getattr(settings, "citation_cosine_threshold", 0.65),
+    }
+    intent_thresholds.update(
+        getattr(settings, "citation_thresholds_by_intent", {}).get(intent, {})
+    )
+    jaccard_threshold = intent_thresholds.get("jaccard", threshold)
+    cosine_threshold = intent_thresholds.get("cosine", cosine_threshold)
 
     # Pre-build ngram sets for every doc (deduped by title)
     seen: set[str] = set()
@@ -472,7 +490,7 @@ def _cite_sentences(
                 if score > best_score:
                     best_score = score
                     best_title = title
-            effective_threshold = threshold
+            effective_threshold = jaccard_threshold
 
         if best_score >= effective_threshold and best_title:
             doc_idx = next(
@@ -1101,7 +1119,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # 1.10 Citation-by-Sentence — attach per-sentence inline citations
     if getattr(settings, "citation_by_sentence", True) and relevant_docs:
         try:
-            answer = _cite_sentences(answer, relevant_docs)
+            intent = state.get("intent", "QUERY")
+            answer = _cite_sentences(answer, relevant_docs, intent=intent)
         except Exception as _cbs_err:
             logger.warning("Citation-by-sentence failed (non-fatal): %s", _cbs_err)
 

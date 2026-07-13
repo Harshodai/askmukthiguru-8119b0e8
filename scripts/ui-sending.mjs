@@ -8,7 +8,7 @@ const outDir = join(dirname(__filename), '..', 'playwright-report', 'ui-sending'
 mkdirSync(outDir, { recursive: true });
 
 const BASE = 'http://localhost';
-const ANON_KEY = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+const ANON_KEY = (process.env.VITE_SUPABASE_ANON_KEY || "");
 
 async function createSession() {
   const email = `agent-ui-${Date.now()}@example.com`;

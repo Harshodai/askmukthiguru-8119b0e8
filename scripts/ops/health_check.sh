@@ -72,7 +72,7 @@ check "Frontend serves HTML"        "curl -sf http://localhost/ | grep -q 'AskMu
 
 echo ""
 echo "── Auth System ─────────────────────────"
-check "Admin user in Supabase"      "docker exec mukthiguru-backend curl -sf -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU' 'http://host.docker.internal:54321/rest/v1/user_roles?select=role' 2>&1" "admin"
+check "Admin user in Supabase"      "docker exec mukthiguru-backend curl -sf -H 'Authorization: Bearer ${JWT_SECRET:-}' 'http://host.docker.internal:54321/rest/v1/user_roles?select=role' 2>&1" "admin"
 
 echo ""
 echo "── Known Failure Safeguards ────────────"

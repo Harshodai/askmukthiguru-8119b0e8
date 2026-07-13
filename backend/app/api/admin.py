@@ -125,7 +125,7 @@ async def upsert_doctrine_term(
 
     client = _get_client()
     if not client:
-        raise HTTPException(status_code=503, detail="Supabase unavailable")
+        raise HTTPException(status_code=503, detail="Database service unavailable")
     try:
         await client.table("doctrine_terms").upsert(
             {
@@ -138,7 +138,7 @@ async def upsert_doctrine_term(
         ).execute()
     except Exception as e:
         logger.error(f"Failed to upsert doctrine term: {e}")
-        raise HTTPException(status_code=500, detail=f"Upsert failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save doctrine term. Please try again.")
     reload_doctrine_terms()  # hot-reload the correction map (no restart needed)
     return {"ok": True, "canonical": body.canonical.strip()}
 
@@ -199,7 +199,7 @@ async def get_rag_flow_graph(
         }
     except Exception as e:
         logger.error(f"Failed to extract RAG flow graph: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to extract graph strategy: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate graph. Please try again.")
 
 
 @admin_router.get("/evaluations")
@@ -862,7 +862,7 @@ async def update_admin_settings(
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
-        raise HTTPException(status_code=503, detail="Supabase service unavailable")
+        raise HTTPException(status_code=503, detail="Database service unavailable")
         
     try:
         data = {
@@ -885,7 +885,7 @@ async def update_admin_settings(
         return {"status": "success", "web_search_allowed_domains": new_domains}
     except Exception as e:
         logger.error(f"Failed to update app settings in DB: {e}")
-        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update settings. Please try again.")
 
 
 class OkfReviewItem(BaseModel):
@@ -906,14 +906,14 @@ async def list_okf_review_queue(
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
-        raise HTTPException(status_code=503, detail="Supabase client not available")
+        raise HTTPException(status_code=503, detail="Data service not available")
 
     try:
         res = client.table("okf_review_queue").select("*").eq("status", status).execute()
         return res.data or []
     except Exception as e:
         logger.error(f"Failed to fetch OKF review queue: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to load review queue. Please try again.")
 
 
 @admin_router.post("/okf/review/{review_id}/approve")
@@ -926,7 +926,7 @@ async def approve_okf_entry(
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
-        raise HTTPException(status_code=503, detail="Supabase client not available")
+        raise HTTPException(status_code=503, detail="Data service not available")
 
     try:
         res = client.table("okf_review_queue").select("*").eq("id", review_id).execute()
@@ -972,9 +972,11 @@ async def approve_okf_entry(
         }).eq("id", review_id).execute()
 
         return {"status": "success", "file": str(target_file)}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to approve OKF entry: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to approve entry. Please try again.")
 
 
 @admin_router.post("/okf/review/{review_id}/reject")
@@ -988,7 +990,7 @@ async def reject_okf_entry(
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
-        raise HTTPException(status_code=503, detail="Supabase client not available")
+        raise HTTPException(status_code=503, detail="Data service not available")
 
     try:
         client.table("okf_review_queue").update({
@@ -1001,5 +1003,5 @@ async def reject_okf_entry(
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Failed to reject OKF entry: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to reject entry. Please try again.")
 

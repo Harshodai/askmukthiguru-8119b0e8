@@ -241,3 +241,49 @@ class TTLRateLimiter:
                 q.popleft()
             if not q:
                 del self._store[key]
+
+
+import math
+
+class ExponentialBackoffRateLimiter:
+    def __init__(self, ttl: float, max_requests: int, backoff_base: float = 2.0, backoff_multiplier: float = 2.0):
+        self.ttl = ttl
+        self.max_requests = max_requests
+        self.backoff_base = backoff_base
+        self.backoff_multiplier = backoff_multiplier
+        self._attempts: dict[str, list[tuple[float, bool]]] = {}
+
+    def is_allowed(self, key: str, now: Optional[float] = None) -> tuple[bool, float]:
+        now = now or time.time()
+        cutoff = now - self.ttl
+        attempts = self._attempts.get(key, [])
+        attempts = [a for a in attempts if a[0] > cutoff]
+
+        failures = sum(1 for a in attempts if not a[1])
+        successes = sum(1 for a in attempts if a[1])
+
+        if successes >= self.max_requests:
+            success_timestamps = [a[0] for a in attempts if a[1]]
+            oldest_success_timestamp = min(success_timestamps) if success_timestamps else now
+            wait = oldest_success_timestamp + self.ttl - now
+            if wait < 0:
+                wait = 0.0
+            return False, wait
+
+        if failures > 0:
+            last_failure_time = max(a[0] for a in attempts if not a[1])
+            wait = self.backoff_base * (self.backoff_multiplier ** (failures - 1))
+            if now - last_failure_time < wait:
+                return False, wait - (now - last_failure_time)
+
+        return True, 0.0
+
+    def record_attempt(self, key: str, success: bool, now: Optional[float] = None) -> None:
+        now = now or time.time()
+        if key not in self._attempts:
+            self._attempts[key] = []
+        self._attempts[key].append((now, success))
+        cutoff = now - self.ttl
+        self._attempts[key] = [a for a in self._attempts[key] if a[0] > cutoff]
+        if not self._attempts[key]:
+            del self._attempts[key]

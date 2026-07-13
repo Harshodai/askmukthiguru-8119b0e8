@@ -1,0 +1,566 @@
+{
+  "landing.meetGurus.tags": [
+    "missing",
+    "['Beautiful State', 'Consciousness', 'Inner Peace', 'Oneness']"
+  ],
+  "practices.soulSync.benefits": [
+    "missing",
+    "['Calms the amygdala — lowers cortisol and stress arousal.', 'Shifts brainwaves from high-beta (overthinking) to coherent alpha (calm focus).', 'Aligns your inner state with your intentions — opens the door to synchronicity.', 'Dissolves self-centred suffering states — opens the heart to love, connection, and peace.']"
+  ],
+  "practices.sereneMind.howItWorks": [
+    "missing",
+    "['Focus on your breath — eyes closed, sit upright. Bring your whole, undivided attention to the breath entering and leaving your nostrils.', 'Scan your inner state — notice the emotions and thoughts present right now, without trying to push them away. Ask: \"What exact emotion am I feeling?\" (anxiety, anger, sadness, peace…)', 'Acknowledge without judgement — gently label the emotion. No judging. No fighting. Soft awareness.', 'See where your mind is — past regrets, future worries, or self-centred chatter? Just acknowledge the state of separation.', 'Flame Visualisation — visualise a steady golden flame glowing between your eyebrows. Slowly draw it inward to the centre of your brain — let it brighten the darkness and stabilise your mind.', 'Close with a smile — let a warm, gentle smile rest on your face. One more deep breath. Feel the shift. Slowly open your eyes.']"
+  ],
+  "practices.dailyReflection.benefits": [
+    "missing",
+    "['Fosters gratitude — shifts your gaze toward the positive.', 'Closes the day mindfully — releases accumulated tension and stress.', 'Improves sleep — calms the mind before bed.', 'Builds self-compassion — review mistakes without judgement.']"
+  ],
+  "practices.soulSync.howItWorks": [
+    "missing",
+    "['Conscious Breathing — sit comfortably, hands resting on your thighs, palms facing upward. Eyes closed. Take 8 slow, deep breaths, counting each one with the thumb touching each finger (index to pinky and back).', 'Humming Vibration — bring index finger and thumb together in Jnana Mudra. As you exhale, hum softly like a bee (Bhramari Pranayama). Repeat for 8 breaths. Feel the gentle vibration calm your nervous system.', \"Settle in the Silent Pause — between each inhalation and exhalation, rest in the natural stillness. Don't force it — just witness.\", 'Repeat \"Aham\" — with every exhalation, mentally whisper \"Aham\" (I am — boundless consciousness). Rest in the simple feeling of being.', 'Dissolve and Expand — visualise your body, the room, the entire universe dissolving and expanding into a limitless golden ocean of light. Feel you and existence are not separate.', 'Hold Your Intention — in this expanded state, bring your heartfelt intention to mind. Visualise it manifest. Close with deep gratitude.']"
+  ],
+  "admin.admins": [
+    "corrupted_kn",
+    "Admins"
+  ],
+  "admin.dailyTeaching": [
+    "corrupted_kn",
+    "Daily Teaching"
+  ],
+  "admin.evals": [
+    "corrupted_kn",
+    "Evaluations"
+  ],
+  "admin.feedback": [
+    "corrupted_kn",
+    "Feedback"
+  ],
+  "admin.ingestion": [
+    "corrupted_kn",
+    "Ingestion"
+  ],
+  "admin.jobs": [
+    "corrupted_kn",
+    "Jobs"
+  ],
+  "admin.login": [
+    "corrupted_kn",
+    "Admin Login"
+  ],
+  "admin.okfManager": [
+    "corrupted_kn",
+    "OKF Manager"
+  ],
+  "admin.overview": [
+    "corrupted_kn",
+    "Overview"
+  ],
+  "admin.prompts": [
+    "corrupted_kn",
+    "Prompts"
+  ],
+  "admin.quality": [
+    "corrupted_kn",
+    "Quality"
+  ],
+  "admin.queries": [
+    "corrupted_kn",
+    "Queries"
+  ],
+  "admin.ragFlow": [
+    "corrupted_kn",
+    "RAG Flow"
+  ],
+  "admin.retrieval": [
+    "corrupted_kn",
+    "Retrieval"
+  ],
+  "admin.settings": [
+    "corrupted_kn",
+    "Settings"
+  ],
+  "admin.teachingTips": [
+    "corrupted_kn",
+    "Teaching Tips"
+  ],
+  "admin.triggers": [
+    "corrupted_kn",
+    "Triggers"
+  ],
+  "auth.alreadyAccount": [
+    "corrupted_kn",
+    "Already have an account?"
+  ],
+  "auth.and": [
+    "corrupted_kn",
+    " and "
+  ],
+  "auth.byContinuing": [
+    "corrupted_kn",
+    "By continuing you agree to our"
+  ],
+  "auth.connectingToGoogle": [
+    "fallback",
+    "Connecting to Google…"
+  ],
+  "auth.continueWithFacebook": [
+    "fallback",
+    "Continue with Facebook"
+  ],
+  "auth.createAccount": [
+    "fallback",
+    "Create your account"
+  ],
+  "auth.email": [
+    "fallback",
+    "Email"
+  ],
+  "auth.emailPlaceholder": [
+    "fallback",
+    "you@example.com"
+  ],
+  "auth.forgotPassword": [
+    "fallback",
+    "Forgot your password?"
+  ],
+  "auth.hidePassword": [
+    "fallback",
+    "Hide password"
+  ],
+  "auth.noAccount": [
+    "fallback",
+    "Don't have an account?"
+  ],
+  "auth.pageDescription": [
+    "fallback",
+    "Sign in to AskMukthiGuru to continue your private, AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji."
+  ],
+  "auth.pageTitle": [
+    "fallback",
+    "Sign in or create account — AskMukthiGuru"
+  ],
+  "auth.passwordResetSent": [
+    "fallback",
+    "We sent you a link to reset your password."
+  ],
+  "auth.profileSetupIncomplete": [
+    "fallback",
+    "Profile setup incomplete"
+  ],
+  "chat.searchingTradition": [
+    "validation_failed",
+    "Searching {{tradition}} on \"{{topic}}\"…"
+  ],
+  "chat.switchLang": [
+    "validation_failed",
+    "Switch conversation language to {{native}}?"
+  ],
+  "chat.unlockedAssistant": [
+    "validation_failed",
+    "Unlocked {{name}}"
+  ],
+  "common.dataExportedDesc": [
+    "fallback",
+    "Your data was downloaded."
+  ],
+  "common.exportData": [
+    "fallback",
+    "Export my data"
+  ],
+  "common.hideDetails": [
+    "fallback",
+    "Hide details"
+  ],
+  "common.keep": [
+    "fallback",
+    "Keep"
+  ],
+  "landing.hero.badge": [
+    "corrupted_kn",
+    "Guided by Ancient Wisdom, Powered by AI"
+  ],
+  "landing.hero.subtitle": [
+    "corrupted_kn",
+    "Experience the timeless wisdom of Sri Preethaji & Sri Krishnaji through an AI companion designed to guide you from suffering to serenity."
+  ],
+  "landing.howItWorks.heading1": [
+    "corrupted_kn",
+    "How It"
+  ],
+  "landing.howItWorks.heading2": [
+    "corrupted_kn",
+    "Works"
+  ],
+  "landing.howItWorks.step1Title": [
+    "corrupted_kn",
+    "Start a Conversation"
+  ],
+  "landing.howItWorks.step3Desc": [
+    "corrupted_kn",
+    "Get personalized guidance rooted in the profound teachings of Sri Preethaji & Sri Krishnaji."
+  ],
+  "landing.howItWorks.subtitle": [
+    "corrupted_kn",
+    "A simple journey from wherever you are to your beautiful state"
+  ],
+  "landing.howItWorks.videoPlaceholder": [
+    "corrupted_kn",
+    "See it in action (90 sec)"
+  ],
+  "landing.meditation.benefit2": [
+    "corrupted_kn",
+    "Release emotional tension"
+  ],
+  "landing.meditation.breathingCue": [
+    "corrupted_kn",
+    "Breathe in for 4 counts... Hold... Breathe out for 6 counts"
+  ],
+  "landing.meditation.heading2": [
+    "corrupted_kn",
+    "Serene Mind"
+  ],
+  "landing.meetGurus.description": [
+    "fallback",
+    "For over three decades, Sri Preethaji and Sri Krishnaji have guided millions toward inner transformation. Their teachings focus on moving from a 'suffering state' to a 'beautiful state' through consciousness technology that blends ancient yogic wisdom with modern neuroscience."
+  ],
+  "landing.meetGurus.disclosure": [
+    "fallback",
+    "Guided by their wisdom, powered by AI"
+  ],
+  "landing.meetGurus.quote": [
+    "fallback",
+    "\"When you are in a beautiful state, you become a blessing to everyone around you. Your very presence heals, your words inspire, and your actions create ripples of transformation.\""
+  ],
+  "landing.practices.addFav": [
+    "fallback",
+    "Add to favorites"
+  ],
+  "landing.practices.exploreAll": [
+    "fallback",
+    "Explore all practices"
+  ],
+  "landing.practices.removedDesc": [
+    "fallback",
+    "{{title}} has been removed from your list."
+  ],
+  "landing.practices.removedFav": [
+    "fallback",
+    "Removed from favorites"
+  ],
+  "landing.practices.star": [
+    "fallback",
+    "Star {{title}}"
+  ],
+  "landing.practices.subtitle": [
+    "fallback",
+    "Guided meditations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Pick the one that meets you today — star your favorites to pin them here."
+  ],
+  "landing.practices.unstar": [
+    "fallback",
+    "Unstar {{title}}"
+  ],
+  "layout.navigate": [
+    "fallback",
+    "Navigate"
+  ],
+  "meditation.guideStep4Title": [
+    "fallback",
+    "Observe Thought Direction"
+  ],
+  "meditation.guideStep5Title": [
+    "fallback",
+    "Flame in the Brain"
+  ],
+  "meditation.guideStepVideo1Title": [
+    "fallback",
+    "Posture & Breathing"
+  ],
+  "meditation.guideStepVideo2Desc": [
+    "fallback",
+    "Feel your inner emotional state without trying to change it."
+  ],
+  "meditation.guideStepVideo2Title": [
+    "fallback",
+    "Observe Emotion"
+  ],
+  "meditation.guideStepVideo3Title": [
+    "fallback",
+    "Observe Thoughts"
+  ],
+  "meditation.guideStepVideo5Desc": [
+    "fallback",
+    "Hold attention on the flame, gently smile and open eyes."
+  ],
+  "meditation.guidedMeditation": [
+    "fallback",
+    "Guided Meditation"
+  ],
+  "meditation.hold": [
+    "fallback",
+    "Hold"
+  ],
+  "meditation.howDoYouFeel": [
+    "fallback",
+    "How do you feel right now?"
+  ],
+  "meditation.infusedFromTeaching": [
+    "fallback",
+    "Infused from {{teaching}}"
+  ],
+  "meditation.lighter": [
+    "fallback",
+    "Lighter"
+  ],
+  "meditation.namaste": [
+    "fallback",
+    "Namaste"
+  ],
+  "meditation.obstacleTeacher": [
+    "fallback",
+    "Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin."
+  ],
+  "meditation.openInYoutube": [
+    "fallback",
+    "Open in YouTube"
+  ],
+  "meditation.pause": [
+    "fallback",
+    "Pause"
+  ],
+  "meditation.pauseAndClose": [
+    "fallback",
+    "Pause & close"
+  ],
+  "meditation.stepXofY": [
+    "fallback",
+    "{{current}} of {{total}}"
+  ],
+  "meditation.tabBreathe": [
+    "fallback",
+    "Breathe"
+  ],
+  "meditation.tabVideo": [
+    "fallback",
+    "Video"
+  ],
+  "meditation.tablistAria": [
+    "fallback",
+    "Meditation mode"
+  ],
+  "meditation.whatInsightArose": [
+    "fallback",
+    "What insight arose during your meditation?"
+  ],
+  "meditation.yourSoulJourney": [
+    "fallback",
+    "Your Soul Journey"
+  ],
+  "memory.active": [
+    "fallback",
+    "Active"
+  ],
+  "memory.autoExtracted": [
+    "fallback",
+    "Auto-extracted"
+  ],
+  "memory.consciousnessMap": [
+    "fallback",
+    "My Consciousness Map"
+  ],
+  "memory.coreMemory": [
+    "fallback",
+    "Core memory"
+  ],
+  "memory.coreSavedDesc": [
+    "fallback",
+    "The guru will always carry this with you."
+  ],
+  "memory.couldNotForget": [
+    "fallback",
+    "Could not forget"
+  ],
+  "memory.couldNotSave": [
+    "fallback",
+    "Could not save"
+  ],
+  "memory.forgetBtn": [
+    "fallback",
+    "Forget"
+  ],
+  "memory.forgetWarning": [
+    "fallback",
+    "The guru will no longer reference this in future conversations. This cannot be undone."
+  ],
+  "memory.fullscreenDesc": [
+    "fallback",
+    "Fullscreen view of your interactive personal consciousness map. Drag nodes to move, drag background to pan, scroll to zoom."
+  ],
+  "memory.graphView": [
+    "fallback",
+    "Graph view"
+  ],
+  "memory.keep": [
+    "fallback",
+    "Keep"
+  ],
+  "memory.lastSaved": [
+    "fallback",
+    "Last saved {{date}}"
+  ],
+  "memory.listView": [
+    "fallback",
+    "List view"
+  ],
+  "memory.memories": [
+    "fallback",
+    "Memories"
+  ],
+  "memory.memory": [
+    "fallback",
+    "Memory"
+  ],
+  "memory.memorySaved": [
+    "fallback",
+    "Memory saved"
+  ],
+  "memory.memorySavedDesc": [
+    "fallback",
+    "The guru will remember this."
+  ],
+  "memory.noMatchFound": [
+    "fallback",
+    "No matching memories found."
+  ],
+  "memory.noMemories": [
+    "fallback",
+    "No memories yet."
+  ],
+  "memory.saveMemory": [
+    "fallback",
+    "Save memory"
+  ],
+  "memory.searchPlaceholder": [
+    "fallback",
+    "Search memories..."
+  ],
+  "memory.sessionReflections": [
+    "fallback",
+    "Session reflections"
+  ],
+  "memory.statCoreStatus": [
+    "fallback",
+    "Core Status"
+  ],
+  "memory.statMemories": [
+    "fallback",
+    "Memories"
+  ],
+  "memory.statReflections": [
+    "fallback",
+    "Reflections"
+  ],
+  "memory.unset": [
+    "fallback",
+    "Unset"
+  ],
+  "memory.youAdded": [
+    "fallback",
+    "You added"
+  ],
+  "mood.bannerCta": [
+    "fallback",
+    "Check in"
+  ],
+  "mood.calm": [
+    "fallback",
+    "Calm"
+  ],
+  "practices.sereneMind.purpose": [
+    "fallback",
+    "When emotion runs hot and the mind sparks, give yourself three minutes. Serene Mind uses a calming 4-2-6 breath and a gentle flame at the centre of your head to release tension — and return you to a quiet, clear, open mind."
+  ],
+  "practices.soulSync.purpose": [
+    "fallback",
+    "Soul Sync is your way home. You sit, you breathe, you hum — and the noise of the day falls away. You reconnect with the silent presence beneath your thoughts. This is the doorway into a Beautiful State."
+  ],
+  "practices.startPractice": [
+    "fallback",
+    "Begin"
+  ],
+  "practices.title": [
+    "fallback",
+    "Practices"
+  ],
+  "privacy.aiDisclosureText": [
+    "fallback",
+    "Responses are generated by an AI grounded in publicly available teachings of Sri Preethaji and Sri Krishnaji. AskMukthiGuru is not a substitute for professional mental-health care."
+  ],
+  "privacy.intro": [
+    "fallback",
+    "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data required to deliver the experience: your email (for authentication) and your conversation messages (stored locally on your device via chatStorage so you can pick up where you left off)."
+  ],
+  "privacy.lastUpdated": [
+    "fallback",
+    "Last updated: {{date}}"
+  ],
+  "privacy.neverAds": [
+    "fallback",
+    "Show you advertisements."
+  ],
+  "privacy.neverSell": [
+    "fallback",
+    "Sell or share your data with third parties."
+  ],
+  "privacy.neverTrain": [
+    "fallback",
+    "Use your conversations to train external models."
+  ],
+  "privacy.pageDescription": [
+    "fallback",
+    "How AskMukthiGuru handles your data: minimum collection, no third-party sharing, full export and deletion rights under DPDP Act and GDPR."
+  ],
+  "privacy.pageTitle": [
+    "fallback",
+    "Privacy Policy — AskMukthiGuru"
+  ],
+  "privacy.storeEmail": [
+    "fallback",
+    "Email address & encrypted password (or Google profile) — for sign-in."
+  ],
+  "privacy.title": [
+    "fallback",
+    "Privacy Policy"
+  ],
+  "privacy.whatWeStore": [
+    "fallback",
+    "What we store"
+  ],
+  "terms.accountTermination": [
+    "fallback",
+    "Account & termination"
+  ],
+  "terms.backToHome": [
+    "fallback",
+    "← Back to home"
+  ],
+  "terms.changesText": [
+    "fallback",
+    "We may update these Terms; continued use after a change constitutes acceptance of the new Terms."
+  ],
+  "terms.intellectualProperty": [
+    "fallback",
+    "Intellectual property"
+  ],
+  "terms.notMedical": [
+    "fallback",
+    "Not medical or mental-health advice"
+  ],
+  "terms.pageTitle": [
+    "fallback",
+    "Terms of Service — AskMukthiGuru"
+  ],
+  "terms.title": [
+    "fallback",
+    "Terms of Service"
+  ]
+}
