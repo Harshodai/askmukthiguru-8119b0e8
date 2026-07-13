@@ -22,7 +22,7 @@ import type {
 } from '@/admin/types';
 import * as db from './mockData';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 /* ── Explicit NODE_ENV check for mock-data guard ─────────────────────────── */
 const ALLOW_MOCK = import.meta.env.DEV && import.meta.env.VITE_ALLOW_MOCK === 'true';

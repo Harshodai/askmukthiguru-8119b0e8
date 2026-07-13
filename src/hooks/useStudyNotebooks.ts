@@ -33,7 +33,8 @@ async function getToken(): Promise<string | null> {
   }
 }
 
-const BASE = (import.meta.env.VITE_BACKEND_URL || "http://localhost:8000") + "/api";
+import { BACKEND_URL_OR_LOCAL } from "@/lib/backendUrl";
+const BASE = BACKEND_URL_OR_LOCAL + "/api";
 
 export function useStudyNotebooks() {
   const [notebooks, setNotebooks] = useState<StudyNotebook[]>([]);
