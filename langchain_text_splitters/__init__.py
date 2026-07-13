@@ -1,37 +1,28 @@
-"""Minimal stub for langchain_text_splitters used in tests.
-Implements RecursiveCharacterTextSplitter with a simple word‑window splitter.
+"""Test stub — NOT for production use.
+Production uses the real langchain_text_splitters package directly.
 """
 
+import os
+import warnings
+
+if not os.environ.get("PYTEST_CURRENT_TEST"):
+    warnings.warn(
+        "langchain_text_splitters stub imported outside test environment",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+
 class RecursiveCharacterTextSplitter:
-    """Very small subset of the original class.
-
-    Parameters
-    ----------
-    chunk_size: int
-        Desired number of tokens/words per chunk.
-    chunk_overlap: int
-        Number of tokens/words to overlap between consecutive chunks.
-    separators: list[str] | None
-        Ignored in this stub – kept for signature compatibility.
-    """
-
     def __init__(self, *, chunk_size: int, chunk_overlap: int, separators=None):
         self.chunk_size = chunk_size
         self.chunk_overlap = max(chunk_overlap, 0)
-        # separators kept for API compatibility but not used in this simple implementation
         self.separators = separators or ["\n\n", "\n", ". ", " ", ""]
 
     def split_text(self, text: str) -> list[str]:
-        """Split *text* into chunks of ``chunk_size`` words with ``chunk_overlap``.
-
-        This naive implementation does not respect separators – it merely
-        tokenises on whitespace and yields overlapping windows. It is sufficient
-        for the unit‑tests that only verify that a list of strings is returned.
-        """
         if not text:
             return []
         words = text.split()
-        # Step size ensures overlap
         step = max(self.chunk_size - self.chunk_overlap, 1)
         chunks: list[str] = []
         for i in range(0, len(words), step):

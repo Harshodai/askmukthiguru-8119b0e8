@@ -108,7 +108,9 @@ async def get_concept_details(entity_id: str, state: GraphState) -> Dict[str, An
                 "source": "neo4j_ontology",
             }
 
-        result = await asyncio.to_thread(driver.execute_read, _query)
+        result = await asyncio.to_thread(
+            lambda: driver.session().execute_read(_query)
+        )
 
         if result is None:
             return {
@@ -162,7 +164,7 @@ async def get_adjacent_concepts(entity_id: str, state: GraphState) -> Dict[str, 
             cypher = """
             MATCH (n {entity_id: $entity_id})-[r]->(m)
             WHERE m.entity_id IS NOT NULL
-            RETURN n.entity_id AS source, m.entity_id AS target, r.type AS relation_type, r.description AS relation_description, m.name AS target_name, m.type AS target_type
+            RETURN n.entity_id AS source, m.entity_id AS target, type(r) AS relation_type, r.description AS relation_description, m.name AS target_name, m.type AS target_type
             """
             result = tx.run(cypher, entity_id=entity_id)
 
@@ -212,7 +214,9 @@ async def get_adjacent_concepts(entity_id: str, state: GraphState) -> Dict[str, 
                 "source": "neo4j_ontology",
             }
 
-        result = await asyncio.to_thread(driver.execute_read, _query)
+        result = await asyncio.to_thread(
+            lambda: driver.session().execute_read(_query)
+        )
         return result
 
     except Exception as e:

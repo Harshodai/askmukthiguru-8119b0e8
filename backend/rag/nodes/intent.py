@@ -740,6 +740,9 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
             from rag.nodes.reranking import rerank_documents, grade_documents
 
             local_state = dict(state)
+            local_state.setdefault("query_rewrites", [state.get("question", "")])
+            local_state.setdefault("filters", {})
+            local_state.setdefault("relevant_docs", [])
             retrieval_res = await retrieve_documents(local_state, config)
             local_state.update(retrieval_res)
             rerank_res = await rerank_documents(local_state, config)
@@ -747,7 +750,7 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
             grade_res = await grade_documents(local_state, config)
             relevant_docs = grade_res.get("relevant_docs", [])
         except Exception as e:
-            logger.error(f"Inline retrieval for distress failed: {e}")
+            logger.error(f"Inline retrieval for distress failed: {e}", exc_info=True)
 
     if relevant_docs:
         context = "\n\n---\n\n".join(

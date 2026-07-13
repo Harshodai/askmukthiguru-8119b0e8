@@ -14,4 +14,5 @@ repos:
     hooks:
       - id: bandit
         args: ["-ll", "-c", "backend/pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
         files: ^(backend|scripts)/

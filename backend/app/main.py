@@ -506,6 +506,7 @@ async def auth_rate_limit_middleware(request: Request, call_next):
                 headers={"Retry-After": str(int(ip_retry_after))},
             )
 
+        acct_key = None
         try:
             body = await request.json()
             email = body.get("email") or body.get("username") or ""
@@ -524,7 +525,10 @@ async def auth_rate_limit_middleware(request: Request, call_next):
 
         resp = await call_next(request)
 
-        _AUTH_RATE_LIMITER.record_attempt(ip_key, success=resp.status_code < 400)
+        success = resp.status_code < 400
+        _AUTH_RATE_LIMITER.record_attempt(ip_key, success=success)
+        if acct_key is not None:
+            _AUTH_RATE_LIMITER.record_attempt(acct_key, success=success)
         return resp
     return await call_next(request)
 
@@ -631,7 +635,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"Validation error on {request.url.path}: {exc.errors()}")
+    safe_errors = []
+    for err in exc.errors():
+        safe_err = {k: v for k, v in err.items() if k != "input"}
+        safe_errors.append(safe_err)
+    logger.warning(f"Validation error on {request.url.path}: {safe_errors}")
     return JSONResponse(
         status_code=422,
         content={"error": "Validation failed", "message": "Invalid request data."},

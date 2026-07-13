@@ -223,7 +223,7 @@ class MemoryServiceV2(MemoryService):
                     rel_concepts = classified.get("related_concepts") or []
 
                     # If merging, generate a new UUID for the Neo4j node so we preserve the old node
-                    new_mem_id = str(uuid.uuid4()) if merge_target_id else mem_id
+                    new_mem_id = merge_target_id if merge_target_id else mem_id
 
                     def _write_neo4j():
                         with driver.session() as session:

@@ -23,32 +23,14 @@ if [[ -z "$SNAPSHOT_NAME" ]]; then
 fi
 log "Created snapshot: $SNAPSHOT_NAME"
 
-log "Waiting for snapshot $SNAPSHOT_NAME to be ready..."
-SNAPSHOT_DEADLINE=60
-SNAPSHOT_ELAPSED=0
-while [[ $SNAPSHOT_ELAPSED -lt $SNAPSHOT_DEADLINE ]]; do
-  SNAPSHOT_STATUS=$(curl --fail-with-body -s "http://localhost:6333/collections/spiritual_wisdom/snapshots/$SNAPSHOT_NAME" 2>&1 | tee -a "$LOG" | jq -r '.result.status // .status // empty')
-  if [[ "$SNAPSHOT_STATUS" == "Completed" || "$SNAPSHOT_STATUS" == "completed" ]]; then
-    log "Snapshot $SNAPSHOT_NAME is ready"
-    break
-  fi
-  log "Snapshot status: $SNAPSHOT_STATUS, waiting..."
-  sleep 2
-  SNAPSHOT_ELAPSED=$((SNAPSHOT_ELAPSED + 2))
-done
-
-if [[ "$SNAPSHOT_STATUS" != "Completed" && "$SNAPSHOT_STATUS" != "completed" ]]; then
-  log "ERROR: Snapshot $SNAPSHOT_NAME did not become ready within ${SNAPSHOT_DEADLINE}s"
-  exit 1
-fi
-
 curl --fail-with-body "http://localhost:6333/collections/spiritual_wisdom/snapshots/$SNAPSHOT_NAME" -o qdrant_snapshot.snapshot 2>&1 | tee -a "$LOG"
+log "→ Upload qdrant_snapshot.snapshot via Railway Qdrant API"
 log "→ Upload qdrant_snapshot.snapshot via Railway Qdrant API"
 
 # ─── PostgreSQL ───────────────────────────────────────────────────────────
 log "=== PostgreSQL: Dump & Restore ==="
 docker exec supabase_db_fynkjimvuimakgtidvuq pg_dump -U postgres -d postgres --no-owner --no-acl > supabase_dump.sql 2>>"$LOG"
-log "PostgreSQL dump completed, saved to supabase_dump.sql" | tee -a "$LOG"
+log "PostgreSQL dump completed, saved to supabase_dump.sql"
 log "→ Restore: psql \"postgresql://...\" < supabase_dump.sql"
 
 # ─── Redis ────────────────────────────────────────────────────────────────

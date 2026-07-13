@@ -14,9 +14,10 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 class SRSService:
-    def __init__(self, supabase_client: Optional[Any] = None, ollama_service: Optional[Any] = None) -> None:
+    def __init__(self, supabase_client: Optional[Any] = None, ollama_service: Optional[Any] = None, guardrails_service: Optional[Any] = None) -> None:
         self._supabase = supabase_client
         self._ollama = ollama_service
+        self._guardrails = guardrails_service
 
     @property
     def available(self) -> bool:
@@ -140,9 +141,13 @@ class SRSService:
                 .update(update_payload)
                 .eq("id", card_id)
                 .eq("user_id", user_id)
+                .eq("interval_days", interval)
                 .execute
             )
-            return resp.data[0] if resp.data else None
+            if not resp.data:
+                logger.warning(f"Concurrent review conflict for card {card_id} — stale state detected")
+                return None
+            return resp.data[0]
         except Exception as e:
             logger.error(f"Failed to review SRS card {card_id}: {e}")
             return None
@@ -186,8 +191,6 @@ Format your output exactly as a JSON list of objects:
                 return []
 
             created_cards = []
-            from guardrails import GuardrailsService
-            guardrails = GuardrailsService()
             for pair in pairs:
                 if not isinstance(pair, dict):
                     continue
@@ -198,17 +201,18 @@ Format your output exactly as a JSON list of objects:
                     continue
                 q = q.strip()
                 a = a.strip()
-                input_check = await guardrails.check_input(q + " " + a)
-                if input_check.get("blocked"):
-                    logger.warning(f"Flashcard content blocked by guardrails: {input_check.get('reason')}")
-                    continue
-                output_check = await guardrails.check_output(a)
-                if output_check.get("blocked"):
-                    logger.warning(f"Flashcard answer blocked by guardrails: {output_check.get('reason')}")
-                    continue
-                moderated_answer = output_check.get("moderated_response")
-                if moderated_answer is not None:
-                    a = moderated_answer.strip()
+                if self._guardrails:
+                    input_check = await self._guardrails.check_input(q + " " + a)
+                    if input_check.get("blocked"):
+                        logger.warning(f"Flashcard content blocked by guardrails: {input_check.get('reason')}")
+                        continue
+                    output_check = await self._guardrails.check_output(a)
+                    if output_check.get("blocked"):
+                        logger.warning(f"Flashcard answer blocked by guardrails: {output_check.get('reason')}")
+                        continue
+                    moderated_answer = output_check.get("moderated_response")
+                    if moderated_answer is not None:
+                        a = moderated_answer.strip()
                 card = await self.create_card(
                     user_id=user_id,
                     question=q,

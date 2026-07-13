@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
-from services.srs_service import SRSService
 
 router = APIRouter(tags=["SRS"])
 
@@ -28,8 +27,7 @@ async def get_due_cards(
     container: ServiceContainer = Depends(get_container),
 ):
     """Retrieve due flashcards for the current user."""
-    srs_service = SRSService(container.supabase_client, container.ollama)
-    return await srs_service.list_due_cards(user["id"], limit=limit)
+    return await container.srs_service.list_due_cards(user["id"], limit=limit)
 
 @router.post("/srs/review")
 async def review_card(
@@ -38,8 +36,7 @@ async def review_card(
     container: ServiceContainer = Depends(get_container),
 ):
     """Submit a card review rating (0-5) to update its SM-2 scheduling."""
-    srs_service = SRSService(container.supabase_client, container.ollama)
-    card = await srs_service.review_card(req.card_id, user["id"], req.rating)
+    card = await container.srs_service.review_card(req.card_id, user["id"], req.rating)
     if not card:
         raise HTTPException(status_code=400, detail="Failed to process card review")
     return card
@@ -51,8 +48,7 @@ async def generate_cards(
     container: ServiceContainer = Depends(get_container),
 ):
     """Generate 2 flashcards from a saved study notebook item."""
-    srs_service = SRSService(container.supabase_client, container.ollama)
-    cards = await srs_service.generate_cards_from_notebook_item(
+    cards = await container.srs_service.generate_cards_from_notebook_item(
         user["id"],
         query=req.query,
         answer=req.answer,

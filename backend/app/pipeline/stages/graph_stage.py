@@ -13,6 +13,7 @@ import hashlib
 import logging
 import random
 import time
+import uuid
 from typing import TYPE_CHECKING
 
 from app.config import settings

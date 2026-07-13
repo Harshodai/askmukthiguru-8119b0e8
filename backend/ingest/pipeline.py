@@ -405,9 +405,9 @@ class IngestionPipeline:
             if ext == ".pdf":
                 import fitz
 
-                doc = fitz.open(file_path)
-                for page in doc:
-                    text += page.get_text() + "\n"
+                with fitz.open(file_path) as doc:
+                    for page in doc:
+                        text += page.get_text() + "\n"
             elif ext in [".txt", ".csv"]:
                 with open(file_path, encoding="utf-8") as f:
                     text = f.read()
@@ -499,7 +499,7 @@ class IngestionPipeline:
                     import fitz
                     import io
 
-                    resp = requests.get(url, timeout=30, stream=True)
+                    resp = requests.get(url, timeout=30, stream=True, allow_redirects=False)
                     resp.raise_for_status()
                     max_bytes = 5 * 1024 * 1024
                     content = bytearray()
@@ -509,12 +509,12 @@ class IngestionPipeline:
                             raise ValueError("Response size exceeds 5 MiB limit")
 
                     pdf_file = io.BytesIO(content)
-                    doc = fitz.open(stream=pdf_file, filetype="pdf")
-                    text = ""
-                    for page in doc:
-                        page_text = page.get_text()
-                        if page_text:
-                            text += page_text + "\n"
+                    with fitz.open(stream=pdf_file, filetype="pdf") as doc:
+                        text = ""
+                        for page in doc:
+                            page_text = page.get_text()
+                            if page_text:
+                                text += page_text + "\n"
 
                     title = url.split("/")[-1].replace(".pdf", "").replace("-", " ").replace("_", " ").title()
                     if not text.strip():
@@ -567,7 +567,7 @@ class IngestionPipeline:
                         raise ValueError("URL resolves to a private or prohibited IP address")
 
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-                    response = requests.get(url, headers=headers, timeout=20, stream=True)
+                    response = requests.get(url, headers=headers, timeout=20, stream=True, allow_redirects=False)
                     response.raise_for_status()
                     max_bytes = 5 * 1024 * 1024
                     content_bytes = bytearray()

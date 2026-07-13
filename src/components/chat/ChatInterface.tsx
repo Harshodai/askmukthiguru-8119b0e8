@@ -128,14 +128,23 @@ export const ChatInterface = () => {
   const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
 
   const handleAddFile = useCallback((file: { name: string; content: string }) => {
-    setAttachedFiles(prev => [
-      ...prev,
-      {
-        id: Math.random().toString(36).substring(2, 9),
-        name: file.name,
-        content: file.content
+    setAttachedFiles(prev => {
+      if (prev.length >= MAX_ATTACHMENTS) {
+        return prev;
       }
-    ]);
+      const newSize = prev.reduce((sum, f) => sum + f.content.length, 0) + file.content.length;
+      if (newSize > MAX_ATTACHMENT_BYTES) {
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: Math.random().toString(36).substring(2, 9),
+          name: file.name,
+          content: file.content
+        }
+      ];
+    });
   }, []);
 
   const handleRemoveFile = useCallback((id: string) => {
@@ -289,7 +298,9 @@ export const ChatInterface = () => {
     setInputValue(e.target.value);
   }, []);
 
-  const PASTE_ATTACHMENT_THRESHOLD = 2000;
+  const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pastedText = e.clipboardData.getData('text');

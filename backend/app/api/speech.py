@@ -47,11 +47,14 @@ async def speech_to_text_endpoint(
 
     if file.size and file.size > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
-    if not file.content_type or file.content_type not in ALLOWED_AUDIO_TYPES:
+    base_type = (file.content_type or "").split(";")[0].strip()
+    if not base_type or base_type not in ALLOWED_AUDIO_TYPES:
         raise HTTPException(status_code=415, detail=f"Unsupported audio format. Supported: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}")
 
     content = await file.read(MAX_AUDIO_BYTES + 1)
-    if len(content) > MAX_AUDIO_BYTES or not content:
+    if not content:
+        raise HTTPException(status_code=422, detail="No audio content provided.")
+    if len(content) > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
 
     api_key = settings.sarvam_api_key

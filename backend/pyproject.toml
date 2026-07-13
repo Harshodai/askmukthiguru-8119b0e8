@@ -67,8 +67,7 @@ dependencies = [
 
     # Advanced Ingestion
     "litellm>=1.24.0",
-    # "pypdf>=6.13.3,<7.0",  # LICENSE-EXCEPTION: BSD-3-Clause not approved; replaced by pymupdf
-    "pymupdf>=1.23.0",
+    "pypdf>=6.13.3,<7.0",
     "PyYAML>=6.0.0",
     "turbovec>=0.8.0"
 ]
