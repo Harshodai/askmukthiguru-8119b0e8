@@ -91,31 +91,152 @@ const isYouTubeUrl = (url: string): boolean => {
 };
 
 /** Lazy YouTube embed: thumbnail → click → iframe */
+interface YTPlayerReadyEvent {
+  target: {
+    addEventListener: (event: string, listener: (e: { data: number }) => void) => void;
+  };
+}
+
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (
+        elementId: string,
+        options: {
+          videoId: string;
+          playerVars?: Record<string, number | string>;
+          events?: { onReady?: (event: YTPlayerReadyEvent) => void; onError?: (event: { data: number }) => void };
+        }
+      ) => { destroy: () => void };
+      PlayerState?: { ENDED: number; PLAYING: number };
+    };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
   const [loaded, setLoaded] = useState(false);
+  const [embedError, setEmbedError] = useState(false);
+  const playerRef = useRef<{ destroy: () => void } | null>(null);
   const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
-  if (loaded) {
+  useEffect(() => {
+    if (!loaded) return;
+
+    // Lightweight postMessage listener for embed errors when YT API isn't loaded.
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://www.youtube.com') return;
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.event === 'onError' || data?.event === 'onStateChange') {
+          const code = data?.info ?? data?.data;
+          if (code === 101 || code === 150) {
+            setEmbedError(true);
+          }
+        }
+      } catch {
+        // ignore non-JSON postMessages
+      }
+    };
+    window.addEventListener('message', handleMessage);
+
+    // If the API script is already present, register a real player to listen for errors.
+    if (window.YT?.Player) {
+      const containerId = `yt-player-${videoId}-${Math.random().toString(36).slice(2, 8)}`;
+      const container = document.getElementById('yt-player-root');
+      if (container) {
+        const playerEl = document.createElement('div');
+        playerEl.id = containerId;
+        container.appendChild(playerEl);
+        playerRef.current = new window.YT.Player(containerId, {
+          videoId,
+          playerVars: { autoplay: 1, enablejsapi: 1, origin: window.location.origin },
+          events: {
+            onReady: (event) => {
+              event.target.addEventListener('onError', (e) => {
+                if (e.data === 101 || e.data === 150) {
+                  setEmbedError(true);
+                }
+              });
+            },
+            onError: (event) => {
+              if (event.data === 101 || event.data === 150) {
+                setEmbedError(true);
+              }
+            },
+          },
+        });
+      }
+    }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      try {
+        playerRef.current?.destroy();
+      } catch {
+        // ignore cleanup errors
+      }
+      playerRef.current = null;
+    };
+  }, [loaded, videoId]);
+
+  if (loaded && !embedError) {
     return (
       <div className="relative group rounded-xl overflow-hidden shadow-md border border-border/30 bg-black/5 aspect-video w-full max-w-[320px]">
-        <iframe
-          width="100%"
-          height="100%"
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-          title="YouTube video player"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-        />
+        <div id="yt-player-root" className="absolute inset-0">
+          <iframe
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] text-white/90 bg-black/70 px-2 py-1 rounded flex items-center gap-1 shadow-md hover:bg-black/90"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] text-white/90 bg-black/70 px-2 py-1 rounded flex items-center gap-1 shadow-md hover:bg-black/90 z-10"
         >
           Watch on YouTube ↗
         </a>
+      </div>
+    );
+  }
+
+  if (loaded && embedError) {
+    // Embed blocked - show fallback with direct link
+    return (
+      <div className="rounded-xl overflow-hidden shadow-md border border-border/30 bg-ojas/5 aspect-video w-full max-w-[320px] relative group">
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-ojas/10 to-ojas/5">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-3">
+            <Youtube className="w-8 h-8 text-red-500" />
+          </div>
+          <p className="text-sm font-medium text-ojas mb-1">Video unavailable</p>
+          <p className="text-xs text-muted-foreground mb-3">This video can't be embedded</p>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-ojas text-white text-xs font-medium rounded-full hover:bg-ojas-light transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Watch on YouTube
+          </a>
+        </div>
+        <div className="absolute bottom-2 right-2">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-white/90 bg-black/60 px-1.5 py-0.5 rounded"
+          >
+            YouTube
+          </a>
+        </div>
       </div>
     );
   }

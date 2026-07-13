@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, Volume2,
+  Send, Square, Flame, Sparkles, Plus, Mic, Volume2, X, FileText,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -26,7 +28,11 @@ import {
 interface ChatComposerProps {
   inputValue: string;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  attachedFiles: { id: string; name: string; content: string }[];
+  onAddFile: (file: { name: string; content: string }) => void;
+  onRemoveFile: (id: string) => void;
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (e?: React.FormEvent) => void;
   onStop: () => void;
@@ -57,7 +63,11 @@ interface ChatComposerProps {
 export function ChatComposer({
   inputValue,
   inputRef,
+  attachedFiles,
+  onAddFile,
+  onRemoveFile,
   onInputChange,
+  onPaste,
   onKeyDown,
   onSubmit,
   onStop,
@@ -85,6 +95,36 @@ export function ChatComposer({
   onSlashCommand,
 }: ChatComposerProps) {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024; // 2 MB cap for chat text files
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      toast?.({
+        title: t('chat.attachmentTooLarge') === 'chat.attachmentTooLarge' ? 'Attachment too large' : t('chat.attachmentTooLarge'),
+        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? 'Please choose a text file under 2 MB.' : t('chat.attachmentSizeHint'),
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        onAddFile({ name: file.name, content });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const showThinking =
     showInstantPill || showPipeline || isTyping || (isStreaming && inputValue === '');
 
@@ -154,11 +194,46 @@ export function ChatComposer({
           />
         </div>
 
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt"
+          className="hidden"
+        />
+
+        {attachedFiles && attachedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-5 pt-2 pb-1">
+            {attachedFiles.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 select-none"
+              >
+                <span className="font-medium text-emerald-400 font-mono truncate max-w-[120px]">
+                  {file.name}
+                </span>
+                <span className="text-[9px] text-muted-foreground font-mono">
+                  ({Math.round(file.content.length / 102.4) / 10} KB)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveFile(file.id)}
+                  aria-label={`Remove file ${file.name}`}
+                  className="p-0.5 rounded-full hover:bg-zinc-850 text-muted-foreground hover:text-zinc-200 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <PromptInputTextarea
           ref={inputRef as React.Ref<HTMLTextAreaElement>}
           data-tour="chat-input"
           value={inputValue}
           onChange={onInputChange}
+          onPaste={onPaste}
           onKeyDown={onKeyDown}
           onFocus={onFocus}
           onBlur={onBlur}
@@ -171,7 +246,7 @@ export function ChatComposer({
           }
           rows={1}
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-          className="min-h-9 max-h-32 w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-9 max-h-80 w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '28px' }}
           disabled={isAwaitingSereneMind}
         />
@@ -200,6 +275,10 @@ export function ChatComposer({
                 <DropdownMenuItem onClick={onGuidedMeditation}>
                   <Sparkles className="w-4 h-4 mr-2 text-ojas" />
                   {t('chat.guidedMeditation')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                  <FileText className="w-4 h-4 mr-2 text-ojas" />
+                  {t('chat.attachTextFile') === 'chat.attachTextFile' ? 'Attach Text File' : t('chat.attachTextFile')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

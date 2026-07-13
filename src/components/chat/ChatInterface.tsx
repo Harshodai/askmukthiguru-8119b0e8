@@ -125,6 +125,23 @@ export const ChatInterface = () => {
 
 
   const [inputValue, setInputValue] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
+
+  const handleAddFile = useCallback((file: { name: string; content: string }) => {
+    setAttachedFiles(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        name: file.name,
+        content: file.content
+      }
+    ]);
+  }, []);
+
+  const handleRemoveFile = useCallback((id: string) => {
+    setAttachedFiles(prev => prev.filter(f => f.id !== id));
+  }, []);
+
   const [isTyping, setIsTyping] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>();
@@ -272,12 +289,32 @@ export const ChatInterface = () => {
     setInputValue(e.target.value);
   }, []);
 
+  const PASTE_ATTACHMENT_THRESHOLD = 2000;
+
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text');
+    const currentText = e.currentTarget.value;
+    const combinedLength = currentText.length + pastedText.length;
+    if (pastedText && combinedLength > PASTE_ATTACHMENT_THRESHOLD) {
+      e.preventDefault();
+      handleAddFile({
+        name: `pasted-text-${attachedFiles.length + 1}.txt`,
+        content: currentText ? `${currentText}\n\n${pastedText}` : pastedText,
+      });
+      setInputValue('');
+      toast({
+        title: 'Converted to Attachment',
+        description: 'Text paste exceeded 2,000 characters and was converted to a text file.',
+      });
+    }
+  }, [attachedFiles.length, handleAddFile, toast]);
+
   // Auto-resize textarea when inputValue changes (handles typing, STT, and templates)
   useEffect(() => {
     const ta = inputRef.current;
     if (ta) {
       ta.style.height = '36px';
-      ta.style.height = `${Math.min(ta.scrollHeight, 128)}px`;
+      ta.style.height = `${Math.min(ta.scrollHeight, 320)}px`;
     }
   }, [inputValue]);
 
@@ -428,7 +465,7 @@ export const ChatInterface = () => {
     resetTranscript,
   } = useSpeechRecognition({
     lang: currentLanguage,
-    useSarvam: true,
+    useSarvam: currentLanguage !== 'en',
     onTranscript: (text, isFinal) => {
       if (isFinal) {
         setInputValue(prev => prev + text + ' ');
@@ -642,7 +679,10 @@ export const ChatInterface = () => {
     } else if (options.baseMessages) {
       setMessages(options.baseMessages);
     }
-    if (!overrideText) setInputValue('');
+    if (!overrideText) {
+      setInputValue('');
+      setAttachedFiles([]);
+    }
 
     // Translate non-English input → English for the AI. User already sees
     // their original text; this only affects what we forward downstream.
@@ -669,6 +709,14 @@ export const ChatInterface = () => {
         });
         // fail-safe: continue with original text
       }
+    }
+
+    // Prepend attached text file content to RAG prompt
+    if (attachedFiles.length > 0) {
+      const filesContext = attachedFiles
+        .map(f => `[Attached File: ${f.name}]\n${f.content}`)
+        .join('\n\n');
+      textForAI = `${filesContext}\n\n${textForAI}`;
     }
 
     // The AI-bound text may differ (translated)
@@ -1529,7 +1577,11 @@ return (
                 <ChatComposer
                                   inputValue={inputValue}
                                   inputRef={inputRef}
+                                  attachedFiles={attachedFiles}
+                                  onAddFile={handleAddFile}
+                                  onRemoveFile={handleRemoveFile}
                                   onInputChange={handleInputChange}
+                                  onPaste={handlePaste}
                                   onKeyDown={handleKeyDown}
                                   onSubmit={(e) => handleSubmit(e)}
                                   onStop={() => {
@@ -1703,7 +1755,11 @@ return (
           <ChatComposer
             inputValue={inputValue}
             inputRef={inputRef}
+            attachedFiles={attachedFiles}
+            onAddFile={handleAddFile}
+            onRemoveFile={handleRemoveFile}
             onInputChange={handleInputChange}
+            onPaste={handlePaste}
             onKeyDown={handleKeyDown}
             onSubmit={(e) => handleSubmit(e)}
             onStop={() => {
@@ -1763,18 +1819,23 @@ return (
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute left-1/2 -translate-x-1/2 bottom-28 z-30 flex items-center gap-2 px-4 py-2 rounded-full bg-ojas/20 border border-ojas/30"
+            className="absolute left-4 right-4 md:left-1/2 md:-translate-x-1/2 bottom-24 z-30 flex flex-col md:max-w-2xl gap-2 p-3 rounded-xl bg-zinc-950/95 border border-emerald-500/30 shadow-xl backdrop-blur-md"
           >
-            <motion.div
-              className="w-2 h-2 rounded-full bg-ojas"
-              animate={{ scale: [1, 1.3, 1] }}
-              transition={{ duration: 0.8, repeat: Infinity }}
-            />
-            <span className="text-sm text-ojas font-medium">Listening...</span>
-            {interimTranscript && (
-              <span className="text-xs text-muted-foreground max-w-[200px] truncate">
-                {interimTranscript}
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
+              <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
+                {currentLanguage === 'en' ? 'Voice Streaming (Low Latency)' : 'Voice Recording'}
+              </span>
+            </div>
+            {interimTranscript ? (
+              <p className="text-sm text-zinc-100 font-medium leading-relaxed">
+                {interimTranscript}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">Start speaking...</p>
             )}
           </motion.div>
         )}
