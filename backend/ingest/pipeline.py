@@ -496,7 +496,7 @@ class IngestionPipeline:
                     if not self._is_url_safe(url):
                         raise ValueError("URL resolves to a private or prohibited IP address")
                     import requests
-                    from pypdf import PdfReader
+                    import fitz
                     import io
 
                     resp = requests.get(url, timeout=30, stream=True)
@@ -509,10 +509,10 @@ class IngestionPipeline:
                             raise ValueError("Response size exceeds 5 MiB limit")
 
                     pdf_file = io.BytesIO(content)
-                    reader = PdfReader(pdf_file)
+                    doc = fitz.open(stream=pdf_file, filetype="pdf")
                     text = ""
-                    for page in reader.pages:
-                        page_text = page.extract_text()
+                    for page in doc:
+                        page_text = page.get_text()
                         if page_text:
                             text += page_text + "\n"
 
