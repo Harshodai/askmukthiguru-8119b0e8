@@ -10,8 +10,8 @@
 
     "restartPolicyMaxRetries": 3,
     "limits": {
-      "cpu": 1000,
-      "memory": "2Gi"
+      "cpu": 2000,
+      "memory": "8Gi"
     }
   }
 }
