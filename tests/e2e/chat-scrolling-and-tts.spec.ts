@@ -282,7 +282,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
         theme: 'dark',
       };
 
-      localStorage.setItem('sb-fynkjimvuimakgtidvuq-auth-token', JSON.stringify(mockSessionLocal));
+      localStorage.setItem('sb-ozmjeuqbholoxypfxixb-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSessionLocal));
@@ -348,7 +348,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
         theme: 'dark',
       };
 
-      localStorage.setItem('sb-fynkjimvuimakgtidvuq-auth-token', JSON.stringify(mockSessionLocal));
+      localStorage.setItem('sb-ozmjeuqbholoxypfxixb-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-supabase-demo-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-localhost-auth-token', JSON.stringify(mockSessionLocal));
       localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSessionLocal));
