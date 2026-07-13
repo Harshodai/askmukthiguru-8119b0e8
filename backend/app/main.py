@@ -230,8 +230,11 @@ async def lifespan(app: FastAPI):
         logger.info("Background pre-warming (reranker/colbert): starting...")
         try:
             container.embedding._ensure_reranker()
-            container.embedding._ensure_colbert()
-            logger.info("Background pre-warming (reranker/colbert): complete.")
+            if settings.enable_colbert:
+                container.embedding._ensure_colbert()
+                logger.info("Background pre-warming (reranker/colbert): complete.")
+            else:
+                logger.info("Background pre-warming: complete (ColBERT disabled by config).")
         except Exception as ex:
             logger.warning(f"Background pre-warming (reranker/colbert) failed: {ex}")
 
@@ -386,10 +389,27 @@ if settings.is_production:
         allowed_hosts=[h.strip() for h in settings.allowed_hosts.split(",") if h.strip()] or ["localhost", "127.0.0.1"],
     )
 
-# CORS — allow frontend origins
+# CORS — allow frontend origins (supporting Lovable wildcard preview subdomains)
+import re
+
+cors_origins = settings.cors_origins_list
+static_origins = []
+regex_patterns = []
+
+for origin in cors_origins:
+    if "*" in origin:
+        # Convert wildcard to a regex pattern, e.g. "https://*.lovable.app" -> "^https://.*\.lovable\.app$"
+        pattern = re.escape(origin).replace(r"\*", ".*")
+        regex_patterns.append(f"^{pattern}$")
+    else:
+        static_origins.append(origin)
+
+origin_regex = "|".join(regex_patterns) if regex_patterns else None
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=static_origins,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -3819,3 +3819,26 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 - **Problem**: When managing a multi-language app, hardcoding the complete list of regional or national languages (like all 22+ scheduled Indian languages) in frontend components leads to drift and bugs where users can select unsupported languages with no translation files.
 - **Fix**: Replaced static arrays with dynamic filtering matching `Object.keys(i18n.options.resources)`. This queries the active translation config at runtime to automatically filter a master database of languages, restricting selections to only translated locales (English, Hindi, Telugu, Kannada, Tamil, Marathi) and dynamically scaling as new json translation resources are registered.
 - **Pattern**: Drive system settings and UI option lists dynamically from loaded configuration/resources (single source of truth) rather than maintaining separate hardcoded arrays across components.
+
+---
+
+## Jul 13, 2026 — Production Hardening & Audit Fixes
+
+### Multi-Model OOM Prevention in Low-Resource Containers
+- **Problem**: Eagerly loading multiple heavy deep learning models (BGE-M3 embedding, CrossEncoder reranking, and ColBERT late-interaction) in parallel during container startup exceeds memory limits (causing Out-Of-Memory/OOM kills).
+- **Fix**: Created an `enable_colbert` configuration flag (default: `False`) in `config.py`. Skip ColBERTv2 loading in `_ensure_colbert` and the lifespan background thread pre-warming task.
+- **Pattern**: For CPU-bound deployments with strict RAM limits, restrict eager model loading to necessary core models, and disable optional heavy models.
+
+### Wildcard Domain Support in Starlette CORS Middleware
+- **Problem**: Comma-separated wildcard strings (like `https://*.lovable.app`) inside Starlette/FastAPI `allow_origins` lists do not match preview subdomains, resulting in CORS blocks.
+- **Fix**: Wrote regex compilation loop in `main.py` that separates static origins from wildcard patterns, compiles wildcard subdomains (using `re.escape` and replacing `\*` with `.*`), and registers them via Starlette's `allow_origin_regex` argument.
+
+### Client-Side Diagnostic Route Gating and Seeker Gaps
+- **Problem**: Diagnostic pages (`/auth/diagnostics`, `/auth/latency`, `/test-tts`) are exposed in production builds, and seeker pages (`/notebooks`, `/knowledge-graph`) are unguarded against anonymous/unauthenticated visits.
+- **Fix**:
+  1. Gated diagnostic routes inside `src/App.tsx` using `!import.meta.env.PROD` to compile them out of production bundles.
+  2. Enforced `useRequireAuth` redirect logic in `src/pages/StudyNotebookPage.tsx` and `src/pages/KnowledgeGraphPage.tsx`.
+
+### SEO Canonical Duplicate Pages in Vite SPAs
+- **Problem**: Hardcoding `<link rel="canonical" href="https://..." />` in `index.html` causes search bots to treat all client-side pages as duplicate homepage entries.
+- **Fix**: Removed the static link tag from `index.html` and let the dynamic `usePageMeta` hook manage canonical links client-side during route transitions.

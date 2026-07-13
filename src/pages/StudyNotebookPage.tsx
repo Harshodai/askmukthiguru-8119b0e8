@@ -14,7 +14,11 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from 'react-i18next';
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
+import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { BrandedSpinner } from "@/components/common/BrandedSpinner";
+
 export default function StudyNotebookPage() {
+  const { loading: authLoading } = useRequireAuth();
   const { notebooks, loading, error, createNotebook, deleteNotebook, addItem, listItems } = useStudyNotebooks();
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
@@ -25,6 +29,10 @@ export default function StudyNotebookPage() {
   const [itemsMap, setItemsMap] = useState<Record<string, NotebookItem[]>>({});
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
   const createRef = useRef<HTMLInputElement>(null);
+
+  if (authLoading) {
+    return <BrandedSpinner />;
+  }
 
   const voice = useSpeechRecognition({
     lang: currentLang,

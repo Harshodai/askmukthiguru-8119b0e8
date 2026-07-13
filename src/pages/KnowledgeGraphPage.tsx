@@ -1,10 +1,18 @@
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { BrandedSpinner } from '@/components/common/BrandedSpinner';
 
 export default function KnowledgeGraphPage() {
+  const { loading: authLoading } = useRequireAuth();
   const [params] = useSearchParams();
   const initialQuery = params.get('q') ?? '';
+
+  if (authLoading) {
+    return <BrandedSpinner />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/30">

@@ -173,6 +173,7 @@ class Settings(BaseSettings):
     # use `reranker_model` above. Swap to "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
     # if native-language (Hindi/Tamil/…) rerank quality matters more than raw speed.
     reranker_model_cpu: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    enable_colbert: bool = False
 
     # --- Whisper / Transcription ---
     whisper_model: str = "large-v3"  # Whisper model size

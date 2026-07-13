@@ -314,6 +314,10 @@ class EmbeddingService:
         If the primary ColBERT model fails, an alternative (``colbert-ir/colbertv2.0``
         → ``jina-colbert/v1-base-en``) is attempted before degrading to CrossEncoder.
         """
+        if not settings.enable_colbert:
+            self._colbert = False
+            return
+
         if self._colbert is not None:
             return
         with self._lock:
