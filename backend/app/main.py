@@ -38,11 +38,11 @@ from app.core.threading_config import configure_threading
 configure_threading()
 
 # Set Python process memory limit early to prevent runaway OOM crashes.
-# Controlled by PYTHON_MEMORY_LIMIT_MB env var (default 2048 = 2GB).
+# Controlled by PYTHON_MEMORY_LIMIT_MB env var (default 6144 = 6GB).
 # Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
 try:
     import resource as _resource
-    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "0"))
+    _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "6144"))
     if _mb > 0:
         _limit_bytes = _mb * 1024 * 1024
         if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
