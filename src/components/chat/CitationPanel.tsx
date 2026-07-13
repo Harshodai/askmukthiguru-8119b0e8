@@ -28,14 +28,50 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
     }
   };
 
+  const YOUTUBE_HOSTS = new Set([
+    "youtube.com",
+    "www.youtube.com",
+    "youtu.be",
+    "music.youtube.com",
+    "www.youtu.be",
+    "youtube-nocookie.com",
+    "www.youtube-nocookie.com",
+  ]);
+
+  const VALID_VIDEO_ID = /^[a-zA-Z0-9_-]{11}$/;
+
   const getYouTubeId = (url: string): string | null => {
+    let parsed: URL;
     try {
-      if (url.includes("youtu.be/")) return url.split("youtu.be/")[1]?.split("?")[0];
-      if (url.includes("v=")) return url.split("v=")[1]?.split("&")[0];
-      return null;
+      parsed = new URL(url);
     } catch {
       return null;
     }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (!YOUTUBE_HOSTS.has(hostname)) return null;
+
+    const idFromPath = (prefix: string): string | null => {
+      if (!parsed.pathname.startsWith(prefix)) return null;
+      const rest = parsed.pathname.slice(prefix.length);
+      const id = rest.split("/")[0]?.split("?")[0]?.split("#")[0] ?? "";
+      return id || null;
+    };
+
+    const rawId =
+      (hostname === "youtu.be" || hostname === "www.youtu.be"
+        ? parsed.pathname.slice(1).split("/")[0]?.split("?")[0]?.split("#")[0] ?? ""
+        : null) ||
+      parsed.searchParams.get("v") ||
+      idFromPath("/embed/") ||
+      idFromPath("/shorts/") ||
+      idFromPath("/v/");
+
+    if (!rawId) return null;
+
+    const id = rawId.split("&")[0].split("?")[0].split("#")[0];
+    if (!VALID_VIDEO_ID.test(id)) return null;
+    return id;
   };
 
   return (
@@ -84,36 +120,39 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                         {c.channel_name && (
                           <p className="text-xs text-muted-foreground mt-1">{t('chat.channelLabel', { channel: c.channel_name })}</p>
                         )}
-                        {ytId && (
-                          <div className="mt-3">
-                            <a
-                              href={c.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block rounded-lg overflow-hidden border group transition-colors"
-                            >
-                              <div className="relative aspect-video bg-black/10">
-                                <img
-                                  src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
-                                  alt="YouTube thumbnail"
-                                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                                  loading="lazy"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                  <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                    <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
+                        {ytId && (() => {
+                          const thumbUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+                          return (
+                            <div className="mt-3">
+                              <a
+                                href={c.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block rounded-lg overflow-hidden border group transition-colors"
+                              >
+                                <div className="relative aspect-video bg-black/10">
+                                  <img
+                                    src={thumbUrl}
+                                    alt="YouTube thumbnail"
+                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                    loading="lazy"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                      <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <div className="p-2 bg-background border-t">
-                                <p className="text-xs font-medium text-ojas flex items-center gap-1">
-                                  <Youtube className="w-3 h-3 text-red-500" />
-                                  Watch on YouTube
-                                </p>
-                              </div>
-                            </a>
-                          </div>
-                        )}
+                                <div className="p-2 bg-background border-t">
+                                  <p className="text-xs font-medium text-ojas flex items-center gap-1">
+                                    <Youtube className="w-3 h-3 text-red-500" />
+                                    Watch on YouTube
+                                  </p>
+                                </div>
+                              </a>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
