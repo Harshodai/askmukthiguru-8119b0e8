@@ -35,9 +35,7 @@ json-repair
 pypinyin>=0.55.0
 
 # --- Embeddings & Reranking ---
-sentence-transformers==3.0.1
-# pinned to match sentence-transformers 3.0.1: avoids transformers>=4.45 auto_docstring bug
-transformers==4.44.0
+sentence-transformers>=3.0.1,<3.4.0
 peft>=0.14.0
 FlagEmbedding>=1.2.10
 ragatouille>=0.0.8
