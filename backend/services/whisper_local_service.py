@@ -283,6 +283,80 @@ def transcribe_with_whisper(
         return None
 
 
+def transcribe_with_whisper_enhanced(
+    video_id: str,
+    audio_path: str,
+    model: Optional[str] = None,
+    language: str = "en",
+) -> Optional[str]:
+    """
+    Enhanced Whisper STT: word-level alignment + optional speaker diarization.
+
+    Uses the WhisperX pipeline (`services.whisperx_pipeline`) when
+    `settings.whisperx_enabled` is True. Falls back to the MLX-based
+    `transcribe_with_whisper` when whisperx is disabled, missing deps,
+    or fails — preserving the council's expected `Optional[str]` text contract.
+
+    The returned text is the speaker-tagged transcript
+    ("[SPEAKER_00] ...\\n[SPEAKER_01] ...") suitable for the council scorer.
+    """
+    if not getattr(settings, "whisperx_enabled", False):
+        return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
+
+    try:
+        from services.whisperx_pipeline import transcribe_with_alignment
+    except ImportError:
+        logger.warning("whisperx_pipeline module not importable — falling back to MLX Whisper")
+        return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
+
+    allowed = None
+    transcript_langs = getattr(settings, "transcript_languages", "")
+    if transcript_langs:
+        allowed = {code.strip() for code in transcript_langs.split(",") if code.strip()}
+
+    result = transcribe_with_alignment(
+        video_id,
+        audio_path,
+        language=language if language != "en" else None,  # let whisperx detect unless forced
+        allowed_languages=allowed,
+        whisper_model_name=getattr(settings, "whisperx_model", "large-v3"),
+        device=getattr(settings, "whisperx_device", "auto"),
+        compute_type=getattr(settings, "whisperx_compute_type", "auto"),
+        batch_size=getattr(settings, "whisperx_batch_size", 16),
+        min_speakers=getattr(settings, "diarization_min_speakers", 1),
+        max_speakers=getattr(settings, "diarization_max_speakers", 10),
+        hf_token=getattr(settings, "hf_token", None),
+    )
+
+    if result is None:
+        logger.info(f"[{video_id}] WhisperX returned None — falling back to MLX Whisper")
+        return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
+
+    # Ponytail: stash the full diarized whisperx result (segments + words + speakers)
+    # so the ingestion pipeline can retrieve it later via get_cached_whisperx_result().
+    # This overwrites any mlx-whisper cache entry from the fallback path above.
+    try:
+        cache_whisperx_result(video_id, result)
+    except Exception as cache_err:
+        logger.debug(f"[{video_id}] whisperx result cache store failed (non-fatal): {cache_err}")
+
+    text = (result.get("text") or "").strip()
+    if not text:
+        logger.warning(f"[{video_id}] WhisperX produced empty text — falling back to MLX Whisper")
+        return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
+
+    # Apply shared doctrine-term corrections (same as the MLX path) so the
+    # council compares both arms on the same corrected basis.
+    text = apply_corrections(text)
+
+    word_count = len(text.split())
+    logger.info(
+        f"[{video_id}] ✅ WhisperX STT ({result.get('method')}): "
+        f"{len(text)} chars, {word_count} words (domain-corrected)"
+    )
+    return text
+
+
 def score_transcript(text: str, video_id: str = "") -> float:
     """
     Score transcript quality using heuristics.
@@ -452,29 +526,6 @@ def council_pick_best(
         "whisper_score": wh_score,
         "winner": winner_name,
     }
-
-
-def transcribe_with_whisper_enhanced(
-    video_id: str,
-    audio_path: str,
-    model: Optional[str] = None,
-    language: str = "en",
-) -> Optional[str]:
-    """
-    Enhanced Whisper transcription that preserves word-level timestamps + speaker labels.
-
-    Returns Optional[str] for Transcript Council compatibility (the council only needs text),
-    but stashes the full whisperx result (segments + words + speakers) in the module-level
-    cache so the ingestion pipeline can retrieve it later via get_cached_whisperx_result().
-
-    When the whisperx diarization pipeline (backend/services/whisperx_pipeline.py) is wired
-    in, this function will delegate to it and cache its richer dict
-    ({segments, words, speaker, method: whisperx_aligned_diarized}). Until then it falls
-    back to the mlx-whisper path, which still caches segments + word timestamps.
-    """
-    return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
-
-
 if __name__ == "__main__":
     # Self-check: cache helpers round-trip + TTL eviction.
     cache_whisperx_result("test_vid", {"segments": [{"start": 0.0, "text": "hi"}]})

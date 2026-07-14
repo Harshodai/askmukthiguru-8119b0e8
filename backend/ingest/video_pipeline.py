@@ -19,12 +19,6 @@ from services.qdrant_service import QdrantService
 logger = logging.getLogger(__name__)
 
 try:
-    from services.whisper_local_service import WhisperLocalService
-except ImportError:
-    WhisperLocalService = None  # type: ignore
-
-
-try:
     import ffmpeg
 except ImportError:
     ffmpeg = None  # type: ignore
@@ -49,7 +43,7 @@ class VideoPipeline:
     ):
         self._qdrant = qdrant_service
         self._embedder = embedding_service
-        self._whisper = whisper_service or (WhisperLocalService() if WhisperLocalService else None)
+        self._whisper = whisper_service
 
     async def ingest_video(self, file_path: str) -> VideoIngestResult:
         """Ingest a single video file."""
@@ -121,12 +115,29 @@ class VideoPipeline:
             return 0.0
 
     async def _transcribe(self, audio_path: str) -> str:
-        """Transcribe audio using local Whisper."""
-        if self._whisper is None:
-            raise RuntimeError("Whisper service not available")
-        # ponytail: direct run_sync call into thread pool for blocking whisper
+        """Transcribe audio using local Whisper.
+
+        Falls back to the module-level ``transcribe_with_whisper`` helper when
+        no Whisper service was injected (production bulk-ingest caller constructs
+        VideoPipeline without ``whisper_service``), mirroring social_media_loader.
+        """
         import concurrent.futures
 
+        if self._whisper is None:
+            # ponytail: thin fallback — delegate to the shared mlx-whisper helper
+            def _run_fallback(path: str) -> str:
+                from services.whisper_local_service import transcribe_with_whisper
+
+                text = transcribe_with_whisper("", path)
+                if not text:
+                    raise RuntimeError("Whisper transcription returned empty result")
+                return text
+
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                return await loop.run_in_executor(pool, _run_fallback, audio_path)
+
+        # ponytail: direct run_sync call into thread pool for blocking whisper
         def _run_whisper(path: str) -> str:
             try:
                 result = self._whisper.transcribe(path)

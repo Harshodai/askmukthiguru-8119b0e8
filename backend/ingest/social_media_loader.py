@@ -78,7 +78,7 @@ async def ingest_social_media(
 
     Args:
         url: Instagram/TikTok/Twitter/direct video URL
-        whisper_service: Optional pre-initialized WhisperLocalService (for DI)
+        whisper_service: Optional object exposing .transcribe(path) (for DI); if None, falls back to transcribe_with_whisper
 
     Returns:
         Dict with keys: text, source_url, title, content_type, method, duration_seconds
@@ -155,17 +155,17 @@ async def ingest_social_media(
 
         # Step 2: Transcribe with Whisper
         def _transcribe(af: str) -> str:
-            nonlocal whisper_service
             try:
-                if whisper_service is None:
-                    from services.whisper_local_service import WhisperLocalService
-                    whisper_service = WhisperLocalService()
-                result = whisper_service.transcribe(af)
-                if isinstance(result, dict):
-                    return result.get("text", "")
-                return str(result)
+                if whisper_service is not None:
+                    result = whisper_service.transcribe(af)
+                    if isinstance(result, dict):
+                        return result.get("text", "")
+                    return str(result)
+                from services.whisper_local_service import transcribe_with_whisper
+                text = transcribe_with_whisper("", af)
+                return text or ""
             except Exception as e:
-                logger.warning(f"WhisperLocalService failed ({e}), trying faster-whisper directly")
+                logger.warning(f"transcribe_with_whisper failed ({e}), trying faster-whisper directly")
                 try:
                     from faster_whisper import WhisperModel  # type: ignore
                     model = WhisperModel("large-v3", device="cpu", compute_type="int8")
