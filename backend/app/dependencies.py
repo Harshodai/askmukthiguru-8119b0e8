@@ -508,6 +508,10 @@ class ServiceContainer:
 _container: ServiceContainer | None = None
 _container_lock = threading.Lock()
 
+# Startup state — set by background_init after heavy services are ready
+startup_complete: bool = False
+startup_error: str | None = None
+
 
 def get_container() -> ServiceContainer:
     """

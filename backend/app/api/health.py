@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi import status as http_status
 
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container, startup_complete
 from app.metrics import metrics_endpoint
 from services.auth_service import get_current_user_from_supabase
 from services.circuit_breaker import CircuitState
@@ -60,13 +60,15 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     """
     Health check endpoint.
 
-    Returns status of all backend services and total indexed chunks.
+    Returns fast during startup (before heavy services initialize).
+    Once initialized, returns status of all backend services.
     """
+    if not startup_complete:
+        return JSONResponse({"status": "starting", "message": "Server is starting up"})
+
     health = await container.health_status()
 
-    # Only core services determine healthy/degraded status
-    # Optional services (OCR, guardrails) don't affect overall health
-    core_services = {"qdrant", "embedding", "ollama"}  # ollama = universal LLM provider
+    core_services = {"qdrant", "embedding", "ollama"}
     all_healthy = all(v for k, v in health.items() if k in core_services)
 
     body = {
@@ -76,7 +78,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             for k, v in health.items()
             if k not in ["qdrant_count", "guardrails_provider"]
         },
-        "total_chunks": 0 if not all_healthy else -1,  # Redact exact count
+        "total_chunks": 0 if not all_healthy else -1,
     }
     return JSONResponse(body)
 
