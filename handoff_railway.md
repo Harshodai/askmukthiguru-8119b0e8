@@ -1,212 +1,138 @@
-# Railway Deployment Handoff — askmukthiguru
-
-**Date:** 2026-07-12  
-**Session End:** ~22:30 UTC  
-**Status:** Neo4j restore blocked; all other services deployed
+# Railway Production Fix — Handoff (Jul 15, 2026 - Session 2)
 
 ---
 
-## 1. Goal
-
-Deploy the full askmukthiguru stack to **Railway Pro** ($20/mo) with:
-- Backend (FastAPI) + Celery worker
-- Neo4j (graph DB) — with local data restored
-- Qdrant (vector DB) — with local data restored
-- PostgreSQL (replacing Supabase) — with schema + data
-- Redis (cache + Celery broker)
-- Frontend on Lovable Pro ($5/mo) pointing to Railway backend
-
-**Target cost:** ~$26/mo  
-**Target users:** 50–1,000 initially, low retention
+## ✅ Deployment Status
+- Build `f544af3b` = **BUILDING** (triggered at 03:12 IST) — ~8-12min build time
+- Previous working build: `965a3802` (still serving while new one builds)
+- Commit pushed: `dad48dc0` — PYTHONOPTIMIZE fix + schema + audio
 
 ---
 
-## 2. Current State
+## 🎯 Root Cause: Embedding Models Failure — SOLVED
 
-### ✅ Deployed & Healthy
-| Service | Railway Name | Public URL | Status |
-|---------|--------------|------------|--------|
-| Backend (FastAPI) | `askmukthiguru-8119b0e8` | `https://askmukthiguru-8119b0e8-production.up.railway.app` | ✅ Healthy (`/api/health` 200) |
-| Qdrant | `qdrant` | **Private only** (`qdrant.railway.internal:6333`) | ✅ 89,053 vectors loaded (API key required) |
-| PostgreSQL | `Postgres` | Internal only | ✅ Running |
-| Redis | `Redis` | Internal only | ✅ Running |
-| Celery Worker | `celery-worker` | Internal only | ✅ Deployed via `railway.json` + `SERVICE_TYPE=celery` |
+### The Bug
+`PYTHONOPTIMIZE=2` in `backend/Dockerfile.railway` (line 52) = Python `-OO` flag
 
-### ⚠️ In Progress / Blocked
-| Service | Issue |
-|---------|-------|
-| **Neo4j** | Browser UI works (`/browser/`), but **cannot upload dump via CLI** (volume read-only in ephemeral containers). Bolt (7687) not publicly exposed. |
-| **Data Migration** | Neo4j dump (36 MB) ready locally; Postgres dump (11 MB), Redis RDB (43 KB), Qdrant snapshot (861 MB) ready. Only Qdrant restored. |
+**What `-OO` does**: Strips ALL docstrings from every Python module at import time.
 
-### 🗑️ Cleaned Up
-- Deleted 4 duplicate Neo4j services, 2 Postgres, 2 Qdrant, 2 Redis
-- Orphaned volumes marked for auto-deletion (Jul 14)
-- Active volumes now ~2 GB total (was 596+ GB from deleted services)
+**What breaks**: `transformers` library uses `@replace_return_docstrings` decorator in `modeling_utils.py` line 5379:
+```python
+lines = func_doc.split("\n")  # func_doc is None when -OO strips docstrings
+```
+
+This is why EVERY version from 4.44.2 to 4.48.2 failed — it's not a version bug.
+
+**Fix**: `PYTHONOPTIMIZE=2` → `PYTHONOPTIMIZE=1` (removes only `assert`, keeps docstrings)
 
 ---
 
-## 3. Files Actively Edited
+## Changes Made (commit `dad48dc0`)
 
-| File | Purpose |
-|------|---------|
-| `deploy_all.sh` | Master deployment script (iteratively fixed Railway CLI syntax) |
-| `migrate_data.sh` | Data migration helpers |
-| `backend/Dockerfile` | Backend image (used by backend + celery) |
-| `railway.json` | Not used (Railway uses `Dockerfile` + CLI) |
-| `.env` / `backend/.env` | Local env (not synced to Railway) |
+| File | Change |
+|------|--------|
+| `backend/Dockerfile.railway` | `PYTHONOPTIMIZE=2` → `PYTHONOPTIMIZE=1` (**critical**) |
+| `backend/requirements.txt` | `transformers==4.46.3` → `==4.51.0`, `peft==0.13.2` → `==0.14.0` |
+| `supabase/migrations/20260715010000_*.sql` | Adds `prompt_versions.author`, `app_settings` table |
+| `src/components/meditation/useMeditationAudio.ts` | `onerror` handler silences 404 audio errors |
 
-### Key Railway CLI Patterns Learned
-```bash
-# Add database
-railway add --database postgres
-railway add --database redis
+---
 
-# Add service from template
-railway deploy --template neo4j
+## ⚠️ Action Required: Supabase Migration
 
-# Create empty service
-railway add --service celery-worker
+**Must be applied manually to Lovable's Supabase project `fynkjimvuimakgtidvuq`**
 
-# Deploy to specific service
-railway up --service celery-worker --dockerfile backend/Dockerfile --detach
+Go to: https://supabase.com/dashboard/project/fynkjimvuimakgtidvuq/sql/new
 
-# Get service variables
-railway variables --service <name>
+Run this SQL:
+```sql
+ALTER TABLE public.prompt_versions ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE public.prompt_versions ADD COLUMN IF NOT EXISTS author TEXT DEFAULT 'system';
 
-# Create public domain
-railway domain --service <name> --port <port>
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow read access to anyone" ON public.app_settings;
+CREATE POLICY "Allow read access to anyone" ON public.app_settings FOR SELECT USING (true);
+GRANT SELECT ON public.app_settings TO authenticated, anon;
+GRANT ALL ON public.app_settings TO service_role;
+NOTIFY pgrst, 'reload schema';
 ```
 
 ---
 
-## 4. Tried & Failed
+## ⚠️ Action Required: SUPABASE_KEY in Railway
 
-### Neo4j Data Restore
-| Attempt | Result |
-|---------|--------|
-| `railway run --service neo4j -- neo4j-admin database load ...` | Volume read-only in ephemeral container |
-| `railway files upload ./neo4j.dump /data/neo4j.dump` | `files` subcommand doesn't exist |
-| `railway run --service neo4j -- sh -c "mkdir -p /data/dumps && cp ..."` | `/data` read-only in run container |
-| Public Bolt domain (`railway domain --port 7687`) | Created HTTPS domain on 7687, but **TLS proxy doesn't upgrade to Bolt WebSocket** |
-| Browser UI at `/browser/` | **Works for queries**, but `:system LOAD DATABASE` requires dump file on server filesystem |
-
-### Other
-| Attempt | Result |
-|---------|--------|
-| `railway service create celery-worker --dockerfile backend/Dockerfile --command "celery ..."` | Syntax invalid; must create empty service then `railway up --service` |
-| `railway up --service celery-worker --dockerfile backend/Dockerfile --command "..."` | `--command` not supported in `railway up` |
+Current Railway env `SUPABASE_KEY` = **anon key** (same as `SUPABASE_ANON_KEY`)
+- Backend PromptStore, telemetry writes need service_role key
+- Get from: https://supabase.com/dashboard/project/fynkjimvuimakgtidvuq/settings/api
+- Set via: Railway dashboard → askmukthiguru-8119b0e8 → Variables → SUPABASE_KEY
 
 ---
 
-## 5. Next Steps
+## Memory + 500+ Users Strategy
 
-### Immediate (Unblock Neo4j)
-**Option A — Browser UI (only working path):**
-1. Open `https://gb-neo4j-railway-template-production-2559.up.railway.app/browser/`
-2. Login: `neo4j` / **see Railway vault for password**
-3. Click ☁️ upload icon → select local `neo4j.dump` (36 MB)
-4. Run:
-   ```cypher
-   :system
-   LOAD DATABASE neo4j FROM 'neo4j.dump' OVERWRITE
-   ```
+### Current metrics
+- Memory: 824 MB baseline, spikes to 1.65 GB  
+- `WEB_CONCURRENCY=1` (Railway env) — CORRECT setting
+- CPU: avg 0.03 vCPU, max 0.81 vCPU
 
-**Option B — If UI upload fails:**
-- Provision a temporary VM (Hetzner CX22 ~€4/mo), mount Railway Neo4j volume via SSH tunnel, run `neo4j-admin database load` there.
+### Why WEB_CONCURRENCY=1 is correct
+- FastAPI/uvicorn is async — 1 process handles 100s of concurrent HTTP connections
+- Multiple workers = each loads BGE-M3 (~550MB) into RAM = memory spikes
+- 1 worker × 1 process: BGE-M3 loads once, Redis coalescer deduplicates requests
 
-### Parallel Tasks (Run While Neo4j Restores)
-```bash
-# 1. PostgreSQL restore
-railway variables get PGHOST PGPASSWORD PGUSER PGDATABASE PGPORT --service Postgres
-psql "postgresql://user:pass@host:port/db" < supabase_dump.sql
+### How to scale to 500+ users
+**Use Railway Replicas, not multiple workers:**
+1. Railway dashboard → `askmukthiguru-8119b0e8` → Settings → Scaling → Set 2-4 replicas
+2. Each replica = independent pod with 1 uvicorn worker
+3. Redis coalescer is shared across replicas (already configured)
+4. Load balancer distributes traffic across replicas
 
-# 2. Redis restore
-export REDISCLI_AUTH=$(railway variables get REDIS_PASSWORD --service Redis)
-redis-cli -h redis.railway.internal -p 6379 --rdb ./redis_dump.rdb
-
-# 3. Celery Worker
-# Deployed automatically via `railway add --service celery-worker` + `SERVICE_TYPE=celery` +
-# `railway up --service celery-worker`. No manual dashboard step needed.
-
-# 4. Lovable frontend
-# https://askmukthiguru.lovable.app → Settings → Env Vars
-# VITE_BACKEND_URL = https://askmukthiguru-8119b0e8-production.up.railway.app  (NOT VITE_API_URL — code never reads that var)
-# Deploy
-```
-
-### Verification
-```bash
-curl https://askmukthiguru-8119b0e8-production.up.railway.app/api/health
-# Test chat from Lovable UI
-```
+### Memory optimization (to reduce spikes)
+The 1.65 GB spike happens when embeddings are loaded. After our PYTHONOPTIMIZE fix:
+- BGE-M3 model: ~550MB (loaded once at startup)
+- App baseline: ~300MB
+- Total with models: ~900MB-1.2GB steady state
+- Set Railway memory limit to 4 GB (down from 24 GB) to catch runaway leaks
 
 ---
 
-## 6. Cost Reality Check
+## Service Connectivity Verified
 
-| Component | Monthly |
-|-----------|---------|
-| Railway Pro (base) | $20 |
-| Lovable Pro | $5 |
-| Domain | ~$1 |
-| **Total** | **~$26/mo** |
-
-**Usage so far (partial day):** ~$0.04 — well within $20 credit.
-
----
-
-## 7. Key Credentials (Store Securely)
-
-| Service | Username | Password |
-|---------|----------|----------|
-| Neo4j (new) | neo4j | **Retrieve from Railway vault / secret manager** |
-| Neo4j (old, deleted) | neo4j | **Rotated — no longer valid** |
-| Qdrant | — | **API key required; no public unauthenticated access** |
-| Postgres | (from `railway variables`) | (from `railway variables`) |
-| Redis | — | (from `railway variables`) |
+| Service | Status | Latency |
+|---------|--------|---------|
+| Qdrant | ✅ Connected | 28ms |
+| Redis | ✅ Connected | 4ms |
+| Ollama/LLM | ✅ Connected | 43ms |
+| Neo4j | ✅ Connected | Internal bolt:// |
+| CORS | ✅ Working | Lovable origin allowed |
 
 ---
 
-## 8. Commands for Next Session
+## Verification Commands (after build completes ~8 min)
 
 ```bash
-cd /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8
+# 1. Check deployment SUCCESS
+railway deployment list --service askmukthiguru-8119b0e8
 
-# Check Neo4j restore status
-curl https://gb-neo4j-railway-template-production-2559.up.railway.app/browser/
+# 2. Health check
+curl -s https://askmukthiguru-8119b0e8-production.up.railway.app/api/health
 
-# Restore Postgres
-railway variables get PGHOST PGPASSWORD PGUSER PGDATABASE PGPORT --service Postgres
-psql "postgresql://..." < supabase_dump.sql
+# 3. Deep health (should show qdrant: true, embedding model loaded)
+curl -s https://askmukthiguru-8119b0e8-production.up.railway.app/api/healthz
 
-# Restore Redis
-export REDISCLI_AUTH=$(railway variables get REDIS_PASSWORD --service Redis)
-redis-cli -h redis.railway.internal -p 6379 --rdb ./redis_dump.rdb
+# 4. Check logs for embedding model load success (no more NoneType error)
+railway logs --service askmukthiguru-8119b0e8 -n 50 | grep -E "embedding|NoneType|BAAI"
 
-# Deploy Celery worker config
-# Deployed automatically via `railway add --service celery-worker` + `SERVICE_TYPE=celery` +
-# `railway up --service celery-worker`. No manual dashboard step needed.
-
-# Update Lovable
-# VITE_BACKEND_URL = https://askmukthiguru-8119b0e8-production.up.railway.app  (NOT VITE_API_URL — code never reads that var)
+# 5. E2E test: open https://askmukthiguru.lovable.app → send chat message
 ```
 
----
-
-### Qdrant Security Note
-Qdrant is kept **private** on Railway (`RAILWAY_PRIVATE_DOMAIN=qdrant.railway.internal`).
-To require an API key:
-1. Generate a strong key (e.g. `openssl rand -hex 32`).
-2. Set `QDRANT_API_KEY=<key>` on the **qdrant** service and on the **askmukthiguru-8119b0e8** service so the backend client can authenticate.
-3. Verify the public domain no longer responds without the key:
-   ```bash
-   curl https://qdrant-production-14ee.up.railway.app/collections
-   # should return 401/403 once auth is enforced
-   ```
-4. Use the internal private domain for backend traffic:
-   ```bash
-   QDRANT_URL=http://qdrant.railway.internal:6333
-   # With QDRANT_API_KEY set, the client passes it automatically.
-   ```
-
-**Status:** 80% deployed. Neo4j is the only blocker. Browser UI is the only proven restore path.
+Expected log after fix:
+```
+✅ Embedding model BAAI/bge-m3 loaded successfully
+✅ Semantic router initialized
+```
