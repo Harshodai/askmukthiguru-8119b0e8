@@ -102,5 +102,5 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
       }
       if (jsonLdEl) jsonLdEl.remove();
     };
-  }, [title, description, canonical, ogType, ogImage, JSON.stringify(jsonLd)]);
+  }, [title, description, canonical, ogType, ogImage, noindex, JSON.stringify(jsonLd)]);
 }
