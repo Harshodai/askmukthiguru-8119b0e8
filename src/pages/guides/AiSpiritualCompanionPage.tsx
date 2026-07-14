@@ -76,13 +76,25 @@ const AiSpiritualCompanionPage = () => {
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
-      '@type': 'Article',
-      headline: "The Seeker's Guide to AI-Guided Meditation",
-      description:
-        'How to use an AI spiritual guide for daily meditation, breathwork, and reflection grounded in the teachings of Sri Preethaji & Sri Krishnaji.',
-      author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-      mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/ai-spiritual-companion',
-      keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
+      '@graph': [
+        {
+          '@type': 'Article',
+          headline: "The Seeker's Guide to AI-Guided Meditation",
+          description:
+            'How to use an AI spiritual guide for daily meditation, breathwork, and reflection grounded in the teachings of Sri Preethaji & Sri Krishnaji.',
+          author: { '@type': 'Organization', name: 'AskMukthiGuru' },
+          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/ai-spiritual-companion',
+          keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: faqs.map((f) => ({
+            '@type': 'Question',
+            name: f.q,
+            acceptedAnswer: { '@type': 'Answer', text: f.a },
+          })),
+        },
+      ],
     },
   });
 
