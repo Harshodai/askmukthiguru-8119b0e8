@@ -17,6 +17,12 @@ export interface MeditationStep {
   instruction: string;
   durationSeconds: number;
   breathPattern?: { inhale: number; hold: number; exhale: number };
+  /**
+   * Optional narrated audio for this step. Drop the MP3 at
+   * `public/audio/meditation/<id>.mp3` and the player will pick it up.
+   * When absent, the timeline still advances silently — flame + text carry the practice.
+   */
+  audioSrc?: string;
 }
 
 export const GUIDED_STEPS: MeditationStep[] = [
