@@ -8,8 +8,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldCheck, AlertCircle } from "lucide-react";
 import { loginAdmin, verifyAdminSession } from "@/admin/lib/adminAuth";
 import { useTranslation } from 'react-i18next';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function AdminLoginPage() {
+  usePageMeta({ title: 'Admin sign in — AskMukthiGuru', noindex: true });
   const nav = useNavigate();
   const [params] = useSearchParams();
   const redirectTo = params.get("redirect") || "/admin";
