@@ -105,7 +105,7 @@ describe('useRequireAuth', () => {
   it('prevents race condition redirects on page mount if onAuthStateChange fires early SIGNED_OUT', async () => {
     // Mock onAuthStateChange to trigger callback with SIGNED_OUT on registration
     let onAuthCallback: any;
-    onAuthStateChangeMock.mockImplementation((callback) => {
+    (onAuthStateChangeMock as any).mockImplementation((callback) => {
       onAuthCallback = callback;
       // Immediately call with no session
       callback('SIGNED_OUT', null);
