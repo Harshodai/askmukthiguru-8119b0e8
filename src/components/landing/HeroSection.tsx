@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion, MotionConfig } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Play, Sparkles } from 'lucide-react';
-import heroImage from '@/assets/hero-spiritual.jpg';
+import heroImage from '@/assets/hero-spiritual.webp';
 import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
 import { DemoModal, hasSeenTour, recordTourOutcome, WelcomePrompt } from './DemoModal';
