@@ -56,6 +56,7 @@ const FeedbackPage = lazyWithRetry(() => import("./admin/pages/FeedbackPage"));
 const OkfManagerPage = lazyWithRetry(() => import("./admin/pages/OkfManager"));
 const JobsPage = lazyWithRetry(() => import("./admin/pages/JobsPage"));
 const RAGFlowPage = lazyWithRetry(() => import("./admin/pages/RAGFlowPage"));
+const AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,9 @@ const App = () => {
               <Route path="okf" element={<OkfManagerPage />} />
               <Route path="rag-flow" element={
                 <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
+              } />
+              <Route path="self-check" element={
+                <Suspense fallback={<BrandedSpinner />}><AdminSelfCheckPage /></Suspense>
               } />
             </Route>
 
