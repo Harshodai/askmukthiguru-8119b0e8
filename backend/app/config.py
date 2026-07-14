@@ -272,6 +272,7 @@ class Settings(BaseSettings):
     notebook_rate_limit: str = "20/minute"
     memory_write_rate_limit: str = "10/minute"
     profile_rate_limit: str = "10/minute"
+    push_register_rate_limit: str = "10/minute"
 
     # --- Support / Contact (SMTP) ---
     smtp_host: Optional[str] = None
