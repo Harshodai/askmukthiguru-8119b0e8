@@ -355,10 +355,10 @@ const ProfilePage = () => {
               <p className="text-sm text-muted-foreground truncate">
                 {user?.email ?? 'Your spiritual journey'}
               </p>
-              {stats && stats.currentStreak > 0 && (
+              {stats && stats.streakDays > 0 && (
                 <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-ojas">
                   <Flame className="w-3.5 h-3.5" />
-                  <span className="font-medium">{stats.currentStreak}-day streak</span>
+                  <span className="font-medium">{stats.streakDays}-day streak</span>
                 </div>
               )}
             </div>
