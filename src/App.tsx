@@ -30,6 +30,9 @@ const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const TTSVerificationPage = lazyWithRetry(() => import("./pages/TTSVerificationPage"));
 const SpiritGuidesPage = lazyWithRetry(() => import("./pages/guides/SpiritGuidesPage"));
 const AiSpiritualCompanionPage = lazyWithRetry(() => import("./pages/guides/AiSpiritualCompanionPage"));
+const BeautifulStateMeditationPage = lazyWithRetry(() => import("./pages/guides/BeautifulStateMeditationPage"));
+const SereneMindPracticePage = lazyWithRetry(() => import("./pages/guides/SereneMindPracticePage"));
+const SelfCentricThinkingPage = lazyWithRetry(() => import("./pages/guides/SelfCentricThinkingPage"));
 const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"));
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
 
@@ -155,6 +158,9 @@ const App = () => {
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
               <Route path="/guides/spirit-guides" element={<Suspense fallback={<BrandedSpinner />}><SpiritGuidesPage /></Suspense>} />
               <Route path="/guides/ai-spiritual-companion" element={<Suspense fallback={<BrandedSpinner />}><AiSpiritualCompanionPage /></Suspense>} />
+              <Route path="/guides/beautiful-state-meditation" element={<Suspense fallback={<BrandedSpinner />}><BeautifulStateMeditationPage /></Suspense>} />
+              <Route path="/guides/serene-mind-practice" element={<Suspense fallback={<BrandedSpinner />}><SereneMindPracticePage /></Suspense>} />
+              <Route path="/guides/self-centric-thinking" element={<Suspense fallback={<BrandedSpinner />}><SelfCentricThinkingPage /></Suspense>} />
               <Route path="/notebooks" element={<Suspense fallback={<BrandedSpinner />}><StudyNotebookPage /></Suspense>} />
               <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
