@@ -100,6 +100,10 @@ async def ingest_endpoint(
         if settings.supabase_url and settings.supabase_key:
             try:
                 supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+                # Carry the caller's JWT so RLS sees auth.uid() instead of anon
+                _auth_header = request.headers.get("Authorization", "")
+                if _auth_header.startswith("Bearer "):
+                    supabase_client.auth.set_session(_auth_header[7:], "")
                 resp = supabase_client.table("ingest_jobs").insert({
                     "source": url,
                     "status": "queued",
@@ -126,6 +130,10 @@ async def ingest_endpoint(
     if settings.supabase_url and settings.supabase_key:
         try:
             supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            # Carry the caller's JWT so RLS sees auth.uid() instead of anon
+            _auth_header = request.headers.get("Authorization", "")
+            if _auth_header.startswith("Bearer "):
+                supabase_client.auth.set_session(_auth_header[7:], "")
             resp = supabase_client.table("ingest_jobs").insert({
                 "source": url,
                 "status": "queued",
