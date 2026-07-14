@@ -20,6 +20,7 @@ class TranscriptionProvider(Protocol):
         video_id: str = "",
         language: Optional[str] = None,
         model: Optional[str] = None,
+        **kwargs: Any,
     ) -> Optional[str]:
         """Transcribe a local audio file and return the full text.
 
@@ -39,6 +40,7 @@ class TranscriptionProvider(Protocol):
         audio_bytes: bytes,
         *,
         language: Optional[str] = None,
+        **kwargs: Any,
     ) -> str:
         """Transcribe a small audio chunk for realtime / WebSocket use.
 
