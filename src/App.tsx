@@ -21,6 +21,7 @@ const PracticesPage = lazyWithRetry(() => import("./pages/PracticesPage"));
 const PracticeDetailPage = lazyWithRetry(() => import("./pages/PracticeDetailPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+const MFAChallengePage = lazyWithRetry(() => import("./pages/MFAChallengePage"));
 const AuthDiagnosticsPage = lazyWithRetry(() => import("./pages/AuthDiagnosticsPage"));
 const AuthLatencyDashboard = lazyWithRetry(() => import("./pages/AuthLatencyDashboard"));
 const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
@@ -132,6 +133,7 @@ const App = () => {
             <Route element={<DebugLayout />}>
               <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
               <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
+              <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
               {!import.meta.env.PROD && (
                 <>
                   <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />

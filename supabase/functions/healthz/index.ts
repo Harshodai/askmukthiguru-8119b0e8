@@ -17,7 +17,9 @@ const time = async <T,>(name: string, fn: () => Promise<T>): Promise<Check> => {
     await fn();
     return { name, ok: true, latency_ms: Date.now() - start };
   } catch (e) {
-    return { name, ok: false, latency_ms: Date.now() - start, detail: (e as Error).message };
+    // Log full error server-side only; return generic status to callers.
+    console.error(`[healthz] ${name} check failed:`, (e as Error).message);
+    return { name, ok: false, latency_ms: Date.now() - start, detail: 'unreachable' };
   }
 };
 
