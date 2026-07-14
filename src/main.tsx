@@ -4,9 +4,11 @@ import { RootErrorBoundary } from "./components/common/RootErrorBoundary";
 import { I18nextProvider } from "react-i18next";
 import i18n from "./i18n";
 import { initSentry } from "./lib/sentry";
+import { initWebVitals } from "./lib/webVitals";
 import "./index.css";
 
 initSentry();
+initWebVitals();
 
 createRoot(document.getElementById("root")!).render(
   <I18nextProvider i18n={i18n}>
