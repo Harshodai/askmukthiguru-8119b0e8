@@ -107,7 +107,7 @@ export const DesktopSidebar = ({
 
   return (
     <motion.aside
-      className="hidden sm:flex flex-col h-full border-r border-border/40 bg-card/40 backdrop-blur-sm overflow-hidden flex-shrink-0"
+      className="hidden sm:flex flex-col h-full border-r border-hairline bg-card/40 backdrop-blur-sm overflow-hidden flex-shrink-0 safe-top"
       animate={{ width: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
     >
