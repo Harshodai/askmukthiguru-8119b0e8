@@ -44,12 +44,12 @@ def send_support_email(
         return _send_via_smtp(
             to=dest,
             subject=full_subject,
-            body=_build_body(name, from_email, message),
-            from_email=from_email,
+            body=_build_body(name, safe_from, message),
+            from_email=safe_from,
             attachment_paths=attachment_paths or [],
         )
 
-    return _save_to_disk(name, from_email, subject, message, category, attachment_paths)
+    return _save_to_disk(name, safe_from, safe_subject, message, safe_category, attachment_paths)
 
 
 def _build_body(name: str, from_email: str, message: str) -> str:
