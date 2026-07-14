@@ -31,12 +31,15 @@ export function useMeditationAudio(
       const el = new Audio();
       el.preload = 'auto';
       el.crossOrigin = 'anonymous';
+      // Silently swallow missing audio files — meditation continues without narration.
+      el.onerror = () => { el.removeAttribute('src'); };
       audioRef.current = el;
     }
     if (!preloadRef.current) {
       const el = new Audio();
       el.preload = 'auto';
       el.crossOrigin = 'anonymous';
+      el.onerror = () => { el.removeAttribute('src'); };
       preloadRef.current = el;
     }
     return () => {
