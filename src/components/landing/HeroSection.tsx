@@ -47,8 +47,13 @@ export const HeroSection = () => {
           <img
             src={heroImage}
             alt=""
+            width={1920}
+            height={1080}
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-full object-cover"
           />
+
           <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/25 to-background/80" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20" />
         </div>
