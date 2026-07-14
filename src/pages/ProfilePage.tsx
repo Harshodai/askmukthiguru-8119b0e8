@@ -320,12 +320,6 @@ const ProfilePage = () => {
 
   const supportCategories = ['Feedback', 'Bug Report', 'Feature Request', 'Other'];
 
-  const statCards = [
-    { icon: Flame, label: 'Sessions', value: stats.totalSessions, color: 'text-ojas', bg: 'bg-ojas/10' },
-    { icon: Clock, label: 'Minutes', value: stats.totalMinutes, color: 'text-prana', bg: 'bg-prana/10' },
-    { icon: Calendar, label: 'Streak', value: `${stats.streakDays}d`, color: 'text-ojas-dark', bg: 'bg-ojas-dark/10' },
-    { icon: Wind, label: 'Breaths', value: stats.totalCycles, color: 'text-prana-light', bg: 'bg-prana/10' },
-  ];
 
   const isOnboarding = searchParams.get('onboarding') === 'true';
 
