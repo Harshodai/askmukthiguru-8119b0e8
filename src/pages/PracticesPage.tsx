@@ -38,7 +38,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
     >
       <button
         type="button"
-        aria-label={isFavorited ? `Unstar ${p.title}` : `Star ${p.title}`}
+        aria-label={isFavorited ? `Remove ${p.title} from favorites` : `Add ${p.title} to favorites`}
         aria-pressed={isFavorited}
         title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
         onClick={(e) => {

@@ -53,7 +53,7 @@ export const PracticesSection = () => {
               >
                 <button
                   type="button"
-                  aria-label={fav ? t('landing.practices.unstar', { title: p.title }) : t('landing.practices.star', { title: p.title })}
+                  aria-label={fav ? `Remove ${p.title} from favorites` : `Add ${p.title} to favorites`}
                   aria-pressed={fav}
                   title={fav ? t('common.removeFavorites') : t('common.addFavorites')}
                   onClick={(e) => {
