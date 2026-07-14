@@ -200,121 +200,142 @@ def _wire_graph_observers() -> None:
         logger.warning(f"Graph observer wiring skipped: {exc}")
 
 
+# === Startup state (checked by health endpoint) ===
+_startup_complete = False
+_startup_error: str | None = None
+
+
+async def _background_startup(container) -> None:
+    """Run heavy initialization after the server starts accepting requests."""
+    try:
+        # Ensure encoder is loaded first (resolves primary/fallback models & dimension)
+        try:
+            logger.info("Startup: Loading embedding encoder...")
+            await asyncio.to_thread(container.embedding._ensure_encoder)
+            logger.info(
+                f"Startup: Encoder loaded (Model: {settings.embedding_model}, "
+                f"Dimension: {settings.embedding_dimension})"
+            )
+        except Exception as e:
+            logger.error(f"Startup: Failed to load embedding encoder: {e}", exc_info=True)
+
+        # Pre-warm remaining models (reranker, colbert) in background thread
+        def prewarm_remaining():
+            logger.info("Background pre-warming (reranker/colbert): starting...")
+            try:
+                container.embedding._ensure_reranker()
+                if settings.enable_colbert:
+                    container.embedding._ensure_colbert()
+                    logger.info("Background pre-warming (reranker/colbert): complete.")
+                else:
+                    logger.info("Background pre-warming: complete (ColBERT disabled).")
+            except Exception as ex:
+                logger.warning(f"Background pre-warming (reranker/colbert) failed: {ex}")
+
+        asyncio.create_task(asyncio.to_thread(prewarm_remaining))
+
+        # Async services initialization (LightRAG)
+        try:
+            await container.lightrag.initialize()
+        except Exception as e:
+            logger.warning(f"LightRAG init failed (GraphRAG unavailable): {e}")
+
+        # Seed Neo4j Spiritual Ontology Schema
+        try:
+            from app.db.seed_ontology import seed_spiritual_ontology
+            await asyncio.to_thread(seed_spiritual_ontology)
+        except Exception as e:
+            logger.error(f"Ontology seeding failed: {e}")
+
+        # Observability tracing (OpenTelemetry + Jaeger)
+        init_observability(app)
+
+        # Schedule recurring jobs
+        try:
+            from infrastructure.scheduler import start_scheduler
+            start_scheduler()
+        except Exception as e:
+            logger.warning(f"Failed to initialize APScheduler: {e}")
+
+        # Start Telemetry Background Worker
+        telemetry_worker.start()
+
+        # Config Watcher
+        from services.config_watcher import start_config_watcher
+        await start_config_watcher()
+
+        # Wire NodeObservers for the RAG pipeline
+        _register_node_observers()
+
+        # Start Job Queue workers
+        if getattr(container, "job_queue", None):
+            try:
+                from app.orchestrator import queue_worker_factory
+                await container.job_queue.start(queue_worker_factory)
+                logger.info("JobQueue workers started")
+            except Exception as e:
+                logger.warning(f"Failed to start JobQueue workers: {e}")
+
+        # Start LLM Queue
+        if getattr(container, "llm_queue", None):
+            try:
+                await container.llm_queue.start()
+                logger.info("LLMQueue started")
+            except Exception as e:
+                logger.warning(f"Failed to start LLMQueue: {e}")
+
+        # Start Request Queue
+        if getattr(container, "request_queue", None):
+            try:
+                await container.request_queue.start()
+                logger.info("RequestQueue started")
+            except Exception as e:
+                logger.warning(f"Failed to start RequestQueue: {e}")
+
+        import app.dependencies
+        app.dependencies.startup_complete = True
+        logger.info("=== Mukthi Guru Backend Ready ===")
+    except Exception as e:
+        import app.dependencies
+        app.dependencies.startup_error = str(e)
+        logger.error(f"Background startup failed: {e}", exc_info=True)
+
+
 # === Lifespan (startup/shutdown) ===
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     logger.info("=== Starting Mukthi Guru Backend ===")
 
     # 1. Initialize telemetry DB (Supabase — single operational DB)
     await init_telemetry_db()
 
-    # 2. Dependency injection container setup (loads all services)
+    # 2. Create service container (fast, synchronous — no network calls beyond Qdrant handshake)
     startup()
     container = get_container()
+    import app.dependencies
+    app.dependencies.startup_complete = False
+    app.dependencies.startup_error = None
 
-    # 2.5 Ensure encoder is loaded first (resolves primary/fallback models & dimension)
-    try:
-        logger.info("Lifespan: Ensuring embedding encoder is loaded...")
-        await asyncio.to_thread(container.embedding._ensure_encoder)
-        logger.info(
-            f"Lifespan: Encoder loaded successfully (Model: {settings.embedding_model}, "
-            f"Dimension: {settings.embedding_dimension})"
-        )
-    except Exception as e:
-        logger.error(f"Lifespan: Failed to load embedding encoder: {e}", exc_info=True)
+    # Register a global shutdown_scheduler noop so cleanup always works
+    shutdown_scheduler = lambda: None
 
-    # Pre-warm remaining models (reranker, colbert) in a background thread
-    def prewarm_remaining():
-        logger.info("Background pre-warming (reranker/colbert): starting...")
-        try:
-            container.embedding._ensure_reranker()
-            if settings.enable_colbert:
-                container.embedding._ensure_colbert()
-                logger.info("Background pre-warming (reranker/colbert): complete.")
-            else:
-                logger.info("Background pre-warming: complete (ColBERT disabled by config).")
-        except Exception as ex:
-            logger.warning(f"Background pre-warming (reranker/colbert) failed: {ex}")
+    # 3. Defer heavy initialization to background — yield immediately so uvicorn accepts requests
+    bg_init = asyncio.create_task(_background_startup(container))
 
-    asyncio.create_task(asyncio.to_thread(prewarm_remaining))
-
-    # 3. Async services initialization (LightRAG)
-    try:
-        await container.lightrag.initialize()
-    except Exception as e:
-        logger.warning(f"LightRAG initialization failed (GraphRAG unavailable): {e}")
-
-    # 3.5 Seed Neo4j Spiritual Ontology Schema and Default Nodes
-    try:
-        from app.db.seed_ontology import seed_spiritual_ontology
-        await asyncio.to_thread(seed_spiritual_ontology)
-    except Exception as e:
-        logger.error(f"Ontology seeding failed: {e}")
-
-    # 4. (Deprecated) Depression detector is now merged into Serene Mind Engine
-
-    # 5. Observability tracing (OpenTelemetry + Jaeger)
-    init_observability(app)
-
-    # 6. Schedule recurring jobs (BE-5)
-    def shutdown_scheduler():
-        return None
-
-    try:
-        from infrastructure.scheduler import shutdown_scheduler as _sd
-        from infrastructure.scheduler import start_scheduler
-
-        start_scheduler()
-        shutdown_scheduler = _sd
-    except Exception as e:
-        logger.warning(f"Failed to initialize APScheduler: {e}")
-
-    # 7. Start Telemetry Background Worker (Phase 4)
-    telemetry_worker.start()
-
-    # 8. Unit 17: Hot Reload Config Watcher (watchfiles / polling fallback)
-    from services.config_watcher import start_config_watcher
-
-    _config_watcher = await start_config_watcher()
-
-    # 9. Wire NodeObservers (Metrics + Logging) for the RAG pipeline
-    _register_node_observers()
-
-    # 10. Start Job Queue workers (if queue enabled)
-    if getattr(container, "job_queue", None):
-        try:
-            from app.orchestrator import queue_worker_factory
-
-            await container.job_queue.start(queue_worker_factory)
-            logger.info("JobQueue workers started")
-        except Exception as e:
-            logger.warning(f"Failed to start JobQueue workers: {e}")
-
-    # 11. Start LLM Queue (if enabled)
-    if getattr(container, "llm_queue", None):
-        try:
-            await container.llm_queue.start()
-            logger.info("LLMQueue started")
-        except Exception as e:
-            logger.warning(f"Failed to start LLMQueue: {e}")
-
-    # 12. Start Request Queue (Phase 1 — horizontal scaling)
-    if getattr(container, "request_queue", None):
-        try:
-            await container.request_queue.start()
-            logger.info("RequestQueue started (type=%s)", type(container.request_queue).__name__)
-        except Exception as e:
-            logger.warning(f"Failed to start RequestQueue: {e}")
-
-    logger.info("=== Mukthi Guru Backend Ready ===")
+    # YIELD NOW — Railway health check can reach /api/health
+    logger.info("=== Server accepting requests (background init in progress) ===")
     yield
 
-    # Shutdown
+    # Shutdown — cancel background init if still running
+    bg_init.cancel()
+    try:
+        await bg_init
+    except asyncio.CancelledError:
+        pass
+
     logger.info("Shutting down — waiting for in-flight requests (R3 graceful drain)...")
-    # Drain: wait until all in-flight requests finish or timeout expires
     drain_waited = 0.0
     while _INFLIGHT > 0 and drain_waited < _DRAIN_TIMEOUT_S:
         await asyncio.sleep(0.25)
@@ -325,21 +346,22 @@ async def lifespan(app: FastAPI):
         )
     else:
         logger.info(f"Graceful drain complete in {drain_waited:.1f}s")
+
     try:
-        if callable(shutdown_scheduler):
-            shutdown_scheduler()
+        scheduler_shutdown = shutdown_scheduler
+        if callable(scheduler_shutdown):
+            scheduler_shutdown()
     except Exception as e:
         logger.warning(f"Scheduler shutdown error: {e}")
 
-    # Stop Telemetry Background Worker
     telemetry_worker.stop()
 
-    # Stop Config Watcher (Unit 17)
-    from services.config_watcher import stop_config_watcher
+    try:
+        from services.config_watcher import stop_config_watcher
+        await stop_config_watcher()
+    except Exception as e:
+        logger.warning(f"Config watcher shutdown error: {e}")
 
-    await stop_config_watcher()
-
-    # Stop Job Queue workers
     if getattr(container, "job_queue", None) and getattr(container.job_queue, "_running", False):
         try:
             await container.job_queue.stop()
@@ -347,7 +369,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"JobQueue shutdown error: {e}")
 
-    # Stop LLM Queue
     if getattr(container, "llm_queue", None):
         try:
             await container.llm_queue.stop()
@@ -355,7 +376,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"LLMQueue shutdown error: {e}")
 
-    # Stop Request Queue
     if getattr(container, "request_queue", None):
         try:
             await container.request_queue.stop()
@@ -385,10 +405,10 @@ app = FastAPI(
 
 # Trusted Host — validate Host header (only in production)
 if settings.is_production:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=[h.strip() for h in settings.allowed_hosts.split(",") if h.strip()] or ["localhost", "127.0.0.1"],
-    )
+    _allowed = [h.strip() for h in settings.allowed_hosts.split(",") if h.strip()]
+    # Railway health checker uses *.railway.app hostnames — always allow them
+    _allowed.extend(["localhost", "127.0.0.1", ".railway.app", "healthcheck.railway.app"])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed)
 
 # CORS — allow frontend origins (supporting Lovable wildcard preview subdomains)
 import re
