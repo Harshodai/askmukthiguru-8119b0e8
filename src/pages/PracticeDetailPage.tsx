@@ -35,7 +35,7 @@ const PracticeDetailPage = () => {
   }, [practice]);
 
   usePageMeta({
-    title: practice ? `${practice.title} — ${practice.tagline} | AskMukthiGuru` : 'Practice not found | AskMukthiGuru',
+    title: practice ? `${practice.title} | AskMukthiGuru` : 'Practice not found | AskMukthiGuru',
     description: practice ? `${practice.purpose.slice(0, 155)}` : 'The requested practice could not be found.',
     canonical: practice ? `https://askmukthiguru.lovable.app/practices/${practice.slug}` : 'https://askmukthiguru.lovable.app/practices',
     ogType: practice ? 'article' : 'website',
