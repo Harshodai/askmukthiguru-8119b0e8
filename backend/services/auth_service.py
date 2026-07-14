@@ -247,7 +247,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                 }
 
             # For authenticated users, check user_roles table for admin role
-            is_admin = await self._check_admin_role(user_id)
+            is_admin = await self._check_admin_role(user_id, token)
 
             return {
                 "id": user_id,
@@ -272,16 +272,34 @@ class SupabaseAuthStrategy(AuthStrategy):
     _admin_cache: dict[str, tuple] = {}
     _CACHE_TTL = 300  # 5 minutes
 
-    async def _check_admin_role(self, user_id: str) -> bool:
-        """Check if user has admin role via Supabase user_roles table."""
+    async def _check_admin_role(self, user_id: str, jwt_token: str | None = None) -> bool:
+        """Check if user has admin role via Supabase user_roles table.
+
+        Uses the user's own JWT to authenticate the query so RLS sees
+        ``auth.uid()`` instead of the ``anon`` role.  Falls back to the legacy
+        service-key HTTP request (for environments that still carry
+        ``SUPABASE_SERVICE_ROLE_KEY``).
+        """
         now = time.time()
         cached = self._admin_cache.get(user_id)
         if cached and (now - cached[1]) < self._CACHE_TTL:
             return cached[0]
 
         try:
-            import httpx
+            if jwt_token:
+                from supabase import create_client
+                sc = create_client(settings.supabase_url, settings.supabase_key)
+                sc.auth.set_session(jwt_token, "")
+                resp = sc.table("user_roles").select("id").eq("user_id", user_id).eq("role", "admin").execute()
+                is_admin = bool(resp.data)
+                self._admin_cache[user_id] = (is_admin, now)
+                if is_admin:
+                    logger.info(f"User {user_id} confirmed as admin via authenticated query")
+                return is_admin
 
+            # Fallback: legacy service-key HTTP request (only works with
+            # SUPABASE_SERVICE_ROLE_KEY — not available on Lovable Cloud).
+            import httpx
             base_url = settings.supabase_url.rstrip("/")
             service_key = getattr(settings, "supabase_service_key", None) or settings.supabase_key
             if not service_key:
