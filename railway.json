@@ -10,17 +10,11 @@
     "restartPolicyMaxRetries": 5,
     "drainingSeconds": 30,
     "overlapSeconds": 10,
+    "healthcheckPath": "/api/healthz",
+    "healthcheckTimeout": 120,
     "limits": {
       "cpu": 4000,
-      "memory": "12Gi"
-    }
-  },
-  "services": {
-    "askmukthiguru-8119b0e8": {
-      "deploy": {
-        "healthcheckPath": "/api/health",
-        "healthcheckTimeout": 120
-      }
+      "memory": "4Gi"
     }
   }
 }
